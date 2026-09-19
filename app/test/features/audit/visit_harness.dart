@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/network/human_error.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -96,8 +97,11 @@ class ScriptedVisits implements VisitsRepository {
 
   factory ScriptedVisits.succeeds() =>
       ScriptedVisits(() => CheckInSucceeded('visit-1'));
-  factory ScriptedVisits.tooFar([double metres = 180]) =>
-      ScriptedVisits(() => CheckInGeofenceFailed(metres));
+  /// A failed fence, measured from a real position — so the wrong-pin
+  /// report (#386) has evidence to carry.
+  factory ScriptedVisits.tooFar([double metres = 180]) => ScriptedVisits(
+    () => CheckInGeofenceFailed(metres, lat: -26.2059, lng: 28.0460),
+  );
   factory ScriptedVisits.noGps([
     CheckInLocationProblem problem = CheckInLocationProblem.servicesDisabled,
   ]) => ScriptedVisits(() => CheckInLocationUnavailable.because(problem));
@@ -112,6 +116,34 @@ class ScriptedVisits implements VisitsRepository {
     if (_throws) throw StateError('local database unavailable');
     if (_pends) return Completer<CheckInResult>().future;
     return _result!();
+  }
+
+  /// Every wrong-pin report filed, in order (#386).
+  final disputes =
+      <({String outletId, double lat, double lng, double distance, String? note})>[];
+
+  /// Makes the next wrong-pin report fail the way a local write can.
+  bool disputeFails = false;
+
+  @override
+  Future<CheckInResult> checkInDisputingPin({
+    required String outletId,
+    required double lat,
+    required double lng,
+    required double distanceMeters,
+    String? note,
+  }) async {
+    disputes.add((
+      outletId: outletId,
+      lat: lat,
+      lng: lng,
+      distance: distanceMeters,
+      note: note,
+    ));
+    if (disputeFails) {
+      return CheckInFailed(HumanError.of(StateError('disk full')));
+    }
+    return CheckInOverridden('visit-flagged', distanceMeters: distanceMeters);
   }
 
   @override

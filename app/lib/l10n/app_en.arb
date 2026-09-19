@@ -2090,10 +2090,6 @@
   "@visitPinIsWrong": {
     "description": "A third, quieter action on the too-far screen: the agent is at the shop and the stored coordinates are not."
   },
-  "visitPinReportedHeld": "Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.",
-  "@visitPinReportedHeld": {
-    "description": "Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does."
-  },
   "visitNoGpsFixPermission": "Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.",
   "@visitNoGpsFixPermission": {
     "description": "The fix, as its own paragraph, when location permission was denied."
@@ -2429,5 +2425,138 @@
         "type": "String"
       }
     }
+  },
+  "visitPinTooFarToReport": "This is too far to report the pin from here. Ask your manager to correct this store.",
+  "@visitPinTooFarToReport": {
+    "description": "Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action."
+  },
+  "pinDisputeEyebrow": "The pin is wrong",
+  "@pinDisputeEyebrow": {
+    "description": "Block label on the wrong-pin report screen."
+  },
+  "pinDisputeTitle": "Report the pin and start the visit",
+  "@pinDisputeTitle": {
+    "description": "Headline of the wrong-pin report screen."
+  },
+  "pinDisputeEvidenceEyebrow": "Sent with your report",
+  "@pinDisputeEvidenceEyebrow": {
+    "description": "Block label over the evidence the report carries."
+  },
+  "pinDisputeDistanceLine": "from where the app has this shop, measured just now",
+  "@pinDisputeDistanceLine": {
+    "description": "Beside the measured distance figure on the wrong-pin report."
+  },
+  "pinDisputeDistanceSemantics": "You are {meters} metres from where the app has this shop.",
+  "@pinDisputeDistanceSemantics": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    },
+    "description": "Screen-reader label for the distance on the wrong-pin report; unit spelled out."
+  },
+  "pinDisputePositionLine": "Where you are standing, as your phone recorded it",
+  "@pinDisputePositionLine": {
+    "description": "Evidence line: the agent position travels with the report."
+  },
+  "pinDisputePhotoLine": "Your photo of the storefront",
+  "@pinDisputePhotoLine": {
+    "description": "Evidence line shown once a storefront photo is attached."
+  },
+  "pinDisputeExplain": "The visit starts outside the fence and stays flagged. Your manager sees where you were and can move the pin. You cannot clear the flag yourself.",
+  "@pinDisputeExplain": {
+    "description": "Plain statement of what the override does. Must never read as a bypass."
+  },
+  "pinDisputeNoteLabel": "What is wrong with the pin? (optional)",
+  "@pinDisputeNoteLabel": {
+    "description": "Label for the optional note on a wrong-pin report."
+  },
+  "pinDisputeNoteHint": "e.g. the pin is on the depot, the shop is on Main Road",
+  "@pinDisputeNoteHint": {
+    "description": "Example text in the wrong-pin note field."
+  },
+  "pinDisputeAddPhoto": "Add a photo of the storefront",
+  "@pinDisputeAddPhoto": {
+    "description": "Optional action: attach a storefront photo as evidence."
+  },
+  "pinDisputeRetakePhoto": "Retake the photo",
+  "@pinDisputeRetakePhoto": {
+    "description": "Replace the attached storefront photo."
+  },
+  "pinDisputePhotoAdded": "Storefront photo added. It is sent with the visit.",
+  "@pinDisputePhotoAdded": {
+    "description": "Confirmation once a storefront photo is attached."
+  },
+  "pinDisputePhotoLabel": "Storefront",
+  "@pinDisputePhotoLabel": {
+    "description": "Title of the capture screen for the storefront photo."
+  },
+  "pinDisputePhotoHint": "Stand back far enough to get the shop name and the door in one shot.",
+  "@pinDisputePhotoHint": {
+    "description": "Framing hint on the storefront capture screen."
+  },
+  "pinDisputeSubmit": "Start the visit, flagged",
+  "@pinDisputeSubmit": {
+    "description": "Primary on the wrong-pin report: starts the visit outside the fence, flagged for review."
+  },
+  "pinDisputeBack": "Back to the distance",
+  "@pinDisputeBack": {
+    "description": "Leaves the report and returns to the too-far screen."
+  },
+  "pinDisputeFailed": "The visit could not start: {reason}",
+  "@pinDisputeFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    },
+    "description": "Shown when starting the flagged visit failed on the phone."
+  },
+  "visitFlagOutOfFence": "Out of fence",
+  "@visitFlagOutOfFence": {
+    "description": "Flag chip word: this visit was checked in outside the geofence."
+  },
+  "visitFlagMetres": "{meters} m",
+  "@visitFlagMetres": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    },
+    "description": "The distance detail in the out-of-fence flag chip."
+  },
+  "visitFlagOutOfFenceSemantics": "Out of fence, {meters} metres. Double-tap for detail.",
+  "@visitFlagOutOfFenceSemantics": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    },
+    "description": "Screen-reader label for the out-of-fence flag chip."
+  },
+  "visitFlagPinReported": "Pin reported",
+  "@visitFlagPinReported": {
+    "description": "Flag chip word: the agent reported this store's pin as wrong; it is for review."
+  },
+  "visitFlagPinReportedSemantics": "Pin reported, for your manager to review. Double-tap for detail.",
+  "@visitFlagPinReportedSemantics": {
+    "description": "Screen-reader label for the pin-reported flag chip."
+  },
+  "visitFlagSheetTitle": "Checked in outside the fence",
+  "@visitFlagSheetTitle": {
+    "description": "Title of the sheet explaining the override flags."
+  },
+  "visitFlagSheetBody": "You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.",
+  "@visitFlagSheetBody": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    },
+    "description": "Body of the sheet explaining the override flags."
+  },
+  "visitFlagSheetClose": "Close",
+  "@visitFlagSheetClose": {
+    "description": "Closes the flag explanation sheet."
   }
 }

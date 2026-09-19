@@ -2714,12 +2714,6 @@ abstract class AppLocalizations {
   /// **'The pin is wrong'**
   String get visitPinIsWrong;
 
-  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
-  ///
-  /// In en, this message translates to:
-  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
-  String get visitPinReportedHeld;
-
   /// The fix, as its own paragraph, when location permission was denied.
   ///
   /// In en, this message translates to:
@@ -2995,6 +2989,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Photo taken {time}, held on this phone.'**
   String capturePhotoSemantics(String time);
+
+  /// Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action.
+  ///
+  /// In en, this message translates to:
+  /// **'This is too far to report the pin from here. Ask your manager to correct this store.'**
+  String get visitPinTooFarToReport;
+
+  /// Block label on the wrong-pin report screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin is wrong'**
+  String get pinDisputeEyebrow;
+
+  /// Headline of the wrong-pin report screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Report the pin and start the visit'**
+  String get pinDisputeTitle;
+
+  /// Block label over the evidence the report carries.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent with your report'**
+  String get pinDisputeEvidenceEyebrow;
+
+  /// Beside the measured distance figure on the wrong-pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'from where the app has this shop, measured just now'**
+  String get pinDisputeDistanceLine;
+
+  /// Screen-reader label for the distance on the wrong-pin report; unit spelled out.
+  ///
+  /// In en, this message translates to:
+  /// **'You are {meters} metres from where the app has this shop.'**
+  String pinDisputeDistanceSemantics(int meters);
+
+  /// Evidence line: the agent position travels with the report.
+  ///
+  /// In en, this message translates to:
+  /// **'Where you are standing, as your phone recorded it'**
+  String get pinDisputePositionLine;
+
+  /// Evidence line shown once a storefront photo is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo of the storefront'**
+  String get pinDisputePhotoLine;
+
+  /// Plain statement of what the override does. Must never read as a bypass.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit starts outside the fence and stays flagged. Your manager sees where you were and can move the pin. You cannot clear the flag yourself.'**
+  String get pinDisputeExplain;
+
+  /// Label for the optional note on a wrong-pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'What is wrong with the pin? (optional)'**
+  String get pinDisputeNoteLabel;
+
+  /// Example text in the wrong-pin note field.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. the pin is on the depot, the shop is on Main Road'**
+  String get pinDisputeNoteHint;
+
+  /// Optional action: attach a storefront photo as evidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo of the storefront'**
+  String get pinDisputeAddPhoto;
+
+  /// Replace the attached storefront photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake the photo'**
+  String get pinDisputeRetakePhoto;
+
+  /// Confirmation once a storefront photo is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront photo added. It is sent with the visit.'**
+  String get pinDisputePhotoAdded;
+
+  /// Title of the capture screen for the storefront photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront'**
+  String get pinDisputePhotoLabel;
+
+  /// Framing hint on the storefront capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Stand back far enough to get the shop name and the door in one shot.'**
+  String get pinDisputePhotoHint;
+
+  /// Primary on the wrong-pin report: starts the visit outside the fence, flagged for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the visit, flagged'**
+  String get pinDisputeSubmit;
+
+  /// Leaves the report and returns to the too-far screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the distance'**
+  String get pinDisputeBack;
+
+  /// Shown when starting the flagged visit failed on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit could not start: {reason}'**
+  String pinDisputeFailed(String reason);
+
+  /// Flag chip word: this visit was checked in outside the geofence.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of fence'**
+  String get visitFlagOutOfFence;
+
+  /// The distance detail in the out-of-fence flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'{meters} m'**
+  String visitFlagMetres(int meters);
+
+  /// Screen-reader label for the out-of-fence flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of fence, {meters} metres. Double-tap for detail.'**
+  String visitFlagOutOfFenceSemantics(int meters);
+
+  /// Flag chip word: the agent reported this store's pin as wrong; it is for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported'**
+  String get visitFlagPinReported;
+
+  /// Screen-reader label for the pin-reported flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported, for your manager to review. Double-tap for detail.'**
+  String get visitFlagPinReportedSemantics;
+
+  /// Title of the sheet explaining the override flags.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in outside the fence'**
+  String get visitFlagSheetTitle;
+
+  /// Body of the sheet explaining the override flags.
+  ///
+  /// In en, this message translates to:
+  /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
+  String visitFlagSheetBody(int meters);
+
+  /// Closes the flag explanation sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get visitFlagSheetClose;
 }
 
 class _AppLocalizationsDelegate
