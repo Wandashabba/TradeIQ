@@ -21,6 +21,7 @@ class SyncItem {
     this.lastError,
     this.lastAttemptAt,
     this.payloadBytes,
+    this.visitDraftId,
   });
 
   final int id;
@@ -36,6 +37,15 @@ class SyncItem {
   /// is not a row of zero bytes, and the outbox row renders nothing rather
   /// than "0 kB".
   final int? payloadBytes;
+
+  /// Which visit this row submitted, on a `visit_submit` row: the local draft
+  /// id, decoded from the payload.
+  ///
+  /// It is what makes a submitted visit re-openable. My work is the only
+  /// place the agent meets a visit again after they have walked out of the
+  /// shop, so it is where the score has to be reachable — otherwise a score
+  /// changed on review is a line nobody is ever on the right screen to read.
+  final String? visitDraftId;
 
   /// The last failure as stored: a [SyncError.code], or — on a row written
   /// before the codes — the English line itself. Word it with [problemIn].
@@ -137,12 +147,35 @@ class SyncStatus {
   /// Signing in is then the expected next move, and it is the one case where
   /// this screen's amber moves off "Send now" — pressing that button with no
   /// session sends nothing.
+  ///
+  /// **Held, never a severity** (unify §1.13): these send themselves the
+  /// moment the agent signs in, so they are Oatmeal, a square and a word, and
+  /// they are never counted in [stuck].
   List<SyncItem> get sessionEnded =>
       needsAttention.where((i) => i.sessionEnded).toList();
 
+  /// The captures that are wrong on their own account — refused, too large,
+  /// or failing in a way we cannot name — and so will not send however long
+  /// the agent waits or whether they sign in. The only list that may raise a
+  /// colour: the crimson summary, the needs-you chip and the needs-you band
+  /// all count this and never [needsAttention], which also holds the
+  /// session-ended captures.
+  List<SyncItem> get stuck =>
+      needsAttention.where((i) => !i.sessionEnded).toList();
+
+  /// Everything on the phone that is not [stuck]: the captures waiting for
+  /// signal or for their visit, plus the ones held until the agent signs in.
+  /// What My work lists under "Waiting to send" — held work, in one group,
+  /// none of it a severity.
+  List<SyncItem> get held =>
+      pending.where((i) => !i.needsAttention || i.sessionEnded).toList();
+
   /// When we last got something through. Null if we never have.
   DateTime? get lastSentAt {
-    final stamps = sent.map((i) => i.lastAttemptAt).whereType<DateTime>().toList();
+    final stamps = sent
+        .map((i) => i.lastAttemptAt)
+        .whereType<DateTime>()
+        .toList();
     if (stamps.isEmpty) return null;
     stamps.sort();
     return stamps.last;
@@ -184,6 +217,9 @@ final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
             lastError: r.lastError,
             lastAttemptAt: r.lastAttemptAt,
             payloadBytes: r.payloadBytes,
+            visitDraftId: r.entityType == 'visit_submit'
+                ? visitDraftIdFromPayload(r.payloadJson)
+                : null,
           ),
         )
         .toList();
@@ -212,8 +248,9 @@ class SyncingNotifier extends Notifier<bool> {
   void set(bool value) => state = value;
 }
 
-final syncingProvider =
-    NotifierProvider<SyncingNotifier, bool>(SyncingNotifier.new);
+final syncingProvider = NotifierProvider<SyncingNotifier, bool>(
+  SyncingNotifier.new,
+);
 
 /// A manual "try sending now". The queue flushes itself, but an agent who has
 /// just walked into signal should be able to make it happen rather than wonder.
@@ -274,6 +311,17 @@ String? outletIdFromPayload(String payloadJson) {
   try {
     final map = jsonDecode(payloadJson) as Map<String, dynamic>;
     return map['outletId'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Which visit a `visit_submit` row submitted. Best-effort, for the same
+/// reason: a row whose payload will not parse still has to render.
+String? visitDraftIdFromPayload(String payloadJson) {
+  try {
+    final map = jsonDecode(payloadJson) as Map<String, dynamic>;
+    return map['visitDraftId'] as String?;
   } catch (_) {
     return null;
   }

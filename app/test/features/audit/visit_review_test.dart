@@ -276,8 +276,10 @@ void main() {
       expect(action.reason, 'Action plan you wrote');
       expect(action.reasonIn(af), 'Aksieplan wat jy geskryf het');
       expect(
-        RaisedTask.actionPlan(requiredFix: 'Add a facing', priority: 'low')
-            .titleIn(af),
+        RaisedTask.actionPlan(
+          requiredFix: 'Add a facing',
+          priority: 'low',
+        ).titleIn(af),
         'Add a facing',
       );
 
@@ -306,7 +308,10 @@ void main() {
         willRaise: [],
       );
       expect(one.capturedLineIn(af), '1 SKU getel · 1 mededinger · 1 foto');
-      expect(many.capturedLineIn(af), '12 SKU’s getel · 2 mededingers · 3 foto’s');
+      expect(
+        many.capturedLineIn(af),
+        '12 SKU’s getel · 2 mededingers · 3 foto’s',
+      );
       expect(many.capturedLine, '12 SKUs counted · 2 competitors · 3 photos');
     });
   });

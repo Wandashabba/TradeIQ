@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
+import '../../../core/location/location_service.dart' show currentFixProvider;
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
@@ -78,7 +79,26 @@ import 'outlet_sheet.dart';
 /// territories assigned to the caller's own user id. The app never takes a
 /// tenant-wide list and filters it. See `myTerritoryOutletsProvider`, and the
 /// PR for what that endpoint still cannot do.
-class AgentMapScreen extends ConsumerWidget {
+///
+/// ## Every visit asks where the phone is
+///
+/// The fix is shared with Today through `currentFixProvider`, which keeps its
+/// answer until somebody drops it. This screen drops it on the way in. The
+/// agent opens the Map to learn where they are *now*, and the circle arms, and
+/// routes to `/audit/<id>`, for the store the fix says they are standing in —
+/// a fix taken at the depot at 07:00 would light it for the wrong store, or
+/// for none. A refusal is re-asked the same way, so turning location on and
+/// coming back is enough.
+///
+/// It is dropped **after the first frame**, not in `initState`: invalidating a
+/// provider while the tree is building marks the `ProviderScope` dirty mid-
+/// build, which Flutter rejects. Until then the route shows its loading
+/// frame rather than the cached view, so the stale fix is never on screen —
+/// not even for the one frame it takes to ask again.
+///
+/// Only a fix that already exists is dropped: on the very first visit nobody
+/// has asked yet, and there is nothing stale to hide.
+class AgentMapScreen extends ConsumerStatefulWidget {
   const AgentMapScreen({super.key});
 
   /// The nav circle's id. Declared on every phase; painted only when the agent
@@ -86,9 +106,51 @@ class AgentMapScreen extends ConsumerWidget {
   static const String navCircleClaimId = 'map-check-in-here';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const TorchlightRoute(child: _AgentMap());
+  ConsumerState<AgentMapScreen> createState() => _AgentMapScreenState();
+}
+
+class _AgentMapScreenState extends ConsumerState<AgentMapScreen> {
+  /// Whether a fix from before this visit is still waiting to be dropped.
+  late bool _fixIsFromBefore;
+
+  @override
+  void initState() {
+    super.initState();
+    _fixIsFromBefore = ref.exists(currentFixProvider);
+    if (_fixIsFromBefore) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.invalidate(currentFixProvider);
+        // Rebuild the view model here, between frames, rather than letting
+        // the first `watch` below do it mid-build: a dirty fix flushed during
+        // a build notifies the map's provider, which asks the ProviderScope
+        // to rebuild while Flutter is still building.
+        ref.read(agentMapProvider);
+        setState(() => _fixIsFromBefore = false);
+      });
+    }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return TorchlightRoute(
+      child: _fixIsFromBefore ? const _MapLoading() : const _AgentMap(),
+    );
+  }
+}
+
+/// The frame while the view model is on its way: chrome, and the map band
+/// reserved. Shared by the first load and a return visit re-asking the phone.
+class _MapLoading extends StatelessWidget {
+  const _MapLoading();
+
+  @override
+  Widget build(BuildContext context) => const AgentMapFrame(
+    phase: 'loading',
+    atDoor: null,
+    storeCount: null,
+    children: <Widget>[_MapSkeleton()],
+  );
 }
 
 class _AgentMap extends ConsumerWidget {
@@ -100,12 +162,7 @@ class _AgentMap extends ConsumerWidget {
     final mapAsync = ref.watch(agentMapProvider);
 
     return mapAsync.when(
-      loading: () => const AgentMapFrame(
-        phase: 'loading',
-        atDoor: null,
-        storeCount: null,
-        children: <Widget>[_MapSkeleton()],
-      ),
+      loading: () => const _MapLoading(),
       // A load failure keeps the chrome and says what still works. Picking a
       // store by name needs neither this screen's data nor a map.
       error: (error, stack) => AgentMapFrame(
@@ -207,7 +264,8 @@ class AgentMapFrame extends ConsumerWidget {
           navPill: TorchNavPill(
             slots: TodayFrame.slotsIn(
               l10n,
-              runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
+              runningContests:
+                  ref.watch(runningContestsCountProvider).value ?? 0,
             ),
             activeIndex: TodayFrame.mapSlot,
             onSelect: (i) => TodayFrame.go(context, i),
@@ -249,10 +307,12 @@ class _Stores extends ConsumerWidget {
     final skin = context.skin;
     final drawn = view.drawn;
     final planned = <MapOutlet>[
-      for (final pin in drawn) if (pin.state != MapPinState.territory) pin,
+      for (final pin in drawn)
+        if (pin.state != MapPinState.territory) pin,
     ];
     final rest = <MapOutlet>[
-      for (final pin in drawn) if (pin.state == MapPinState.territory) pin,
+      for (final pin in drawn)
+        if (pin.state == MapPinState.territory) pin,
     ];
     final bleed = skin.space.gutter * 2;
 
@@ -269,15 +329,12 @@ class _Stores extends ConsumerWidget {
         // Why the phone will not say where things are. One sentence, once —
         // not an em dash on every row.
         if (view.problem != null) ...<Widget>[
-          Text(
-            switch (view.problem!) {
-              MapLocationProblem.denied => l10n.mapLocationDenied,
-              MapLocationProblem.servicesOff => l10n.mapLocationServicesOff,
-              MapLocationProblem.timedOut ||
-              MapLocationProblem.failed => l10n.mapLocationNoFix,
-            },
-            style: skin.text.body.style(color: skin.palette.ink2),
-          ),
+          Text(switch (view.problem!) {
+            MapLocationProblem.denied => l10n.mapLocationDenied,
+            MapLocationProblem.servicesOff => l10n.mapLocationServicesOff,
+            MapLocationProblem.timedOut ||
+            MapLocationProblem.failed => l10n.mapLocationNoFix,
+          }, style: skin.text.body.style(color: skin.palette.ink2)),
           const SizedBox(height: TiqSpace.s5),
         ],
 

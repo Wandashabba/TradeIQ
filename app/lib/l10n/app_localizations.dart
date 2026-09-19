@@ -3320,6 +3320,408 @@ abstract class AppLocalizations {
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
 
+  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
+  String get visitPinReportedHeld;
+
+  /// The affirmative state word beside a toggle. Never the only signal.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get wordYes;
+
+  /// The negative state word beside a toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get wordNo;
+
+  /// The inline save on every capture section — the only control that persists the section.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get sectionSave;
+
+  /// The thumb zone's action on a capture section: save, then return to the visit hub.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and go back'**
+  String get sectionSaveAndBack;
+
+  /// Headline when a section save failed. The values are untouched.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved'**
+  String get sectionSaveFailedTitle;
+
+  /// Body of the failed-save line. Names the work’s safety first.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answers are still here — try Save again.'**
+  String get sectionSaveFailedBody;
+
+  /// Ghost action beneath the save, opening the skip-reason picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t confirm this section'**
+  String get sectionCantConfirm;
+
+  /// Headline of the skip-reason sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Why not?'**
+  String get sectionCantConfirmWhy;
+
+  /// The locked section’s line, naming the reason the agent gave.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t confirm: {reason}'**
+  String sectionCantConfirmLocked(String reason);
+
+  /// Honest note under a can’t-confirm reason: the wire has no field for it yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Held on this phone. Nothing is sent for this yet.'**
+  String get sectionCantConfirmHeld;
+
+  /// Ghost action that unlocks a section the agent marked can’t-confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'I can confirm it after all'**
+  String get sectionCanConfirmAfterAll;
+
+  /// Why the thumb zone’s save is unavailable on a locked section.
+  ///
+  /// In en, this message translates to:
+  /// **'This section is marked can\'t confirm'**
+  String get sectionLockedBlock;
+
+  /// Title of the sheet shown when leaving a dirty section.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved answers'**
+  String get sectionLeaveTitle;
+
+  /// The ghost that leaves a dirty section without saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back without saving'**
+  String get sectionLeaveWithoutSaving;
+
+  /// The tertiary that dismisses the leaving-dirty sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay here'**
+  String get sectionStayHere;
+
+  /// The ghost beneath a repeating card set.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another'**
+  String get sectionAddAnother;
+
+  /// An entry’s place in a repeating card set, in mono.
+  ///
+  /// In en, this message translates to:
+  /// **'{index} of {total}'**
+  String sectionEntryPosition(int index, int total);
+
+  /// Semantic label of a repeating entry’s remove control.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} {position}'**
+  String sectionRemoveEntry(String name, String position);
+
+  /// What a choice row with nothing selected says. Nothing-selected is a state.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered yet'**
+  String get sectionNotAnsweredYet;
+
+  /// The pre-capture card’s action, handing off to the OS camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Open camera'**
+  String get sectionPhotoOpenCamera;
+
+  /// Semantic label of the pre-capture card’s action.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the camera to photograph the shelf'**
+  String get sectionPhotoOpenCameraSemantics;
+
+  /// The framing instruction on the pre-capture card.
+  ///
+  /// In en, this message translates to:
+  /// **'Stand back far enough to get the whole bay, including the price rail.'**
+  String get sectionPhotoFraming;
+
+  /// What the app records with a capture. Stated, never hidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo is stamped with the time and where you are.'**
+  String get sectionPhotoStamped;
+
+  /// Shown when the aisle is likely dark. TORCH is never an amber block.
+  ///
+  /// In en, this message translates to:
+  /// **'Aisle dark? Switch your phone torch on before you shoot.'**
+  String get sectionPhotoTorchHint;
+
+  /// What a captured photo is doing before the visit sends.
+  ///
+  /// In en, this message translates to:
+  /// **'Held on this phone · sends with the visit'**
+  String get sectionPhotoHeld;
+
+  /// Camera-unavailable state. The section stays completable without a photo.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no camera we can reach.'**
+  String get sectionPhotoNoCamera;
+
+  /// The device-side size cap, in a sentence an agent can act on.
+  ///
+  /// In en, this message translates to:
+  /// **'That photo is too big to send. Take it again.'**
+  String get sectionPhotoTooLarge;
+
+  /// Handoff failure, stated here rather than on a lost route.
+  ///
+  /// In en, this message translates to:
+  /// **'The camera did not hand the photo back. Try again.'**
+  String get sectionPhotoFailed;
+
+  /// Semantic label of the photo’s remove control.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the photo'**
+  String get sectionPhotoRemoveSemantics;
+
+  /// Semantic label of the captured photo tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo taken {time}, held on this phone'**
+  String sectionPhotoSemantics(String time);
+
+  /// Skip reason: the store refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The store would not let me'**
+  String get skipReasonStoreRefused;
+
+  /// What the store-refused reason does downstream.
+  ///
+  /// In en, this message translates to:
+  /// **'The manager is told the store refused'**
+  String get skipReasonStoreRefusedConsequence;
+
+  /// Skip reason: the outlet does not stock these lines.
+  ///
+  /// In en, this message translates to:
+  /// **'They do not stock this'**
+  String get skipReasonNotStocked;
+
+  /// What the not-stocked reason does downstream.
+  ///
+  /// In en, this message translates to:
+  /// **'These lines are marked not-stocked for this outlet'**
+  String get skipReasonNotStockedConsequence;
+
+  /// Skip reason: the equipment needed is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The equipment is broken'**
+  String get skipReasonEquipment;
+
+  /// What the broken-equipment reason does downstream.
+  ///
+  /// In en, this message translates to:
+  /// **'A repair task is raised'**
+  String get skipReasonEquipmentConsequence;
+
+  /// Skip reason: none of the three fits, and the agent writes what happened.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get skipReasonSomethingElse;
+
+  /// What the something-else reason requires.
+  ///
+  /// In en, this message translates to:
+  /// **'You write what happened'**
+  String get skipReasonSomethingElseConsequence;
+
+  /// The skip sheet’s commit action.
+  ///
+  /// In en, this message translates to:
+  /// **'Save reason'**
+  String get skipReasonSave;
+
+  /// The skip sheet’s commit action when a reason is already set.
+  ///
+  /// In en, this message translates to:
+  /// **'Change reason'**
+  String get skipReasonChange;
+
+  /// The skip sheet’s ghost. Dismissal is always safe.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get skipReasonCancel;
+
+  /// Label of the required note under “Something else”.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened?'**
+  String get skipReasonNoteLabel;
+
+  /// Why the skip sheet’s commit is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a reason first'**
+  String get skipReasonChooseFirst;
+
+  /// Why the skip sheet’s commit is unavailable with “Something else” chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Say what happened'**
+  String get skipReasonSayWhatHappened;
+
+  /// The sticky summary rule under the stock header. A live region.
+  ///
+  /// In en, this message translates to:
+  /// **'{counted} counted · {outOfStock} out of stock · {toGo} to go'**
+  String s2Summary(int counted, int outOfStock, int toGo);
+
+  /// A SKU nobody has reached yet. Never spoken as “zero”.
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted'**
+  String get s2NotCounted;
+
+  /// The finding word beside a zero count.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of stock'**
+  String get s2OutOfStockWord;
+
+  /// Opens the number sheet, so a stray tap can never replace a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a count'**
+  String get s2TypeCount;
+
+  /// The stepper’s decrease action, named by what it does.
+  ///
+  /// In en, this message translates to:
+  /// **'One fewer'**
+  String get s2OneFewer;
+
+  /// The stepper’s increase action, named by what it does.
+  ///
+  /// In en, this message translates to:
+  /// **'One more'**
+  String get s2OneMore;
+
+  /// What a part-finished stock save does. #410 made null a first-class count.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving now records {toGo} products as not counted — never as empty.'**
+  String s2PartCounted(int toGo);
+
+  /// How far the stock count has got, on the sticky rule’s semantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{counted} of {total} counted'**
+  String s2CountedOf(int counted, int total);
+
+  /// The saved line after a part-finished stock count. Names how many were saved and that the others travel as not counted (null), never as zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {counted} of {total} — the rest are not counted, never empty'**
+  String s2StockSavedPartial(int counted, int total);
+
+  /// Ghost in the sticky stock summary, shown past 12 products while any is uncounted. Scrolls to the first product with no count.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to the first uncounted'**
+  String get s2JumpToUncounted;
+
+  /// The agent app never shows a provisional score as though it were final.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked out on this phone. The final score comes back when the visit sends.'**
+  String get s10NotFinal;
+
+  /// A dimension with nothing behind it. An em dash, a hatch and this reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured on this visit'**
+  String get s10NotMeasured;
+
+  /// The scorecard hero read aloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted total {score} out of 100, {band}'**
+  String s10ScoreSemantics(String score, String band);
+
+  /// A SKU the agent has not priced. Untouched SKUs are not sent.
+  ///
+  /// In en, this message translates to:
+  /// **'No price entered'**
+  String get s5NoPriceYet;
+
+  /// The competitive section’s empty line. An empty shelf is a real outcome.
+  ///
+  /// In en, this message translates to:
+  /// **'No competitor on this shelf yet. Add one if you see it.'**
+  String get s6NoCompetitors;
+
+  /// The risks section’s empty line.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing flagged yet.'**
+  String get s8NoRisks;
+
+  /// The action plan’s empty line.
+  ///
+  /// In en, this message translates to:
+  /// **'No extra tasks yet.'**
+  String get s9NoTasks;
+
+  /// How many manual tasks this visit has raised.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 task queued for sync} other{{count} tasks queued for sync}}'**
+  String s9AddedTasks(int count);
+
+  /// Why the number sheet's Set is disabled: nothing valid has been typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a count first'**
+  String get s2TypeCountFirst;
+
+  /// The name of one entry in a repeating list, at the start of its header row ('Competitor 2 of 3').
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, competitor{Competitor} risk{Risk} other{Task}}'**
+  String sectionEntryName(String kind);
+
+  /// The same entry name mid-sentence, for the remove control ('Remove competitor 2 of 3').
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, competitor{competitor} risk{risk} other{task}}'**
+  String sectionEntryNameLower(String kind);
+
+  /// An entry's header line before the agent has typed what it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Not named yet'**
+  String get sectionEntryUnnamed;
+
   /// The action inside the My work summary block. A ghost by default — the queue sends itself — and the screen’s one amber block only when something is stuck.
   ///
   /// In en, this message translates to:
@@ -3506,11 +3908,23 @@ abstract class AppLocalizations {
   /// **'This sends itself as soon as the visit above it does. Nothing is wrong.'**
   String get outboxWaitingTurnNote;
 
-  /// The one stuck state whose fix has nothing to do with the capture.
+  /// The sheet's note for a capture held because the session ended. Its fix has nothing to do with the capture, and it is held, never stuck.
   ///
   /// In en, this message translates to:
   /// **'Your session ended. Sign in and this sends itself.'**
   String get outboxSignedOutNote;
+
+  /// Outbox row state word for a capture held because the session ended. Held is the normal state (unify §1.13): an Oatmeal square and this word, never crimson and never 'Needs you'.
+  ///
+  /// In en, this message translates to:
+  /// **'Held'**
+  String get outboxHeld;
+
+  /// The row sentence for a capture held because the session ended, and My work's summary sentence when that is why the queue is held. Signing in sends it; nothing is wrong with the capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Held until you sign in'**
+  String get outboxHeldUntilSignIn;
 
   /// The identifier block in the outbox sheet, in mono. For a support call.
   ///
@@ -3841,6 +4255,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This phone has version {current}. A newer version is needed.'**
   String updateVersionNoMinimum(String current);
+
+  /// Submit gate captured block, in place of the section count, when the visit's sections could not be read. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read which sections are done'**
+  String get submitSectionsUnread;
+
+  /// Row on the submit gate's list when the visit's sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sections could not be read'**
+  String get submitSectionsUnreadTask;
+
+  /// Second line of the sections-could-not-be-read row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Something may be missing from this list'**
+  String get submitSectionsUnreadRowLine;
+
+  /// Sentence under the submit gate's list when the visit's sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.'**
+  String get submitSectionsUnreadNote;
+
+  /// Screen-reader line for the submit gate's captured block when the sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read which sections are done. {line}'**
+  String submitCapturedUnreadSemantics(String line);
+
+  /// Shown instead of a delta on the visit outcome when the score loaded but the history request failed. Whether there was an earlier visit is unknown, so this never claims a first visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last visit here could not be loaded, so there is nothing to compare this score with.'**
+  String get outcomePreviousUnknown;
+
+  /// Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again.
+  ///
+  /// In en, this message translates to:
+  /// **'See how it scored'**
+  String get outboxSeeScore;
 }
 
 class _AppLocalizationsDelegate

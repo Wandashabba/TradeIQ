@@ -13,7 +13,12 @@ const _schema = {
     {
       'id': 'promo',
       'fields': [
-        {'id': 'standUp', 'label': 'Stand up?', 'type': 'boolean', 'required': true},
+        {
+          'id': 'standUp',
+          'label': 'Stand up?',
+          'type': 'boolean',
+          'required': true,
+        },
         {'id': 'facings', 'label': 'Facings', 'type': 'number'},
       ],
     },
@@ -21,7 +26,12 @@ const _schema = {
 };
 
 AuditTemplateDetail _detail({int version = 3}) => AuditTemplateDetail(
-  template: AuditTemplate(id: 'tpl-1', name: 'Promo Check', version: version, active: true),
+  template: AuditTemplate(
+    id: 'tpl-1',
+    name: 'Promo Check',
+    version: version,
+    active: true,
+  ),
   schema: _schema,
 );
 
@@ -84,11 +94,12 @@ void main() {
     await db.close();
   });
 
-  Future<ClientTemplate?> pinned(String visitDraftId) async => clientTemplateFrom(
-    await (db.select(db.pinnedVisitTemplates)
-          ..where((t) => t.visitDraftId.equals(visitDraftId)))
-        .getSingleOrNull(),
-  );
+  Future<ClientTemplate?> pinned(String visitDraftId) async =>
+      clientTemplateFrom(
+        await (db.select(
+          db.pinnedVisitTemplates,
+        )..where((t) => t.visitDraftId.equals(visitDraftId))).getSingleOrNull(),
+      );
 
   group('pinning the client template to a visit', () {
     test('pins the selected template with its version, once', () async {
@@ -114,35 +125,44 @@ void main() {
       expect(rows.single.templateId, isNull);
     });
 
-    test('offline, a visit gets the template this agent was last given', () async {
-      templates.selected = _detail(version: 2);
-      await repo.pinForVisit('earlier-visit');
+    test(
+      'offline, a visit gets the template this agent was last given',
+      () async {
+        templates.selected = _detail(version: 2);
+        await repo.pinForVisit('earlier-visit');
 
-      templates.offline = true;
-      await repo.pinForVisit('v2');
+        templates.offline = true;
+        await repo.pinForVisit('v2');
 
-      final t = await pinned('v2');
-      expect(t?.templateId, 'tpl-1');
-      expect(t?.version, 2);
-    });
+        final t = await pinned('v2');
+        expect(t?.templateId, 'tpl-1');
+        expect(t?.version, 2);
+      },
+    );
 
-    test('offline with nothing known pins nothing, so a later try can', () async {
-      templates.offline = true;
-      await repo.pinForVisit('v1');
-      expect(await db.select(db.pinnedVisitTemplates).get(), isEmpty);
-    });
+    test(
+      'offline with nothing known pins nothing, so a later try can',
+      () async {
+        templates.offline = true;
+        await repo.pinForVisit('v1');
+        expect(await db.select(db.pinnedVisitTemplates).get(), isEmpty);
+      },
+    );
 
-    test('offline never hands one agent another agent’s client questions', () async {
-      currentLocalUserId = 'agent-b';
-      templates.selected = _detail();
-      await repo.pinForVisit('b-visit');
+    test(
+      'offline never hands one agent another agent’s client questions',
+      () async {
+        currentLocalUserId = 'agent-b';
+        templates.selected = _detail();
+        await repo.pinForVisit('b-visit');
 
-      currentLocalUserId = 'agent-a';
-      templates.offline = true;
-      await repo.pinForVisit('a-visit');
+        currentLocalUserId = 'agent-a';
+        templates.offline = true;
+        await repo.pinForVisit('a-visit');
 
-      expect(await pinned('a-visit'), isNull);
-    });
+        expect(await pinned('a-visit'), isNull);
+      },
+    );
   });
 
   group('saving answers', () {
@@ -153,74 +173,84 @@ void main() {
       schemaJson: _schema,
     );
 
-    test('queues a template_response through the outbox and flushes it', () async {
-      await repo.saveAnswers(
-        visitDraftId: 'v1',
-        template: template(),
-        answers: const {'facings': 4},
-      );
-
-      final rows = await db.select(db.syncQueueItems).get();
-      expect(rows, hasLength(1));
-      expect(rows.single.entityType, templateResponseEntityType);
-      expect(rows.single.userId, 'agent-a');
-      final payload = jsonDecode(rows.single.payloadJson) as Map<String, dynamic>;
-      expect(payload, {
-        'visitDraftId': 'v1',
-        'templateId': 'tpl-1',
-        'templateVersion': 3,
-        // The untouched switch is recorded as the "off" the agent saw.
-        'answers': {'facings': 4, 'standUp': false},
-      });
-      expect(flusher.sent.single.entityType, templateResponseEntityType);
-    });
-
-    test('offline: answers stay queued and read back after an app restart', () async {
-      flusher.offline = true;
-      await repo.saveAnswers(
-        visitDraftId: 'v1',
-        template: template(),
-        answers: const {'standUp': true, 'facings': 2},
-      );
-
-      final rows = await db.select(db.syncQueueItems).get();
-      expect(rows.single.synced, isFalse);
-
-      // A fresh repository over the same database: nothing is held in memory.
-      final reopened = DriftTemplateSectionRepository(
-        db: db,
-        syncService: SyncService(db: db, flusher: flusher),
-        templates: templates,
-      );
-      expect(
-        await reopened.savedAnswers(visitDraftId: 'v1', templateId: 'tpl-1'),
-        {'standUp': true, 'facings': 2},
-      );
-    });
-
-    test('a newer save supersedes an unsent one — one row per section', () async {
-      flusher.offline = true;
-      for (final facings in [1, 2, 3]) {
+    test(
+      'queues a template_response through the outbox and flushes it',
+      () async {
         await repo.saveAnswers(
           visitDraftId: 'v1',
           template: template(),
-          answers: {'facings': facings},
+          answers: const {'facings': 4},
         );
-      }
-      // Another visit's answers are left alone.
-      await repo.saveAnswers(
-        visitDraftId: 'v2',
-        template: template(),
-        answers: const {'facings': 9},
-      );
 
-      final rows = await db.select(db.syncQueueItems).get();
-      expect(rows, hasLength(2));
-      expect(
-        await repo.savedAnswers(visitDraftId: 'v1', templateId: 'tpl-1'),
-        {'facings': 3, 'standUp': false},
-      );
-    });
+        final rows = await db.select(db.syncQueueItems).get();
+        expect(rows, hasLength(1));
+        expect(rows.single.entityType, templateResponseEntityType);
+        expect(rows.single.userId, 'agent-a');
+        final payload =
+            jsonDecode(rows.single.payloadJson) as Map<String, dynamic>;
+        expect(payload, {
+          'visitDraftId': 'v1',
+          'templateId': 'tpl-1',
+          'templateVersion': 3,
+          // The untouched switch is recorded as the "off" the agent saw.
+          'answers': {'facings': 4, 'standUp': false},
+        });
+        expect(flusher.sent.single.entityType, templateResponseEntityType);
+      },
+    );
+
+    test(
+      'offline: answers stay queued and read back after an app restart',
+      () async {
+        flusher.offline = true;
+        await repo.saveAnswers(
+          visitDraftId: 'v1',
+          template: template(),
+          answers: const {'standUp': true, 'facings': 2},
+        );
+
+        final rows = await db.select(db.syncQueueItems).get();
+        expect(rows.single.synced, isFalse);
+
+        // A fresh repository over the same database: nothing is held in memory.
+        final reopened = DriftTemplateSectionRepository(
+          db: db,
+          syncService: SyncService(db: db, flusher: flusher),
+          templates: templates,
+        );
+        expect(
+          await reopened.savedAnswers(visitDraftId: 'v1', templateId: 'tpl-1'),
+          {'standUp': true, 'facings': 2},
+        );
+      },
+    );
+
+    test(
+      'a newer save supersedes an unsent one — one row per section',
+      () async {
+        flusher.offline = true;
+        for (final facings in [1, 2, 3]) {
+          await repo.saveAnswers(
+            visitDraftId: 'v1',
+            template: template(),
+            answers: {'facings': facings},
+          );
+        }
+        // Another visit's answers are left alone.
+        await repo.saveAnswers(
+          visitDraftId: 'v2',
+          template: template(),
+          answers: const {'facings': 9},
+        );
+
+        final rows = await db.select(db.syncQueueItems).get();
+        expect(rows, hasLength(2));
+        expect(
+          await repo.savedAnswers(visitDraftId: 'v1', templateId: 'tpl-1'),
+          {'facings': 3, 'standUp': false},
+        );
+      },
+    );
 
     test('no saved answers reads back empty', () async {
       expect(

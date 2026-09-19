@@ -2131,6 +2131,25 @@ Two rules make it work rather than cancel itself out:
 The screen takes no latch and keeps no copy: it reads the watched map every
 build, and the no-overwrite rule is what keeps the line stable.
 
+Two more things have to be true, or the line is a component nobody can be on
+the right screen to read. It only ever appears on a **later** open — on the
+first one, what the phone recorded is what the phone is showing — so:
+
+* **`visitOutcomeProvider` is auto-dispose.** Kept alive it was fetched once
+  per session, and a second open replayed the number from the walk out of the
+  shop. Every open of a submitted visit's outcome asks the server again.
+* **A submitted visit is re-openable from My work.** The outbox sheet for a
+  sent `visit_submit` row carries a ghost "See how it scored" (never the
+  amber: reading a score you have already been shown is not the expected next
+  move), which resolves the draft's outlet from drift and goes to
+  `/audit/:outletId/done`. `SyncItem.visitDraftId` decodes that row's payload
+  so the sheet knows which visit it is looking at. The outlet's *name* comes
+  from `outletsListProvider` only when it is already in memory — opening a
+  score must not send a phone in a shop after an outlet list.
+
+`outcome_reopen_test.dart` walks that route: submit, My work, the row, the
+sheet, the score — and the line, once the server total has changed.
+
 ### 16.5 Can't confirm is something to raise
 
 Every can't-confirm section gets its own row on the gate, named, with its reason

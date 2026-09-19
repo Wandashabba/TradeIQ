@@ -2093,6 +2093,260 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get visitPinReportedHeld =>
+      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
+
+  @override
+  String get wordYes => 'Yes';
+
+  @override
+  String get wordNo => 'No';
+
+  @override
+  String get sectionSave => 'Save';
+
+  @override
+  String get sectionSaveAndBack => 'Save and go back';
+
+  @override
+  String get sectionSaveFailedTitle => 'Not saved';
+
+  @override
+  String get sectionSaveFailedBody =>
+      'Your answers are still here — try Save again.';
+
+  @override
+  String get sectionCantConfirm => 'Can\'t confirm this section';
+
+  @override
+  String get sectionCantConfirmWhy => 'Why not?';
+
+  @override
+  String sectionCantConfirmLocked(String reason) {
+    return 'Can\'t confirm: $reason';
+  }
+
+  @override
+  String get sectionCantConfirmHeld =>
+      'Held on this phone. Nothing is sent for this yet.';
+
+  @override
+  String get sectionCanConfirmAfterAll => 'I can confirm it after all';
+
+  @override
+  String get sectionLockedBlock => 'This section is marked can\'t confirm';
+
+  @override
+  String get sectionLeaveTitle => 'You have unsaved answers';
+
+  @override
+  String get sectionLeaveWithoutSaving => 'Go back without saving';
+
+  @override
+  String get sectionStayHere => 'Stay here';
+
+  @override
+  String get sectionAddAnother => 'Add another';
+
+  @override
+  String sectionEntryPosition(int index, int total) {
+    return '$index of $total';
+  }
+
+  @override
+  String sectionRemoveEntry(String name, String position) {
+    return 'Remove $name $position';
+  }
+
+  @override
+  String get sectionNotAnsweredYet => 'Not answered yet';
+
+  @override
+  String get sectionPhotoOpenCamera => 'Open camera';
+
+  @override
+  String get sectionPhotoOpenCameraSemantics =>
+      'Open the camera to photograph the shelf';
+
+  @override
+  String get sectionPhotoFraming =>
+      'Stand back far enough to get the whole bay, including the price rail.';
+
+  @override
+  String get sectionPhotoStamped =>
+      'Your photo is stamped with the time and where you are.';
+
+  @override
+  String get sectionPhotoTorchHint =>
+      'Aisle dark? Switch your phone torch on before you shoot.';
+
+  @override
+  String get sectionPhotoHeld => 'Held on this phone · sends with the visit';
+
+  @override
+  String get sectionPhotoNoCamera => 'This phone has no camera we can reach.';
+
+  @override
+  String get sectionPhotoTooLarge =>
+      'That photo is too big to send. Take it again.';
+
+  @override
+  String get sectionPhotoFailed =>
+      'The camera did not hand the photo back. Try again.';
+
+  @override
+  String get sectionPhotoRemoveSemantics => 'Remove the photo';
+
+  @override
+  String sectionPhotoSemantics(String time) {
+    return 'Photo taken $time, held on this phone';
+  }
+
+  @override
+  String get skipReasonStoreRefused => 'The store would not let me';
+
+  @override
+  String get skipReasonStoreRefusedConsequence =>
+      'The manager is told the store refused';
+
+  @override
+  String get skipReasonNotStocked => 'They do not stock this';
+
+  @override
+  String get skipReasonNotStockedConsequence =>
+      'These lines are marked not-stocked for this outlet';
+
+  @override
+  String get skipReasonEquipment => 'The equipment is broken';
+
+  @override
+  String get skipReasonEquipmentConsequence => 'A repair task is raised';
+
+  @override
+  String get skipReasonSomethingElse => 'Something else';
+
+  @override
+  String get skipReasonSomethingElseConsequence => 'You write what happened';
+
+  @override
+  String get skipReasonSave => 'Save reason';
+
+  @override
+  String get skipReasonChange => 'Change reason';
+
+  @override
+  String get skipReasonCancel => 'Cancel';
+
+  @override
+  String get skipReasonNoteLabel => 'What happened?';
+
+  @override
+  String get skipReasonChooseFirst => 'Choose a reason first';
+
+  @override
+  String get skipReasonSayWhatHappened => 'Say what happened';
+
+  @override
+  String s2Summary(int counted, int outOfStock, int toGo) {
+    return '$counted counted · $outOfStock out of stock · $toGo to go';
+  }
+
+  @override
+  String get s2NotCounted => 'Not counted';
+
+  @override
+  String get s2OutOfStockWord => 'Out of stock';
+
+  @override
+  String get s2TypeCount => 'Type a count';
+
+  @override
+  String get s2OneFewer => 'One fewer';
+
+  @override
+  String get s2OneMore => 'One more';
+
+  @override
+  String s2PartCounted(int toGo) {
+    return 'Saving now records $toGo products as not counted — never as empty.';
+  }
+
+  @override
+  String s2CountedOf(int counted, int total) {
+    return '$counted of $total counted';
+  }
+
+  @override
+  String s2StockSavedPartial(int counted, int total) {
+    return 'Saved $counted of $total — the rest are not counted, never empty';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Jump to the first uncounted';
+
+  @override
+  String get s10NotFinal =>
+      'Worked out on this phone. The final score comes back when the visit sends.';
+
+  @override
+  String get s10NotMeasured => 'Not measured on this visit';
+
+  @override
+  String s10ScoreSemantics(String score, String band) {
+    return 'Weighted total $score out of 100, $band';
+  }
+
+  @override
+  String get s5NoPriceYet => 'No price entered';
+
+  @override
+  String get s6NoCompetitors =>
+      'No competitor on this shelf yet. Add one if you see it.';
+
+  @override
+  String get s8NoRisks => 'Nothing flagged yet.';
+
+  @override
+  String get s9NoTasks => 'No extra tasks yet.';
+
+  @override
+  String s9AddedTasks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tasks queued for sync',
+      one: '1 task queued for sync',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get s2TypeCountFirst => 'Type a count first';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Competitor',
+      'risk': 'Risk',
+      'other': 'Task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'competitor',
+      'risk': 'risk',
+      'other': 'task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Not named yet';
+
+  @override
   String get myWorkSendNow => 'Send now';
 
   @override
@@ -2230,6 +2484,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get outboxSignedOutNote =>
       'Your session ended. Sign in and this sends itself.';
+
+  @override
+  String get outboxHeld => 'Held';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Held until you sign in';
 
   @override
   String outboxItemId(int id, String type) {
@@ -2425,4 +2685,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String updateVersionNoMinimum(String current) {
     return 'This phone has version $current. A newer version is needed.';
   }
+
+  @override
+  String get submitSectionsUnread => 'Could not read which sections are done';
+
+  @override
+  String get submitSectionsUnreadTask => 'Your sections could not be read';
+
+  @override
+  String get submitSectionsUnreadRowLine =>
+      'Something may be missing from this list';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Could not read which sections are done. $line';
+  }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Your last visit here could not be loaded, so there is nothing to compare this score with.';
+
+  @override
+  String get outboxSeeScore => 'See how it scored';
 }

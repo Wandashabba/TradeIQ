@@ -32,6 +32,7 @@ SyncItem _item(
   String? lastError,
   int? payloadBytes,
   int attempts = 1,
+  String? visitDraftId,
 }) => SyncItem(
   id: id,
   entityType: entityType,
@@ -43,7 +44,15 @@ SyncItem _item(
       ? DateTime(2026, 7, 20, 14, 20)
       : null,
   payloadBytes: payloadBytes,
+  visitDraftId: visitDraftId,
 );
+
+/// A submitted visit the server has — the row that has to lead back to the
+/// score, because My work is where the agent meets a finished visit again.
+final _submitted = _status(<SyncItem>[
+  _item(9, 'visit_submit', synced: true, visitDraftId: 'v1'),
+  _item(3, 'visit', synced: true),
+]);
 
 SyncStatus _status(List<SyncItem> items) {
   final pending = items.where((i) => !i.synced).toList();
@@ -76,6 +85,13 @@ final _signedOut = _status(<SyncItem>[
 
 final _allSent = _status(<SyncItem>[_item(3, 'visit', synced: true)]);
 
+/// Signed out, beside a capture the server genuinely refused.
+final _signedOutAndStuck = _status(<SyncItem>[
+  _item(5, 'photo', lastError: 'sync:signedOut'),
+  _item(4, 'pricing', lastError: 'sync:rejected:422', payloadBytes: 900),
+  _item(1, 'stock'),
+]);
+
 /// A field agent whose location answer is [consent] (null: not yet asked).
 class _Location extends LocationSharingController {
   _Location(this.consent);
@@ -85,18 +101,16 @@ class _Location extends LocationSharingController {
   @override
   LocationSharingState build() => LocationSharingState(
     isAgent: true,
-    settings: LocationSettings(
-      intervalSeconds: 120,
-      noticeVersion: 'v1',
-    ).withDecision(
-      consent == null
-          ? null
-          : LocationDecision(
-              consent: consent!,
-              noticeVersion: 'v1',
-              decidedAt: DateTime(2026, 9, 15),
-            ),
-    ),
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          consent == null
+              ? null
+              : LocationDecision(
+                  consent: consent!,
+                  noticeVersion: 'v1',
+                  decidedAt: DateTime(2026, 9, 15),
+                ),
+        ),
     running: consent == LocationConsent.acknowledged,
   );
 }
@@ -184,6 +198,13 @@ Finder _row(int id) => find.byKey(ValueKey<String>('sync-item-$id'));
 
 OutboxRow _outboxRow(WidgetTester tester, int id) =>
     tester.widget<OutboxRow>(_row(id));
+
+/// Scroll to a row and open its sheet.
+Future<void> _openSheet(WidgetTester tester, int id) async {
+  await scrollAgentTo(tester, _row(id));
+  await tester.tap(_row(id));
+  await tester.pumpAndSettle();
+}
 
 /// The body is a lazy list, so a row below the summary on a 360×640 phone is
 /// genuinely not built until it is scrolled to — which is the point.
@@ -335,6 +356,72 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('sign-in')));
       await tester.pumpAndSettle();
       expect(find.text('Login view'), findsOneWidget);
+    });
+
+    // unify §1.13 names session-ended among the HELD states. These captures
+    // send themselves the moment the agent signs in, so nothing about them is
+    // a severity: this screen once drew a crimson triangle over "1 item will
+    // not send · Everything else is safe", a crimson-bordered sign-in block
+    // and a "Needs you" row — for work that was fine.
+    testWidgets('signed out is held: Oatmeal, a square and a word', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOut);
+      final skin = agentSkinFor(SkinMode.night);
+
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.heldSquare);
+      expect(mark.color, skin.palette.ink2);
+      expect(find.text('2 items held on this phone'), findsOneWidget);
+      expect(find.textContaining('will not send'), findsNothing);
+      expect(find.text('Everything else is safe'), findsNothing);
+      // "They will send themselves" is untrue with no session; it says why.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('work-summary')),
+          matching: find.text('Held until you sign in'),
+        ),
+        findsOneWidget,
+      );
+
+      final block = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('signed-out')),
+      );
+      final edge = ((block.decoration! as BoxDecoration).border! as Border).top;
+      expect(edge.color, skin.palette.edgeStructure);
+      expect(edge.color, isNot(skin.palette.bad));
+
+      final row = await _see(tester, 5);
+      expect(row.state, isNot(OutboxState.stuck));
+      expect(row.state, OutboxState.queued);
+      expect(row.stuckLabel, isNull);
+      expect(row.stateWord, 'Held');
+      expect(row.sentence, 'Held until you sign in');
+      expect(find.text('Needs you'), findsNothing);
+      expect(find.text('Waiting to send'), findsOneWidget);
+    });
+
+    testWidgets('signed out while a flush runs: still held, never sending', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOut, sending: true);
+      expect((await _see(tester, 5)).state, OutboxState.queued);
+    });
+
+    testWidgets('signed out beside a refusal: only the refusal is crimson', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOutAndStuck);
+      final skin = agentSkinFor(SkinMode.night);
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.criticalTriangle);
+      expect(mark.color, skin.palette.bad);
+      // One refused capture, not two: the held one is not counted.
+      expect(find.text('1 item will not send'), findsOneWidget);
+      expect(_allocation(tester).isLit(MyWorkScreen.signInClaimId), isTrue);
+
+      expect((await _see(tester, 4)).state, OutboxState.stuck);
+      expect((await _see(tester, 5)).state, OutboxState.queued);
     });
   });
 
@@ -520,6 +607,40 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+    });
+
+    // The reconciliation line ("Now scored 71 — it was 84 when you saw it")
+    // can only appear on a LATER open of a visit's outcome. Before this, the
+    // outcome was reachable from exactly one `context.go` after submit — so
+    // there was no later open, and the line could not render outside a test.
+    testWidgets('a submitted visit leads back to its score', (tester) async {
+      await _pump(tester, sync: _submitted);
+      await _openSheet(tester, 9);
+
+      expect(
+        find.byKey(const ValueKey<String>('outbox-see-score')),
+        findsOneWidget,
+      );
+      expect(find.text('See how it scored'), findsOneWidget);
+      // Still nothing to fix: a sent capture has no retry and no discard.
+      expect(
+        find.byKey(const ValueKey<String>('outbox-send-one')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a capture that is not a submitted visit has no score to '
+        'open', (tester) async {
+      await _pump(tester, sync: _submitted);
+      await _openSheet(tester, 3);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-see-score')),
         findsNothing,
       );
     });
@@ -788,6 +909,26 @@ void main() {
         phase: 'stuck @2.0x',
       );
       expect(census.objectCount, 2, reason: census.describe());
+    });
+
+    testWidgets('the way back to a score is a ghost, never the amber', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _submitted, skin: SkinMode.day);
+      await _openSheet(tester, 9);
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        0,
+        reason:
+            'Reading a score you have already been shown is not the expected '
+            'next move, and a sheet with no commit lights nothing.\n\n'
+            '${census.describe()}',
+      );
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byKey(const ValueKey<String>('outbox-see-score'))),
+      )!;
+      expect(scope.allocation.granted, isEmpty);
     });
 
     testWidgets('a sheet puts out the screen beneath it and spends its own', (

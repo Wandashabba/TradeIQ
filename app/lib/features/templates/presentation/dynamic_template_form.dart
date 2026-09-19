@@ -5,52 +5,28 @@ import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
-import '../../../l10n/l10n.dart';
 import '../domain/template_schema.dart';
 
 /// Renders a parsed TemplateSchema, collecting answers keyed by field id.
 ///
-/// Two layouts:
-/// - the default, one section at a time with Back/Next, calling [onSubmit]
-///   after the last section (the manager's template preview, #54);
-/// - [DynamicTemplateForm.inline], every section stacked in one column for a
-///   host that already scrolls and owns saving: the audit hub's
-///   client-questions section (#122).
+/// One layout: one section at a time with Back/Next, calling [onSubmit] after
+/// the last section — the manager's template preview (#54).
+///
+/// The agent-facing `inline` form is **gone**. The client's questions are now
+/// rendered by `ClientQuestionsScreen` in the audit feature, out of the same
+/// eight section-form primitives every other capture section uses, so a
+/// client's template cannot introduce a ninth kind of input into the product.
 class DynamicTemplateForm extends StatefulWidget {
   const DynamicTemplateForm({
     super.key,
     required this.schema,
     required ValueChanged<Map<String, Object?>> this.onSubmit,
     this.submitLabel = 'Finish',
-  }) : inline = false,
-       initialAnswers = const {},
-       onChanged = null,
-       showRequiredErrors = false;
-
-  /// Every section in one column, starting from [initialAnswers] and reporting
-  /// each change through [onChanged].
-  ///
-  /// Agent-facing, so the form's own words (required markers, the photo note)
-  /// come from l10n. The questions are the client's and are shown as written.
-  /// [showRequiredErrors] marks each unanswered required question — set it
-  /// once the agent has tried to save.
-  const DynamicTemplateForm.inline({
-    super.key,
-    required this.schema,
-    this.initialAnswers = const {},
-    required ValueChanged<Map<String, Object?>> this.onChanged,
-    this.showRequiredErrors = false,
-  }) : inline = true,
-       onSubmit = null,
-       submitLabel = '';
+  });
 
   final TemplateSchema schema;
   final ValueChanged<Map<String, Object?>>? onSubmit;
   final String submitLabel;
-  final bool inline;
-  final Map<String, Object?> initialAnswers;
-  final ValueChanged<Map<String, Object?>>? onChanged;
-  final bool showRequiredErrors;
 
   @override
   State<DynamicTemplateForm> createState() => _DynamicTemplateFormState();
@@ -59,12 +35,6 @@ class DynamicTemplateForm extends StatefulWidget {
 class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
   int _sectionIndex = 0;
   final Map<String, Object?> _answers = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _answers.addAll(widget.initialAnswers);
-  }
 
   void _next(bool isLast) {
     if (isLast) {
@@ -82,13 +52,10 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
         _answers[fieldId] = value;
       }
     });
-    widget.onChanged?.call(Map.unmodifiable(_answers));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.inline) return _inline(context);
-
     final sections = widget.schema.sections;
     if (sections.isEmpty) {
       return const Center(
@@ -229,60 +196,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
     );
   }
 
-  /// Inline: each of the client's sections under its own title, each question
-  /// on its own no-blur glass tile (the host scrolls), as the fixed sections
-  /// lay out theirs.
-  Widget _inline(BuildContext context) {
-    final colors = context.colors;
-    final sections = widget.schema.sections;
-    if (sections.isEmpty) {
-      return Text(
-        context.l10n.visitTemplateNoQuestions,
-        style: TextStyle(fontSize: 13.5, color: colors.ink2),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (i, section) in sections.indexed) ...[
-          if (i > 0) const SizedBox(height: 18),
-          KeyedSubtree(
-            key: ValueKey('template-section-${section.id}'),
-            child: colors.glass
-                ? Kicker(section.title, color: context.lumen.kicker)
-                : Text(
-                    section.title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.ink1,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 8),
-          for (final field in section.fields)
-            if (field.isVisible(_answers))
-              colors.glass
-                  ? Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: GlassPane(
-                        kind: GlassKind.tile,
-                        blur: false,
-                        radius: LumenGlass.radiusCard,
-                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: _buildField(field),
-                        ),
-                      ),
-                    )
-                  : _buildField(field),
-        ],
-      ],
-    );
-  }
-
   /// The list-tile fields (a switch, the photo placeholder) become no-blur
   /// tiles on the panel, each with its own transparent Material so the ink
   /// lands on the tile; the inputs keep the theme's own field chrome.
@@ -304,39 +217,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
     );
   }
 
-  /// "Required" under a required question (inline only).
-  String? _requiredHelper(TemplateField field) =>
-      widget.inline && field.blocksSubmit
-          ? context.l10n.visitTemplateFieldRequired
-          : null;
-
-  /// The error on an unanswered required question once the agent has saved.
-  /// Never on a switch: it always shows a value, and saving records an
-  /// untouched one as off.
-  String? _requiredError(TemplateField field) =>
-      widget.inline &&
-          widget.showRequiredErrors &&
-          field.blocksSubmit &&
-          field.type != TemplateFieldType.boolean &&
-          field.isVisible(_answers) &&
-          !field.isAnswered(_answers)
-      ? context.l10n.visitTemplateFieldRequiredError
-      : null;
-
-  /// A list tile's supporting line: the error wins over the marker, and wears
-  /// the theme's error colour so it is not carried by position alone.
-  Widget? _tileSubtitle(TemplateField field, {String? otherwise}) {
-    final error = _requiredError(field);
-    final text = error ?? _requiredHelper(field) ?? otherwise;
-    if (text == null) return null;
-    return Text(
-      text,
-      style: error == null
-          ? null
-          : TextStyle(color: Theme.of(context).colorScheme.error),
-    );
-  }
-
   Widget _buildField(TemplateField field) {
     final value = _answers[field.id];
     switch (field.type) {
@@ -344,7 +224,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
         return SwitchListTile(
           key: ValueKey('field-${field.id}'),
           title: Text(field.label),
-          subtitle: _tileSubtitle(field),
           value: value == true,
           onChanged: (v) => _set(field.id, v),
         );
@@ -361,8 +240,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
             decoration: InputDecoration(
               labelText: field.label,
               isDense: true,
-              helperText: _requiredHelper(field),
-              errorText: _requiredError(field),
             ),
             items: [
               for (final option in field.options)
@@ -382,8 +259,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
             decoration: InputDecoration(
               labelText: field.label,
               isDense: true,
-              helperText: _requiredHelper(field),
-              errorText: _requiredError(field),
             ),
             onChanged: (v) => _set(field.id, num.tryParse(v)),
           ),
@@ -397,8 +272,6 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
             decoration: InputDecoration(
               labelText: field.label,
               isDense: true,
-              helperText: _requiredHelper(field),
-              errorText: _requiredError(field),
             ),
             onChanged: (v) => _set(field.id, v.isEmpty ? null : v),
           ),
@@ -411,11 +284,7 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
           enabled: false,
           leading: const Icon(Icons.photo_camera_outlined),
           title: Text(field.label),
-          subtitle: Text(
-            widget.inline
-                ? context.l10n.visitTemplatePhotoUnsupported
-                : 'Photo capture coming with audit integration',
-          ),
+          subtitle: const Text('Photo capture coming with audit integration'),
         );
     }
   }

@@ -134,10 +134,28 @@ final locationServiceProvider = Provider<LocationService>((ref) => LocationServi
 /// their stores would take half a minute between them to say the same two
 /// numbers. This is the one place either of them asks.
 ///
-/// It is a [FutureProvider], so it lives exactly as long as something is
-/// watching it: leaving both screens drops the fix, and coming back takes a new
-/// one. A position cached for the life of the app is a position that is wrong
-/// by the time it matters, which is worse than a slow one.
+/// ## It does not expire on its own
+///
+/// This is a plain [FutureProvider], and in Riverpod 3 that is **not**
+/// auto-disposing: once read, the answer is kept for the life of the app
+/// unless somebody drops it. Leaving a screen does not. A position cached for
+/// the life of the app is a position that is wrong by the time it matters —
+/// and a cached refusal or time-out is worse, because it keeps an agent who
+/// has since turned location on without distances until they restart.
+///
+/// So it is dropped, explicitly, at the two moments a fresh one is owed:
+///
+/// * **when the route reloads** — `invalidateRouteProgress`, run when a
+///   submitted visit reaches the server. The agent has walked to another store
+///   since the route was built, and before this provider existed the route
+///   asked the phone again on every rebuild;
+/// * **when the Map is opened** — `AgentMapScreen`, whose whole question is
+///   *where am I*, and whose "check in here" circle arms for the store the fix
+///   says the agent is standing in.
+///
+/// It is not made auto-disposing instead: `todayRouteProvider` and
+/// `agentMapProvider` are kept alive and watch it, so it would never be
+/// disposed anyway, and an invalidation says *when* in one line.
 ///
 /// It never throws. [LocationService.getCurrentPosition] resolves to a
 /// [LocationResult] — granted, denied, or an error with a reason — in bounded
