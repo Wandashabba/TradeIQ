@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/rating_band.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
@@ -177,6 +178,10 @@ class _ScoreHero extends StatelessWidget {
     // The chip already draws a silhouette, so the word travels on its own
     // here — `markedWord` would put two marks beside one band.
     final word = band.word(l10n);
+    final spoken = l10n.s10ScoreSemantics(
+      TiqNumber.of(context).format(total, decimals: 1),
+      word,
+    );
     final level = switch (band) {
       RatingBand.healthy => StatusLevel.onTarget,
       RatingBand.watch => StatusLevel.watch,
@@ -192,7 +197,8 @@ class _ScoreHero extends StatelessWidget {
           color: skin.palette.edgeStructure,
           width: skin.depth.borderWidth,
         ),
-        boxShadow: skin.depth.shadows,
+        // No shadow: this panel scrolls with the section body, and the paint
+        // budget allows no shadow in a scrolling surface.
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,10 +219,7 @@ class _ScoreHero extends StatelessWidget {
                   skin.text.figureL,
                 ],
                 decimals: 1,
-                semanticsLabel: l10n.s10ScoreSemantics(
-                  total.toStringAsFixed(1),
-                  word,
-                ),
+                semanticsLabel: spoken,
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: TiqSpace.s1),
@@ -232,10 +235,7 @@ class _ScoreHero extends StatelessWidget {
           Meter(
             value: total,
             target: 80,
-            semanticsValue: l10n.s10ScoreSemantics(
-              total.toStringAsFixed(1),
-              word,
-            ),
+            semanticsValue: spoken,
           ),
           const SizedBox(height: TiqSpace.s4),
           // The whole reason this screen is not a verdict.
@@ -274,23 +274,21 @@ class _DimensionRow extends StatelessWidget {
     return SoftRow(
       key: ValueKey<String>('score-$dimensionKey'),
       title: label,
-      trailing: value == null
-          ? Text(
-              emDash,
-              style: skin.text.figureM.style(color: skin.palette.ink3),
-            )
-          : FigureSlot(
-              value: value,
-              role: skin.text.figureM,
-              decimals: 0,
-            ),
+      // Through FigureSlot in both states: a null is its em dash, in ink-3, at
+      // the figure's own role — the slot owns that, not this row.
+      trailing: FigureSlot(
+        value: value,
+        role: skin.text.figureM,
+        decimals: 0,
+        semanticsLabel: value == null ? l10n.s10NotMeasured : null,
+      ),
       meta: value == null
           ? NotMeasured(reason: l10n.s10NotMeasured)
           : Meter(value: value, target: 80),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: value == null
           ? '$label. ${l10n.s10NotMeasured}'
-          : '$label. ${value.toStringAsFixed(0)}',
+          : '$label. ${TiqNumber.of(context).format(value, decimals: 0)}',
     );
   }
 }

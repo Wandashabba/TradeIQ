@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../core/widgets/torchlight/marks.dart';
@@ -51,16 +52,19 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
   });
 
   Future<void> _save() async {
+    // Read in the locale's notation: `72,5` on an Afrikaans phone is 72.5%.
+    final numbers = TiqNumber.of(context);
     await ref
         .read(visibilityRepositoryProvider)
         .saveVisibility(
           visitDraftId: widget.visitDraftId,
           capture: VisibilityCapture(
             brandingElements: Map<String, bool>.from(_branding),
-            planogramCompliancePct: double.tryParse(_planogram.text) ?? 0.0,
-            facingsCount: int.tryParse(_facings.text) ?? 0,
+            planogramCompliancePct:
+                numbers.parse(_planogram.text)?.toDouble() ?? 0.0,
+            facingsCount: numbers.parse(_facings.text)?.toInt() ?? 0,
             highTrafficPass: _highTraffic,
-            cleanlinessScore: int.tryParse(_cleanliness.text) ?? 0,
+            cleanlinessScore: numbers.parse(_cleanliness.text)?.toInt() ?? 0,
           ),
         );
 

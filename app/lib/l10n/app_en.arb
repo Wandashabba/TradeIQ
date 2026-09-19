@@ -2506,5 +2506,31 @@
         "type": "int"
       }
     }
+  },
+  "s2TypeCountFirst": "Type a count first",
+  "@s2TypeCountFirst": {
+    "description": "Why the number sheet's Set is disabled: nothing valid has been typed."
+  },
+  "sectionEntryName": "{kind, select, competitor{Competitor} risk{Risk} other{Task}}",
+  "@sectionEntryName": {
+    "description": "The name of one entry in a repeating list, at the start of its header row ('Competitor 2 of 3').",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionEntryNameLower": "{kind, select, competitor{competitor} risk{risk} other{task}}",
+  "@sectionEntryNameLower": {
+    "description": "The same entry name mid-sentence, for the remove control ('Remove competitor 2 of 3').",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionEntryUnnamed": "Not named yet",
+  "@sectionEntryUnnamed": {
+    "description": "An entry's header line before the agent has typed what it is."
   }
 }

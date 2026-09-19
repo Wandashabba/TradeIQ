@@ -508,5 +508,9 @@
   "s6NoCompetitors": "Nog geen mededinger op hierdie rak nie. Voeg een by as jy dit sien.",
   "s8NoRisks": "Nog niks gemerk nie.",
   "s9NoTasks": "Nog geen ekstra take nie.",
-  "s9AddedTasks": "{count, plural, =1{1 taak in die ry vir sinkronisasie} other{{count} take in die ry vir sinkronisasie}}"
+  "s9AddedTasks": "{count, plural, =1{1 taak in die ry vir sinkronisasie} other{{count} take in die ry vir sinkronisasie}}",
+  "s2TypeCountFirst": "Tik eers ’n telling",
+  "sectionEntryName": "{kind, select, competitor{Mededinger} risk{Risiko} other{Taak}}",
+  "sectionEntryNameLower": "{kind, select, competitor{mededinger} risk{risiko} other{taak}}",
+  "sectionEntryUnnamed": "Nog nie benoem nie"
 }

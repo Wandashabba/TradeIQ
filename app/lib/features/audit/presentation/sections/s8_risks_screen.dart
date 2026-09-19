@@ -95,7 +95,10 @@ class _S8State extends ConsumerState<S8RisksScreen> {
       skip: SectionSkipTarget(widget.visitDraftId, AuditSection.risks),
       children: <Widget>[
         SectionEntries(
-          entryName: l10n.visitSectionRisks,
+          kind: 'risk',
+          summaries: <String?>[
+            for (final entry in _entries) entry.flagType.text,
+          ],
           addLabel: l10n.s8AddButton,
           emptyLine: l10n.s8NoRisks,
           onAdd: () => _touch(() => _entries.add(_S8Entry())),

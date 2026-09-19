@@ -1993,4 +1993,30 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get s2TypeCountFirst => 'Tik eers ’n telling';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Mededinger',
+      'risk': 'Risiko',
+      'other': 'Taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'mededinger',
+      'risk': 'risiko',
+      'other': 'taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Nog nie benoem nie';
 }

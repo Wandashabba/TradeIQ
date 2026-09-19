@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
@@ -166,8 +167,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
   /// "selling ~4/day · 12 days cover" — read-only server context, not agent
   /// input (#112: an agent standing at a shelf cannot observe either number).
-  String _contextLine(AppLocalizations l10n, Sku sku) {
-    final velocity = sku.velocityAvg.toStringAsFixed(1);
+  String _contextLine(AppLocalizations l10n, TiqNumber numbers, Sku sku) {
+    // Through the locale formatter: `4.2` in English is `4,2` in Afrikaans.
+    final velocity = numbers.format(sku.velocityAvg, decimals: 1);
     final days = sku.daysOutOfStock;
     if (sku.velocityAvg > 0) {
       return days > 0
@@ -223,7 +225,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
               _SkuBlock(
                 sku: sku,
                 value: _units[sku.id],
-                contextLine: _contextLine(l10n, sku),
+                contextLine: _contextLine(l10n, TiqNumber.of(context), sku),
                 first: i == 0,
                 onChanged: (v) => _touch(() => _units[sku.id] = v),
               ),
@@ -341,7 +343,11 @@ class _SkuBlock extends StatelessWidget {
                 decimals: 2,
                 unit: TiqUnit.currency,
                 color: skin.palette.ink3,
-                semanticsLabel: l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
+                semanticsLabel: l10n.s2Rrp(
+                  TiqNumber.of(
+                    context,
+                  ).format(sku.rrp, unit: TiqUnit.currency, decimals: 2),
+                ),
               ),
             ],
           ),
@@ -365,6 +371,8 @@ class _SkuBlock extends StatelessWidget {
             decreaseLabel: l10n.s2OneFewer,
             increaseLabel: l10n.s2OneMore,
             typeLabel: l10n.s2TypeCount,
+            sheetTitle: sku.name,
+            setBlockedReason: l10n.s2TypeCountFirst,
             cancelLabel: l10n.s2Cancel,
             setLabel: l10n.s2Set,
           ),

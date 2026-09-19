@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../../core/widgets/torchlight/input.dart';
@@ -110,17 +111,20 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   });
 
   Future<void> _save() async {
-    // Untouched SKUs (no price entered) are skipped.
+    // Untouched SKUs (no price entered) are skipped. The price is read in the
+    // locale's notation — `24,99` from an Afrikaans keyboard is R 24,99, not
+    // a shelf price of nothing.
+    final numbers = TiqNumber.of(context);
     final entries = widget.skus
         .where((sku) => _price[sku.id]!.text.trim().isNotEmpty)
         .map(
           (sku) => PricingEntry(
             skuId: sku.id,
-            priceActual: double.tryParse(_price[sku.id]!.text) ?? 0.0,
+            priceActual: numbers.parse(_price[sku.id]!.text)?.toDouble() ?? 0.0,
             promoActive: _promo[sku.id] ?? false,
             // Manual promo-materials checklist is a follow-up; empty for now.
             promoMaterialsDetected: const <String, bool>{},
-            commsRating: int.tryParse(_comms[sku.id]!.text) ?? 0,
+            commsRating: numbers.parse(_comms[sku.id]!.text)?.toInt() ?? 0,
           ),
         )
         .toList();
@@ -189,7 +193,11 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
                 controller: _price[sku.id]!,
                 unit: TiqUnit.currency,
                 decimals: 2,
-                help: l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
+                help: l10n.s2Rrp(
+                  TiqNumber.of(
+                    context,
+                  ).format(sku.rrp, unit: TiqUnit.currency, decimals: 2),
+                ),
                 minimum: 0,
                 onChanged: (_) => _touch(() {}),
               ),

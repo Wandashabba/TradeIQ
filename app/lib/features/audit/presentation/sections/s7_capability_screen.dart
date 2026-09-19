@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/capability_repository.dart';
@@ -44,14 +45,15 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
   });
 
   Future<void> _save() async {
+    final numbers = TiqNumber.of(context);
     await ref
         .read(capabilityRepositoryProvider)
         .saveCapability(
           visitDraftId: widget.visitDraftId,
           capture: CapabilityCapture(
-            staffHeadcountConfirmed: int.tryParse(_headcount.text) ?? 0,
+            staffHeadcountConfirmed: numbers.parse(_headcount.text)?.toInt() ?? 0,
             repTrainingStatus: Map<String, bool>.from(_training),
-            quizScore: int.tryParse(_quiz.text) ?? 0,
+            quizScore: numbers.parse(_quiz.text)?.toInt() ?? 0,
           ),
         );
     if (mounted) setState(() => _dirty = false);

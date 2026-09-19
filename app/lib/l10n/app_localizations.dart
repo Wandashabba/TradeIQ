@@ -3151,6 +3151,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 task queued for sync} other{{count} tasks queued for sync}}'**
   String s9AddedTasks(int count);
+
+  /// Why the number sheet's Set is disabled: nothing valid has been typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a count first'**
+  String get s2TypeCountFirst;
+
+  /// The name of one entry in a repeating list, at the start of its header row ('Competitor 2 of 3').
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, competitor{Competitor} risk{Risk} other{Task}}'**
+  String sectionEntryName(String kind);
+
+  /// The same entry name mid-sentence, for the remove control ('Remove competitor 2 of 3').
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, competitor{competitor} risk{risk} other{task}}'**
+  String sectionEntryNameLower(String kind);
+
+  /// An entry's header line before the agent has typed what it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Not named yet'**
+  String get sectionEntryUnnamed;
 }
 
 class _AppLocalizationsDelegate

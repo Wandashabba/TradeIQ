@@ -184,16 +184,8 @@ class _TorchNumericFieldState extends State<TorchNumericField> {
   /// separator rather than refusing it. An agent who types `1.5` on an
   /// Afrikaans phone has typed one and a half, and telling them otherwise is
   /// the app being right about a rule nobody agreed to.
-  num? _parse(String raw, TiqNumberSymbols symbols) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-    final normalised = trimmed
-        .replaceAll(symbols.group, '')
-        .replaceAll(' ', '')
-        .replaceAll(' ', '')
-        .replaceAll(',', '.');
-    return num.tryParse(normalised);
-  }
+  num? _parse(String raw, TiqNumberSymbols symbols) =>
+      TiqNumber(symbols).parse(raw);
 
   @override
   Widget build(BuildContext context) {

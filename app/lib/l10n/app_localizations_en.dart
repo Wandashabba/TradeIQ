@@ -1969,4 +1969,30 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get s2TypeCountFirst => 'Type a count first';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Competitor',
+      'risk': 'Risk',
+      'other': 'Task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'competitor',
+      'risk': 'risk',
+      'other': 'task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Not named yet';
 }

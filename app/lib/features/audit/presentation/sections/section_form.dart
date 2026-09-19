@@ -607,30 +607,44 @@ class SectionFieldGroup extends StatelessWidget {
   }
 }
 
-/// THE REPEATING CARD SET — competitor observations, risks, tasks.
+/// THE REPEATING SET — competitor observations, risks.
 ///
-/// Each entry is a standalone soft surface with a real outline and a 40dp
-/// header carrying the entry's number in mono ("2 of 3", never "02"), a remove
-/// control that names what it removes, and a ghost "Add another" beneath the
-/// set. Never a bespoke card, and never a `ListView.builder` row with a
-/// gradient in it.
+/// Built from the row grammar, not from cards (unify §3.18: the soft row
+/// *replaces* ListTile/Card usage). Each entry opens with a list-form
+/// [SoftRow] carrying its number in mono ("Competitor 2 of 3", never "02")
+/// and what the agent has typed so far, a 48dp remove control beside it that
+/// names what it removes, then the entry's fields; entries are separated by
+/// the same structure rule the stock counter draws between SKUs. A ghost
+/// "Add another" sits beneath the set. No fill, no radius, no shadow — a list
+/// of six risks down a phone is a list, not six boxes.
+///
+/// The remove control sits *beside* the row rather than in its trailing slot:
+/// a soft row is one semantics node and excludes its children, and a remove
+/// button a screen reader cannot reach is not a remove button.
 class SectionEntries extends StatelessWidget {
   const SectionEntries({
     super.key,
-    required this.entryName,
+    required this.kind,
     required this.entries,
     required this.onAdd,
     required this.onRemove,
+    this.summaries = const <String?>[],
     this.addLabel,
     this.emptyLine,
   });
 
-  /// "Competitor", "Risk", "Task". Spoken by the remove control.
-  final String entryName;
+  /// `competitor`, `risk` or `task` — selects the entry's name in both cases
+  /// ("Competitor 2 of 3" in the header, "Remove competitor 2 of 3" spoken).
+  final String kind;
 
   final List<Widget> entries;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
+
+  /// What each entry is, so far — the competitor's SKU, the flag type. Null or
+  /// blank reads "Not named yet". Indexed like [entries].
+  final List<String?> summaries;
+
   final String? addLabel;
 
   /// What an empty set says. A set with no entries is a state, not a blank.
@@ -652,14 +666,14 @@ class SectionEntries extends StatelessWidget {
           const SizedBox(height: TiqSpace.s4),
         ],
         for (final (i, entry) in entries.indexed) ...<Widget>[
-          _EntryCard(
+          _Entry(
             index: i,
             total: total,
-            entryName: entryName,
+            kind: kind,
+            summary: i < summaries.length ? summaries[i] : null,
             onRemove: () => onRemove(i),
             child: entry,
           ),
-          const SizedBox(height: TiqSpace.s4),
         ],
         Align(
           alignment: AlignmentDirectional.centerStart,
@@ -675,18 +689,20 @@ class SectionEntries extends StatelessWidget {
   }
 }
 
-class _EntryCard extends StatelessWidget {
-  const _EntryCard({
+class _Entry extends StatelessWidget {
+  const _Entry({
     required this.index,
     required this.total,
-    required this.entryName,
+    required this.kind,
+    required this.summary,
     required this.onRemove,
     required this.child,
   });
 
   final int index;
   final int total;
-  final String entryName;
+  final String kind;
+  final String? summary;
   final VoidCallback onRemove;
   final Widget child;
 
@@ -695,40 +711,45 @@ class _EntryCard extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final position = l10n.sectionEntryPosition(index + 1, total);
-    return Container(
+    final title = '${l10n.sectionEntryName(kind)} $position';
+    final named = summary?.trim().isNotEmpty == true;
+    final subtitle = named ? summary!.trim() : l10n.sectionEntryUnnamed;
+    return Column(
       key: ValueKey<String>('entry-$index'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  '$entryName $position',
-                  style: skin.text.titleM.style(color: skin.palette.ink1),
-                ),
-              ),
-              const SizedBox(width: TiqSpace.s2),
-              TorchIconButton(
-                icon: Icons.close,
-                semanticLabel: l10n.sectionRemoveEntry(entryName, position),
-                onPressed: onRemove,
-              ),
-            ],
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (index > 0)
+          Container(
+            height: skin.depth.borderWidth,
+            color: skin.palette.edgeStructure,
           ),
-          const SizedBox(height: TiqSpace.s4),
-          child,
-        ],
-      ),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: SoftRow(
+                density: SoftRowDensity.compact,
+                title: title,
+                subtitle: subtitle,
+                separator: SoftRowSeparator.none,
+                semanticsLabel: '$title. $subtitle',
+              ),
+            ),
+            const SizedBox(width: TiqSpace.s2),
+            TorchIconButton(
+              key: ValueKey<String>('entry-remove-$index'),
+              icon: Icons.close,
+              semanticLabel: l10n.sectionRemoveEntry(
+                l10n.sectionEntryNameLower(kind),
+                position,
+              ),
+              onPressed: onRemove,
+            ),
+          ],
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        child,
+        const SizedBox(height: TiqSpace.s6),
+      ],
     );
   }
 }

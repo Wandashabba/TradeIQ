@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../core/widgets/torchlight/marks.dart';
@@ -66,19 +67,22 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
   });
 
   Future<void> _save() async {
-    // Rows without a competitor SKU name are skipped.
+    // Rows without a competitor SKU name are skipped. Figures are read in the
+    // locale's notation: `12,50` on an Afrikaans phone is twelve fifty, never
+    // a price of nothing.
+    final numbers = TiqNumber.of(context);
     final entries = <CompetitiveEntry>[
       for (final entry in _entries)
         if (entry.sku.text.trim().isNotEmpty)
           CompetitiveEntry(
             competitorSku: entry.sku.text.trim(),
-            competitorPrice: double.tryParse(entry.price.text) ?? 0.0,
+            competitorPrice: numbers.parse(entry.price.text)?.toDouble() ?? 0.0,
             competitorPosmType: entry.posm.text.trim(),
             competitorPromoterPresent: entry.promoter,
             // Facings is what makes share-of-shelf a real ratio rather than a
             // count of how many rows the agent typed (#93). A blank box means
             // "at least one" — never zero, which would erase the competitor.
-            facingsCount: int.tryParse(entry.facings.text.trim()) ?? 1,
+            facingsCount: numbers.parse(entry.facings.text)?.toInt() ?? 1,
           ),
     ];
 
@@ -101,7 +105,8 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
       skip: SectionSkipTarget(widget.visitDraftId, AuditSection.competitive),
       children: <Widget>[
         SectionEntries(
-          entryName: l10n.visitSectionCompetitive,
+          kind: 'competitor',
+          summaries: <String?>[for (final entry in _entries) entry.sku.text],
           addLabel: l10n.s6AddButton,
           emptyLine: l10n.s6NoCompetitors,
           onAdd: () => _touch(() => _entries.add(_S6Entry())),
