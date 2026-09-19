@@ -362,10 +362,20 @@ class RankedBarsData {
         if (entry is! Map) continue;
         final label = entry['label'];
         final value = entry['value'];
-        // A tile with a label is a tile. A value that is absent or unreadable
-      // is unknown — an em dash and a sentence — and never a dropped tile or
-      // a zero.
-      if (label is! String || label.trim().isEmpty) continue;
+        // EVERY READ IS TYPE-TESTED. A bar is a length, and [RankedBarItem]
+        // holds a non-null `double`: there is no em dash a bar can be drawn
+        // as, so an unreadable value drops the BAR, where a [StatTileData]
+        // with an unreadable value keeps the tile and shows the em dash. The
+        // two rules differ because the two marks differ — do not paste one
+        // onto the other. Dropping the guard here does not soften the figure,
+        // it throws `NoSuchMethodError` out of `_AskState.build`, above
+        // `ArtifactView`'s catch, and takes the whole Ask route down.
+        if (label is! String ||
+            label.trim().isEmpty ||
+            value is! num ||
+            !value.isFinite) {
+          continue;
+        }
         items.add(RankedBarItem(
           label,
           value.toDouble(),
