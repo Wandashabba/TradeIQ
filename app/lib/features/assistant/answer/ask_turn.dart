@@ -51,7 +51,15 @@ class _QuestionBubbleState extends State<QuestionBubble> {
     return Semantics(
       container: true,
       label: '${l10n.askYourQuestion}. ${widget.text}',
-      excludeSemantics: true,
+      // THE HOLD, AS AN ACTION. `excludeSemantics` drops the descendant
+      // `GestureDetector`'s node, so hold-to-copy was not in the tree at all:
+      // a capability a widget test could reach by sending the gesture
+      // directly, and a screen-reader user could not.
+      onLongPress: _copy,
+      // ...and "Show the full question" gets its own node beneath this one.
+      // It is the ONLY way to read a question clamped at six lines, and
+      // inside an excluded subtree it did not exist to assistive tech.
+      explicitChildNodes: true,
       child: Align(
         alignment: AlignmentDirectional.centerEnd,
         child: GestureDetector(
@@ -60,31 +68,37 @@ class _QuestionBubbleState extends State<QuestionBubble> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-                ),
-                child: Container(
-                  padding: EdgeInsets.all(veld ? TiqSpace.s4 : TiqSpace.s3),
-                  decoration: BoxDecoration(
-                    color: veld ? p.ground : p.raised,
-                    borderRadius: BorderRadius.circular(
-                      veld ? 0 : skin.radii.panel,
-                    ),
-                    border: veld ? Border.all(color: p.ink1, width: 2) : null,
+              // The question is already this node's label; a second node
+              // repeating it would read it twice.
+              ExcludeSemantics(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
                   ),
-                  child: Text.rich(
-                    TextSpan(
-                      children: answerSpans(
-                        answerRuns(widget.text, streaming: false),
-                        skin: skin,
-                        base: skin.text.body.style(color: p.ink1),
+                  child: Container(
+                    padding: EdgeInsets.all(veld ? TiqSpace.s4 : TiqSpace.s3),
+                    decoration: BoxDecoration(
+                      color: veld ? p.ground : p.raised,
+                      borderRadius: BorderRadius.circular(
+                        veld ? 0 : skin.radii.panel,
                       ),
+                      border: veld ? Border.all(color: p.ink1, width: 2) : null,
                     ),
-                    // No fade over the clamp: this system draws no gradient
-                    // over text, anywhere.
-                    maxLines: _full ? null : QuestionBubble.clampLines,
-                    overflow: _full ? TextOverflow.clip : TextOverflow.ellipsis,
+                    child: Text.rich(
+                      TextSpan(
+                        children: answerSpans(
+                          answerRuns(widget.text, streaming: false),
+                          skin: skin,
+                          base: skin.text.body.style(color: p.ink1),
+                        ),
+                      ),
+                      // No fade over the clamp: this system draws no gradient
+                      // over text, anywhere.
+                      maxLines: _full ? null : QuestionBubble.clampLines,
+                      overflow: _full
+                          ? TextOverflow.clip
+                          : TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ),
@@ -298,9 +312,13 @@ class AskHeldBand extends StatelessWidget {
 
     return Semantics(
       container: true,
-      liveRegion: true,
-      label: semanticsLabel,
-      excludeSemantics: true,
+      // EXPLICIT CHILD NODES, not an excluded subtree. `excludeSemantics: true`
+      // here swallowed the band's own action: in `sessionEnded` the composer
+      // is disabled (`AskPhase.canSend` is false), so "Sign in" is the only
+      // control on the route, and it was not in the accessibility tree — no
+      // node to focus and no action to fire. The sentence keeps its live
+      // region below; the way out gets a node of its own.
+      explicitChildNodes: true,
       child: Container(
         key: const ValueKey<String>('ask-held-band'),
         constraints: BoxConstraints(minHeight: skin.space.rowMinHeight),
@@ -317,15 +335,25 @@ class AskHeldBand extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            TiqMark(
-              // The square is labelled "Held" — deliberately not a severity.
-              shape: MarkShape.heldSquare,
-              color: veld ? p.ink1 : p.comparison,
-              size: MarkScale.glyph(context, veld ? 12 : 9),
+            ExcludeSemantics(
+              child: TiqMark(
+                // The square is labelled "Held" — deliberately not a severity.
+                shape: MarkShape.heldSquare,
+                color: veld ? p.ink1 : p.comparison,
+                size: MarkScale.glyph(context, veld ? 12 : 9),
+              ),
             ),
             const SizedBox(width: TiqSpace.s2),
             Expanded(
-              child: Text(message, style: skin.text.label.style(color: p.ink2)),
+              child: Semantics(
+                liveRegion: true,
+                label: semanticsLabel,
+                excludeSemantics: true,
+                child: Text(
+                  message,
+                  style: skin.text.label.style(color: p.ink2),
+                ),
+              ),
             ),
             if (action != null && onAction != null) ...<Widget>[
               const SizedBox(width: TiqSpace.s2),

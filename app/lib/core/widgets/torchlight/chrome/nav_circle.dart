@@ -101,6 +101,10 @@ class TorchNavCircle extends StatelessWidget {
           ? (expected ? expectedSemanticLabel : semanticLabel)
           : '${expected ? expectedSemanticLabel : semanticLabel}'
                 '${blockedReason == null ? '' : ', $blockedReason'}',
+      // THE ACTION, not only the flag: `excludeSemantics` drops the
+      // gesture detector's own node, so without `onTap` here this is a
+      // control a screen reader can focus and cannot activate.
+      onTap: onPressed,
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: onPressed,

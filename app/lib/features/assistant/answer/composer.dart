@@ -73,8 +73,7 @@ class QuestionComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    final streaming =
-        phase == AskPhase.thinking || phase == AskPhase.writing;
+    final streaming = phase == AskPhase.thinking || phase == AskPhase.writing;
     final canType = phase.canSend && !streaming;
 
     return Column(
@@ -161,48 +160,48 @@ class _SendKey extends StatelessWidget {
     final radius = BorderRadius.circular(skin.radii.control);
     final lit = TorchScope.lit(context, AskLight.sendClaimId);
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
+    // The node is the pressable's, so its `onTap` is the SAME debounced,
+    // haptic fire the finger goes through. Wrapped around it instead, with
+    // `excludeSemantics: true` and no `onTap`, the route's one primary action
+    // announced itself as a button and then did nothing when activated.
+    return TorchPressable(
+      onPressed: enabled ? onPressed : null,
+      semanticsEnabled: enabled,
       // A disabled Send announces WHY rather than being silently inert.
-      label: enabled
+      semanticsLabel: enabled
           ? l10n.askSend
           : (offline ? l10n.askSendUnavailable : l10n.askSendNothingTyped),
-      excludeSemantics: true,
-      child: TorchPressable(
-        onPressed: enabled ? onPressed : null,
-        borderRadius: radius,
-        debounce: const Duration(milliseconds: 400),
-        builder: (context, pressed) {
-          final look = AskLight.send(
-            skin,
-            lit: lit,
-            pressed: pressed,
-            disabled: !enabled,
-          );
-          return Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: look.fill,
-              borderRadius: radius,
-              border: look.edge == null
-                  ? null
-                  : Border.all(color: look.edge!, width: look.edgeWidth),
+      borderRadius: radius,
+      debounce: const Duration(milliseconds: 400),
+      builder: (context, pressed) {
+        final look = AskLight.send(
+          skin,
+          lit: lit,
+          pressed: pressed,
+          disabled: !enabled,
+        );
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: look.fill,
+            borderRadius: radius,
+            border: look.edge == null
+                ? null
+                : Border.all(color: look.edge!, width: look.edgeWidth),
+          ),
+          child: Center(
+            child: _Arrow(
+              colour: look.ink,
+              size: MarkScale.glyph(context, 20),
+              // A SHAPE change, not only a colour one: a colour-only
+              // disabled state is invisible at 40% backlight in sun, which
+              // is the one place Veld exists for.
+              struck: !enabled && skin.mode == SkinMode.veld,
             ),
-            child: Center(
-              child: _Arrow(
-                colour: look.ink,
-                size: MarkScale.glyph(context, 20),
-                // A SHAPE change, not only a colour one: a colour-only
-                // disabled state is invisible at 40% backlight in sun, which
-                // is the one place Veld exists for.
-                struck: !enabled && skin.mode == SkinMode.veld,
-              ),
-            ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -221,29 +220,25 @@ class _StopKey extends StatelessWidget {
     final size = _keySize(skin);
     final radius = BorderRadius.circular(skin.radii.control);
 
-    return Semantics(
-      button: true,
-      label: context.l10n.askStop,
-      excludeSemantics: true,
-      child: TorchPressable(
-        onPressed: onPressed,
-        borderRadius: radius,
-        builder: (context, pressed) => Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: pressed ? torchPressSurface(skin).fill : null,
-            borderRadius: radius,
-            border: Border.all(
-              color: p.edgeControl,
-              width: pressed ? 2 : skin.depth.borderWidth,
-            ),
+    return TorchPressable(
+      onPressed: onPressed,
+      semanticsLabel: context.l10n.askStop,
+      borderRadius: radius,
+      builder: (context, pressed) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: pressed ? torchPressSurface(skin).fill : null,
+          borderRadius: radius,
+          border: Border.all(
+            color: p.edgeControl,
+            width: pressed ? 2 : skin.depth.borderWidth,
           ),
-          child: Center(
-            child: SizedBox.square(
-              dimension: MarkScale.glyph(context, 12),
-              child: ColoredBox(color: p.ink1),
-            ),
+        ),
+        child: Center(
+          child: SizedBox.square(
+            dimension: MarkScale.glyph(context, 12),
+            child: ColoredBox(color: p.ink1),
           ),
         ),
       ),

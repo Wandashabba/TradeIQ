@@ -4,7 +4,9 @@ import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
+import 'package:tradeiq_app/features/assistant/answer/answer_copy.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
+import 'package:tradeiq_app/features/assistant/view_specs/answer_focus.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/ranked_bars_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/rich_figures.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/stat_tiles_card.dart';
@@ -526,8 +528,87 @@ void main() {
       );
     });
 
+    // THE GUARD THAT WAS DELETED ONCE. `RankedBarItem.value` is a non-null
+    // `double`; a bar has no em dash to render as, so an unreadable value
+    // drops the bar. Without the `is num` test, `value.toDouble()` throws
+    // `NoSuchMethodError` — and the throw does NOT land inside
+    // `ArtifactView`'s catch, because `AnswerFocusTarget.resolve` parses the
+    // same data at screen level, above it. The whole Ask route goes red.
+    test('a bar with an unreadable value is dropped, not thrown on', () {
+      for (final bad in <Object?>[null, 'n/a', double.nan, double.infinity, []]) {
+        final data = RankedBarsData.from({
+          'items': [
+            {'label': 'Kept', 'value': 3},
+            {'label': 'Dropped', 'value': bad},
+          ],
+        });
+        expect(
+          data.items.map((i) => i.label),
+          <String>['Kept'],
+          reason: 'value $bad should drop its bar and keep the readable one',
+        );
+        // maxAbs and diverging walk every item; a survivor with a null value
+        // would throw here instead.
+        expect(data.maxAbs, 3);
+        expect(data.diverging, isFalse);
+      }
+    });
+
+    // The screen-level parse — the one OUTSIDE `ArtifactView`'s try/catch,
+    // and the Copy path, which shares the parser.
+    testWidgets('a null bar does not take the route down', (tester) async {
+      const message = ChatMessage(
+        role: ChatRole.assistant,
+        text: 'Two outlets ran out.',
+        artifacts: <ChatArtifact>[
+          ChatArtifact(
+            id: 'a1',
+            type: 'ranked_bars',
+            params: <String, dynamic>{},
+            data: <String, dynamic>{
+              'items': [
+                {'label': 'Soweto', 'value': 4},
+                {'label': 'Tembisa', 'value': null},
+                {'label': 'Alex', 'value': 2},
+              ],
+            },
+          ),
+        ],
+        focus: <String, int>{'a1': 1},
+      );
+
+      // 1. Screen level: `resolve` walks the same parser above the catch.
+      expect(AnswerFocusTarget.resolve(message)?.artifactId, 'a1');
+
+      // 2. The card itself still draws, with the readable bars only.
+      late BuildContext ctx;
+      await tester.pumpWidget(wrap(Builder(builder: (context) {
+        ctx = context;
+        return ArtifactView(artifact: message.artifacts.first);
+      })));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(RankedBarsCard), findsOneWidget);
+      expect(screenText(tester), contains('Soweto'));
+      expect(screenText(tester), isNot(contains('Tembisa')));
+
+      // 3. Copy shares the parser.
+      expect(answerPlainText(ctx, message: message), contains('Soweto'));
+    });
+
     testWidgets('malformed data renders without throwing', (tester) async {
-      for (final data in <Object>['nope', const {}, const {'tiles': 'x'}, const {'items': [1, 2]}]) {
+      for (final data in <Object>[
+        'nope',
+        const {},
+        const {'tiles': 'x'},
+        const {'items': [1, 2]},
+        // An item MAP whose value is null, missing or a string: the shape the
+        // deleted guard was the only thing standing between and a dead route.
+        const {'items': [{'label': 'a', 'value': null}]},
+        const {'items': [{'label': 'a'}]},
+        const {'items': [{'label': 'a', 'value': 'n/a'}, {'label': 'b', 'value': 2}]},
+        const {'tiles': [{'label': 'a', 'value': null}]},
+      ]) {
         await tester.pumpWidget(wrap(
           Column(children: [
             ArtifactView(artifact: artifact('stat_tiles', data)),

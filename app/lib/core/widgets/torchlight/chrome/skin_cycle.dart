@@ -92,6 +92,11 @@ class TorchSkinCycle extends StatelessWidget {
       button: true,
       liveRegion: true,
       label: semanticLabel,
+      // THE ACTION, not only the flag: `excludeSemantics` drops the
+      // gesture detector's own node, so without `onTap` here this is a
+      // control a screen reader can focus and cannot activate.
+      onTap: () => onChanged(next(mode)),
+      onLongPress: onLongPress,
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: () => onChanged(next(mode)),
