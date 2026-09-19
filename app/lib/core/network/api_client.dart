@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'app_version.dart';
+
 String? currentAuthToken;
 
 /// The backend base URL. Overridable at build/run time with
@@ -46,6 +48,11 @@ final dio = Dio(BaseOptions(
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
+      // Which build sent this (#400). Before this header the server could not
+      // tell which build produced a stuck outbox row, and had no way to turn
+      // away a build whose payloads it no longer understands.
+      options.headers[appVersionHeader] = appVersion;
+      options.headers[appBuildHeader] = appBuild;
       handler.next(options);
     },
     onError: (error, handler) {
@@ -57,13 +64,39 @@ final dio = Dio(BaseOptions(
       // A 401 from the login request itself means wrong credentials, not an
       // expired session. Logging out there would clobber the login screen's own
       // error handling and tell the user the wrong story.
-      final isLoginAttempt =
-          error.requestOptions.path.endsWith('/auth/login');
-      if (error.response?.statusCode == 401 && !isLoginAttempt) {
+      if (endsSession(error)) {
         onUnauthorized?.call();
       }
+      // The server has refused this build (#400). A 426 and not a 401, so the
+      // session survives: the build is stale, the password is fine.
+      final tooOld = AppUpdateRequired.fromError(error);
+      if (tooOld != null) appUpdateRequired.value = tooOld;
       // Always forwarded: callers still need to see the failure. Signing out is
       // in addition to the error, not instead of it.
       handler.next(error);
     },
   ));
+
+/// The 401 `code`s that mean "a secret typed into THIS request was wrong", not
+/// "your session is over" (#400). Each is one constant per route on the
+/// server, shared by every failure there.
+const _wrongSecretCodes = {'current_password_incorrect', 'reset_code_invalid'};
+
+/// Whether [error] means the session has ended and the user must sign in again.
+///
+/// A 401 almost always does: the backend issues a 12h token with no refresh.
+/// Three 401s do not, and signing out on them would tell the user the wrong
+/// story or throw away the session they were using:
+///
+/// - `/auth/login` — wrong credentials; the login screen words it itself.
+/// - a wrong current password on change-password — the session is fine, and
+///   ending it would punish a typo by logging the agent out of their day.
+/// - a rejected reset code — the person is signed out already.
+bool endsSession(DioException error) {
+  final response = error.response;
+  if (response?.statusCode != 401) return false;
+  if (error.requestOptions.path.endsWith('/auth/login')) return false;
+  final body = response?.data;
+  if (body is Map && _wrongSecretCodes.contains(body['code'])) return false;
+  return true;
+}
