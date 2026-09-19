@@ -665,4 +665,167 @@ void main() {
       expect(flusher.sent, isEmpty);
     });
   });
+
+  group('one capture at a time (#376)', () {
+    /// Refuses exactly the photo, so a test can see that the rest of the
+    /// queue was never touched and that the refused body is left as it was.
+    Future<LocalDb> queue() async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'draft-1',
+        payloadJson: '{"outletId":"o1"}',
+      );
+      await db.enqueue(
+        entityType: 'stock',
+        entityId: 'stock-1',
+        payloadJson: '{"visitDraftId":"draft-1","items":[]}',
+      );
+      await db.enqueue(
+        entityType: 'photo',
+        entityId: 'photo-1',
+        payloadJson: '{"visitDraftId":"draft-1","data":"AAAA"}',
+      );
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'draft-2',
+        payloadJson: '{"outletId":"o2"}',
+      );
+      await db.enqueue(
+        entityType: 'stock',
+        entityId: 'stock-2',
+        payloadJson: '{"visitDraftId":"draft-2","items":[]}',
+      );
+      return db;
+    }
+
+    Future<int> idOf(LocalDb db, String entityId) async =>
+        (await (db.select(db.syncQueueItems)
+                  ..where((t) => t.entityId.equals(entityId)))
+                .getSingle())
+            .id;
+
+    test('sendOne sends that row and nothing else', () async {
+      final db = await queue();
+      final flusher = RecordingFlusher();
+      final service = SyncService(db: db, flusher: flusher);
+
+      final sent = await service.sendOne(await idOf(db, 'stock-2'));
+
+      expect(sent, isTrue);
+      expect(flusher.sent, ['stock-2']);
+      final rows = await db.select(db.syncQueueItems).get();
+      expect(
+        rows.where((r) => r.synced).map((r) => r.entityId),
+        ['stock-2'],
+      );
+    });
+
+    test('a refused send records the failure and leaves the body alone', () async {
+      final db = await queue();
+      final id = await idOf(db, 'photo-1');
+      final before = (await (db.select(db.syncQueueItems)
+                ..where((t) => t.id.equals(id)))
+              .getSingle())
+          .payloadJson;
+
+      final service = SyncService(db: db, flusher: _RefusingFlusher());
+      expect(await service.sendOne(id), isFalse);
+
+      final row = await (db.select(db.syncQueueItems)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
+      expect(row.synced, isFalse);
+      expect(row.attempts, 1);
+      expect(row.lastError, 'sync:rejected:422');
+      expect(
+        row.payloadJson,
+        before,
+        reason: 'the app never repairs a rejected payload behind the agent',
+      );
+    });
+
+    test('sendOne cannot reach another agent\'s row, or a sent one', () async {
+      final db = await queue();
+      final id = await idOf(db, 'stock-2');
+      final flusher = RecordingFlusher();
+      final service = SyncService(db: db, flusher: flusher);
+
+      currentLocalUserId = 'somebody-else';
+      expect(await service.sendOne(id), isFalse);
+      currentLocalUserId = null;
+      expect(await service.sendOne(id), isFalse);
+      currentLocalUserId = 'user-a';
+      expect(await service.sendOne(id), isTrue);
+      expect(await service.sendOne(id), isFalse, reason: 'already sent');
+      expect(flusher.sent, ['stock-2']);
+    });
+
+    test('discarding a section removes that row only', () async {
+      final db = await queue();
+      final service = SyncService(db: db, flusher: NoopFlusher());
+      final id = await idOf(db, 'photo-1');
+
+      expect(await service.dependentsOf(id), 0);
+      expect(await service.discard(id), 1);
+
+      final left = await db.select(db.syncQueueItems).get();
+      expect(
+        left.map((r) => r.entityId),
+        ['draft-1', 'stock-1', 'draft-2', 'stock-2'],
+      );
+    });
+
+    test(
+      'discarding a visit takes its own captures with it, and no one else\'s',
+      () async {
+        // Without the cascade the stock count and the photo would wait for a
+        // visit that will never arrive — for ever, with no way to clear them.
+        final db = await queue();
+        final service = SyncService(db: db, flusher: NoopFlusher());
+        final id = await idOf(db, 'draft-1');
+
+        expect(await service.dependentsOf(id), 2);
+        expect(await service.discard(id), 3);
+
+        final left = await db.select(db.syncQueueItems).get();
+        expect(left.map((r) => r.entityId), ['draft-2', 'stock-2']);
+      },
+    );
+
+    test('a discard cannot reach another agent\'s row, or a sent one', () async {
+      final db = await queue();
+      final service = SyncService(db: db, flusher: NoopFlusher());
+      final id = await idOf(db, 'stock-2');
+
+      currentLocalUserId = 'somebody-else';
+      expect(await service.discard(id), 0);
+      expect(await service.dependentsOf(id), 0);
+
+      currentLocalUserId = 'user-a';
+      await service.sendOne(id);
+      expect(
+        await service.discard(id),
+        0,
+        reason: 'a sent row is the receipt and is never thrown away',
+      );
+      expect((await db.select(db.syncQueueItems).get()).length, 5);
+    });
+  });
+}
+
+/// The server looked at the body and said no.
+class _RefusingFlusher implements QueueFlusher {
+  @override
+  Future<void> flush(SyncQueueItem item) async {
+    throw DioException(
+      requestOptions: RequestOptions(path: '/photos'),
+      type: DioExceptionType.badResponse,
+      response: Response(
+        requestOptions: RequestOptions(path: '/photos'),
+        statusCode: 422,
+      ),
+    );
+  }
 }

@@ -1,439 +1,806 @@
-import 'dart:io';
-
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/human_error.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
+import 'package:tradeiq_app/core/location/location_sharing.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/audit/presentation/my_work_screen.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
+import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
+
+import '../../core/design/amber_golden.dart';
+import '../agent_harness.dart';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
-SyncItem _item({
-  required int id,
-  required String entityType,
-  required bool synced,
+SyncItem _item(
+  int id,
+  String entityType, {
+  bool synced = false,
   String? lastError,
-  DateTime? lastAttemptAt,
+  int? payloadBytes,
+  int attempts = 1,
 }) => SyncItem(
   id: id,
   entityType: entityType,
-  queuedAt: DateTime(2026, 7, 20, 9),
+  queuedAt: DateTime(2026, 7, 20, 7, 58),
   synced: synced,
-  attempts: 1,
+  attempts: attempts,
   lastError: lastError,
-  lastAttemptAt: lastAttemptAt,
+  lastAttemptAt: synced || lastError != null
+      ? DateTime(2026, 7, 20, 14, 20)
+      : null,
+  payloadBytes: payloadBytes,
 );
 
-/// A queue with one of each state: a plain waiting capture (offline-normal), a
-/// failed one that will never send on its own (needs-attention), and a sent one.
-final _waiting = _item(id: 1, entityType: 'stock', synced: false);
-final _attention = _item(
-  id: 2,
-  entityType: 'photo',
-  synced: false,
-  lastError: 'Payload rejected',
-);
-final _sent = _item(
-  id: 3,
-  entityType: 'visit',
-  synced: true,
-  lastAttemptAt: DateTime(2026, 7, 20, 10),
-);
-
-SyncStatus _fullQueue() => SyncStatus(
-  pending: [_waiting, _attention],
-  sent: [_sent],
-  needsAttention: [_attention],
-);
-
-/// Pending only, nothing failed — the offline-is-normal path.
-SyncStatus _waitingOnly() =>
-    SyncStatus(pending: [_waiting], sent: const [], needsAttention: const []);
-
-bool _syncNowCalled = false;
-
-List<Override> _overrides(SyncStatus status) {
-  final db = LocalDb(NativeDatabase.memory());
-  addTearDown(db.close);
-  return [
-    localDbProvider.overrideWithValue(db),
-    syncStatusProvider.overrideWith((ref) => Stream.value(status)),
-    // Presentation test: the real flush touches services + the network. We only
-    // need to prove the retry affordance is wired to the provider.
-    syncNowProvider.overrideWithValue(() async {
-      _syncNowCalled = true;
-    }),
-  ];
+SyncStatus _status(List<SyncItem> items) {
+  final pending = items.where((i) => !i.synced).toList();
+  return SyncStatus(
+    pending: pending,
+    sent: items.where((i) => i.synced).toList(),
+    needsAttention: pending.where((i) => i.needsAttention).toList(),
+  );
 }
 
-Widget _app(SyncStatus status, {required String name}) => routedApp(
-  MyWorkScreen(key: ValueKey('my-work-$name')),
-  overrides: _overrides(status),
-  theme: name == 'light' ? AppTheme.light() : AppTheme.dark(),
-);
+/// Held, and only held: the normal Tuesday.
+final _held = _status(<SyncItem>[
+  _item(1, 'stock', payloadBytes: 300 * 1024),
+  _item(2, 'photo', lastError: 'sync:noConnection', payloadBytes: 1468006),
+  _item(3, 'visit', synced: true, payloadBytes: 2048),
+]);
 
-/// The error branch: the sync-status stream fails. Mirrors [_overrides] but
-/// makes the provider emit an error instead of a status.
-List<Override> _errorOverrides(Object error) {
-  final db = LocalDb(NativeDatabase.memory());
-  addTearDown(db.close);
-  return [
-    localDbProvider.overrideWithValue(db),
-    syncStatusProvider.overrideWith((ref) => Stream.error(error)),
-    syncNowProvider.overrideWithValue(() async {}),
-  ];
+/// One capture the server refused. The rest are fine.
+final _stuck = _status(<SyncItem>[
+  _item(1, 'stock', payloadBytes: 300 * 1024),
+  _item(4, 'pricing', lastError: 'sync:rejected:422', payloadBytes: 900),
+  _item(3, 'visit', synced: true),
+]);
+
+/// The session ended under the queue.
+final _signedOut = _status(<SyncItem>[
+  _item(5, 'photo', lastError: 'sync:signedOut'),
+  _item(1, 'stock'),
+]);
+
+final _allSent = _status(<SyncItem>[_item(3, 'visit', synced: true)]);
+
+/// A field agent whose location answer is [consent] (null: not yet asked).
+class _Location extends LocationSharingController {
+  _Location(this.consent);
+
+  final LocationConsent? consent;
+
+  @override
+  LocationSharingState build() => LocationSharingState(
+    isAgent: true,
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          consent == null
+              ? null
+              : LocationDecision(
+                  consent: consent!,
+                  noticeVersion: 'v1',
+                  decidedAt: DateTime(2026, 9, 15),
+                ),
+        ),
+    running: consent == LocationConsent.acknowledged,
+  );
 }
 
-Widget _errorApp(Object error) => routedApp(
-  const MyWorkScreen(key: ValueKey('my-work-error')),
-  overrides: _errorOverrides(error),
-  theme: AppTheme.dark(),
+class _Syncing extends SyncingNotifier {
+  @override
+  bool build() => true;
+}
+
+/// What the sheet and the screen's button called, so a test can see the
+/// difference between "try everything" and "try this one".
+class _Calls {
+  int syncNow = 0;
+  final List<int> sentOne = <int>[];
+  final List<int> discarded = <int>[];
+  int dependents = 0;
+}
+
+Future<_Calls> _pump(
+  WidgetTester tester, {
+  SyncStatus? sync,
+  Object? error,
+  SkinMode skin = SkinMode.night,
+  double textScale = 1.0,
+  Locale locale = const Locale('en'),
+  bool sending = false,
+  int dependents = 0,
+  _Location? location,
+}) async {
+  final calls = _Calls()..dependents = dependents;
+  final db = agentTestDb();
+  await pumpAgentScreen(
+    tester,
+    const MyWorkScreen(),
+    path: '/my-work',
+    overrides: <Override>[
+      if (error == null)
+        ...agentBaseOverrides(
+          db: db,
+          skin: skin,
+          sync: sync ?? SyncStatus.empty,
+        )
+      else ...<Override>[
+        // The base overrides stub the outbox with a value; this one reads it
+        // and fails. Same four overrides otherwise.
+        localDbProvider.overrideWithValue(db),
+        agentSkinProvider.overrideWith(() => PinnedAgentSkin(skin)),
+        syncStatusProvider.overrideWith(
+          (ref) => Stream<SyncStatus>.error(error),
+        ),
+        runningContestsCountProvider.overrideWith((ref) async => 0),
+      ],
+      if (sending) syncingProvider.overrideWith(_Syncing.new),
+      if (location != null)
+        locationSharingControllerProvider.overrideWith(() => location),
+      syncNowProvider.overrideWithValue(() async => calls.syncNow++),
+      sendOneProvider.overrideWithValue((id) async => calls.sentOne.add(id)),
+      discardCaptureProvider.overrideWithValue(
+        (id) async => calls.discarded.add(id),
+      ),
+      discardDependentsProvider.overrideWithValue(
+        (id) async => calls.dependents,
+      ),
+    ],
+    textScale: textScale,
+    locale: locale,
+    extraRoutes: <GoRoute>[
+      GoRoute(path: '/today', builder: (c, s) => const Text('Today view')),
+      GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
+      GoRoute(path: '/login', builder: (c, s) => const Text('Login view')),
+      GoRoute(path: '/audit', builder: (c, s) => const Text('Outlet picker')),
+      // The fourth slot is Me (#383); Contests lives inside it now.
+      GoRoute(path: '/me', builder: (c, s) => const Text('Me view')),
+    ],
+  );
+  return calls;
+}
+
+TorchAllocation _allocation(WidgetTester tester) =>
+    TorchScope.maybeOf(tester.element(find.byType(TorchNavPill)))!.allocation;
+
+Finder _row(int id) => find.byKey(ValueKey<String>('sync-item-$id'));
+
+OutboxRow _outboxRow(WidgetTester tester, int id) =>
+    tester.widget<OutboxRow>(_row(id));
+
+/// The body is a lazy list, so a row below the summary on a 360×640 phone is
+/// genuinely not built until it is scrolled to — which is the point.
+Future<OutboxRow> _see(WidgetTester tester, int id) async {
+  await scrollAgentTo(tester, _row(id));
+  return _outboxRow(tester, id);
+}
+
+TiqMark _summaryMark(WidgetTester tester) => tester.widget<TiqMark>(
+  find
+      .descendant(
+        of: find.byKey(const ValueKey<String>('work-summary')),
+        matching: find.byType(TiqMark),
+      )
+      .first,
 );
-
-/// Both themes, each with the palette its assertions read against.
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
-
-/// The console card wrapping a sync row — a surface1 DecoratedBox behind a line
-/// hairline. The state words paint over this ground. Scoped to the ancestor of a
-/// known row so it never matches a StatusBanner's inner (washed) DecoratedBox.
-DecoratedBox _groupCard(WidgetTester tester, {int itemId = 1}) =>
-    tester.widget<DecoratedBox>(
-      find
-          .ancestor(
-            of: find.byKey(ValueKey('sync-item-$itemId')),
-            matching: find.byWidgetPredicate((w) {
-              if (w is! DecoratedBox) return false;
-              final d = w.decoration;
-              return d is BoxDecoration && d.color != null && d.border != null;
-            }),
-          )
-          .first,
-    );
 
 void main() {
-  setUp(() => _syncNowCalled = false);
+  setUp(TorchSheets.resetForTest);
 
-  testWidgets('groups render as console cards on the ambient palette', (
-    tester,
-  ) async {
-    for (final (name, palette) in _bothThemes) {
-      await tester.pumpWidget(_app(_fullQueue(), name: name));
-      await tester.pumpAndSettle();
+  group('held is the normal state', () {
+    testWidgets('a square, Oatmeal and a sentence — never a severity', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held);
+      final skin = agentSkinFor(SkinMode.night);
 
-      if (palette.glass) {
-        // Lumen Glass: each group is a pane of glass — no blur, it scrolls.
-        final pane = tester.widget<GlassPane>(
-          find
-              .ancestor(
-                of: find.byKey(const ValueKey('sync-item-1')),
-                matching: find.byType(GlassPane),
-              )
-              .first,
-        );
-        expect(pane.blur, isFalse, reason: '$name group never blurs');
-      } else {
-        final deco = _groupCard(tester).decoration as BoxDecoration;
-        expect(deco.color, palette.surface1, reason: '$name group surface');
+      expect(find.text('2 items held on this phone'), findsOneWidget);
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.heldSquare);
+      expect(mark.color, skin.palette.ink2, reason: 'Oatmeal, not crimson');
+      expect(mark.color, isNot(skin.palette.bad));
+
+      // No "Needs you" group for a queue that needs nothing.
+      expect(find.text('Needs you'), findsNothing);
+      expect(find.textContaining('will not send'), findsNothing);
+      // And no row carries a severity.
+      for (final id in <int>[1, 2]) {
         expect(
-          (deco.border! as Border).top.color,
-          palette.line,
-          reason: '$name group hairline',
-        );
-        expect(
-          deco.borderRadius,
-          BorderRadius.circular(12),
-          reason: '$name group radius (radiusPanel)',
+          (await _see(tester, id)).state,
+          isNot(OutboxState.stuck),
+          reason: 'row $id is held, not stuck',
         );
       }
+    });
 
-      // No raw Material scaffolding leaked in.
-      expect(find.byType(Card), findsNothing, reason: '$name no raw Card');
-      expect(
-        find.byType(ListTile),
-        findsNothing,
-        reason: '$name no raw ListTile',
+    testWidgets('a failed attempt that clears itself is retrying, not stuck', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held);
+      final row = await _see(tester, 2);
+      expect(row.state, OutboxState.retrying);
+      expect(row.stateWord, 'Retrying');
+      expect(row.ageLine, 'last tried 14:20');
+      expect((await _see(tester, 1)).ageLine, 'queued 07:58');
+    });
+
+    testWidgets('"Send now" is offered but not lit — the queue sends itself', (
+      tester,
+    ) async {
+      final calls = await _pump(tester, sync: _held);
+      expect(_allocation(tester).isLit(MyWorkScreen.sendNowClaimId), isFalse);
+
+      final button = find.byKey(const ValueKey<String>('send-now'));
+      expect(tester.widget<TorchPrimaryButton>(button).onPressed, isNotNull);
+      await tester.tap(button);
+      await tester.pump();
+      expect(calls.syncNow, 1, reason: 'the button still flushes the queue');
+    });
+
+    testWidgets('sending is Oatmeal and a word, and the button is busy', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held, sending: true, textScale: 1.0);
+      expect(find.text('Sending 2 items…'), findsOneWidget);
+      expect(_summaryMark(tester).shape, MarkShape.heldSquare);
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('send-now')),
       );
-      expect(
-        find.byType(ElevatedButton),
-        findsNothing,
-        reason: '$name no raw ElevatedButton',
+      expect(button.busy, isTrue);
+      expect(button.onPressed, isNull, reason: 'one flush at a time');
+    });
+
+    testWidgets('all sent is the mint circle and the last-sent time', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _allSent);
+      expect(find.text('Everything is sent'), findsOneWidget);
+      expect(_summaryMark(tester).shape, MarkShape.onTargetCircle);
+
+      // A disabled primary names what is missing.
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('send-now')),
       );
-    }
-  });
+      expect(button.onPressed, isNull);
+      expect(button.blockedReason, 'Nothing is waiting to send.');
+    });
 
-  testWidgets(
-    'state indicators carry a word + glyph, and coloured text clears AA both '
-    'themes (rendered pair)',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(_app(_fullQueue(), name: name));
-        await tester.pumpAndSettle();
-
-        // Words, never colour alone — scoped to each row so the "SENT" state
-        // word is not confused with the "Sent" group heading.
-        Finder stateWord(int itemId, String word) => find.descendant(
-          of: find.byKey(ValueKey('sync-item-$itemId')),
-          matching: find.text(word),
-        );
-        final sent = stateWord(3, 'SENT');
-        final waiting = stateWord(1, 'WAITING');
-        final failed = stateWord(2, 'FAILED');
-        expect(sent, findsOneWidget, reason: '$name sent word');
-        expect(waiting, findsOneWidget, reason: '$name waiting word');
-        expect(failed, findsOneWidget, reason: '$name failed word');
-
-        // Glyphs pair each word.
-        expect(
-          find.byIcon(Icons.check),
-          findsWidgets,
-          reason: '$name sent glyph',
-        );
-        expect(
-          find.byIcon(Icons.schedule),
-          findsWidgets,
-          reason: '$name waiting glyph',
-        );
-        expect(
-          find.byIcon(Icons.warning_amber_outlined),
-          findsWidgets,
-          reason: '$name failed glyph',
-        );
-
-        // The rows paint over the surface1 group card. Each coloured state word
-        // must clear 4.5:1 there — sent→good, waiting→warn, failed→critText
-        // (raw crit fails AA in dark, the recurring lesson).
-        // Glass: by day a no-blur pane composites LIGHTER than surface1 under
-        // dark ink; at night it composites DARKER than surface1 under light
-        // ink. Either way surface1 is the conservative ground to measure
-        // against.
-        final bg = palette.glass
-            ? palette.surface1
-            : (_groupCard(tester).decoration as BoxDecoration).color!;
-
-        final sentFg = tester.widget<Text>(sent).style!.color!;
-        expect(sentFg, palette.good, reason: '$name sent text token');
-        expect(
-          contrastRatio(sentFg, bg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name sent AA',
-        );
-
-        final waitingFg = tester.widget<Text>(waiting).style!.color!;
-        expect(waitingFg, palette.warn, reason: '$name waiting text token');
-        expect(
-          contrastRatio(waitingFg, bg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name waiting AA',
-        );
-
-        final failedFg = tester.widget<Text>(failed).style!.color!;
-        expect(failedFg, palette.critText, reason: '$name failed text token');
-        expect(
-          contrastRatio(failedFg, bg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name failed AA (rendered pair)',
-        );
-
-        // The failure reason on the needs-attention row is coloured status text
-        // too — same AA bar.
-        final reason = tester.widget<Text>(find.text('Payload rejected'));
-        expect(
-          reason.style!.color,
-          palette.critText,
-          reason: '$name reason text',
-        );
-        expect(
-          contrastRatio(reason.style!.color!, bg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name reason AA',
-        );
-      }
-    },
-  );
-
-  testWidgets('the retry affordance is an AgentButton wired to syncNow', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_fullQueue(), name: 'dark'));
-    await tester.pumpAndSettle();
-
-    final retry = find.byKey(const ValueKey('sync-now'));
-    expect(
-      tester.widget(retry),
-      isA<AgentButton>(),
-      reason: 'retry is a kit button',
-    );
-
-    await tester.tap(retry);
-    await tester.pump();
-    expect(_syncNowCalled, isTrue, reason: 'retry flushes the queue');
-  });
-
-  testWidgets('the offline-is-normal copy and the needs-attention distinction '
-      'both survive', (tester) async {
-    for (final (name, _) in _bothThemes) {
-      await tester.pumpWidget(_app(_fullQueue(), name: name));
-      await tester.pumpAndSettle();
-
-      // Keys the rest of the app (and these tests) rely on.
-      expect(find.byKey(const ValueKey('work-summary')), findsOneWidget);
-      expect(find.byKey(const ValueKey('sync-item-2')), findsOneWidget);
-
-      // The alarming state is distinct and named — a failed item won't self-send.
-      // _Heading uppercases its label.
-      expect(
-        find.text('NEEDS YOU'),
-        findsOneWidget,
-        reason: '$name attention heading',
-      );
-      expect(
-        find.textContaining('will not send'),
-        findsOneWidget,
-        reason: '$name summary names the failure',
-      );
-      expect(find.textContaining('Everything else is safe'), findsOneWidget);
-
-      // Offline held-on-phone is a receipt, not an error: the reassurance copy
-      // is verbatim.
-      expect(
+    testWidgets('the footer promise is on the screen', (tester) async {
+      await _pump(tester, sync: _held);
+      await scrollAgentTo(
+        tester,
         find.textContaining('Captures send themselves when you have signal'),
-        findsOneWidget,
-        reason: '$name reassurance copy',
       );
       expect(find.textContaining('Nothing is lost'), findsOneWidget);
+    });
+  });
+
+  group('something is stuck', () {
+    testWidgets('the summary names it, and it is the one thing in colour', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _stuck);
+      final skin = agentSkinFor(SkinMode.night);
+      expect(find.textContaining('will not send'), findsOneWidget);
+      expect(find.textContaining('Everything else is safe'), findsOneWidget);
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.criticalTriangle);
+      expect(mark.color, skin.palette.bad);
+
+      expect(find.text('Needs you'), findsWidgets);
+      final row = await _see(tester, 4);
+      expect(row.state, OutboxState.stuck);
+      expect(row.stuckLabel, 'Needs you', reason: 'the severity in words');
+      // The waiting row beside it is still just waiting.
+      expect((await _see(tester, 1)).state, OutboxState.queued);
+    });
+
+    testWidgets('"Send now" takes the grant', (tester) async {
+      final calls = await _pump(tester, sync: _stuck);
+      expect(_allocation(tester).isLit(MyWorkScreen.sendNowClaimId), isTrue);
+      await tester.tap(find.byKey(const ValueKey<String>('send-now')));
+      await tester.pump();
+      expect(calls.syncNow, 1);
+    });
+
+    testWidgets('signed out: the grant moves to "Sign in"', (tester) async {
+      await _pump(tester, sync: _signedOut);
+      expect(
+        find.text(
+          'You’re signed out. Sign in and your 2 held captures will send.',
+        ),
+        findsOneWidget,
+      );
+      final allocation = _allocation(tester);
+      expect(allocation.isLit(MyWorkScreen.signInClaimId), isTrue);
+      expect(allocation.isLit(MyWorkScreen.sendNowClaimId), isFalse);
+
+      await tester.tap(find.byKey(const ValueKey<String>('sign-in')));
+      await tester.pumpAndSettle();
+      expect(find.text('Login view'), findsOneWidget);
+    });
+  });
+
+  group('the rows are OutboxRow, with the decoded size', () {
+    testWidgets('a measured size goes through FigureSlot', (tester) async {
+      await _pump(tester, sync: _held);
+      expect((await _see(tester, 1)).payloadBytes, 300 * 1024);
+      final slots = tester.widgetList<FigureSlot>(
+        find.descendant(of: _row(1), matching: find.byType(FigureSlot)),
+      );
+      expect(slots, hasLength(1));
+      expect(slots.single.value, 300);
+    });
+
+    testWidgets('an unmeasured row shows no size, not a zero', (tester) async {
+      await _pump(tester, sync: _signedOut);
+      expect((await _see(tester, 1)).payloadBytes, isNull);
+      expect(
+        find.descendant(of: _row(1), matching: find.byType(FigureSlot)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: _row(1), matching: find.textContaining('0 kB')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a row waiting on its visit is not a fault and not tappable', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        sync: _status(<SyncItem>[
+          _item(7, 'stock', lastError: 'sync:waitingForVisit'),
+        ]),
+      );
+      final row = await _see(tester, 7);
+      expect(row.state, OutboxState.waitingForVisit);
+      expect(row.stuckLabel, isNull);
+      expect(find.text('Needs you'), findsNothing);
+    });
+
+    testWidgets('Sent is capped, says so, and "Show older" shows more', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        sync: _status(<SyncItem>[
+          for (var i = 100; i < 125; i++) _item(i, 'photo', synced: true),
+        ]),
+      );
+      final summary = find.text('Showing the 20 most recently sent of 25');
+      await scrollAgentTo(tester, summary);
+      expect(summary, findsOneWidget);
+      expect(_row(124), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey<String>('show-older')));
+      await tester.pumpAndSettle();
+      expect(summary, findsNothing, reason: 'nothing is hidden any more');
+      await scrollAgentTo(tester, _row(124));
+      expect(_row(124), findsOneWidget);
+    });
+  });
+
+  group('the item sheet (#376)', () {
+    Future<void> open(WidgetTester tester, int id) async {
+      await _see(tester, id);
+      await tester.tap(_row(id));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a retrying capture offers "Send this one now" — this one', (
+      tester,
+    ) async {
+      final calls = await _pump(tester, sync: _held);
+      await open(tester, 2);
+      expect(find.byType(TorchSheet), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const ValueKey<String>('outbox-send-one')));
+      await tester.pumpAndSettle();
+      expect(calls.sentOne, <int>[2]);
+      expect(calls.syncNow, 0, reason: 'a row never flushes the whole queue');
+      expect(find.byType(TorchSheet), findsNothing);
+    });
+
+    testWidgets('a rejected capture offers no retry that would fail again', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _stuck);
+      await open(tester, 4);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-send-one')),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('Nothing has been altered for you'),
+        findsOneWidget,
+      );
+      // No sheet commit, so nothing on the sheet is lit.
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byKey(const ValueKey<String>('outbox-discard'))),
+      )!;
+      expect(scope.allocation.granted, isEmpty);
+    });
+
+    testWidgets('discard states what is lost before anything happens', (
+      tester,
+    ) async {
+      final calls = await _pump(tester, sync: _stuck);
+      await open(tester, 4);
+      await tester.tap(find.byKey(const ValueKey<String>('outbox-discard')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'This Pricing has not reached the server. Discard it '
+          'and it is gone from this phone — there is no copy anywhere else.',
+        ),
+        findsOneWidget,
+      );
+      expect(calls.discarded, isEmpty, reason: 'nothing gone yet');
+
+      // The way out keeps it.
+      await tester.tap(
+        find.byKey(const ValueKey<String>('outbox-discard-keep')),
+      );
+      await tester.pumpAndSettle();
+      expect(calls.discarded, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey<String>('outbox-discard')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('outbox-discard-confirm')),
+      );
+      await tester.pumpAndSettle();
+      expect(calls.discarded, <int>[4]);
+      expect(find.byType(TorchSheet), findsNothing);
+    });
+
+    testWidgets('a visit says what goes with it', (tester) async {
+      await _pump(
+        tester,
+        sync: _status(<SyncItem>[
+          _item(9, 'visit', lastError: 'sync:rejected:422'),
+        ]),
+        dependents: 3,
+      );
+      await open(tester, 9);
+      await tester.tap(find.byKey(const ValueKey<String>('outbox-discard')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '3 captures from this visit go with it, because they cannot send '
+          'without the visit.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a signed-out capture offers Sign in and no discard', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOut);
+      await open(tester, 5);
+      expect(find.byKey(const ValueKey<String>('outbox-sign-in')), findsOne);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a sent capture has nothing to do', (tester) async {
+      await _pump(tester, sync: _allSent);
+      await open(tester, 3);
+      expect(find.text('Nothing to do — the server has it.'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-send-one')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+    });
+  });
+
+  group('the states that are not a queue', () {
+    testWidgets('empty says what the screen is for', (tester) async {
+      await _pump(tester);
+      expect(find.byType(EmptyState), findsOneWidget);
+      expect(
+        find.text(
+          'Everything you capture in a store shows up here until the server '
+          'has it.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('work-summary')), findsNothing);
+    });
+
+    testWidgets(
+      'a failed read says the work is safe, and never the raw error',
+      (tester) async {
+        await _pump(tester, error: StateError('boom'));
+        expect(find.text('Could not read your work'), findsOneWidget);
+        expect(
+          find.text('Your work is still on this phone. Nothing is lost.'),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey<String>('retry-work')),
+          findsOneWidget,
+        );
+        expect(find.textContaining('boom'), findsNothing);
+        expect(find.textContaining('Bad state'), findsNothing);
+      },
+    );
+  });
+
+  group('the chrome', () {
+    testWidgets('a tab root: My work is the active slot, no back, no chip', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held);
+      final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
+      expect(pill.activeIndex, TodayFrame.myWorkSlot);
+      // The bar is Today's, read from one place — a My work that kept its own
+      // `case 2:` sent the Map tab to Contests the day Map arrived.
+      expect(
+        pill.slots.map((s) => s.label),
+        TodayFrame.slotsIn(englishLocalizations).map((s) => s.label),
+      );
+      final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
+      expect(header.title, 'My work');
+      expect(header.back, isNull);
+      expect(header.flagChips, isEmpty, reason: 'a chip linking to itself');
+      expect(header.trailing, isNotNull, reason: 'the skin cycle');
+      expect(find.byType(TorchThumbZone), findsNothing);
+    });
+
+    testWidgets('every other slot leaves the screen, to its own place', (
+      tester,
+    ) async {
+      for (final (slot, landing) in <(int, String)>[
+        (TodayFrame.todaySlot, 'Today view'),
+        (TodayFrame.mapSlot, 'Map view'),
+        (TodayFrame.meSlot, 'Me view'),
+      ]) {
+        await _pump(tester, sync: _held);
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(slot);
+        await tester.pumpAndSettle();
+        expect(find.text(landing), findsOneWidget, reason: 'slot $slot');
+      }
+    });
+  });
+
+  group('location sharing has an answer here too (#153, POPIA)', () {
+    // The legacy scaffold carried these banners and the controllers behind
+    // them only start when something watches them. A tab root without them
+    // drops the notice, the indicator and the pings.
+    testWidgets('sharing on: the standing indicator', (tester) async {
+      await _pump(
+        tester,
+        sync: _held,
+        location: _Location(LocationConsent.acknowledged),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('location-sharing-indicator')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('not asked yet: the notice, whose yes never lights here', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held, location: _Location(null));
+      expect(
+        find.byKey(const ValueKey<String>('location-notice')),
+        findsOneWidget,
+      );
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'The route does not declare the consent claim, so its yes takes '
+            'the ink form and Night keeps only the nav tab.\n\n'
+            '${census.describe()}',
+      );
+    });
+  });
+
+  group('sync errors and item labels follow the agent’s language', () {
+    final queue = _status(<SyncItem>[
+      _item(13, 'stock', lastError: 'sync:noConnection'),
+      _item(11, 'photo', lastError: 'sync:tooLarge'),
+      _item(12, 'visibility', lastError: 'Rejected by the server (422)'),
+    ]);
+
+    Future<List<String>> rowText(WidgetTester tester) async => <String>[
+      for (final id in <int>[11, 12, 13]) ...<String>[
+        (await _see(tester, id)).title,
+        (await _see(tester, id)).sentence,
+      ],
+    ];
+
+    testWidgets('Afrikaans', (tester) async {
+      await _pump(tester, sync: queue, locale: const Locale('af'));
+      final text = await rowText(tester);
+      expect(text, containsAll(<String>['Foto', 'Te groot om te stuur']));
+      expect(
+        text,
+        containsAll(<String>[
+          'Sigbaarheid & uitstalling',
+          'Deur die bediener geweier (422)',
+          'Voorraadtelling',
+        ]),
+      );
+      expect(text, isNot(contains('Photo')));
+      expect(text.join(), isNot(contains('sync:')));
+      expect(find.textContaining('sync:'), findsNothing);
+    });
+
+    testWidgets('English', (tester) async {
+      await _pump(tester, sync: queue);
+      final text = await rowText(tester);
+      expect(
+        text,
+        containsAll(<String>[
+          'Photo',
+          'Too large to send',
+          'Visibility & display',
+          'Rejected by the server (422)',
+          'Stock count',
+        ]),
+      );
+      expect(find.textContaining('sync:'), findsNothing);
+    });
+  });
+
+  group('2.0× text', () {
+    for (final locale in <Locale>[const Locale('en'), const Locale('af')]) {
+      testWidgets('${locale.languageCode}: nothing overflows', (tester) async {
+        await _pump(tester, sync: _stuck, textScale: 2.0, locale: locale);
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(const ValueKey<String>('work-summary')), findsOne);
+        await scrollAgentTo(tester, _row(3));
+        expect(tester.takeException(), isNull);
+      });
     }
   });
 
-  testWidgets(
-    'pending-only reads as normal — held on this phone, not an alarm',
-    (tester) async {
-      await tester.pumpWidget(_app(_waitingOnly(), name: 'dark'));
-      await tester.pumpAndSettle();
-
-      // No failure, so no "Needs you" heading and the summary is the reassuring
-      // warn-level receipt, not the bad-level alarm.
-      expect(find.text('NEEDS YOU'), findsNothing);
-      expect(find.textContaining('held on this phone'), findsOneWidget);
-      expect(find.textContaining('will not send'), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'the error branch speaks the console voice — humanErrorMessage, never the '
-    'raw exception',
-    (tester) async {
-      // A non-connectivity failure (parsing bug / programmer error): its raw
-      // toString would leak "Bad state: boom", but the whole console must route
-      // through humanErrorMessage so every surface speaks with one voice.
-      final err = StateError('boom');
-      await tester.pumpWidget(_errorApp(err));
-      await tester.pumpAndSettle();
-
-      // The alarm title still names the surface.
-      expect(find.text('Could not read your work'), findsOneWidget);
-
-      // The subtitle is the humane line, verbatim — not the exception.
-      expect(find.text(humanErrorMessage(err)), findsOneWidget);
-
-      // And the raw dump is nowhere on screen.
-      expect(
-        find.textContaining('boom'),
-        findsNothing,
-        reason: 'no raw message',
+  group('Veld is built, not declared', () {
+    testWidgets('the summary is a 2px rectangle with no shadow', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held, skin: SkinMode.veld);
+      final box = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('work-summary')),
       );
-      expect(
-        find.textContaining('Bad state'),
-        findsNothing,
-        reason: 'no raw exception type',
+      final deco = box.decoration! as BoxDecoration;
+      expect(deco.borderRadius, BorderRadius.circular(0));
+      expect((deco.border! as Border).top.width, 2);
+      expect(deco.boxShadow ?? const <BoxShadow>[], isEmpty);
+      expect(deco.gradient, isNull);
+      expect(deco.color, const Color(0xFFFFFFFF));
+      final button = tester.getSize(
+        find.byKey(const ValueKey<String>('send-now')),
       );
-      expect(
-        find.textContaining('Instance of'),
-        findsNothing,
-        reason: 'no toString dump',
-      );
-    },
-  );
-
-  group('sync errors and item labels follow the agent’s language', () {
-    // What the outbox actually holds now: codes, plus one row written by an
-    // older build that stored the English line itself.
-    final coded = _item(
-      id: 11,
-      entityType: 'photo',
-      synced: false,
-      lastError: 'sync:tooLarge',
-    );
-    final legacy = _item(
-      id: 12,
-      entityType: 'visibility',
-      synced: false,
-      lastError: 'Rejected by the server (422)',
-    );
-    final waiting = _item(
-      id: 13,
-      entityType: 'stock',
-      synced: false,
-      lastError: 'sync:noConnection',
-    );
-    SyncStatus queue() => SyncStatus(
-      pending: [waiting, coded, legacy],
-      sent: const [],
-      needsAttention: [coded, legacy],
-    );
-
-    Widget app(Locale locale) => routedApp(
-      const MyWorkScreen(),
-      overrides: _overrides(queue()),
-      locale: locale,
-    );
-
-    testWidgets('Afrikaans', (tester) async {
-      await tester.pumpWidget(app(const Locale('af')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Foto'), findsOneWidget);
-      expect(find.text('Te groot om te stuur'), findsOneWidget);
-      expect(find.text('Sigbaarheid & uitstalling'), findsOneWidget);
-      expect(find.text('Deur die bediener geweier (422)'), findsOneWidget);
-      expect(find.text('Voorraadtelling'), findsOneWidget);
-
-      expect(find.text('Photo'), findsNothing);
-      expect(find.text('Too large to send'), findsNothing);
-      expect(find.text('Stock count'), findsNothing);
-      expect(find.textContaining('Rejected by the server'), findsNothing);
-      expect(find.textContaining('sync:'), findsNothing, reason: 'no codes');
-    });
-
-    testWidgets('English reads exactly as before', (tester) async {
-      await tester.pumpWidget(app(const Locale('en')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Photo'), findsOneWidget);
-      expect(find.text('Too large to send'), findsOneWidget);
-      expect(find.text('Visibility & display'), findsOneWidget);
-      expect(find.text('Rejected by the server (422)'), findsOneWidget);
-      expect(find.text('Stock count'), findsOneWidget);
-      expect(find.textContaining('sync:'), findsNothing, reason: 'no codes');
+      expect(button.height, greaterThanOrEqualTo(56));
     });
   });
 
-  test('no non-geometry AppColors. remain in the my-work source', () {
-    final src = File(
-      'lib/features/audit/presentation/my_work_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+  group('the amber census', () {
+    Future<void> showSummary(WidgetTester tester) async {
+      // The summary block, with "Send now" in it, is at the top of the scroll
+      // view on a 360×640 phone; nothing to scroll.
+      expect(find.byKey(const ValueKey<String>('send-now')), findsOneWidget);
+    }
+
+    final cases = <(String, SyncStatus?, Object?, Map<SkinMode, int>)>[
+      // Held: nothing is the expected next move. Night keeps the nav tab.
+      (
+        'held',
+        _held,
+        null,
+        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      ),
+      // Stuck: "Send now" takes the one content grant.
+      (
+        'stuck',
+        _stuck,
+        null,
+        {SkinMode.night: 2, SkinMode.day: 1, SkinMode.veld: 1},
+      ),
+      // Signed out: "Sign in" takes it instead.
+      (
+        'signed-out',
+        _signedOut,
+        null,
+        {SkinMode.night: 2, SkinMode.day: 1, SkinMode.veld: 1},
+      ),
+      (
+        'all-sent',
+        _allSent,
+        null,
+        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      ),
+      (
+        'empty',
+        SyncStatus.empty,
+        null,
+        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      ),
+      (
+        'error',
+        null,
+        StateError('boom'),
+        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      ),
+    ];
+
+    for (final (phase, sync, error, expected) in cases) {
+      for (final skin in agentSkinModes) {
+        testWidgets('$phase · ${skin.name}: ${expected[skin]}', (tester) async {
+          await _pump(tester, sync: sync, error: error, skin: skin);
+          if (phase != 'empty' && phase != 'error') await showSummary(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            agentSkinFor(skin),
+            route: 'my-work',
+            phase: phase,
+          );
+          expect(census.objectCount, expected[skin], reason: census.describe());
+        });
+      }
+    }
+
+    testWidgets('at 2.0× the count does not change', (tester) async {
+      await _pump(tester, sync: _stuck, textScale: 2.0);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'my-work',
+        phase: 'stuck @2.0x',
+      );
+      expect(census.objectCount, 2, reason: census.describe());
+    });
+
+    testWidgets('a sheet puts out the screen beneath it and spends its own', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held, skin: SkinMode.day);
+      await _see(tester, 2);
+      await tester.tap(_row(2));
+      await tester.pumpAndSettle();
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'Day: the sheet\'s "Send this one now" is the one block; nothing '
+            'beneath a modal sheet stays lit.\n\n${census.describe()}',
+      );
+    });
   });
 }

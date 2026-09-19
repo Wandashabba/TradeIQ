@@ -49,6 +49,22 @@ extension AppLocalizationsContext on BuildContext {
       AppLocalizations.of(this) ?? englishLocalizations;
 }
 
+/// "14:20" in the active locale.
+///
+/// The outbox says when a capture was queued and when it was last tried, and
+/// those are clock times rather than "2h ago": an agent deciding whether to
+/// wait for signal needs the time on the till receipt, not a duration. The
+/// format is the locale's, so a locale that reads 2:20 PM gets 2:20 PM.
+String formatClock(BuildContext context, DateTime when) {
+  try {
+    return DateFormat.Hm(context.l10n.localeName).format(when);
+  } on Exception {
+    // intl throws when a locale's date symbols were never loaded — a screen
+    // pumped without the Material delegates has none. en_US is built in.
+    return DateFormat.Hm('en_US').format(when);
+  }
+}
+
 /// "Monday, 14 September" in the active locale ("Maandag, 14 September" in
 /// Afrikaans).
 String formatDayHeading(BuildContext context, DateTime date) {
