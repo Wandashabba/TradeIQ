@@ -1640,3 +1640,321 @@ circle sits at rung 4.
   It belongs in the Menu destination when the Menu sheet ships.
 * **The plate's `Dark frame` state**, which needs the mean luma the server bake
   computes.
+
+---
+
+## 15. Phase 2 — the containers, the states and the inputs
+
+Three folders — `sheet/`, `state/`, `input/` — and one rule that runs through
+all three: **none of these components emits light.** The amber lint's emitter
+allowlist is still pinned at ten files and none of them is here; the census in
+`phase2_amber_test.dart` walks every state of every component in all three
+skins and counts flame-hued regions. The only lit objects it finds are the
+three sheet commit actions the ruling put on the ladder, and those are
+`TorchPrimaryButton` asking `TorchScope` exactly as it does everywhere else.
+
+### 15.1 What replaces what
+
+| | replaces | amber |
+|---|---|---|
+| `TorchSheet` / `showTorchSheet` | `showModalBottomSheet` styling, and **the dialog** | none from the container |
+| `TorchSheetSwap` | a second sheet | none |
+| `ProofBlock` | "you have unsaved work" | none |
+| `DecisionSheet` | *(new — #374)* | its safe action's `primaryCommit` |
+| `ConfirmSheet` | the console's ad-hoc confirms | none, categorically |
+| `SkipReasonPicker` | *(new — #395)* | its commit's `primaryCommit` |
+| `SessionEndedSheet` / `SessionHeldLine` | *(new — #380/#392)* | its sign-in's `primaryCommit` |
+| `Skeleton` / `SkeletonLine` / `SkeletonShell` / `SkeletonRows` | `CircularProgressIndicator` | none |
+| `EmptyState` / `EmptyStateDrawing` | a centred "No data" | none |
+| `ErrorState` / `TorchErrorMessage` / `TorchErrorRegion` | raw error text | none |
+| `OfflineHeldBanner` | the ad-hoc sync banners | none |
+| `TorchProgressBar` | *(new — #391/#396)* | none |
+| `TorchToast` / `showTorchToast` | `SnackBar` | none |
+| `PaginationFooter` | *(new)* | none |
+| `TorchTextField` | `TextField` decoration | none |
+| `TorchNumericField` | *(new)* | none |
+| `CountStepper` | the current stepper | none |
+| `TorchToggle` | `Switch` | none |
+| `TorchCheckbox` / `TorchCheckboxGroup` | `Checkbox` | none |
+| `ChoiceRow` | *(new)* | none |
+| `TorchFilterChip` / `TorchFilterRail` | `ChoiceChip` | none |
+| `TorchHandednessScope` | *(new — #407)* | none |
+
+`SectionRule` is **not** in this list. It landed in Phase 1 and already
+generalises — count slot, action slot, empty line, the 2.0× wrap and the Veld
+above-the-rule form. Phase 2 adds nothing to it.
+
+### 15.2 The one modal container, and the dialog that is gone
+
+Unify §1.7 deletes the dialog outright. A non-dismissible bottom sheet covers
+every blocking case a dialog covered, and two modal containers is two sets of
+insets, two dismissal rules, two scrims, and two answers to the question of
+what happens to the amber underneath.
+
+`TorchSheetSpec` resolves it once:
+
+| | Night / Day | Veld |
+|---|---|---|
+| form | a sheet over a scrim | a **full-screen white route** |
+| scrim | `ground` @ 72% | none |
+| radius | 14, top two corners | 0 |
+| outline | 1px `edgeStructure`, top and sides | 2px, all four |
+| ceiling | 88% of the viewport | the route |
+| grabber | `#616465`, 40×4, declared | none — a 56dp Close row instead |
+| padding | gutter each side, 16 below the grabber, 24 + safe area at the foot | the same, at Veld's 24dp gutter |
+
+Four rules carry the weight:
+
+**72%, not 88%.** #380 requires the held work to stay *visible* behind the
+session-ended sheet. The assistant surface's 88% defeats that, and its real
+finding — that a sheet should own the screen — is honoured a different way.
+
+**Every amber beneath a sheet goes out.** `TorchSheets.openCount` is a global
+`ValueListenable` and `TorchSheetAware` is the one-line way a shell reads it
+into `TorchScope(beneathSheet: …)`. The nav's active tab drops to its ink form
+and the plate's strip light goes off, so the sheet's own scope genuinely owns
+the frame without a heavier scrim hiding the thing the sheet is about. It is a
+global and not an `InheritedWidget` because the widget that has to react sits
+*above* the sheet's route and *below* the navigator that owns it, where nothing
+the sheet publishes is visible.
+
+**No stacking.** `showTorchSheet` asserts in debug on a second sheet and opens
+anyway in release — a design rule must never drop a user's action on the floor.
+A sheet that needs a sheet cross-fades its own content through
+`TorchSheetSwap`, which under reduce-motion is not a zero-duration animation
+but no animator at all: `AnimatedSize` at zero duration still re-dirties itself
+inside its own `performLayout` when a pane arrives at a new height.
+
+**The grabber is a hex.** `#616465`, in all three skins, measured — not "ink-1
+at 38%", which is a different grey on every surface it lands on. Opacity is
+banned as a colour channel for the same reason it is banned as a state channel.
+
+### 15.3 The decision sheet, and the three sheets that are one shape
+
+`ProofBlock` is the argument. A decision about invisible work is a guess: "six
+sections and three photos" is a number and "unsaved work" is a feeling. It is
+also what replaced the session-ended screen's old trick of rendering the live
+screen behind itself at 0.35 opacity — which measured **2.84:1**, below 3:1
+even for large text, and was a full-screen `Opacity` over a live widget tree,
+meaning a full-screen `saveLayer`: the most expensive frame in the app, spent
+making its own reassurance illegible.
+
+`DecisionSheet` is evidence, then two unequal actions:
+
+* the safe action on top, in the thumb's easiest reach — `Carry on from 11:04`,
+  with the time in the label because the time is the evidence;
+* the destructive one below it, with its cost in words (`Loses 6 sections and
+  3 photos`), never "this cannot be undone";
+* a tertiary `Not now` at the bottom, because **the bottom-most control under a
+  travelling thumb is never the one that destroys something**.
+
+Pressing `Start over` cross-fades *this sheet's own content* to a second pane
+naming the consequence. Two taps and a named cost — no second modal, no typed
+confirmation (too much friction in a shop), and no undo toast afterwards: the
+two-step is the guard, and an undo that follows a guard teaches people to
+ignore the guard.
+
+A check-in older than twelve hours demotes `Carry on` to a ghost and promotes
+`Check in again`, because a geofence fix from yesterday is not evidence of
+being here now. The captured work is preserved and re-attached either way.
+
+`ConfirmSheet` is the console's instance of the same anatomy, and it obeys the
+same rule from the other side: with only two controls, `Cancel` takes the
+bottom and the destructive commit sits above it.
+
+`SkipReasonPicker` (#395) carries each reason **with its consequence** — "The
+store would not let me" → "The manager is told the store refused" — in the
+layout *and* in the semantics node, because an agent who knows a repair task
+will be raised picks differently from one who does not. `Something else`
+requires its note: "other" with no text is the hole the component exists to
+close. Dismissal is always safe.
+
+`SessionEndedSheet` (#380/#392) is **a state, not an error**: no triangle, no
+crimson, no "error", announced politely rather than as an alert. A token
+expiring at 14:00 on a Tuesday is a fact about a clock. After `Not now`,
+`SessionHeldLine` — 44dp, a square, a count and a way back in — sits under
+every header until it is resolved.
+
+### 15.4 The states
+
+**Skeleton.** Night's text-line blocks are `edgeStructure` (3.33:1 on the well,
+3.73:1 on the ground), **not** `well`, which on the Night ground is 1.12:1 —
+exactly the ratio the device floor forbids. Rows and panels are their own 1px
+outline at their real geometry, empty. Nothing renders before 600ms; the
+travelling rule is 2px **Oatmeal** on a 1400ms loop, never amber, because a
+skeleton is loading and not live; after 10s the rule stops and a line appears.
+**Veld has no skeleton at all** — the word `Loading`, at the gutter, and
+nothing else.
+
+**Empty state.** Left-aligned and top-anchored, never centred: a centred block
+grows in both directions and at 2.0× with a four-line Afrikaans headline it
+pushes its own action off the bottom at exactly the setting that needed it
+most. Whole-screen gets a 64dp drawing from a **closed enum of three** — shelf,
+pin, envelope — plus a display headline under the line-count fitting rule (1–2
+lines 40, 3 lines 32, 4+ 26, floor 26). In-panel and inline get **no drawing**.
+
+The three drawings are commissioned under **#404** and do not exist yet.
+`EmptyStateDrawing` ships a placeholder behind the same API: a crude
+single-stroke schematic inside a **dashed frame**. The dashed frame is the
+signal — no commissioned drawing in this system will ever sit inside one, so a
+dashed box on a screen means artwork pending and nothing else. #404 replaces
+`state/empty_drawing.dart` and no call site: the API is the enum. **A stock
+illustration is never imported**, which is the whole reason the enum is closed.
+
+**Error state.** `TorchErrorMessage` is a closed set of six kinds and the
+sentence each one gets, and `sanitise` deliberately ignores the exception's own
+`toString` — a message that is sometimes an exception is a message that will
+one day carry a host name, a file path or a token into a screenshot in a
+WhatsApp group. The body **names the work's safety first**. A Retry appears
+only where retrying is honest: never on no signal (theatre), never on an
+unchanged rejection (it fails identically), never on a 403. `TorchErrorRegion`
+asserts **one Retry per region** in debug.
+
+**Offline / held banner.** Held is **Oatmeal plus a square plus a word** (§1.13)
+— never crimson, and never Truffle either, because Truffle is the comparison
+series and giving it a second meaning is the failure the severity system
+avoids. Working offline is the normal state of South African field work: towers
+go down with the grid and "12 held" is a normal Tuesday. `needsYou` is the only
+state that raises a colour. Every state is the same height so content beneath
+never jumps, and the **count is the semantics node's `value`, never its live
+label** — in the live label it interrupted an agent mid-capture twelve times a
+visit, during the one workflow where an interruption loses data.
+
+**Progress bar** (#391/#396). 8dp track (12 at 2.0× — a graphic scales at half
+rate), `lifted` fill with a 1px `edgeStructure` outline because `lifted` on
+`ground` is 1.67:1 and a track you cannot see cannot state a proportion,
+`chartNeutral` fill, ink-1 milestone ticks, and the reward notch breaking the
+track's top edge by 3dp so it has a silhouette. **The fraction is always text**:
+the bar is never the only statement of progress, and `0/9` renders rather than
+hiding. Reaching the reward turns the fill `good` and fills the notch; nothing
+pulses and nothing celebrates in colour. The near-reward amber exception was
+written, argued and deleted — this is the most motivating object an agent sees
+and therefore the most tempting thing in the product to light.
+
+**Toast.** Four kinds, four silhouettes, floating above the nav pill (its
+height plus a 20dp standoff plus the safe area) so it never covers the thing a
+thumb is reaching for. A second toast replaces the first rather than stacking.
+Held is a **fact**, not a failure: "Held on this phone · sends itself" takes
+the neutral treatment and an Oatmeal square.
+
+**Pagination footer.** "Showing the 20 riskiest of 74." There is no "Load
+more" — the API serves a first page and a button that cannot deliver is
+dishonest chrome. The unscored note (#236) is not optional where it is true: an
+unscored visit is not a clean one, and a short list of the riskiest twenty must
+never read as "nothing suspicious".
+
+### 15.5 The inputs — the trough grammar
+
+**Radius 10 at the bottom corners, 0 at the top.** A trough holds at the
+bottom, and the shape says so before a word is read. `TroughSpec` resolves the
+whole grammar once; `TroughRulePainter` draws the bottom rule as a straight run
+between the two bottom corner arcs, because a `BoxDecoration` refuses a radius
+on a border whose sides differ in colour and the rule differs from the outline
+in exactly the states that matter.
+
+A trough carries a **real edge on all four sides** at `edgeControl`: Night's
+`well` on Night's `ground` is 1.12:1, and a field identified by that fill and
+one bottom rule is a floating line on black. Focus **thickens** the rule
+1px → 2px (2 → 4 in Veld) as well as changing its hue, which is the channel a
+reader who cannot separate two greys still gets. Read-only drops the fill, the
+edge and the rule entirely — it stops looking like a field, rather than being
+dimmed to 0.8, which is a state the contrast walk cannot see.
+
+> **The focused rule is ink-1 here, not flame-700.** Unify §1.1 keeps an amber
+> focus rule and counts it against the route's budget; this PR ships none,
+> because no Phase 2 component emits light and the emitter allowlist is pinned
+> at ten files. The accessibility requirement the ruling itself states — *"2px
+> minimum and never colour-only — the rule thickens 1px→2px"* — is met. The
+> amber form is one token in one place when it lands: a `focusClaimId` on the
+> field, an allowlist entry, and a `TorchClaim.textFieldFocus` declared by the
+> route. Nothing else moves.
+
+**Numeric field.** Mono `figure.m`, tabular, right-aligned so a column of
+prices aligns on its decimal — until it does not fit, and then the **leading**
+digits are anchored and the trailing ones scroll out under a 12dp fade, with
+the full value rendered beneath while the field holds focus. Right-aligned, the
+old field showed `4 567,89` of `R 1 234 567,89` in a 92dp trough and a manager
+read it back and confirmed a wrong number. The locale decides the decimal
+separator, and `1.5` typed on an Afrikaans phone is **accepted** and normalised
+rather than refused.
+
+**Count stepper** (unify §1.8, #407). The value trough leads and an adjacent
+`[−][+]` pair sits at the trailing edge, 56×56 each (64 in Veld) with a 1px
+rule between — the arrangement of every till and fuel pump in the country.
+`[−]` and `[+]` at opposite margins is 250dp of grip-shift per adjustment,
+twelve times a bay, for someone with a crate on their other arm.
+`TorchHandednessScope` mirrors the whole control once; it defaults to
+right-handed and **nothing infers handedness from where a thumb lands**. Below a
+measured 120dp of trough the pair drops beneath as two halves — still adjacent,
+still one thumb.
+
+Three rules there are about data rather than layout:
+
+* **typing opens a sheet** with `Cancel` and `Set`, so a stray tap can never
+  replace a count with one digit;
+* **`null → minus` records 0 and `null → plus` records 1** — landing on zero by
+  accident silently raises a task for a manager, so it is never the accident;
+* **zero is a finding and the whole control takes it** — the finding wash, a
+  2px `bad` outline, the figure in `bad`, a status chip beneath, and
+  `TorchBuzz.finding`, because the agent is looking at the shelf and zero is
+  the most valuable thing they can record.
+
+**Toggle.** 52×32 (64×36 Veld), a 26dp thumb with a **tick drawn inside it**,
+and **the state word is mandatory** — it has a default rather than being
+nullable, so a caller can localise it but cannot remove it. There is no
+indeterminate state: a toggle sitting at off is a recorded *no*, and an
+unknown binary is a `ChoiceRow` with nothing selected.
+
+**Checkbox.** 28dp at 1.0×, **48 at 2.0×** — a meaning-bearing glyph scales
+with the text and 48 is also the target floor. No mixed state. A required group
+that was submitted empty takes the error on the **group**, not on the boxes: no
+single box is wrong, and turning eight of them crimson says eight things are
+broken.
+
+**Choice row.** Two to four options, radius 6 — the chip material, so there is
+**one** selected vocabulary across chips and choices: `lifted` fill, a 1px
+ink-1 border, a mark, weight 700. Three channels, never amber.
+**Nothing-selected is a state**, and it says so in words; re-tapping a selected
+option does not deselect it, because an accidental deselect in a shop loses a
+fact silently. The collapse to a column is measured on real width — and Veld is
+always a column, whatever the arithmetic says.
+
+**Filter chip and rail.** Selected is lifted + a 1px ink-1 border + a tick +
+weight 700, and **never amber, on any screen, in any skin**: a rail is a row of
+chips, a multi-select rail is three or four selected ones, and four amber edges
+in one horizontal scroller is the repeated-fill violation the amber law exists
+to prevent. A disabled filter stays visible with its count at zero — hiding a
+filter because it is empty hides the fact that it is empty. In Veld the rail
+does not scroll: horizontal-scroll discovery fails outdoors.
+
+### 15.6 The guards
+
+* **`phase2_amber_test.dart`** — the pixel census over every state of every
+  component × three skins, plus a source scan proving no file in the three
+  folders names a flame token, plus a check that none of them is on the emitter
+  allowlist. It checks `takeException` *before* it counts: an `ErrorWidget` is
+  crimson, so a component that failed to build would otherwise pass a test
+  proving a red screen contains no amber.
+* **`phase2_scale_test.dart`** — every case at 2.0× and in Afrikaans, at 320dp
+  and 360dp, asserting nothing overflows. The height is generous because a
+  block taller than a phone at 2.0× is a paragraph and every real screen
+  scrolls; **the width is the instrument**, and what it catches is a pin.
+* **`phase2_golden_test.dart`** — text goldens of every resolved
+  `TorchSheetSpec` and `TroughSpec`, one file per skin, Night first and Veld
+  last. Regenerate with `UPDATE_PHASE2_GOLDENS=1`.
+* **`sheet_test.dart`, `state_test.dart`, `input_test.dart`** — a test per
+  state.
+
+### 15.7 What is not built yet, and why
+
+* **The three empty-state drawings** (#404). The placeholder is deliberately
+  obvious; see §15.4.
+* **The amber text-field focus rule.** Argued above; one token, one allowlist
+  entry, one claim when it lands.
+* **`Menu sheet`** and **`Verdict control`** — both on the canonical list, both
+  waiting on the screens that use them.
+* **The sync status *chip*.** The banner form is built; the chip is a Phase 1
+  header component and the two are one component in two forms (§1.14).
+* **Toast queue collapsing** ("3 captures held" from three toasts in two
+  seconds). The replace-don't-stack rule is implemented; the counted collapse
+  needs the outbox's own event stream.
