@@ -327,6 +327,78 @@ paths:
           description: Outlet not found for this client
         '422':
           description: Check-in location is outside the outlet geofence
+  /visits/me:
+    get:
+      summary: The caller's OWN visits — the agent's record (#383)
+      description: >
+        Self-scoped by construction: the agent id and client id come off the
+        token and are never parameters, so no query string returns another
+        agent's visits (an `agentId` query parameter is ignored). Open to every
+        signed-in role; a caller with no visits gets an empty page. Registered
+        before `/visits/{id}`, so `me` is never read as a visit id.
+
+        Each row is the proof and the number, not the fraud engine's inputs:
+        outlet, check-in time, metres from the pin (null = not measured, never
+        0), dwell on the device's clock (null when there is no client submit
+        stamp), sections captured of 7, photos, tasks raised, the server's
+        score, and — kept apart, never overwriting it — the score the device
+        showed the agent (`score.seen`, null when none was recorded). A
+        reviewer's verdict is included as a fact; the risk score and signals
+        are not.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, default: 30, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of the caller's visits, newest check-in first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  nextCursor: { type: string, nullable: true }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, outletId, outletName, outletCode, checkinTs, checkinDistanceM, geofencePass, status, dwellMinutes, sectionsCaptured, sectionsTotal, photos, tasksRaised, score, reviewedVerdict]
+                      properties:
+                        id: { type: string }
+                        outletId: { type: string }
+                        outletName: { type: string }
+                        outletCode: { type: string }
+                        checkinTs: { type: string, format: date-time }
+                        checkinDistanceM: { type: number, nullable: true }
+                        geofencePass: { type: boolean }
+                        status: { type: string, enum: [in_progress, submitted] }
+                        dwellMinutes: { type: integer, nullable: true }
+                        sectionsCaptured: { type: integer }
+                        sectionsTotal: { type: integer }
+                        photos: { type: integer }
+                        tasksRaised: { type: integer }
+                        score:
+                          type: object
+                          nullable: true
+                          required: [weightedTotal, ratingBand, scoredAt, seen]
+                          properties:
+                            weightedTotal: { type: number }
+                            ratingBand: { type: string }
+                            scoredAt: { type: string, format: date-time }
+                            seen:
+                              type: object
+                              nullable: true
+                              required: [weightedTotal, ratingBand, seenAt]
+                              properties:
+                                weightedTotal: { type: number }
+                                ratingBand: { type: string }
+                                seenAt: { type: string, format: date-time, nullable: true }
+                        reviewedVerdict: { type: string, nullable: true }
+        '400':
+          description: Invalid limit or a repeated cursor
+        '401':
+          description: Missing or invalid token
   /visits/{id}:
     get:
       summary: One visit, for manager review — manager/admin, tenant-scoped (#208)

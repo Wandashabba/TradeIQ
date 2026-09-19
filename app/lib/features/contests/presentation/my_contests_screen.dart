@@ -17,12 +17,11 @@ import '../data/contests_repository.dart';
 /// the prize is, where they stand, and the top of the board. Recently ended
 /// contests follow, so a result can still be seen after the last day.
 ///
-/// Two ways in, and they want different ways out. A manager **pushes** it from
-/// the leaderboard, so back pops to the leaderboard. An agent arrives from the
-/// third slot of Today's nav pill, which `go`es — there is nothing to pop, and
-/// the leaderboard is not where they were. Back is therefore `/today`, which
-/// the router already resolves per role: an agent lands on their route, a
-/// manager deep-linking here lands on The Floor. Either way, home.
+/// Every way in pushes — from the leaderboard, or from the Contests row on the
+/// agent's own record (`/me`, which took this screen's old nav slot) — so back
+/// pops to wherever they were. Only a deep link has nothing to pop, and then
+/// back is `/today`, which the router already resolves per role: an agent
+/// lands on their route, a manager on The Floor. Either way, home.
 class MyContestsScreen extends ConsumerWidget {
   const MyContestsScreen({super.key});
 

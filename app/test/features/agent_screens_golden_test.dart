@@ -19,6 +19,7 @@ import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'agent_goldens.dart';
 import 'agent_harness.dart';
 import 'audit/visit_harness.dart';
+import 'me/me_harness.dart';
 
 /// The migrated agent routes, Night → Day → Veld, as declared values.
 ///
@@ -115,6 +116,22 @@ void main() {
           skin: agentSkinFor(mode),
         );
         expectAgentGolden(lines, 'visit_hub_blocked_${mode.name}');
+      });
+    }
+  });
+
+  // ME — the one route in this file with an empty claim set. Its goldens are
+  // therefore mostly about the *frame*: four nav slots instead of three, no
+  // primary, no thumb zone, and an amber count that is the chrome's alone.
+  group('me', () {
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name} holds its declared shape', (tester) async {
+        await pumpMe(tester, skin: mode, size: mePhone);
+        final lines = await measureAgentFrame(
+          tester,
+          skin: agentSkinFor(mode),
+        );
+        expectAgentGolden(lines, 'me_${mode.name}');
       });
     }
   });

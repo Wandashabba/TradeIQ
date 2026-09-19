@@ -2095,4 +2095,210 @@ class AppLocalizationsEn extends AppLocalizations {
   String visitFlagSheetBody(int meters) {
     return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
   }
+
+  @override
+  String get visitPinReportedHeld =>
+      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
+
+  @override
+  String get meTitle => 'Me';
+
+  @override
+  String get meEarnedHeading => 'What I\'ve earned';
+
+  @override
+  String get meVisitsHeading => 'My visits';
+
+  @override
+  String get meLedgerHeading => 'How you earned it';
+
+  @override
+  String get mePointsEyebrow => 'POINTS THIS MONTH';
+
+  @override
+  String get meRankEyebrow => 'RANK';
+
+  @override
+  String get meLoadErrorDetail =>
+      'Your work is safe on this phone. This part comes from the server and fills in when it answers.';
+
+  @override
+  String get meNotRanked =>
+      'Not ranked yet — too few agents have points this month.';
+
+  @override
+  String get meNoPointsYet =>
+      'No points yet this month. Points arrive when a visit is submitted or a task is closed.';
+
+  @override
+  String get meNoScheme => 'No reward is running this month.';
+
+  @override
+  String meRewardProgress(String value, String total) {
+    return '$value of $total';
+  }
+
+  @override
+  String meRewardToGo(String remaining, String reward) {
+    return '$remaining to go · $reward';
+  }
+
+  @override
+  String meRewardReached(String reward) {
+    return 'Reward reached — $reward.';
+  }
+
+  @override
+  String meRewardPoints(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: '$points points',
+      one: '1 point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mePointsHonesty =>
+      'Points are worked out on the server. They can change if a visit is reviewed.';
+
+  @override
+  String get meLedgerEmpty => 'Nothing has earned points yet this month.';
+
+  @override
+  String get meVisitsEmpty => 'No visits yet';
+
+  @override
+  String get meVisitsEmptyDetail =>
+      'Every store you check into shows up here — when you went, how long you stayed, and what it scored.';
+
+  @override
+  String get meVisitsLoadError => 'Your visits did not load';
+
+  @override
+  String get meNotScoredYet => 'Waiting to be scored';
+
+  @override
+  String get meVisitOpen => 'Still open on this phone';
+
+  @override
+  String meVisitMeta(String day, String dwell, String tasks) {
+    return '$day · $dwell · $tasks';
+  }
+
+  @override
+  String meDwellMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get meDwellUnknown => 'time not recorded';
+
+  @override
+  String meTasksRaised(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tasks raised',
+      one: '1 task raised',
+      zero: 'no tasks raised',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meCapturedCount(int captured, int total, int photos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      photos,
+      locale: localeName,
+      other: '$photos photos',
+      one: '1 photo',
+      zero: 'no photos',
+    );
+    return '$captured of $total sections · $_temp0';
+  }
+
+  @override
+  String meDistanceMeters(int metres) {
+    return '$metres m from the door';
+  }
+
+  @override
+  String get meDistanceUnknown => 'distance not measured';
+
+  @override
+  String get meOutOfFence => 'Out of fence';
+
+  @override
+  String get meReviewed => 'Reviewed';
+
+  @override
+  String meOnThisPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count captures have not sent',
+      one: '1 capture has not sent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get meOnThisPhoneDetail =>
+      'Showing what has reached the server. Today\'s work appears here once it sends.';
+
+  @override
+  String meVisitSemantics(
+    String outlet,
+    String day,
+    String tasks,
+    String dwell,
+    String score,
+  ) {
+    return '$outlet, $day, $dwell, $tasks, $score';
+  }
+
+  @override
+  String meScoredSemantics(String score) {
+    return 'scored $score';
+  }
+
+  @override
+  String meRewardSemantics(String value, String total, String line) {
+    return 'Progress to reward: $value of $total. $line';
+  }
+
+  @override
+  String meLedgerRowSemantics(String reason, String day, String points) {
+    return '$reason, $day, $points';
+  }
+
+  @override
+  String mePointsPlus(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: 'plus $points points',
+      one: 'plus 1 point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mePointsMinus(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: 'minus $points points',
+      one: 'minus 1 point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get meEarningsLoadError => 'Your points did not load';
+
+  @override
+  String get meContestsDetail => 'See where you stand';
 }

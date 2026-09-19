@@ -3325,6 +3325,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
+
+  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
+  String get visitPinReportedHeld;
+
+  /// Title of the agent's own record — their visits and what they have earned. Nav slot 4.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get meTitle;
+
+  /// Section rule above the reward bar, the points cluster and the ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'What I\'ve earned'**
+  String get meEarnedHeading;
+
+  /// Section rule above the agent's own visit list.
+  ///
+  /// In en, this message translates to:
+  /// **'My visits'**
+  String get meVisitsHeading;
+
+  /// Section rule above the points ledger rows.
+  ///
+  /// In en, this message translates to:
+  /// **'How you earned it'**
+  String get meLedgerHeading;
+
+  /// Stat tile label. Uppercase; the component does not upper-case it for you.
+  ///
+  /// In en, this message translates to:
+  /// **'POINTS THIS MONTH'**
+  String get mePointsEyebrow;
+
+  /// Stat tile label for the agent's place in the standings.
+  ///
+  /// In en, this message translates to:
+  /// **'RANK'**
+  String get meRankEyebrow;
+
+  /// Body of an inline load error on the agent's own record. Names the work's safety first.
+  ///
+  /// In en, this message translates to:
+  /// **'Your work is safe on this phone. This part comes from the server and fills in when it answers.'**
+  String get meLoadErrorDetail;
+
+  /// Sentence in place of a rank figure. An em dash alone is a puzzle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ranked yet — too few agents have points this month.'**
+  String get meNotRanked;
+
+  /// Sentence under a null points figure.
+  ///
+  /// In en, this message translates to:
+  /// **'No points yet this month. Points arrive when a visit is submitted or a task is closed.'**
+  String get meNoPointsYet;
+
+  /// Body line in place of the progress bar. An empty bar would read as zero progress, which is a different and false statement.
+  ///
+  /// In en, this message translates to:
+  /// **'No reward is running this month.'**
+  String get meNoScheme;
+
+  /// The fraction beside the reward bar.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} of {total}'**
+  String meRewardProgress(String value, String total);
+
+  /// The line always beneath the reward bar. Never the bar alone.
+  ///
+  /// In en, this message translates to:
+  /// **'{remaining} to go · {reward}'**
+  String meRewardToGo(String remaining, String reward);
+
+  /// Line beneath a completed reward bar. Nothing flashes and nothing celebrates.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward reached — {reward}.'**
+  String meRewardReached(String reward);
+
+  /// What a scheme pays out, when it has no reward detail in words.
+  ///
+  /// In en, this message translates to:
+  /// **'{points, plural, =1{1 point} other{{points} points}}'**
+  String meRewardPoints(int points);
+
+  /// The honesty line under the ledger. Read aloud, never skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Points are worked out on the server. They can change if a visit is reviewed.'**
+  String get mePointsHonesty;
+
+  /// Empty line on the ledger section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has earned points yet this month.'**
+  String get meLedgerEmpty;
+
+  /// Whole-screen empty headline when the agent has no visits at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No visits yet'**
+  String get meVisitsEmpty;
+
+  /// Body of the empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Every store you check into shows up here — when you went, how long you stayed, and what it scored.'**
+  String get meVisitsEmptyDetail;
+
+  /// Headline when GET /visits/me fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Your visits did not load'**
+  String get meVisitsLoadError;
+
+  /// In place of a score on a visit the server has not scored. Never a bare em dash.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to be scored'**
+  String get meNotScoredYet;
+
+  /// Meta line for a visit that was never submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Still open on this phone'**
+  String get meVisitOpen;
+
+  /// The meta line on a visit row: day, dwell, tasks raised.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} · {dwell} · {tasks}'**
+  String meVisitMeta(String day, String dwell, String tasks);
+
+  /// Dwell time in the shop, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String meDwellMinutes(int minutes);
+
+  /// In place of a dwell figure when the device never stamped a submit time. Not zero.
+  ///
+  /// In en, this message translates to:
+  /// **'time not recorded'**
+  String get meDwellUnknown;
+
+  /// How many tasks a visit raised. A measured zero is said in words, never hidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{no tasks raised} =1{1 task raised} other{{count} tasks raised}}'**
+  String meTasksRaised(int count);
+
+  /// What the agent captured on a visit — the evidence half of the proof.
+  ///
+  /// In en, this message translates to:
+  /// **'{captured} of {total} sections · {photos, plural, =0{no photos} =1{1 photo} other{{photos} photos}}'**
+  String meCapturedCount(int captured, int total, int photos);
+
+  /// How far the check-in landed from the outlet's pin.
+  ///
+  /// In en, this message translates to:
+  /// **'{metres} m from the door'**
+  String meDistanceMeters(int metres);
+
+  /// When the phone had no usable fix. Not zero metres.
+  ///
+  /// In en, this message translates to:
+  /// **'distance not measured'**
+  String get meDistanceUnknown;
+
+  /// Flag chip word on a check-in outside the geofence. A fact, not a verdict, and never crimson.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of fence'**
+  String get meOutOfFence;
+
+  /// Flag chip word when a manager has ruled on this visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get meReviewed;
+
+  /// Standalone row above the visit list when work is still held on the device.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture has not sent} other{{count} captures have not sent}}'**
+  String meOnThisPhone(int count);
+
+  /// Second line of the on-this-phone row.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing what has reached the server. Today\'s work appears here once it sends.'**
+  String get meOnThisPhoneDetail;
+
+  /// The whole visit row as one screen-reader sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{outlet}, {day}, {dwell}, {tasks}, {score}'**
+  String meVisitSemantics(
+    String outlet,
+    String day,
+    String tasks,
+    String dwell,
+    String score,
+  );
+
+  /// The score half of a visit row's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'scored {score}'**
+  String meScoredSemantics(String score);
+
+  /// The reward bar as one node.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress to reward: {value} of {total}. {line}'**
+  String meRewardSemantics(String value, String total, String line);
+
+  /// One ledger row as a sentence. Direction is the word, never the triangle alone.
+  ///
+  /// In en, this message translates to:
+  /// **'{reason}, {day}, {points}'**
+  String meLedgerRowSemantics(String reason, String day, String points);
+
+  /// A positive ledger entry, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'{points, plural, =1{plus 1 point} other{plus {points} points}}'**
+  String mePointsPlus(int points);
+
+  /// A reversal, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'{points, plural, =1{minus 1 point} other{minus {points} points}}'**
+  String mePointsMinus(int points);
+
+  /// Headline when the earnings read fails. The visit list is a separate region with its own retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Your points did not load'**
+  String get meEarningsLoadError;
+
+  /// Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead.
+  ///
+  /// In en, this message translates to:
+  /// **'See where you stand'**
+  String get meContestsDetail;
 }
 
 class _AppLocalizationsDelegate

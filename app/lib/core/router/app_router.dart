@@ -9,6 +9,7 @@ import '../../features/audit/presentation/my_work_screen.dart';
 import '../../features/audit/presentation/visit_outcome_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
 import '../../features/beatplans/presentation/today_screen.dart';
+import '../../features/me/presentation/my_record_screen.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -173,6 +174,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // again (#383's sibling): a tab with no destination was cut at
       // migration rather than faked.
       GoRoute(path: '/map', builder: (context, state) => const AgentMapScreen()),
+      // The field agent's own record: their visits, their points, and the
+      // honest story about a score that changed (#383/#384). Self-scoped on
+      // the server, so it is not in `managerOnly` and not guarded here — a
+      // manager who opens it sees their own (empty) record, which is true.
+      GoRoute(path: '/me', builder: (context, state) => const MyRecordScreen()),
       GoRoute(
         path: '/audit',
         builder: (context, state) => const VisitOutletPickerScreen(),
