@@ -159,6 +159,12 @@ class _Scored extends ConsumerStatefulWidget {
 }
 
 class _ScoredState extends ConsumerState<_Scored> {
+  /// Whether the "this is what the agent saw" record has been scheduled.
+  /// Once per mount, not once per build: the notifier's own load rebuilds this
+  /// widget, and a post-frame callback registered on every build is a callback
+  /// per frame for a write that is already idempotent.
+  bool _recorded = false;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -177,10 +183,15 @@ class _ScoredState extends ConsumerState<_Scored> {
     // Record what is on the screen now, so a change made on review later has
     // something to reconcile against. Deferred to after the frame: a provider
     // written during build is a rebuild loop.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(seenScoresProvider.notifier).record(widget.visitDraftId, total);
-    });
+    if (!_recorded) {
+      _recorded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref
+            .read(seenScoresProvider.notifier)
+            .record(widget.visitDraftId, total);
+      });
+    }
 
     final changed = seenBefore != null && seenBefore != total;
 
