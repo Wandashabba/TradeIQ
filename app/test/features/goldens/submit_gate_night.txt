@@ -1,0 +1,24 @@
+# submit_gate_night
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = night
+density = field
+ground = #0B1017
+gutter = 20.0
+border.width = 1.0
+shadows = 0
+row.min = 64.0
+target.min = 48.0
+motion = on
+header.trailing = none
+header.chips = 0
+header.height = 96
+nav.pill = absent
+thumb.zone = present
+zone.height = 174
+skin.cycle = thumb-zone
+primary.armed = yes
+primary.blocked.named = no
+primary.height = 57
+rows.onscreen = 1
+amber.objects = 1
