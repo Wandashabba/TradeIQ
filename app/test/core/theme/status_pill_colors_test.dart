@@ -55,7 +55,6 @@ void main() {
     ];
     const consumers = [
       'lib/core/widgets/delta_pill.dart',
-      'lib/core/widgets/sla_pill.dart',
       'lib/core/widgets/agent_kit.dart',
       'lib/features/beatplans/presentation/today_screen.dart',
     ];
