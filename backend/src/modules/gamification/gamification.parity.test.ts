@@ -77,7 +77,8 @@ async function legacyComputeLeaderboard(
   const rows = agents.map((agent) => {
     const visitsSubmitted = visitCount.get(agent.id) ?? 0;
     const tasksClosed = taskCount.get(agent.id) ?? 0;
-    const avgScorecard = mean(scoreLists.get(agent.id) ?? []);
+    const scores = scoreLists.get(agent.id) ?? [];
+    const avgScorecard = mean(scores);
     const points = round2(avgScorecard + tasksClosed * 5 + visitsSubmitted * 2);
     return {
       agentId: agent.id,
@@ -86,6 +87,7 @@ async function legacyComputeLeaderboard(
       visitsSubmitted,
       tasksClosed,
       avgScorecard,
+      scorecardsCounted: scores.length,
       points,
     };
   });
@@ -106,7 +108,8 @@ async function legacyComputeLeaderboard(
 function rerank(rows: LeaderboardEntry[]): LeaderboardEntry[] {
   let place = 0;
   return rows.map((row) => {
-    const measured = row.visitsSubmitted > 0 || row.tasksClosed > 0 || row.avgScorecard !== 0;
+    const measured =
+      row.visitsSubmitted > 0 || row.tasksClosed > 0 || row.scorecardsCounted > 0;
     return { ...row, rank: measured ? ++place : null };
   });
 }

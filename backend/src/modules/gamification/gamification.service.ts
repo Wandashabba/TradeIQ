@@ -28,6 +28,20 @@ export interface LeaderboardEntry {
   visitsSubmitted: number;
   tasksClosed: number;
   avgScorecard: number;
+  /**
+   * How many scorecards `avgScorecard` is the mean of, in the window.
+   *
+   * Without it a client cannot tell `avgScorecard: 0` — an agent scored zero —
+   * from `avgScorecard: 0` — an agent nobody has scored, where `mean([])` is
+   * 0 by construction. Those are a finding and an absence, and the design
+   * system renders them differently on purpose: a measured zero keeps its
+   * place, a null is an em dash and a sentence.
+   *
+   * It is also the sample size the low-sample rule needs: an average off two
+   * visits is not a comparison, and a client that does not know `n` either
+   * invents confidence or greys every figure.
+   */
+  scorecardsCounted: number;
   points: number;
   /**
    * The agent's place, or **null** for an agent with nothing measured in the
@@ -131,7 +145,8 @@ export async function computeLeaderboard(
     const visitsSubmitted = t?.visitsSubmitted ?? 0;
     const tasksClosed = t?.tasksClosed ?? 0;
     // mean([]) === 0 keeps an agent with no in-window scorecards at 0.
-    const avgScorecard = mean(scoreLists.get(agent.id) ?? []);
+    const scores = scoreLists.get(agent.id) ?? [];
+    const avgScorecard = mean(scores);
     const points = round2(avgScorecard + (t?.points ?? 0));
 
     return {
@@ -141,6 +156,7 @@ export async function computeLeaderboard(
       visitsSubmitted,
       tasksClosed,
       avgScorecard,
+      scorecardsCounted: scores.length,
       points,
       // Measured, not zero. A ledger entry in the window — a visit, a closure,
       // a scorecard, a manual adjustment — is what makes an agent comparable
@@ -215,6 +231,7 @@ export async function getAgentLeaderboardEntry(
     visitsSubmitted: 0,
     tasksClosed: 0,
     avgScorecard: 0,
+    scorecardsCounted: 0,
     points: 0,
     rank: null,
   };

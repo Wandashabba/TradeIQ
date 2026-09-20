@@ -236,6 +236,7 @@ describe('gamification routes', () => {
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
+      scorecardsCounted: 2,
       points: 94,
       rank: 1,
     });
@@ -247,6 +248,7 @@ describe('gamification routes', () => {
       visitsSubmitted: 1,
       tasksClosed: 0,
       avgScorecard: 60,
+      scorecardsCounted: 1,
       points: 62,
       rank: 2,
     });
@@ -301,6 +303,7 @@ describe('gamification routes', () => {
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
+      scorecardsCounted: 2,
       points: 94,
       rank: 1,
     });
@@ -360,6 +363,8 @@ describe('gamification routes', () => {
       visitsSubmitted: 0,
       tasksClosed: 0,
       avgScorecard: 0,
+      // Nobody has scored them, which is not the same as scoring them zero.
+      scorecardsCounted: 0,
       points: 0,
       rank: null,
       recentEntries: [],
@@ -570,6 +575,7 @@ describe('gamification leaderboard — fractional mean', () => {
       visitsSubmitted: 3,
       tasksClosed: 0,
       avgScorecard: 78.33,
+      scorecardsCounted: 3,
       points: 84.33,
       rank: 1,
     });
