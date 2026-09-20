@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:tradeiq_app/core/download/file_download.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
@@ -144,6 +145,14 @@ void main() {
       await settleToasts(tester);
     });
 
+    // THE FAILURE, WRITTEN OUT: a report runs correctly, legitimately matches
+    // nothing, and wears the one silhouette in the system that means "we did
+    // not measure this". The word beside it says "0 rows", so the mark and the
+    // word disagree — and the mark is what survives greyscale and a glance, so
+    // a manager re-runs or escalates a query that was fine.
+    //
+    // Asserting the WORD alone is what let this through: the word was always
+    // right. The shape is the assertion that matters.
     testWidgets('zero rows is a real answer, never an error', (tester) async {
       await pump(tester, repo: FakeReportsRepository(csvRows: 0));
 
@@ -156,7 +165,48 @@ void main() {
       );
       expect(find.byType(ErrorState), findsNothing);
 
+      final mark = tester
+          .widget<TiqMark>(
+            find.descendant(
+              of: find.byKey(const ValueKey<String>('report-row-r-a')),
+              matching: find.byType(TiqMark),
+            ),
+          )
+          .shape;
+      expect(
+        mark,
+        MarkShape.heldSquare,
+        reason:
+            'A measured zero gets the comparison square. '
+            'MarkShape.notMeasuredBarredSquare means nobody measured it, and '
+            'this query ran.',
+      );
+      expect(mark, isNot(MarkShape.notMeasuredBarredSquare));
+
       await settleToasts(tester);
+    });
+
+    // The silhouette that DOES mean not-measured must stay off this screen
+    // entirely: every phase here is either measured, held or a stated
+    // failure.
+    testWidgets('no phase of this list claims "not measured"', (tester) async {
+      for (final repo in <FakeReportsRepository>[
+        FakeReportsRepository(csvRows: 0),
+        FakeReportsRepository(csvRows: 5),
+        FakeReportsRepository(csvFailure: networkFailure),
+      ]) {
+        await pump(tester, repo: repo);
+        await tester.tap(find.byKey(const ValueKey<String>('run-r-a')));
+        await tester.pumpAndSettle();
+
+        final shapes = tester
+            .widgetList<TiqMark>(find.byType(TiqMark))
+            .map((m) => m.shape)
+            .toSet();
+        expect(shapes, isNot(contains(MarkShape.notMeasuredBarredSquare)));
+
+        await settleToasts(tester);
+      }
     });
 
     testWidgets('a failed run says so and keeps the previous count', (

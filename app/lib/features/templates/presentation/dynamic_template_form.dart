@@ -126,6 +126,8 @@ class DynamicTemplateForm extends StatelessWidget {
 
     final fields = walk.visibleFields;
     final maxScore = walk.schema.maxScore;
+    final answered = walk.schema.answeredCount(walk.answers);
+    final askable = walk.schema.questionCount(walk.answers);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,6 +155,11 @@ class DynamicTemplateForm extends StatelessWidget {
               value: walk.schema.scoreFor(walk.answers),
               maximum: maxScore,
             ),
+            // A running total over a half-walked template is not a measured
+            // score. Without this the preview opens on `0.0 / 10` before a
+            // single question is answered, and a manager reads a
+            // not-yet-measured figure as a measured zero.
+            provisional: answered < askable,
             stateLine: 'Out of ${_trimmed(maxScore)} for the whole template.',
           ),
         ],

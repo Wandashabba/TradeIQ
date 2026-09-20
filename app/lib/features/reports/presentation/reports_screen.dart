@@ -356,9 +356,13 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
         : outcome.failed
         ? (MarkShape.watchTriangle, 'Could not run')
         : outcome.rows == 0
-        // Zero is a real answer, and it gets the comparison square rather than
-        // a severity: a query that matched nothing is not a fault.
-        ? (MarkShape.notMeasuredBarredSquare, '0 rows — the query matched nothing')
+        // Zero is a real answer, and it gets the COMPARISON square rather than
+        // a severity: a query that matched nothing is not a fault. It must not
+        // get `notMeasuredBarredSquare` — that silhouette means "we did not
+        // measure this", so it would contradict the "0 rows" beside it and
+        // send a manager to re-run a query that ran correctly. The mark is
+        // what survives greyscale and a glance; the word cannot rescue it.
+        ? (MarkShape.heldSquare, '0 rows — the query matched nothing')
         : (MarkShape.onTargetCircle, 'Generated');
 
     final slug = Text(

@@ -628,13 +628,9 @@ void main() {
       );
 
       // The reader's tap opens the same sheet the finger does.
-      final photoNode = semanticsNodes(
-        tester,
-      ).firstWhere((n) => n.getSemanticsData().label == 'Photo 1 of 2');
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        photoNode.id,
-        SemanticsAction.tap,
-      );
+      // Through the semantics tree, not the pixels: this is the reader's own
+      // activation path, and it is the one that was missing.
+      tester.semantics.tap(find.semantics.byLabel('Photo 1 of 2'));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey<String>('attachment-sheet')),

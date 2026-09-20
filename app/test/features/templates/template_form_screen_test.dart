@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 import 'package:tradeiq_app/features/templates/presentation/template_form_screen.dart';
@@ -121,6 +122,108 @@ void main() {
     expect(find.text('Cannot be answered yet'), findsOneWidget);
     // The last section's commit is still armed.
     expect(find.text('Finish preview'), findsOneWidget);
+  });
+
+  group('the score preview', () {
+    // THE FAILURE, WRITTEN OUT (1): a manager opens the preview and reads
+    // `0.0 / 10` before answering anything — a not-yet-measured figure read as
+    // a measured zero. `provisional` is the parameter that exists for exactly
+    // this.
+    testWidgets('a half-walked template is marked provisional', (
+      tester,
+    ) async {
+      await pump(tester, repo: FakeTemplatesRepository());
+
+      final tile = find.byKey(
+        const ValueKey<String>('template-score-preview'),
+      );
+      await scrollWorklistTo(tester, tile);
+      expect(
+        find.descendant(of: tile, matching: find.byType(ProvisionalMarker)),
+        findsOneWidget,
+        reason:
+            'Nothing is answered yet, so 0.0 is a running total and not a '
+            'measured score.',
+      );
+    });
+
+    testWidgets('a fully answered walk drops the marker', (tester) async {
+      await pump(tester, repo: FakeTemplatesRepository());
+
+      // Section 1: the boolean, then the number it reveals.
+      await tester.tap(find.text('Yes'));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('field-facing')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('field-facing')),
+        '4',
+      );
+      await tester.pumpAndSettle();
+
+      await scrollWorklistTo(tester, find.text('Next section'));
+      await tester.tap(find.text('Next section'));
+      await tester.pumpAndSettle();
+
+      // Section 2: the choice and the note. The photo cannot be answered and
+      // does not count.
+      await tester.tap(find.text('eye level'));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('field-note')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('field-note')),
+        'Back wall empty',
+      );
+      await tester.pumpAndSettle();
+
+      final tile = find.byKey(
+        const ValueKey<String>('template-score-preview'),
+      );
+      await scrollWorklistTo(tester, tile);
+      expect(
+        find.descendant(of: tile, matching: find.byType(ProvisionalMarker)),
+        findsNothing,
+      );
+    });
+
+    // THE FAILURE, WRITTEN OUT (2): the tile states a maximum the preview can
+    // never reach. The manager answers everything answerable, the meter still
+    // sits short, and they raise a ticket against a template that is correct.
+    testWidgets('the stated maximum is one the preview can reach', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: FakeTemplatesRepository(detailSchema: photoWeightedSchema),
+      );
+
+      final tile = find.byKey(
+        const ValueKey<String>('template-score-preview'),
+      );
+      await scrollWorklistTo(tester, tile);
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.textContaining('Out of 10 for the whole template.'),
+        ),
+        findsOneWidget,
+        reason:
+            'The photo question carries a weight of 6 that the preview can '
+            'never earn, so 16 is a maximum nobody can reach.',
+      );
+
+      // Answer the one answerable question and the meter is full.
+      await tester.tap(find.text('Yes'));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(tester, tile);
+      final meter = tester.widget<StatTile>(tile).meter!;
+      expect(meter.value, meter.maximum);
+    });
   });
 
   testWidgets('finishing says nothing was saved', (tester) async {

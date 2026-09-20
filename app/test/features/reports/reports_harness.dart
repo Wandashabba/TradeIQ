@@ -222,6 +222,7 @@ Future<void> pumpReports(
   double textScale = 1.0,
   bool settle = true,
   Size size = const Size(360, 720),
+  Locale? locale,
 }) => pumpWorklist(
   tester,
   screen,
@@ -229,6 +230,7 @@ Future<void> pumpReports(
   textScale: textScale,
   settle: settle,
   size: size,
+  locale: locale,
   overrides: overrides,
 );
 
@@ -240,6 +242,7 @@ Future<void> pumpPushedReports(
   TiqSkin? skin,
   double textScale = 1.0,
   Size size = const Size(360, 720),
+  Locale? locale,
 }) async {
   await pumpReports(
     tester,
@@ -248,6 +251,7 @@ Future<void> pumpPushedReports(
     skin: skin,
     textScale: textScale,
     size: size,
+    locale: locale,
   );
   await tester.pumpAndSettle();
 }

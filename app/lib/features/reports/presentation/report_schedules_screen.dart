@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -30,9 +31,14 @@ const scheduleDeliveryNote =
 /// What a successful Run now is reported as, from what the API says happened:
 /// how many rows, how many webhooks a delivery was queued for (or that none
 /// listens), and what the email channel did.
-String runNowMessage(ScheduleRunResult result) {
+///
+/// [format] is [TiqNumber.format]: the row count here is the same figure the
+/// Reports list and the run history print, and all three have to group it the
+/// same way or a manager cross-checking them cannot tell they match.
+String runNowMessage(ScheduleRunResult result, String Function(num) format) {
   final parts = <String>[
-    'Generated ${result.rowCount} ${result.rowCount == 1 ? 'row' : 'rows'}.',
+    'Generated ${format(result.rowCount)} '
+        '${result.rowCount == 1 ? 'row' : 'rows'}.',
   ];
 
   // Counted from the webhook outcome: `deliveredTo` also lists the email
@@ -349,6 +355,10 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   }
 
   Future<void> _runNow() async {
+    // Read the locale's formatter before the round trip: the message is
+    // composed after an await, and a figure still has to group the reader's
+    // way.
+    final format = TiqNumber.of(context).format;
     try {
       await _perform(() async {
         final result = await ref
@@ -356,7 +366,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
             .runNow(widget.schedule.id);
         // The run stamps lastRunAt; reload so the row shows it.
         _refreshList();
-        return runNowMessage(result);
+        return runNowMessage(result, format);
       }, failure: 'Run failed.');
     } catch (_) {
       // Reported by _perform; the row simply stays as it was.
@@ -525,6 +535,11 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
           'No recipients'
         else
           '${s.recipients.length} recipients',
+        // "Show recipients" paints the addresses inside the row's excluded
+        // text column. Without them here the control flips its own word to
+        // "Hide recipients" and reveals nothing a reader can hear — the one
+        // fact it exists to disclose.
+        if (_showRecipients) ...s.recipients,
         _active ? 'Running on its own' : 'Off',
       ].join('. '),
     );

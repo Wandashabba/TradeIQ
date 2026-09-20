@@ -61,7 +61,13 @@ String runTimesLabel(ReportRun run) {
       : generated;
 }
 
-String rowCountLabel(int n) => '$n ${n == 1 ? 'row' : 'rows'}';
+/// "1 284 rows", through the reader's own grouping.
+///
+/// [format] is [TiqNumber.format]: a row count is a figure, and a figure that
+/// bypasses it is the one place in the app that ignores an Afrikaans reader's
+/// group separator.
+String rowCountLabel(int n, String Function(num) format) =>
+    '${format(n)} ${n == 1 ? 'row' : 'rows'}';
 
 /// What the history footer says when the list has been cut.
 ///
@@ -74,9 +80,9 @@ String runHistoryFooterSummary({
   required String Function(num) format,
 }) {
   if (total == null) {
-    return 'Showing the $shown most recent. There are more.';
+    return 'Showing the ${format(shown)} most recent. There are more.';
   }
-  return 'Showing the $shown most recent of ${format(total)}.';
+  return 'Showing the ${format(shown)} most recent of ${format(total)}.';
 }
 
 String _counts(List<(int, String)> parts, String none) {
@@ -469,6 +475,7 @@ class _RunRowState extends State<_RunRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final numbers = TiqNumber.of(context);
     final run = widget.run;
     final level = runStatusLevel(run.status);
     final word = runStatusWord(run.status);
@@ -481,7 +488,7 @@ class _RunRowState extends State<_RunRow> {
           key: ValueKey<String>('run-row-${run.id}'),
           density: SoftRowDensity.tall,
           title: runTitle(run),
-          subtitle: '${rowCountLabel(run.rowCount)} · '
+          subtitle: '${rowCountLabel(run.rowCount, numbers.format)} · '
               '${runDeliverySummaryLabel(run)}',
           severity: run.status == ReportRunStatus.failed
               ? SoftRowSeverity.critical
@@ -558,8 +565,14 @@ class _RunRowState extends State<_RunRow> {
             runTitle(run),
             word,
             runTimesLabel(run),
-            rowCountLabel(run.rowCount),
+            rowCountLabel(run.rowCount, numbers.format),
             runDeliverySummaryLabel(run),
+            // The reason is the only thing on this screen that says WHICH
+            // channel gave up and why. It is painted inside the excluded text
+            // column, so if it is not in this list a reader hears "Partly
+            // delivered" and never learns what failed — which is what
+            // `_DeliveryRow` below already gets right with `?error`.
+            ?reason,
           ].join('. '),
         ),
         if (_expanded)
