@@ -288,6 +288,39 @@ void main() {
       expect(find.byType(TrendChart), findsNothing);
     });
 
+    testWidgets('a delta inside a sentence takes the reader\'s decimal mark', (
+      tester,
+    ) async {
+      // `toStringAsFixed` writes the C locale's point, so a delta of 16.5
+      // would read "16.5 punte" on an Afrikaans phone. Every number in this
+      // group goes through TiqNumber, including the ones inside sentences.
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        report: _report(
+          territories: <TerritoryBenchmark>[
+            const TerritoryBenchmark(
+              territoryId: 'ter-1',
+              territoryName: 'Gauteng North',
+              territoryCode: 'GP-N',
+              average: 71.5,
+              count: 12,
+              points: <TrendPoint>[TrendPoint(period: '2026-W26', value: 70)],
+              rank: 1,
+              deltaFromClient: 16.5,
+              position: BenchmarkPosition.above,
+            ),
+          ],
+        ),
+      );
+      await _compare(tester);
+
+      expect(
+        find.text('16,5 punte bo die kliëntgemiddeld · 12 telkaarte'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('a percentage metric carries its unit, and no target tile '
         'is invented', (tester) async {
       await _pump(tester, report: _report(clientAverage: 83.3, percent: true));

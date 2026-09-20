@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show showDateRangePicker, DateTimeRange;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
@@ -627,13 +628,17 @@ class _BenchmarkRow extends StatelessWidget {
     if (average == null) return l10n.trendsNothingMeasuredHere;
     final samples = _samples(l10n, report.metric, territory.count);
     final delta = territory.deltaFromClient;
+    // Through TiqNumber even inside a sentence. `toStringAsFixed` writes the C
+    // locale's decimal point, so "4,5 punte" would read "4.5 punte" on an
+    // Afrikaans phone — the one thing a formatter exists to stop.
+    final numbers = TiqNumber.of(context);
     return switch (territory.position) {
       BenchmarkPosition.above when delta != null => l10n.trendsAboveBy(
-        _trim(delta.abs()),
+        numbers.format(delta.abs()),
         samples,
       ),
       BenchmarkPosition.below when delta != null => l10n.trendsBelowBy(
-        _trim(delta.abs()),
+        numbers.format(delta.abs()),
         samples,
       ),
       _ => l10n.trendsLevelWith(samples),
@@ -764,13 +769,3 @@ String _samples(AppLocalizations l10n, BenchmarkMetric metric, int count) =>
       BenchmarkMetric.availability => l10n.trendsSamplesStockLines(count),
       BenchmarkMetric.shareOfShelf => l10n.trendsSamplesFacings(count),
     };
-
-/// Drops a trailing `.0` so a delta reads `4` rather than `4.0`.
-///
-/// It is a **sentence** fragment, not a figure in a data role — the figures on
-/// this screen all go through `FigureSlot`, and this is the number inside
-/// "4 points above the client average".
-String _trim(double v) {
-  final s = v.toStringAsFixed(1);
-  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
-}
