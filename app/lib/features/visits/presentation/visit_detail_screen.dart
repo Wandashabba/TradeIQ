@@ -12,7 +12,7 @@ import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../../l10n/l10n.dart';
 import '../../audit/data/photos_repository.dart';
-import '../../fraud/presentation/fraud_screen.dart';
+import '../../fraud/data/fraud_view.dart';
 import '../../templates/domain/template_schema.dart';
 import '../data/visit_detail_repository.dart';
 
@@ -819,14 +819,22 @@ class _FraudPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final level = FraudScreen.levelFor(detail.riskScore);
+    // The band is a fact about the number and lives with the data, so this
+    // screen and the review queue cannot drift into calling 71 "High risk"
+    // in one place and "Elevated" in the other.
+    final band = FraudRiskBand.of(detail.riskScore);
+    final level = switch (band) {
+      FraudRiskBand.high => StatusLevel.critical,
+      FraudRiskBand.elevated => StatusLevel.warning,
+      FraudRiskBand.low => StatusLevel.neutral,
+    };
     return PanelCard(
       key: const ValueKey('visit-fraud'),
       title: 'Fraud signals',
       subtitle: 'Risk ${detail.riskScore.toStringAsFixed(0)} of 100',
       trailing: LumenStatusPill(
         status: level.lumen,
-        label: FraudScreen.wordFor(level),
+        label: band.word,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

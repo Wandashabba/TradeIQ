@@ -45,6 +45,11 @@ class PersonRow extends StatelessWidget {
     this.trailingWord,
     this.trailing,
     this.trailingLabel,
+    this.meta,
+    this.metaLabel,
+    this.actions,
+    this.severity,
+    this.severityLabel,
     this.deactivated = false,
     this.onTap,
     this.onLongPress,
@@ -64,6 +69,18 @@ class PersonRow extends StatelessWidget {
          'announces a name and stops, and the number the row exists to '
          'compare is silent. Pass the figure in words ("94 points"); it is '
          'the same defect the worklists shipped with their ghost buttons.',
+       ),
+       assert(
+         meta == null || metaLabel != null,
+         'PersonRow: reason content in meta needs metaLabel, for the same '
+         'reason a trailing figure does — the row is one node and excludes '
+         'what is under it.',
+       ),
+       assert(
+         severity == null || severityLabel != null,
+         'PersonRow: a severity bar is crimson, and the word beside it is '
+         'what survives greyscale, deuteranopia, glare and a screen reader. '
+         'SoftRow requires it; so does this.',
        );
 
   /// The full name. Wraps to two lines and middle-truncates only when a single
@@ -102,6 +119,28 @@ class PersonRow extends StatelessWidget {
   /// figure a screen reader never reaches.
   final String? trailingLabel;
 
+  /// Extra reason content beneath the role line — the evidence behind an
+  /// accusation, the rules that fired, where a ruling stands.
+  ///
+  /// It composes *below* the identifier line rather than replacing it, so an
+  /// unnamed person keeps their reference and their reason both.
+  final Widget? meta;
+
+  /// [meta]'s content in words, for the row's one semantics node.
+  final String? metaLabel;
+
+  /// The row's own verbs, beneath the text column and inset to it. They keep
+  /// their own semantics nodes: a button dropped into [meta] paints,
+  /// hit-tests and is announced nowhere.
+  final Widget? actions;
+
+  /// A severity bar down the leading edge. The lane is reserved whether or
+  /// not one is painted, so a list of rows still reads as one column.
+  final SoftRowSeverity? severity;
+
+  /// The severity in words. Required with [severity].
+  final String? severityLabel;
+
   /// Ink drops to ink-mute, the chevron goes, the row stops being tappable —
   /// and the caller passes the reason as [trailingWord] ("No longer active").
   final bool deactivated;
@@ -137,14 +176,30 @@ class PersonRow extends StatelessWidget {
     final showIdentifier =
         !hasName && identifier != null && identifierLabel != null;
 
+    final Widget? identifierLine = showIdentifier
+        ? _Identifier(label: identifierLabel!, value: identifier!)
+        : null;
+
     return SoftRow(
       density: density,
       title: title,
       titleTruncation: SoftRowTruncation.middle,
       subtitle: subtitle,
-      meta: showIdentifier
-          ? _Identifier(label: identifierLabel!, value: identifier!)
-          : null,
+      severity: severity ?? SoftRowSeverity.none,
+      severityLabel: severityLabel,
+      actions: actions,
+      meta: identifierLine == null && meta == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ?identifierLine,
+                if (identifierLine != null && meta != null)
+                  const SizedBox(height: TiqSpace.s2),
+                ?meta,
+              ],
+            ),
       leading: _InitialsTile(
         name: hasName ? name : null,
         deactivated: deactivated,
@@ -155,6 +210,9 @@ class PersonRow extends StatelessWidget {
       onLongPress: onLongPress,
       separator: separator,
       semanticsLabel: <String?>[
+        // Severity first: a queue read aloud has to say how bad before it
+        // says whose, or the listener sorts the list twice.
+        severityLabel,
         // The FULL name, whatever the row painted.
         hasName ? name : unknownLabel,
         if (parts.isNotEmpty) parts.join(', '),
@@ -162,6 +220,7 @@ class PersonRow extends StatelessWidget {
         // The word wins when both are present, because `_trailing` paints the
         // word and a reader must hear what is on the screen.
         trailingWord ?? (trailing != null ? trailingLabel : null),
+        metaLabel,
       ].whereType<String>().join(', '),
     );
   }
