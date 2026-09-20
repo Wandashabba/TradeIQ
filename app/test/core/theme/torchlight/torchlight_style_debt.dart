@@ -11,7 +11,10 @@
 // files already clean whose rows had never been regenerated out. A ledger
 // that takes credit for somebody else's work is a ledger nobody can read the
 // ratchet off. Later migrations have taken it further; the map below and the
-// total at the foot are what count.
+// total at the foot are what count. Operations — outlets, orders, beat plans
+// and sales targets — took all eight of its files off the map (36), so the
+// group has no row here at all, which is the only score a finished migration
+// should have.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -31,8 +34,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/view_specs/expanded_views.dart': 6,
   'auth/presentation/landing_screen.dart': 5,
   'auth/presentation/login_screen.dart': 13,
-  'beatplans/presentation/beat_plan_form_screen.dart': 5,
-  'beatplans/presentation/beatplans_screen.dart': 2,
   'campaigns/presentation/campaign_form_screen.dart': 4,
   'campaigns/presentation/campaign_return_view.dart': 3,
   'campaigns/presentation/campaigns_screen.dart': 1,
@@ -50,16 +51,10 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'gamification/presentation/leaderboard_screen.dart': 2,
   'incentives/presentation/incentives_screen.dart': 2,
   'notifications/presentation/notification_preferences_screen.dart': 2,
-  'orders/presentation/order_form_screen.dart': 5,
-  'orders/presentation/orders_screen.dart': 2,
-  'outlets/presentation/create_outlet_screen.dart': 7,
-  'outlets/presentation/outlets_list_screen.dart': 1,
   'reports/presentation/report_form_screen.dart': 2,
   'reports/presentation/report_run_history_screen.dart': 13,
   'reports/presentation/report_schedule_form_screen.dart': 3,
   'reports/presentation/report_schedules_screen.dart': 1,
-  'sales_targets/presentation/sales_attainment_panel.dart': 3,
-  'sales_targets/presentation/sales_targets_screen.dart': 11,
   'templates/presentation/dynamic_template_form.dart': 1,
   'templates/presentation/templates_screen.dart': 3,
   'territories/presentation/territories_screen.dart': 2,
@@ -73,4 +68,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 281;
+const int torchlightStyleDebtTotal = 245;
