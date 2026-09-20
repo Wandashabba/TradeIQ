@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/format/person_label.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../users/data/users_repository.dart';
@@ -73,8 +74,6 @@ class FraudRow {
 
   final DateTime? scoredAt;
 
-  bool get reviewed => verdict != null;
-
   /// The rule codes that fired, machine-facing, for quoting back.
   String get codes => signals.map((s) => s.code).join(', ');
 
@@ -108,22 +107,6 @@ class FraudView {
   final String? nextCursor;
 
   bool get hasMore => nextCursor != null;
-
-  int countOf(FraudRiskBand band) =>
-      rows.where((r) => r.band == band).length;
-
-  /// What the pagination footer says, or null where the page is the whole
-  /// truth and there is nothing to own up to.
-  ({String summary, String unscoredNote})? footer(String Function(int) figure) {
-    final note = unscoredNote(figure);
-    if (!hasMore) {
-      return note == null ? null : (summary: '', unscoredNote: note);
-    }
-    return (
-      summary: 'Showing the ${figure(rows.length)} riskiest.',
-      unscoredNote: note ?? '',
-    );
-  }
 
   /// The unscored sentence, or null when there are none. Not optional where
   /// it is true: an unscored visit is not a clean one.
@@ -171,9 +154,11 @@ final fraudViewProvider =
         FraudRow(
           visitId: v.visitId,
           agentId: v.agentId,
-          agentName: people[v.agentId]?.displayName?.trim().isNotEmpty ?? false
-              ? people[v.agentId]!.displayName
-              : people[v.agentId]?.email,
+          // The one fallback every screen that shows a person uses: the
+          // display name when there is one, otherwise the address. Null only
+          // where the roster does not carry this agent at all, and the row
+          // then says so in words.
+          agentName: _nameOf(people[v.agentId]),
           outletName: outletNames[v.outletId] ?? FraudView.unnamedOutlet,
           riskScore: v.riskScore,
           band: FraudRiskBand.of(v.riskScore),
@@ -184,3 +169,6 @@ final fraudViewProvider =
     ],
   );
 });
+
+String? _nameOf(AppUser? user) =>
+    user == null ? null : personLabel(user.displayName, user.email);
