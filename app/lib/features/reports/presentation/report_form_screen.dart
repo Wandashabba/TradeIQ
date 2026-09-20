@@ -1,19 +1,84 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInputAction, TextInputType;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/console_page.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/reports_repository.dart';
 
-const _reportTypes = <String>['visits', 'scorecards', 'tasks', 'orders'];
+/// The four kinds of report the server can build, in the order the API
+/// allow-lists them.
+const reportTypes = <String>['visits', 'scorecards', 'tasks', 'orders'];
 
-/// Manager/admin report builder: name + type + optional date-range and outlet
-/// filters. Posts a saved report definition to `POST /reports`.
+/// What each type is, in words — a slug is what the machine calls it and not
+/// what a manager picks it by.
+String reportTypeLabel(String type) => switch (type) {
+  'visits' => 'Visits',
+  'scorecards' => 'Scorecards',
+  'tasks' => 'Tasks',
+  'orders' => 'Orders',
+  _ => type,
+};
+
+String reportTypeConsequence(String type) => switch (type) {
+  'visits' => 'One row per submitted visit.',
+  'scorecards' => 'One row per scored visit.',
+  'tasks' => 'One row per task raised.',
+  'orders' => 'One row per order captured in store.',
+  _ => 'One row per record.',
+};
+
+/// A date the filters accept, or null when the box is empty.
+///
+/// `YYYY-MM-DD` and nothing else: the server stores the filters verbatim and
+/// reads them back as ISO dates, so a locale-shaped "09/10" that means two
+/// different days on two desks is a bug waiting in the data rather than in
+/// the form.
+DateTime? parseFilterDate(String raw) {
+  final text = raw.trim();
+  if (text.isEmpty) return null;
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text)) return null;
+  final parsed = DateTime.tryParse(text);
+  if (parsed == null) return null;
+  // `DateTime.tryParse` accepts 2026-02-31 and rolls it into March. A date a
+  // manager cannot point at on a calendar is not a date they typed.
+  final rebuilt =
+      '${parsed.year.toString().padLeft(4, '0')}-'
+      '${parsed.month.toString().padLeft(2, '0')}-'
+      '${parsed.day.toString().padLeft(2, '0')}';
+  return rebuilt == text ? parsed : null;
+}
+
+/// Why a date box cannot be saved, or null when it can.
+String? filterDateError(String raw) {
+  if (raw.trim().isEmpty) return null;
+  return parseFilterDate(raw) == null
+      ? 'Use the form 2026-09-20, or leave it blank for any date.'
+      : null;
+}
+
+/// NEW REPORT — a saved definition: what it queries, and what it is narrowed
+/// to.
+///
+/// ## The button says why it cannot save
+///
+/// Not a greyed rectangle with nothing beside it: [TorchPrimaryButton]
+/// requires a `blockedReason` whenever it is disabled, and renders it as a
+/// `TorchBarNote` **above** the button, as a live region. A manager who cannot
+/// press Create reads the sentence that says which box is still empty.
+///
+/// ## Amber, counted
+///
+/// Untabbed and no nav, so Night has two content grants and Day and Veld one.
+/// The claim is declared **only while the primary is armed**, so an empty form
+/// carries zero amber in every skin and a fillable one exactly one.
 class ReportFormScreen extends ConsumerStatefulWidget {
   const ReportFormScreen({super.key});
 
@@ -22,262 +87,278 @@ class ReportFormScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  String _type = _reportTypes.first;
-  DateTime? _from;
-  DateTime? _to;
+  final _name = TextEditingController();
+  final _from = TextEditingController();
+  final _to = TextEditingController();
+
+  String _type = reportTypes.first;
   String? _outletId;
-  bool _submitting = false;
+  String? _outletName;
+
+  bool _saving = false;
+  String? _failure;
+
+  /// True once Create has been pressed with a malformed date, so a half-typed
+  /// "2026-09" does not go red under the thumb that is still typing it.
+  bool _shownErrors = false;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in <TextEditingController>[_name, _from, _to]) {
+      c.addListener(_changed);
+    }
+  }
+
+  void _changed() {
+    if (mounted) setState(() => _failure = null);
+  }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
+    for (final c in <TextEditingController>[_name, _from, _to]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  static String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  Future<void> _pickDate({required bool isFrom}) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: (isFrom ? _from : _to) ?? DateTime(2026, 1, 1),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked == null) return;
-    setState(() {
-      if (isFrom) {
-        _from = picked;
-      } else {
-        _to = picked;
-      }
-    });
+  /// Why this cannot be saved yet, in one sentence, or null when it can.
+  String? get _blocked {
+    if (_name.text.trim().isEmpty) return 'Give the report a name first.';
+    if (filterDateError(_from.text) != null) {
+      return 'The From date is not a date. Use the form 2026-09-20.';
+    }
+    if (filterDateError(_to.text) != null) {
+      return 'The To date is not a date. Use the form 2026-09-20.';
+    }
+    final from = parseFilterDate(_from.text);
+    final to = parseFilterDate(_to.text);
+    if (from != null && to != null && to.isBefore(from)) {
+      return 'The To date is before the From date.';
+    }
+    return null;
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _submitting = true);
-    final fromStr = _from == null ? null : _fmt(_from!);
-    final toStr = _to == null ? null : _fmt(_to!);
+    setState(() {
+      _shownErrors = true;
+      _failure = null;
+    });
+    if (_blocked != null) return;
+    setState(() => _saving = true);
     final filters = <String, dynamic>{
-      'from': ?fromStr,
-      'to': ?toStr,
-      'outletId': ?_outletId,
+      if (_from.text.trim().isNotEmpty) 'from': _from.text.trim(),
+      if (_to.text.trim().isNotEmpty) 'to': _to.text.trim(),
+      if (_outletId != null) 'outletId': _outletId,
     };
     try {
-      await ref.read(reportsRepositoryProvider).createReport(
-            name: _nameCtrl.text.trim(),
+      await ref
+          .read(reportsRepositoryProvider)
+          .createReport(
+            name: _name.text.trim(),
             type: _type,
             filters: filters,
           );
-      ref.invalidate(reportsListProvider);
+      ref.invalidate(reportsPageProvider);
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create report: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _failure = TorchErrorMessage.sanitise(error).body;
+      });
     }
   }
 
+  Future<void> _pickOutlet() async {
+    final picked = await showTorchSheet<({String? id, String? name})>(
+      context,
+      builder: (_) => const _OutletPickerSheet(),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _outletId = picked.id;
+      _outletName = picked.name;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final outlets = ref.watch(outletsListProvider);
-    final nameField = TextFormField(
-      key: const ValueKey<String>('report-name-field'),
-      controller: _nameCtrl,
-      decoration: const InputDecoration(
-          labelText: 'Name', border: OutlineInputBorder()),
-      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-    );
-    final typeField = DropdownButtonFormField<String>(
-      key: const ValueKey<String>('report-type-field'),
-      initialValue: _type,
-      decoration: const InputDecoration(
-          labelText: 'Type', border: OutlineInputBorder()),
-      items: [
-        for (final t in _reportTypes) DropdownMenuItem(value: t, child: Text(t)),
-      ],
-      onChanged: (v) => setState(() => _type = v ?? _type),
-    );
-    final fromRow = _DateRow(
-      label: 'From',
-      value: _from == null ? null : _fmt(_from!),
-      buttonKey: 'report-from-date',
-      onPressed: () => _pickDate(isFrom: true),
-    );
-    final toRow = _DateRow(
-      label: 'To',
-      value: _to == null ? null : _fmt(_to!),
-      buttonKey: 'report-to-date',
-      onPressed: () => _pickDate(isFrom: false),
-    );
-    final outletField = outlets.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (err, _) => Text('Failed to load outlets: $err'),
-      data: (list) => DropdownButtonFormField<String>(
-        key: const ValueKey<String>('report-outlet-field'),
-        initialValue: _outletId,
-        decoration: const InputDecoration(
-            labelText: 'Outlet (optional)', border: OutlineInputBorder()),
-        items: [
-          const DropdownMenuItem(value: null, child: Text('All outlets')),
-          for (final o in list) DropdownMenuItem(value: o.id, child: Text(o.name)),
-        ],
-        onChanged: (v) => setState(() => _outletId = v),
-      ),
-    );
+    final blocked = _blocked;
+    final armed = blocked == null && !_saving;
+    final failure = _failure;
 
-    return GlassPageScaffold(
-      title: const Text('New Report'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: context.colors.glass
-              // Glass: what the report is, then what it is narrowed to.
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GlassSection(
-                      label: 'Report',
-                      children: [
-                        nameField,
-                        const SizedBox(height: 12),
-                        typeField,
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _GlassSection(
-                      label: 'Filters',
-                      children: [
-                        fromRow,
-                        const SizedBox(height: 10),
-                        toRow,
-                        const SizedBox(height: 14),
-                        outletField,
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    GlassPrimaryButton(
-                      key: const ValueKey<String>('report-save-button'),
-                      label: 'Create Report',
-                      busy: _submitting,
-                      onPressed: _submit,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    nameField,
-                    const SizedBox(height: 12),
-                    typeField,
-                    const SizedBox(height: 16),
-                    fromRow,
-                    const SizedBox(height: 8),
-                    toRow,
-                    const SizedBox(height: 12),
-                    outletField,
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      key: const ValueKey<String>('report-save-button'),
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Create Report'),
-                    ),
-                  ],
-                ),
+    return ConsolePage(
+      phase: _saving
+          ? 'saving'
+          : failure != null
+          ? 'error'
+          : armed
+          ? 'armed'
+          : 'blocked',
+      title: 'New report',
+      facts: const <String>['It runs on demand against live data.'],
+      back: ConsolePage.backTo(
+        'Back to Reports',
+        () => Navigator.of(context).pop(),
+      ),
+      primaryArmed: armed,
+      primary: TorchPrimaryButton(
+        key: const ValueKey<String>('report-save-button'),
+        label: 'Create this report',
+        claimId: ConsolePage.primaryClaimId,
+        busy: _saving,
+        blockedReason: blocked ?? (_saving ? 'Saving…' : null),
+        onPressed: armed ? _submit : null,
+      ),
+      children: <Widget>[
+        const SectionRule('Report'),
+        const SizedBox(height: TiqSpace.s5),
+        TorchTextField(
+          key: const ValueKey<String>('report-name-field'),
+          label: 'Name',
+          controller: _name,
+          hint: 'Outlet coverage, September',
+          help: 'What a manager will look for in the list.',
+          textInputAction: TextInputAction.next,
         ),
-      ),
-    );
-  }
-}
+        const SizedBox(height: TiqSpace.s5),
+        ChoiceRow<String>(
+          key: const ValueKey<String>('report-type-field'),
+          label: 'What it queries',
+          value: _type,
+          notAnsweredLine: 'Pick what the report is about.',
+          options: <ChoiceOption<String>>[
+            for (final type in reportTypes)
+              ChoiceOption<String>(
+                value: type,
+                label: reportTypeLabel(type),
+                consequence: reportTypeConsequence(type),
+              ),
+          ],
+          onChanged: (value) => setState(() => _type = value),
+        ),
 
-/// A glass panel with its kicker — one group of the form.
-class _GlassSection extends StatelessWidget {
-  const _GlassSection({required this.label, required this.children});
+        SizedBox(height: context.skin.space.blockGap),
+        const SectionRule('Narrowed to'),
+        const SizedBox(height: TiqSpace.s5),
+        TorchTextField(
+          key: const ValueKey<String>('report-from-date'),
+          label: 'From',
+          controller: _from,
+          identifier: true,
+          hint: '2026-09-01',
+          help: 'Leave blank for any date.',
+          error: _shownErrors ? filterDateError(_from.text) : null,
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: TiqSpace.s5),
+        TorchTextField(
+          key: const ValueKey<String>('report-to-date'),
+          label: 'To',
+          controller: _to,
+          identifier: true,
+          hint: '2026-09-30',
+          help: 'Leave blank for any date.',
+          error: _shownErrors ? filterDateError(_to.text) : null,
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.done,
+        ),
+        const SizedBox(height: TiqSpace.s5),
+        SoftRow(
+          key: const ValueKey<String>('report-outlet-field'),
+          form: SoftRowForm.standalone,
+          density: SoftRowDensity.tall,
+          title: 'Outlet',
+          subtitle: _outletName ?? 'All outlets',
+          trailing: const SoftRowChevron(),
+          onTap: _pickOutlet,
+          semanticsLabel:
+              'Outlet. ${_outletName ?? 'All outlets'}. Choose an outlet.',
+        ),
 
-  final String label;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [Kicker(label), const SizedBox(height: 12), ...children],
-      ),
-    );
-  }
-}
-
-class _DateRow extends StatelessWidget {
-  const _DateRow({
-    required this.label,
-    required this.value,
-    required this.buttonKey,
-    required this.onPressed,
-  });
-
-  final String label;
-  final String? value;
-  final String buttonKey;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final lumen = context.lumen;
-    final pick = OutlinedButton(
-      key: ValueKey<String>(buttonKey),
-      onPressed: onPressed,
-      child: const Text('Pick'),
-    );
-    if (context.colors.glass) {
-      // Glass: the label as a kicker over the date as a figure — or "Any",
-      // since an open end is a real filter value, not a blank.
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Kicker(label, size: 9.5),
-                const SizedBox(height: 4),
-                value == null
-                    ? Text(
-                        'Any',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: lumen.inkMuted,
-                        ),
-                      )
-                    : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
-              ],
+        if (failure != null) ...<Widget>[
+          SizedBox(height: context.skin.space.blockGap),
+          ErrorState(
+            key: const ValueKey<String>('report-save-error'),
+            scope: ErrorScope.inline,
+            message: TorchErrorMessage(
+              kind: TorchErrorKind.rejected,
+              headline: 'The report was not created.',
+              body: failure,
+              offersRetry: false,
             ),
           ),
-          pick,
         ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: Text(value == null ? '$label: any' : '$label: $value')),
-        pick,
       ],
+    );
+  }
+}
+
+/// Which outlet to narrow to — or all of them, which is a real choice and the
+/// first row rather than an absence.
+class _OutletPickerSheet extends ConsumerWidget {
+  const _OutletPickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final outlets = ref.watch(outletsListProvider);
+    return TorchSheet(
+      title: 'Outlet',
+      subtitle: 'The report is narrowed to the one you pick.',
+      child: outlets.when(
+        loading: () => Skeleton(
+          label: 'outlets',
+          child: const SkeletonRows(count: 4, rowHeight: 56),
+        ),
+        error: (error, stack) => ErrorState(
+          scope: ErrorScope.inline,
+          message: TorchErrorMessage.sanitise(error),
+          action: TorchSecondaryButton(
+            key: const ValueKey<String>('outlets-retry'),
+            label: 'Try again',
+            onPressed: () => ref.invalidate(outletsListProvider),
+          ),
+        ),
+        data: (list) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SoftRow(
+              key: const ValueKey<String>('outlet-any'),
+              density: SoftRowDensity.compact,
+              title: 'All outlets',
+              onTap: () => Navigator.of(
+                context,
+              ).pop((id: null, name: null)),
+              separator: list.isEmpty
+                  ? SoftRowSeparator.none
+                  : SoftRowSeparator.auto,
+            ),
+            if (list.isEmpty)
+              const EmptyState(
+                scope: EmptyScope.inPanel,
+                headline: 'No outlets on this client yet.',
+                body: 'The report will cover every outlet added later.',
+              )
+            else
+              for (var i = 0; i < list.length; i++)
+                SoftRow(
+                  key: ValueKey<String>('outlet-${list[i].id}'),
+                  density: SoftRowDensity.compact,
+                  title: list[i].name,
+                  titleTruncation: SoftRowTruncation.middle,
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop((id: list[i].id, name: list[i].name)),
+                  separator: i == list.length - 1
+                      ? SoftRowSeparator.none
+                      : SoftRowSeparator.auto,
+                ),
+          ],
+        ),
+      ),
     );
   }
 }

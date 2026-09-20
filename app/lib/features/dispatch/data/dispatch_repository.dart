@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
+import '../../outlets/data/outlets_repository.dart'
+    show Outlet, fetchAllOutlets, outletsRepositoryProvider;
 
 /// One candidate agent returned by POST /dispatch, ranked for an outlet.
 class DispatchCandidate {
@@ -34,10 +36,7 @@ class DispatchCandidate {
 
 /// The result of ranking agents for an outlet via POST /dispatch.
 class DispatchResult {
-  const DispatchResult({
-    required this.candidates,
-    this.recommended,
-  });
+  const DispatchResult({required this.candidates, this.recommended});
   final List<DispatchCandidate> candidates;
   final DispatchCandidate? recommended;
 
@@ -66,10 +65,27 @@ class DioDispatchRepository implements DispatchRepository {
   }
 }
 
-final dispatchRepositoryProvider =
-    Provider<DispatchRepository>((ref) => DioDispatchRepository());
+final dispatchRepositoryProvider = Provider<DispatchRepository>(
+  (ref) => DioDispatchRepository(),
+);
 
-final dispatchResultProvider =
-    FutureProvider.family<DispatchResult, String>((ref, outletId) {
-  return ref.read(dispatchRepositoryProvider).dispatch(outletId);
-});
+/// The outlet list as the dispatch picker reads it.
+///
+/// It is this screen's own provider rather than `outletsListProvider` for one
+/// reason: the retry policy. The shared list is read by five other features
+/// and keeps Riverpod's default backoff, which is the right trade where a
+/// list is ambient; here the manager has just tapped a picker and is watching
+/// it, and several seconds of silent retrying behind a skeleton is a screen
+/// that looks broken. The fetch itself is the same call, so nothing about
+/// what arrives differs.
+final dispatchOutletsProvider = FutureProvider<List<Outlet>>(
+  (ref) => fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: false),
+  retry: (retryCount, error) => null,
+);
+
+/// Retries are disabled: a silent multi-second backoff behind a skeleton is
+/// worse than a failure with a Retry on it, on a screen somebody is watching.
+final dispatchResultProvider = FutureProvider.family<DispatchResult, String>(
+  (ref, outletId) => ref.read(dispatchRepositoryProvider).dispatch(outletId),
+  retry: (retryCount, error) => null,
+);

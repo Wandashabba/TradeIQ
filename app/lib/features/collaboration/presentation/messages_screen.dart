@@ -1,38 +1,59 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/camera/photo_capture_service.dart';
-import '../../../core/network/human_error.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../audit/data/photos_repository.dart';
+import '../../users/data/users_repository.dart';
 import '../data/collaboration_repository.dart';
 import 'message_attachment_thumb.dart';
 
-/// The team channel. Two feeds live here, and a segmented control switches
-/// between them rather than stacking them:
+/// THE TEAM CHANNEL — two feeds, one rail, one composer.
 ///
-/// * **Messages** are a conversation — the page ends in a composer that is
-///   always reachable, because reading the thread and answering it are the same
-///   task.
+/// * **Messages** are a conversation, so the route ends in a composer that is
+///   always reachable: reading the thread and answering it are one task.
 /// * **Announcements** are a broadcast — read-only for most of the team, and
-///   written by a manager through a deliberate title+body form, not a one-line
-///   composer.
+///   written by a manager through a deliberate title-and-body sheet rather
+///   than a one-line composer.
 ///
-/// Stacking the two would leave the message composer pinned under a list of
-/// announcements, where "Message the team" is the wrong thing to offer. The
-/// segment lets each feed own its compose affordance instead.
+/// Stacking the two would leave "Message the team" pinned under a list of
+/// announcements. The rail lets each feed own its compose affordance instead.
+///
+/// ## A row names a person
+///
+/// The old row printed `cmf3k9…` as the message's meta and "To cmf3k9…" beside
+/// it. A cuid is not a person. The roster names the sender and the recipient,
+/// and where it cannot — a deleted account, a roster that has not loaded — the
+/// row says so **in words** and shows the id in the identifier face as the
+/// explicit unknown state, which is the one place an id belongs (unify §1.15).
+/// The id is still reachable: a long press copies it.
+///
+/// ## Amber, counted, with and without the keyboard
+///
+/// Night's budget is two either way, and the composer is why the rule about
+/// the keyboard exists. With the keyboard down: the nav's active tab is slot 1
+/// and Send is slot 2. With it up the nav does not render, and the grant it was
+/// holding pays for the focused field's rule — so a focused composer plus a lit
+/// Send is exactly two, not three. Day and Veld light Send alone, and **zero**
+/// when the draft is empty: a Send with nothing to send is not armed.
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
 
@@ -42,13 +63,16 @@ class MessagesScreen extends ConsumerStatefulWidget {
 
 enum _Feed { messages, announcements }
 
+/// The id the composer's Send claims under.
+const String messageSendClaimId = 'send-message';
+
 /// A photo picked for the draft but not yet sent (#125).
 ///
 /// Uploaded at SEND time, not at pick time, so an abandoned draft leaves
 /// nothing on the server. Once an upload succeeds its [photoId] is kept: if
 /// the send then fails, retrying does not upload the same photo twice.
-class _PendingAttachment {
-  _PendingAttachment(this.dataUrl) : bytes = _decode(dataUrl);
+class PendingAttachment {
+  PendingAttachment(this.dataUrl) : bytes = _decode(dataUrl);
 
   final String dataUrl;
 
@@ -68,10 +92,10 @@ class _PendingAttachment {
 }
 
 class _MessagesScreenState extends ConsumerState<MessagesScreen> {
-  final _bodyCtrl = TextEditingController();
+  final _body = TextEditingController();
   _Feed _feed = _Feed.messages;
 
-  final _pending = <_PendingAttachment>[];
+  final List<PendingAttachment> _pending = <PendingAttachment>[];
   bool _sending = false;
   String? _composerError;
 
@@ -87,7 +111,18 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   /// photos. If the sender edits either after a failed send, it is a different
   /// message — the server 409s a key reused for different content — so it
   /// gets a fresh key.
-  ({String body, List<_PendingAttachment> photos})? _keyedDraft;
+  ({String body, List<PendingAttachment> photos})? _keyedDraft;
+
+  @override
+  void initState() {
+    super.initState();
+    _body.addListener(_draftChanged);
+  }
+
+  void _draftChanged() {
+    // The Send claim follows the draft, so an empty composer paints no amber.
+    if (mounted) setState(() {});
+  }
 
   bool _draftUnchangedSinceKeyed(String body) {
     final keyed = _keyedDraft;
@@ -104,24 +139,26 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   String _keyFor(String body) {
     if (!_draftUnchangedSinceKeyed(body)) {
       _clientMessageId = _uuid.v4();
-      _keyedDraft = (body: body, photos: List.of(_pending));
+      _keyedDraft = (body: body, photos: List<PendingAttachment>.of(_pending));
     }
     return _clientMessageId!;
   }
 
   @override
   void dispose() {
-    _bodyCtrl.dispose();
+    _body.dispose();
     super.dispose();
   }
+
+  bool get _hasDraft =>
+      _body.text.trim().isNotEmpty || _pending.isNotEmpty;
 
   /// Pick or take a photo through the same [PhotoCaptureService] the audit
   /// flow uses — downscaled, encoded, and size-checked before it is ever sent.
   Future<void> _attach() async {
     if (_pending.length >= maxMessageAttachments || _sending) return;
-    final source = await showModalBottomSheet<PhotoSource>(
-      context: context,
-      backgroundColor: context.colors.surface1,
+    final source = await showTorchSheet<PhotoSource>(
+      context,
       builder: (_) => const _AttachSourceSheet(),
     );
     if (source == null || !mounted) return;
@@ -130,7 +167,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       // A cancelled picker is a normal outcome — the draft stays as it was.
       if (photo == null || !mounted) return;
       setState(() {
-        _pending.add(_PendingAttachment(photo.dataUrl));
+        _pending.add(PendingAttachment(photo.dataUrl));
         _composerError = null;
       });
     } on PhotoTooLargeException catch (e) {
@@ -154,7 +191,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Future<void> _send() async {
-    final body = _bodyCtrl.text.trim();
+    final body = _body.text.trim();
     if (_sending || (body.isEmpty && _pending.isEmpty)) return;
     setState(() {
       _sending = true;
@@ -177,7 +214,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           _sending = false;
           _composerError =
               'A photo failed to upload, so nothing was sent. '
-              '${humanErrorMessage(e)} Your draft is kept.';
+              '${TorchErrorMessage.sanitise(e).body} Your draft is kept.';
         });
         return;
       }
@@ -188,7 +225,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           .read(collaborationRepositoryProvider)
           .sendMessage(
             body,
-            attachmentPhotoIds: [for (final a in _pending) a.photoId!],
+            attachmentPhotoIds: <String>[
+              for (final a in _pending) a.photoId!,
+            ],
             clientMessageId: clientMessageId,
           );
     } catch (e) {
@@ -196,13 +235,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       setState(() {
         _sending = false;
         _composerError =
-            'Message not sent. ${humanErrorMessage(e)} Your draft is kept.';
+            'Message not sent. ${TorchErrorMessage.sanitise(e).body} '
+            'Your draft is kept.';
       });
       return;
     }
 
     if (!mounted) return;
-    _bodyCtrl.clear();
+    _body.clear();
     setState(() {
       _pending.clear();
       _sending = false;
@@ -214,15 +254,37 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Future<void> _compose() async {
-    final draft = await showDialog<({String title, String body})>(
-      context: context,
-      builder: (context) => const _AnnouncementDialog(),
+    final draft = await showTorchSheet<({String title, String body})>(
+      context,
+      builder: (_) => const _AnnouncementSheet(),
     );
-    if (draft == null) return;
-    await ref
-        .read(collaborationRepositoryProvider)
-        .createAnnouncement(title: draft.title, body: draft.body);
-    if (mounted) ref.invalidate(announcementsListProvider);
+    if (draft == null || !mounted) return;
+    try {
+      await ref
+          .read(collaborationRepositoryProvider)
+          .createAnnouncement(title: draft.title, body: draft.body);
+      if (!mounted) return;
+      ref.invalidate(announcementsListProvider);
+      showTorchToast(
+        context,
+        message: 'Posted to everyone on this client.',
+        kind: ToastKind.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showTorchToast(
+        context,
+        message:
+            'That announcement was not posted. '
+            '${TorchErrorMessage.sanitise(error).body}',
+        kind: ToastKind.failure,
+      );
+    }
+  }
+
+  void _refresh() {
+    ref.invalidate(messagesProvider);
+    ref.invalidate(announcementsListProvider);
   }
 
   @override
@@ -233,109 +295,221 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     // that would come back 403.
     final canAnnounce = role == 'manager' || role == 'admin';
     final onAnnouncements = _feed == _Feed.announcements;
+    final gutter = context.skin.space.gutter;
+    final armed = _hasDraft && !_sending;
 
-    return ManagerScaffold(
-      title: 'Messages',
-      floatingActionButton: onAnnouncements && canAnnounce
-          ? FloatingActionButton(
-              key: const ValueKey<String>('announcement-create-fab'),
-              tooltip: 'New announcement',
-              onPressed: _compose,
-              child: const Icon(Icons.campaign_outlined),
-            )
-          : null,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                FilterRow(
-                  children: [
-                    const SectionLabel('View'),
-                    _Segmented<_Feed>(
-                      segments: const [
-                        (label: 'Messages', value: _Feed.messages),
-                        (label: 'Announcements', value: _Feed.announcements),
-                      ],
-                      selected: _feed,
-                      onChanged: (f) => setState(() => _feed = f),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (onAnnouncements)
-                  AsyncSection<List<Announcement>>(
-                    value: ref.watch(announcementsListProvider),
-                    label: 'announcements',
-                    onRetry: () => ref.invalidate(announcementsListProvider),
-                    builder: (list) => _AnnouncementList(
-                      announcements: list,
-                      canAnnounce: canAnnounce,
-                    ),
-                  )
-                else
-                  AsyncSection<List<Message>>(
-                    value: ref.watch(messagesProvider),
-                    label: 'messages',
-                    onRetry: () => ref.invalidate(messagesProvider),
-                    builder: (list) => _MessageList(messages: list),
-                  ),
-              ],
-            ),
-          ),
-          // The composer belongs to the conversation, not to the broadcast.
-          if (!onAnnouncements)
-            _Composer(
-              controller: _bodyCtrl,
+    final messages = ref.watch(messagesProvider);
+    final announcements = ref.watch(announcementsListProvider);
+    final feed = onAnnouncements ? announcements : messages;
+
+    return ConsoleFrame(
+      phase: onAnnouncements
+          ? 'announcements-${_phaseOf(announcements)}'
+          : 'messages-${_phaseOf(messages)}',
+      active: ConsoleSlot.menu,
+      claims: <TorchClaim>[
+        if (!onAnnouncements && armed)
+          TorchPrimaryButton.claim(messageSendClaimId),
+      ],
+      header: TorchAppHeader(
+        title: 'Messages',
+        facts: const <String>['Everything the team can see.'],
+        trailing: TorchIconButton(
+          key: const ValueKey<String>('messages-refresh'),
+          icon: Icons.refresh,
+          semanticLabel: 'Refresh the team channel',
+          onPressed: _refresh,
+        ),
+      ),
+      // The composer belongs to the conversation, not to the broadcast.
+      band: onAnnouncements
+          ? null
+          : _Composer(
+              controller: _body,
+              pending: _pending,
+              sending: _sending,
+              armed: armed,
+              error: _composerError,
               onSend: _send,
               onAttach: _attach,
               onRemove: _removeAttachment,
-              pending: _pending,
-              sending: _sending,
-              error: _composerError,
             ),
+      children: <Widget>[
+        TorchBleed(
+          extra: gutter * 2,
+          child: TorchFilterRail(
+            semanticsLabel: 'Which feed',
+            chips: <Widget>[
+              TorchFilterChip(
+                key: const ValueKey<String>('tab-messages'),
+                label: 'Messages',
+                count: messages.value?.length,
+                countLoading: messages.isLoading,
+                selected: !onAnnouncements,
+                onSelected: () => setState(() => _feed = _Feed.messages),
+              ),
+              TorchFilterChip(
+                key: const ValueKey<String>('tab-announcements'),
+                label: 'Announcements',
+                count: announcements.value?.length,
+                countLoading: announcements.isLoading,
+                selected: onAnnouncements,
+                onSelected: () =>
+                    setState(() => _feed = _Feed.announcements),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+
+        if (onAnnouncements && canAnnounce) ...<Widget>[
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              key: const ValueKey<String>('announcement-create'),
+              label: 'New announcement',
+              onPressed: _compose,
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s6),
         ],
-      ),
-    );
-  }
-}
 
-class _MessageList extends StatelessWidget {
-  const _MessageList({required this.messages});
-
-  final List<Message> messages;
-
-  @override
-  Widget build(BuildContext context) {
-    return PanelCard(
-      title:
-          '${messages.length} ${messages.length == 1 ? 'message' : 'messages'}',
-      subtitle: 'Everything the team can see',
-      padded: false,
-      child: messages.isEmpty
-          ? const EmptyState(
-              message: 'No messages yet',
-              hint: 'Anything you send below reaches the whole team.',
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [for (final m in messages) _MessageRow(message: m)],
+        ...switch (feed) {
+          AsyncLoading<Object?>() => <Widget>[
+            Skeleton(
+              label: onAnnouncements ? 'announcements' : 'messages',
+              child: const SkeletonRows(count: 4, rowHeight: 80),
             ),
+          ],
+          AsyncError<Object?>(:final error) => <Widget>[
+            TorchErrorRegion(
+              name: onAnnouncements ? 'announcements' : 'messages',
+              child: ErrorState(
+                message: TorchErrorMessage.sanitise(error),
+                action: TorchSecondaryButton(
+                  key: const ValueKey<String>('messages-retry'),
+                  label: 'Try again',
+                  onPressed: _refresh,
+                ),
+              ),
+            ),
+          ],
+          _ => onAnnouncements
+              ? _announcements(
+                  announcements.value ?? const <Announcement>[],
+                  canAnnounce: canAnnounce,
+                  gutter: gutter,
+                )
+              : _messages(messages.value ?? const <Message>[], gutter),
+        },
+      ],
     );
+  }
+
+  static String _phaseOf(AsyncValue<Object?> value) => switch (value) {
+    AsyncLoading<Object?>() => 'loading',
+    AsyncError<Object?>() => 'error',
+    _ => 'loaded',
+  };
+
+  List<Widget> _messages(List<Message> messages, double gutter) {
+    final directory = ref.watch(userDirectoryProvider);
+    return <Widget>[
+      SectionRule('Messages', count: messages.isEmpty ? null : messages.length),
+      const SizedBox(height: TiqSpace.s5),
+      if (messages.isEmpty)
+        const EmptyState(
+          scope: EmptyScope.inPanel,
+          headline: 'No messages yet.',
+          body: 'Anything you send below reaches the whole team.',
+        )
+      else
+        TorchBleed(
+          extra: gutter * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (var i = 0; i < messages.length; i++)
+                _MessageRow(
+                  key: ValueKey<String>('message-${messages[i].id}'),
+                  message: messages[i],
+                  directory: directory,
+                  last: i == messages.length - 1,
+                ),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  List<Widget> _announcements(
+    List<Announcement> announcements, {
+    required bool canAnnounce,
+    required double gutter,
+  }) {
+    return <Widget>[
+      SectionRule(
+        'Announcements',
+        count: announcements.isEmpty ? null : announcements.length,
+      ),
+      const SizedBox(height: TiqSpace.s5),
+      if (announcements.isEmpty)
+        EmptyState(
+          scope: EmptyScope.inPanel,
+          headline: 'No announcements yet.',
+          // The guidance names a next action only if you are allowed to do it.
+          body: canAnnounce
+              ? 'Post one and every user on this client sees it.'
+              : 'Your managers post here when something affects everyone.',
+        )
+      else
+        TorchBleed(
+          extra: gutter * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (var i = 0; i < announcements.length; i++)
+                _AnnouncementRow(
+                  key: ValueKey<String>(
+                    'announcement-${announcements[i].id}',
+                  ),
+                  announcement: announcements[i],
+                  last: i == announcements.length - 1,
+                ),
+            ],
+          ),
+        ),
+    ];
   }
 }
 
+/// One message, as a row that names people rather than ids.
 class _MessageRow extends StatelessWidget {
-  const _MessageRow({required this.message});
+  const _MessageRow({
+    super.key,
+    required this.message,
+    required this.directory,
+    required this.last,
+  });
 
   final Message message;
+  final Map<String, AppUser> directory;
+  final bool last;
+
+  /// A person's name, or null when the roster cannot say who this is.
+  static String? nameOf(Map<String, AppUser> directory, String? id) {
+    if (id == null) return null;
+    final user = directory[id];
+    if (user == null) return null;
+    final display = user.displayName;
+    return display != null && display.trim().isNotEmpty
+        ? display
+        : user.email;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final direct = message.recipientId != null;
+    final skin = context.skin;
     final images = message.attachments;
     // An image can be the whole message; the row still needs a headline.
     final title = message.body.trim().isNotEmpty
@@ -344,203 +518,125 @@ class _MessageRow extends StatelessWidget {
         ? 'Photo'
         : '${images.length} photos';
 
-    final metaLine = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CodeToken(message.id),
-        if (direct) ...[
-          const SizedBox(width: 6),
-          const Text('·'),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              'To ${message.recipientId}',
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ],
-    );
+    final direct = message.recipientId != null;
+    final sender = nameOf(directory, message.senderId);
+    final recipient = nameOf(directory, message.recipientId);
 
-    return WorklistRow(
-      key: ValueKey('message-${message.id}'),
+    // The id appears in exactly one case: as the explicit unknown state, in
+    // the identifier face, with the words that say why it is there.
+    final unknowns = <String>[
+      if (message.senderId != null && sender == null)
+        'Sender not on the roster: ${message.senderId}',
+      if (direct && recipient == null)
+        'Recipient not on the roster: ${message.recipientId}',
+    ];
+
+    final who = <String>[
+      if (sender != null) 'From $sender',
+      if (direct)
+        recipient != null ? 'To $recipient' : 'Direct message'
+      else
+        'To the whole team',
+    ].join(' · ');
+
+    return SoftRow(
+      key: ValueKey<String>('message-row-${message.id}'),
+      density: SoftRowDensity.tall,
       title: title,
-      // The id is machine-facing — a manager quoting a message in a bug report
-      // wants the thing the system knows it by. The images sit under it, inside
-      // the same tile, so they read as part of this message and no other.
-      meta: images.isEmpty
-          ? metaLine
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                metaLine,
-                const SizedBox(height: 8),
-                Wrap(
-                  key: ValueKey('message-attachments-${message.id}'),
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final a in images)
-                      MessageAttachmentThumb(photoId: a.photoId),
-                  ],
-                ),
+      subtitle: who,
+      leading: TiqMark(
+        shape: direct ? MarkShape.sectionHalfDisc : MarkShape.onTargetCircle,
+        color: skin.palette.ink2,
+        size: MarkScale.glyph(context, 16),
+      ),
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            direct ? 'Direct' : 'Broadcast',
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+          for (final line in unknowns)
+            Padding(
+              padding: const EdgeInsets.only(top: TiqSpace.s1),
+              child: Text(
+                line,
+                style: skin.text.monoIdent.style(color: skin.palette.ink3),
+              ),
+            ),
+          if (images.isNotEmpty) ...<Widget>[
+            const SizedBox(height: TiqSpace.s3),
+            Wrap(
+              key: ValueKey<String>('message-attachments-${message.id}'),
+              spacing: TiqSpace.s2,
+              runSpacing: TiqSpace.s2,
+              children: <Widget>[
+                for (final a in images)
+                  MessageAttachmentThumb(photoId: a.photoId),
               ],
             ),
-      // A message has no severity, so it carries one hue and one hue only.
-      level: StatusLevel.neutral,
-      statusLabel: direct ? 'Direct' : 'Broadcast',
-    );
-  }
-}
-
-class _AnnouncementList extends StatelessWidget {
-  const _AnnouncementList({
-    required this.announcements,
-    required this.canAnnounce,
-  });
-
-  final List<Announcement> announcements;
-  final bool canAnnounce;
-
-  @override
-  Widget build(BuildContext context) {
-    return PanelCard(
-      title: '${announcements.length} '
-          '${announcements.length == 1 ? 'announcement' : 'announcements'}',
-      subtitle: 'Broadcast to the whole client',
-      padded: false,
-      child: announcements.isEmpty
-          ? EmptyState(
-              message: 'No announcements yet',
-              // The hint tells you what to do only if you are allowed to do it.
-              hint: canAnnounce
-                  ? 'Post one and every user on this client sees it.'
-                  : 'Your managers post here when something affects everyone.',
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final a in announcements)
-                  _AnnouncementRow(announcement: a),
-              ],
-            ),
+          ],
+        ],
+      ),
+      // The id is still reachable for a bug report, and reachable is where it
+      // belongs — not printed across the row where a name should be.
+      onLongPress: () async {
+        await Clipboard.setData(ClipboardData(text: message.id));
+        if (context.mounted) {
+          showTorchToast(
+            context,
+            message: 'Message id copied.',
+            kind: ToastKind.neutral,
+          );
+        }
+      },
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        title,
+        if (who.isNotEmpty) who,
+        direct ? 'Direct' : 'Broadcast',
+        if (images.isNotEmpty)
+          '${images.length} ${images.length == 1 ? 'photo' : 'photos'}',
+        ...unknowns,
+        'Long press to copy the message id',
+      ].join('. '),
     );
   }
 }
 
 class _AnnouncementRow extends StatelessWidget {
-  const _AnnouncementRow({required this.announcement});
+  const _AnnouncementRow({
+    super.key,
+    required this.announcement,
+    required this.last,
+  });
 
   final Announcement announcement;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    return WorklistRow(
-      key: ValueKey('announcement-${announcement.id}'),
+    final skin = context.skin;
+    return SoftRow(
+      key: ValueKey<String>('announcement-row-${announcement.id}'),
+      density: SoftRowDensity.tall,
       // The title is the headline; the body is what it actually says.
       title: announcement.title,
-      meta: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CodeToken(announcement.id),
-          const SizedBox(width: 6),
-          const Text('·'),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              announcement.body,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      subtitle: 'Broadcast to the whole client',
+      leading: TiqMark(
+        shape: MarkShape.onTargetCircle,
+        color: skin.palette.ink2,
+        size: MarkScale.glyph(context, 16),
       ),
-      // An announcement has no severity — it is a notice, not an incident.
-      level: StatusLevel.neutral,
-      statusLabel: 'Announcement',
-    );
-  }
-}
-
-/// Title *and* body, because the endpoint requires both and rejects a blank
-/// either way. Post stays disabled until both are non-empty, so the 400 is
-/// unreachable from the UI.
-class _AnnouncementDialog extends StatefulWidget {
-  const _AnnouncementDialog();
-
-  @override
-  State<_AnnouncementDialog> createState() => _AnnouncementDialogState();
-}
-
-class _AnnouncementDialogState extends State<_AnnouncementDialog> {
-  final _titleCtrl = TextEditingController();
-  final _bodyCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _bodyCtrl.dispose();
-    super.dispose();
-  }
-
-  void _post() {
-    final title = _titleCtrl.text.trim();
-    final body = _bodyCtrl.text.trim();
-    if (title.isEmpty || body.isEmpty) return;
-    Navigator.of(context).pop((title: title, body: body));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final ready = _titleCtrl.text.trim().isNotEmpty &&
-        _bodyCtrl.text.trim().isNotEmpty;
-
-    return AlertDialog(
-      backgroundColor: colors.surface1,
-      title: const Text('New announcement', style: TextStyle(fontSize: 15)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            key: const ValueKey<String>('announcement-title'),
-            controller: _titleCtrl,
-            autofocus: true,
-            style: TextStyle(fontSize: 13, color: colors.ink1),
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey<String>('announcement-body'),
-            controller: _bodyCtrl,
-            maxLines: 4,
-            style: TextStyle(fontSize: 13, color: colors.ink1),
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Body',
-              isDense: true,
-            ),
-          ),
-        ],
+      meta: Text(
+        announcement.body,
+        style: skin.text.body.style(color: skin.palette.ink2),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const ValueKey<String>('post-announcement'),
-          onPressed: ready ? _post : null,
-          child: const Text('Post'),
-        ),
-      ],
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel:
+          '${announcement.title}. ${announcement.body}. Broadcast to the '
+          'whole client.',
     );
   }
 }
@@ -551,32 +647,25 @@ class _AttachSourceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    Widget option(Key key, IconData icon, String label, PhotoSource source) =>
-        ListTile(
-          key: key,
-          leading: Icon(icon, color: colors.ink2),
-          title: Text(
-            label,
-            style: TextStyle(fontSize: 14, color: colors.ink1),
-          ),
-          onTap: () => Navigator.of(context).pop(source),
-        );
-    return SafeArea(
+    return TorchSheet(
+      title: 'Add a photo',
+      subtitle: 'It is uploaded when the message is sent, not before.',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          option(
-            const ValueKey<String>('attach-camera'),
-            Icons.photo_camera_outlined,
-            'Take photo',
-            PhotoSource.camera,
+        children: <Widget>[
+          SoftRow(
+            key: const ValueKey<String>('attach-camera'),
+            density: SoftRowDensity.standard,
+            title: 'Take a photo',
+            onTap: () => Navigator.of(context).pop(PhotoSource.camera),
           ),
-          option(
-            const ValueKey<String>('attach-gallery'),
-            Icons.photo_library_outlined,
-            'Choose from library',
-            PhotoSource.gallery,
+          SoftRow(
+            key: const ValueKey<String>('attach-gallery'),
+            density: SoftRowDensity.standard,
+            title: 'Choose from the library',
+            onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
+            separator: SoftRowSeparator.none,
           ),
         ],
       ),
@@ -584,146 +673,223 @@ class _AttachSourceSheet extends StatelessWidget {
   }
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.onSend,
-    required this.onAttach,
-    required this.onRemove,
-    required this.pending,
-    required this.sending,
-    required this.error,
-  });
+/// Title *and* body, because the endpoint requires both and rejects a blank
+/// either way. Post stays blocked — and says why — until both are filled.
+class _AnnouncementSheet extends StatefulWidget {
+  const _AnnouncementSheet();
 
-  final TextEditingController controller;
-  final VoidCallback onSend;
-  final VoidCallback onAttach;
-  final ValueChanged<int> onRemove;
-  final List<_PendingAttachment> pending;
-  final bool sending;
-  final String? error;
+  @override
+  State<_AnnouncementSheet> createState() => _AnnouncementSheetState();
+}
+
+class _AnnouncementSheetState extends State<_AnnouncementSheet> {
+  final _title = TextEditingController();
+  final _body = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in <TextEditingController>[_title, _body]) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  String? get _blocked {
+    if (_title.text.trim().isEmpty) return 'Give the announcement a headline.';
+    if (_body.text.trim().isEmpty) return 'Say what it is about.';
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final iconInk = colors.glass ? context.lumen.accentInk : colors.ink1;
-    final canAttach = !sending && pending.length < maxMessageAttachments;
+    final skin = context.skin;
+    final blocked = _blocked;
 
-    final field = Expanded(
-      child: TextField(
-        key: const ValueKey<String>('message-body'),
-        controller: controller,
-        style: TextStyle(fontSize: 13, color: colors.ink1),
-        onSubmitted: (_) => onSend(),
-        decoration: InputDecoration(
-          hintText: 'Message the team',
-          isDense: true,
-          filled: true,
-          // Opaque in both themes: the words and hint measure true however
-          // the thread scrolls beneath a glass bar.
-          fillColor: colors.surface2,
-          hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        ),
-      ),
-    );
-    final attach = IconButton(
-      key: const ValueKey<String>('attach-photo'),
-      icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-      color: iconInk,
-      tooltip: canAttach
-          ? 'Attach photo'
-          : 'Up to $maxMessageAttachments photos per message',
-      onPressed: canAttach ? onAttach : null,
-    );
-    final send = IconButton(
-      key: const ValueKey<String>('send-message'),
-      icon: sending
-          ? SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: iconInk),
-            )
-          : const Icon(Icons.send, size: 18),
-      color: iconInk,
-      tooltip: 'Send',
-      onPressed: sending ? null : onSend,
-    );
-
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (pending.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: SingleChildScrollView(
-              key: const ValueKey<String>('pending-attachments'),
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var i = 0; i < pending.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _PendingThumb(
-                        index: i,
-                        attachment: pending[i],
-                        onRemove: sending ? null : () => onRemove(i),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const StatusChip(label: 'Not sent', level: StatusLevel.critical),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    error!,
-                    key: const ValueKey<String>('composer-error'),
-                    style: TextStyle(fontSize: 11.5, color: colors.ink2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Row(
-          children: [attach, const SizedBox(width: 2), field, const SizedBox(width: 8), send],
-        ),
+    return TorchSheet(
+      key: const ValueKey<String>('announcement-sheet'),
+      title: 'New announcement',
+      subtitle: 'Every user on this client sees it.',
+      claims: <TorchClaim>[
+        if (blocked == null) TorchPrimaryButton.claim('post-announcement'),
       ],
-    );
-
-    // Glass: the composer floats as a bar over the thread, not a ruled footer.
-    if (colors.glass) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-        child: GlassPane(
-          kind: GlassKind.bar,
-          padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
-          child: content,
-        ),
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border(top: BorderSide(color: colors.line)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          TorchTextField(
+            key: const ValueKey<String>('announcement-title'),
+            label: 'Headline',
+            controller: _title,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('announcement-body'),
+            label: 'What it says',
+            controller: _body,
+            minLines: 3,
+            maximumLines: 6,
+          ),
+          SizedBox(height: skin.space.blockGap),
+          TorchPrimaryButton(
+            key: const ValueKey<String>('post-announcement'),
+            label: 'Post this announcement',
+            claimId: 'post-announcement',
+            blockedReason: blocked,
+            onPressed: blocked != null
+                ? null
+                : () => Navigator.of(context).pop((
+                    title: _title.text.trim(),
+                    body: _body.text.trim(),
+                  )),
+          ),
+          const SizedBox(height: TiqSpace.s2),
+          TorchSecondaryButton(
+            key: const ValueKey<String>('cancel-announcement'),
+            label: 'Cancel',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
-      child: content,
     );
   }
 }
 
-/// A picked photo waiting in the draft: what will be sent, and a way to take it
-/// back out before it is.
+/// THE COMPOSER — the pinned band between the thread and the nav.
+///
+/// A sibling of the scroll view rather than an overlay, so at 2.0× with three
+/// pending photos it is as tall as it measures and the last message is still
+/// above it. It clears the software keyboard itself, which is the shell's job
+/// for a band and the reason the nav's amber grant is free while it is open.
+class _Composer extends StatelessWidget {
+  const _Composer({
+    required this.controller,
+    required this.pending,
+    required this.sending,
+    required this.armed,
+    required this.error,
+    required this.onSend,
+    required this.onAttach,
+    required this.onRemove,
+  });
+
+  final TextEditingController controller;
+  final List<PendingAttachment> pending;
+  final bool sending;
+  final bool armed;
+  final String? error;
+  final VoidCallback onSend;
+  final VoidCallback onAttach;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final canAttach = !sending && pending.length < maxMessageAttachments;
+    final failure = error;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (pending.isNotEmpty) ...<Widget>[
+          SingleChildScrollView(
+            key: const ValueKey<String>('pending-attachments'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <Widget>[
+                for (var i = 0; i < pending.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: TiqSpace.s2),
+                    child: _PendingThumb(
+                      index: i,
+                      attachment: pending[i],
+                      onRemove: sending ? null : () => onRemove(i),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s3),
+        ],
+        if (failure != null) ...<Widget>[
+          ErrorState(
+            key: const ValueKey<String>('composer-error'),
+            scope: ErrorScope.inline,
+            message: TorchErrorMessage(
+              kind: TorchErrorKind.rejected,
+              headline: 'Not sent.',
+              body: failure,
+              offersRetry: false,
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s3),
+        ],
+        TorchTextField(
+          key: const ValueKey<String>('message-body'),
+          label: 'Message the team',
+          controller: controller,
+          enabled: !sending,
+          minLines: 1,
+          maximumLines: 4,
+          onSubmitted: (_) {
+            if (armed) onSend();
+          },
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        Row(
+          children: <Widget>[
+            TorchIconButton(
+              key: const ValueKey<String>('attach-photo'),
+              icon: Icons.add_a_photo_outlined,
+              semanticLabel: canAttach
+                  ? 'Add a photo to this message'
+                  : 'Up to $maxMessageAttachments photos per message',
+              onPressed: canAttach ? onAttach : null,
+            ),
+            const SizedBox(width: TiqSpace.s3),
+            Expanded(
+              child: Text(
+                pending.isEmpty
+                    ? 'Up to $maxMessageAttachments photos.'
+                    : '${pending.length} of $maxMessageAttachments photos '
+                          'attached.',
+                style: skin.text.meta.style(color: skin.palette.ink3),
+              ),
+            ),
+            const SizedBox(width: TiqSpace.s3),
+            SizedBox(
+              width: 148,
+              child: TorchPrimaryButton(
+                key: const ValueKey<String>('send-message'),
+                label: sending ? 'Sending…' : 'Send',
+                claimId: messageSendClaimId,
+                busy: sending,
+                blockedReason: armed
+                    ? null
+                    : sending
+                    ? 'Sending…'
+                    : 'Write something, or add a photo.',
+                onPressed: armed ? onSend : null,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// A picked photo waiting in the draft: what will be sent, and a way to take
+/// it back out before it is.
 class _PendingThumb extends StatelessWidget {
   const _PendingThumb({
     required this.index,
@@ -734,199 +900,56 @@ class _PendingThumb extends StatelessWidget {
   static const double size = 56;
 
   final int index;
-  final _PendingAttachment attachment;
+  final PendingAttachment attachment;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final radius = BorderRadius.circular(
-      colors.glass ? LumenGlass.radiusControl - 4 : AppColors.radiusControl,
-    );
-    final broken = Container(
-      width: size,
-      height: size,
-      color: colors.surface2,
-      alignment: Alignment.center,
-      child: Icon(Icons.broken_image_outlined, size: 18, color: colors.ink3),
-    );
+    final skin = context.skin;
+    final radius = BorderRadius.circular(skin.radii.chip);
     final bytes = attachment.bytes;
-
-    Widget photo = ClipRRect(
-      borderRadius: radius,
-      child: bytes == null
-          ? broken
-          : Image.memory(
-              bytes,
-              key: ValueKey('pending-attachment-$index'),
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => broken,
-            ),
-    );
-    if (colors.glass) {
-      // Glass frames the photo — a rim over its edge — and never tints it.
-      photo = DecoratedBox(
-        position: DecorationPosition.foreground,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: Border.all(color: context.lumen.tileRim),
-        ),
-        child: photo,
-      );
-    }
-
-    return Semantics(
-      label: 'Photo ${index + 1} ready to send',
-      image: true,
-      child: SizedBox(
-        width: size + 8,
-        height: size + 8,
-        child: Stack(
-          children: [
-            Positioned(left: 0, bottom: 0, child: photo),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Material(
-                color: colors.surface1,
-                shape: CircleBorder(side: BorderSide(color: colors.line)),
-                child: InkWell(
-                  key: ValueKey('pending-attachment-remove-$index'),
-                  customBorder: const CircleBorder(),
-                  onTap: onRemove,
-                  child: Tooltip(
-                    message: 'Remove photo',
-                    child: Padding(
-                      padding: const EdgeInsets.all(3),
-                      child: Icon(Icons.close, size: 14, color: colors.ink1),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+    final broken = DecoratedBox(
+      decoration: BoxDecoration(color: skin.palette.well, borderRadius: radius),
+      child: SizedBox.square(
+        dimension: size,
+        child: Center(
+          child: TiqMark(
+            shape: MarkShape.sectionBarredRing,
+            color: skin.palette.ink3,
+            size: MarkScale.glyph(context, 16),
+          ),
         ),
       ),
     );
-  }
-}
 
-/// The console's segmented switch, as used by Alerts and Tasks.
-class _Segmented<T> extends StatelessWidget {
-  const _Segmented({
-    required this.segments,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final List<({String label, T value})> segments;
-  final T selected;
-  final ValueChanged<T> onChanged;
-
-  /// Glass: a bar track with the selected segment lifted onto a bright pill —
-  /// the dashboard filter bar's idiom. Both states share one padding (a
-  /// pane's rim paints over its edge, it adds no size), so a tap never
-  /// shifts the row.
-  Widget _glass() {
-    const pad = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
-    const inner = LumenGlass.radiusControl - 3;
-    return GlassPane(
-      kind: GlassKind.bar,
-      radius: LumenGlass.radiusControl,
-      blur: false,
-      shadow: false,
-      specular: false,
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in segments)
-            InkWell(
-              key: ValueKey('tab-${s.value}'),
-              onTap: () => onChanged(s.value),
-              borderRadius: BorderRadius.circular(inner),
-              child: s.value == selected
-                  ? GlassPane(
-                      kind: GlassKind.pill,
-                      radius: inner,
-                      padding: pad,
-                      child: _GlassSegmentLabel(s.label, selected: true),
-                    )
-                  : Padding(
-                      padding: pad,
-                      child: _GlassSegmentLabel(s.label, selected: false),
-                    ),
-            ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Semantics(
+          label: 'Photo ${index + 1} ready to send',
+          image: true,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: bytes == null
+                ? broken
+                : Image.memory(
+                    bytes,
+                    key: ValueKey<String>('pending-attachment-$index'),
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) => broken,
+                  ),
+          ),
+        ),
+        const SizedBox(width: TiqSpace.s1),
+        TorchIconButton(
+          key: ValueKey<String>('pending-attachment-remove-$index'),
+          icon: Icons.close,
+          semanticLabel: 'Take photo ${index + 1} out of this message',
+          onPressed: onRemove,
+        ),
+      ],
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass();
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < segments.length; i++)
-            InkWell(
-              key: ValueKey('tab-${segments[i].value}'),
-              onTap: () => onChanged(segments[i].value),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                decoration: BoxDecoration(
-                  color: segments[i].value == selected
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: i == segments.length - 1
-                          ? Colors.transparent
-                          : colors.lineStrong,
-                    ),
-                  ),
-                ),
-                child: Text(
-                  segments[i].label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: segments[i].value == selected
-                        ? colors.ink1
-                        : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A glass segment's words: ink when selected, the muted ink otherwise — both
-/// clear 4.5:1 on the bar, and the lifted pill carries the state as well.
-class _GlassSegmentLabel extends StatelessWidget {
-  const _GlassSegmentLabel(this.label, {required this.selected});
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    label,
-    style: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      color: selected ? context.lumen.ink : context.lumen.inkMuted,
-    ),
-  );
 }

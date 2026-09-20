@@ -363,6 +363,23 @@ describe('GET /report-schedules/:id/runs', () => {
     }
   });
 
+  // Without a total, a cut history has only a cursor to go on — and a short
+  // first page of a long delivery record reads as the whole truth. The footer
+  // may never invent the number, so the endpoint sends it.
+  it('counts every run beside the page, so a cut history can say "of 74"', async () => {
+    const res = await get(`${path()}?limit=1`, managerToken);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.nextCursor).not.toBeNull();
+    expect(res.body.total).toBe(runIds.length);
+  });
+
+  it('counts the same total on an empty page as on a full one', async () => {
+    const full = await get(path(), managerToken);
+    expect(full.body.total).toBe(runIds.length);
+  });
+
   it("is tenant-scoped: another client's schedule is a 404, and never lists its runs", async () => {
     const foreign = await get(path(), otherToken);
     expect(foreign.status).toBe(404);

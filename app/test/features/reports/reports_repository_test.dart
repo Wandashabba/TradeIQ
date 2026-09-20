@@ -32,6 +32,8 @@ class _RecordingAdapter implements HttpClientAdapter {
 }
 
 void main() {
+  _csvRowCounting();
+
   test('ReportDefinition.fromJson parses all fields', () {
     final report = ReportDefinition.fromJson(const {
       'id': 'r1',
@@ -91,6 +93,51 @@ void main() {
       expect(page.data, hasLength(1));
       expect(page.data.first.id, 'r1');
       expect(page.nextCursor, 'cursor-1');
+    });
+  });
+}
+
+// ── The CSV the Run action downloads (#390) ─────────────────────────────────
+
+void _csvRowCounting() {
+  group('ReportCsv.countRows', () {
+    test('a header and three rows is three rows', () {
+      expect(
+        ReportCsv.countRows('outlet,visits\nA,1\nB,2\nC,3\n'),
+        3,
+      );
+    });
+
+    test('a header alone is a measured zero, not an unknown', () {
+      expect(ReportCsv.countRows('outlet,visits\n'), 0);
+    });
+
+    test('an empty body is zero rows', () {
+      expect(ReportCsv.countRows(''), 0);
+    });
+
+    test('a newline inside a quoted cell is not a row boundary', () {
+      // An address column ships these, and a naive split on '\n' reports four
+      // rows where the file holds two.
+      expect(
+        ReportCsv.countRows(
+          'outlet,address\n'
+          'A,"12 Main St\nJohannesburg"\n'
+          'B,"7 Long St\nCape Town"\n',
+        ),
+        2,
+      );
+    });
+
+    test('a doubled quote inside a quoted cell keeps the parity', () {
+      expect(
+        ReportCsv.countRows('outlet,note\nA,"said ""hello"" twice"\n'),
+        1,
+      );
+    });
+
+    test('a last line without a trailing newline still counts', () {
+      expect(ReportCsv.countRows('outlet,visits\nA,1'), 1);
     });
   });
 }

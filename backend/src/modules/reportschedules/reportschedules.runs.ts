@@ -177,17 +177,25 @@ export async function listRunsForSchedule(input: {
   cursor?: string;
   now?: Date;
   env?: NodeJS.ProcessEnv;
-}): Promise<{ data: ReportRunHistoryItem[]; nextCursor: string | null }> {
+}): Promise<{ data: ReportRunHistoryItem[]; nextCursor: string | null; total: number }> {
   await findScheduleForClient(input.scheduleId, input.clientId);
 
-  const rows = await prisma.reportScheduleRun.findMany({
-    where: { scheduleId: input.scheduleId, clientId: input.clientId },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: input.limit + 1,
-    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-  });
+  const where = { scheduleId: input.scheduleId, clientId: input.clientId };
+  // Counted alongside the page so a cut history can say "the 20 most recent of
+  // 74" rather than "there are more". A pagination footer must never invent a
+  // total, and without this one it had nothing but the cursor to go on — which
+  // let a short first page of a long delivery history read as the whole truth.
+  const [rows, total] = await Promise.all([
+    prisma.reportScheduleRun.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: input.limit + 1,
+      ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+    }),
+    prisma.reportScheduleRun.count({ where }),
+  ]);
   const page = buildPage(rows, input.limit);
-  if (page.data.length === 0) return { data: [], nextCursor: page.nextCursor };
+  if (page.data.length === 0) return { data: [], nextCursor: page.nextCursor, total };
 
   const outcomesByRun = new Map(page.data.map((run) => [run.id, outcomesOf(run)]));
   const webhookIds = [...outcomesByRun.values()].flatMap((outcomes) =>
@@ -273,5 +281,5 @@ export async function listRunsForSchedule(input: {
     };
   });
 
-  return { data, nextCursor: page.nextCursor };
+  return { data, nextCursor: page.nextCursor, total };
 }

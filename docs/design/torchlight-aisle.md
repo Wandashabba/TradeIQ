@@ -2214,3 +2214,97 @@ the app, and #389's other half.
   manager surface's migration: a Torchlight sheet opened from a Lumen worklist
   row is the "Torchlight frame around a Lumen form" this document already warns
   about, and moving it now would strand it between two systems.
+
+---
+
+## 17. The chart kit, and the territories / trends / dispatch group
+
+Canonical components 52 and 56 — `TrendChart`, `ChartLegend`, `ScrubReadout`
+and `TableTwin` — which Phase 3 listed and nothing had built. They land with
+their caller rather than ahead of it, because a chart with no screen behind it
+is a chart whose second series nobody has argued about yet.
+
+```
+app/lib/core/widgets/torchlight/figure/chart/
+  chart.dart          the barrel — import this
+  chart_series.dart   ChartReading, ChartSeries, ChartThreshold, the height rule
+  chart_legend.dart   ChartLegend
+  trend_chart.dart    TrendChart + TrendChartPainter
+  scrub_readout.dart  ScrubReadout, ScrubEntry
+  table_twin.dart     TableTwin
+```
+
+### 17.1 Four rules that are structural, not documented
+
+**The legend is not a parameter.** `TrendChart` builds a `ChartLegend` from the
+series it was handed, so a two-line chart with no key cannot be written. The
+old `LineChart` took `comparisonName` as an option and shipped exactly that.
+
+**A comparison series is Truffle *and* dashed**, and the legend's swatch draws
+the dash it names — the second channel unify §4 asks for, in the key as well as
+in the plot. A legend whose swatches are three rectangles in three colours is
+the first channel twice.
+
+**A null reading breaks the stroke.** `/trends/*` omits an empty bucket rather
+than sending a zero. Interpolating across a strike week draws a trend nobody
+measured, and a manager reassigns an agent on it. The path stops, the legend
+counts the gaps, and a single measured week between two gaps still draws a dot
+— a reading that vanished because it had no neighbour is a reading lost.
+
+**Nothing here is amber.** The chart-focus rung (3) is real and this kit
+declines it. A trends route carries three charts, the budget is counted per
+route rather than per viewport, and the subject is already carried by weight
+(2dp against 1.5), by a solid stroke against a dashed one, and by the legend's
+word. `chart_test.dart` counts the flame-hued regions in all three skins and
+requires zero.
+
+### 17.2 Veld, and the table twin
+
+Veld draws no plot (unify §4). `TrendChart` renders `veldReplacement` and its
+legend instead, and on the trends screen the replacement is `TableTwin` — which
+is *also* what a screen reader gets, what a printer gets, and what the
+chart/table toggle offers everywhere else. The twin carries the unabbreviated
+period: the axis says `W26` because it has 40dp, the table says `2026-W26`
+because a manager quoting a week into a spreadsheet needs the year.
+
+### 17.3 What the group's screens are
+
+| route | frame | Night | Day / Veld |
+|---|---|---|---|
+| `/territories` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| territory sheet, evidence pane | `TorchSheet` | 0 | 0 |
+| territory sheet, roster pane | `TorchSheet` | 1 — `Assign` | 1 |
+| `/territories/new` | `TorchShell` + thumb zone | 1 armed, 0 blocked | the same |
+| `/territories/:id/map` | `TorchShell`, no nav | 0 | 0 |
+| `/trends` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| `/dispatch` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+
+Every one of those is a test, per phase, in all three skins.
+
+### 17.4 Two things the wire made the screens lie about
+
+**Coverage over an empty denominator.** `territories.service.ts` computes
+`outletsTotal > 0 ? rate : 0`, so a territory with nothing filed under it
+arrives as a confident `0%`. The client defaulted a *missing* coverage block to
+zero on top of that. `TerritoryCoverage.coverageRate` is nullable now and
+`coverageMeasured` is the one predicate both callers read; a row has four
+states and three of them have no figure — loading, failed, and nothing to
+measure — each with its own sentence.
+
+**The comparison chart's alignment.** The old chart cut the client line to the
+territory's own length and aligned by position, so a territory that lost a week
+had its week 38 drawn against the client's week 37. The two runs are aligned on
+the **union** of their periods now, with a null wherever one of them has no
+bucket, and the gap is counted in the legend.
+
+### 17.5 What is not built, and why
+
+* **A heatmap.** The task named one and there is no data for it: the coverage
+  endpoint tags each outlet with a `visited` boolean and nothing else, so a
+  density surface would be a picture of a binary. The two-silhouette pin map
+  and the outlet list are what the wire supports.
+* **Chart focus amber.** Argued above: one claim, one allowlist entry and one
+  `TorchClaim.chartFocus` on the route if a screen ever earns it.
+* **`RankedBarList`** (canonical 51) — no screen in this group ranks with bars;
+  the territory comparison ranks with rows and meters, which is what a list of
+  fifteen territories at 2.0× can actually show.
