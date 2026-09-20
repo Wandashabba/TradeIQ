@@ -1,137 +1,424 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons, MaterialPageRoute;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/download/file_download.dart';
+import '../../../core/network/paginated_response.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../data/reports_repository.dart';
 import 'report_form_screen.dart';
 
-/// Saved report definitions, as a worklist: what exists, what it queries, and
-/// whether it has been run in this session.
-class ReportsScreen extends ConsumerWidget {
+/// REPORTS — saved definitions a manager runs against live data.
+///
+/// ```text
+///   Reports                                     [ ⟳ ]
+///   Definitions run on demand against live data.
+///   Schedules
+///   ── Reports 7 ────────────────────────────────
+///   Outlet coverage
+///   outlet_coverage · 1 284 rows        ● Generated
+///   Run   Delete
+///   …
+///   [ New report ]
+///   [ nav pill ]
+/// ```
+///
+/// ## Run downloads the file the server already wrote (#390)
+///
+/// The old Run asked for `GET /reports/:id/generate`, parsed the JSON, kept
+/// `rowCount` and **threw every row away**. The manager saw a number and got
+/// nothing. The server has produced a CSV at `?format=csv` the whole time:
+/// Run now asks for that, and the file lands on the manager's disk.
+///
+/// The row count is then counted from the bytes that were saved, not taken
+/// from a second request — one run, one answer, and no chance of a count that
+/// disagrees with the file beside it. **Zero rows is a real answer**: it shows
+/// as a measured `0` with the comparison square and the sentence, never as an
+/// error and never suppressed.
+///
+/// ## The one amber, counted
+///
+/// A tab root: the nav pill's active tab is slot 1, and this screen nominates
+/// **no content amber**. Nothing here is armed — Run is a ghost, the state
+/// marks are Oatmeal and `good`, and the file is a report. Day and Veld paint
+/// zero, because the ladder's one rung on a light ground is the primary commit
+/// block and a list of definitions has none.
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reports = ref.watch(reportsListProvider);
-    return ManagerScaffold(
-      title: 'Reports',
-      // Schedules hang off their reports rather than taking a menu slot of
-      // their own; the rail keeps Reports lit on /reports/schedules.
-      actions: [
-        TextButton.icon(
-          key: const ValueKey<String>('reports-schedules'),
-          icon: const Icon(Icons.schedule_outlined, size: 16),
-          label: const Text('Schedules'),
-          onPressed: () => context.go('/reports/schedules'),
-        ),
-      ],
-      // The whole /reports surface is manager/admin only (route-guarded), so the
-      // build action does not need a further role check here.
-      floatingActionButton: FloatingActionButton(
-        key: const ValueKey<String>('report-create-fab'),
-        tooltip: 'New report',
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (context) => const ReportFormScreen(),
-          ),
-        ),
-        child: const Icon(Icons.add),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          AsyncSection<List<ReportDefinition>>(
-            value: reports,
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  /// What each report returned the last time it was run **in this session**,
+  /// keyed by id. Deliberately not persisted: the count is about the run, and
+  /// a count remembered across a restart would claim a freshness nobody has.
+  final Map<String, ReportRunOutcome> _outcomes = <String, ReportRunOutcome>{};
+
+  void _refresh() => ref.invalidate(reportsPageProvider);
+
+  @override
+  Widget build(BuildContext context) {
+    final page = ref.watch(reportsPageProvider);
+
+    return page.when(
+      loading: () => _frame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
             label: 'reports',
-            onRetry: () => ref.invalidate(reportsListProvider),
-            builder: (list) => PanelCard(
-              title: '${list.length} ${list.length == 1 ? 'report' : 'reports'}',
-              subtitle: 'Definitions run on demand against live data',
-              padded: false,
-              child: list.isEmpty
-                  ? const EmptyState(
-                      message: 'No saved reports',
-                      hint: 'Build one, then run it to see how many rows it '
-                          'returns.',
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final report in list)
-                          _ReportRow(
-                            key: ValueKey<String>('report-${report.id}'),
-                            report: report,
-                          ),
-                      ],
-                    ),
+            child: const SkeletonRows(count: 4, rowHeight: 64),
+          ),
+        ],
+      ),
+      error: (error, stack) => _frame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'reports',
+            child: ErrorState(
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('reports-retry'),
+                label: 'Try again',
+                onPressed: _refresh,
+              ),
             ),
           ),
         ],
       ),
+      data: _loaded,
     );
   }
+
+  Widget _frame({required String phase, required List<Widget> children}) {
+    return ConsoleFrame(
+      phase: phase,
+      active: ConsoleSlot.menu,
+      header: TorchAppHeader(
+        title: 'Reports',
+        facts: const <String>['Definitions run on demand against live data.'],
+        trailing: TorchIconButton(
+          key: const ValueKey<String>('reports-refresh'),
+          icon: Icons.refresh,
+          semanticLabel: 'Refresh the saved reports',
+          onPressed: _refresh,
+        ),
+      ),
+      children: children,
+    );
+  }
+
+  Widget _loaded(PaginatedResponse<ReportDefinition> page) {
+    final reports = page.data;
+    final gutter = context.skin.space.gutter;
+
+    return _frame(
+      phase: reports.isEmpty ? 'empty' : 'loaded',
+      children: <Widget>[
+        // Schedules hang off their reports rather than taking a nav slot of
+        // their own, and a manager reading "run on demand" should be able to
+        // go and see what already runs without it.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: const ValueKey<String>('reports-schedules'),
+            label: 'Schedules',
+            onPressed: () => context.go('/reports/schedules'),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+
+        SectionRule('Reports', count: reports.isEmpty ? null : reports.length),
+        const SizedBox(height: TiqSpace.s5),
+
+        if (reports.isEmpty)
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: 'No saved reports.',
+            body: 'Build one, then run it to see how many rows it returns.',
+            action: TorchSecondaryButton(
+              key: const ValueKey<String>('report-create-empty'),
+              label: 'New report',
+              onPressed: _create,
+            ),
+          )
+        else
+          TorchBleed(
+            extra: gutter * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (var i = 0; i < reports.length; i++)
+                  _ReportRow(
+                    key: ValueKey<String>('report-${reports[i].id}'),
+                    report: reports[i],
+                    outcome: _outcomes[reports[i].id],
+                    last: i == reports.length - 1,
+                    onRan: (outcome) =>
+                        setState(() => _outcomes[reports[i].id] = outcome),
+                    onDeleted: _refresh,
+                  ),
+              ],
+            ),
+          ),
+
+        // The list was cut. It does not offer to narrow, because there is no
+        // filter here that could bring the rest into view — and it never
+        // invents the total the endpoint does not send.
+        if (page.nextCursor != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s6),
+          TorchBleed(
+            extra: gutter * 2,
+            child: PaginationFooter(
+              key: const ValueKey<String>('reports-footer'),
+              summary: _footerSummary(page),
+            ),
+          ),
+        ],
+
+        if (reports.isNotEmpty) ...<Widget>[
+          const SizedBox(height: TiqSpace.s6),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              key: const ValueKey<String>('report-create'),
+              label: 'New report',
+              onPressed: _create,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _footerSummary(PaginatedResponse<ReportDefinition> page) {
+    final numbers = TiqNumber.of(context);
+    final shown = numbers.format(page.data.length);
+    final total = page.total;
+    return total == null
+        ? 'Showing the first $shown. There are more.'
+        : 'Showing the first $shown of ${numbers.format(total)}.';
+  }
+
+  void _create() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (context) => const ReportFormScreen()),
+  );
 }
 
+/// What a run returned, as the row reports it afterwards.
+class ReportRunOutcome {
+  const ReportRunOutcome.saved(this.rows, this.filename, this.location)
+    : failed = false;
+  const ReportRunOutcome.failed()
+    : rows = null,
+      filename = null,
+      location = null,
+      failed = true;
+
+  /// A measured count, including a measured **zero**. Null only means the run
+  /// has not happened.
+  final int? rows;
+  final String? filename;
+  final String? location;
+  final bool failed;
+}
+
+/// One saved definition, as a row.
+///
+/// Run is optimistic in its busy state only, never in its result: the row
+/// locks and the ghost says "Running…" from the touch-up, and the count that
+/// appears afterwards is the one that came back.
 class _ReportRow extends ConsumerStatefulWidget {
-  const _ReportRow({super.key, required this.report});
+  const _ReportRow({
+    super.key,
+    required this.report,
+    required this.outcome,
+    required this.last,
+    required this.onRan,
+    required this.onDeleted,
+  });
 
   final ReportDefinition report;
+  final ReportRunOutcome? outcome;
+  final bool last;
+  final ValueChanged<ReportRunOutcome> onRan;
+  final VoidCallback onDeleted;
 
   @override
   ConsumerState<_ReportRow> createState() => _ReportRowState();
 }
 
 class _ReportRowState extends ConsumerState<_ReportRow> {
-  int? _lastRowCount;
+  bool _running = false;
+  bool _deleting = false;
 
   Future<void> _run() async {
-    final result =
-        await ref.read(reportsRepositoryProvider).generate(widget.report.id);
-    if (mounted) {
-      setState(() => _lastRowCount = result.rowCount);
+    if (_running) return;
+    setState(() => _running = true);
+    try {
+      final csv = await ref
+          .read(reportsRepositoryProvider)
+          .generateCsv(widget.report.id, slug: widget.report.type);
+      final saved = await ref
+          .read(fileDownloaderProvider)
+          .save(
+            bytes: csv.bytes,
+            filename: csv.filename,
+            mimeType: 'text/csv;charset=utf-8',
+          );
+      if (!mounted) return;
+      setState(() => _running = false);
+      widget.onRan(
+        ReportRunOutcome.saved(csv.rows, saved.filename, saved.location),
+      );
+      showTorchToast(
+        context,
+        message: saved.location == null
+            ? 'Downloaded ${saved.filename}.'
+            : 'Saved ${saved.filename} to ${saved.location}.',
+        kind: ToastKind.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _running = false);
+      widget.onRan(const ReportRunOutcome.failed());
+      showTorchToast(
+        context,
+        message: TorchErrorMessage.sanitise(error).body,
+        kind: ToastKind.failure,
+        action: TorchTertiaryButton(label: 'Try again', onPressed: _run),
+      );
     }
   }
 
   Future<void> _delete() async {
-    await ref.read(reportsRepositoryProvider).deleteReport(widget.report.id);
-    ref.invalidate(reportsListProvider);
+    if (_deleting) return;
+    // A saved definition somebody else's schedule runs is not a one-tap
+    // delete.
+    final confirmed = await showTorchSheet<bool>(
+      context,
+      builder: (_) => ConfirmSheet(
+        key: const ValueKey<String>('report-delete-sheet'),
+        action: 'Delete ${widget.report.name}?',
+        consequences: const <String>[
+          'The definition is removed for everyone on this client.',
+          'Any schedule that runs it stops running.',
+          'Files already downloaded are not affected.',
+        ],
+        commitLabel: 'Delete this report',
+        cancelLabel: 'Keep it',
+        record: widget.report.type,
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      await ref
+          .read(reportsRepositoryProvider)
+          .deleteReport(widget.report.id);
+      if (!mounted) return;
+      widget.onDeleted();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      showTorchToast(
+        context,
+        message: 'That report was not deleted. ${TorchErrorMessage.sanitise(error).body}',
+        kind: ToastKind.failure,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final rows = _lastRowCount;
+    final skin = context.skin;
+    final report = widget.report;
+    final outcome = widget.outcome;
+    final numbers = TiqNumber.of(context);
 
-    return WorklistRow(
-      title: widget.report.name,
-      // The type slug is what the backend keys on, so it wears the mono token —
-      // a manager can quote it straight back into a report definition. Once run,
-      // the token carries the result too: the query and its size, in one place.
-      meta: CodeToken(
-        rows == null
-            ? widget.report.type
-            : '${widget.report.type} · $rows rows',
+    final (MarkShape mark, String word) = _running
+        ? (MarkShape.heldSquare, 'Running')
+        : outcome == null
+        ? (MarkShape.heldSquare, 'Ready')
+        : outcome.failed
+        ? (MarkShape.watchTriangle, 'Could not run')
+        : outcome.rows == 0
+        // Zero is a real answer, and it gets the comparison square rather than
+        // a severity: a query that matched nothing is not a fault.
+        ? (MarkShape.notMeasuredBarredSquare, '0 rows — the query matched nothing')
+        : (MarkShape.onTargetCircle, 'Generated');
+
+    final slug = Text(
+      report.type,
+      style: skin.text.monoIdent.style(color: skin.palette.ink3),
+    );
+
+    return SoftRow(
+      key: ValueKey<String>('report-row-${report.id}'),
+      density: SoftRowDensity.tall,
+      title: report.name,
+      subtitle: outcome != null && !outcome.failed && (outcome.rows ?? 0) > 0
+          ? '${numbers.format(outcome.rows!)} rows · ${outcome.filename}'
+          : null,
+      leading: TiqMark(
+        shape: mark,
+        color: mark == MarkShape.onTargetCircle
+            ? skin.palette.good
+            : mark == MarkShape.watchTriangle
+            ? skin.palette.bad
+            : skin.palette.ink2,
+        size: MarkScale.glyph(context, 16),
       ),
-      // A report has no severity — the only real state is whether it has been
-      // generated yet in this session. Mark plus word, never colour alone.
-      level: rows == null ? StatusLevel.neutral : StatusLevel.good,
-      statusLabel: rows == null ? 'Ready' : 'Generated',
-      actions: [
-        RowAction(
-          key: ValueKey<String>('run-${widget.report.id}'),
-          label: 'Run',
-          onPressed: _run,
-        ),
-        RowAction(
-          key: ValueKey<String>('delete-${widget.report.id}'),
-          label: 'Delete',
-          tone: StatusLevel.critical,
-          onPressed: _delete,
-        ),
-      ],
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // Machine-facing: a manager can quote the slug straight back into a
+          // definition, so it wears the identifier face.
+          slug,
+          const SizedBox(height: TiqSpace.s1),
+          Text(word, style: skin.text.meta.style(color: skin.palette.ink3)),
+        ],
+      ),
+      // The verbs live in the row's own action slot. `meta` is inside the
+      // row's excluded label, so a button there is painted and announced
+      // nowhere — the kit-wide bug that lost three worklists their actions.
+      actions: Wrap(
+        spacing: TiqSpace.s4,
+        children: <Widget>[
+          TorchTertiaryButton(
+            key: ValueKey<String>('run-${report.id}'),
+            label: _running ? 'Running…' : 'Run',
+            onPressed: _running || _deleting ? null : _run,
+          ),
+          TorchTertiaryButton(
+            key: ValueKey<String>('delete-${report.id}'),
+            label: 'Delete',
+            onPressed: _running || _deleting ? null : _delete,
+          ),
+        ],
+      ),
+      separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        report.name,
+        report.type,
+        word,
+        if (outcome != null && !outcome.failed && (outcome.rows ?? 0) > 0)
+          '${numbers.format(outcome.rows!)} rows',
+      ].join('. '),
     );
   }
 }
