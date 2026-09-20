@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../../l10n/l10n.dart';
 import '../../../design/motion_budget.dart';
 import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
@@ -52,7 +53,7 @@ class TorchSheet extends StatelessWidget {
     this.onDismiss,
     this.claims = const <TorchClaim>[],
     this.semanticsLabel,
-    this.closeLabel = 'Close',
+    this.closeLabel,
     this.scrollable = true,
   });
 
@@ -69,8 +70,13 @@ class TorchSheet extends StatelessWidget {
 
   /// False for a blocking sheet: the session-ended sheet on first appearance,
   /// and a decision sheet whose work would be lost. A non-dismissible sheet
-  /// swallows the scrim tap and the system back gesture, and it must therefore
-  /// carry at least one action that closes it — asserted by [DecisionSheet].
+  /// swallows the scrim tap and the system back gesture, drops the Veld Close
+  /// row, and must therefore carry at least one action that closes it —
+  /// asserted by [DecisionSheet].
+  ///
+  /// Leaving it true is safe inside `showTorchSheet(dismissible: false)`: the
+  /// widget reads the route's flag as well as its own, so the sheet and the
+  /// route can never disagree about whether they can be walked past.
   final bool dismissible;
 
   /// Called when the sheet is dismissed by the scrim, the back gesture or the
@@ -84,8 +90,19 @@ class TorchSheet extends StatelessWidget {
 
   final String? semanticsLabel;
 
-  /// The word on the Veld Close row. Localised by the caller.
-  final String closeLabel;
+  /// The word on the Veld Close row.
+  ///
+  /// **Null reads `sheetClose` from the ambient localisations**, and that is
+  /// the point: this used to default to the literal `'Close'`, which meant the
+  /// one sheet with no scrim and no back gesture told an Afrikaans agent
+  /// outdoors to press a word she may not read. Thirty-odd call sites passed
+  /// nothing — the menu, the "what is held" sheet and the session-ended sheet
+  /// among them — so the fix belongs here and not in each of them.
+  ///
+  /// `context.l10n` falls back to the English template when no delegate is
+  /// installed, so a widget test pumping a bare `MaterialApp` still reads
+  /// "Close".
+  final String? closeLabel;
 
   /// Whether the body scrolls when it outgrows 88% of the viewport. True
   /// almost always; a decision sheet with two thumb-height actions sets it
@@ -101,6 +118,17 @@ class TorchSheet extends StatelessWidget {
       bottomSafeArea: media.padding.bottom,
     );
     final veld = spec.form == TorchSheetForm.fullScreen;
+
+    // A BLOCKING SHEET HAS NO CLOSE ROW, and the route is the authority on
+    // whether it is blocking. `showTorchSheet(dismissible: false)` sets it on
+    // the ROUTE; the widget inside is usually built by someone who never saw
+    // that argument — `SessionEndedSheet` is exactly that, which is how a
+    // sheet the design says cannot be walked past grew a Close row in Veld
+    // that popped it. So the widget asks the route rather than trusting a
+    // flag two constructors away from the call that set it.
+    final route = ModalRoute.of(context);
+    final blocking =
+        !dismissible || (route is TorchSheetRoute && !route.dismissible);
 
     final header = <Widget>[
       if (title != null)
@@ -150,13 +178,13 @@ class TorchSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        if (veld)
+        if (veld && !blocking)
           _VeldCloseRow(
-            label: closeLabel,
+            label: closeLabel ?? context.l10n.sheetClose,
             height: spec.closeRowHeight,
             onClose: () => _dismiss(context),
           )
-        else
+        else if (!veld)
           _Grabber(spec: spec),
         SizedBox(height: veld ? TiqSpace.s5 : spec.belowGrabber),
         body,
@@ -369,6 +397,18 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
 
   @override
   String? get barrierLabel => dismissible ? 'Dismiss' : null;
+
+  /// THE BACK BUTTON IS PART OF "NON-DISMISSIBLE".
+  ///
+  /// `barrierDismissible` only swallows the scrim. Without this the Android
+  /// hardware back button popped the session-ended sheet: a field agent with
+  /// nine captures on the phone pressed back out of habit and walked past the
+  /// one decision the design says she cannot walk past. A blocking sheet must
+  /// carry at least one action that closes it — [DecisionSheet] asserts that —
+  /// so refusing the gesture never strands anybody.
+  @override
+  RoutePopDisposition get popDisposition =>
+      dismissible ? super.popDisposition : RoutePopDisposition.doNotPop;
 
   /// Veld's form is a full-screen opaque route; the sheet form is not.
   @override

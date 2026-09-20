@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../l10n/l10n.dart';
 import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/buttons.dart';
@@ -51,10 +52,11 @@ class SessionEndedSheet extends StatelessWidget {
   const SessionEndedSheet({
     super.key,
     required this.proof,
-    this.title = 'You have been signed out',
+    this.title,
     this.body,
-    this.signInLabel = 'Sign in to send them',
-    this.notNowLabel = 'Not now',
+    this.proofLabel,
+    this.signInLabel,
+    this.notNowLabel,
     this.busy = false,
     this.onSignIn,
     this.onNotNow,
@@ -65,14 +67,32 @@ class SessionEndedSheet extends StatelessWidget {
   /// rendering its own reassurance at 2.84:1.
   final List<ProofLine> proof;
 
-  final String title;
+  /// EVERY WORD ON THIS SHEET IS NULL-DEFAULTED TO THE ARB, not to an English
+  /// literal.
+  ///
+  /// It used to carry four English defaults and one English string with no
+  /// parameter at all — [proofLabel], which `ProofBlock` puts on a
+  /// `Semantics(container: true, label: …)` node and therefore *announces*. An
+  /// Afrikaans agent on TalkBack was signed out with work on the phone — the
+  /// most anxious moment the product has — and heard "Jy is afgemeld", "Alles
+  /// is nog op hierdie foon", then **"What is held on this phone"**.
+  ///
+  /// `context.l10n` falls back to the English template when no delegate is
+  /// installed, so the copy is unchanged for a caller that passes nothing and
+  /// a test that pumps a bare `MaterialApp`. What is no longer possible is
+  /// shipping this sheet in English by omission.
+  final String? title;
 
   /// Defaults to a sentence built from the proof block's own length, so the
   /// number in the body and the number in the block can never disagree.
   final String? body;
 
-  final String signInLabel;
-  final String notNowLabel;
+  /// The name on the proof block's semantics container — "What is held".
+  /// Announced, so it is a translated string and never a literal.
+  final String? proofLabel;
+
+  final String? signInLabel;
+  final String? notNowLabel;
   final bool busy;
 
   final VoidCallback? onSignIn;
@@ -81,26 +101,27 @@ class SessionEndedSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
+    final heading = title ?? l10n.sessionEndedTitle;
+    final signIn = signInLabel ?? l10n.sessionEndedSignIn;
+    final notNow = notNowLabel ?? l10n.sessionEndedNotNow;
     return TorchSheet(
-      title: title,
-      subtitle:
-          body ??
-          'Everything you captured is still on this phone. '
-              'It sends itself when you sign in.',
+      title: heading,
+      subtitle: body ?? l10n.sessionEndedBody,
       claims: <TorchClaim>[TorchPrimaryButton.claim('session-sign-in')],
       // Announced politely — no alert role. It is not an emergency.
-      semanticsLabel: title,
+      semanticsLabel: heading,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           ProofBlock(
             lines: proof,
-            semanticsLabel: 'What is held on this phone',
+            semanticsLabel: proofLabel ?? l10n.sessionHeldWhatIsHeld,
           ),
           SizedBox(height: skin.space.blockGap),
           TorchPrimaryButton(
-            label: signInLabel,
+            label: signIn,
             claimId: 'session-sign-in',
             busy: busy,
             onPressed: busy
@@ -112,7 +133,7 @@ class SessionEndedSheet extends StatelessWidget {
           ),
           const SizedBox(height: TiqSpace.s3),
           TorchSecondaryButton(
-            label: notNowLabel,
+            label: notNow,
             onPressed: busy
                 ? null
                 : () {
@@ -181,10 +202,7 @@ class SessionHeldLine extends StatelessWidget {
             ),
             const SizedBox(width: TiqSpace.s3),
             Expanded(
-              child: Text(
-                message,
-                style: skin.text.meta.style(color: p.ink2),
-              ),
+              child: Text(message, style: skin.text.meta.style(color: p.ink2)),
             ),
             const SizedBox(width: TiqSpace.s3),
             // Flexible, so at 2.0× the action gives ground to the sentence

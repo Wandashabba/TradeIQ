@@ -189,6 +189,7 @@ class _SignInState extends ConsumerState<_SignIn> {
         key: const ValueKey<String>('session-ended-sheet'),
         title: l10n.sessionEndedTitle,
         body: l10n.sessionEndedBody,
+        proofLabel: l10n.sessionHeldWhatIsHeld,
         signInLabel: l10n.sessionEndedSignIn,
         notNowLabel: l10n.sessionEndedNotNow,
         proof: <ProofLine>[

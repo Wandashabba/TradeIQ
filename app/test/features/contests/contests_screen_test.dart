@@ -268,6 +268,44 @@ void main() {
       expect(find.byType(Skeleton), findsOneWidget);
     });
 
+    testWidgets('New contest is on the screen in every phase, not only when '
+        'the list loaded', (tester) async {
+      // The capability, written as the failure. Before the fix the create
+      // control was built inside `_loaded`, so a manager whose
+      // GET /contests 500s was offered exactly one thing: "Try again".
+      // Creating a contest is a POST; it has nothing to do with whether the
+      // list arrived, and before the migration it was a FAB on the scaffold
+      // that survived every state.
+      await _pump(
+        tester,
+        repo: FakeContestsRepository(
+          listFailure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      );
+      expect(keyed('contests-retry'), findsOneWidget);
+      await scrollConsoleTo(tester, keyed('contest-create'));
+      expect(keyed('contest-create'), findsOneWidget);
+    });
+
+    testWidgets('New contest is there while the list is still loading', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeContestsRepository(listPending: true),
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      await scrollConsoleTo(tester, keyed('contest-create'));
+      expect(keyed('contest-create'), findsOneWidget);
+    });
+
+    testWidgets('New contest is there on an empty list', (tester) async {
+      await _pump(tester, repo: FakeContestsRepository());
+      await scrollConsoleTo(tester, keyed('contest-create'));
+      expect(keyed('contest-create'), findsOneWidget);
+    });
+
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
       final repo = FakeContestsRepository(
         listFailure: StateError('SocketException: api.tradeiq.co.za'),
