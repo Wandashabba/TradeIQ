@@ -17,6 +17,12 @@ import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
+// The unpressable-button law lives in one file for the whole suite. The
+// territory group wrote it, operations re-exported it, and these screens need
+// the same guard — a third copy would be a third thing to drift.
+export 'a11y_guard.dart'
+    show expectEveryButtonActivatable, semanticsDump, semanticsNodes;
+
 /// Everything the manager's worklists need to stand a screen up without a
 /// server.
 ///
@@ -393,6 +399,15 @@ List<GoRoute> _stubRoutes() => <GoRoute>[
     '/tasks',
     '/assistant',
     '/visits/:id',
+    '/contests',
+    '/leaderboard',
+    // Declared before `/leaderboard/:agentId`, exactly as app_router.dart
+    // declares it, so `contests` is never matched as an agent id.
+    '/leaderboard/contests',
+    '/leaderboard/:agentId',
+    '/fraud',
+    '/incentives',
+    '/agents/activity',
     '/reports',
     '/reports/schedules',
     '/webhooks',

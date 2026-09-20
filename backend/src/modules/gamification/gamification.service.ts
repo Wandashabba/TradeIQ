@@ -28,8 +28,34 @@ export interface LeaderboardEntry {
   visitsSubmitted: number;
   tasksClosed: number;
   avgScorecard: number;
+  /**
+   * How many scorecards `avgScorecard` is the mean of, in the window.
+   *
+   * Without it a client cannot tell `avgScorecard: 0` — an agent scored zero —
+   * from `avgScorecard: 0` — an agent nobody has scored, where `mean([])` is
+   * 0 by construction. Those are a finding and an absence, and the design
+   * system renders them differently on purpose: a measured zero keeps its
+   * place, a null is an em dash and a sentence.
+   *
+   * It is also the sample size the low-sample rule needs: an average off two
+   * visits is not a comparison, and a client that does not know `n` either
+   * invents confidence or greys every figure.
+   */
+  scorecardsCounted: number;
   points: number;
-  rank: number;
+  /**
+   * The agent's place, or **null** for an agent with nothing measured in the
+   * window (#398).
+   *
+   * Every row used to get `index + 1`, so an agent who had not worked a single
+   * visit was told they came last — a verdict computed from an absence. Last
+   * place is a comparison, and there is nothing here to compare: a board of
+   * eleven where eight have no scored visit is not a board of eleven, it is a
+   * board of three and eight people nobody has measured. They still appear
+   * (a row is never hidden) and they sort below every ranked row, but their
+   * place is the honest null and the client says so in words.
+   */
+  rank: number | null;
 }
 
 /**
@@ -119,7 +145,8 @@ export async function computeLeaderboard(
     const visitsSubmitted = t?.visitsSubmitted ?? 0;
     const tasksClosed = t?.tasksClosed ?? 0;
     // mean([]) === 0 keeps an agent with no in-window scorecards at 0.
-    const avgScorecard = mean(scoreLists.get(agent.id) ?? []);
+    const scores = scoreLists.get(agent.id) ?? [];
+    const avgScorecard = mean(scores);
     const points = round2(avgScorecard + (t?.points ?? 0));
 
     return {
@@ -129,24 +156,44 @@ export async function computeLeaderboard(
       visitsSubmitted,
       tasksClosed,
       avgScorecard,
+      scorecardsCounted: scores.length,
       points,
+      // Measured, not zero. A ledger entry in the window — a visit, a closure,
+      // a scorecard, a manual adjustment — is what makes an agent comparable
+      // to the others. Nothing at all is an absence, and an absence has no
+      // place. See `rank` on LeaderboardEntry.
+      measured: totals.has(agent.id) || scoreLists.has(agent.id),
     };
   });
 
-  // Highest points first; email breaks ties for a stable, deterministic order.
-  rows.sort((a, b) => b.points - a.points || a.email.localeCompare(b.email));
+  // Measured agents first, then highest points; email breaks ties for a
+  // stable, deterministic order. `measured` leads the comparator so an
+  // unmeasured agent can never land above a measured one on a board where
+  // every point total happens to be zero.
+  rows.sort(
+    (a, b) =>
+      Number(b.measured) - Number(a.measured) ||
+      b.points - a.points ||
+      a.email.localeCompare(b.email),
+  );
 
-  return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  let place = 0;
+  return rows.map(({ measured, ...row }) => ({
+    ...row,
+    rank: measured ? ++place : null,
+  }));
 }
 
 /**
- * The caller's own entry, whose `rank` can be **null**.
+ * The caller's own entry.
  *
- * Every row of `computeLeaderboard` has a place, so `/gamification/leaderboard`
- * keeps a `number`. `/gamification/me` is the one read where the caller may not
- * be on the board at all, and that is an absence rather than a last place.
+ * `rank` is nullable on both reads now (#398): on the board because an agent
+ * with nothing measured in the window has no place, and here because the
+ * caller may not be on the board at all. It stays a named type because the two
+ * absences mean different things — "not measured" and "not a field agent" —
+ * and the screens say each one differently.
  */
-export type OwnLeaderboardEntry = Omit<LeaderboardEntry, 'rank'> & { rank: number | null };
+export type OwnLeaderboardEntry = LeaderboardEntry;
 
 /**
  * The caller's own leaderboard entry. Field agents resolve to their computed
@@ -184,6 +231,7 @@ export async function getAgentLeaderboardEntry(
     visitsSubmitted: 0,
     tasksClosed: 0,
     avgScorecard: 0,
+    scorecardsCounted: 0,
     points: 0,
     rank: null,
   };

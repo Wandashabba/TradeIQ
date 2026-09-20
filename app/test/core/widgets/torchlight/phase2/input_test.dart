@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
@@ -714,5 +715,184 @@ void main() {
       );
       expect(find.byType(Wrap), findsOneWidget);
     });
+  });
+
+  group('the verdict control', () {
+    List<VerdictOption<String>> options() => const <VerdictOption<String>>[
+      VerdictOption<String>(
+        value: 'cleared',
+        label: 'Cleared',
+        consequence: 'The record stands.',
+      ),
+      VerdictOption<String>(
+        value: 'confirmed',
+        label: 'Confirmed',
+        consequence: 'The work is recorded as faked.',
+      ),
+      VerdictOption<String>(
+        value: 'needs-evidence',
+        label: 'Needs evidence',
+        consequence: 'It leaves the open queue and somebody works the note.',
+        requiresNote: true,
+        noteIsRequiredBecause: 'Say what evidence is missing.',
+      ),
+    ];
+
+    Future<List<({String value, String? note})>> pump(
+      WidgetTester tester, {
+      TiqSkin? skin,
+      double textScale = 1.0,
+      Size size = const Size(360, 720),
+      Locale locale = const Locale('en'),
+    }) async {
+      final committed = <({String value, String? note})>[];
+      await pumpPhase2(
+        tester,
+        skin: skin ?? TiqSkin.night(density: TiqDensity.field),
+        size: size,
+        textScale: textScale,
+        locale: locale,
+        claims: const <TorchClaim>[TorchClaim.primaryCommit('rule')],
+        child: SingleChildScrollView(
+          child: VerdictControl<String>(
+            label: 'Your ruling',
+            claimId: 'rule',
+            commitLabel: 'Record this ruling',
+            options: options(),
+            onCommit: (value, note) =>
+                committed.add((value: value, note: note)),
+          ),
+        ),
+      );
+      return committed;
+    }
+
+    testWidgets('opens with nothing chosen, and says so', (tester) async {
+      await pump(tester);
+
+      // A control that pre-selected an option would record a decision nobody
+      // made every time somebody opened it and closed it.
+      expect(find.text('No ruling chosen yet'), findsOneWidget);
+      expect(find.textContaining('Choose a ruling first.'), findsOneWidget);
+    });
+
+    testWidgets('every option carries its consequence', (tester) async {
+      await pump(tester);
+
+      // A verdict without its consequence is a dropdown; with one it is a
+      // decision. It matters more here than anywhere: one of these options
+      // accuses a person.
+      expect(find.text('The record stands.'), findsOneWidget);
+      expect(find.text('The work is recorded as faked.'), findsOneWidget);
+    });
+
+    testWidgets('stacks its rows, whatever the arithmetic says', (
+      tester,
+    ) async {
+      await pump(tester);
+
+      final cleared = tester.getRect(find.text('Cleared'));
+      final confirmed = tester.getRect(find.text('Confirmed'));
+      final needs = tester.getRect(find.text('Needs evidence'));
+      expect(confirmed.top, greaterThan(cleared.bottom - 1));
+      expect(needs.top, greaterThan(confirmed.bottom - 1));
+    });
+
+    testWidgets('a ruling that demands a note cannot be committed without one', (
+      tester,
+    ) async {
+      final committed = await pump(tester);
+
+      await tester.tap(find.text('Needs evidence'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('verdict-commit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(committed, isEmpty);
+      expect(find.textContaining('Say what evidence is missing.'), findsWidgets);
+    });
+
+    testWidgets('the missing note is a finding on the ATTEMPT, not before', (
+      tester,
+    ) async {
+      await pump(tester);
+
+      await tester.tap(find.text('Needs evidence'));
+      await tester.pumpAndSettle();
+
+      // Blocking sentence above the commit, yes. A crimson field before the
+      // reviewer has done anything wrong, no: that teaches people to ignore
+      // the colour.
+      final field = tester.widget<TorchTextField>(
+        find.byKey(const ValueKey<String>('verdict-note')),
+      );
+      expect(field.error, isNull);
+    });
+
+    testWidgets('a ruling that does not demand a note commits without one', (
+      tester,
+    ) async {
+      final committed = await pump(tester);
+
+      await tester.tap(find.text('Cleared'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('verdict-commit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(committed.single.value, 'cleared');
+      expect(committed.single.note, isNull);
+    });
+
+    testWidgets('a note is trimmed, and blank is not a note', (tester) async {
+      final committed = await pump(tester);
+
+      await tester.tap(find.text('Cleared'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('verdict-note')),
+        '   ',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('verdict-commit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(committed.single.note, isNull);
+    });
+
+    testWidgets('the chosen consequence is repeated under the thumb', (
+      tester,
+    ) async {
+      await pump(tester);
+
+      await tester.tap(find.text('Confirmed'));
+      await tester.pumpAndSettle();
+
+      // The row that carried it is two scroll positions away at 2.0x.
+      expect(
+        find.byKey(const ValueKey<String>('verdict-consequence')),
+        findsOneWidget,
+      );
+    });
+
+    for (final name in phase2SkinNames) {
+      testWidgets('$name: nothing overflows at 2.0x in Afrikaans', (
+        tester,
+      ) async {
+        await pump(
+          tester,
+          skin: phase2SkinNamed(name),
+          textScale: 2.0,
+          size: const Size(320, 1600),
+          locale: const Locale('af'),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
