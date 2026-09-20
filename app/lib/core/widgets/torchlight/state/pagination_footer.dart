@@ -64,53 +64,56 @@ class PaginationFooter extends StatelessWidget {
       ?unscoredNote,
     ].where((line) => line.trim().isNotEmpty).toList();
 
-    return Semantics(
+    // The words are one utterance; the action is NOT inside it. An
+    // `excludeSemantics` node drops every descendant node, so an action
+    // rendered inside this one painted, hit-tested and was announced nowhere —
+    // the same defect the button family was repaired for. The footer's own
+    // `Semantics` therefore wraps the text column alone, and the action keeps
+    // the node its button already built.
+    final Widget words = Semantics(
       // Part of the list's own semantics, so a screen-reader user reaching the
       // bottom learns the list was cut.
       container: true,
       label: lines.join(' '),
       excludeSemantics: true,
-      child: Container(
-        constraints: BoxConstraints(minHeight: heightFor(skin)),
-        decoration: BoxDecoration(
-          color: p.well,
-          border: Border(
-            top: BorderSide(
-              color: skin.brightness == Brightness.dark
-                  ? p.hairline
-                  : p.edgeStructure,
-              width: skin.depth.borderWidth,
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (var i = 0; i < lines.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(height: TiqSpace.s1),
+            Text(lines[i], style: skin.text.meta.style(color: p.ink3)),
+          ],
+        ],
+      ),
+    );
+
+    return Container(
+      constraints: BoxConstraints(minHeight: heightFor(skin)),
+      decoration: BoxDecoration(
+        color: p.well,
+        border: Border(
+          top: BorderSide(
+            color: skin.brightness == Brightness.dark
+                ? p.hairline
+                : p.edgeStructure,
+            width: skin.depth.borderWidth,
           ),
         ),
-        padding: EdgeInsets.symmetric(
-          horizontal: skin.space.gutter,
-          vertical: TiqSpace.s2,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (var i = 0; i < lines.length; i++) ...<Widget>[
-                    if (i > 0) const SizedBox(height: TiqSpace.s1),
-                    Text(
-                      lines[i],
-                      style: skin.text.meta.style(color: p.ink3),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (action != null) ...<Widget>[
-              const SizedBox(width: TiqSpace.s3),
-              action!,
-            ],
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: skin.space.gutter,
+        vertical: TiqSpace.s2,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(child: words),
+          if (action != null) ...<Widget>[
+            const SizedBox(width: TiqSpace.s3),
+            action!,
           ],
-        ),
+        ],
       ),
     );
   }

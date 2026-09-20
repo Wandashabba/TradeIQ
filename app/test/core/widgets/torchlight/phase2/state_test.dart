@@ -1,3 +1,4 @@
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -78,7 +79,10 @@ void main() {
         ),
       );
       await tester.pump(Skeleton.appearsAfter);
-      expect(find.text('Still fetching · this is slower than usual'), findsNothing);
+      expect(
+        find.text('Still fetching · this is slower than usual'),
+        findsNothing,
+      );
       await tester.pump(Skeleton.slowAfter);
       expect(
         find.text('Still fetching · this is slower than usual'),
@@ -187,7 +191,10 @@ void main() {
         TorchErrorMessage.forKind(TorchErrorKind.permission).offersRetry,
         isFalse,
       );
-      expect(TorchErrorMessage.forKind(TorchErrorKind.server).offersRetry, isTrue);
+      expect(
+        TorchErrorMessage.forKind(TorchErrorKind.server).offersRetry,
+        isTrue,
+      );
     });
 
     test('maps a status onto a kind in one place', () {
@@ -525,6 +532,33 @@ void main() {
       );
       expect(PaginationFooter.heightFor(TiqSkin.night()), 44);
       expect(PaginationFooter.heightFor(TiqSkin.veld()), 64);
+    });
+
+    // The footer's words are one utterance, and its action used to be INSIDE
+    // that utterance's `excludeSemantics` — painted, hit-testable and
+    // announced nowhere. Same defect as the button family's, in the footer.
+    testWidgets('an action keeps its own node', (tester) async {
+      var tapped = false;
+      final handle = tester.ensureSemantics();
+      await pumpPhase2(
+        tester,
+        skin: TiqSkin.night(),
+        child: PaginationFooter(
+          summary: 'Showing the 20 riskiest of 74.',
+          action: TorchTertiaryButton(
+            label: 'Narrow this',
+            onPressed: () => tapped = true,
+          ),
+        ),
+      );
+
+      final data = tester
+          .getSemantics(find.bySemanticsLabel('Narrow this'))
+          .getSemanticsData();
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      await tester.tap(find.bySemanticsLabel('Narrow this'));
+      expect(tapped, isTrue);
+      handle.dispose();
     });
   });
 }

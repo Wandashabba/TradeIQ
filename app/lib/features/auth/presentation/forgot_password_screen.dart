@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/password_repository.dart';
 import '../../../core/auth/password_rule.dart';
 import '../../../core/network/human_error.dart';
-import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/input.dart';
@@ -33,7 +33,7 @@ class ForgotPasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      TorchlightRoute(child: _ForgotPassword(initialEmail: initialEmail));
+      EntryTorchlightRoute(child: _ForgotPassword(initialEmail: initialEmail));
 }
 
 class _ForgotPassword extends ConsumerStatefulWidget {
@@ -175,6 +175,7 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
         title: l10n.forgotTitle,
         back: back,
         primaryArmed: true,
+        skinCycle: const EntrySkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('forgot-go-to-sign-in'),
           label: l10n.forgotGoToSignIn,
@@ -206,6 +207,7 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
       title: l10n.forgotTitle,
       back: back,
       primaryArmed: armed,
+      skinCycle: const EntrySkinCycle(),
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('forgot-submit'),
         label: l10n.forgotSubmit,

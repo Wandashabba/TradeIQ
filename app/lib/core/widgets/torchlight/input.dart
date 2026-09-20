@@ -12,6 +12,7 @@
 /// | [TorchToggle] | `Switch` | none |
 /// | [TorchCheckbox] / [TorchCheckboxGroup] | `Checkbox` | none |
 /// | [ChoiceRow] | *(new)* — nothing-selected is a state | none |
+/// | [TorchPickerField] | `DropdownButtonFormField` — a sheet of rows | none |
 /// | [TorchFilterChip] / [TorchFilterRail] | `ChoiceChip` | none |
 /// | [TorchHandednessScope] | *(new)* — #407 | none |
 /// | [VerdictControl] | *(new)* — the fraud queue's ruling (#392) | its commit |
@@ -40,6 +41,7 @@ export 'input/field_shell.dart';
 export 'input/filter_chip.dart';
 export 'input/handedness.dart';
 export 'input/numeric_field.dart';
+export 'input/picker_field.dart';
 export 'input/text_field.dart';
 export 'input/toggle.dart';
 export 'input/trough.dart';

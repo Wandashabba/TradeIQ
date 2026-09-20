@@ -16,11 +16,11 @@ class BeatPlan {
   final String scheduledDate;
 
   factory BeatPlan.fromJson(Map<String, dynamic> json) => BeatPlan(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        status: json['status'] as String,
-        scheduledDate: json['scheduledDate'] as String,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    status: json['status'] as String,
+    scheduledDate: json['scheduledDate'] as String,
+  );
 }
 
 /// One outlet stop on a beat plan.
@@ -37,11 +37,11 @@ class BeatPlanStop {
   final bool visited;
 
   factory BeatPlanStop.fromJson(Map<String, dynamic> json) => BeatPlanStop(
-        id: json['id'] as String,
-        outletId: json['outletId'] as String,
-        sequence: json['sequence'] as int,
-        visited: json['visited'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    outletId: json['outletId'] as String,
+    sequence: json['sequence'] as int,
+    visited: json['visited'] as bool? ?? false,
+  );
 }
 
 /// A beat plan with its stops and adherence returned by GET /beatplans/:id.
@@ -125,31 +125,45 @@ class DioBeatPlansRepository implements BeatPlansRepository {
     required List<String> outletIds,
     String? territoryId,
   }) async {
-    final response = await dio.post('/beatplans', data: {
-      'agentId': agentId,
-      'name': name,
-      'scheduledDate': scheduledDate,
-      'outletIds': outletIds,
-      'territoryId': ?territoryId,
-    });
+    final response = await dio.post(
+      '/beatplans',
+      data: {
+        'agentId': agentId,
+        'name': name,
+        'scheduledDate': scheduledDate,
+        'outletIds': outletIds,
+        'territoryId': ?territoryId,
+      },
+    );
     return BeatPlan.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final beatPlansRepositoryProvider =
-    Provider<BeatPlansRepository>((ref) => DioBeatPlansRepository());
+final beatPlansRepositoryProvider = Provider<BeatPlansRepository>(
+  (ref) => DioBeatPlansRepository(),
+);
 
-// The provider exposes the FIRST PAGE as a plain list: the beat plans screen
-// wants the current beat plans, not the whole history, and "load more" UI is
-// deliberately out of scope for the pagination sweep (see the spec).
-// `nextCursor` is available on the repository for any screen that later needs
-// to page; this provider intentionally drops it.
-final beatPlansListProvider = FutureProvider<List<BeatPlan>>((ref) async {
-  final page = await ref.read(beatPlansRepositoryProvider).listBeatPlans();
-  return page.data;
+/// The FIRST PAGE of GET /beatplans, cursor and all.
+///
+/// "Load more" is still out of scope, but the *fact that the list was cut* is
+/// not: a count under a section rule that is really a count of one page is a
+/// number nobody can act on. The page carries `nextCursor`, so the screen can
+/// say what it is showing.
+final beatPlansPageProvider = FutureProvider<PaginatedResponse<BeatPlan>>((
+  ref,
+) async {
+  return ref.read(beatPlansRepositoryProvider).listBeatPlans();
 });
 
-final beatPlanDetailProvider =
-    FutureProvider.family<BeatPlanDetail, String>((ref, id) {
+/// The same page as a plain list, for callers that do not care that it is one
+/// — today's route, which looks for one date among them.
+final beatPlansListProvider = FutureProvider<List<BeatPlan>>(
+  (ref) async => (await ref.watch(beatPlansPageProvider.future)).data,
+);
+
+final beatPlanDetailProvider = FutureProvider.family<BeatPlanDetail, String>((
+  ref,
+  id,
+) {
   return ref.read(beatPlansRepositoryProvider).getBeatPlan(id);
 });

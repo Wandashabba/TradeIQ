@@ -1,326 +1,372 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons, showDatePicker;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/network/human_error.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../users/data/users_repository.dart';
 import '../data/beatplans_repository.dart';
 
-/// Manager/admin screen to build and assign a beat plan: pick a field agent, a
-/// date, an optional territory, and an ordered list of outlet stops. The order
-/// of the selected outlets becomes the stop sequence (`POST /beatplans`).
-class BeatPlanFormScreen extends ConsumerStatefulWidget {
+/// BUILD A DAY — who works it, when, and the stores in order.
+///
+/// ```text
+///   ← Beat plans
+///   New beat plan
+///   ── The day ──────────────────────────────
+///   Plan name · Scheduled date · Field agent
+///   ── Stops, in order  3 ───────────────────
+///   ▏ 1  Kasi Corner Spaza      [↑][↓][×]
+///   ── Stores to add  9 ─────────────────────
+///   ▏ Sunrise Spaza                  [ Add ]
+///   [ ☾ ]  [        Create the plan        ]
+/// ```
+///
+/// ## Every reorder control is a real button
+///
+/// The old screen put three `IconButton`s in a `ListTile.trailing` with
+/// tooltips and no semantic labels, so a screen reader announced "button"
+/// three times per stop with nothing to tell them apart. Each one now names
+/// the store it acts on: "Move Kasi Corner Spaza earlier".
+///
+/// ## The amber, counted
+///
+/// Not a tab root: the thumb zone carries the one commit, armed only when the
+/// plan is complete. One object in Night, one in Day and Veld, and zero while
+/// the form is unfinished.
+class BeatPlanFormScreen extends ConsumerWidget {
   const BeatPlanFormScreen({super.key});
 
+  /// "Create the plan". Rung 1, and the only claim this route makes.
+  static const String submitClaimId = 'beat-plan-submit';
+
+  /// The wire's format for `scheduledDate`: a calendar date, zero-padded.
+  ///
+  /// Not `DateFormat`: this is a machine format the server parses, and it
+  /// must not follow the reader's locale the way every date on screen does.
+  static String wireDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
   @override
-  ConsumerState<BeatPlanFormScreen> createState() => _BeatPlanFormScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const ConsoleTorchlightRoute(child: _BeatPlanForm());
+  }
 }
 
-class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
+class _BeatPlanForm extends ConsumerStatefulWidget {
+  const _BeatPlanForm();
+
+  @override
+  ConsumerState<_BeatPlanForm> createState() => _BeatPlanFormState();
+}
+
+class _BeatPlanFormState extends ConsumerState<_BeatPlanForm> {
+  final TextEditingController _nameCtrl = TextEditingController();
 
   String? _agentId;
   String? _territoryId;
   DateTime? _scheduledDate;
-  final List<String> _selectedOutletIds = <String>[];
+  final List<String> _stopIds = <String>[];
   bool _submitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _nameCtrl.addListener(_onTyped);
+  }
+
+  void _onTyped() => setState(() {});
+
+  @override
   void dispose() {
-    _nameCtrl.dispose();
+    _nameCtrl
+      ..removeListener(_onTyped)
+      ..dispose();
     super.dispose();
   }
 
-  static String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   Future<void> _pickDate() async {
+    // The one Material control left on a Torchlight route. The kit has no
+    // calendar, and a date is the one value nobody should type: see the
+    // migration notes.
     final picked = await showDatePicker(
       context: context,
-      initialDate: _scheduledDate ?? DateTime(2026, 1, 1),
+      initialDate: _scheduledDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
     if (picked != null) setState(() => _scheduledDate = picked);
   }
 
-  void _addOutlet(String id) => setState(() => _selectedOutletIds.add(id));
-  void _removeOutlet(String id) =>
-      setState(() => _selectedOutletIds.remove(id));
+  void _addStop(String id) => setState(() => _stopIds.add(id));
+
+  void _removeStop(String id) => setState(() => _stopIds.remove(id));
 
   void _move(int index, int delta) {
     final target = index + delta;
-    if (target < 0 || target >= _selectedOutletIds.length) return;
+    if (target < 0 || target >= _stopIds.length) return;
     setState(() {
-      final id = _selectedOutletIds.removeAt(index);
-      _selectedOutletIds.insert(target, id);
+      final id = _stopIds.removeAt(index);
+      _stopIds.insert(target, id);
     });
   }
 
+  bool get _complete =>
+      _nameCtrl.text.trim().isNotEmpty &&
+      _agentId != null &&
+      _scheduledDate != null &&
+      _stopIds.isNotEmpty;
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_agentId == null) {
-      _snack('Select a field agent.');
-      return;
-    }
-    if (_scheduledDate == null) {
-      _snack('Pick a scheduled date.');
-      return;
-    }
-    if (_selectedOutletIds.isEmpty) {
-      _snack('Add at least one outlet stop.');
-      return;
-    }
+    final l10n = context.l10n;
+    if (!_complete) return;
 
     setState(() => _submitting = true);
+    final bool created;
     try {
-      await ref.read(beatPlansRepositoryProvider).createBeatPlan(
+      await ref
+          .read(beatPlansRepositoryProvider)
+          .createBeatPlan(
             agentId: _agentId!,
             name: _nameCtrl.text.trim(),
-            scheduledDate: _fmt(_scheduledDate!),
-            outletIds: List<String>.of(_selectedOutletIds),
+            scheduledDate: BeatPlanFormScreen.wireDate(_scheduledDate!),
+            outletIds: List<String>.of(_stopIds),
             territoryId: _territoryId,
           );
-      ref.invalidate(beatPlansListProvider);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      _snack('Failed to create beat plan: $e');
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      ref.invalidate(beatPlansPageProvider);
+      created = true;
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      showTorchToast(
+        context,
+        message: l10n.beatPlanFormFailed,
+        kind: ToastKind.failure,
+      );
+      return;
     }
-  }
-
-  void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    setState(() => _submitting = false);
+    if (created && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final agents = ref.watch(usersListProvider);
     final territories = ref.watch(territoriesListProvider);
     final outlets = ref.watch(outletsListProvider);
 
-    final planFields = <Widget>[
-      TextFormField(
-        key: const ValueKey<String>('beatplan-name-field'),
-        controller: _nameCtrl,
-        decoration: const InputDecoration(
-            labelText: 'Name', border: OutlineInputBorder()),
-        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-      ),
-      const SizedBox(height: 12),
-      _DateRow(
-        value: _scheduledDate == null ? null : _fmt(_scheduledDate!),
-        onPressed: _pickDate,
-      ),
-      const SizedBox(height: 12),
-      agents.when(
-        loading: () => const LinearProgressIndicator(),
-        error: (err, _) => Text('Failed to load agents: $err'),
-        data: (list) {
-          final fieldAgents =
-              list.where((u) => u.role == 'field_agent').toList();
-          return DropdownButtonFormField<String>(
-            key: const ValueKey<String>('beatplan-agent-field'),
-            initialValue: _agentId,
-            decoration: const InputDecoration(
-                labelText: 'Field agent', border: OutlineInputBorder()),
-            items: [
-              for (final u in fieldAgents)
-                DropdownMenuItem(value: u.id, child: Text(u.label)),
-            ],
-            onChanged: (v) => setState(() => _agentId = v),
-          );
-        },
-      ),
-      const SizedBox(height: 12),
-      territories.when(
-        loading: () => const LinearProgressIndicator(),
-        error: (err, _) => Text('Failed to load territories: $err'),
-        data: (list) => DropdownButtonFormField<String>(
-          key: const ValueKey<String>('beatplan-territory-field'),
-          initialValue: _territoryId,
-          decoration: const InputDecoration(
-              labelText: 'Territory (optional)', border: OutlineInputBorder()),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('None')),
-            for (final t in list)
-              DropdownMenuItem(value: t.id, child: Text(t.name)),
-          ],
-          onChanged: (v) => setState(() => _territoryId = v),
+    return TorchScope(
+      skin: skin,
+      phase: _submitting ? 'submitting' : (_complete ? 'ready' : 'form'),
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        TorchPrimaryButton.claim(BeatPlanFormScreen.submitClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: l10n.beatPlanFormTitle,
+          back: TorchIconButton(
+            icon: Icons.arrow_back,
+            semanticLabel: l10n.beatPlanFormBack,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
         ),
-      ),
-    ];
-    final lumen = context.lumen;
-    final stops = outlets.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(12),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, _) => Text('Failed to load outlets: $err'),
-      data: (list) => _StopBuilder(
-        outlets: list,
-        selectedIds: _selectedOutletIds,
-        onAdd: _addOutlet,
-        onRemove: _removeOutlet,
-        onMove: _move,
-      ),
-    );
-
-    return GlassPageScaffold(
-      title: const Text('New Beat Plan'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: context.colors.glass
-              // Glass: who works the day and when, then the stops in order.
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GlassSection(label: 'Plan', children: planFields),
-                    const SizedBox(height: 14),
-                    _GlassSection(
-                      label: 'Stops (in order)',
-                      trailing: Text(
-                        '${_selectedOutletIds.length} '
-                        '${_selectedOutletIds.length == 1 ? 'stop' : 'stops'}',
-                        style: LumenGlass.figure(
-                          size: 11.5,
-                          color: lumen.inkMuted,
-                          weight: FontWeight.w500,
-                        ),
-                      ),
-                      children: [stops],
+        skinCycle: const ConsoleSkinCycle(),
+        primary: TorchPrimaryButton(
+          key: const ValueKey<String>('beatplan-save-button'),
+          label: l10n.beatPlanFormSubmit,
+          claimId: BeatPlanFormScreen.submitClaimId,
+          busy: _submitting,
+          blockedReason: _complete ? null : l10n.beatPlanFormBlocked,
+          onPressed: _complete && !_submitting ? _submit : null,
+        ),
+        children: <Widget>[
+          SectionRule(l10n.beatPlanFormPlanHeading),
+          const SizedBox(height: TiqSpace.s4),
+          TorchTextField(
+            key: const ValueKey<String>('beatplan-name-field'),
+            label: l10n.beatPlanFormName,
+            controller: _nameCtrl,
+            help: l10n.beatPlanFormNameHelp,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          _DateField(date: _scheduledDate, onPick: _pickDate),
+          const SizedBox(height: TiqSpace.s5),
+          agents.when(
+            loading: () => Skeleton(
+              label: l10n.beatPlanFormAgent,
+              child: const SkeletonShell(height: 72, outlined: true),
+            ),
+            error: (error, stack) => ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.beatPlanFormAgentsFailed,
+                body: humanErrorMessage(error, l10n),
+                offersRetry: true,
+              ),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('beatplan-agents-retry'),
+                label: l10n.beatPlansRetry,
+                onPressed: () => ref.invalidate(usersListProvider),
+              ),
+            ),
+            data: (list) {
+              final fieldAgents = list
+                  .where((u) => u.role == 'field_agent')
+                  .toList();
+              return TorchPickerField<String>(
+                key: const ValueKey<String>('beatplan-agent-field'),
+                label: l10n.beatPlanFormAgent,
+                value: _agentId,
+                options: <PickerOption<String>>[
+                  for (final agent in fieldAgents)
+                    PickerOption<String>(
+                      value: agent.id,
+                      label: agent.label,
+                      detail: agent.email,
                     ),
-                    const SizedBox(height: 18),
-                    GlassPrimaryButton(
-                      key: const ValueKey<String>('beatplan-save-button'),
-                      label: 'Create Beat Plan',
-                      busy: _submitting,
-                      onPressed: _submit,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ...planFields,
-                    const SizedBox(height: 20),
-                    const Text('Stops (in order)',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    stops,
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      key: const ValueKey<String>('beatplan-save-button'),
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Create Beat Plan'),
-                    ),
-                  ],
+                ],
+                notChosenLine: l10n.beatPlanFormAgentNotChosen,
+                emptyHeadline: l10n.beatPlanFormNoAgents,
+                onChanged: (id) => setState(() => _agentId = id),
+              );
+            },
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          territories.when(
+            loading: () => Skeleton(
+              label: l10n.beatPlanFormTerritory,
+              child: const SkeletonShell(height: 72, outlined: true),
+            ),
+            // A territory is optional, so a territory list that will not load
+            // must not block the plan. It says so and gets out of the way.
+            error: (error, stack) => Text(
+              l10n.beatPlanFormAgentsFailed,
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+            data: (list) => TorchPickerField<String>(
+              key: const ValueKey<String>('beatplan-territory-field'),
+              label: l10n.beatPlanFormTerritory,
+              value: _territoryId,
+              options: <PickerOption<String>>[
+                PickerOption<String>(
+                  value: '',
+                  label: l10n.beatPlanFormTerritoryNone,
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A glass panel with its kicker — one group of the form.
-class _GlassSection extends StatelessWidget {
-  const _GlassSection({
-    required this.label,
-    required this.children,
-    this.trailing,
-  });
-
-  final String label;
-  final List<Widget> children;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(children: [Kicker(label), const Spacer(), ?trailing]),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _DateRow extends StatelessWidget {
-  const _DateRow({required this.value, required this.onPressed});
-
-  final String? value;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final lumen = context.lumen;
-    final pick = OutlinedButton(
-      key: const ValueKey<String>('beatplan-date-pick'),
-      onPressed: onPressed,
-      child: const Text('Pick'),
-    );
-    if (context.colors.glass) {
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Kicker('Scheduled date', size: 9.5),
-                const SizedBox(height: 4),
-                value == null
-                    ? Text(
-                        'Not set',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: lumen.inkMuted,
-                        ),
-                      )
-                    : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
+                for (final territory in list)
+                  PickerOption<String>(
+                    value: territory.id,
+                    label: territory.name,
+                    identifier: territory.code,
+                  ),
               ],
+              notChosenLine: l10n.beatPlanFormTerritoryOptional,
+              help: l10n.beatPlanFormTerritoryOptional,
+              onChanged: (id) =>
+                  setState(() => _territoryId = id.isEmpty ? null : id),
             ),
           ),
-          pick,
+          const SizedBox(height: TiqSpace.s7),
+
+          outlets.when(
+            loading: () => Skeleton(
+              label: l10n.beatPlanFormStopsHeading,
+              child: const SkeletonRows(count: 4, rowHeight: 64),
+            ),
+            error: (error, stack) => ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.beatPlanFormStoresFailed,
+                body: humanErrorMessage(error, l10n),
+                offersRetry: true,
+              ),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('beatplan-outlets-retry'),
+                label: l10n.beatPlansRetry,
+                onPressed: () => ref.invalidate(outletsListProvider),
+              ),
+            ),
+            data: (list) => _StopBuilder(
+              outlets: list,
+              selectedIds: _stopIds,
+              onAdd: _addStop,
+              onRemove: _removeStop,
+              onMove: _move,
+            ),
+          ),
         ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(
-          child: Text(value == null ? 'Scheduled date: not set' : 'Scheduled date: $value'),
+      ),
+    );
+  }
+}
+
+/// The scheduled date: a read-only trough with the verb beneath it.
+///
+/// It is a trough rather than a button so it sits in the same column, at the
+/// same label position, as every other value on the form — and nothing
+/// selected is a state, said in words.
+class _DateField extends StatelessWidget {
+  const _DateField({required this.date, required this.onPick});
+
+  final DateTime? date;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      key: const ValueKey<String>('beatplan-date'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        TorchTextField(
+          label: l10n.beatPlanFormDate,
+          readOnly: true,
+          controller: TextEditingController(
+            text: date == null ? '' : formatDayHeading(context, date!),
+          ),
+          help: date == null ? l10n.beatPlanFormDateNotChosen : null,
         ),
-        pick,
+        const SizedBox(height: TiqSpace.s2),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: const ValueKey<String>('beatplan-date-pick'),
+            label: date == null
+                ? l10n.beatPlanFormPickDate
+                : l10n.beatPlanFormChangeDate,
+            onPressed: onPick,
+          ),
+        ),
       ],
     );
   }
 }
 
-/// Renders the ordered selection (with reorder/remove) above the pool of
-/// outlets still available to add.
+/// The ordered selection, and the pool of stores still to add.
 class _StopBuilder extends StatelessWidget {
   const _StopBuilder({
     required this.outlets,
@@ -338,148 +384,126 @@ class _StopBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Outlet? byId(String id) {
-      for (final o in outlets) {
-        if (o.id == id) return o;
-      }
-      return null;
-    }
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final numbers = TiqNumber.of(context);
+    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
 
-    final available =
-        outlets.where((o) => !selectedIds.contains(o.id)).toList();
+    String nameFor(String id) =>
+        outlets.where((o) => o.id == id).map((o) => o.name).firstOrNull ?? id;
 
-    if (context.colors.glass) return _glass(context, byId, available);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (selectedIds.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('No stops yet — add outlets below.'),
-          )
-        else
-          for (var i = 0; i < selectedIds.length; i++)
-            ListTile(
-              key: ValueKey<String>('stop-selected-${selectedIds[i]}'),
-              dense: true,
-              leading: CircleAvatar(radius: 12, child: Text('${i + 1}')),
-              title: Text(byId(selectedIds[i])?.name ?? selectedIds[i]),
-              trailing: _reorderControls(i),
-            ),
-        const Divider(),
-        const Text('Available outlets'),
-        for (final o in available)
-          ListTile(
-            key: ValueKey<String>('stop-available-${o.id}'),
-            dense: true,
-            title: Text(o.name),
-            subtitle: Text(o.code),
-            trailing: const Icon(Icons.add_circle_outline),
-            onTap: () => onAdd(o.id),
-          ),
-      ],
-    );
-  }
-
-  Widget _reorderControls(int i) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_upward),
-            tooltip: 'Move up',
-            onPressed: i == 0 ? null : () => onMove(i, -1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.arrow_downward),
-            tooltip: 'Move down',
-            onPressed: i == selectedIds.length - 1 ? null : () => onMove(i, 1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            tooltip: 'Remove',
-            onPressed: () => onRemove(selectedIds[i]),
-          ),
-        ],
-      );
-
-  /// Glass: each stop is a no-blur tile led by its sequence in a status tile
-  /// (a count, so mono), and the pool below is a second run of tiles. Each
-  /// tile carries its own transparent Material so the ink lands on the pane.
-  Widget _glass(
-    BuildContext context,
-    Outlet? Function(String id) byId,
-    List<Outlet> available,
-  ) {
-    final lumen = context.lumen;
-    Widget tile(Widget child) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GlassPane(
-            kind: GlassKind.tile,
-            blur: false,
-            shadow: false,
-            radius: LumenGlass.radiusControl,
-            child: Material(type: MaterialType.transparency, child: child),
-          ),
-        );
-    final titleStyle = TextStyle(
-      fontSize: 13.5,
-      fontWeight: FontWeight.w600,
-      color: lumen.ink,
-    );
+    final available = outlets
+        .where((o) => !selectedIds.contains(o.id))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (selectedIds.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'No stops yet — add outlets below.',
-              style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+      children: <Widget>[
+        SectionRule(
+          l10n.beatPlanFormStopsHeading,
+          count: selectedIds.isEmpty ? null : selectedIds.length,
+          emptyLine: selectedIds.isEmpty ? l10n.beatPlanFormStopsEmpty : null,
+        ),
+        const SizedBox(height: TiqSpace.s4),
+        if (selectedIds.isNotEmpty)
+          TorchBleed(
+            extra: gutter.left * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (var i = 0; i < selectedIds.length; i++)
+                  SoftRow(
+                    key: ValueKey<String>('stop-selected-${selectedIds[i]}'),
+                    density: SoftRowDensity.tall,
+                    title: nameFor(selectedIds[i]),
+                    titleTruncation: SoftRowTruncation.middle,
+                    subtitle: l10n.beatPlanStopLabel(numbers.format(i + 1)),
+                    // The verbs live in `actions`, where they keep their own
+                    // semantics nodes. In `trailing` the row's label would
+                    // swallow all three.
+                    actions: Wrap(
+                      spacing: TiqSpace.s2,
+                      children: <Widget>[
+                        TorchIconButton(
+                          key: ValueKey<String>('stop-up-${selectedIds[i]}'),
+                          icon: Icons.arrow_upward,
+                          semanticLabel: l10n.beatPlanFormMoveUp(
+                            nameFor(selectedIds[i]),
+                          ),
+                          onPressed: i == 0 ? null : () => onMove(i, -1),
+                        ),
+                        TorchIconButton(
+                          key: ValueKey<String>('stop-down-${selectedIds[i]}'),
+                          icon: Icons.arrow_downward,
+                          semanticLabel: l10n.beatPlanFormMoveDown(
+                            nameFor(selectedIds[i]),
+                          ),
+                          onPressed: i == selectedIds.length - 1
+                              ? null
+                              : () => onMove(i, 1),
+                        ),
+                        TorchIconButton(
+                          key: ValueKey<String>(
+                            'stop-remove-${selectedIds[i]}',
+                          ),
+                          icon: Icons.remove_circle_outline,
+                          semanticLabel: l10n.beatPlanFormRemoveStop(
+                            nameFor(selectedIds[i]),
+                          ),
+                          onPressed: () => onRemove(selectedIds[i]),
+                        ),
+                      ],
+                    ),
+                    separator: i == selectedIds.length - 1
+                        ? SoftRowSeparator.none
+                        : SoftRowSeparator.auto,
+                  ),
+              ],
             ),
-          )
-        else
-          for (var i = 0; i < selectedIds.length; i++)
-            tile(
-              ListTile(
-                key: ValueKey<String>('stop-selected-${selectedIds[i]}'),
-                dense: true,
-                leading: StatusTile(
-                  status: LumenStatus.none,
-                  glyph: '${i + 1}',
-                  size: 28,
-                  mono: true,
-                ),
-                title: Text(
-                  byId(selectedIds[i])?.name ?? selectedIds[i],
-                  style: titleStyle,
-                ),
-                trailing: _reorderControls(i),
-              ),
-            ),
-        const SizedBox(height: 8),
-        const Kicker('Available outlets', size: 9.5),
-        const SizedBox(height: 10),
-        for (final o in available)
-          tile(
-            ListTile(
-              key: ValueKey<String>('stop-available-${o.id}'),
-              dense: true,
-              title: Text(o.name, style: titleStyle),
-              subtitle: Text(
-                o.code,
-                style: LumenGlass.figure(
-                  size: 11,
-                  color: lumen.inkMuted,
-                  weight: FontWeight.w500,
-                ),
-              ),
-              trailing: Icon(
-                Icons.add_circle_outline,
-                color: lumen.accentInk,
-              ),
-              onTap: () => onAdd(o.id),
+          ),
+        const SizedBox(height: TiqSpace.s7),
+
+        SectionRule(
+          l10n.beatPlanFormAvailableHeading,
+          count: available.isEmpty ? null : available.length,
+          emptyLine: available.isEmpty ? l10n.beatPlanFormAvailableEmpty : null,
+        ),
+        const SizedBox(height: TiqSpace.s4),
+        if (available.isNotEmpty)
+          TorchBleed(
+            extra: gutter.left * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (var i = 0; i < available.length; i++)
+                  SoftRow(
+                    key: ValueKey<String>('stop-available-${available[i].id}'),
+                    density: SoftRowDensity.standard,
+                    title: available[i].name,
+                    titleTruncation: SoftRowTruncation.middle,
+                    meta: Text(
+                      available[i].code,
+                      style: skin.text.monoIdent.style(
+                        color: skin.palette.ink3,
+                      ),
+                    ),
+                    trailingIsControl: true,
+                    trailing: TorchIconButton(
+                      key: ValueKey<String>('stop-add-${available[i].id}'),
+                      icon: Icons.add_circle_outline,
+                      semanticLabel: l10n.beatPlanFormAddStop(
+                        available[i].name,
+                      ),
+                      onPressed: () => onAdd(available[i].id),
+                    ),
+                    // The row is the target too: a thumb aims at the row, not
+                    // at a 40dp glyph.
+                    onTap: () => onAdd(available[i].id),
+                    separator: i == available.length - 1
+                        ? SoftRowSeparator.none
+                        : SoftRowSeparator.auto,
+                  ),
+              ],
             ),
           ),
       ],
