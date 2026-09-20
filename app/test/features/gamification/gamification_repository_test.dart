@@ -20,9 +20,11 @@ void main() {
     expect(entry.avgScorecard, 87.5);
     expect(entry.points, 240.0);
     expect(entry.rank, 1);
+    expect(entry.scorecardsCounted, 0);
   });
 
-  test('LeaderboardEntry.fromJson defaults missing numeric fields to zero', () {
+  test('LeaderboardEntry.fromJson defaults missing counts to zero — but not '
+      'the place (#398)', () {
     final entry = LeaderboardEntry.fromJson(const {
       'agentId': 'a-2',
       'email': 'other@example.com',
@@ -30,11 +32,48 @@ void main() {
 
     expect(entry.visitsSubmitted, 0);
     expect(entry.tasksClosed, 0);
-    expect(entry.rank, 0);
     expect(entry.avgScorecard, 0);
+    expect(entry.scorecardsCounted, 0);
     expect(entry.points, 0);
     expect(entry.displayName, isNull);
     expect(entry.label, 'other@example.com');
+    // A `?? 0` here would turn every unmeasured agent into rank zero, which
+    // is a place — and a worse invention than the last place it replaced.
+    expect(entry.rank, isNull);
+  });
+
+  test('a null rank on the wire stays null', () {
+    final entry = LeaderboardEntry.fromJson(const {
+      'agentId': 'a-3',
+      'email': 'unmeasured@example.com',
+      'rank': null,
+      'avgScorecard': 0,
+      'scorecardsCounted': 0,
+      'points': 0,
+    });
+
+    expect(entry.rank, isNull);
+  });
+
+  test('scorecardsCounted tells a scored nought from an unscored agent', () {
+    // `mean([])` is 0 on the wire, so the sample size is the only thing that
+    // separates a finding from an absence.
+    final scoredZero = LeaderboardEntry.fromJson(const {
+      'agentId': 'a-4',
+      'email': 'a@example.com',
+      'avgScorecard': 0,
+      'scorecardsCounted': 7,
+    });
+    final neverScored = LeaderboardEntry.fromJson(const {
+      'agentId': 'a-5',
+      'email': 'b@example.com',
+      'avgScorecard': 0,
+      'scorecardsCounted': 0,
+    });
+
+    expect(scoredZero.avgScorecard, neverScored.avgScorecard);
+    expect(scoredZero.scorecardsCounted, 7);
+    expect(neverScored.scorecardsCounted, 0);
   });
 
   test('AgentPointsHistory.fromJson parses the agent and its entries', () {
