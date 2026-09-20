@@ -26,6 +26,34 @@
 // To regenerate after a migration: run
 //   flutter test test/core/theme/torchlight/torchlight_lint_test.dart
 // and paste the map it prints.
+//
+// WHERE THIS STOPS, AND WHY. The six rows below are not leftover debt in
+// screens that have already moved. They ARE the app's last un-migrated
+// screens — the same six files that still import GlassPane, LumenGlass,
+// LumenPalette, AppColors and TiqColors:
+//
+//   dashboard_shell_screen.dart   a live route (app_router.dart:201)
+//   visit_detail_screen.dart      a live route (app_router.dart:452)
+//   artifact_screen.dart          a live route (app_router.dart:361)
+//   artifact_filters.dart         built by artifact_screen.dart
+//   expanded_views.dart           built by artifact_screen.dart
+//   live_location_layer.dart      shared with the migrated trail map
+//
+// Sixty-three of the 83 are a bare `TextStyle(` at a size the Torchlight
+// scale does not have — 10.5, 11.5 and 12.5 are not members of it, and where
+// a size does exist (12 is `meta`, 13 is `label`, 14 is `body`) the role
+// carries a line-height and a tracking these call sites do not set. The
+// other twenty — 13 raw `Color(0x…)` and 7 `Colors.*` — are map-pin and
+// chart colours: white pin rings, alpha-white gridlines and axes, the
+// agent-pin blues. There is no token for those and there should not be one;
+// they are a basemap's colours, not the product's.
+//
+// So there is no entry here that can be converted without restyling a screen
+// that is still painted in Lumen Glass, and half-migrating one would put
+// Torchlight type inside violet glass panes, which is neither system. Each
+// row leaves this map with its screen. The map empties when the last of the
+// six is migrated, and not before — the same ordering GlassPane is deleted
+// under.
 const Map<String, int> torchlightStyleDebt = <String, int>{
   // STILL HERE ON PURPOSE. The live layer is a shared component: the trail
   // map draws its squares and so does the dashboard's "Where are my agents"
