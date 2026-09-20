@@ -9,7 +9,10 @@ import 'phase2_harness.dart';
 
 const List<ProofLine> _proof = <ProofLine>[
   ProofLine(text: '6 of 9 sections captured'),
-  ProofLine(text: '3 photos held on this phone', state: SectionState.inProgress),
+  ProofLine(
+    text: '3 photos held on this phone',
+    state: SectionState.inProgress,
+  ),
 ];
 
 void main() {
@@ -106,6 +109,98 @@ void main() {
         ),
       );
       expect(find.text('Close'), findsOneWidget);
+    });
+
+    /// THE FAILURE, WRITTEN AS ITSELF.
+    ///
+    /// "Non-dismissible" was one override — `barrierDismissible` — and the
+    /// doc claimed two. `TorchSheetRoute` never overrode `popDisposition` and
+    /// never wrapped its page in a `PopScope`, so the Android back button
+    /// popped a blocking sheet. And in Veld `_VeldCloseRow` rendered whatever
+    /// `dismissible` said, so the blocking sheet grew its own way past itself
+    /// on the one skin with no scrim to fall back on.
+    for (final name in <String>['night.field', 'day.field', 'veld']) {
+      testWidgets('$name: a blocking sheet cannot be walked past', (
+        tester,
+      ) async {
+        final skin = phase2SkinNamed(name);
+        await pumpPhase2(
+          tester,
+          skin: skin,
+          child: Builder(
+            builder: (context) => GestureDetector(
+              onTap: () => showTorchSheet<void>(
+                context,
+                dismissible: false,
+                builder: (_) => const TorchSheet(
+                  title: 'A decision',
+                  closeLabel: 'Close',
+                  child: Text('body'),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('open'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.byType(TorchSheet), findsOneWidget);
+
+        final element = tester.element(find.byType(TorchSheet));
+        final route = ModalRoute.of(element)!;
+        expect(
+          route.popDisposition,
+          RoutePopDisposition.doNotPop,
+          reason:
+              'barrierDismissible only swallows the scrim; the system back '
+              'gesture is the other half of the contract',
+        );
+
+        expect(
+          find.text('Close'),
+          findsNothing,
+          reason:
+              'a blocking sheet relies on its own actions — in Veld the Close '
+              'row was rendered regardless of dismissible and popped it',
+        );
+
+        await Navigator.of(element, rootNavigator: true).maybePop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.byType(TorchSheet), findsOneWidget);
+      });
+    }
+
+    testWidgets('a dismissible Veld sheet keeps its Close row', (tester) async {
+      await pumpPhase2(
+        tester,
+        skin: TiqSkin.veld(),
+        child: Builder(
+          builder: (context) => GestureDetector(
+            onTap: () => showTorchSheet<void>(
+              context,
+              builder: (_) => const TorchSheet(
+                title: 'A route, not a sheet',
+                closeLabel: 'Close',
+                child: Text('body'),
+              ),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Close'), findsOneWidget);
+
+      await tester.tap(find.text('Close'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(TorchSheet), findsNothing);
     });
 
     testWidgets('does not stack — a second sheet asserts', (tester) async {
