@@ -62,6 +62,7 @@ class Webhook {
     required this.event,
     required this.active,
     this.health = WebhookHealth.healthy,
+    this.hasSecret = false,
     this.consecutiveFailures = 0,
     this.lastDeliveryStatus,
     this.lastDeliveryAt,
@@ -71,6 +72,16 @@ class Webhook {
   final String event;
   final bool active;
   final WebhookHealth health;
+
+  /// Whether this endpoint's deliveries are HMAC-signed.
+  ///
+  /// A boolean and never the secret. The API used to return the whole Prisma
+  /// row, signing secret included, on create, list and update — so every load
+  /// of this screen shipped every subscriber's secret to the browser. A secret
+  /// that has left the server can forge a delivery, and nothing in the product
+  /// ever needed to show it. What a manager actually needs is whether an
+  /// endpoint is signed at all, which is this.
+  final bool hasSecret;
 
   /// Deliveries that gave up since the last successful one.
   final int consecutiveFailures;
@@ -83,6 +94,7 @@ class Webhook {
         event: json['event'] as String,
         active: json['active'] as bool? ?? true,
         health: WebhookHealth.parse(json['health'] as String?),
+        hasSecret: json['hasSecret'] as bool? ?? false,
         consecutiveFailures: json['consecutiveFailures'] as int? ?? 0,
         lastDeliveryStatus:
             DeliveryStatus.parse(json['lastDeliveryStatus'] as String?),
@@ -136,9 +148,12 @@ class WebhookDelivery {
 
 abstract class WebhooksRepository {
   Future<PaginatedResponse<Webhook>> listWebhooks();
+  /// POST /webhooks. [secret] is write-only: the server keeps it and never
+  /// returns it, so a webhook created with one can never have it read back.
   Future<Webhook> createWebhook({
     required String url,
     required String event,
+    String? secret,
   });
   Future<void> deleteWebhook(String id);
 
@@ -166,10 +181,12 @@ class DioWebhooksRepository implements WebhooksRepository {
   Future<Webhook> createWebhook({
     required String url,
     required String event,
+    String? secret,
   }) async {
     final response = await dio.post('/webhooks', data: {
       'url': url,
       'event': event,
+      if (secret != null && secret.isNotEmpty) 'secret': secret,
     });
     return Webhook.fromJson(response.data as Map<String, dynamic>);
   }
