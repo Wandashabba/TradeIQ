@@ -260,7 +260,16 @@ class _StandingRow extends StatelessWidget {
     final work =
         '${numbers.format(s.visitsSubmitted)} visits · '
         '${numbers.format(s.tasksClosed)} tasks closed';
-    final points = numbers.format(s.points, decimals: 0);
+    // Natural precision, exactly as the agent's own /leaderboard/contests
+    // renders the same field (`my_contests_screen.dart`). Points are
+    // fractional by construction — the backend returns
+    // `round2(avgScorecard + sum(ledgerPoints))` — so rounding them to whole
+    // numbers here made this board contradict the tie rule it prints above
+    // itself: 7.6 at rank 1 and 7.4 at rank 2 both read "8", and the only two
+    // numbers on the row said the ordering was arbitrary. It also put the
+    // manager's console and the agent's phone at odds about one figure, which
+    // is the defect `ContestStanding.pointsFigure` was deleted for.
+    final points = numbers.format(s.points);
 
     return PersonRow(
       // Named, the name is the title and "Field agent · …" the reason line.
@@ -284,7 +293,6 @@ class _StandingRow extends StatelessWidget {
           ),
           FigureSlot(
             value: s.points,
-            decimals: 0,
             role: skin.text.figureS,
             color: skin.palette.ink3,
             textAlign: TextAlign.end,

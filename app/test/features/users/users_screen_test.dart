@@ -486,6 +486,57 @@ void main() {
       expect(find.byType(Skeleton), findsOneWidget);
     });
 
+    testWidgets('Add user is on the screen in every phase, not only when the '
+        'roster loaded', (tester) async {
+      // The capability, written as the failure. Before the fix the create
+      // control was built inside `_loaded`, so an admin on a bad connection
+      // whose GET /users 500s was offered exactly one thing: "Try again".
+      // Adding a user is a POST; it has nothing to do with whether the
+      // roster arrived, and before the migration it was a FAB on the
+      // scaffold that survived every state.
+      await _pump(tester, repo: FakeUsersRepository(listFailure: offline()));
+      expect(keyed('users-retry'), findsOneWidget);
+      await scrollConsoleTo(tester, keyed('user-create'));
+      expect(keyed('user-create'), findsOneWidget);
+    });
+
+    testWidgets('Add user is there while the roster is still loading', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeUsersRepository(listPending: true),
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      await scrollConsoleTo(tester, keyed('user-create'));
+      expect(keyed('user-create'), findsOneWidget);
+    });
+
+    testWidgets('Add user is there on an empty roster', (tester) async {
+      await _pump(tester, repo: FakeUsersRepository(users: const <AppUser>[]));
+      await scrollConsoleTo(tester, keyed('user-create'));
+      expect(keyed('user-create'), findsOneWidget);
+    });
+
+    testWidgets('a non-admin never sees Add user, in any phase', (
+      tester,
+    ) async {
+      // The gate survives the move. `canEdit` still decides, and a manager
+      // who could not add a user when the roster loaded cannot add one when
+      // it fails either.
+      await _pump(
+        tester,
+        role: 'manager',
+        repo: FakeUsersRepository(listFailure: offline()),
+      );
+      expect(keyed('users-retry'), findsOneWidget);
+      expect(keyed('user-create'), findsNothing);
+
+      await _pump(tester, role: 'manager');
+      expect(keyed('user-create'), findsNothing);
+    });
+
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
       await _pump(tester, repo: FakeUsersRepository(listFailure: offline()));
       expect(find.byType(ErrorState), findsOneWidget);
