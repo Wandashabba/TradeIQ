@@ -1,22 +1,39 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart'
+    show Icons, TextCapitalization, showDatePicker;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/campaigns_repository.dart';
 
-/// Create or edit a campaign.
+/// CREATE OR EDIT A CAMPAIGN.
 ///
-/// Create mode (campaign == null) collects name, objective, budget, a start/end
-/// date range and an outlet multi-select. Edit mode reuses name/objective/budget
-/// and adds a status control; the backend `PATCH /campaigns/:id` does not accept
-/// date or outlet changes, so those are shown read-only.
+/// Create collects a name, an objective, a budget, a start/end range and an
+/// outlet multi-select. Edit reuses name, objective and budget and adds a
+/// status control; `PATCH /campaigns/:id` accepts no date or outlet change, so
+/// those are not offered — a control the server will refuse is a trap.
+///
+/// ## The amber, counted
+///
+/// Not a tab root and no nav, so Night has two content grants and Day and Veld
+/// have one. The only claim is the save action, declared only while the form
+/// can be submitted: a busy form carries zero amber, a ready one exactly one.
+///
+/// ## Where the validation went
+///
+/// The `Form` and its validators are gone with the `TextFormField`s: a trough
+/// owns its own error line, so each rule is state on this widget. Every rule
+/// the old screen enforced is still enforced, and still before the request:
+/// a name is required, a budget must parse, and on create both dates are
+/// required with the end not before the start.
 class CampaignFormScreen extends ConsumerStatefulWidget {
   const CampaignFormScreen({super.key, this.campaign});
 
@@ -24,12 +41,14 @@ class CampaignFormScreen extends ConsumerStatefulWidget {
 
   bool get isEditing => campaign != null;
 
+  /// The id the save button claims under.
+  static const String commitClaimId = 'campaign-save';
+
   @override
   ConsumerState<CampaignFormScreen> createState() => _CampaignFormScreenState();
 }
 
 class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
-  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _objectiveCtrl;
   late final TextEditingController _budgetCtrl;
@@ -40,14 +59,20 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
   late String _status;
   bool _submitting = false;
 
+  String? _nameError;
+  String? _budgetError;
+  String? _dateError;
+  TorchErrorMessage? _failure;
+
   @override
   void initState() {
     super.initState();
     final c = widget.campaign;
     _nameCtrl = TextEditingController(text: c?.name ?? '');
     _objectiveCtrl = TextEditingController(text: c?.objective ?? '');
-    _budgetCtrl =
-        TextEditingController(text: c?.budget != null ? '${c!.budget}' : '');
+    _budgetCtrl = TextEditingController(
+      text: c?.budget != null ? '${c!.budget}' : '',
+    );
     _status = c?.status ?? 'draft';
   }
 
@@ -60,7 +85,9 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
   }
 
   static String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _pickDate({required bool isStart}) async {
     final initial = (isStart ? _startDate : _endDate) ?? DateTime(2026, 1, 1);
@@ -77,6 +104,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
       } else {
         _endDate = picked;
       }
+      _dateError = null;
     });
   }
 
@@ -87,21 +115,31 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Create-only invariants: both dates required, end not before start.
+    final nameBlank = _nameCtrl.text.trim().isEmpty;
+    final budgetRaw = _budgetCtrl.text.trim();
+    final budgetBad = budgetRaw.isNotEmpty && double.tryParse(budgetRaw) == null;
+    String? dateError;
     if (!widget.isEditing) {
       if (_startDate == null || _endDate == null) {
-        _snack('Start and end dates are required.');
-        return;
-      }
-      if (_endDate!.isBefore(_startDate!)) {
-        _snack('End date cannot be before the start date.');
-        return;
+        dateError = 'A campaign needs a start date and an end date.';
+      } else if (_endDate!.isBefore(_startDate!)) {
+        dateError = 'The end date cannot be before the start date.';
       }
     }
 
-    setState(() => _submitting = true);
+    if (nameBlank || budgetBad || dateError != null) {
+      setState(() {
+        _nameError = nameBlank ? 'A campaign needs a name.' : null;
+        _budgetError = budgetBad ? 'That is not a number.' : null;
+        _dateError = dateError;
+      });
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _failure = null;
+    });
     final repo = ref.read(campaignsRepositoryProvider);
     final objective = _objectiveCtrl.text.trim();
     try {
@@ -120,232 +158,194 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
           endDate: _fmt(_endDate!),
           objective: objective.isEmpty ? null : objective,
           budget: _parsedBudget(),
-          outletIds:
-              _selectedOutletIds.isEmpty ? null : _selectedOutletIds.toList(),
+          outletIds: _selectedOutletIds.isEmpty
+              ? null
+              : _selectedOutletIds.toList(),
         );
       }
       ref.invalidate(campaignsListProvider);
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      _snack('Failed to save campaign: $e');
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _failure = TorchErrorMessage.sanitise(error);
+      });
     }
   }
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final nameField = TextFormField(
-      key: const ValueKey<String>('campaign-name-field'),
-      controller: _nameCtrl,
-      decoration: const InputDecoration(
-          labelText: 'Name', border: OutlineInputBorder()),
-      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-    );
-    final objectiveField = TextFormField(
-      controller: _objectiveCtrl,
-      decoration: const InputDecoration(
-          labelText: 'Objective (optional)', border: OutlineInputBorder()),
-    );
-    final budgetField = TextFormField(
-      controller: _budgetCtrl,
-      decoration: const InputDecoration(
-          labelText: 'Budget (optional)',
-          prefixText: 'R ',
-          border: OutlineInputBorder()),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+    final skin = context.skin;
+    final label = widget.isEditing
+        ? 'Save the campaign'
+        : 'Create the campaign';
+
+    return TorchScope(
+      skin: skin,
+      phase: _submitting ? 'saving' : 'editing',
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        if (!_submitting)
+          TorchPrimaryButton.claim(CampaignFormScreen.commitClaimId),
       ],
-      validator: (v) {
-        final raw = v?.trim() ?? '';
-        if (raw.isEmpty) return null;
-        return double.tryParse(raw) == null ? 'Invalid number' : null;
-      },
-    );
-    final statusField = _StatusField(
-      value: _status,
-      onChanged: (v) => setState(() => _status = v),
-    );
-    final startRow = _DateRow(
-      label: 'Start date',
-      value: _startDate == null ? null : _fmt(_startDate!),
-      buttonKey: 'campaign-start-date',
-      onPressed: () => _pickDate(isStart: true),
-    );
-    final endRow = _DateRow(
-      label: 'End date',
-      value: _endDate == null ? null : _fmt(_endDate!),
-      buttonKey: 'campaign-end-date',
-      onPressed: () => _pickDate(isStart: false),
-    );
-    final outletSelect = _OutletMultiSelect(
-      selected: _selectedOutletIds,
-      onToggle: (id, on) => setState(() {
-        if (on) {
-          _selectedOutletIds.add(id);
-        } else {
-          _selectedOutletIds.remove(id);
-        }
-      }),
-    );
-    final lumen = context.lumen;
-    final label = widget.isEditing ? 'Save Changes' : 'Create Campaign';
-
-    return GlassPageScaffold(
-      title: Text(widget.isEditing ? 'Edit Campaign' : 'New Campaign',
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: context.colors.glass
-              // Glass: the same controls, grouped into panels — what the
-              // campaign is, when it runs (or its status), and where.
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GlassSection(
-                      label: 'Details',
-                      children: [
-                        nameField,
-                        const SizedBox(height: 12),
-                        objectiveField,
-                        const SizedBox(height: 12),
-                        budgetField,
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    if (widget.isEditing)
-                      _GlassSection(label: 'Status', children: [statusField])
-                    else ...[
-                      _GlassSection(
-                        label: 'Schedule',
-                        children: [startRow, const SizedBox(height: 10), endRow],
-                      ),
-                      const SizedBox(height: 14),
-                      _GlassSection(
-                        label: 'Outlets',
-                        trailing: Text(
-                          '${_selectedOutletIds.length} selected',
-                          style: LumenGlass.figure(
-                            size: 11.5,
-                            color: lumen.inkMuted,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                        children: [outletSelect],
-                      ),
-                    ],
-                    const SizedBox(height: 18),
-                    GlassPrimaryButton(
-                      key: const ValueKey<String>('campaign-save-button'),
-                      label: label,
-                      busy: _submitting,
-                      onPressed: _submit,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    nameField,
-                    const SizedBox(height: 12),
-                    objectiveField,
-                    const SizedBox(height: 12),
-                    budgetField,
-                    const SizedBox(height: 16),
-                    if (widget.isEditing)
-                      statusField
-                    else ...[
-                      startRow,
-                      const SizedBox(height: 8),
-                      endRow,
-                      const SizedBox(height: 16),
-                      const Text('Outlets',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      outletSelect,
-                    ],
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      key: const ValueKey<String>('campaign-save-button'),
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : Text(label),
-                    ),
-                  ],
-                ),
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: widget.isEditing ? widget.campaign!.name : 'New campaign',
+          facts: <String>[
+            widget.isEditing ? 'Editing a campaign' : 'A new campaign',
+          ],
+          back: TorchIconButton(
+            key: const ValueKey<String>('campaign-form-back'),
+            icon: Icons.arrow_back,
+            semanticLabel: 'Back to Campaigns',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      ),
-    );
-  }
-}
+        primary: TorchPrimaryButton(
+          key: const ValueKey<String>('campaign-save-button'),
+          claimId: CampaignFormScreen.commitClaimId,
+          label: label,
+          busy: _submitting,
+          onPressed: _submitting ? null : _submit,
+          blockedReason: _submitting ? 'Saving.' : null,
+        ),
+        children: <Widget>[
+          SectionRule('Details'),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('campaign-name-field'),
+            label: 'Name',
+            controller: _nameCtrl,
+            error: _nameError,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) {
+              if (_nameError != null) setState(() => _nameError = null);
+            },
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('campaign-objective-field'),
+            label: 'Objective',
+            help: 'Optional.',
+            controller: _objectiveCtrl,
+            minLines: 2,
+            maximumLines: 4,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchNumericField(
+            key: const ValueKey<String>('campaign-budget-field'),
+            label: 'Budget',
+            controller: _budgetCtrl,
+            unit: TiqUnit.currency,
+            decimals: 2,
+            error: _budgetError,
+            help: 'Optional. The return is measured against it.',
+            onChanged: (_) {
+              if (_budgetError != null) setState(() => _budgetError = null);
+            },
+          ),
 
-/// A glass panel with its kicker — one group of the form.
-class _GlassSection extends StatelessWidget {
-  const _GlassSection({
-    required this.label,
-    required this.children,
-    this.trailing,
-  });
+          if (widget.isEditing) ...<Widget>[
+            SizedBox(height: skin.space.blockGap),
+            SectionRule('Status'),
+            const SizedBox(height: TiqSpace.s5),
+            ChoiceRow<String>(
+              key: const ValueKey<String>('campaign-status-field'),
+              label: 'Status',
+              value: _status,
+              options: const <ChoiceOption<String>>[
+                ChoiceOption<String>(
+                  value: 'draft',
+                  label: 'Draft',
+                  consequence: 'Nothing is measured against it yet.',
+                ),
+                ChoiceOption<String>(
+                  value: 'active',
+                  label: 'Active',
+                  consequence: 'Visits in the window count toward it.',
+                ),
+                ChoiceOption<String>(
+                  value: 'completed',
+                  label: 'Completed',
+                  consequence: 'It keeps its figures and stops collecting.',
+                ),
+              ],
+              onChanged: (value) => setState(() => _status = value),
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            Text(
+              'Dates and outlets are fixed once a campaign exists — the server '
+              'accepts neither on an edit.',
+              key: const ValueKey<String>('campaign-edit-note'),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ] else ...<Widget>[
+            SizedBox(height: skin.space.blockGap),
+            SectionRule('Schedule'),
+            const SizedBox(height: TiqSpace.s5),
+            _DateRow(
+              label: 'Start date',
+              value: _startDate == null ? null : _fmt(_startDate!),
+              buttonKey: 'campaign-start-date',
+              onPressed: () => _pickDate(isStart: true),
+            ),
+            const SizedBox(height: TiqSpace.s4),
+            _DateRow(
+              label: 'End date',
+              value: _endDate == null ? null : _fmt(_endDate!),
+              buttonKey: 'campaign-end-date',
+              onPressed: () => _pickDate(isStart: false),
+            ),
+            if (_dateError != null) ...<Widget>[
+              const SizedBox(height: TiqSpace.s3),
+              Text(
+                _dateError!,
+                key: const ValueKey<String>('campaign-date-error'),
+                style: skin.text.meta.style(color: skin.palette.bad),
+              ),
+            ],
 
-  final String label;
-  final List<Widget> children;
-  final Widget? trailing;
+            SizedBox(height: skin.space.blockGap),
+            SectionRule(
+              'Outlets',
+              count: _selectedOutletIds.isEmpty
+                  ? null
+                  : _selectedOutletIds.length,
+            ),
+            const SizedBox(height: TiqSpace.s5),
+            _OutletMultiSelect(
+              selected: _selectedOutletIds,
+              onToggle: (id, on) => setState(() {
+                if (on) {
+                  _selectedOutletIds.add(id);
+                } else {
+                  _selectedOutletIds.remove(id);
+                }
+              }),
+            ),
+          ],
 
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(children: [Kicker(label), const Spacer(), ?trailing]),
-          const SizedBox(height: 12),
-          ...children,
+          if (_failure != null) ...<Widget>[
+            SizedBox(height: skin.space.intraBlock),
+            TorchErrorRegion(
+              name: 'campaign form',
+              child: ErrorState(
+                key: const ValueKey<String>('campaign-save-error'),
+                scope: ErrorScope.inline,
+                message: _failure!,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _StatusField extends StatelessWidget {
-  const _StatusField({required this.value, required this.onChanged});
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      key: const ValueKey<String>('campaign-status-field'),
-      initialValue: value,
-      decoration: const InputDecoration(
-          labelText: 'Status', border: OutlineInputBorder()),
-      items: const [
-        DropdownMenuItem(value: 'draft', child: Text('Draft')),
-        DropdownMenuItem(value: 'active', child: Text('Active')),
-        DropdownMenuItem(value: 'completed', child: Text('Completed')),
-      ],
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
-    );
-  }
-}
-
+/// A date and the way to change it. "Not set" in words, never a blank.
 class _DateRow extends StatelessWidget {
   const _DateRow({
     required this.label,
@@ -361,49 +361,43 @@ class _DateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lumen = context.lumen;
-    final pick = OutlinedButton(
-      key: ValueKey<String>(buttonKey),
-      onPressed: onPressed,
-      child: const Text('Pick'),
-    );
-    if (context.colors.glass) {
-      // Glass: the label as a kicker over the date as a figure — or the words
-      // "Not set", never a blank.
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Kicker(label, size: 9.5),
-                const SizedBox(height: 4),
-                value == null
-                    ? Text(
-                        'Not set',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: lumen.inkMuted,
-                        ),
-                      )
-                    : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
-              ],
-            ),
-          ),
-          pick,
-        ],
-      );
-    }
+    final skin = context.skin;
     return Row(
-      children: [
-        Expanded(child: Text(value == null ? '$label: not set' : '$label: $value')),
-        pick,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                label,
+                style: skin.text.meta.style(color: skin.palette.ink3),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value ?? 'Not set',
+                style: value == null
+                    ? skin.text.body.style(color: skin.palette.ink3)
+                    : skin.text.figureS.style(color: skin.palette.ink1),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: TiqSpace.s3),
+        TorchSecondaryButton(
+          key: ValueKey<String>(buttonKey),
+          label: 'Pick',
+          semanticLabel: 'Pick the ${label.toLowerCase()}',
+          onPressed: onPressed,
+        ),
       ],
     );
   }
 }
 
+/// Which outlets a new campaign covers. Nothing ticked is a state, and it says
+/// so in words rather than leaving a manager to guess what an empty list means.
 class _OutletMultiSelect extends ConsumerWidget {
   const _OutletMultiSelect({required this.selected, required this.onToggle});
 
@@ -412,67 +406,61 @@ class _OutletMultiSelect extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
     final outlets = ref.watch(outletsListProvider);
-    final glass = context.colors.glass;
-    final lumen = context.lumen;
+
     return outlets.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(12),
-        child: Center(child: CircularProgressIndicator()),
+      loading: () => Skeleton(
+        label: 'outlets',
+        child: const SkeletonRows(count: 4, rowHeight: 48),
       ),
-      error: (err, _) => Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text('Failed to load outlets: $err'),
+      error: (error, stack) => TorchErrorRegion(
+        name: 'outlets',
+        child: ErrorState(
+          key: const ValueKey<String>('campaign-outlets-error'),
+          scope: ErrorScope.inline,
+          message: TorchErrorMessage.sanitise(error),
+          action: TorchSecondaryButton(
+            key: const ValueKey<String>('campaign-outlets-retry'),
+            label: 'Try again',
+            onPressed: () => ref.invalidate(outletsListProvider),
+          ),
+        ),
       ),
       data: (list) => Column(
-        children: [
-          for (final outlet in list)
-            if (glass)
-              // A no-blur tile per outlet, with its own transparent Material
-              // so the tile's ink lands on top of the pane, not behind it.
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: GlassPane(
-                  kind: GlassKind.tile,
-                  blur: false,
-                  shadow: false,
-                  radius: LumenGlass.radiusControl,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: CheckboxListTile(
-                      key: ValueKey<String>('outlet-option-${outlet.id}'),
-                      dense: true,
-                      title: Text(
-                        outlet.name,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: lumen.ink,
-                        ),
-                      ),
-                      subtitle: Text(
-                        outlet.code,
-                        style: LumenGlass.figure(
-                          size: 11,
-                          color: lumen.inkMuted,
-                          weight: FontWeight.w500,
-                        ),
-                      ),
-                      value: selected.contains(outlet.id),
-                      onChanged: (on) => onToggle(outlet.id, on ?? false),
-                    ),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (list.isEmpty)
+            const EmptyState(
+              key: ValueKey<String>('campaign-outlets-empty'),
+              scope: EmptyScope.inline,
+              headline: 'No outlets yet.',
+              body: 'A campaign with no outlets covers every outlet you add '
+                  'later.',
+            )
+          else ...<Widget>[
+            TorchCheckboxGroup(
+              label: 'Outlets covered',
+              children: <Widget>[
+                for (final outlet in list)
+                  TorchCheckbox(
+                    key: ValueKey<String>('outlet-option-${outlet.id}'),
+                    label: '${outlet.name} · ${outlet.code}',
+                    value: selected.contains(outlet.id),
+                    onChanged: (on) => onToggle(outlet.id, on),
                   ),
-                ),
-              )
-            else
-              CheckboxListTile(
-                key: ValueKey<String>('outlet-option-${outlet.id}'),
-                dense: true,
-                title: Text(outlet.name),
-                subtitle: Text(outlet.code),
-                value: selected.contains(outlet.id),
-                onChanged: (on) => onToggle(outlet.id, on ?? false),
-              ),
+              ],
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            Text(
+              selected.isEmpty
+                  ? 'Nothing ticked covers every outlet.'
+                  : 'Covers the ticked outlets only.',
+              key: const ValueKey<String>('campaign-outlets-note'),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ],
         ],
       ),
     );
