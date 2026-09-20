@@ -134,6 +134,9 @@ class TiqBottomNavBar extends StatelessWidget {
     final radius = docked ? BorderRadius.zero : BorderRadius.circular(26);
     final scaler = MediaQuery.textScalerOf(context);
     final labels = <String>[for (final slot in _slots) _slotLabel(l10n, slot)];
+    // The measurement has to use the style the slot renders, so the token is
+    // resolved once here and handed down rather than written out twice.
+    final activeToken = _labelToken(skin, active: true);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -153,7 +156,10 @@ class TiqBottomNavBar extends StatelessWidget {
         var labelsFit = true;
         for (final label in labels) {
           final painter = TextPainter(
-            text: TextSpan(text: label, style: _labelStyle(p.ink1, true)),
+            text: TextSpan(
+              text: label,
+              style: activeToken.style(color: p.ink1),
+            ),
             textDirection: Directionality.of(context),
             textScaler: scaler,
             maxLines: 1,
@@ -231,15 +237,17 @@ class TiqBottomNavBar extends StatelessWidget {
   }
 }
 
-/// 10.5px, and 600 on the active slot. Declared once so the [TextPainter]
-/// that decides whether the labels fit measures the style the slot renders —
-/// a measurement against a different style is a measurement of nothing.
-TextStyle _labelStyle(Color color, bool active) => TextStyle(
-  fontSize: 10.5,
-  height: 1,
-  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-  color: color,
-);
+/// 10.5px, and 600 on the active slot — the skin's own `label` role, resized.
+///
+/// Declared once so the [TextPainter] that decides whether the labels fit
+/// measures the style the slot renders: a measurement against a different
+/// family, size or weight is a measurement of nothing.
+TiqTypeToken _labelToken(TiqSkin skin, {required bool active}) =>
+    skin.text.label.copyWith(
+      size: 10.5,
+      height: 1,
+      weight: active ? FontWeight.w600 : FontWeight.w500,
+    );
 
 class _SlotButton extends StatelessWidget {
   const _SlotButton({
@@ -266,6 +274,11 @@ class _SlotButton extends StatelessWidget {
     // text. ink-2 is 9.51 / 7.01 / 9.66 across Night, Day and Veld.
     final ink = active ? p.ink1 : p.ink2;
     final route = slot.route;
+    // A meaning-bearing glyph scales with the text, and in the icon-only bar
+    // it is the ONLY thing carrying the destination — a reader who asked for
+    // 2.0× text and got a 20dp glyph has been given the smallest version of
+    // the one signal left. Capped so five of them still fit a 64dp bar.
+    final glyph = MediaQuery.textScalerOf(context).scale(20).clamp(20.0, 28.0);
 
     void go() {
       if (route == null) {
@@ -295,7 +308,11 @@ class _SlotButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(active ? slot.activeIcon : slot.icon, size: 20, color: ink),
+              Icon(
+                active ? slot.activeIcon : slot.icon,
+                size: glyph,
+                color: ink,
+              ),
               if (showLabel) ...[
                 const SizedBox(height: 2),
                 Text(
@@ -306,7 +323,7 @@ class _SlotButton extends StatelessWidget {
                   // than throwing a yellow overflow stripe across a shop floor.
                   overflow: TextOverflow.clip,
                   softWrap: false,
-                  style: _labelStyle(ink, active),
+                  style: _labelToken(skin, active: active).style(color: ink),
                 ),
               ],
               // The underbar's own room, so the glyph and the label sit above
