@@ -9396,10 +9396,10 @@ abstract class AppLocalizations {
     String reward,
   );
 
-  /// A scheme's rule line where the metric key is unknown to this client.
+  /// A scheme's rule line where the metric key is unknown to this client, so there is no unit word to count the threshold in. The threshold is worded rather than written with a maths sign: the sign is not in the PDF font subset, and a reader announces it inconsistently or not at all.
   ///
   /// In en, this message translates to:
-  /// **'{state} · {metric} · ≥ {threshold} · {reward}'**
+  /// **'{state} · {metric} · at least {threshold} · {reward}'**
   String incentivesRuleNoUnit(
     String state,
     String metric,

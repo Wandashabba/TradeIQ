@@ -1547,7 +1547,7 @@
   "incentivesAwarding": "Ken toe",
   "incentivesPaused": "Gepouseer",
   "incentivesRuleWithUnit": "{state} · {metric} · {threshold} {unit} · {reward}",
-  "incentivesRuleNoUnit": "{state} · {metric} · ≥ {threshold} · {reward}",
+  "incentivesRuleNoUnit": "{state} · {metric} · minstens {threshold} · {reward}",
   "incentivesPauseScheme": "Pouseer {name}",
   "incentivesStartScheme": "Laat {name} begin toeken",
   "incentivesSeeEveryone": "Sien almal",

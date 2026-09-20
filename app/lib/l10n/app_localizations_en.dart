@@ -5956,7 +5956,7 @@ class AppLocalizationsEn extends AppLocalizations {
     String threshold,
     String reward,
   ) {
-    return '$state · $metric · ≥ $threshold · $reward';
+    return '$state · $metric · at least $threshold · $reward';
   }
 
   @override

@@ -6012,7 +6012,7 @@ class AppLocalizationsAf extends AppLocalizations {
     String threshold,
     String reward,
   ) {
-    return '$state · $metric · ≥ $threshold · $reward';
+    return '$state · $metric · minstens $threshold · $reward';
   }
 
   @override

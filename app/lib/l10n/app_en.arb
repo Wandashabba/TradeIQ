@@ -7943,9 +7943,9 @@
       }
     }
   },
-  "incentivesRuleNoUnit": "{state} · {metric} · ≥ {threshold} · {reward}",
+  "incentivesRuleNoUnit": "{state} · {metric} · at least {threshold} · {reward}",
   "@incentivesRuleNoUnit": {
-    "description": "A scheme's rule line where the metric key is unknown to this client.",
+    "description": "A scheme's rule line where the metric key is unknown to this client, so there is no unit word to count the threshold in. The threshold is worded rather than written with a maths sign: the sign is not in the PDF font subset, and a reader announces it inconsistently or not at all.",
     "placeholders": {
       "state": {
         "type": "String"
