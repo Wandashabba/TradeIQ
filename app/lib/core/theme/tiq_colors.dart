@@ -339,11 +339,26 @@ class TiqColors extends ThemeExtension<TiqColors> {
       navBarBg: p.well,
       navBarLine: p.edgeStructure,
       navInactiveInk: p.navInkInactive,
-      // The active pill is gone; the active slot is an amber underbar on the
-      // nav body. The old fill slot maps to the body so a screen that still
-      // paints a pill paints nothing visible rather than a stray block.
+      // THE ACTIVE SLOT IS NOT AMBER HERE, and the reason is the whole point
+      // of the claim/paint separation. This shim has no `TorchScope` above it
+      // and cannot get one: it is read by widgets — `TiqBottomNavBar` chief
+      // among them — that live inside the unmigrated Lumen console shell. An
+      // amber emitted from here is an amber no census can count, on the one
+      // piece of chrome that is on screen the whole time.
+      //
+      // It was `flame600`, and under the themes `main.dart` actually ships
+      // that was also simply invisible: #FFB162 on Day's Palladian well is
+      // **1.30:1**, and `navActivePillBg` is the bar's own colour, so the
+      // pill painted nothing. A manager on the light theme could not tell
+      // which tab she was on.
+      //
+      // So: the fill stays the body (a screen that still paints a pill paints
+      // nothing visible rather than a stray block) and the ink is ink-1, which
+      // is 14.06 / 11.12 / 18.52 on the well across Night, Day and Veld. What
+      // makes the slot read as active is a shape — see `TiqBottomNavBar`'s
+      // underbar and filled silhouette — never the hue alone.
       navActivePillBg: p.well,
-      navActiveInk: p.flame600,
+      navActiveInk: p.ink1,
       glass: false,
       action: skin.amberIsInk ? p.flame600 : p.lifted,
       onAction: skin.amberIsInk ? p.onAmber : p.ink1,

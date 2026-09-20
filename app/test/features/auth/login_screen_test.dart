@@ -508,6 +508,92 @@ void main() {
       expect(_key('session-ended-sheet'), findsNothing);
     });
 
+    /// THE FAILURE, WRITTEN AS ITSELF.
+    ///
+    /// `TorchSheetRoute` overrode `barrierDismissible` and nothing else, so
+    /// "non-dismissible" stopped at the scrim. A field agent whose token
+    /// expired with nine captures on the phone pressed the hardware back
+    /// button out of habit and walked straight past the one decision the
+    /// design says she cannot walk past.
+    testWidgets('the system back button cannot walk past it', (tester) async {
+      await _pump(tester, sessionEnded: held);
+      await tester.pumpAndSettle();
+      expect(_key('session-ended-sheet'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(
+        _key('session-ended-sheet'),
+        findsOneWidget,
+        reason: 'the back gesture is refused, not merely undocumented',
+      );
+      expect(TorchSheets.anyOpen, isTrue);
+    });
+
+    /// Veld renders the full-screen form with a 56dp Close row — and it
+    /// rendered it regardless of `dismissible`, so outdoors the blocking
+    /// sheet grew its own way past itself. It still has two actions, which is
+    /// what makes refusing the row safe.
+    testWidgets('in Veld it has no Close row, and back is still refused', (
+      tester,
+    ) async {
+      await _pump(tester, skin: SkinMode.veld, sessionEnded: held);
+      await tester.pumpAndSettle();
+
+      expect(_key('session-ended-sheet'), findsOneWidget);
+      expect(
+        find.text('Close', skipOffstage: false),
+        findsNothing,
+        reason:
+            'a blocking sheet relies on its own actions — a Close row on it '
+            'is a way past a decision that cannot be walked past',
+      );
+      // The two actions that ARE the way out.
+      expect(find.text('Sign in to send them'), findsOneWidget);
+      expect(find.text('Not now'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(_key('session-ended-sheet'), findsOneWidget);
+
+      // And the way out still works.
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      expect(_key('session-ended-sheet'), findsNothing);
+    });
+
+    /// THE FAILURE, WRITTEN AS ITSELF.
+    ///
+    /// `ProofBlock`'s `semanticsLabel` was the literal 'What is held on this
+    /// phone', with no parameter on `SessionEndedSheet` to replace it. An
+    /// Afrikaans agent on TalkBack heard three Afrikaans sentences and one
+    /// English one — the one naming what is safe.
+    testWidgets('every word a reader hears is in her language', (tester) async {
+      await _pump(tester, sessionEnded: held, locale: const Locale('af'));
+      await tester.pumpAndSettle();
+      final handle = tester.ensureSemantics();
+
+      // The container merges its own name with the lines beneath it, so the
+      // assertion is on the sentence inside the announcement.
+      expect(find.bySemanticsLabel(RegExp('Wat word gehou')), findsWidgets);
+      expect(
+        find.bySemanticsLabel(RegExp('What is held')),
+        findsNothing,
+        reason:
+            'the proof block announces itself in English on an Afrikaans '
+            'phone at the most anxious moment the product has',
+      );
+      // And the words on the sheet itself.
+      expect(find.text('Jy is uitgeteken'), findsOneWidget);
+      expect(find.text('Teken in om dit te stuur'), findsOneWidget);
+      expect(find.text('Nie nou nie'), findsOneWidget);
+
+      handle.dispose();
+      await tester.tap(find.text('Nie nou nie'));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('a clean outbox gets no sheet and no line at all', (
       tester,
     ) async {
