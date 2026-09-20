@@ -247,6 +247,7 @@ void main() {
         tasksClosed: tasks,
         rank: 4,
         avgScorecard: avg,
+        scorecardsCounted: 4,
         points: 1840,
       ),
       ledger: const <PointsEntry>[],

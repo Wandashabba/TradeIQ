@@ -176,6 +176,7 @@ class _FakeMyRecordRepository implements MyRecordRepository {
       tasksClosed: 0,
       rank: 0,
       avgScorecard: 0,
+      scorecardsCounted: 0,
       points: 0,
     ),
     ledger: <PointsEntry>[],

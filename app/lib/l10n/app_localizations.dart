@@ -6464,6 +6464,12 @@ abstract class AppLocalizations {
   /// **'Not measured'**
   String get trendsNotMeasured;
 
+  /// The word a screen reader hears for a dashed legend swatch. The dash is the second channel the legend carries, so it is spoken as well as drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'dashed'**
+  String get trendsDashed;
+
   /// How to reach the scrub readout. Everything it shows is also in the table.
   ///
   /// In en, this message translates to:
@@ -6631,6 +6637,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Level with the client average · {samples}'**
   String trendsLevelWith(String samples);
+
+  /// Stands in for the above/below verdict on a territory whose figure came from too few rows. A delta never stands beside a sample this thin.
+  ///
+  /// In en, this message translates to:
+  /// **'Small sample'**
+  String get trendsSmallSample;
+
+  /// Replaces the delta sentence on a territory row whose sample is below the metric's threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Too few to compare · {samples}'**
+  String trendsTooFewToCompare(String samples);
 
   /// The note under a territory with no reading.
   ///

@@ -15,6 +15,7 @@
 /// | [TorchPickerField] | `DropdownButtonFormField` — a sheet of rows | none |
 /// | [TorchFilterChip] / [TorchFilterRail] | `ChoiceChip` | none |
 /// | [TorchHandednessScope] | *(new)* — #407 | none |
+/// | [VerdictControl] | *(new)* — the fraud queue's ruling (#392) | its commit |
 ///
 /// **Every input is a trough**: radius 10 at the BOTTOM corners and 0 at the
 /// top, because a trough holds at the bottom and the shape says so before a
@@ -44,3 +45,4 @@ export 'input/picker_field.dart';
 export 'input/text_field.dart';
 export 'input/toggle.dart';
 export 'input/trough.dart';
+export 'input/verdict_control.dart';

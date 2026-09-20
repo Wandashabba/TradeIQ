@@ -20,12 +20,20 @@ class ChartLegend extends StatelessWidget {
   const ChartLegend({
     super.key,
     required this.series,
+    required this.dashedWord,
     this.threshold,
     this.gapNote,
   });
 
   final List<ChartSeries> series;
   final ChartThreshold? threshold;
+
+  /// The word a reader hears where the swatch is dashed — "dashed",
+  /// "gestippel". **Required, and localised by the caller**: the dash is the
+  /// second channel the whole legend exists to carry (unify §4), so the one
+  /// word that makes the key legible without hue is the last word that may be
+  /// left in English. Nothing in this folder imports `l10n`.
+  final String dashedWord;
 
   /// "2 weeks not measured" — the sentence a broken line needs beside it.
   /// Null when every bucket measured something.
@@ -38,6 +46,7 @@ class ChartLegend extends StatelessWidget {
       for (final s in series)
         _LegendEntry(
           label: s.name,
+          dashedWord: dashedWord,
           colour: s.role == ChartSeriesRole.subject
               ? skin.palette.chartNeutral
               : skin.palette.comparison,
@@ -47,6 +56,7 @@ class ChartLegend extends StatelessWidget {
       if (threshold != null)
         _LegendEntry(
           label: threshold!.label,
+          dashedWord: dashedWord,
           colour: skin.palette.ink1,
           dashed: true,
           thickness: 1,
@@ -73,12 +83,14 @@ class ChartLegend extends StatelessWidget {
 class _LegendEntry extends StatelessWidget {
   const _LegendEntry({
     required this.label,
+    required this.dashedWord,
     required this.colour,
     required this.dashed,
     required this.thickness,
   });
 
   final String label;
+  final String dashedWord;
   final Color colour;
   final bool dashed;
   final double thickness;
@@ -94,7 +106,7 @@ class _LegendEntry extends StatelessWidget {
     final scale = ((scaler.scale(1) - 1) / 2 + 1).clamp(1.0, 2.0);
 
     return Semantics(
-      label: dashed ? '$label, dashed' : label,
+      label: dashed ? '$label, $dashedWord' : label,
       excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
