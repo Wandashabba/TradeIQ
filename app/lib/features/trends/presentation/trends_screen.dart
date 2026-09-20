@@ -664,7 +664,15 @@ class _BenchmarkRow extends StatelessWidget {
                 ? FigureState.lowSample
                 : FigureState.measured,
             textAlign: TextAlign.end,
-            semanticsLabel: average == null ? l10n.trendsNotMeasured : null,
+            // The figure AND its qualification in one utterance. A reader who
+            // hears "92 percent" and only then, a beat later, "small sample"
+            // has already acted on the first half.
+            semanticsLabel: average == null
+                ? l10n.trendsNotMeasured
+                : _thin
+                ? '${TiqNumber.of(context).format(average, unit: unit)}, '
+                      '${l10n.trendsSmallSample}'
+                : null,
           ),
           Text(
             word,
