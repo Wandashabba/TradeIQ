@@ -620,6 +620,65 @@ void main() {
     });
   });
 
+  group('the notation the screen itself asks for', () {
+    // The same code path as the create form's, and the same failure: the help
+    // line under the field says "omtrent -26,2" and the refusal offers
+    // "-26,2041", while the parser read one notation only. A manager on an
+    // Afrikaans handset could not correct a wrong pin at all — the capability
+    // this whole screen exists for.
+    testWidgets('a comma decimal reaches the wire as a repaired pin', (
+      tester,
+    ) async {
+      final admin = await _pump(
+        tester,
+        detail: _detail(),
+        locale: const Locale('af'),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lat')),
+        '-26,26780',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lng')),
+        '27,85860',
+      );
+      await tester.pumpAndSettle();
+
+      final save = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('save-outlet')),
+      );
+      expect(save.blockedReason, isNull);
+      expect(save.onPressed, isNotNull);
+
+      await _tapAt(tester, find.byKey(const ValueKey<String>('save-outlet')));
+
+      expect(admin.updatedLat, closeTo(_shopLat, 1e-9));
+      expect(admin.updatedLng, closeTo(_shopLng, 1e-9));
+      expect(admin.updatedFromAttemptId, isNull);
+      await settleOpsToasts(tester);
+    });
+
+    testWidgets('an off-globe comma latitude is still refused', (tester) async {
+      // The forgiving parser must not become a permissive one: "91,5" is
+      // ninety-one and a half degrees north, and there is no such place.
+      final admin = await _pump(
+        tester,
+        detail: _detail(),
+        locale: const Locale('af'),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lat')),
+        '91,5',
+      );
+      await _tapAt(tester, find.byKey(const ValueKey<String>('save-outlet')));
+
+      expect(admin.updateCount, 0);
+      expect(find.text('’n Breedtegraad is tussen -90 en 90'), findsOneWidget);
+    });
+  });
+
   group('Afrikaans and 2.0x', () {
     testWidgets('Afrikaans has no English left on it', (tester) async {
       await _pump(

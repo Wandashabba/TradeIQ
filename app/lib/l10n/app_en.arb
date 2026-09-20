@@ -5783,11 +5783,11 @@
   "@outletFieldLongitude": {
     "description": "Label of the longitude field."
   },
-  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26,2.",
+  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26.2.",
   "@outletFieldLatitudeHelp": {
     "description": "Help line under the latitude field."
   },
-  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28,0.",
+  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28.0.",
   "@outletFieldLongitudeHelp": {
     "description": "Help line under the longitude field."
   },
@@ -5815,7 +5815,7 @@
   "@outletRequired": {
     "description": "Validation message for an empty required field on the outlet forms."
   },
-  "outletCoordinateNotANumber": "Enter a number, for example -26,2041",
+  "outletCoordinateNotANumber": "Enter a number, for example -26.2041",
   "@outletCoordinateNotANumber": {
     "description": "Validation message when a coordinate field holds something that is not a number."
   },

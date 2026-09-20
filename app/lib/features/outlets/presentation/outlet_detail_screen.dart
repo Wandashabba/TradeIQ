@@ -257,15 +257,25 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
 
   bool get _complete =>
       _nameCtrl.text.trim().isNotEmpty &&
-      double.tryParse(_latCtrl.text.trim()) != null &&
-      double.tryParse(_lngCtrl.text.trim()) != null;
+      parseCoordinate(context, _latCtrl.text) != null &&
+      parseCoordinate(context, _lngCtrl.text) != null;
 
   Future<void> _save() async {
     final l10n = context.l10n;
     final errors = <String, String>{};
     if (_nameCtrl.text.trim().isEmpty) errors['name'] = l10n.outletRequired;
-    final lat = validateCoordinate(l10n, _latCtrl.text, latitude: true);
-    final lng = validateCoordinate(l10n, _lngCtrl.text, latitude: false);
+    final lat = validateCoordinate(
+      context,
+      l10n,
+      _latCtrl.text,
+      latitude: true,
+    );
+    final lng = validateCoordinate(
+      context,
+      l10n,
+      _lngCtrl.text,
+      latitude: false,
+    );
     if (lat != null) errors['lat'] = lat;
     if (lng != null) errors['lng'] = lng;
     if (errors.isNotEmpty) {
@@ -279,8 +289,8 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
     setState(_errors.clear);
 
     final outlet = widget.detail.outlet;
-    final typedLat = double.parse(_latCtrl.text.trim());
-    final typedLng = double.parse(_lngCtrl.text.trim());
+    final typedLat = parseCoordinate(context, _latCtrl.text)!;
+    final typedLng = parseCoordinate(context, _lngCtrl.text)!;
     final pinMoved = typedLat != outlet.lat || typedLng != outlet.lng;
 
     setState(() => _saving = true);

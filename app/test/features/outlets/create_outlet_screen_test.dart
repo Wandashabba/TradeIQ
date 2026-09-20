@@ -9,6 +9,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/create_outlet_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../operations_harness.dart';
@@ -280,6 +281,111 @@ void main() {
       );
       expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
       await settleOpsToasts(tester);
+    });
+  });
+
+  group('the notation the screen itself asks for', () {
+    // THE FAILURE, WRITTEN DOWN: the help line under the field said
+    // "Johannesburg is omtrent -26,2", the refusal said "Tik ’n getal in,
+    // byvoorbeeld -26,2041", and `double.tryParse` knew neither. A manager on
+    // an Afrikaans handset — whose decimal key IS a comma — typed exactly what
+    // she was told to and "Voeg die winkel by" stayed dark, with the refusal
+    // repeating her own comma back at her. The pre-migration field carried an
+    // input filter that made the comma untypeable; the filter went with the
+    // field and nothing replaced it.
+    testWidgets('a comma decimal arms the commit in Afrikaans', (tester) async {
+      final outlets = await _pump(tester, locale: const Locale('af'));
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lat')),
+        '-26,20410',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lng')),
+        '28,04730',
+      );
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+
+      expect(_submit(tester).blockedReason, isNull);
+      expect(_submit(tester).onPressed, isNotNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(outlets.createdLat, closeTo(-26.2041, 1e-9));
+      expect(outlets.createdLng, closeTo(28.0473, 1e-9));
+    });
+
+    testWidgets('a full stop still works on an Afrikaans handset', (
+      tester,
+    ) async {
+      // The seeded value is written by the phone as `-26.089`, so the parser
+      // that accepts the comma must not stop accepting the dot — or a manager
+      // who touches nothing cannot save.
+      final outlets = await _pump(tester, locale: const Locale('af'));
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(outlets.createdLat, closeTo(-26.089, 1e-9));
+    });
+
+    testWidgets('the printed example is a number this screen accepts', (
+      tester,
+    ) async {
+      // Not the example *we* remember — the one the build actually prints. The
+      // help line, the refusal and the parser agree or this fails.
+      for (final locale in <Locale>[const Locale('en'), const Locale('af')]) {
+        final outlets = await _pump(tester, locale: locale);
+        final l10n = await AppLocalizations.delegate.load(locale);
+
+        // "Enter a number, for example -26.2041" → "-26.2041".
+        final example = RegExp(
+          r'[-−]?\d+[.,]\d+',
+        ).firstMatch(l10n.outletCoordinateNotANumber)!.group(0)!;
+
+        await tester.enterText(
+          find.byKey(const ValueKey<String>('create-outlet-lat')),
+          example,
+        );
+        await _fillStore(tester);
+        await pickOption(
+          tester,
+          const ValueKey<String>('territory-picker'),
+          'Hurlingham',
+        );
+
+        expect(
+          _submit(tester).onPressed,
+          isNotNull,
+          reason:
+              'the refusal prints "$example" as the shape of a coordinate, '
+              'and then $locale refuses it',
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('create-outlet-submit')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(outlets.createCount, 1);
+        expect(outlets.createdLat, closeTo(-26.2041, 1e-9));
+        expect(find.text(l10n.outletCoordinateNotANumber), findsNothing);
+      }
     });
   });
 

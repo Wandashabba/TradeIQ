@@ -6881,13 +6881,13 @@ abstract class AppLocalizations {
   /// Help line under the latitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -90 and 90. Johannesburg is about -26,2.'**
+  /// **'Between -90 and 90. Johannesburg is about -26.2.'**
   String get outletFieldLatitudeHelp;
 
   /// Help line under the longitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -180 and 180. Johannesburg is about 28,0.'**
+  /// **'Between -180 and 180. Johannesburg is about 28.0.'**
   String get outletFieldLongitudeHelp;
 
   /// Label of the outlet status choice row.
@@ -6929,7 +6929,7 @@ abstract class AppLocalizations {
   /// Validation message when a coordinate field holds something that is not a number.
   ///
   /// In en, this message translates to:
-  /// **'Enter a number, for example -26,2041'**
+  /// **'Enter a number, for example -26.2041'**
   String get outletCoordinateNotANumber;
 
   /// Validation message when a latitude is off the globe.

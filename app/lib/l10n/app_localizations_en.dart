@@ -4398,11 +4398,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outletFieldLatitudeHelp =>
-      'Between -90 and 90. Johannesburg is about -26,2.';
+      'Between -90 and 90. Johannesburg is about -26.2.';
 
   @override
   String get outletFieldLongitudeHelp =>
-      'Between -180 and 180. Johannesburg is about 28,0.';
+      'Between -180 and 180. Johannesburg is about 28.0.';
 
   @override
   String get outletFieldStatus => 'Status';
@@ -4425,7 +4425,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outletCoordinateNotANumber =>
-      'Enter a number, for example -26,2041';
+      'Enter a number, for example -26.2041';
 
   @override
   String get outletLatitudeOutOfRange => 'A latitude is between -90 and 90';
