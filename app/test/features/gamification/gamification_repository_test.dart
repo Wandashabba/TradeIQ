@@ -116,7 +116,6 @@ void main() {
     final task = history.entries[0];
     expect(task.points, 5);
     expect(task.reasonLabel, 'Task closed');
-    expect(task.figure, '+5 pts');
     expect(task.sourceId, 't-1');
     expect(task.score, isNull);
     expect(task.outletName, 'Spar Rosebank');
@@ -125,11 +124,10 @@ void main() {
     final scorecard = history.entries[1];
     expect(scorecard.score, 85.0);
     expect(scorecard.reasonLabel, 'Scorecard');
-    expect(scorecard.figure, 'score 85');
     expect(scorecard.outletName, isNull);
   });
 
-  test('PointsEntry words and figures cover every reason', () {
+  test('PointsEntry words cover every reason', () {
     PointsEntry entry(String reason, int points, [double? score]) =>
         PointsEntry(
           id: 'e',
@@ -142,13 +140,8 @@ void main() {
         );
 
     expect(entry('visit_submitted', 2).reasonLabel, 'Visit submitted');
-    expect(entry('visit_submitted', 2).figure, '+2 pts');
-    expect(entry('scorecard', 0, 78.33).figure, 'score 78.33');
-    expect(entry('scorecard', 0, 78.5).figure, 'score 78.5');
-    expect(entry('scorecard', 0, 100).figure, 'score 100');
     // A reason the app does not know yet (e.g. a manual adjustment) still reads.
     expect(entry('manual_adjustment', -3).reasonLabel, 'Manual adjustment');
-    expect(entry('manual_adjustment', -3).figure, '-3 pts');
     expect(entry('', 0).reasonLabel, 'Points');
   });
 

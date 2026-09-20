@@ -112,12 +112,6 @@ class PointsEntry {
             '${reason.substring(1).replaceAll('_', ' ')}',
       };
 
-  /// What the entry contributes, as a figure: "+5 pts", or "score 78.5" for a
-  /// scorecard, whose score is averaged rather than added.
-  String get figure => reason == 'scorecard' && score != null
-      ? 'score ${_trimmed(score!)}'
-      : '${points < 0 ? '-' : '+'}${points.abs()} pts';
-
   factory PointsEntry.fromJson(Map<String, dynamic> json) => PointsEntry(
         id: json['id'] as String,
         points: (json['points'] as num?)?.toInt() ?? 0,
@@ -129,10 +123,6 @@ class PointsEntry {
         outletName: json['outletName'] as String?,
       );
 }
-
-/// 85 -> "85", 78.5 -> "78.5", 78.33 -> "78.33".
-String _trimmed(double value) =>
-    value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
 
 /// GET /gamification/agents/:agentId/points — who, and their latest entries.
 class AgentPointsHistory {
