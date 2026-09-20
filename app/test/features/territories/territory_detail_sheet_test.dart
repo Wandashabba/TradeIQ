@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -63,19 +64,23 @@ void main() {
     ) async {
       await _openSheet(tester);
 
-      // "Covered" is also the word under the row's figure on the list
-      // behind the sheet, so the assertion is scoped to the sheet.
+      // The eyebrows are asserted as widget properties rather than as text:
+      // the eyebrow role uppercases on the console density, and a test that
+      // hardcoded `COVERED` would break the day a density changed.
+      final tiles = tester
+          .widgetList<StatTile>(
+            find.descendant(
+              of: find.byType(TorchSheet),
+              matching: find.byType(StatTile),
+            ),
+          )
+          .toList();
       expect(
-        find.descendant(
-          of: find.byType(TorchSheet),
-          matching: find.text('Covered'),
-        ),
-        findsOneWidget,
+        tiles.map((t) => t.eyebrow),
+        <String>['Covered', 'Outlets', 'Agents'],
       );
-      expect(find.text('67%'), findsWidgets);
+      expect(tiles.first.value, closeTo(66.67, 0.01));
       expect(find.text('2 of 3 visited in this window'), findsOneWidget);
-      expect(find.text('Outlets'), findsOneWidget);
-      expect(find.text('Agents'), findsOneWidget);
     });
 
     testWidgets('an unassigned territory says so in words, not a colour', (
