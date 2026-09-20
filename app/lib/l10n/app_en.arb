@@ -9002,5 +9002,350 @@
   "webhookCreateCancel": "Cancel",
   "@webhookCreateCancel": {
     "description": "The create sheet's way out."
+  },
+  "messagesTitle": "Messages",
+  "@messagesTitle": {
+    "description": "Screen title of the team channel. Also the Messages feed's own rail chip and section rule."
+  },
+  "messagesFact": "Everything the team can see.",
+  "@messagesFact": {
+    "description": "Header fact under the Messages title."
+  },
+  "messagesRefresh": "Refresh the team channel",
+  "@messagesRefresh": {
+    "description": "Semantic label of the header's refresh button."
+  },
+  "messagesWhichFeed": "Which feed",
+  "@messagesWhichFeed": {
+    "description": "Semantic label of the rail that switches between Messages and Announcements."
+  },
+  "messagesFeedAnnouncements": "Announcements",
+  "@messagesFeedAnnouncements": {
+    "description": "The Announcements feed's rail chip and section rule."
+  },
+  "messagesSkeleton": "messages",
+  "@messagesSkeleton": {
+    "description": "What the Messages skeleton and error region say they are for."
+  },
+  "announcementsSkeleton": "announcements",
+  "@announcementsSkeleton": {
+    "description": "What the Announcements skeleton and error region say they are for."
+  },
+  "messagesEmptyHeadline": "No messages yet.",
+  "@messagesEmptyHeadline": {
+    "description": "In-panel empty state of the message thread."
+  },
+  "messagesEmptyBody": "Anything you send below reaches the whole team.",
+  "@messagesEmptyBody": {
+    "description": "Body of the messages empty state."
+  },
+  "announcementsEmptyHeadline": "No announcements yet.",
+  "@announcementsEmptyHeadline": {
+    "description": "In-panel empty state of the announcements feed."
+  },
+  "announcementsEmptyBodyCanPost": "Post one and every user on this client sees it.",
+  "@announcementsEmptyBodyCanPost": {
+    "description": "Body of the announcements empty state for somebody who may post. The guidance names a next action only if you are allowed to do it."
+  },
+  "announcementsEmptyBodyReadOnly": "Your managers post here when something affects everyone.",
+  "@announcementsEmptyBodyReadOnly": {
+    "description": "Body of the announcements empty state for somebody who may not post."
+  },
+  "announcementNew": "New announcement",
+  "@announcementNew": {
+    "description": "Verb that opens the compose sheet. Also the sheet's title."
+  },
+  "announcementPosted": "Posted to everyone on this client.",
+  "@announcementPosted": {
+    "description": "Toast after a successful post."
+  },
+  "announcementPostFailed": "That announcement was not posted. {reason}",
+  "@announcementPostFailed": {
+    "description": "Failure toast after a post.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "messagePhotoOne": "Photo",
+  "@messagePhotoOne": {
+    "description": "Headline of a message that is one photo and no words."
+  },
+  "messagePhotoMany": "{count} photos",
+  "@messagePhotoMany": {
+    "description": "Headline of a message that is several photos and no words.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageDirect": "Direct",
+  "@messageDirect": {
+    "description": "Meta word: the message went to one person."
+  },
+  "messageBroadcast": "Broadcast",
+  "@messageBroadcast": {
+    "description": "Meta word: the message went to the whole team."
+  },
+  "messageFrom": "From {name}",
+  "@messageFrom": {
+    "description": "Who sent the message, by name and never by id.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTo": "To {name}",
+  "@messageTo": {
+    "description": "Who a direct message went to, by name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageToTeam": "To the whole team",
+  "@messageToTeam": {
+    "description": "Who a broadcast went to."
+  },
+  "messageDirectUnknownRecipient": "Direct message",
+  "@messageDirectUnknownRecipient": {
+    "description": "A direct message whose recipient the roster cannot name."
+  },
+  "messageSenderNotOnRoster": "Sender not on the roster: {id}",
+  "@messageSenderNotOnRoster": {
+    "description": "The explicit unknown state. The id appears here and nowhere else: a deleted account, or a roster that has not loaded.",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRecipientNotOnRoster": "Recipient not on the roster: {id}",
+  "@messageRecipientNotOnRoster": {
+    "description": "The explicit unknown state for the recipient.",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "messagePhotoCount": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@messagePhotoCount": {
+    "description": "How many photos a message carries, in its spoken sentence.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messagePhotoOfCount": "Photo {index} of {count}",
+  "@messagePhotoOfCount": {
+    "description": "What a reader hears on one attachment thumb, so two thumbs on a message are told apart.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageLongPressForId": "Long press to copy the message id",
+  "@messageLongPressForId": {
+    "description": "How to reach the id, at the end of the row's spoken sentence."
+  },
+  "messageIdCopied": "Message id copied.",
+  "@messageIdCopied": {
+    "description": "Toast after a long press copies the id."
+  },
+  "announcementSubtitle": "Broadcast to the whole client",
+  "@announcementSubtitle": {
+    "description": "Subtitle of an announcement row."
+  },
+  "announcementSemantics": "{title}. {body}. Broadcast to the whole client.",
+  "@announcementSemantics": {
+    "description": "Spoken sentence of an announcement row.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "attachSheetTitle": "Add a photo",
+  "@attachSheetTitle": {
+    "description": "Title of the camera-or-library sheet."
+  },
+  "attachSheetSubtitle": "It is uploaded when the message is sent, not before.",
+  "@attachSheetSubtitle": {
+    "description": "Subtitle of the attach sheet: an abandoned draft leaves nothing on the server."
+  },
+  "attachCamera": "Take a photo",
+  "@attachCamera": {
+    "description": "The camera source."
+  },
+  "attachGallery": "Choose from the library",
+  "@attachGallery": {
+    "description": "The library source."
+  },
+  "announcementSheetSubtitle": "Every user on this client sees it.",
+  "@announcementSheetSubtitle": {
+    "description": "Subtitle of the compose sheet."
+  },
+  "announcementSheetHeadline": "Headline",
+  "@announcementSheetHeadline": {
+    "description": "Label of the announcement's title box."
+  },
+  "announcementSheetBody": "What it says",
+  "@announcementSheetBody": {
+    "description": "Label of the announcement's body box."
+  },
+  "announcementSheetBlockedTitle": "Give the announcement a headline.",
+  "@announcementSheetBlockedTitle": {
+    "description": "Why Post cannot be pressed: the headline is empty. The endpoint rejects a blank either way."
+  },
+  "announcementSheetBlockedBody": "Say what it is about.",
+  "@announcementSheetBlockedBody": {
+    "description": "Why Post cannot be pressed: the body is empty."
+  },
+  "announcementSheetCommit": "Post this announcement",
+  "@announcementSheetCommit": {
+    "description": "The compose sheet's commit verb."
+  },
+  "announcementSheetCancel": "Cancel",
+  "@announcementSheetCancel": {
+    "description": "The compose sheet's way out."
+  },
+  "composerLabel": "Message the team",
+  "@composerLabel": {
+    "description": "Label of the composer's text box."
+  },
+  "composerNotSent": "Not sent.",
+  "@composerNotSent": {
+    "description": "Headline of the composer's inline error."
+  },
+  "composerSend": "Send",
+  "@composerSend": {
+    "description": "The composer's commit verb."
+  },
+  "composerSending": "Sending…",
+  "@composerSending": {
+    "description": "The Send verb while the message is in flight, and its blocked reason."
+  },
+  "composerBlockedEmpty": "Write something, or add a photo.",
+  "@composerBlockedEmpty": {
+    "description": "Why Send is not armed: the draft is empty. A Send with nothing to send is not armed."
+  },
+  "composerAddPhoto": "Add a photo to this message",
+  "@composerAddPhoto": {
+    "description": "Semantic label of the attach button."
+  },
+  "composerPhotoCap": "Up to {max} photos per message",
+  "@composerPhotoCap": {
+    "description": "Semantic label of the attach button once the cap is reached — it says why it stops.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "composerPhotoCapLine": "Up to {max} photos.",
+  "@composerPhotoCapLine": {
+    "description": "The line beside the attach button while nothing is attached.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "composerPhotosAttached": "{count} of {max} photos attached.",
+  "@composerPhotosAttached": {
+    "description": "The line beside the attach button once photos are in the draft.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "composerPhotoFailed": "Could not add a photo. Check camera and photo permissions.",
+  "@composerPhotoFailed": {
+    "description": "A denied camera permission lands here. It says so rather than doing nothing."
+  },
+  "composerUploadFailed": "A photo failed to upload, so nothing was sent. {reason} Your draft is kept.",
+  "@composerUploadFailed": {
+    "description": "On an upload failure nothing is sent and the draft — words and photos — stays where the sender left it.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "composerSendFailed": "Message not sent. {reason} Your draft is kept.",
+  "@composerSendFailed": {
+    "description": "The send was refused and the draft is kept for a retry.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pendingPhotoReady": "Photo {index} ready to send",
+  "@pendingPhotoReady": {
+    "description": "What a reader hears on a picked photo waiting in the draft.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingPhotoRemove": "Take photo {index} out of this message",
+  "@pendingPhotoRemove": {
+    "description": "Semantic label of the button that removes a picked photo. Its own node, beside the image's, not wrapped around it.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "attachmentSheetTitle": "Photo",
+  "@attachmentSheetTitle": {
+    "description": "Title of the sheet that shows one message attachment full size."
+  },
+  "attachmentSheetSkeleton": "the photo",
+  "@attachmentSheetSkeleton": {
+    "description": "What the attachment sheet's skeleton says it is loading."
+  },
+  "attachmentSheetClose": "Close",
+  "@attachmentSheetClose": {
+    "description": "The attachment sheet's way out."
+  },
+  "attachmentUndecodableHeadline": "This photo could not be displayed.",
+  "@attachmentUndecodableHeadline": {
+    "description": "Headline when the bytes arrived and are not an image this device can decode."
+  },
+  "attachmentUndecodableBody": "The file arrived, but it is not an image this device can decode.",
+  "@attachmentUndecodableBody": {
+    "description": "Body of the undecodable-photo error. Retry would not help, so none is offered."
+  },
+  "figureSmallSample": "small sample",
+  "@figureSmallSample": {
+    "description": "A figure computed from too thin a sample. It greys the figure and drops the delta."
+  },
+  "figureNotScored": "not scored",
+  "@figureNotScored": {
+    "description": "A figure with no score behind it."
+  },
+  "figureProvisional": "Provisional",
+  "@figureProvisional": {
+    "description": "The marker beside a figure that is not final yet."
   }
 }

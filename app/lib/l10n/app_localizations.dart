@@ -10607,6 +10607,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get webhookCreateCancel;
+
+  /// Screen title of the team channel. Also the Messages feed's own rail chip and section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get messagesTitle;
+
+  /// Header fact under the Messages title.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the team can see.'**
+  String get messagesFact;
+
+  /// Semantic label of the header's refresh button.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the team channel'**
+  String get messagesRefresh;
+
+  /// Semantic label of the rail that switches between Messages and Announcements.
+  ///
+  /// In en, this message translates to:
+  /// **'Which feed'**
+  String get messagesWhichFeed;
+
+  /// The Announcements feed's rail chip and section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements'**
+  String get messagesFeedAnnouncements;
+
+  /// What the Messages skeleton and error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'messages'**
+  String get messagesSkeleton;
+
+  /// What the Announcements skeleton and error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'announcements'**
+  String get announcementsSkeleton;
+
+  /// In-panel empty state of the message thread.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet.'**
+  String get messagesEmptyHeadline;
+
+  /// Body of the messages empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything you send below reaches the whole team.'**
+  String get messagesEmptyBody;
+
+  /// In-panel empty state of the announcements feed.
+  ///
+  /// In en, this message translates to:
+  /// **'No announcements yet.'**
+  String get announcementsEmptyHeadline;
+
+  /// Body of the announcements empty state for somebody who may post. The guidance names a next action only if you are allowed to do it.
+  ///
+  /// In en, this message translates to:
+  /// **'Post one and every user on this client sees it.'**
+  String get announcementsEmptyBodyCanPost;
+
+  /// Body of the announcements empty state for somebody who may not post.
+  ///
+  /// In en, this message translates to:
+  /// **'Your managers post here when something affects everyone.'**
+  String get announcementsEmptyBodyReadOnly;
+
+  /// Verb that opens the compose sheet. Also the sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'New announcement'**
+  String get announcementNew;
+
+  /// Toast after a successful post.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted to everyone on this client.'**
+  String get announcementPosted;
+
+  /// Failure toast after a post.
+  ///
+  /// In en, this message translates to:
+  /// **'That announcement was not posted. {reason}'**
+  String announcementPostFailed(String reason);
+
+  /// Headline of a message that is one photo and no words.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get messagePhotoOne;
+
+  /// Headline of a message that is several photos and no words.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} photos'**
+  String messagePhotoMany(int count);
+
+  /// Meta word: the message went to one person.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct'**
+  String get messageDirect;
+
+  /// Meta word: the message went to the whole team.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get messageBroadcast;
+
+  /// Who sent the message, by name and never by id.
+  ///
+  /// In en, this message translates to:
+  /// **'From {name}'**
+  String messageFrom(String name);
+
+  /// Who a direct message went to, by name.
+  ///
+  /// In en, this message translates to:
+  /// **'To {name}'**
+  String messageTo(String name);
+
+  /// Who a broadcast went to.
+  ///
+  /// In en, this message translates to:
+  /// **'To the whole team'**
+  String get messageToTeam;
+
+  /// A direct message whose recipient the roster cannot name.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct message'**
+  String get messageDirectUnknownRecipient;
+
+  /// The explicit unknown state. The id appears here and nowhere else: a deleted account, or a roster that has not loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Sender not on the roster: {id}'**
+  String messageSenderNotOnRoster(String id);
+
+  /// The explicit unknown state for the recipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient not on the roster: {id}'**
+  String messageRecipientNotOnRoster(String id);
+
+  /// How many photos a message carries, in its spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
+  String messagePhotoCount(int count);
+
+  /// What a reader hears on one attachment thumb, so two thumbs on a message are told apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {index} of {count}'**
+  String messagePhotoOfCount(int index, int count);
+
+  /// How to reach the id, at the end of the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press to copy the message id'**
+  String get messageLongPressForId;
+
+  /// Toast after a long press copies the id.
+  ///
+  /// In en, this message translates to:
+  /// **'Message id copied.'**
+  String get messageIdCopied;
+
+  /// Subtitle of an announcement row.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast to the whole client'**
+  String get announcementSubtitle;
+
+  /// Spoken sentence of an announcement row.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}. {body}. Broadcast to the whole client.'**
+  String announcementSemantics(String title, String body);
+
+  /// Title of the camera-or-library sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get attachSheetTitle;
+
+  /// Subtitle of the attach sheet: an abandoned draft leaves nothing on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'It is uploaded when the message is sent, not before.'**
+  String get attachSheetSubtitle;
+
+  /// The camera source.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get attachCamera;
+
+  /// The library source.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from the library'**
+  String get attachGallery;
+
+  /// Subtitle of the compose sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Every user on this client sees it.'**
+  String get announcementSheetSubtitle;
+
+  /// Label of the announcement's title box.
+  ///
+  /// In en, this message translates to:
+  /// **'Headline'**
+  String get announcementSheetHeadline;
+
+  /// Label of the announcement's body box.
+  ///
+  /// In en, this message translates to:
+  /// **'What it says'**
+  String get announcementSheetBody;
+
+  /// Why Post cannot be pressed: the headline is empty. The endpoint rejects a blank either way.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the announcement a headline.'**
+  String get announcementSheetBlockedTitle;
+
+  /// Why Post cannot be pressed: the body is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Say what it is about.'**
+  String get announcementSheetBlockedBody;
+
+  /// The compose sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Post this announcement'**
+  String get announcementSheetCommit;
+
+  /// The compose sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get announcementSheetCancel;
+
+  /// Label of the composer's text box.
+  ///
+  /// In en, this message translates to:
+  /// **'Message the team'**
+  String get composerLabel;
+
+  /// Headline of the composer's inline error.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent.'**
+  String get composerNotSent;
+
+  /// The composer's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get composerSend;
+
+  /// The Send verb while the message is in flight, and its blocked reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get composerSending;
+
+  /// Why Send is not armed: the draft is empty. A Send with nothing to send is not armed.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something, or add a photo.'**
+  String get composerBlockedEmpty;
+
+  /// Semantic label of the attach button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo to this message'**
+  String get composerAddPhoto;
+
+  /// Semantic label of the attach button once the cap is reached — it says why it stops.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max} photos per message'**
+  String composerPhotoCap(int max);
+
+  /// The line beside the attach button while nothing is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max} photos.'**
+  String composerPhotoCapLine(int max);
+
+  /// The line beside the attach button once photos are in the draft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {max} photos attached.'**
+  String composerPhotosAttached(int count, int max);
+
+  /// A denied camera permission lands here. It says so rather than doing nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add a photo. Check camera and photo permissions.'**
+  String get composerPhotoFailed;
+
+  /// On an upload failure nothing is sent and the draft — words and photos — stays where the sender left it.
+  ///
+  /// In en, this message translates to:
+  /// **'A photo failed to upload, so nothing was sent. {reason} Your draft is kept.'**
+  String composerUploadFailed(String reason);
+
+  /// The send was refused and the draft is kept for a retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not sent. {reason} Your draft is kept.'**
+  String composerSendFailed(String reason);
+
+  /// What a reader hears on a picked photo waiting in the draft.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {index} ready to send'**
+  String pendingPhotoReady(int index);
+
+  /// Semantic label of the button that removes a picked photo. Its own node, beside the image's, not wrapped around it.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photo {index} out of this message'**
+  String pendingPhotoRemove(int index);
+
+  /// Title of the sheet that shows one message attachment full size.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get attachmentSheetTitle;
+
+  /// What the attachment sheet's skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'the photo'**
+  String get attachmentSheetSkeleton;
+
+  /// The attachment sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get attachmentSheetClose;
+
+  /// Headline when the bytes arrived and are not an image this device can decode.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo could not be displayed.'**
+  String get attachmentUndecodableHeadline;
+
+  /// Body of the undecodable-photo error. Retry would not help, so none is offered.
+  ///
+  /// In en, this message translates to:
+  /// **'The file arrived, but it is not an image this device can decode.'**
+  String get attachmentUndecodableBody;
+
+  /// A figure computed from too thin a sample. It greys the figure and drops the delta.
+  ///
+  /// In en, this message translates to:
+  /// **'small sample'**
+  String get figureSmallSample;
+
+  /// A figure with no score behind it.
+  ///
+  /// In en, this message translates to:
+  /// **'not scored'**
+  String get figureNotScored;
+
+  /// The marker beside a figure that is not final yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Provisional'**
+  String get figureProvisional;
 }
 
 class _AppLocalizationsDelegate

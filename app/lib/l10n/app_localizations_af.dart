@@ -6761,4 +6761,243 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get webhookCreateCancel => 'Kanselleer';
+
+  @override
+  String get messagesTitle => 'Boodskappe';
+
+  @override
+  String get messagesFact => 'Alles wat die span kan sien.';
+
+  @override
+  String get messagesRefresh => 'Herlaai die spankanaal';
+
+  @override
+  String get messagesWhichFeed => 'Watter voer';
+
+  @override
+  String get messagesFeedAnnouncements => 'Aankondigings';
+
+  @override
+  String get messagesSkeleton => 'boodskappe';
+
+  @override
+  String get announcementsSkeleton => 'aankondigings';
+
+  @override
+  String get messagesEmptyHeadline => 'Nog geen boodskappe nie.';
+
+  @override
+  String get messagesEmptyBody =>
+      'Enigiets wat jy hieronder stuur, bereik die hele span.';
+
+  @override
+  String get announcementsEmptyHeadline => 'Nog geen aankondigings nie.';
+
+  @override
+  String get announcementsEmptyBodyCanPost =>
+      'Plaas een en elke gebruiker by hierdie kliënt sien dit.';
+
+  @override
+  String get announcementsEmptyBodyReadOnly =>
+      'Jou bestuurders plaas hier wanneer iets almal raak.';
+
+  @override
+  String get announcementNew => 'Nuwe aankondiging';
+
+  @override
+  String get announcementPosted => 'Aan almal by hierdie kliënt geplaas.';
+
+  @override
+  String announcementPostFailed(String reason) {
+    return 'Daardie aankondiging is nie geplaas nie. $reason';
+  }
+
+  @override
+  String get messagePhotoOne => 'Foto';
+
+  @override
+  String messagePhotoMany(int count) {
+    return '$count foto’s';
+  }
+
+  @override
+  String get messageDirect => 'Direk';
+
+  @override
+  String get messageBroadcast => 'Uitsending';
+
+  @override
+  String messageFrom(String name) {
+    return 'Van $name';
+  }
+
+  @override
+  String messageTo(String name) {
+    return 'Aan $name';
+  }
+
+  @override
+  String get messageToTeam => 'Aan die hele span';
+
+  @override
+  String get messageDirectUnknownRecipient => 'Direkte boodskap';
+
+  @override
+  String messageSenderNotOnRoster(String id) {
+    return 'Sender nie op die rooster nie: $id';
+  }
+
+  @override
+  String messageRecipientNotOnRoster(String id) {
+    return 'Ontvanger nie op die rooster nie: $id';
+  }
+
+  @override
+  String messagePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count foto’s',
+      one: '1 foto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String messagePhotoOfCount(int index, int count) {
+    return 'Foto $index van $count';
+  }
+
+  @override
+  String get messageLongPressForId => 'Hou lank om die boodskap-id te kopieer';
+
+  @override
+  String get messageIdCopied => 'Boodskap-id gekopieer.';
+
+  @override
+  String get announcementSubtitle => 'Uitgesaai aan die hele kliënt';
+
+  @override
+  String announcementSemantics(String title, String body) {
+    return '$title. $body. Uitgesaai aan die hele kliënt.';
+  }
+
+  @override
+  String get attachSheetTitle => 'Voeg ’n foto by';
+
+  @override
+  String get attachSheetSubtitle =>
+      'Dit word opgelaai wanneer die boodskap gestuur word, nie voor nie.';
+
+  @override
+  String get attachCamera => 'Neem ’n foto';
+
+  @override
+  String get attachGallery => 'Kies uit die biblioteek';
+
+  @override
+  String get announcementSheetSubtitle =>
+      'Elke gebruiker by hierdie kliënt sien dit.';
+
+  @override
+  String get announcementSheetHeadline => 'Opskrif';
+
+  @override
+  String get announcementSheetBody => 'Wat dit sê';
+
+  @override
+  String get announcementSheetBlockedTitle =>
+      'Gee die aankondiging ’n opskrif.';
+
+  @override
+  String get announcementSheetBlockedBody => 'Sê waaroor dit gaan.';
+
+  @override
+  String get announcementSheetCommit => 'Plaas hierdie aankondiging';
+
+  @override
+  String get announcementSheetCancel => 'Kanselleer';
+
+  @override
+  String get composerLabel => 'Stuur die span ’n boodskap';
+
+  @override
+  String get composerNotSent => 'Nie gestuur nie.';
+
+  @override
+  String get composerSend => 'Stuur';
+
+  @override
+  String get composerSending => 'Stuur tans…';
+
+  @override
+  String get composerBlockedEmpty => 'Skryf iets, of voeg ’n foto by.';
+
+  @override
+  String get composerAddPhoto => 'Voeg ’n foto by hierdie boodskap';
+
+  @override
+  String composerPhotoCap(int max) {
+    return 'Hoogstens $max foto’s per boodskap';
+  }
+
+  @override
+  String composerPhotoCapLine(int max) {
+    return 'Hoogstens $max foto’s.';
+  }
+
+  @override
+  String composerPhotosAttached(int count, int max) {
+    return '$count van $max foto’s aangeheg.';
+  }
+
+  @override
+  String get composerPhotoFailed =>
+      'Kon nie ’n foto byvoeg nie. Kontroleer kamera- en fototoestemmings.';
+
+  @override
+  String composerUploadFailed(String reason) {
+    return '’n Foto kon nie oplaai nie, so niks is gestuur nie. $reason Jou konsep word behou.';
+  }
+
+  @override
+  String composerSendFailed(String reason) {
+    return 'Boodskap nie gestuur nie. $reason Jou konsep word behou.';
+  }
+
+  @override
+  String pendingPhotoReady(int index) {
+    return 'Foto $index gereed om te stuur';
+  }
+
+  @override
+  String pendingPhotoRemove(int index) {
+    return 'Haal foto $index uit hierdie boodskap';
+  }
+
+  @override
+  String get attachmentSheetTitle => 'Foto';
+
+  @override
+  String get attachmentSheetSkeleton => 'die foto';
+
+  @override
+  String get attachmentSheetClose => 'Maak toe';
+
+  @override
+  String get attachmentUndecodableHeadline =>
+      'Hierdie foto kon nie vertoon word nie.';
+
+  @override
+  String get attachmentUndecodableBody =>
+      'Die lêer het aangekom, maar dit is nie ’n beeld wat hierdie toestel kan dekodeer nie.';
+
+  @override
+  String get figureSmallSample => 'klein steekproef';
+
+  @override
+  String get figureNotScored => 'geen telling nie';
+
+  @override
+  String get figureProvisional => 'Voorlopig';
 }

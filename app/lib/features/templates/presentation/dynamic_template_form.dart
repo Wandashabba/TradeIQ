@@ -163,6 +163,13 @@ class DynamicTemplateForm extends StatelessWidget {
             // single question is answered, and a manager reads a
             // not-yet-measured figure as a measured zero.
             provisional: answered < askable,
+            // The tile's own state words default to English. A localised
+            // screen passes its own.
+            strings: StatTileStrings(
+              smallSample: l10n.figureSmallSample,
+              notScored: l10n.figureNotScored,
+              provisional: l10n.figureProvisional,
+            ),
             stateLine: l10n.templateFormScoreOutOf(_trimmed(maxScore)),
           ),
         ],

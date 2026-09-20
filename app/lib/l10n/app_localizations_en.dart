@@ -6696,4 +6696,242 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get webhookCreateCancel => 'Cancel';
+
+  @override
+  String get messagesTitle => 'Messages';
+
+  @override
+  String get messagesFact => 'Everything the team can see.';
+
+  @override
+  String get messagesRefresh => 'Refresh the team channel';
+
+  @override
+  String get messagesWhichFeed => 'Which feed';
+
+  @override
+  String get messagesFeedAnnouncements => 'Announcements';
+
+  @override
+  String get messagesSkeleton => 'messages';
+
+  @override
+  String get announcementsSkeleton => 'announcements';
+
+  @override
+  String get messagesEmptyHeadline => 'No messages yet.';
+
+  @override
+  String get messagesEmptyBody =>
+      'Anything you send below reaches the whole team.';
+
+  @override
+  String get announcementsEmptyHeadline => 'No announcements yet.';
+
+  @override
+  String get announcementsEmptyBodyCanPost =>
+      'Post one and every user on this client sees it.';
+
+  @override
+  String get announcementsEmptyBodyReadOnly =>
+      'Your managers post here when something affects everyone.';
+
+  @override
+  String get announcementNew => 'New announcement';
+
+  @override
+  String get announcementPosted => 'Posted to everyone on this client.';
+
+  @override
+  String announcementPostFailed(String reason) {
+    return 'That announcement was not posted. $reason';
+  }
+
+  @override
+  String get messagePhotoOne => 'Photo';
+
+  @override
+  String messagePhotoMany(int count) {
+    return '$count photos';
+  }
+
+  @override
+  String get messageDirect => 'Direct';
+
+  @override
+  String get messageBroadcast => 'Broadcast';
+
+  @override
+  String messageFrom(String name) {
+    return 'From $name';
+  }
+
+  @override
+  String messageTo(String name) {
+    return 'To $name';
+  }
+
+  @override
+  String get messageToTeam => 'To the whole team';
+
+  @override
+  String get messageDirectUnknownRecipient => 'Direct message';
+
+  @override
+  String messageSenderNotOnRoster(String id) {
+    return 'Sender not on the roster: $id';
+  }
+
+  @override
+  String messageRecipientNotOnRoster(String id) {
+    return 'Recipient not on the roster: $id';
+  }
+
+  @override
+  String messagePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String messagePhotoOfCount(int index, int count) {
+    return 'Photo $index of $count';
+  }
+
+  @override
+  String get messageLongPressForId => 'Long press to copy the message id';
+
+  @override
+  String get messageIdCopied => 'Message id copied.';
+
+  @override
+  String get announcementSubtitle => 'Broadcast to the whole client';
+
+  @override
+  String announcementSemantics(String title, String body) {
+    return '$title. $body. Broadcast to the whole client.';
+  }
+
+  @override
+  String get attachSheetTitle => 'Add a photo';
+
+  @override
+  String get attachSheetSubtitle =>
+      'It is uploaded when the message is sent, not before.';
+
+  @override
+  String get attachCamera => 'Take a photo';
+
+  @override
+  String get attachGallery => 'Choose from the library';
+
+  @override
+  String get announcementSheetSubtitle => 'Every user on this client sees it.';
+
+  @override
+  String get announcementSheetHeadline => 'Headline';
+
+  @override
+  String get announcementSheetBody => 'What it says';
+
+  @override
+  String get announcementSheetBlockedTitle =>
+      'Give the announcement a headline.';
+
+  @override
+  String get announcementSheetBlockedBody => 'Say what it is about.';
+
+  @override
+  String get announcementSheetCommit => 'Post this announcement';
+
+  @override
+  String get announcementSheetCancel => 'Cancel';
+
+  @override
+  String get composerLabel => 'Message the team';
+
+  @override
+  String get composerNotSent => 'Not sent.';
+
+  @override
+  String get composerSend => 'Send';
+
+  @override
+  String get composerSending => 'Sending…';
+
+  @override
+  String get composerBlockedEmpty => 'Write something, or add a photo.';
+
+  @override
+  String get composerAddPhoto => 'Add a photo to this message';
+
+  @override
+  String composerPhotoCap(int max) {
+    return 'Up to $max photos per message';
+  }
+
+  @override
+  String composerPhotoCapLine(int max) {
+    return 'Up to $max photos.';
+  }
+
+  @override
+  String composerPhotosAttached(int count, int max) {
+    return '$count of $max photos attached.';
+  }
+
+  @override
+  String get composerPhotoFailed =>
+      'Could not add a photo. Check camera and photo permissions.';
+
+  @override
+  String composerUploadFailed(String reason) {
+    return 'A photo failed to upload, so nothing was sent. $reason Your draft is kept.';
+  }
+
+  @override
+  String composerSendFailed(String reason) {
+    return 'Message not sent. $reason Your draft is kept.';
+  }
+
+  @override
+  String pendingPhotoReady(int index) {
+    return 'Photo $index ready to send';
+  }
+
+  @override
+  String pendingPhotoRemove(int index) {
+    return 'Take photo $index out of this message';
+  }
+
+  @override
+  String get attachmentSheetTitle => 'Photo';
+
+  @override
+  String get attachmentSheetSkeleton => 'the photo';
+
+  @override
+  String get attachmentSheetClose => 'Close';
+
+  @override
+  String get attachmentUndecodableHeadline =>
+      'This photo could not be displayed.';
+
+  @override
+  String get attachmentUndecodableBody =>
+      'The file arrived, but it is not an image this device can decode.';
+
+  @override
+  String get figureSmallSample => 'small sample';
+
+  @override
+  String get figureNotScored => 'not scored';
+
+  @override
+  String get figureProvisional => 'Provisional';
 }
