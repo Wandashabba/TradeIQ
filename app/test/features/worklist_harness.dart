@@ -393,6 +393,15 @@ List<GoRoute> _stubRoutes() => <GoRoute>[
     '/tasks',
     '/assistant',
     '/visits/:id',
+    '/contests',
+    '/leaderboard',
+    // Declared before `/leaderboard/:agentId`, exactly as app_router.dart
+    // declares it, so `contests` is never matched as an agent id.
+    '/leaderboard/contests',
+    '/leaderboard/:agentId',
+    '/fraud',
+    '/incentives',
+    '/agents/activity',
   ])
     GoRoute(
       path: path,

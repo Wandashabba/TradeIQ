@@ -44,6 +44,7 @@ class PersonRow extends StatelessWidget {
     this.unknownLabel,
     this.trailingWord,
     this.trailing,
+    this.trailingLabel,
     this.deactivated = false,
     this.onTap,
     this.onLongPress,
@@ -54,6 +55,15 @@ class PersonRow extends StatelessWidget {
          'PersonRow: with no name, no role and no outlet there is nothing to '
          'show but an id, and an id is never the primary line. Pass '
          'unknownLabel ("Unknown agent") so the row says so in words.',
+       ),
+       assert(
+         trailing == null || trailingWord != null || trailingLabel != null,
+         'PersonRow: a figure in the trailing needs trailingLabel. A SoftRow '
+         'is ONE semantics node that excludes everything beneath it, so a '
+         '"94 pts" painted in the trailing is read by nobody — the row '
+         'announces a name and stops, and the number the row exists to '
+         'compare is silent. Pass the figure in words ("94 points"); it is '
+         'the same defect the worklists shipped with their ghost buttons.',
        );
 
   /// The full name. Wraps to two lines and middle-truncates only when a single
@@ -84,6 +94,13 @@ class PersonRow extends StatelessWidget {
   /// A trailing widget, when the row needs a figure rather than a word.
   /// Ignored if [trailingWord] is set.
   final Widget? trailing;
+
+  /// [trailing]'s figure, in words, for the row's one semantics node.
+  ///
+  /// Required alongside [trailing] (see the assert): the row excludes
+  /// everything beneath it, so a painted figure that is not spelled here is a
+  /// figure a screen reader never reaches.
+  final String? trailingLabel;
 
   /// Ink drops to ink-mute, the chevron goes, the row stops being tappable —
   /// and the caller passes the reason as [trailingWord] ("No longer active").
@@ -142,7 +159,9 @@ class PersonRow extends StatelessWidget {
         hasName ? name : unknownLabel,
         if (parts.isNotEmpty) parts.join(', '),
         if (showIdentifier) '$identifierLabel ${_spell(identifier!)}',
-        trailingWord,
+        // The word wins when both are present, because `_trailing` paints the
+        // word and a reader must hear what is on the screen.
+        trailingWord ?? (trailing != null ? trailingLabel : null),
       ].whereType<String>().join(', '),
     );
   }

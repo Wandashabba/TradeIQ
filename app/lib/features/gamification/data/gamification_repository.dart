@@ -12,6 +12,7 @@ class LeaderboardEntry {
     required this.tasksClosed,
     required this.rank,
     required this.avgScorecard,
+    required this.scorecardsCounted,
     required this.points,
     this.displayName,
   });
@@ -19,8 +20,30 @@ class LeaderboardEntry {
   final String email;
   final int visitsSubmitted;
   final int tasksClosed;
-  final int rank;
+
+  /// The agent's place, or **null** for an agent with nothing measured in the
+  /// window (#398).
+  ///
+  /// The board used to hand every row `index + 1`, so an agent with no
+  /// submitted visit and no closed task was told they came last. Last place is
+  /// a comparison and an absence is not one. The row still renders — it sorts
+  /// below every ranked row — and the screen says "not ranked yet" in words.
+  final int? rank;
+
+  /// The mean of [scorecardsCounted] scores, and meaningless when that is 0.
   final double avgScorecard;
+
+  /// How many scorecards [avgScorecard] is the mean of, in the window.
+  ///
+  /// `mean([])` is 0, so without this a client cannot tell an agent who scored
+  /// zero from an agent nobody has scored. It is also the sample size: an
+  /// average needs n >= 3 before it is a comparison rather than an anecdote.
+  final int scorecardsCounted;
+
+  /// The payout figure. **Not a peer of [avgScorecard]** — the engine adds a
+  /// 0-100 mean to 5 per closed task and 2 per submitted visit, so the two
+  /// numbers are in different units and a row that printed them side by side
+  /// as "85 / 94" would read as a fraction.
   final double points;
 
   /// What people call this agent. Null for agents never given a name.
@@ -36,8 +59,13 @@ class LeaderboardEntry {
         displayName: json['displayName'] as String?,
         visitsSubmitted: json['visitsSubmitted'] as int? ?? 0,
         tasksClosed: json['tasksClosed'] as int? ?? 0,
-        rank: json['rank'] as int? ?? 0,
+        // Null is the wire's word for "unranked" and it is carried through as
+        // null. A `?? 0` here would turn every unmeasured agent into rank
+        // zero, which is a place, and a worse invention than the last place
+        // this replaced.
+        rank: (json['rank'] as num?)?.toInt(),
         avgScorecard: (json['avgScorecard'] as num?)?.toDouble() ?? 0,
+        scorecardsCounted: (json['scorecardsCounted'] as num?)?.toInt() ?? 0,
         points: (json['points'] as num?)?.toDouble() ?? 0,
       );
 }
