@@ -41,8 +41,14 @@ class EntryBrand extends StatelessWidget {
     final word = Text.rich(
       TextSpan(
         children: <InlineSpan>[
-          TextSpan(text: 'TRADE', style: token.style(color: p.ink1)),
-          TextSpan(text: 'IQ', style: token.style(color: p.ink2)),
+          TextSpan(
+            text: 'TRADE',
+            style: token.style(color: p.ink1),
+          ),
+          TextSpan(
+            text: 'IQ',
+            style: token.style(color: p.ink2),
+          ),
         ],
       ),
       textAlign: compact ? TextAlign.start : TextAlign.center,

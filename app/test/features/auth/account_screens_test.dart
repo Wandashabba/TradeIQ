@@ -5,14 +5,18 @@ import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/password_repository.dart';
 import 'package:tradeiq_app/core/network/app_version.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/entry_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/skin_controls.dart';
+import 'package:tradeiq_app/features/auth/presentation/account_frame.dart';
 import 'package:tradeiq_app/features/auth/presentation/change_password_screen.dart';
 import 'package:tradeiq_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:tradeiq_app/features/auth/presentation/update_required_screen.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../agent_harness.dart';
+import 'entry_harness.dart';
 
 /// A password repository that records what it was asked and answers with
 /// whatever the test sets.
@@ -57,6 +61,12 @@ class FakePasswordRepository implements PasswordRepository {
 
 const _good = 'blue truck monday';
 
+/// The skin the screen is actually painting with — the theme extension its own
+/// route wrapper installed, read from inside the frame rather than from the
+/// provider a test hoped it read.
+TiqSkin _ground(WidgetTester tester) =>
+    Theme.of(tester.element(find.byType(AccountFrame))).extension<TiqSkin>()!;
+
 Finder _key(String k) => find.byKey(ValueKey<String>(k));
 
 TorchPrimaryButton _primary(WidgetTester tester, String key) =>
@@ -66,6 +76,7 @@ Future<void> _pumpForgot(
   WidgetTester tester,
   FakePasswordRepository repo, {
   SkinMode skin = SkinMode.night,
+  SkinMode? entrySkin,
   String? email,
   double textScale = 1.0,
   Locale locale = const Locale('en'),
@@ -77,6 +88,11 @@ Future<void> _pumpForgot(
   locale: locale,
   overrides: <Override>[
     ...agentBaseOverrides(db: agentTestDb(), skin: skin),
+    // `/forgot-password` is reached with nobody signed in, so its ground is
+    // the entry skin. Pinning the agent one as well proves the screen is not
+    // quietly reading it: the two are deliberately set apart in
+    // `the signed-out screens wear the way in's skin`.
+    entrySkinProvider.overrideWith(() => PinnedEntrySkin(entrySkin ?? skin)),
     passwordRepositoryProvider.overrideWithValue(repo),
   ],
   extraRoutes: <GoRoute>[
@@ -423,6 +439,93 @@ void main() {
     });
   });
 
+  /// WHICH SKIN THE WAY IN WEARS, ON THE WAY IN'S OTHER TWO SCREENS.
+  ///
+  /// `entry_skin.dart` names its own scope: "the splash, sign-in, **the reset
+  /// code** and **the refused build**". Two of those four were never wired to
+  /// it. `/forgot-password` and `/update-required` are both reached with
+  /// nobody signed in — there is no agent to have a morning — and both were
+  /// wrapped in `TorchlightRoute`, which reads `agentSkinProvider` and
+  /// defaults to **Day**.
+  ///
+  /// So sign-in was Night and "Forgot password?" was white, and the cycle in
+  /// the thumb zone wrote a provider the two screens did not share: set Veld
+  /// on sign-in, walk to the reset code, and you were back in Day with no way
+  /// to tell why.
+  group('the signed-out screens wear the way in\'s skin', () {
+    // The two providers are set APART on purpose. A screen that reads the
+    // right one cannot pass this by accident.
+    testWidgets('forgot password follows the entry skin, not the agent\'s', (
+      tester,
+    ) async {
+      await _pumpForgot(
+        tester,
+        FakePasswordRepository(),
+        skin: SkinMode.night,
+        entrySkin: SkinMode.veld,
+      );
+      expect(
+        _ground(tester).palette.ground,
+        entrySkinFor(SkinMode.veld).palette.ground,
+        reason:
+            'the reset code is reached signed out, so the entry skin is the '
+            'one that decides its ground',
+      );
+      expect(
+        _ground(tester).palette.ground,
+        isNot(agentSkinFor(SkinMode.night).palette.ground),
+      );
+    });
+
+    testWidgets('the refused build follows it too', (tester) async {
+      appUpdateRequired.value = const AppUpdateRequired(
+        minimumVersion: '9.1.0',
+      );
+      addTearDown(() => appUpdateRequired.value = null);
+      await pumpAgentScreen(
+        tester,
+        const UpdateRequiredScreen(),
+        path: '/update-required',
+        overrides: <Override>[
+          ...agentBaseOverrides(db: agentTestDb(), skin: SkinMode.night),
+          entrySkinProvider.overrideWith(() => PinnedEntrySkin(SkinMode.veld)),
+        ],
+      );
+      expect(
+        _ground(tester).palette.ground,
+        entrySkinFor(SkinMode.veld).palette.ground,
+      );
+    });
+
+    testWidgets('changing your own password needs a session, so it stays on '
+        'the agent skin', (tester) async {
+      await _pumpChange(tester, FakePasswordRepository(), skin: SkinMode.veld);
+      expect(
+        _ground(tester).palette.ground,
+        agentSkinFor(SkinMode.veld).palette.ground,
+        reason:
+            '/account/password is behind a session: there IS an agent here, '
+            'and they keep the skin they were already in',
+      );
+    });
+
+    // The control and the ground must answer to one provider. A cycle wired
+    // to the other one still moves and still repaints nothing.
+    testWidgets('each screen carries the cycle its own route watches', (
+      tester,
+    ) async {
+      await _pumpForgot(tester, FakePasswordRepository());
+      expect(find.byType(EntrySkinCycle), findsOneWidget);
+      expect(find.byType(AgentSkinCycle), findsNothing);
+    });
+
+    testWidgets('and the signed-in one carries the other', (tester) async {
+      await _pumpChange(tester, FakePasswordRepository());
+      expect(find.byType(AgentSkinCycle), findsOneWidget);
+      expect(find.byType(EntrySkinCycle), findsNothing);
+    });
+  });
+
   group('the amber census', () {
     for (final skin in agentSkinModes) {
       final name = skin.name;
@@ -434,7 +537,7 @@ void main() {
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
-          agentSkinFor(skin),
+          entrySkinFor(skin),
           route: 'forgot-password',
           phase: 'blocked',
         );
@@ -447,7 +550,7 @@ void main() {
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
-          agentSkinFor(skin),
+          entrySkinFor(skin),
           route: 'forgot-password',
           phase: 'armed',
         );
@@ -465,7 +568,7 @@ void main() {
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
-          agentSkinFor(skin),
+          entrySkinFor(skin),
           route: 'forgot-password',
           phase: 'error',
         );
@@ -479,7 +582,7 @@ void main() {
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
-          agentSkinFor(skin),
+          entrySkinFor(skin),
           route: 'forgot-password',
           phase: 'done',
         );
@@ -539,12 +642,15 @@ void main() {
           tester,
           const UpdateRequiredScreen(),
           path: '/update-required',
-          overrides: agentBaseOverrides(db: agentTestDb(), skin: skin),
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: skin),
+            entrySkinProvider.overrideWith(() => PinnedEntrySkin(skin)),
+          ],
         );
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
-          agentSkinFor(skin),
+          entrySkinFor(skin),
           route: 'update-required',
           phase: 'update-required',
         );
