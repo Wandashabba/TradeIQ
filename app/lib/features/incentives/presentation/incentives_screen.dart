@@ -248,11 +248,7 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
                 TorchTertiaryButton(
                   key: ValueKey<String>('scheme-everyone-${scheme.id}'),
                   label: 'See everyone',
-                  onPressed: () => showSchemeProgressSheet(
-                    context,
-                    row: row,
-                    agentsMeasured: widget.agentsMeasured,
-                  ),
+                  onPressed: () => showSchemeProgressSheet(context, row: row),
                 ),
               TorchTertiaryButton(
                 key: ValueKey<String>('delete-${scheme.id}'),
@@ -384,8 +380,22 @@ class _Progress extends StatelessWidget {
       );
     }
 
+    if (row.nobodyMeasured) {
+      // The board answered, and this metric cannot answer for a single agent
+      // on it. "0 of 11 agents have earned it" would be eleven people who
+      // failed; nobody was measured. Words, not a fraction.
+      return Text(
+        'Nobody has been measured on ${metric.label.toLowerCase()} in this '
+        'window, so there is no progress toward this reward to show yet.',
+        key: ValueKey<String>('scheme-none-measured-${row.scheme.id}'),
+        style: skin.text.meta.style(color: skin.palette.ink3),
+      );
+    }
+
     final closest = row.closest;
     final earned = row.earnedCount;
+    // The denominator is who this metric can measure, never the whole board.
+    final measured = row.measuredCount;
     final reward = '${numbers.format(row.scheme.rewardPoints)} pts';
     final threshold = numbers.format(row.scheme.threshold);
     final rewardLabel = '$reward at $threshold ${metric.unitWord}';
@@ -395,10 +405,11 @@ class _Progress extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (closest == null)
+          // At least one agent is measured here — the metric-measures-nobody
+          // case returned above — so nobody being on the way can only mean
+          // everybody measurable has already arrived.
           Text(
-            earned == 0
-                ? 'Nobody is on the way to this reward yet.'
-                : 'Everybody the board can measure has earned it.',
+            'Everybody this metric can measure has earned it.',
             key: ValueKey<String>('scheme-nobody-close-${row.scheme.id}'),
             style: skin.text.meta.style(color: skin.palette.ink3),
           )
@@ -423,8 +434,8 @@ class _Progress extends StatelessWidget {
           ),
         const SizedBox(height: TiqSpace.s3),
         Text(
-          '${numbers.format(earned)} of ${numbers.format(agentsMeasured)} '
-          '${agentsMeasured == 1 ? 'agent has' : 'agents have'} earned it.',
+          '${numbers.format(earned)} of ${numbers.format(measured)} '
+          '${measured == 1 ? 'agent has' : 'agents have'} earned it.',
           key: ValueKey<String>('scheme-earned-${row.scheme.id}'),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),

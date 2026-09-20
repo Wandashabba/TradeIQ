@@ -17,23 +17,19 @@ import '../data/incentives_view.dart';
 Future<void> showSchemeProgressSheet(
   BuildContext context, {
   required IncentiveSchemeRow row,
-  required int agentsMeasured,
 }) {
   return showTorchSheet<void>(
     context,
-    builder: (sheetContext) =>
-        _SchemeProgressSheet(row: row, agentsMeasured: agentsMeasured),
+    builder: (sheetContext) => _SchemeProgressSheet(row: row),
   );
 }
 
 class _SchemeProgressSheet extends StatelessWidget {
-  const _SchemeProgressSheet({
-    required this.row,
-    required this.agentsMeasured,
-  });
+  const _SchemeProgressSheet({required this.row});
 
+  /// Everything this sheet counts comes off the row, so the board's size
+  /// cannot become a denominator here by accident.
   final IncentiveSchemeRow row;
-  final int agentsMeasured;
 
   @override
   Widget build(BuildContext context) {
@@ -118,13 +114,22 @@ class _SchemeProgressSheet extends StatelessWidget {
                 ),
             ],
           const SizedBox(height: TiqSpace.s2),
-          Text(
-            '${numbers.format(row.earnedCount)} of '
-            '${numbers.format(agentsMeasured)} '
-            '${agentsMeasured == 1 ? 'agent has' : 'agents have'} earned it.',
-            key: const ValueKey<String>('scheme-progress-earned'),
-            style: skin.text.meta.style(color: skin.palette.ink3),
-          ),
+          // The denominator is who this metric can measure, not who is on the
+          // board. A sheet that lists four agents each saying "not measured on
+          // this metric yet" and then counts all four into "0 of 4 agents have
+          // earned it" contradicts itself on one screen (#464).
+          if (row.progress.isNotEmpty)
+            Text(
+              row.nobodyMeasured
+                  ? 'Nobody above has been measured on this metric in this '
+                        'window, so there is nothing to count yet.'
+                  : '${numbers.format(row.earnedCount)} of '
+                        '${numbers.format(row.measuredCount)} '
+                        '${row.measuredCount == 1 ? 'agent has' : 'agents have'} '
+                        'earned it.',
+              key: const ValueKey<String>('scheme-progress-earned'),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
           const SizedBox(height: TiqSpace.s5),
           Align(
             alignment: AlignmentDirectional.centerStart,
