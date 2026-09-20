@@ -223,9 +223,7 @@ class _SignInState extends ConsumerState<_SignIn> {
         navRenders: false,
         tabbedRoute: false,
         beneathSheet: beneathSheet,
-        claims: <TorchClaim>[
-          if (armed) TorchPrimaryButton.claim('sign-in'),
-        ],
+        claims: <TorchClaim>[if (armed) TorchPrimaryButton.claim('sign-in')],
         child: TorchShell(
           profile: TorchShellProfile.agent,
           header: TorchAppHeader(

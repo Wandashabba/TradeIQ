@@ -3676,6 +3676,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get navExecutionOverview => 'Uitvoeringsoorsig';
 
   @override
+  String get navHome => 'Tuis';
+
+  @override
   String get navTasks => 'Take';
 
   @override

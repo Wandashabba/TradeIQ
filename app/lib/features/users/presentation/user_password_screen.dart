@@ -9,6 +9,7 @@ import '../../../core/auth/password_rule.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -250,6 +251,9 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
       title: 'Reset password',
       back: AccountFrame.backTo('Back to users', _leave),
       primaryArmed: !_issuing,
+      // Wrapped in TorchlightRoute above, so the agent cycle is the one that
+      // moves this screen's own ground.
+      skinCycle: const AgentSkinCycle(),
       primary: primary,
       children: <Widget>[
         AccountHeadline(who),

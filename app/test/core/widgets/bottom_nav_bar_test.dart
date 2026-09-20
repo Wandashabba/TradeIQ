@@ -7,30 +7,37 @@ import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/bottom_nav_bar.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
 
 /// The bar is injected by ManagerScaffold below 1080 — here we pump it
 /// directly to test its own contract. The ProviderScope exists for the menu
 /// sheet, whose theme-toggle and sign-out rows are riverpod Consumers.
-Widget _app({String activeRoute = '/dashboard', ThemeData? theme}) =>
-    ProviderScope(
-      child: MaterialApp(
-        theme: theme,
-        home: Scaffold(
-          body: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: TiqBottomNavBar(activeRoute: activeRoute),
-              ),
-            ],
+Widget _app({
+  String activeRoute = '/dashboard',
+  ThemeData? theme,
+  Locale? locale,
+}) => ProviderScope(
+  child: MaterialApp(
+    theme: theme,
+    locale: locale,
+    localizationsDelegates: appLocalizationsDelegates,
+    supportedLocales: appSupportedLocales,
+    home: Scaffold(
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: TiqBottomNavBar(activeRoute: activeRoute),
           ),
-        ),
+        ],
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   // The open-sheet count is an app-wide static, and the menu tests here end
@@ -53,6 +60,35 @@ void main() {
       find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
       findsOneWidget,
     );
+  });
+
+  /// The five slots were five hardcoded English strings — 'Home', 'Tasks',
+  /// 'Alerts', 'Map', 'Menu' — read straight off a `const` record and printed.
+  /// The menu sheet this same bar opens has been translated since #437, so an
+  /// Afrikaans manager got a translated sheet hanging off an English bar.
+  ///
+  /// Four of the five keys already existed; only "Home" was missing, and the
+  /// bar keeps the short word where the rail says "The Floor" because five
+  /// slots share a phone's width on one line.
+  testWidgets('the slots are translated, not five English constants', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(locale: const Locale('af')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tuis'), findsOneWidget);
+    expect(find.text('Take'), findsOneWidget);
+    expect(find.text('Waarskuwings'), findsOneWidget);
+    expect(find.text('Kaart'), findsOneWidget);
+    expect(find.text('Kieslys'), findsOneWidget);
+
+    for (final english in <String>['Home', 'Tasks', 'Alerts', 'Map', 'Menu']) {
+      expect(
+        find.text(english),
+        findsNothing,
+        reason: '"$english" is untranslated English on an Afrikaans bar',
+      );
+    }
   });
 
   testWidgets('the pill sits on the slot matching the active route', (
