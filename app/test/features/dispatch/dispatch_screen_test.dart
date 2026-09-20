@@ -68,14 +68,15 @@ class _FakeDispatchRepository implements DispatchRepository {
 }
 
 Widget _app({ThemeData? theme, DispatchResult result = _result}) => routedApp(
-      const DispatchScreen(),
-      theme: theme,
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => _outlets),
-        dispatchRepositoryProvider
-            .overrideWithValue(_FakeDispatchRepository(result)),
-      ],
-    );
+  const DispatchScreen(),
+  theme: theme,
+  overrides: [
+    outletsListProvider.overrideWith((ref) async => _outlets),
+    dispatchRepositoryProvider.overrideWithValue(
+      _FakeDispatchRepository(result),
+    ),
+  ],
+);
 
 Future<void> _pickCornerShop(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey<String>('outlet-select')));
@@ -108,8 +109,9 @@ void main() {
 
   for (final theme in [AppTheme.light(), null]) {
     final label = theme == null ? 'dark' : 'light';
-    testWidgets('$label: a named candidate is shown by name, keyed by email',
-        (tester) async {
+    testWidgets('$label: a named candidate is shown by name, keyed by email', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(theme: theme, result: _namedResult));
       await tester.pumpAndSettle();
       await _pickCornerShop(tester);
@@ -129,8 +131,9 @@ void main() {
     });
   }
 
-  testWidgets('renders the outlet dropdown and Dispatch app bar',
-      (tester) async {
+  testWidgets('renders the outlet dropdown and Dispatch app bar', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
 

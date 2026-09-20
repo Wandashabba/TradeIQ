@@ -16,11 +16,7 @@ const _north = Territory(
   region: 'Gauteng',
 );
 
-const _south = Territory(
-  id: 'ter-2',
-  name: 'Western Cape',
-  code: 'WC',
-);
+const _south = Territory(id: 'ter-2', name: 'Western Cape', code: 'WC');
 
 class _FakeTerritoriesRepository implements TerritoriesRepository {
   String? assignedTerritoryId;
@@ -31,7 +27,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
       const PaginatedResponse(data: [_north, _south], nextCursor: null);
 
   @override
-  Future<TerritoryCoverage> getCoverage(String id) async => const TerritoryCoverage(
+  Future<TerritoryCoverage> getCoverage(String id) async =>
+      const TerritoryCoverage(
         outletCount: 3,
         agentCount: 2,
         outletsVisited: 2,
@@ -44,8 +41,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
     required String name,
     required String code,
     String? region,
-  }) async =>
-      _north;
+  }) async => _north;
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async {
@@ -56,7 +52,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
 
 class _FailingTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<PaginatedResponse<Territory>> listTerritories() async => throw Exception('boom');
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      throw Exception('boom');
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
@@ -67,8 +64,7 @@ class _FailingTerritoriesRepository implements TerritoriesRepository {
     required String name,
     required String code,
     String? region,
-  }) async =>
-      throw Exception('boom');
+  }) async => throw Exception('boom');
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async =>
@@ -77,7 +73,8 @@ class _FailingTerritoriesRepository implements TerritoriesRepository {
 
 class _FakeUsersRepository implements UsersRepository {
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
+  Future<PaginatedResponse<AppUser>> listUsers() async =>
+      const PaginatedResponse(
         data: [
           AppUser(
             id: 'a1',
@@ -86,7 +83,12 @@ class _FakeUsersRepository implements UsersRepository {
             active: true,
             displayName: 'Ruan Botha',
           ),
-          AppUser(id: 'a2', email: 'unnamed@x.com', role: 'field_agent', active: true),
+          AppUser(
+            id: 'a2',
+            email: 'unnamed@x.com',
+            role: 'field_agent',
+            active: true,
+          ),
         ],
         nextCursor: null,
       );
@@ -97,8 +99,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String password,
     required String role,
     String? displayName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<AppUser> setActive(String id, bool active) async =>
@@ -118,11 +119,7 @@ class _RoleSession extends SessionController {
   Future<SessionState> build() async => SessionState(role: role, token: 't');
 }
 
-Widget _app(
-  TerritoriesRepository repo, {
-  String? role,
-  ThemeData? theme,
-}) =>
+Widget _app(TerritoriesRepository repo, {String? role, ThemeData? theme}) =>
     routedApp(
       const TerritoriesScreen(),
       theme: theme,
@@ -146,17 +143,21 @@ void main() {
     await tester.pumpWidget(_app(_FailingTerritoriesRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load territories'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load territories'), findsOneWidget);
   });
 
-  testWidgets('hides create/assign controls from a field agent', (tester) async {
-    await tester.pumpWidget(_app(_FakeTerritoriesRepository(), role: 'field_agent'));
+  testWidgets('hides create/assign controls from a field agent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeTerritoriesRepository(), role: 'field_agent'),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey<String>('territory-create-fab')), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('territory-create-fab')),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey<String>('territory-assign-ter-1')),
       findsNothing,
@@ -168,7 +169,9 @@ void main() {
     await tester.pumpWidget(_app(repo, role: 'manager'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('territory-assign-ter-1')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('territory-assign-ter-1')),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('assign-agent-field')));
@@ -179,7 +182,9 @@ void main() {
     await tester.tap(find.text('Ruan Botha').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('assign-agent-confirm')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('assign-agent-confirm')),
+    );
     await tester.pumpAndSettle();
 
     expect(repo.assignedTerritoryId, 'ter-1');
@@ -201,7 +206,9 @@ void main() {
     );
   });
 
-  testWidgets('the "Map" action opens the territory map screen', (tester) async {
+  testWidgets('the "Map" action opens the territory map screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_FakeTerritoriesRepository()));
     await tester.pumpAndSettle();
 
@@ -215,8 +222,9 @@ void main() {
     expect(find.text('Gauteng North — Map'), findsOneWidget);
   });
 
-  testWidgets('light: the coverage dialog sets its counts as mono figures',
-      (tester) async {
+  testWidgets('light: the coverage dialog sets its counts as mono figures', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(_FakeTerritoriesRepository(), theme: AppTheme.light()),
     );

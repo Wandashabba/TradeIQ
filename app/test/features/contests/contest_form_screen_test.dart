@@ -16,33 +16,32 @@ Widget _host(
   FakeContestsRepository repo, {
   Contest? contest,
   ThemeData? theme,
-}) =>
-    ProviderScope(
-      overrides: [
-        contestsRepositoryProvider.overrideWithValue(repo),
-        territoriesListProvider.overrideWith(
-          (ref) async => const [Territory(id: 't-1', name: 'North', code: 'N1')],
-        ),
-      ],
-      child: MaterialApp(
-        theme: theme,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: TextButton(
-                key: const ValueKey('open-form'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => ContestFormScreen(contest: contest),
-                  ),
-                ),
-                child: const Text('open'),
+}) => ProviderScope(
+  overrides: [
+    contestsRepositoryProvider.overrideWithValue(repo),
+    territoriesListProvider.overrideWith(
+      (ref) async => const [Territory(id: 't-1', name: 'North', code: 'N1')],
+    ),
+  ],
+  child: MaterialApp(
+    theme: theme,
+    home: Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: TextButton(
+            key: const ValueKey('open-form'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ContestFormScreen(contest: contest),
               ),
             ),
+            child: const Text('open'),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 String _fmt(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

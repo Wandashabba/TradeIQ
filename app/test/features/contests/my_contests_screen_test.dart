@@ -26,11 +26,7 @@ final _current = [
   ),
 ];
 
-Widget _app(
-  FakeContestsRepository repo, {
-  ThemeData? theme,
-  Locale? locale,
-}) {
+Widget _app(FakeContestsRepository repo, {ThemeData? theme, Locale? locale}) {
   final db = LocalDb(NativeDatabase.memory());
   addTearDown(db.close);
   return routedApp(
@@ -175,9 +171,7 @@ void main() {
   });
 
   testWidgets('a failed load says so and offers a retry', (tester) async {
-    await tester.pumpWidget(
-      _app(FakeContestsRepository(failCurrent: true)),
-    );
+    await tester.pumpWidget(_app(FakeContestsRepository(failCurrent: true)));
     await tester.pumpAndSettle();
 
     expect(find.text('Couldn’t load contests'), findsOneWidget);

@@ -153,10 +153,7 @@ void main() {
           progress: readyToSubmit,
           skin: mode,
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'visit_hub_ready_${mode.name}');
       });
 
@@ -164,10 +161,7 @@ void main() {
         tester,
       ) async {
         await pumpVisit(tester, visits: ScriptedVisits.succeeds(), skin: mode);
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'visit_hub_blocked_${mode.name}');
       });
     }
@@ -180,10 +174,7 @@ void main() {
     for (final mode in agentSkinModes) {
       testWidgets('${mode.name} holds its declared shape', (tester) async {
         await pumpMe(tester, skin: mode, size: mePhone);
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'me_${mode.name}');
       });
     }
@@ -192,15 +183,8 @@ void main() {
   group('check-in — too far', () {
     for (final mode in agentSkinModes) {
       testWidgets('${mode.name} holds its declared shape', (tester) async {
-        await pumpVisit(
-          tester,
-          visits: ScriptedVisits.tooFar(180),
-          skin: mode,
-        );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        await pumpVisit(tester, visits: ScriptedVisits.tooFar(180), skin: mode);
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'check_in_too_far_${mode.name}');
       });
     }
@@ -223,10 +207,7 @@ void main() {
             ),
           ],
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'my_work_stuck_${mode.name}');
       });
     }
@@ -244,10 +225,7 @@ void main() {
             outletsRepositoryProvider.overrideWithValue(_TwoStores()),
           ],
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'store_picker_${mode.name}');
       });
     }
@@ -294,10 +272,7 @@ void main() {
             ),
           ],
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'submit_gate_${mode.name}');
       });
     }
@@ -347,10 +322,7 @@ void main() {
           mode: mode,
           outcome: const VisitOutcome(score: scored, previous: null),
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'visit_outcome_scored_${mode.name}');
       });
 
@@ -362,10 +334,7 @@ void main() {
           mode: mode,
           outcome: const VisitOutcome(score: null, previous: null),
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'visit_outcome_held_${mode.name}');
       });
     }
@@ -392,10 +361,7 @@ void main() {
             ),
           ],
         );
-        final lines = await measureAgentFrame(
-          tester,
-          skin: agentSkinFor(mode),
-        );
+        final lines = await measureAgentFrame(tester, skin: agentSkinFor(mode));
         expectAgentGolden(lines, 'photo_capture_${mode.name}');
       });
     }

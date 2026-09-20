@@ -137,8 +137,7 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
   Future<Webhook> createWebhook({
     required String url,
     required String event,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> deleteWebhook(String id) async => throw UnimplementedError();
@@ -151,8 +150,7 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
   Future<List<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<WebhookDelivery> redeliver(String deliveryId) async =>
@@ -160,12 +158,10 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
 }
 
 Widget _app(WebhooksRepository repo, {ThemeData? theme}) => routedApp(
-      const WebhooksScreen(),
-      theme: theme,
-      overrides: [
-        webhooksRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const WebhooksScreen(),
+  theme: theme,
+  overrides: [webhooksRepositoryProvider.overrideWithValue(repo)],
+);
 
 /// Taps a webhook row's own title. Scoped to the row, because once it is open
 /// its delivery tiles repeat the same event name.
@@ -211,7 +207,8 @@ void _expectPillAA(
   expect(
     ratio,
     greaterThanOrEqualTo(4.5),
-    reason: '$word is $ratio:1 on its pill — pill words are 8.5px, so AA '
+    reason:
+        '$word is $ratio:1 on its pill — pill words are 8.5px, so AA '
         'demands 4.5:1.',
   );
 }
@@ -263,12 +260,27 @@ void main() {
       expect(find.text('1 unhealthy', findRichText: true), findsNothing);
       expect(find.textContaining('1 unhealthy'), findsOneWidget);
 
-      _expectPillAA(tester, 'Healthy', LumenStatus.good,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Failing', LumenStatus.warn,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Unhealthy', LumenStatus.crit,
-          colors: colors, lumen: lumen);
+      _expectPillAA(
+        tester,
+        'Healthy',
+        LumenStatus.good,
+        colors: colors,
+        lumen: lumen,
+      );
+      _expectPillAA(
+        tester,
+        'Failing',
+        LumenStatus.warn,
+        colors: colors,
+        lumen: lumen,
+      );
+      _expectPillAA(
+        tester,
+        'Unhealthy',
+        LumenStatus.crit,
+        colors: colors,
+        lumen: lumen,
+      );
     });
 
     testWidgets('$name: opening a webhook lists its deliveries as no-blur '
@@ -303,12 +315,27 @@ void main() {
         expect(pane.blur, isFalse);
       }
 
-      _expectPillAA(tester, 'Delivered', LumenStatus.good,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Retrying', LumenStatus.warn,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Gave up', LumenStatus.crit,
-          colors: colors, lumen: lumen);
+      _expectPillAA(
+        tester,
+        'Delivered',
+        LumenStatus.good,
+        colors: colors,
+        lumen: lumen,
+      );
+      _expectPillAA(
+        tester,
+        'Retrying',
+        LumenStatus.warn,
+        colors: colors,
+        lumen: lumen,
+      );
+      _expectPillAA(
+        tester,
+        'Gave up',
+        LumenStatus.crit,
+        colors: colors,
+        lumen: lumen,
+      );
 
       // Tapping again closes it.
       await _expand(tester, 'w-first', 'visit.submitted');
@@ -336,18 +363,30 @@ void main() {
 
   test('relativeTime reads past and future spans', () {
     final now = DateTime(2026, 9, 14, 12);
-    expect(relativeTime(now.subtract(const Duration(seconds: 20)), now: now),
-        'just now');
-    expect(relativeTime(now.subtract(const Duration(minutes: 7)), now: now),
-        '7m ago');
-    expect(relativeTime(now.subtract(const Duration(hours: 3)), now: now),
-        '3h ago');
-    expect(relativeTime(now.subtract(const Duration(days: 2)), now: now),
-        '2d ago');
-    expect(relativeTime(now.add(const Duration(minutes: 5)), now: now),
-        'in 5m');
-    expect(relativeTime(now.add(const Duration(seconds: 10)), now: now),
-        'in under a minute');
+    expect(
+      relativeTime(now.subtract(const Duration(seconds: 20)), now: now),
+      'just now',
+    );
+    expect(
+      relativeTime(now.subtract(const Duration(minutes: 7)), now: now),
+      '7m ago',
+    );
+    expect(
+      relativeTime(now.subtract(const Duration(hours: 3)), now: now),
+      '3h ago',
+    );
+    expect(
+      relativeTime(now.subtract(const Duration(days: 2)), now: now),
+      '2d ago',
+    );
+    expect(
+      relativeTime(now.add(const Duration(minutes: 5)), now: now),
+      'in 5m',
+    );
+    expect(
+      relativeTime(now.add(const Duration(seconds: 10)), now: now),
+      'in under a minute',
+    );
   });
 
   testWidgets('tapping delete records the webhook id', (tester) async {
@@ -384,8 +423,9 @@ void main() {
     expect(repo.createdEvent, 'stock.captured');
   });
 
-  testWidgets('the create form lists the events, report.generated included',
-      (tester) async {
+  testWidgets('the create form lists the events, report.generated included', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_FakeWebhooksRepository()));
     await tester.pumpAndSettle();
 
@@ -419,9 +459,6 @@ void main() {
     await tester.pumpWidget(_app(_ThrowingWebhooksRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load webhooks'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load webhooks'), findsOneWidget);
   });
 }

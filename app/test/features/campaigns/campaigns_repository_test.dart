@@ -171,8 +171,9 @@ void main() {
     test('a null roiPct with an unknown or missing reason is still '
         'unmeasurable', () {
       expect(
-        CampaignRoi.fromJson(body(roiPct: null, unmeasurable: 'new_reason'))
-            .unmeasurable,
+        CampaignRoi.fromJson(
+          body(roiPct: null, unmeasurable: 'new_reason'),
+        ).unmeasurable,
         RoiUnmeasurable.unknown,
       );
       expect(
@@ -224,21 +225,23 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
-        () async {
-      dio.httpClientAdapter = _RecordingAdapter(
-        '{"data": [{"id": "c1", "name": "Summer Push", "status": "active", '
-        '"startDate": "2026-06-01", "endDate": "2026-08-31", '
-        '"_count": {"outlets": 12}}], '
-        '"nextCursor": "cursor-1"}',
-      );
+    test(
+      'parses the {data, nextCursor} envelope into a PaginatedResponse',
+      () async {
+        dio.httpClientAdapter = _RecordingAdapter(
+          '{"data": [{"id": "c1", "name": "Summer Push", "status": "active", '
+          '"startDate": "2026-06-01", "endDate": "2026-08-31", '
+          '"_count": {"outlets": 12}}], '
+          '"nextCursor": "cursor-1"}',
+        );
 
-      final page = await DioCampaignsRepository().listCampaigns();
+        final page = await DioCampaignsRepository().listCampaigns();
 
-      expect(page, isA<PaginatedResponse<Campaign>>());
-      expect(page.data, hasLength(1));
-      expect(page.data.first.id, 'c1');
-      expect(page.nextCursor, 'cursor-1');
-    });
+        expect(page, isA<PaginatedResponse<Campaign>>());
+        expect(page.data, hasLength(1));
+        expect(page.data.first.id, 'c1');
+        expect(page.nextCursor, 'cursor-1');
+      },
+    );
   });
 }

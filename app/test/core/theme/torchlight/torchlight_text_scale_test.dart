@@ -155,12 +155,12 @@ void main() {
 
   group('the layouts absorb it', () {
     for (final scale in scales) {
-      for (final MapEntry(key: name, value: build) in <String, ThemeData
-          Function()>{
-        'night': AppTheme.night,
-        'day': AppTheme.day,
-        'veld': AppTheme.veld,
-      }.entries) {
+      for (final MapEntry(key: name, value: build)
+          in <String, ThemeData Function()>{
+            'night': AppTheme.night,
+            'day': AppTheme.day,
+            'veld': AppTheme.veld,
+          }.entries) {
         testWidgets('$name survives ${scale}x on a 360dp phone', (
           tester,
         ) async {
@@ -220,9 +220,7 @@ void main() {
                         ),
                         Text(
                           'OSA 34%, down 19 pts — 3 visits, no order',
-                          style: skin.text.body.style(
-                            color: skin.palette.ink2,
-                          ),
+                          style: skin.text.body.style(color: skin.palette.ink2),
                         ),
                       ],
                     ),

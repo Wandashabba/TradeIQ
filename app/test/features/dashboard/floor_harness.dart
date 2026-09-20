@@ -386,9 +386,7 @@ Future<void> pumpFloor(
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: Theme(
-              data: ThemeData(
-                extensions: <ThemeExtension<dynamic>>[resolved],
-              ),
+              data: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
               child: RepaintBoundary(
                 key: const ValueKey<String>('amber-golden-boundary'),
                 child: ColoredBox(
@@ -404,7 +402,6 @@ Future<void> pumpFloor(
   );
   await tester.pumpAndSettle();
 }
-
 
 /// Scroll The Floor until [finder] is built and on screen.
 ///

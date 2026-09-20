@@ -47,23 +47,22 @@ ScheduleRunResult _runResult({
   int rowCount = 42,
   List<String> deliveredTo = const ['https://hooks.acme.test/reports'],
   ReportDeliveryOutcome? webhook,
-}) =>
-    ScheduleRunResult(
-      schedule: _active,
-      runId: 'run-1',
-      generatedAt: '2026-09-14T10:05:00.000Z',
-      rowCount: rowCount,
-      deliveredTo: deliveredTo,
-      deliveries: [
-        webhook ??
-            ReportDeliveryOutcome(
-              channel: 'webhook',
-              status: deliveredTo.isEmpty ? 'no_subscribers' : 'queued',
-              targets: deliveredTo,
-            ),
-        _emailNotConfigured,
-      ],
-    );
+}) => ScheduleRunResult(
+  schedule: _active,
+  runId: 'run-1',
+  generatedAt: '2026-09-14T10:05:00.000Z',
+  rowCount: rowCount,
+  deliveredTo: deliveredTo,
+  deliveries: [
+    webhook ??
+        ReportDeliveryOutcome(
+          channel: 'webhook',
+          status: deliveredTo.isEmpty ? 'no_subscribers' : 'queued',
+          targets: deliveredTo,
+        ),
+    _emailNotConfigured,
+  ],
+);
 
 class _FakeSchedulesRepository implements ReportSchedulesRepository {
   _FakeSchedulesRepository({
@@ -73,8 +72,10 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
     this.failUpdate = false,
     this.pendingList,
     ScheduleRunResult? runResult,
-  })  : schedules = [...(schedules ?? [_active, _paused])],
-        runResult = runResult ?? _runResult();
+  }) : schedules = [
+         ...(schedules ?? [_active, _paused]),
+       ],
+       runResult = runResult ?? _runResult();
 
   /// Mutable, so an update is visible on the next list — like the server.
   final List<ReportSchedule> schedules;
@@ -128,8 +129,7 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
     required String reportDefinitionId,
     required String cadence,
     required List<String> recipients,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<ReportSchedule> setActive(String id, bool active) async {
@@ -166,15 +166,20 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
   Future<List<ReportEmailDelivery>> listEmailDeliveries(
     String scheduleId,
     String runId,
-  ) async =>
-      const [];
+  ) async => const [];
 }
 
 class _FakeReportsRepository implements ReportsRepository {
   @override
   Future<PaginatedResponse<ReportDefinition>> listReports() async =>
       const PaginatedResponse(
-        data: [ReportDefinition(id: 'r-a', name: 'Coverage by outlet', type: 'visits')],
+        data: [
+          ReportDefinition(
+            id: 'r-a',
+            name: 'Coverage by outlet',
+            type: 'visits',
+          ),
+        ],
         nextCursor: null,
       );
 
@@ -186,44 +191,47 @@ class _FakeReportsRepository implements ReportsRepository {
     required String name,
     required String type,
     required Map<String, dynamic> filters,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> deleteReport(String id) async => throw UnimplementedError();
 }
 
 Widget _app(ReportSchedulesRepository repo, {ThemeData? theme}) => routedApp(
-      const ReportSchedulesScreen(),
-      theme: theme,
-      overrides: [
-        reportSchedulesRepositoryProvider.overrideWithValue(repo),
-        reportsRepositoryProvider.overrideWithValue(_FakeReportsRepository()),
-      ],
-    );
+  const ReportSchedulesScreen(),
+  theme: theme,
+  overrides: [
+    reportSchedulesRepositoryProvider.overrideWithValue(repo),
+    reportsRepositoryProvider.overrideWithValue(_FakeReportsRepository()),
+  ],
+);
 
 void main() {
-  testWidgets('each row shows report, cadence, next and last run, recipients and status word',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeSchedulesRepository()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'each row shows report, cadence, next and last run, recipients and status word',
+    (tester) async {
+      await tester.pumpWidget(_app(_FakeSchedulesRepository()));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Coverage by outlet'), findsOneWidget);
-    expect(find.text('Sales by SKU'), findsOneWidget);
-    expect(find.text('Weekly · Next run 2026-09-21 09:00'), findsOneWidget);
-    // A paused schedule has no next run, and says so.
-    expect(find.text('Daily · Paused, no next run'), findsOneWidget);
-    expect(find.text('Never run'), findsNWidgets(2));
-    expect(find.text('To ops@acme.test, lead@acme.test'), findsOneWidget);
-    expect(find.text('To sales@acme.test'), findsOneWidget);
-    // Status is a word, never colour alone.
-    expect(find.text('ACTIVE'), findsOneWidget);
-    expect(find.text('PAUSED'), findsOneWidget);
-    expect(find.text('2 schedules'), findsOneWidget);
-    expect(find.text('1 active'), findsOneWidget);
-  });
+      expect(find.text('Coverage by outlet'), findsOneWidget);
+      expect(find.text('Sales by SKU'), findsOneWidget);
+      expect(find.text('Weekly · Next run 2026-09-21 09:00'), findsOneWidget);
+      // A paused schedule has no next run, and says so.
+      expect(find.text('Daily · Paused, no next run'), findsOneWidget);
+      expect(find.text('Never run'), findsNWidgets(2));
+      expect(find.text('To ops@acme.test, lead@acme.test'), findsOneWidget);
+      expect(find.text('To sales@acme.test'), findsOneWidget);
+      // Status is a word, never colour alone.
+      expect(find.text('ACTIVE'), findsOneWidget);
+      expect(find.text('PAUSED'), findsOneWidget);
+      expect(find.text('2 schedules'), findsOneWidget);
+      expect(find.text('1 active'), findsOneWidget);
+    },
+  );
 
-  testWidgets('next and last run sit on the row they belong to', (tester) async {
+  testWidgets('next and last run sit on the row they belong to', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(
         _FakeSchedulesRepository(
@@ -246,7 +254,10 @@ void main() {
 
     final row = find.byKey(const ValueKey<String>('schedule-s-run'));
     expect(
-      find.descendant(of: row, matching: find.text('Last run 2026-09-14 10:05')),
+      find.descendant(
+        of: row,
+        matching: find.text('Last run 2026-09-14 10:05'),
+      ),
       findsOneWidget,
     );
     expect(
@@ -276,17 +287,25 @@ void main() {
     expect(lastRunLabel(null), 'Never run');
   });
 
-  testWidgets('says schedules run automatically to webhooks, and email once set up',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeSchedulesRepository()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'says schedules run automatically to webhooks, and email once set up',
+    (tester) async {
+      await tester.pumpWidget(_app(_FakeSchedulesRepository()));
+      await tester.pumpAndSettle();
 
-    expect(find.text(scheduleDeliveryNote), findsOneWidget);
-    expect(scheduleDeliveryNote, contains('run automatically'));
-    expect(scheduleDeliveryNote, contains('webhooks subscribed to report.generated'));
-    expect(scheduleDeliveryNote, contains('Recipients are emailed when email is set up'));
-    expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
-  });
+      expect(find.text(scheduleDeliveryNote), findsOneWidget);
+      expect(scheduleDeliveryNote, contains('run automatically'));
+      expect(
+        scheduleDeliveryNote,
+        contains('webhooks subscribed to report.generated'),
+      );
+      expect(
+        scheduleDeliveryNote,
+        contains('Recipients are emailed when email is set up'),
+      );
+      expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
+    },
+  );
 
   testWidgets('pause and resume follow each row\'s state', (tester) async {
     final repo = _FakeSchedulesRepository();
@@ -295,8 +314,14 @@ void main() {
 
     final pause = find.byKey(const ValueKey<String>('toggle-s-active'));
     final resume = find.byKey(const ValueKey<String>('toggle-s-paused'));
-    expect(find.descendant(of: pause, matching: find.text('Pause')), findsOneWidget);
-    expect(find.descendant(of: resume, matching: find.text('Resume')), findsOneWidget);
+    expect(
+      find.descendant(of: pause, matching: find.text('Pause')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: resume, matching: find.text('Resume')),
+      findsOneWidget,
+    );
 
     await tester.tap(pause);
     await tester.pumpAndSettle();
@@ -309,26 +334,30 @@ void main() {
     expect(repo.toggledValue, isTrue);
   });
 
-  testWidgets('run now reports what the API did — rows, webhooks queued, no email',
-      (tester) async {
-    final repo = _FakeSchedulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'run now reports what the API did — rows, webhooks queued, no email',
+    (tester) async {
+      final repo = _FakeSchedulesRepository();
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('run-s-active')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('run-s-active')));
+      await tester.pumpAndSettle();
 
-    expect(repo.runId, 's-active');
-    expect(
-      find.text('Generated 42 rows. Queued for 1 webhook. Email is not set up on the server.'),
-      findsOneWidget,
-    );
-    // Queued, not received: never claimed as delivered.
-    expect(find.textContaining('Delivered'), findsNothing);
+      expect(repo.runId, 's-active');
+      expect(
+        find.text(
+          'Generated 42 rows. Queued for 1 webhook. Email is not set up on the server.',
+        ),
+        findsOneWidget,
+      );
+      // Queued, not received: never claimed as delivered.
+      expect(find.textContaining('Delivered'), findsNothing);
 
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-  });
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    },
+  );
 
   group('runNowMessage', () {
     test('counts one row and many webhooks', () {
@@ -360,7 +389,11 @@ void main() {
         rowCount: 3,
         deliveredTo: ['https://a.test', 'ops@acme.test', 'lead@acme.test'],
         deliveries: [
-          ReportDeliveryOutcome(channel: 'webhook', status: 'queued', targets: ['https://a.test']),
+          ReportDeliveryOutcome(
+            channel: 'webhook',
+            status: 'queued',
+            targets: ['https://a.test'],
+          ),
           ReportDeliveryOutcome(
             channel: 'email',
             status: 'queued',
@@ -428,8 +461,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('delete asks first, and cancel keeps the schedule',
-      (tester) async {
+  testWidgets('delete asks first, and cancel keeps the schedule', (
+    tester,
+  ) async {
     final repo = _FakeSchedulesRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -466,7 +500,9 @@ void main() {
   });
 
   testWidgets('an empty list is a stated result', (tester) async {
-    await tester.pumpWidget(_app(_FakeSchedulesRepository(schedules: const [])));
+    await tester.pumpWidget(
+      _app(_FakeSchedulesRepository(schedules: const [])),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('No report schedules'), findsOneWidget);
@@ -477,7 +513,10 @@ void main() {
     await tester.pumpWidget(_app(_FakeSchedulesRepository(failList: true)));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Failed to load report schedules'), findsOneWidget);
+    expect(
+      find.textContaining('Failed to load report schedules'),
+      findsOneWidget,
+    );
     expect(find.text('Retry'), findsOneWidget);
   });
 
@@ -510,8 +549,9 @@ void main() {
   });
 
   group('edit', () {
-    final recipientsField =
-        find.byKey(const ValueKey<String>('schedule-recipients-field'));
+    final recipientsField = find.byKey(
+      const ValueKey<String>('schedule-recipients-field'),
+    );
     final save = find.byKey(const ValueKey<String>('schedule-save-button'));
 
     testWidgets('each row has Edit beside its other actions', (tester) async {
@@ -537,8 +577,9 @@ void main() {
       }
     });
 
-    testWidgets('Edit opens the form prefilled with that schedule',
-        (tester) async {
+    testWidgets('Edit opens the form prefilled with that schedule', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(_FakeSchedulesRepository()));
       await tester.pumpAndSettle();
 
@@ -566,8 +607,9 @@ void main() {
       );
     });
 
-    testWidgets('a save returns to the list, which shows the change',
-        (tester) async {
+    testWidgets('a save returns to the list, which shows the change', (
+      tester,
+    ) async {
       final repo = _FakeSchedulesRepository();
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -575,8 +617,9 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey<String>('edit-s-active')));
       await tester.pumpAndSettle();
-      await tester
-          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('schedule-cadence-field')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Daily').last);
       await tester.pumpAndSettle();
@@ -593,8 +636,7 @@ void main() {
       expect(find.text('Daily · Next run 2026-09-21 09:00'), findsOneWidget);
     });
 
-    testWidgets('a failed save stays on the form and says why',
-        (tester) async {
+    testWidgets('a failed save stays on the form and says why', (tester) async {
       final repo = _FakeSchedulesRepository(failUpdate: true);
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -626,8 +668,9 @@ void main() {
     ('dark', AppTheme.dark(), TiqColors.night),
   ]) {
     group('Lumen Glass ($name)', () {
-      testWidgets('Edit sits in the glass row and opens a glass form',
-          (tester) async {
+      testWidgets('Edit sits in the glass row and opens a glass form', (
+        tester,
+      ) async {
         await tester.pumpWidget(_app(_FakeSchedulesRepository(), theme: theme));
         await tester.pumpAndSettle();
 
@@ -653,8 +696,9 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('rows are no-blur glass tiles inside a glass panel',
-          (tester) async {
+      testWidgets('rows are no-blur glass tiles inside a glass panel', (
+        tester,
+      ) async {
         await tester.pumpWidget(_app(_FakeSchedulesRepository(), theme: theme));
         await tester.pumpAndSettle();
 
@@ -670,7 +714,9 @@ void main() {
         expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
         expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
         // The next/last run lines sit inside the same glass tile.
-        final nextRun = find.byKey(const ValueKey<String>('schedule-next-run-s-active'));
+        final nextRun = find.byKey(
+          const ValueKey<String>('schedule-next-run-s-active'),
+        );
         expect(
           tester
               .widgetList<GlassPane>(
@@ -705,11 +751,15 @@ void main() {
           final wash = (box.decoration! as BoxDecoration).color!;
           final ink = tester.widget<Text>(find.text(word)).style!.color!;
           // The wash is translucent: judge it composited over the pane.
-          final ratio = contrastRatio(ink, Color.alphaBlend(wash, palette.surface1));
+          final ratio = contrastRatio(
+            ink,
+            Color.alphaBlend(wash, palette.surface1),
+          );
           expect(
             ratio,
             greaterThanOrEqualTo(4.5),
-            reason: '$word ($name) is $ratio:1 — pill text is 8.5px, so AA '
+            reason:
+                '$word ($name) is $ratio:1 — pill text is 8.5px, so AA '
                 'demands 4.5:1.',
           );
         }

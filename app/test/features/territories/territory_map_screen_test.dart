@@ -57,8 +57,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
     required String name,
     required String code,
     String? region,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async =>
@@ -66,18 +65,19 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
 }
 
 Widget _app(TerritoryCoverage coverage, {ThemeData? theme}) => routedApp(
-      const TerritoryMapScreen(territory: _territory),
-      theme: theme,
-      overrides: [
-        territoriesRepositoryProvider.overrideWithValue(
-          _FakeTerritoriesRepository(coverage: coverage),
-        ),
-      ],
-    );
+  const TerritoryMapScreen(territory: _territory),
+  theme: theme,
+  overrides: [
+    territoriesRepositoryProvider.overrideWithValue(
+      _FakeTerritoriesRepository(coverage: coverage),
+    ),
+  ],
+);
 
 void main() {
-  testWidgets('distinguishes visited from unvisited by SHAPE, not just colour',
-      (tester) async {
+  testWidgets('distinguishes visited from unvisited by SHAPE, not just colour', (
+    tester,
+  ) async {
     const coverage = TerritoryCoverage(
       outletCount: 2,
       agentCount: 0,
@@ -117,7 +117,14 @@ void main() {
       outletCount: 2,
       agentCount: 0,
       outlets: [
-        Outlet(id: 'o1', name: 'Alpha', code: 'A1', lat: -26.1, lng: 28.0, visited: true),
+        Outlet(
+          id: 'o1',
+          name: 'Alpha',
+          code: 'A1',
+          lat: -26.1,
+          lng: 28.0,
+          visited: true,
+        ),
         Outlet(id: 'o2', name: 'Beta', code: 'B2', lat: -26.2, lng: 28.1),
       ],
       outletsVisited: 1,
@@ -154,8 +161,9 @@ void main() {
     expect(find.text('Visited'), findsOneWidget);
   });
 
-  testWidgets('shows an empty state when the territory has no outlets',
-      (tester) async {
+  testWidgets('shows an empty state when the territory has no outlets', (
+    tester,
+  ) async {
     const coverage = TerritoryCoverage(outletCount: 0, agentCount: 0);
     await tester.pumpWidget(_app(coverage));
     await tester.pump();
@@ -182,16 +190,16 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('shows an error message when coverage fails to load',
-      (tester) async {
+  testWidgets('shows an error message when coverage fails to load', (
+    tester,
+  ) async {
     final app = routedApp(
       const TerritoryMapScreen(territory: _territory),
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(
           _FakeTerritoriesRepository(
-            coverageFuture: () => Future<TerritoryCoverage>.error(
-              Exception('network down'),
-            ),
+            coverageFuture: () =>
+                Future<TerritoryCoverage>.error(Exception('network down')),
           ),
         ),
       ],
@@ -206,37 +214,44 @@ void main() {
     );
   });
 
-  testWidgets('light: pins ink from the glass swatches, the sheet says the word',
-      (tester) async {
-    const coverage = TerritoryCoverage(
-      outletCount: 2,
-      agentCount: 0,
-      outlets: [_visited, _unvisited],
-      outletsVisited: 1,
-      outletsTotal: 2,
-      coverageRate: 50,
-    );
-    await tester.pumpWidget(_app(coverage, theme: AppTheme.light()));
-    await tester.pump();
-    await tester.pump();
+  testWidgets(
+    'light: pins ink from the glass swatches, the sheet says the word',
+    (tester) async {
+      const coverage = TerritoryCoverage(
+        outletCount: 2,
+        agentCount: 0,
+        outlets: [_visited, _unvisited],
+        outletsVisited: 1,
+        outletsTotal: 2,
+        coverageRate: 50,
+      );
+      await tester.pumpWidget(_app(coverage, theme: AppTheme.light()));
+      await tester.pump();
+      await tester.pump();
 
-    final visitedPin = tester.widget<Icon>(
-      find.byKey(const ValueKey<String>('outlet-pin-icon-o1')),
-    );
-    final unvisitedPin = tester.widget<Icon>(
-      find.byKey(const ValueKey<String>('outlet-pin-icon-o2')),
-    );
-    // Silhouette still carries the state; colour comes from the swatch inks.
-    expect(visitedPin.icon, Icons.check_circle);
-    expect(unvisitedPin.icon, Icons.location_on);
-    expect(visitedPin.color, LumenStatus.good.swatchOf(TiqColors.light).ink);
-    expect(unvisitedPin.color, LumenStatus.crit.swatchOf(TiqColors.light).ink);
+      final visitedPin = tester.widget<Icon>(
+        find.byKey(const ValueKey<String>('outlet-pin-icon-o1')),
+      );
+      final unvisitedPin = tester.widget<Icon>(
+        find.byKey(const ValueKey<String>('outlet-pin-icon-o2')),
+      );
+      // Silhouette still carries the state; colour comes from the swatch inks.
+      expect(visitedPin.icon, Icons.check_circle);
+      expect(unvisitedPin.icon, Icons.location_on);
+      expect(visitedPin.color, LumenStatus.good.swatchOf(TiqColors.light).ink);
+      expect(
+        unvisitedPin.color,
+        LumenStatus.crit.swatchOf(TiqColors.light).ink,
+      );
 
-    await tester.tap(find.byKey(const ValueKey<String>('outlet-pin-icon-o1')));
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('outlet-pin-icon-o1')),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Sandton Spar'), findsOneWidget);
-    // The state is a word on its wash, not the colour alone.
-    expect(find.text('VISITED'), findsOneWidget);
-  });
+      expect(find.text('Sandton Spar'), findsOneWidget);
+      // The state is a word on its wash, not the colour alone.
+      expect(find.text('VISITED'), findsOneWidget);
+    },
+  );
 }

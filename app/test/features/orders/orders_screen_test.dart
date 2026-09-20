@@ -44,24 +44,20 @@ class _FailingOrdersRepository implements OrdersRepository {
   Future<PaginatedResponse<OrderItem>> listOrders({
     String? status,
     String? outletId,
-  }) async =>
-      throw Exception('boom');
+  }) async => throw Exception('boom');
 
   @override
   Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
-  }) async =>
-      throw Exception('boom');
+  }) async => throw Exception('boom');
 }
 
 Widget _app(OrdersRepository repo, {ThemeData? theme}) => routedApp(
-      const OrdersScreen(),
-      theme: theme,
-      overrides: [
-        ordersRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const OrdersScreen(),
+  theme: theme,
+  overrides: [ordersRepositoryProvider.overrideWithValue(repo)],
+);
 
 void main() {
   testWidgets('renders both orders once loaded', (tester) async {
@@ -76,14 +72,12 @@ void main() {
     await tester.pumpWidget(_app(_FailingOrdersRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load orders'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load orders'), findsOneWidget);
   });
 
-  testWidgets('light: rows are glass tiles and the total value is a figure',
-      (tester) async {
+  testWidgets('light: rows are glass tiles and the total value is a figure', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(_FakeOrdersRepository(), theme: AppTheme.light()),
     );

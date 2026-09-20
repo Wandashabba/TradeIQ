@@ -1,4 +1,4 @@
-import 'package:flutter/semantics.dart' show SemanticsAction, SemanticsFlag;
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -109,25 +109,23 @@ void main() {
         ),
       );
 
-      final node = tester.getSemantics(find.bySemanticsLabel('See all'));
+      final data = tester
+          .getSemantics(find.bySemanticsLabel('See all'))
+          .getSemanticsData();
       expect(
-        node.hasFlag(SemanticsFlag.isButton),
+        data.flagsCollection.isButton,
         isTrue,
         reason: 'The action has to have a node of its own to be announced.',
       );
       expect(
-        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        data.hasAction(SemanticsAction.tap),
         isTrue,
         reason:
             'A button that announces itself and carries no tap action is a '
             'control a screen-reader user can focus and cannot use.',
       );
 
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        node.id,
-        SemanticsAction.tap,
-      );
-      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('See all'));
       expect(tapped, isTrue);
       handle.dispose();
     });
@@ -144,10 +142,10 @@ void main() {
         ),
       );
 
-      final heading = tester.getSemantics(
-        find.bySemanticsLabel('Needs a decision, 12'),
-      );
-      expect(heading.hasFlag(SemanticsFlag.isHeader), isTrue);
+      final heading = tester
+          .getSemantics(find.bySemanticsLabel('Needs a decision, 12'))
+          .getSemanticsData();
+      expect(heading.flagsCollection.isHeader, isTrue);
       handle.dispose();
     });
 

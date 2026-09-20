@@ -12,7 +12,12 @@ final _schema = TemplateSchema.parse(const {
       'id': 'availability',
       'title': 'Availability',
       'fields': [
-        {'id': 'onShelf', 'label': 'On shelf?', 'type': 'boolean', 'weight': 10},
+        {
+          'id': 'onShelf',
+          'label': 'On shelf?',
+          'type': 'boolean',
+          'weight': 10,
+        },
         {
           'id': 'facing',
           'label': 'Facing count',
@@ -42,16 +47,15 @@ Widget _app({
   TemplateSchema? schema,
   ValueChanged<Map<String, Object?>>? onSubmit,
   ThemeData? theme,
-}) =>
-    MaterialApp(
-      theme: theme,
-      home: Scaffold(
-        body: DynamicTemplateForm(
-          schema: schema ?? _schema,
-          onSubmit: onSubmit ?? (_) {},
-        ),
-      ),
-    );
+}) => MaterialApp(
+  theme: theme,
+  home: Scaffold(
+    body: DynamicTemplateForm(
+      schema: schema ?? _schema,
+      onSubmit: onSubmit ?? (_) {},
+    ),
+  ),
+);
 
 void main() {
   testWidgets('renders one section at a time and steps with Next/Back', (
@@ -88,9 +92,7 @@ void main() {
     expect(find.text('Facing count'), findsOneWidget);
   });
 
-  testWidgets('shows a live score preview for weighted fields', (
-    tester,
-  ) async {
+  testWidgets('shows a live score preview for weighted fields', (tester) async {
     await tester.pumpWidget(_app());
 
     expect(find.text('Score preview: 0 / 10'), findsOneWidget);
@@ -146,57 +148,57 @@ void main() {
   });
 
   testWidgets('an empty schema shows a friendly message', (tester) async {
-    await tester.pumpWidget(
-      _app(schema: TemplateSchema.parse(const {})),
-    );
+    await tester.pumpWidget(_app(schema: TemplateSchema.parse(const {})));
     expect(
       find.text('This template has no form sections yet.'),
       findsOneWidget,
     );
   });
 
-  testWidgets('light: kicker and title, fields on glass, Next is the glass action',
-      (tester) async {
-    Map<String, Object?>? submitted;
-    await tester.pumpWidget(
-      _app(theme: AppTheme.light(), onSubmit: (a) => submitted = a),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'light: kicker and title, fields on glass, Next is the glass action',
+    (tester) async {
+      Map<String, Object?>? submitted;
+      await tester.pumpWidget(
+        _app(theme: AppTheme.light(), onSubmit: (a) => submitted = a),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('SECTION 1 OF 2'), findsOneWidget);
-    expect(find.text('Availability'), findsOneWidget);
-    // The running score is its own mono figure.
-    final score = tester.widget<Text>(find.text('0 / 10'));
-    expect(score.style?.fontFamily, 'JetBrains Mono');
+      expect(find.text('SECTION 1 OF 2'), findsOneWidget);
+      expect(find.text('Availability'), findsOneWidget);
+      // The running score is its own mono figure.
+      final score = tester.widget<Text>(find.text('0 / 10'));
+      expect(score.style?.fontFamily, 'JetBrains Mono');
 
-    final toggle = find.byKey(const ValueKey('field-onShelf'));
-    expect(
-      tester
-          .widget<GlassPane>(
-            find.ancestor(of: toggle, matching: find.byType(GlassPane)).first,
-          )
-          .kind,
-      GlassKind.tile,
-    );
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(find.text('10 / 10'), findsOneWidget);
+      final toggle = find.byKey(const ValueKey('field-onShelf'));
+      expect(
+        tester
+            .widget<GlassPane>(
+              find.ancestor(of: toggle, matching: find.byType(GlassPane)).first,
+            )
+            .kind,
+        GlassKind.tile,
+      );
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.text('10 / 10'), findsOneWidget);
 
-    final next = find.byKey(const ValueKey('form-next'));
-    expect(tester.widget(next), isA<GlassPrimaryButton>());
-    expect(find.byType(ElevatedButton), findsNothing);
-    await tester.tap(next);
-    await tester.pumpAndSettle();
-    expect(find.text('SECTION 2 OF 2'), findsOneWidget);
+      final next = find.byKey(const ValueKey('form-next'));
+      expect(tester.widget(next), isA<GlassPrimaryButton>());
+      expect(find.byType(ElevatedButton), findsNothing);
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+      expect(find.text('SECTION 2 OF 2'), findsOneWidget);
 
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-    expect(find.text('SECTION 1 OF 2'), findsOneWidget);
+      await tester.tap(find.text('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('SECTION 1 OF 2'), findsOneWidget);
 
-    await tester.tap(next);
-    await tester.pumpAndSettle();
-    await tester.tap(next);
-    await tester.pumpAndSettle();
-    expect(submitted, {'onShelf': true});
-  });
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+      expect(submitted, {'onShelf': true});
+    },
+  );
 }

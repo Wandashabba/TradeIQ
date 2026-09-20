@@ -186,12 +186,8 @@ void main() {
           skin: night,
           claims: <TorchClaim>[
             TorchClaim.chartFocus('a', subject: true),
-            TorchClaim.plateStripLight('b', ),
-            const TorchClaim(
-              TorchClaimKind.chartFocus,
-              id: 'c',
-              subject: true,
-            ),
+            TorchClaim.plateStripLight('b'),
+            const TorchClaim(TorchClaimKind.chartFocus, id: 'c', subject: true),
           ],
         ),
         throwsA(
@@ -221,9 +217,7 @@ void main() {
       expect(a.granted.map((c) => c.id), <String>['commit']);
       for (final id in <String>['plate', 'bar', 'agent']) {
         expect(
-          a.denied.entries
-              .firstWhere((e) => e.key.id == id)
-              .value,
+          a.denied.entries.firstWhere((e) => e.key.id == id).value,
           TorchDenial.notAmberOnLightGround,
         );
       }
@@ -311,7 +305,11 @@ void main() {
         ),
         throwsA(
           isA<FlutterError>()
-              .having((e) => e.message, 'names the budget', contains('budget of 2'))
+              .having(
+                (e) => e.message,
+                'names the budget',
+                contains('budget of 2'),
+              )
               .having((e) => e.message, 'prints the ladder', contains('unlit:'))
               .having(
                 (e) => e.message,
@@ -432,8 +430,7 @@ void main() {
         child: const SizedBox(),
       );
       expect(
-        at(beneathSheet: true)
-            .updateShouldNotify(at(beneathSheet: false)),
+        at(beneathSheet: true).updateShouldNotify(at(beneathSheet: false)),
         isTrue,
       );
     });

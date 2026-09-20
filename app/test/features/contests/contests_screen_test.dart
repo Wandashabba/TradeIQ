@@ -34,20 +34,20 @@ Widget _routed(FakeContestsRepository repo, {ThemeData? theme}) =>
     );
 
 FakeContestsRepository _repo() => FakeContestsRepository(
-      contests: const [
-        activeContest,
-        upcomingContest,
-        endedContest,
-        cancelledContest,
-      ],
-      standingsById: const {
-        'c-active': ContestStandings(
-          contest: activeContest,
-          participantCount: 2,
-          standings: [aisha, bongani],
-        ),
-      },
-    );
+  contests: const [
+    activeContest,
+    upcomingContest,
+    endedContest,
+    cancelledContest,
+  ],
+  standingsById: const {
+    'c-active': ContestStandings(
+      contest: activeContest,
+      participantCount: 2,
+      standings: [aisha, bongani],
+    ),
+  },
+);
 
 void _tallView(WidgetTester tester) {
   tester.view.physicalSize = const Size(1400, 1800);

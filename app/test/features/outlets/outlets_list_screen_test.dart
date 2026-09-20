@@ -158,7 +158,10 @@ void main() {
       await _pump(tester, outlets: _outlets);
 
       final tile = find.byKey(const ValueKey<String>('outlets-unplaced'));
-      expect(find.descendant(of: tile, matching: find.text('1')), findsOneWidget);
+      expect(
+        find.descendant(of: tile, matching: find.text('1')),
+        findsOneWidget,
+      );
       final mark = tester.widget<SeverityMark>(
         find.descendant(of: tile, matching: find.byType(SeverityMark)),
       );
@@ -255,18 +258,23 @@ void main() {
       // Not `tester.tap`: the question is whether a screen-reader user can
       // perform the action, and an excluding Semantics node with no `onTap`
       // announces a button that does nothing.
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        tester.getSemantics(action).id,
-        SemanticsAction.tap,
+      expect(
+        tester
+            .getSemantics(action)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+        reason:
+            'A section rule action that announces itself and carries no tap '
+            'action is a button a reader can focus and cannot press.',
       );
+      await tester.tap(action);
       await tester.pumpAndSettle();
       expect(find.text('stub:/outlets/create'), findsOneWidget);
       handle.dispose();
     });
 
-    testWidgets('the refresh button announces its destination', (
-      tester,
-    ) async {
+    testWidgets('the refresh button announces its destination', (tester) async {
       await _pump(tester, outlets: _outlets);
       final handle = tester.ensureSemantics();
       expect(

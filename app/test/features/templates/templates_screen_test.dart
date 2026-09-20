@@ -16,18 +16,8 @@ const _templates = [
     version: 2,
     active: true,
   ),
-  AuditTemplate(
-    id: 'tpl-2',
-    name: 'Pharmacy Audit',
-    version: 1,
-    active: false,
-  ),
-  AuditTemplate(
-    id: 'tpl-3',
-    name: 'Promo Check',
-    version: 4,
-    active: true,
-  ),
+  AuditTemplate(id: 'tpl-2', name: 'Pharmacy Audit', version: 1, active: false),
+  AuditTemplate(id: 'tpl-3', name: 'Promo Check', version: 4, active: true),
 ];
 
 class _FakeTemplatesRepository implements TemplatesRepository {
@@ -82,12 +72,10 @@ class _FailingTemplatesRepository implements TemplatesRepository {
 }
 
 Widget _app(TemplatesRepository repo, {ThemeData? theme}) => routedApp(
-      const TemplatesScreen(),
-      theme: theme,
-      overrides: [
-        templatesRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const TemplatesScreen(),
+  theme: theme,
+  overrides: [templatesRepositoryProvider.overrideWithValue(repo)],
+);
 
 void main() {
   testWidgets('renders template names once loaded', (tester) async {
@@ -102,19 +90,21 @@ void main() {
     await tester.pumpWidget(_app(_FailingTemplatesRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load templates'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load templates'), findsOneWidget);
   });
 
   testWidgets('light: rows sit on glass worklist tiles', (tester) async {
-    await tester.pumpWidget(_app(_FakeTemplatesRepository(), theme: AppTheme.light()));
+    await tester.pumpWidget(
+      _app(_FakeTemplatesRepository(), theme: AppTheme.light()),
+    );
     await tester.pumpAndSettle();
 
     final tile = tester.widget<GlassPane>(
       find
-          .ancestor(of: find.text('Grocery Audit'), matching: find.byType(GlassPane))
+          .ancestor(
+            of: find.text('Grocery Audit'),
+            matching: find.byType(GlassPane),
+          )
           .first,
     );
     expect(tile.kind, GlassKind.tile);
@@ -135,10 +125,19 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No template is used in audits.'), findsOneWidget);
-        expect(find.byKey(const ValueKey('templates-stop-using')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('templates-stop-using')),
+          findsNothing,
+        );
         // Only active templates can be put in front of agents.
-        expect(find.byKey(const ValueKey('template-use-tpl-1')), findsOneWidget);
-        expect(find.byKey(const ValueKey('template-use-tpl-3')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('template-use-tpl-1')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('template-use-tpl-3')),
+          findsOneWidget,
+        );
         expect(find.byKey(const ValueKey('template-use-tpl-2')), findsNothing);
       });
     }
@@ -150,10 +149,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('“Promo Check” (v4)'), findsOneWidget);
-      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'^in audits$', caseSensitive: false)),
+        findsOneWidget,
+      );
       // The one in use has no "Use in audits" of its own.
       expect(find.byKey(const ValueKey('template-use-tpl-3')), findsNothing);
-      expect(find.byKey(const ValueKey('templates-stop-using')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('templates-stop-using')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('"Use in audits" selects the template and says so', (
@@ -168,8 +173,14 @@ void main() {
 
       expect(repo.selections, ['tpl-1']);
       expect(find.text('“Grocery Audit” (v2)'), findsOneWidget);
-      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsOneWidget);
-      expect(find.text('“Grocery Audit” is now used in audits.'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'^in audits$', caseSensitive: false)),
+        findsOneWidget,
+      );
+      expect(
+        find.text('“Grocery Audit” is now used in audits.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('"Stop using" clears the selection', (tester) async {
@@ -182,7 +193,10 @@ void main() {
 
       expect(repo.selections, [null]);
       expect(find.text('No template is used in audits.'), findsOneWidget);
-      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsNothing);
+      expect(
+        find.textContaining(RegExp(r'^in audits$', caseSensitive: false)),
+        findsNothing,
+      );
     });
   });
 }

@@ -25,7 +25,13 @@ void main() {
     // 8 MB shelf photo is not cut off for being large — only a connection that
     // has actually stopped moving is. A value tight enough to kill a genuine
     // slow upload would make the offline-first capture flow lose work.
-    expect(dio.options.receiveTimeout, greaterThanOrEqualTo(const Duration(seconds: 30)));
-    expect(dio.options.sendTimeout, greaterThanOrEqualTo(const Duration(seconds: 30)));
+    expect(
+      dio.options.receiveTimeout,
+      greaterThanOrEqualTo(const Duration(seconds: 30)),
+    );
+    expect(
+      dio.options.sendTimeout,
+      greaterThanOrEqualTo(const Duration(seconds: 30)),
+    );
   });
 }

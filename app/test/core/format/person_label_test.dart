@@ -8,7 +8,10 @@ void main() {
     });
 
     test('trims the display name', () {
-      expect(personLabel('  Sipho Ndlovu ', 'agent@example.com'), 'Sipho Ndlovu');
+      expect(
+        personLabel('  Sipho Ndlovu ', 'agent@example.com'),
+        'Sipho Ndlovu',
+      );
     });
 
     test('falls back to the email when the name is null', () {

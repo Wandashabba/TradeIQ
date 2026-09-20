@@ -63,60 +63,56 @@ class _FakeGamificationRepository with _History {
 class _NamedGamificationRepository with _History {
   @override
   Future<List<LeaderboardEntry>> leaderboard() async => [
-        LeaderboardEntry(
-          agentId: _entries[0].agentId,
-          email: _entries[0].email,
-          visitsSubmitted: _entries[0].visitsSubmitted,
-          tasksClosed: _entries[0].tasksClosed,
-          rank: _entries[0].rank,
-          avgScorecard: _entries[0].avgScorecard,
-          points: _entries[0].points,
-          displayName: 'Thandi Mokoena',
-        ),
-        _entries[1],
-      ];
+    LeaderboardEntry(
+      agentId: _entries[0].agentId,
+      email: _entries[0].email,
+      visitsSubmitted: _entries[0].visitsSubmitted,
+      tasksClosed: _entries[0].tasksClosed,
+      rank: _entries[0].rank,
+      avgScorecard: _entries[0].avgScorecard,
+      points: _entries[0].points,
+      displayName: 'Thandi Mokoena',
+    ),
+    _entries[1],
+  ];
 }
 
 class _FailingGamificationRepository with _History {
   @override
-  Future<List<LeaderboardEntry>> leaderboard() async =>
-      throw Exception('boom');
+  Future<List<LeaderboardEntry>> leaderboard() async => throw Exception('boom');
 }
 
 /// The leaderboard and its drill-down under real routes, as in app_router.
 Widget _routedBoard({ThemeData? theme}) => ProviderScope(
-      overrides: [
-        gamificationRepositoryProvider.overrideWithValue(
-          _FakeGamificationRepository(),
+  overrides: [
+    gamificationRepositoryProvider.overrideWithValue(
+      _FakeGamificationRepository(),
+    ),
+  ],
+  child: MaterialApp.router(
+    theme: theme,
+    routerConfig: GoRouter(
+      initialLocation: '/leaderboard',
+      routes: [
+        GoRoute(
+          path: '/leaderboard',
+          builder: (context, state) => const LeaderboardScreen(),
+        ),
+        GoRoute(
+          path: '/leaderboard/:agentId',
+          builder: (context, state) =>
+              AgentPointsScreen(agentId: state.pathParameters['agentId']!),
         ),
       ],
-      child: MaterialApp.router(
-        theme: theme,
-        routerConfig: GoRouter(
-          initialLocation: '/leaderboard',
-          routes: [
-            GoRoute(
-              path: '/leaderboard',
-              builder: (context, state) => const LeaderboardScreen(),
-            ),
-            GoRoute(
-              path: '/leaderboard/:agentId',
-              builder: (context, state) => AgentPointsScreen(
-                agentId: state.pathParameters['agentId']!,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    ),
+  ),
+);
 
 Widget _app(GamificationRepository repo, {ThemeData? theme}) => routedApp(
-      const LeaderboardScreen(),
-      theme: theme,
-      overrides: [
-        gamificationRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const LeaderboardScreen(),
+  theme: theme,
+  overrides: [gamificationRepositoryProvider.overrideWithValue(repo)],
+);
 
 const _aliceLine = '240 pts · 12 visits · 5 tasks closed';
 
@@ -160,8 +156,9 @@ void main() {
 
   for (final theme in [AppTheme.light(), null]) {
     final label = theme == null ? 'dark' : 'light';
-    testWidgets('$label: a named agent is ranked by name, others by email',
-        (tester) async {
+    testWidgets('$label: a named agent is ranked by name, others by email', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(_NamedGamificationRepository(), theme: theme),
       );
@@ -207,9 +204,6 @@ void main() {
     await tester.pumpWidget(_app(_FailingGamificationRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load leaderboard'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load leaderboard'), findsOneWidget);
   });
 }

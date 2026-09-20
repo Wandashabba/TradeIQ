@@ -18,8 +18,7 @@ class _RecordingOrdersRepository implements OrdersRepository {
   Future<PaginatedResponse<OrderItem>> listOrders({
     String? status,
     String? outletId,
-  }) async =>
-      const PaginatedResponse(data: [], nextCursor: null);
+  }) async => const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<void> createOrder({
@@ -38,12 +37,12 @@ class _FakeOutletsRepository implements OutletsRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse(
-        data: [
-          Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-          Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
-        ],
-        nextCursor: null,
-      );
+    data: [
+      Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+      Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
+    ],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({
@@ -53,8 +52,7 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 }
 
 class _FakeSkusRepository implements SkusRepository {
@@ -64,33 +62,34 @@ class _FakeSkusRepository implements SkusRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse(
-        data: [
-          Sku(
-            id: 'sku1',
-            name: 'Cola 500ml',
-            category: 'beverage',
-            minFacingsStandard: 4,
-            rrp: 10.00,
-            daysOutOfStock: 0,
-            velocityAvg: 0,
-            effectivePrice: 8.00,
-          ),
-          Sku(
-            id: 'sku2',
-            name: 'Chips 100g',
-            category: 'snack',
-            minFacingsStandard: 2,
-            rrp: 5.00,
-            daysOutOfStock: 0,
-            velocityAvg: 0,
-            effectivePrice: 4.00,
-          ),
-        ],
-        nextCursor: null,
-      );
+    data: [
+      Sku(
+        id: 'sku1',
+        name: 'Cola 500ml',
+        category: 'beverage',
+        minFacingsStandard: 4,
+        rrp: 10.00,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 8.00,
+      ),
+      Sku(
+        id: 'sku2',
+        name: 'Chips 100g',
+        category: 'snack',
+        minFacingsStandard: 2,
+        rrp: 5.00,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 4.00,
+      ),
+    ],
+    nextCursor: null,
+  );
 }
 
-Widget _app(_RecordingOrdersRepository repo, {ThemeData? theme}) => ProviderScope(
+Widget _app(_RecordingOrdersRepository repo, {ThemeData? theme}) =>
+    ProviderScope(
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
         outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
@@ -100,13 +99,15 @@ Widget _app(_RecordingOrdersRepository repo, {ThemeData? theme}) => ProviderScop
     );
 
 /// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+GlassPane _paneAround(WidgetTester tester, Finder finder) =>
+    tester.widget<GlassPane>(
       find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
 void main() {
-  testWidgets('shows a placeholder instead of SKUs until an outlet is picked',
-      (tester) async {
+  testWidgets('shows a placeholder instead of SKUs until an outlet is picked', (
+    tester,
+  ) async {
     final repo = _RecordingOrdersRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -124,10 +125,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Once an outlet is picked, the placeholder is gone and SKUs appear.
-    expect(
-      find.text('Select an outlet to see available SKUs.'),
-      findsNothing,
-    );
+    expect(find.text('Select an outlet to see available SKUs.'), findsNothing);
     expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsOneWidget);
 
     // The per-line price shown to the agent must be the discounted
@@ -156,7 +154,9 @@ void main() {
     await tester.pump();
 
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
+      tester
+          .widget<Text>(find.byKey(const ValueKey<String>('order-total')))
+          .data,
       // 2 x effectivePrice (8.00), not rrp (10.00) — the order form prices
       // lines at the promo-discounted rate (#99).
       'Total: R 16.00',
@@ -175,8 +175,9 @@ void main() {
     expect(repo.lines!.first.unitPrice, 8);
   });
 
-  testWidgets('switching outlets clears previously entered quantities',
-      (tester) async {
+  testWidgets('switching outlets clears previously entered quantities', (
+    tester,
+  ) async {
     final repo = _RecordingOrdersRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -195,7 +196,9 @@ void main() {
     await tester.pump();
 
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
+      tester
+          .widget<Text>(find.byKey(const ValueKey<String>('order-total')))
+          .data,
       'Total: R 16.00',
     );
 
@@ -209,11 +212,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('sku-qty-sku1'))).data,
+      tester
+          .widget<Text>(find.byKey(const ValueKey<String>('sku-qty-sku1')))
+          .data,
       '0',
     );
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
+      tester
+          .widget<Text>(find.byKey(const ValueKey<String>('order-total')))
+          .data,
       'Total: R 0.00',
     );
   });
@@ -237,55 +244,62 @@ void main() {
     expect(repo.lines, isNull);
   });
 
-  testWidgets('light: glass panels, tile lines with a pill stepper, glass create',
-      (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'light: glass panels, tile lines with a pill stepper, glass create',
+    (tester) async {
+      final repo = _RecordingOrdersRepository();
+      await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+      await tester.pumpAndSettle();
 
-    // The outlet and the lines are each their own panel under a kicker.
-    expect(_paneAround(tester, find.text('OUTLET')).kind, GlassKind.panel);
-    expect(_paneAround(tester, find.text('LINE ITEMS')).kind, GlassKind.panel);
+      // The outlet and the lines are each their own panel under a kicker.
+      expect(_paneAround(tester, find.text('OUTLET')).kind, GlassKind.panel);
+      expect(
+        _paneAround(tester, find.text('LINE ITEMS')).kind,
+        GlassKind.panel,
+      );
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('order-outlet-field')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Shop One').last);
+      await tester.pumpAndSettle();
 
-    // Each SKU line is a no-blur tile; its quantity sits in a glass pill.
-    final row = find.byKey(const ValueKey<String>('sku-row-sku1'));
-    final tile = tester.widget<GlassPane>(
-      find.descendant(of: row, matching: find.byType(GlassPane)).first,
-    );
-    expect(tile.kind, GlassKind.tile);
-    expect(tile.blur, isFalse);
-    final qty = find.byKey(const ValueKey<String>('sku-qty-sku1'));
-    expect(_paneAround(tester, qty).kind, GlassKind.pill);
-    expect(find.text('R 8.00'), findsOneWidget);
+      // Each SKU line is a no-blur tile; its quantity sits in a glass pill.
+      final row = find.byKey(const ValueKey<String>('sku-row-sku1'));
+      final tile = tester.widget<GlassPane>(
+        find.descendant(of: row, matching: find.byType(GlassPane)).first,
+      );
+      expect(tile.kind, GlassKind.tile);
+      expect(tile.blur, isFalse);
+      final qty = find.byKey(const ValueKey<String>('sku-qty-sku1'));
+      expect(_paneAround(tester, qty).kind, GlassKind.pill);
+      expect(find.text('R 8.00'), findsOneWidget);
 
-    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
-    await tester.ensureVisible(inc1);
-    await tester.tap(inc1);
-    await tester.pump();
-    await tester.tap(inc1);
-    await tester.pump();
+      final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
+      await tester.ensureVisible(inc1);
+      await tester.tap(inc1);
+      await tester.pump();
+      await tester.tap(inc1);
+      await tester.pump();
 
-    expect(tester.widget<Text>(qty).data, '2');
-    // The total is a mono figure, the money alone under its kicker.
-    final total = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('order-total')),
-    );
-    expect(total.data, 'R 16.00');
-    expect(total.style?.fontFamily, 'JetBrains Mono');
+      expect(tester.widget<Text>(qty).data, '2');
+      // The total is a mono figure, the money alone under its kicker.
+      final total = tester.widget<Text>(
+        find.byKey(const ValueKey<String>('order-total')),
+      );
+      expect(total.data, 'R 16.00');
+      expect(total.style?.fontFamily, 'JetBrains Mono');
 
-    final save = find.byKey(const ValueKey<String>('order-save-button'));
-    expect(tester.widget(save), isA<GlassPrimaryButton>());
-    expect(find.byType(FilledButton), findsNothing);
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
+      final save = find.byKey(const ValueKey<String>('order-save-button'));
+      expect(tester.widget(save), isA<GlassPrimaryButton>());
+      expect(find.byType(FilledButton), findsNothing);
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
 
-    expect(repo.outletId, 'ou1');
-    expect(repo.lines!.single.quantity, 2);
-  });
+      expect(repo.outletId, 'ou1');
+      expect(repo.lines!.single.quantity, 2);
+    },
+  );
 }

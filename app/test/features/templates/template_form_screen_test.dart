@@ -61,14 +61,12 @@ class _FailingTemplatesRepository implements TemplatesRepository {
 }
 
 Widget _app(TemplatesRepository repo, {ThemeData? theme}) => ProviderScope(
-      overrides: [
-        templatesRepositoryProvider.overrideWithValue(repo),
-      ],
-      child: MaterialApp(
-        theme: theme,
-        home: const TemplateFormScreen(templateId: 'tpl-1'),
-      ),
-    );
+  overrides: [templatesRepositoryProvider.overrideWithValue(repo)],
+  child: MaterialApp(
+    theme: theme,
+    home: const TemplateFormScreen(templateId: 'tpl-1'),
+  ),
+);
 
 void main() {
   testWidgets('fetches the schema and renders the dynamic form', (

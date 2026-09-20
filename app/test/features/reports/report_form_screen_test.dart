@@ -40,11 +40,9 @@ class _FakeOutletsRepository implements OutletsRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse(
-        data: [
-          Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-        ],
-        nextCursor: null,
-      );
+    data: [Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0)],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({
@@ -54,8 +52,7 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 }
 
 Widget _app(_RecordingReportsRepository repo, {ThemeData? theme}) =>
@@ -68,7 +65,8 @@ Widget _app(_RecordingReportsRepository repo, {ThemeData? theme}) =>
     );
 
 /// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+GlassPane _paneAround(WidgetTester tester, Finder finder) =>
+    tester.widget<GlassPane>(
       find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
@@ -79,7 +77,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const ValueKey<String>('report-name-field')), 'Weekly visits');
+      find.byKey(const ValueKey<String>('report-name-field')),
+      'Weekly visits',
+    );
 
     await tester.tap(find.byKey(const ValueKey<String>('report-type-field')));
     await tester.pumpAndSettle();
@@ -111,8 +111,9 @@ void main() {
     expect(repo.createdArgs, isNull);
   });
 
-  testWidgets('light: report and filters are glass panels, create is glass',
-      (tester) async {
+  testWidgets('light: report and filters are glass panels, create is glass', (
+    tester,
+  ) async {
     final repo = _RecordingReportsRepository();
     await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
     await tester.pumpAndSettle();
@@ -123,7 +124,9 @@ void main() {
     expect(find.text('Any'), findsNWidgets(2));
 
     await tester.enterText(
-        find.byKey(const ValueKey<String>('report-name-field')), 'Weekly visits');
+      find.byKey(const ValueKey<String>('report-name-field')),
+      'Weekly visits',
+    );
     final save = find.byKey(const ValueKey<String>('report-save-button'));
     expect(tester.widget(save), isA<GlassPrimaryButton>());
     await tester.ensureVisible(save);

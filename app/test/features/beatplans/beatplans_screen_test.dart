@@ -69,26 +69,20 @@ class _FakeBeatPlansRepository implements BeatPlansRepository {
     required String scheduledDate,
     required List<String> outletIds,
     String? territoryId,
-  }) async =>
-      _plans.first;
+  }) async => _plans.first;
 }
 
-Widget _listApp(_FakeBeatPlansRepository repo, {ThemeData? theme}) =>
-    routedApp(
-      const BeatPlansScreen(),
-      theme: theme,
-      overrides: [
-        beatPlansRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+Widget _listApp(_FakeBeatPlansRepository repo, {ThemeData? theme}) => routedApp(
+  const BeatPlansScreen(),
+  theme: theme,
+  overrides: [beatPlansRepositoryProvider.overrideWithValue(repo)],
+);
 
 Widget _detailApp(_FakeBeatPlansRepository repo, {ThemeData? theme}) =>
     routedApp(
       const BeatPlanDetailScreen(planId: 'bp1'),
       theme: theme,
-      overrides: [
-        beatPlansRepositoryProvider.overrideWithValue(repo),
-      ],
+      overrides: [beatPlansRepositoryProvider.overrideWithValue(repo)],
     );
 
 void main() {
@@ -112,8 +106,9 @@ void main() {
     expect(find.text('Stop 2'), findsOneWidget);
   });
 
-  testWidgets('tapping a stop checkbox records markStopVisited',
-      (tester) async {
+  testWidgets('tapping a stop checkbox records markStopVisited', (
+    tester,
+  ) async {
     final repo = _FakeBeatPlansRepository();
     await tester.pumpWidget(_detailApp(repo));
     await tester.pumpAndSettle();
@@ -134,14 +129,18 @@ void main() {
 
     final tile = tester.widget<GlassPane>(
       find
-          .ancestor(of: find.text('North Route'), matching: find.byType(GlassPane))
+          .ancestor(
+            of: find.text('North Route'),
+            matching: find.byType(GlassPane),
+          )
           .first,
     );
     expect(tile.kind, GlassKind.tile);
   });
 
-  testWidgets('light: adherence is a figure and each stop a glass tile',
-      (tester) async {
+  testWidgets('light: adherence is a figure and each stop a glass tile', (
+    tester,
+  ) async {
     final repo = _FakeBeatPlansRepository();
     await tester.pumpWidget(_detailApp(repo, theme: AppTheme.light()));
     await tester.pumpAndSettle();

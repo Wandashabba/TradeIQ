@@ -213,6 +213,7 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
     if (values == null) return;
 
     setState(() => _submitting = true);
+    final bool created;
     try {
       await ref
           .read(outletsRepositoryProvider)
@@ -229,7 +230,7 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
             territoryId: _territoryCode!,
           );
       ref.invalidate(outletsListProvider);
-      if (mounted) context.pop();
+      created = true;
     } catch (error) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -240,7 +241,17 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
         message: l10n.createOutletFailed,
         kind: ToastKind.failure,
       );
+      return;
     }
+    if (!mounted) return;
+    // The busy state is cleared whether or not there is anywhere to go. A
+    // screen reached by a deep link with nothing behind it used to sit on a
+    // spinner for ever after a store had been created perfectly well.
+    setState(() => _submitting = false);
+    // Leaving is NOT inside the try. A router that refuses to pop would
+    // otherwise be caught by the failure arm and reported as "nothing was
+    // saved" for a store that was saved.
+    if (created && context.canPop()) context.pop();
   }
 
   @override

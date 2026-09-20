@@ -12,7 +12,8 @@ import 'ask_harness.dart' show askBlock;
 /// A turn with prose, internal figures, an outside figure and a cited source.
 ChatMessage answer() => ChatMessage(
   role: ChatRole.assistant,
-  text: 'Sell-in held steady.\n\n'
+  text:
+      'Sell-in held steady.\n\n'
       '- __Soweto__ fell *hardest*\n'
       '- Sandton rose\n',
   artifacts: const <ChatArtifact>[
@@ -35,7 +36,11 @@ ChatMessage answer() => ChatMessage(
             },
             'comparedTo': "vs Aug '25",
           },
-          <String, dynamic>{'label': 'Shelf share', 'value': null, 'unit': 'pct'},
+          <String, dynamic>{
+            'label': 'Shelf share',
+            'value': null,
+            'unit': 'pct',
+          },
         ],
       },
     ),
@@ -217,9 +222,7 @@ void main() {
 
     var asked = 0;
     await tester.pumpWidget(
-      askBlock(
-        AnswerActionsRow(text: 'the answer', onAskAgain: () => asked++),
-      ),
+      askBlock(AnswerActionsRow(text: 'the answer', onAskAgain: () => asked++)),
     );
     await tester.pumpAndSettle();
 

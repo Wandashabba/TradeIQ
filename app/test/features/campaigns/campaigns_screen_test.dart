@@ -94,8 +94,7 @@ class _FakeCampaignsRepository implements CampaignsRepository {
     String? objective,
     double? budget,
     List<String>? outletIds,
-  }) async =>
-      _campaignA;
+  }) async => _campaignA;
 
   @override
   Future<Campaign> updateCampaign(
@@ -104,8 +103,7 @@ class _FakeCampaignsRepository implements CampaignsRepository {
     String? objective,
     double? budget,
     String? status,
-  }) async =>
-      _campaignA;
+  }) async => _campaignA;
 }
 
 class _ThrowingCampaignsRepository implements CampaignsRepository {
@@ -128,8 +126,7 @@ class _ThrowingCampaignsRepository implements CampaignsRepository {
     String? objective,
     double? budget,
     List<String>? outletIds,
-  }) async =>
-      throw Exception('boom');
+  }) async => throw Exception('boom');
 
   @override
   Future<Campaign> updateCampaign(
@@ -138,17 +135,14 @@ class _ThrowingCampaignsRepository implements CampaignsRepository {
     String? objective,
     double? budget,
     String? status,
-  }) async =>
-      throw Exception('boom');
+  }) async => throw Exception('boom');
 }
 
 Widget _app(CampaignsRepository repo, {ThemeData? theme}) => routedApp(
-      const CampaignsScreen(),
-      theme: theme,
-      overrides: [
-        campaignsRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const CampaignsScreen(),
+  theme: theme,
+  overrides: [campaignsRepositoryProvider.overrideWithValue(repo)],
+);
 
 void main() {
   testWidgets('renders campaign names once loaded', (tester) async {
@@ -159,32 +153,26 @@ void main() {
     expect(find.text('Winter Push'), findsOneWidget);
   });
 
-  testWidgets('tapping a campaign shows its compliance rollup',
-      (tester) async {
+  testWidgets('tapping a campaign shows its compliance rollup', (tester) async {
     await tester.pumpWidget(_app(_FakeCampaignsRepository()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('compliance-c1')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('compliance-c1')), findsOneWidget);
   });
 
   testWidgets('shows an error message when loading fails', (tester) async {
     await tester.pumpWidget(_app(_ThrowingCampaignsRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load campaigns'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load campaigns'), findsOneWidget);
   });
 
-  testWidgets('light: rows are glass tiles; the rollup lines up mono figures',
-      (tester) async {
+  testWidgets('light: rows are glass tiles; the rollup lines up mono figures', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(_FakeCampaignsRepository(), theme: AppTheme.light()),
     );
@@ -271,14 +259,17 @@ void main() {
       );
       // Never relabelled as consumer sales.
       expect(
-        find.textContaining(RegExp('consumer sales|Revenue', caseSensitive: false),
-            findRichText: true),
+        find.textContaining(
+          RegExp('consumer sales|Revenue', caseSensitive: false),
+          findRichText: true,
+        ),
         findsNothing,
       );
     });
 
-    testWidgets('negative: a minus headline and a crit status with its word',
-        (tester) async {
+    testWidgets('negative: a minus headline and a crit status with its word', (
+      tester,
+    ) async {
       await openReturn(
         tester,
         _FakeCampaignsRepository(
@@ -338,8 +329,9 @@ void main() {
       expect(pillWord(tester), 'NOT MEASURED');
     });
 
-    testWidgets('the sell-in and overlap caveat is always on screen',
-        (tester) async {
+    testWidgets('the sell-in and overlap caveat is always on screen', (
+      tester,
+    ) async {
       for (final roi in [
         _roi(),
         _roi(spend: null, roiPct: null, unmeasurable: 'no_budget'),
@@ -356,8 +348,9 @@ void main() {
       }
     });
 
-    testWidgets('a failed return does not hide the compliance rollup',
-        (tester) async {
+    testWidgets('a failed return does not hide the compliance rollup', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(_FakeCampaignsRepository(roiFails: true), theme: AppTheme.light()),
       );
@@ -365,7 +358,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey<String>('compliance-c1')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('compliance-c1')),
+        findsOneWidget,
+      );
       expect(find.textContaining('Failed to load return'), findsOneWidget);
     });
 
@@ -373,8 +369,9 @@ void main() {
       ('light', AppTheme.light(), TiqColors.light),
       ('dark', AppTheme.dark(), TiqColors.night),
     ]) {
-      testWidgets('$name: glass dialog; every return status word clears AA',
-          (tester) async {
+      testWidgets('$name: glass dialog; every return status word clears AA', (
+        tester,
+      ) async {
         for (final (roi, status) in [
           (_roi(), LumenStatus.good),
           (_roi(roiPct: -12), LumenStatus.crit),
@@ -392,10 +389,16 @@ void main() {
           final view = find.byKey(const ValueKey<String>('roi-c1'));
           final ctx = tester.element(view);
           expect(ctx.colors.glass, isTrue, reason: '$name is glass');
-          expect(ctx.colors.surface1, palette.surface1, reason: '$name palette');
+          expect(
+            ctx.colors.surface1,
+            palette.surface1,
+            reason: '$name palette',
+          );
           expect(ctx.colors.isNight, name == 'dark', reason: '$name night');
           expect(
-            tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+            tester
+                .widget<AlertDialog>(find.byType(AlertDialog))
+                .backgroundColor,
             palette.surface1,
           );
 

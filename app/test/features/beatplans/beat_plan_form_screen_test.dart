@@ -23,7 +23,11 @@ class _RecordingBeatPlansRepository implements BeatPlansRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> markStopVisited(String planId, String stopId, bool visited) async {}
+  Future<void> markStopVisited(
+    String planId,
+    String stopId,
+    bool visited,
+  ) async {}
 
   @override
   Future<BeatPlan> createBeatPlan({
@@ -41,13 +45,18 @@ class _RecordingBeatPlansRepository implements BeatPlansRepository {
       'territoryId': territoryId,
     };
     return BeatPlan(
-        id: 'bp1', name: name, status: 'planned', scheduledDate: scheduledDate);
+      id: 'bp1',
+      name: name,
+      status: 'planned',
+      scheduledDate: scheduledDate,
+    );
   }
 }
 
 class _FakeUsersRepository implements UsersRepository {
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
+  Future<PaginatedResponse<AppUser>> listUsers() async =>
+      const PaginatedResponse(
         data: [
           AppUser(
             id: 'a1',
@@ -56,8 +65,18 @@ class _FakeUsersRepository implements UsersRepository {
             active: true,
             displayName: 'Aisha Patel',
           ),
-          AppUser(id: 'a2', email: 'agent-two@x.com', role: 'field_agent', active: true),
-          AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
+          AppUser(
+            id: 'a2',
+            email: 'agent-two@x.com',
+            role: 'field_agent',
+            active: true,
+          ),
+          AppUser(
+            id: 'm1',
+            email: 'manager@x.com',
+            role: 'manager',
+            active: true,
+          ),
         ],
         nextCursor: null,
       );
@@ -68,8 +87,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String password,
     required String role,
     String? displayName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<AppUser> setActive(String id, bool active) async =>
@@ -97,8 +115,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
     required String name,
     required String code,
     String? region,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async =>
@@ -112,12 +129,12 @@ class _FakeOutletsRepository implements OutletsRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse(
-        data: [
-          Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-          Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
-        ],
-        nextCursor: null,
-      );
+    data: [
+      Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+      Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
+    ],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({
@@ -127,8 +144,7 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 }
 
 Widget _app(_RecordingBeatPlansRepository repo, {ThemeData? theme}) =>
@@ -136,15 +152,17 @@ Widget _app(_RecordingBeatPlansRepository repo, {ThemeData? theme}) =>
       overrides: [
         beatPlansRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
-        territoriesRepositoryProvider
-            .overrideWithValue(_FakeTerritoriesRepository()),
+        territoriesRepositoryProvider.overrideWithValue(
+          _FakeTerritoriesRepository(),
+        ),
         outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       ],
       child: MaterialApp(theme: theme, home: const BeatPlanFormScreen()),
     );
 
 /// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+GlassPane _paneAround(WidgetTester tester, Finder finder) =>
+    tester.widget<GlassPane>(
       find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
@@ -153,7 +171,9 @@ void main() {
     await tester.pumpWidget(_app(_RecordingBeatPlansRepository()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('beatplan-agent-field')),
+    );
     await tester.pumpAndSettle();
 
     // A named agent is offered by name; an unnamed one falls back to email.
@@ -170,14 +190,18 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const ValueKey<String>('beatplan-name-field')), 'North Route');
+      find.byKey(const ValueKey<String>('beatplan-name-field')),
+      'North Route',
+    );
 
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('beatplan-agent-field')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Aisha Patel').last);
     await tester.pumpAndSettle();
@@ -211,7 +235,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const ValueKey<String>('beatplan-name-field')), 'No Agent');
+      find.byKey(const ValueKey<String>('beatplan-name-field')),
+      'No Agent',
+    );
     final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
     await tester.ensureVisible(save);
     await tester.tap(save);
@@ -221,8 +247,9 @@ void main() {
     expect(repo.createdArgs, isNull);
   });
 
-  testWidgets('light: plan and stops are glass panels, stops are tiles',
-      (tester) async {
+  testWidgets('light: plan and stops are glass panels, stops are tiles', (
+    tester,
+  ) async {
     final repo = _RecordingBeatPlansRepository();
     await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
     await tester.pumpAndSettle();
@@ -235,12 +262,16 @@ void main() {
     expect(find.text('0 stops'), findsOneWidget);
 
     await tester.enterText(
-        find.byKey(const ValueKey<String>('beatplan-name-field')), 'North Route');
+      find.byKey(const ValueKey<String>('beatplan-name-field')),
+      'North Route',
+    );
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('beatplan-agent-field')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Aisha Patel').last);
     await tester.pumpAndSettle();

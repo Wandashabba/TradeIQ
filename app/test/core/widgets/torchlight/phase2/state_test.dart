@@ -552,13 +552,11 @@ void main() {
         ),
       );
 
-      final node = tester.getSemantics(find.bySemanticsLabel('Narrow this'));
-      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        node.id,
-        SemanticsAction.tap,
-      );
-      await tester.pump();
+      final data = tester
+          .getSemantics(find.bySemanticsLabel('Narrow this'))
+          .getSemanticsData();
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      await tester.tap(find.bySemanticsLabel('Narrow this'));
       expect(tapped, isTrue);
       handle.dispose();
     });

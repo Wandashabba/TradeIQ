@@ -532,9 +532,7 @@ Future<void> pumpOperations(
         color: resolved.palette.ground,
         child: ProviderScope(
           overrides: <Override>[
-            usersRepositoryProvider.overrideWithValue(
-              FakeOpsUsersRepository(),
-            ),
+            usersRepositoryProvider.overrideWithValue(FakeOpsUsersRepository()),
             photosRepositoryProvider.overrideWithValue(
               FakeOpsPhotosRepository(bytes: opsPngBytes),
             ),
@@ -579,15 +577,25 @@ Future<void> pumpOperations(
 /// The body is a lazy `ListView`, which is the point: on a 360dp phone the
 /// rows below the fold genuinely are past it, and a test that pumped a 2000dp
 /// viewport to avoid scrolling would be testing a screen nobody has.
-Future<void> scrollOpsTo(WidgetTester tester, Finder finder) async {
+Future<void> scrollOpsTo(
+  WidgetTester tester,
+  Finder finder, {
+  double delta = 200,
+}) async {
   await tester.scrollUntilVisible(
     finder,
-    200,
+    delta,
     scrollable: find.byType(Scrollable).first,
     maxScrolls: 60,
   );
   await tester.pumpAndSettle();
 }
+
+/// The same, back up the page. `scrollUntilVisible` only ever moves one way,
+/// and a form field above the evidence list is not reachable by scrolling
+/// further down.
+Future<void> scrollOpsBackTo(WidgetTester tester, Finder finder) =>
+    scrollOpsTo(tester, finder, delta: -200);
 
 /// Scroll inside an open sheet until [finder] is on screen.
 Future<void> scrollOpsSheetTo(WidgetTester tester, Finder finder) async {
@@ -605,21 +613,29 @@ Future<void> scrollOpsSheetTo(WidgetTester tester, Finder finder) async {
 }
 
 /// Open a [TorchPickerField] and choose the option whose label is [label].
-Future<void> pickOption(
-  WidgetTester tester,
-  Key fieldKey,
-  String label,
-) async {
-  await tester.tap(find.byKey(fieldKey));
+///
+/// It scrolls the field into the viewport first: at Veld's densities and at
+/// 2.0x a form is taller than the fold, and a tap that lands on whatever the
+/// route happens to be painting at those coordinates is not a test of
+/// anything.
+Future<void> pickOption(WidgetTester tester, Key fieldKey, String label) async {
+  final field = find.byKey(fieldKey);
+  await scrollOpsTo(tester, field);
+  await tester.tap(field);
   await tester.pumpAndSettle();
-  final option = find.descendant(
-    of: find.byType(TorchSheet),
-    matching: find.text(label),
-  );
-  if (tester.any(find.byType(Scrollable).last)) {
-    await scrollOpsSheetTo(tester, option);
+
+  // In Veld the sheet is a full-screen route rather than a `TorchSheet`, so
+  // the option is found by its words and not by its container.
+  final option = find.text(label);
+  if (option.evaluate().isEmpty) {
+    await tester.dragUntilVisible(
+      option,
+      find.byType(Scrollable).last,
+      const Offset(0, -80),
+    );
+    await tester.pumpAndSettle();
   }
-  await tester.tap(option);
+  await tester.tap(option.last);
   await tester.pumpAndSettle();
 }
 

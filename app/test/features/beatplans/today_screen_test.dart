@@ -126,10 +126,7 @@ void main() {
 
       // One node for a screen reader, ending in the fact and not the bar.
       expect(
-        tester
-            .getSemantics(find.byType(Meter).first)
-            .label
-            .contains('1 of 2'),
+        tester.getSemantics(find.byType(Meter).first).label.contains('1 of 2'),
         isTrue,
       );
     });
@@ -217,9 +214,7 @@ void main() {
       await _pump(tester, route: _route(located: false));
 
       expect(
-        find.text(
-          'Distances are off — this phone will not say where it is.',
-        ),
+        find.text('Distances are off — this phone will not say where it is.'),
         findsOneWidget,
       );
       // Not a wrong number, and not eleven em dashes either: nothing at all.
@@ -302,9 +297,7 @@ void main() {
       expect(find.text('Route done'), findsOneWidget);
       // ...and the circle arms, because starting a visit somewhere else is
       // now genuinely the expected next move.
-      final circle = tester.widget<TorchNavCircle>(
-        find.byType(TorchNavCircle),
-      );
+      final circle = tester.widget<TorchNavCircle>(find.byType(TorchNavCircle));
       expect(circle.expected, isTrue);
     });
   });
@@ -360,9 +353,7 @@ void main() {
         'Map',
         'Me',
       ]);
-      final header = tester.widget<TorchAppHeader>(
-        find.byType(TorchAppHeader),
-      );
+      final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(header.trailing, isNotNull);
       // A tab root has NO thumb zone: 64dp of nav plus 96dp of thumb zone is
       // a quarter of a 640dp screen given to chrome.
@@ -379,9 +370,7 @@ void main() {
         (TodayFrame.meSlot, 'My record'),
       ]) {
         await _pump(tester, route: _route());
-        tester
-            .widget<TorchNavPill>(find.byType(TorchNavPill))
-            .onSelect(index);
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(index);
         await tester.pumpAndSettle();
         expect(
           find.text(landing),
@@ -399,7 +388,8 @@ void main() {
     ) async {
       await _pump(tester, route: _route(), runningContests: 2);
       expect(
-        tester.widget<TorchNavPill>(find.byType(TorchNavPill))
+        tester
+            .widget<TorchNavPill>(find.byType(TorchNavPill))
             .slots[TodayFrame.meSlot]
             .badgeCount,
         2,
@@ -409,7 +399,8 @@ void main() {
     testWidgets('a zero is not a badge', (tester) async {
       await _pump(tester, route: _route());
       expect(
-        tester.widget<TorchNavPill>(find.byType(TorchNavPill))
+        tester
+            .widget<TorchNavPill>(find.byType(TorchNavPill))
             .slots[TodayFrame.meSlot]
             .badgeCount,
         isNull,
@@ -421,15 +412,12 @@ void main() {
       tester,
     ) async {
       await _pump(tester, route: _route(), skin: SkinMode.day);
-      final header = tester.widget<TorchAppHeader>(
-        find.byType(TorchAppHeader),
-      );
+      final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(
         header.trailing!.semanticLabel,
         'Screen: Day. Double-tap for Veld, the outdoor high-contrast screen.',
       );
     });
-
   });
 
   group('2.0× text', () {

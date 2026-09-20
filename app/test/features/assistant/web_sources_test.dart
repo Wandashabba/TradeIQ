@@ -87,7 +87,11 @@ void main() {
       tester,
       WebSources(
         sources: <WebSource>[
-          source('A very long headline ' * 20, 'https://e.com/a', domain: 'e.com'),
+          source(
+            'A very long headline ' * 20,
+            'https://e.com/a',
+            domain: 'e.com',
+          ),
         ],
       ),
     );
@@ -101,7 +105,10 @@ void main() {
     // A fact about the search, not an empty state — and never an empty
     // "Sources" heading with nothing under it.
     await pumpSources(tester, const WebSources(sources: [], searched: true));
-    expect(screenText(tester), contains('The web search returned nothing usable.'));
+    expect(
+      screenText(tester),
+      contains('The web search returned nothing usable.'),
+    );
 
     await pumpSources(tester, const WebSources(sources: []));
     expect(find.byKey(const ValueKey<String>('web-sources')), findsNothing);
@@ -147,7 +154,10 @@ void main() {
 
     await tester.tap(find.text('iol.co.za'));
     await tester.pump();
-    expect(opened.last, Uri.parse('https://www.iol.co.za/business/shoprite?x=1'));
+    expect(
+      opened.last,
+      Uri.parse('https://www.iol.co.za/business/shoprite?x=1'),
+    );
   });
 
   testWidgets('a platform that refuses keeps the row and says what to do', (
@@ -173,7 +183,9 @@ void main() {
     await pumpSources(
       tester,
       WebSources(
-        sources: <WebSource>[source('Sneaky', 'javascript:alert(1)', domain: 'x')],
+        sources: <WebSource>[
+          source('Sneaky', 'javascript:alert(1)', domain: 'x'),
+        ],
         launcher: (url) async {
           opened.add(url);
           return true;
@@ -200,7 +212,8 @@ void main() {
             'Shoprite **launches**',
             'https://e.com/a',
             domain: 'e.com',
-            snippet: 'Shoprite said **bold** and [a link](https://evil.example)',
+            snippet:
+                'Shoprite said **bold** and [a link](https://evil.example)',
           ),
         ],
       ),
@@ -214,7 +227,9 @@ void main() {
       SystemChannels.platform,
       (call) async {
         if (call.method == 'Clipboard.setData') {
-          copied.add((call.arguments as Map<Object?, Object?>)['text']! as String);
+          copied.add(
+            (call.arguments as Map<Object?, Object?>)['text']! as String,
+          );
         }
         return null;
       },

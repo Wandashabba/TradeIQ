@@ -574,19 +574,20 @@ class _AttemptRow extends StatelessWidget {
       // check in there. The server refuses it too (outlets.service) — this is
       // the same rule where the manager can see it before they press.
       //
-      // The verb lives in `actions`, never in `meta`: `meta` is inside the
-      // row's excluded label, so a button there is painted and announced
-      // nowhere.
-      actions: attempt.isAdoptable
-          ? Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TorchTertiaryButton(
-                key: ValueKey<String>('use-attempt-${attempt.id}'),
-                label: l10n.outletUseThisPosition,
-                onPressed: onUse,
-              ),
-            )
-          : null,
+      // The button **stays on screen** and goes dead, rather than vanishing: a
+      // manager who has been told this evidence is unusable still needs to see
+      // where the usable ones would have been offered, and the reason is
+      // already in the meta line above it. The verb lives in `actions`, never
+      // in `meta` — `meta` is inside the row's excluded label, so a button
+      // there is painted and announced nowhere.
+      actions: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TorchTertiaryButton(
+          key: ValueKey<String>('use-attempt-${attempt.id}'),
+          label: l10n.outletUseThisPosition,
+          onPressed: attempt.isAdoptable ? onUse : null,
+        ),
+      ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         position,
@@ -687,12 +688,15 @@ class _DisputeBlock extends StatelessWidget {
         ),
       // Adopting the reporting agent's own position is the common repair, so
       // it is one tap from the report rather than a hunt through the attempt
-      // list. An unadoptable fix gets no button at all, not a dead one.
-      if (dispute.isOpen && adoptable != null && adoptable.isAdoptable)
+      // list. It goes dead rather than disappearing when the fix is one the
+      // pin may not be moved onto — the sentence above it says which.
+      if (dispute.isOpen && adoptable != null)
         TorchTertiaryButton(
           key: ValueKey<String>('adopt-${dispute.id}'),
           label: l10n.outletUseTheirPosition,
-          onPressed: () => onUse(adoptable, disputeId: dispute.id),
+          onPressed: adoptable.isAdoptable
+              ? () => onUse(adoptable, disputeId: dispute.id)
+              : null,
         ),
     ];
 

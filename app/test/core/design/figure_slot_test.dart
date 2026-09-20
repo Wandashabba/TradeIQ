@@ -20,7 +20,9 @@ void main() {
         child: MaterialApp(
           theme: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
           home: Scaffold(
-            body: Center(child: SizedBox(width: width, child: child)),
+            body: Center(
+              child: SizedBox(width: width, child: child),
+            ),
           ),
         ),
       ),
@@ -90,11 +92,7 @@ void main() {
       final skin = TiqSkin.night();
       await pump(
         tester,
-        FigureSlot(
-          value: 81,
-          role: skin.text.figureM,
-          unit: TiqUnit.percent,
-        ),
+        FigureSlot(value: 81, role: skin.text.figureM, unit: TiqUnit.percent),
         skin: skin,
       );
       final spans = spansOf(tester);
@@ -210,10 +208,7 @@ void main() {
       tester,
     ) async {
       final skin = TiqSkin.night();
-      await pump(
-        tester,
-        FigureSlot(value: null, role: skin.text.figureL),
-      );
+      await pump(tester, FigureSlot(value: null, role: skin.text.figureL));
       expect(
         tester.takeException(),
         isAssertionError,
