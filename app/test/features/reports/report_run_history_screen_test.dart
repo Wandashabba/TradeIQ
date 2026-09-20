@@ -7,6 +7,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_run_history_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../a11y_guard.dart';
@@ -155,7 +156,7 @@ void main() {
   group('words', () {
     test('every status has its own word, silhouette and level', () {
       final words = <String>{
-        for (final s in ReportRunStatus.values) runStatusWord(s),
+        for (final s in ReportRunStatus.values) runStatusWord(s, englishLocalizations),
       };
       final marks = <Object>{
         for (final s in ReportRunStatus.values) runStatusMark(s),
@@ -164,21 +165,21 @@ void main() {
       // Colour is never the only signal, so no two statuses may share a
       // silhouette either.
       expect(marks, hasLength(ReportRunStatus.values.length));
-      expect(runStatusWord(ReportRunStatus.partial), 'Partly delivered');
-      expect(runStatusWord(ReportRunStatus.notSent), 'Not sent');
+      expect(runStatusWord(ReportRunStatus.partial, englishLocalizations), 'Partly delivered');
+      expect(runStatusWord(ReportRunStatus.notSent, englishLocalizations), 'Not sent');
     });
 
     test('the summary line counts each channel and omits zeros', () {
       expect(
-        runDeliverySummaryLabel(_delivered),
+        runDeliverySummaryLabel(_delivered, englishLocalizations),
         'Webhooks: 1 delivered · Email: 2 sent',
       );
       expect(
-        runDeliverySummaryLabel(_partial),
+        runDeliverySummaryLabel(_partial, englishLocalizations),
         'Webhooks: 1 failed · Email: 1 sent, 1 failed',
       );
       expect(
-        runDeliverySummaryLabel(_notSent),
+        runDeliverySummaryLabel(_notSent, englishLocalizations),
         'Webhooks: none subscribed · Email: not set up (2 not emailed)',
       );
       expect(
@@ -192,6 +193,7 @@ void main() {
             webhook: const RunWebhookSummary(status: 'queued'),
             email: const RunEmailSummary(status: 'queued', pending: 3),
           ),
+          englishLocalizations,
         ),
         'Webhooks: queued · Email: 3 pending',
       );
@@ -204,6 +206,7 @@ void main() {
             generatedAt: DateTime(2026),
             rowCount: 0,
           ),
+          englishLocalizations,
         ),
         'No delivery recorded',
       );
@@ -211,10 +214,10 @@ void main() {
 
     test('times: a scheduled run shows its due time, Run now only generated', () {
       expect(
-        runTimesLabel(_delivered),
+        runTimesLabel(_delivered, englishLocalizations),
         'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
       );
-      expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
+      expect(runTimesLabel(_partial, englishLocalizations), 'Generated 2026-09-13 15:30');
     });
 
     // A row count is a figure, and a figure goes through the reader's own
@@ -222,16 +225,16 @@ void main() {
     // app that printed `1284` where the Reports list printed `1 284`.
     group('a row count is a figure', () {
       test('it groups the way the reader does', () {
-        expect(rowCountLabel(1284, TiqNumber.en.format), '1,284 rows');
+        expect(rowCountLabel(1284, TiqNumber.en.format, englishLocalizations), '1,284 rows');
         expect(
-          rowCountLabel(1284, TiqNumber.af.format),
+          rowCountLabel(1284, TiqNumber.af.format, englishLocalizations),
           '1\u00A0284 rows',
         );
       });
 
       test('one is still one, and a measured zero is still 0', () {
-        expect(rowCountLabel(1, TiqNumber.en.format), '1 row');
-        expect(rowCountLabel(0, TiqNumber.en.format), '0 rows');
+        expect(rowCountLabel(1, TiqNumber.en.format, englishLocalizations), '1 row');
+        expect(rowCountLabel(0, TiqNumber.en.format, englishLocalizations), '0 rows');
       });
     });
 
@@ -242,6 +245,7 @@ void main() {
             shown: 20,
             total: 74,
             format: (n) => '$n',
+            l10n: englishLocalizations,
           ),
           'Showing the 20 most recent of 74.',
         );
@@ -252,6 +256,7 @@ void main() {
           shown: 20,
           total: null,
           format: (n) => '$n',
+          l10n: englishLocalizations,
         );
         expect(summary, 'Showing the 20 most recent. There are more.');
         expect(summary, isNot(contains('of')));
@@ -265,6 +270,7 @@ void main() {
             shown: 1284,
             total: 9000,
             format: TiqNumber.af.format,
+            l10n: englishLocalizations,
           ),
           'Showing the 1\u00A0284 most recent of 9\u00A0000.',
         );
@@ -273,6 +279,7 @@ void main() {
             shown: 1284,
             total: null,
             format: TiqNumber.af.format,
+            l10n: englishLocalizations,
           ),
           'Showing the 1\u00A0284 most recent. There are more.',
         );
@@ -351,8 +358,11 @@ void main() {
       locale: const Locale('af'),
     );
 
-    expect(find.textContaining('1\u00A0284 rows'), findsOneWidget);
-    expect(find.textContaining('1284 rows'), findsNothing);
+    // The Afrikaans word AND the Afrikaans grouping: U+00A0, not a comma and
+    // not a bare 1284.
+    expect(find.textContaining('1\u00A0284 rye'), findsOneWidget);
+    expect(find.textContaining('1284'), findsNothing);
+    expect(find.textContaining('1,284'), findsNothing);
   });
 
   testWidgets('a run with no rows says 0, and 0 is not an error', (
@@ -432,7 +442,7 @@ void main() {
         tester,
         find.byKey(const ValueKey<String>('run-csv-note-run-partial')),
       );
-      expect(find.text(noCsvLinkNote), findsOneWidget);
+      expect(find.text(englishLocalizations.runNoCsvLinkNote), findsOneWidget);
     });
   });
 

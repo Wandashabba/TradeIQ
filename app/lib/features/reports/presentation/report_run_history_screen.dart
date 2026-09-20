@@ -13,6 +13,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/report_schedules_repository.dart';
 import 'report_schedules_screen.dart' show reportStamp;
 
@@ -21,14 +22,15 @@ import 'report_schedules_screen.dart' show reportStamp;
 // Pure, so every phrasing is tested without pumping a screen. State is always
 // a word as well as a mark, and the mark is a silhouette rather than a hue.
 
-String runStatusWord(ReportRunStatus status) => switch (status) {
-  ReportRunStatus.delivering => 'Delivering',
-  ReportRunStatus.delivered => 'Delivered',
-  ReportRunStatus.partial => 'Partly delivered',
-  ReportRunStatus.failed => 'Failed',
-  ReportRunStatus.notSent => 'Not sent',
-  ReportRunStatus.unknown => 'Unknown',
-};
+String runStatusWord(ReportRunStatus status, AppLocalizations l10n) =>
+    switch (status) {
+      ReportRunStatus.delivering => l10n.runStatusDelivering,
+      ReportRunStatus.delivered => l10n.runStatusDelivered,
+      ReportRunStatus.partial => l10n.runStatusPartial,
+      ReportRunStatus.failed => l10n.runStatusFailed,
+      ReportRunStatus.notSent => l10n.runStatusNotSent,
+      ReportRunStatus.unknown => l10n.runStatusUnknown,
+    };
 
 StatusLevel runStatusLevel(ReportRunStatus status) => switch (status) {
   ReportRunStatus.delivered => StatusLevel.onTarget,
@@ -49,15 +51,16 @@ MarkShape runStatusMark(ReportRunStatus status) => switch (status) {
   ReportRunStatus.unknown => MarkShape.sectionBarredRing,
 };
 
-String runTitle(ReportRun run) => run.scheduled ? 'Scheduled run' : 'Run now';
+String runTitle(ReportRun run, AppLocalizations l10n) =>
+    run.scheduled ? l10n.runTitleScheduled : l10n.runTitleManual;
 
 /// "Due 2026-09-14 09:00 · Generated 2026-09-14 09:01", in the same local
 /// stamp the schedules list uses. A Run now has no due time.
-String runTimesLabel(ReportRun run) {
-  final generated = 'Generated ${reportStamp(run.generatedAt)}';
+String runTimesLabel(ReportRun run, AppLocalizations l10n) {
+  final generated = l10n.runGeneratedAt(reportStamp(run.generatedAt));
   final due = run.dueAt;
   return run.scheduled && due != null
-      ? 'Due ${reportStamp(due)} · $generated'
+      ? l10n.runDueAndGenerated(reportStamp(due), generated)
       : generated;
 }
 
@@ -66,8 +69,8 @@ String runTimesLabel(ReportRun run) {
 /// [format] is [TiqNumber.format]: a row count is a figure, and a figure that
 /// bypasses it is the one place in the app that ignores an Afrikaans reader's
 /// group separator.
-String rowCountLabel(int n, String Function(num) format) =>
-    '${format(n)} ${n == 1 ? 'row' : 'rows'}';
+String rowCountLabel(int n, String Function(num) format, AppLocalizations l10n) =>
+    l10n.runRowCount(format(n), n);
 
 /// What the history footer says when the list has been cut.
 ///
@@ -78,76 +81,83 @@ String runHistoryFooterSummary({
   required int shown,
   required int? total,
   required String Function(num) format,
+  required AppLocalizations l10n,
 }) {
-  if (total == null) {
-    return 'Showing the ${format(shown)} most recent. There are more.';
-  }
-  return 'Showing the ${format(shown)} most recent of ${format(total)}.';
+  if (total == null) return l10n.runHistoryFooterMore(format(shown));
+  return l10n.runHistoryFooterOf(format(shown), format(total));
 }
 
+/// The non-zero counts, joined — "1 delivered, 2 pending" — or [none] when
+/// every one of them is zero.
 String _counts(List<(int, String)> parts, String none) {
   final said = <String>[
-    for (final (n, word) in parts)
-      if (n > 0) '$n $word',
+    for (final (n, said) in parts)
+      if (n > 0) said,
   ];
   return said.isEmpty ? none : said.join(', ');
 }
 
 /// What each channel did with the run, in one line:
 /// "Webhooks: 1 delivered · Email: 2 sent, 1 failed".
-String runDeliverySummaryLabel(ReportRun run) {
+String runDeliverySummaryLabel(ReportRun run, AppLocalizations l10n) {
   final parts = <String>[];
 
   final webhook = run.webhook;
   switch (webhook.status) {
     case 'queued':
       parts.add(
-        'Webhooks: ${_counts(<(int, String)>[
-          (webhook.delivered, 'delivered'),
-          (webhook.pending, 'pending'),
-          (webhook.failed, 'failed'),
-        ], 'queued')}',
+        l10n.runWebhooksLine(
+          _counts(<(int, String)>[
+            (webhook.delivered, l10n.runCountDelivered(webhook.delivered)),
+            (webhook.pending, l10n.runCountPending(webhook.pending)),
+            (webhook.failed, l10n.runCountFailed(webhook.failed)),
+          ], l10n.runCountsQueued),
+        ),
       );
     case 'no_subscribers':
-      parts.add('Webhooks: none subscribed');
+      parts.add(l10n.runWebhooksNoneSubscribed);
     case 'failed':
-      parts.add('Webhooks: failed');
+      parts.add(l10n.runWebhooksFailedLine);
   }
 
   final email = run.email;
   switch (email.status) {
     case 'queued':
       parts.add(
-        'Email: ${_counts(<(int, String)>[
-          (email.sent, 'sent'),
-          (email.pending, 'pending'),
-          (email.failed, 'failed'),
-        ], 'queued')}',
+        l10n.runEmailLine(
+          _counts(<(int, String)>[
+            (email.sent, l10n.runCountSent(email.sent)),
+            (email.pending, l10n.runCountPending(email.pending)),
+            (email.failed, l10n.runCountFailed(email.failed)),
+          ], l10n.runCountsQueued),
+        ),
       );
     case 'not_configured':
-      parts.add('Email: not set up (${email.notConfigured} not emailed)');
+      parts.add(l10n.runEmailNotSetUpLine(email.notConfigured));
     case 'no_subscribers':
-      parts.add('Email: no valid recipients');
+      parts.add(l10n.runEmailNoRecipientsLine);
     case 'failed':
-      parts.add('Email: failed');
+      parts.add(l10n.runEmailFailedLine);
   }
 
-  return parts.isEmpty ? 'No delivery recorded' : parts.join(' · ');
+  return parts.isEmpty ? l10n.runNoDeliveryRecorded : parts.join(' · ');
 }
 
-String webhookDeliveryWord(DeliveryStatus status) => switch (status) {
-  DeliveryStatus.pending => 'Queued',
-  DeliveryStatus.succeeded => 'Delivered',
-  DeliveryStatus.failedRetrying => 'Retrying',
-  DeliveryStatus.gaveUp => 'Gave up',
-};
+String webhookDeliveryWord(DeliveryStatus status, AppLocalizations l10n) =>
+    switch (status) {
+      DeliveryStatus.pending => l10n.deliveryWordQueued,
+      DeliveryStatus.succeeded => l10n.deliveryWordDelivered,
+      DeliveryStatus.failedRetrying => l10n.deliveryWordRetrying,
+      DeliveryStatus.gaveUp => l10n.deliveryWordGaveUp,
+    };
 
-String emailDeliveryWord(DeliveryStatus status) => switch (status) {
-  DeliveryStatus.pending => 'Queued',
-  DeliveryStatus.succeeded => 'Sent',
-  DeliveryStatus.failedRetrying => 'Retrying',
-  DeliveryStatus.gaveUp => 'Failed',
-};
+String emailDeliveryWord(DeliveryStatus status, AppLocalizations l10n) =>
+    switch (status) {
+      DeliveryStatus.pending => l10n.deliveryWordQueued,
+      DeliveryStatus.succeeded => l10n.deliveryWordSent,
+      DeliveryStatus.failedRetrying => l10n.deliveryWordRetrying,
+      DeliveryStatus.gaveUp => l10n.deliveryWordEmailFailed,
+    };
 
 StatusLevel deliveryLevel(DeliveryStatus status) => switch (status) {
   DeliveryStatus.pending => StatusLevel.held,
@@ -156,13 +166,10 @@ StatusLevel deliveryLevel(DeliveryStatus status) => switch (status) {
   DeliveryStatus.gaveUp => StatusLevel.critical,
 };
 
-String attemptsLabel(int n) => n == 1 ? '1 attempt' : '$n attempts';
+String attemptsLabel(int n, AppLocalizations l10n) => l10n.deliveryAttempts(n);
 
 /// Said when a run has no download link. The API does not say which of the
 /// two it is, so both are named.
-const noCsvLinkNote =
-    'No download link. Links need signed links set up on the server, and '
-    'stop working 7 days after the run.';
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
@@ -281,6 +288,7 @@ class _ReportRunHistoryScreenState
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final s = widget.schedule;
 
     final List<Widget> body;
@@ -289,7 +297,7 @@ class _ReportRunHistoryScreenState
       phase = 'loading';
       body = <Widget>[
         Skeleton(
-          label: 'report runs',
+          label: l10n.runHistorySkeleton,
           child: const SkeletonRows(count: 4, rowHeight: 80),
         ),
       ];
@@ -297,12 +305,12 @@ class _ReportRunHistoryScreenState
       phase = 'error';
       body = <Widget>[
         TorchErrorRegion(
-          name: 'report runs',
+          name: l10n.runHistorySkeleton,
           child: ErrorState(
             message: TorchErrorMessage.sanitise(_error),
             action: TorchSecondaryButton(
               key: const ValueKey<String>('runs-retry'),
-              label: 'Try again',
+              label: l10n.torchTryAgain,
               onPressed: _refresh,
             ),
           ),
@@ -311,11 +319,10 @@ class _ReportRunHistoryScreenState
     } else if (_runs.isEmpty) {
       phase = 'empty';
       body = <Widget>[
-        const EmptyState(
+        EmptyState(
           scope: EmptyScope.inPanel,
-          headline: 'No runs yet.',
-          body: 'A run appears each time the schedule fires or you use Run '
-              'now.',
+          headline: l10n.runHistoryEmptyHeadline,
+          body: l10n.runHistoryEmptyBody,
         ),
       ];
     } else {
@@ -325,17 +332,16 @@ class _ReportRunHistoryScreenState
 
     return ConsolePage(
       phase: phase,
-      title: 'Run history',
+      title: l10n.runHistoryTitle,
       facts: <String>[
-        s.reportName ?? 'Untitled report',
-        cadenceLabel(s.cadence),
+        s.reportName ?? l10n.scheduleUntitledReport,
+        cadenceLabel(s.cadence, l10n),
         s.recipients.isEmpty
-            ? 'No recipients'
-            : '${s.recipients.length} '
-                  '${s.recipients.length == 1 ? 'recipient' : 'recipients'}',
+            ? l10n.scheduleNoRecipients
+            : l10n.scheduleRecipientCount(s.recipients.length),
       ],
       back: ConsolePage.backTo(
-        'Back to Report schedules',
+        l10n.runHistoryBack,
         () => Navigator.of(context).pop(),
       ),
       children: <Widget>[
@@ -343,12 +349,15 @@ class _ReportRunHistoryScreenState
           alignment: AlignmentDirectional.centerStart,
           child: TorchSecondaryButton(
             key: const ValueKey<String>('runs-refresh'),
-            label: 'Refresh',
+            label: l10n.runHistoryRefresh,
             onPressed: _loading ? null : _refresh,
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
-        SectionRule('Runs', count: _runs.isEmpty ? null : _runs.length),
+        SectionRule(
+          l10n.runHistorySection,
+          count: _runs.isEmpty ? null : _runs.length,
+        ),
         const SizedBox(height: TiqSpace.s5),
         ...body,
       ],
@@ -356,6 +365,7 @@ class _ReportRunHistoryScreenState
   }
 
   List<Widget> _runList(double gutter) {
+    final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
     final moreError = _moreError;
     return <Widget>[
@@ -392,10 +402,13 @@ class _ReportRunHistoryScreenState
               shown: _runs.length,
               total: _total,
               format: numbers.format,
+              l10n: l10n,
             ),
             action: TorchSecondaryButton(
               key: const ValueKey<String>('runs-load-more'),
-              label: moreError == null ? 'Load more' : 'Try again',
+              label: moreError == null
+                  ? l10n.runHistoryLoadMore
+                  : l10n.torchTryAgain,
               busy: _loadingMore,
               onPressed: _loadingMore ? null : _loadMore,
             ),
@@ -420,13 +433,13 @@ Future<void> showCsvLinkSheet(BuildContext context, ReportRun run) {
     context,
     builder: (sheetContext) {
       final skin = sheetContext.skin;
+      final l10n = sheetContext.l10n;
       return TorchSheet(
         key: const ValueKey<String>('csv-link-sheet'),
-        title: 'Download CSV',
-        subtitle:
-            'Open this link in a browser to download the report. Anyone with '
-            'the link can download it'
-            '${expires == null ? '' : ' until ${reportStamp(expires)}'}.',
+        title: l10n.runDownloadCsv,
+        subtitle: expires == null
+            ? l10n.csvLinkSheetSubtitle
+            : l10n.csvLinkSheetSubtitleUntil(reportStamp(expires)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -439,7 +452,7 @@ Future<void> showCsvLinkSheet(BuildContext context, ReportRun run) {
             SizedBox(height: skin.space.blockGap),
             TorchSecondaryButton(
               key: const ValueKey<String>('copy-csv-link'),
-              label: 'Copy the link',
+              label: l10n.csvLinkCopy,
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: url));
                 if (!sheetContext.mounted) return;
@@ -475,10 +488,11 @@ class _RunRowState extends State<_RunRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
     final run = widget.run;
     final level = runStatusLevel(run.status);
-    final word = runStatusWord(run.status);
+    final word = runStatusWord(run.status, l10n);
     final reason = run.reason;
 
     return Column(
@@ -487,18 +501,20 @@ class _RunRowState extends State<_RunRow> {
         SoftRow(
           key: ValueKey<String>('run-row-${run.id}'),
           density: SoftRowDensity.tall,
-          title: runTitle(run),
-          subtitle: '${rowCountLabel(run.rowCount, numbers.format)} · '
-              '${runDeliverySummaryLabel(run)}',
+          title: runTitle(run, l10n),
+          subtitle: l10n.runRowSubtitle(
+            rowCountLabel(run.rowCount, numbers.format, l10n),
+            runDeliverySummaryLabel(run, l10n),
+          ),
           severity: run.status == ReportRunStatus.failed
               ? SoftRowSeverity.critical
               : run.status == ReportRunStatus.partial
               ? SoftRowSeverity.watch
               : SoftRowSeverity.none,
           severityLabel: run.status == ReportRunStatus.failed
-              ? 'Failed'
+              ? l10n.runStatusFailed
               : run.status == ReportRunStatus.partial
-              ? 'Partly delivered'
+              ? l10n.runStatusPartial
               : null,
           leading: TiqMark(
             key: ValueKey<String>('run-glyph-${run.id}'),
@@ -515,7 +531,7 @@ class _RunRowState extends State<_RunRow> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
-                runTimesLabel(run),
+                runTimesLabel(run, l10n),
                 key: ValueKey<String>('run-times-${run.id}'),
                 style: skin.text.monoIdent.style(color: skin.palette.ink3),
               ),
@@ -545,7 +561,9 @@ class _RunRowState extends State<_RunRow> {
             children: <Widget>[
               TorchTertiaryButton(
                 key: ValueKey<String>('run-toggle-${run.id}'),
-                label: _expanded ? 'Hide run details' : 'Show run details',
+                label: _expanded
+                    ? l10n.runHideDetails
+                    : l10n.runShowDetails,
                 onPressed: () => setState(() => _expanded = !_expanded),
               ),
               // A link with nowhere to go is dishonest chrome: a run with no
@@ -553,7 +571,7 @@ class _RunRowState extends State<_RunRow> {
               if (run.csvDownloadUrl != null)
                 TorchTertiaryButton(
                   key: ValueKey<String>('download-${run.id}'),
-                  label: 'Download CSV',
+                  label: l10n.runDownloadCsv,
                   onPressed: () => showCsvLinkSheet(context, run),
                 ),
             ],
@@ -562,11 +580,11 @@ class _RunRowState extends State<_RunRow> {
               ? SoftRowSeparator.none
               : SoftRowSeparator.auto,
           semanticsLabel: <String>[
-            runTitle(run),
+            runTitle(run, l10n),
             word,
-            runTimesLabel(run),
-            rowCountLabel(run.rowCount, numbers.format),
-            runDeliverySummaryLabel(run),
+            runTimesLabel(run, l10n),
+            rowCountLabel(run.rowCount, numbers.format, l10n),
+            runDeliverySummaryLabel(run, l10n),
             // The reason is the only thing on this screen that says WHICH
             // channel gave up and why. It is painted inside the excluded text
             // column, so if it is not in this list a reader hears "Partly
@@ -595,6 +613,7 @@ class _RunDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final note = skin.text.meta.style(color: skin.palette.ink3);
     final expires = run.csvDownloadExpiresAt;
 
@@ -609,21 +628,22 @@ class _RunDetail extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const SectionRule('Webhooks'),
+          SectionRule(l10n.runDetailSectionWebhooks),
           const SizedBox(height: TiqSpace.s3),
-          ..._webhookResults(note),
+          ..._webhookResults(note, l10n),
           const SizedBox(height: TiqSpace.s5),
-          const SectionRule('Email'),
+          SectionRule(l10n.runDetailSectionEmail),
           const SizedBox(height: TiqSpace.s3),
-          _emailResults(note),
+          _emailResults(note, l10n),
           const SizedBox(height: TiqSpace.s5),
-          const SectionRule('The file'),
+          SectionRule(l10n.runDetailSectionFile),
           const SizedBox(height: TiqSpace.s3),
           Text(
             run.csvDownloadUrl == null
-                ? noCsvLinkNote
-                : 'Signed download link'
-                      '${expires == null ? '' : ', works until ${reportStamp(expires)}'}.',
+                ? l10n.runNoCsvLinkNote
+                : expires == null
+                ? l10n.runSignedLink
+                : l10n.runSignedLinkUntil(reportStamp(expires)),
             key: ValueKey<String>('run-csv-note-${run.id}'),
             style: note,
           ),
@@ -632,7 +652,7 @@ class _RunDetail extends StatelessWidget {
     );
   }
 
-  List<Widget> _webhookResults(TextStyle note) {
+  List<Widget> _webhookResults(TextStyle note, AppLocalizations l10n) {
     if (run.webhookDeliveries.isNotEmpty) {
       return <Widget>[
         for (var i = 0; i < run.webhookDeliveries.length; i++)
@@ -642,15 +662,20 @@ class _RunDetail extends StatelessWidget {
             ),
             // A URL is a thing the system calls, not prose.
             subject: run.webhookDeliveries[i].url,
-            word: webhookDeliveryWord(run.webhookDeliveries[i].status),
+            word: webhookDeliveryWord(
+              run.webhookDeliveries[i].status,
+              l10n,
+            ),
             level: deliveryLevel(run.webhookDeliveries[i].status),
             facts: <String>[
               run.webhookDeliveries[i].lastStatusCode != null
-                  ? 'HTTP ${run.webhookDeliveries[i].lastStatusCode}'
+                  ? l10n.deliveryHttpStatus(
+                      run.webhookDeliveries[i].lastStatusCode!,
+                    )
                   : run.webhookDeliveries[i].attempts == 0
-                  ? 'Not sent yet'
-                  : 'No response',
-              attemptsLabel(run.webhookDeliveries[i].attempts),
+                  ? l10n.deliveryNotSentYet
+                  : l10n.deliveryNoResponse,
+              attemptsLabel(run.webhookDeliveries[i].attempts, l10n),
             ],
             // A non-2xx is recorded as "HTTP <code>", which the facts say.
             error:
@@ -665,13 +690,12 @@ class _RunDetail extends StatelessWidget {
     }
     final outcome = run.outcomeFor('webhook');
     final text = switch (outcome?.status) {
-      'no_subscribers' =>
-        'Not sent: no webhook is subscribed to $reportGeneratedEvent.',
-      'failed' =>
-        'Webhook delivery failed'
-            '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
-      'queued' => 'The webhooks this run was sent to have since been deleted.',
-      _ => 'No webhook delivery was recorded.',
+      'no_subscribers' => l10n.runWebhookNoSubscriber,
+      'failed' => outcome?.detail == null
+          ? l10n.runWebhookDeliveryFailed
+          : l10n.runWebhookDeliveryFailedWhy(outcome!.detail!),
+      'queued' => l10n.runWebhookTargetsDeleted,
+      _ => l10n.runWebhookNoneRecorded,
     };
     return <Widget>[
       Text(
@@ -682,19 +706,17 @@ class _RunDetail extends StatelessWidget {
     ];
   }
 
-  Widget _emailResults(TextStyle note) {
+  Widget _emailResults(TextStyle note, AppLocalizations l10n) {
     final outcome = run.outcomeFor('email');
     final n = run.email.notConfigured;
     final text = switch (outcome?.status) {
       'queued' => null,
-      'not_configured' =>
-        'Not emailed to $n ${n == 1 ? 'recipient' : 'recipients'}: '
-            'email is not set up on the server.',
-      'no_subscribers' => 'Not emailed: no valid email recipients.',
-      'failed' =>
-        'Email delivery failed'
-            '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
-      _ => 'No email delivery was recorded.',
+      'not_configured' => l10n.runEmailNotConfiguredDetail(n),
+      'no_subscribers' => l10n.runEmailNoRecipientsDetail,
+      'failed' => outcome?.detail == null
+          ? l10n.runEmailDeliveryFailed
+          : l10n.runEmailDeliveryFailedWhy(outcome!.detail!),
+      _ => l10n.runEmailNoneRecorded,
     };
     if (text != null) {
       return Text(
@@ -715,24 +737,25 @@ class _EmailDeliveries extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final key = (scheduleId, runId);
     final deliveries = ref.watch(reportRunEmailDeliveriesProvider(key));
     return deliveries.when(
       loading: () => Skeleton(
-        label: 'email deliveries',
+        label: l10n.runEmailSkeleton,
         child: const SkeletonRows(count: 2, rowHeight: 56),
       ),
       error: (error, stack) => ErrorState(
         scope: ErrorScope.inline,
         message: TorchErrorMessage.sanitise(error),
         action: TorchSecondaryButton(
-          label: 'Try again',
+          label: l10n.torchTryAgain,
           onPressed: () => ref.invalidate(reportRunEmailDeliveriesProvider(key)),
         ),
       ),
       data: (list) => list.isEmpty
           ? Text(
-              'No emails were queued for this run.',
+              l10n.runEmailNoneQueued,
               style: context.skin.text.meta.style(
                 color: context.skin.palette.ink3,
               ),
@@ -745,9 +768,9 @@ class _EmailDeliveries extends ConsumerWidget {
                   _DeliveryRow(
                     key: ValueKey<String>('run-email-${list[i].id}'),
                     subject: list[i].recipient,
-                    word: emailDeliveryWord(list[i].status),
+                    word: emailDeliveryWord(list[i].status, l10n),
                     level: deliveryLevel(list[i].status),
-                    facts: <String>[attemptsLabel(list[i].attempts)],
+                    facts: <String>[attemptsLabel(list[i].attempts, l10n)],
                     error: list[i].status == DeliveryStatus.succeeded
                         ? null
                         : list[i].lastError,

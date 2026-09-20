@@ -9,16 +9,9 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/report_schedules_repository.dart';
 import '../data/reports_repository.dart';
-
-/// The cadence field's hint (#66): the backend fires schedules on their
-/// cadence, sends them to webhooks, and emails the recipients when the server
-/// has email (SMTP) set up.
-const scheduleCadenceHelp =
-    'Runs automatically on this cadence (UTC), is sent to webhooks '
-    'subscribed to $reportGeneratedEvent, and is emailed to the recipients '
-    'when email is set up on the server.';
 
 /// Splits the recipients box into entries: one per line, or separated by
 /// commas or semicolons. Blank entries are dropped, so "a, , b" is two.
@@ -36,22 +29,18 @@ final _emailAddress = RegExp(
 
 /// Why the recipients box cannot be saved, or null when it can. Mirrors the
 /// backend: 1–50 email addresses.
-String? recipientsError(String raw) {
+String? recipientsError(String raw, AppLocalizations l10n) {
   final recipients = parseRecipients(raw);
-  if (recipients.isEmpty) return 'Add at least one recipient';
+  if (recipients.isEmpty) return l10n.scheduleFormRecipientsEmpty;
   final invalid = recipients.where((r) => !_emailAddress.hasMatch(r)).toList();
-  if (invalid.isNotEmpty) return 'Not an email address: ${invalid.first}';
+  if (invalid.isNotEmpty) {
+    return l10n.scheduleFormRecipientsInvalid(invalid.first);
+  }
   if (recipients.length > maxScheduleRecipients) {
-    return 'At most $maxScheduleRecipients recipients';
+    return l10n.scheduleFormRecipientsTooMany(maxScheduleRecipients);
   }
   return null;
 }
-
-/// Why the report cannot be picked when editing: `PATCH /report-schedules/:id`
-/// accepts only `active`, `cadence` and `recipients`.
-const scheduleReportLockedNote =
-    'The report on a schedule cannot be changed. To schedule a different '
-    'report, create a new schedule.';
 
 /// NEW / EDIT SCHEDULE — a saved report, a cadence and recipients.
 ///
@@ -119,24 +108,21 @@ class _ReportScheduleFormScreenState
 
   /// Why this cannot be saved yet, or null when it can.
   String? _blocked(AsyncValue<List<ReportDefinition>> reports) {
+    final l10n = context.l10n;
     if (!_editing) {
-      if (reports.isLoading) return 'Loading the saved reports.';
-      if (reports.hasError) {
-        return 'The saved reports could not be loaded, so there is nothing '
-            'to schedule yet.';
-      }
+      if (reports.isLoading) return l10n.scheduleFormBlockedLoading;
+      if (reports.hasError) return l10n.scheduleFormBlockedReportsFailed;
       if ((reports.value ?? const <ReportDefinition>[]).isEmpty) {
-        return 'There are no saved reports yet. Build one on Reports first.';
+        return l10n.scheduleFormBlockedNoReports;
       }
-      if (_reportId == null) return 'Pick the report this schedule runs.';
+      if (_reportId == null) return l10n.scheduleFormBlockedNoReport;
     }
-    if (_cadence == null) return 'Pick how often it runs.';
-    final recipients = recipientsError(_recipients.text);
-    if (recipients != null) return recipients;
-    return null;
+    if (_cadence == null) return l10n.scheduleFormBlockedNoCadence;
+    return recipientsError(_recipients.text, l10n);
   }
 
   Future<void> _submit() async {
+    final l10n = context.l10n;
     final reportId = _reportId;
     final cadence = _cadence;
     if (reportId == null || cadence == null) return;
@@ -167,10 +153,12 @@ class _ReportScheduleFormScreenState
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _failure =
-            '${_editing ? 'The changes were not saved.' : 'The schedule was '
-                  'not created.'} '
-            '${TorchErrorMessage.sanitise(error).body}';
+        _failure = l10n.scheduleFormFailedBody(
+          _editing
+              ? l10n.scheduleFormFailedEdit
+              : l10n.scheduleFormFailedNew,
+          TorchErrorMessage.sanitise(error).body,
+        );
       });
     }
   }
@@ -190,6 +178,7 @@ class _ReportScheduleFormScreenState
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final reports = _editing
         ? const AsyncValue<List<ReportDefinition>>.data(
             <ReportDefinition>[],
@@ -207,23 +196,27 @@ class _ReportScheduleFormScreenState
           : armed
           ? 'armed'
           : 'blocked',
-      title: _editing ? 'Edit schedule' : 'New schedule',
-      facts: const <String>['It runs server-side and delivers the result.'],
+      title: _editing
+          ? l10n.scheduleFormTitleEdit
+          : l10n.scheduleFormTitleNew,
+      facts: <String>[l10n.scheduleFormFact],
       back: ConsolePage.backTo(
-        'Back to Report schedules',
+        l10n.scheduleFormBack,
         () => Navigator.of(context).pop(),
       ),
       primaryArmed: armed,
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('schedule-save-button'),
-        label: _editing ? 'Save these changes' : 'Create this schedule',
+        label: _editing
+            ? l10n.scheduleFormCommitEdit
+            : l10n.scheduleFormCommitNew,
         claimId: ConsolePage.primaryClaimId,
         busy: _saving,
-        blockedReason: blocked ?? (_saving ? 'Saving…' : null),
+        blockedReason: blocked ?? (_saving ? l10n.scheduleFormSaving : null),
         onPressed: armed ? _submit : null,
       ),
       children: <Widget>[
-        const SectionRule('Report'),
+        SectionRule(l10n.scheduleFormSectionReport),
         const SizedBox(height: TiqSpace.s5),
         if (_editing)
           Column(
@@ -234,15 +227,16 @@ class _ReportScheduleFormScreenState
               SoftRow(
                 form: SoftRowForm.standalone,
                 density: SoftRowDensity.standard,
-                title: _reportName ?? 'Untitled report',
-                subtitle: 'Locked',
-                semanticsLabel:
-                    '${_reportName ?? 'Untitled report'}. Locked. '
-                    '$scheduleReportLockedNote',
+                title: _reportName ?? l10n.scheduleUntitledReport,
+                subtitle: l10n.scheduleFormReportLocked,
+                semanticsLabel: l10n.scheduleFormReportLockedSemantics(
+                  _reportName ?? l10n.scheduleUntitledReport,
+                  l10n.scheduleFormReportLockedNote,
+                ),
               ),
               const SizedBox(height: TiqSpace.s3),
               Text(
-                scheduleReportLockedNote,
+                l10n.scheduleFormReportLockedNote,
                 style: skin.text.meta.style(color: skin.palette.ink3),
               ),
             ],
@@ -250,7 +244,7 @@ class _ReportScheduleFormScreenState
         else
           reports.when(
             loading: () => Skeleton(
-              label: 'saved reports',
+              label: l10n.scheduleFormReportsSkeleton,
               child: const SkeletonRows(count: 1, rowHeight: 64),
             ),
             error: (error, stack) => ErrorState(
@@ -258,67 +252,68 @@ class _ReportScheduleFormScreenState
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('schedule-reports-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: () => ref.invalidate(reportsPageProvider),
               ),
             ),
             data: (list) => list.isEmpty
-                ? const EmptyState(
-                    key: ValueKey<String>('schedule-no-reports'),
+                ? EmptyState(
+                    key: const ValueKey<String>('schedule-no-reports'),
                     scope: EmptyScope.inPanel,
-                    headline: 'No saved reports yet.',
-                    body: 'Build one on the Reports screen, then schedule it.',
+                    headline: l10n.scheduleFormNoReportsHeadline,
+                    body: l10n.scheduleFormNoReportsBody,
                   )
                 : SoftRow(
                     key: const ValueKey<String>('schedule-report-field'),
                     form: SoftRowForm.standalone,
                     density: SoftRowDensity.standard,
-                    title: 'Report',
-                    subtitle: _reportName ?? 'Not picked yet',
+                    title: l10n.scheduleFormSectionReport,
+                    subtitle:
+                        _reportName ?? l10n.scheduleFormReportNotPicked,
                     trailing: const SoftRowChevron(),
                     onTap: () => _pickReport(list),
-                    semanticsLabel:
-                        'Report. ${_reportName ?? 'Not picked yet'}. '
-                        'Choose the report this schedule runs.',
+                    semanticsLabel: l10n.scheduleFormReportSemantics(
+                      _reportName ?? l10n.scheduleFormReportNotPicked,
+                    ),
                   ),
           ),
 
         SizedBox(height: skin.space.blockGap),
-        const SectionRule('Schedule'),
+        SectionRule(l10n.scheduleFormSectionSchedule),
         const SizedBox(height: TiqSpace.s5),
         ChoiceRow<String>(
           key: const ValueKey<String>('schedule-cadence-field'),
-          label: 'How often',
+          label: l10n.scheduleFormCadence,
           value: _cadence,
-          notAnsweredLine: 'Pick how often it runs.',
+          notAnsweredLine: l10n.scheduleFormBlockedNoCadence,
           options: <ChoiceOption<String>>[
             for (final cadence in reportCadences)
               ChoiceOption<String>(
                 value: cadence,
-                label: cadenceLabel(cadence),
+                label: cadenceLabel(cadence, l10n),
                 consequence: cadence == 'daily'
-                    ? 'Every day, 06:00 UTC.'
-                    : 'Every Monday, 06:00 UTC.',
+                    ? l10n.scheduleFormCadenceDailyConsequence
+                    : l10n.scheduleFormCadenceWeeklyConsequence,
               ),
           ],
           onChanged: (value) => setState(() => _cadence = value),
         ),
         const SizedBox(height: TiqSpace.s3),
         Text(
-          scheduleCadenceHelp,
+          l10n.scheduleFormCadenceHelp,
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
         const SizedBox(height: TiqSpace.s5),
         TorchTextField(
           key: const ValueKey<String>('schedule-recipients-field'),
-          label: 'Recipients',
+          label: l10n.scheduleFormRecipients,
           controller: _recipients,
           identifier: true,
           minLines: 2,
           maximumLines: 5,
           keyboardType: TextInputType.multiline,
-          help: 'Email addresses, one per line or separated by commas.',
-          error: recipientsError(_recipients.text),
+          help: l10n.scheduleFormRecipientsHelp,
+          error: recipientsError(_recipients.text, l10n),
         ),
 
         if (failure != null) ...<Widget>[
@@ -329,8 +324,8 @@ class _ReportScheduleFormScreenState
             message: TorchErrorMessage(
               kind: TorchErrorKind.rejected,
               headline: _editing
-                  ? 'The changes were not saved.'
-                  : 'The schedule was not created.',
+                  ? l10n.scheduleFormFailedEdit
+                  : l10n.scheduleFormFailedNew,
               body: failure,
               offersRetry: false,
             ),
@@ -350,9 +345,10 @@ class _ReportPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     return TorchSheet(
-      title: 'Report',
-      subtitle: 'The schedule runs this definition on its cadence.',
+      title: l10n.scheduleFormSectionReport,
+      subtitle: l10n.scheduleReportSheetSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

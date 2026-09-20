@@ -10,6 +10,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_schedules_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../a11y_guard.dart';
@@ -45,8 +46,8 @@ void main() {
 
   group('the words', () {
     test('nextRunLabel covers active, paused and unscheduled', () {
-      expect(nextRunLabel(activeSchedule), 'Next run 2026-09-21 09:00');
-      expect(nextRunLabel(pausedSchedule), 'Paused, no next run');
+      expect(nextRunLabel(activeSchedule, englishLocalizations), 'Next run 2026-09-21 09:00');
+      expect(nextRunLabel(pausedSchedule, englishLocalizations), 'Paused, no next run');
       expect(
         nextRunLabel(
           const ReportSchedule(
@@ -56,23 +57,24 @@ void main() {
             recipients: <String>[],
             active: true,
           ),
+          englishLocalizations,
         ),
         'Next run not scheduled',
       );
-      expect(lastRunLabel(null), 'Never run');
+      expect(lastRunLabel(null, englishLocalizations), 'Never run');
     });
 
     test('the standing note says what the backend actually does', () {
-      expect(scheduleDeliveryNote, contains('run automatically'));
+      expect(englishLocalizations.schedulesDeliveryNote, contains('run automatically'));
       expect(
-        scheduleDeliveryNote,
+        englishLocalizations.schedulesDeliveryNote,
         contains('webhooks subscribed to report.generated'),
       );
       expect(
-        scheduleDeliveryNote,
+        englishLocalizations.schedulesDeliveryNote,
         contains('Recipients are emailed when email is set up'),
       );
-      expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
+      expect(englishLocalizations.schedulesDeliveryNote, isNot(contains('not sent automatically')));
     });
 
     group('runNowMessage', () {
@@ -87,6 +89,7 @@ void main() {
               deliveredTo: const <String>['https://a.test', 'https://b.test'],
             ),
             en,
+            englishLocalizations,
           ),
           'Generated 1 row. Queued for 2 webhooks. Email is not set up on '
           'the server.',
@@ -95,7 +98,11 @@ void main() {
 
       test('says plainly when no webhook listens', () {
         expect(
-          runNowMessage(runResultFor(deliveredTo: const <String>[]), en),
+          runNowMessage(
+            runResultFor(deliveredTo: const <String>[]),
+            en,
+            englishLocalizations,
+          ),
           'Generated 42 rows. Not sent: no webhook is subscribed to '
           'report.generated. Email is not set up on the server.',
         );
@@ -127,7 +134,7 @@ void main() {
           ],
         );
         expect(
-          runNowMessage(result, en),
+          runNowMessage(result, en, englishLocalizations),
           'Generated 3 rows. Queued for 1 webhook. Emailing 2 recipients.',
         );
       });
@@ -145,7 +152,7 @@ void main() {
           ],
         );
         expect(
-          runNowMessage(result, en),
+          runNowMessage(result, en, englishLocalizations),
           'Generated 1 row. Not sent: no webhook is subscribed to '
           'report.generated. Not emailed: no valid email recipients.',
         );
@@ -162,6 +169,7 @@ void main() {
               ),
             ),
             en,
+            englishLocalizations,
           ),
           'Generated 42 rows. Webhook delivery failed. Email is not set up '
           'on the server.',

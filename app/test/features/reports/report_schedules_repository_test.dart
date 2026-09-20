@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/api_client.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 /// A fake HTTP layer that records the request and returns a canned body,
 /// following the pattern in `test/features/agents/agents_repository_test.dart`.
@@ -83,8 +84,8 @@ void main() {
 
   test('cadenceLabel names the backend allow-list', () {
     expect(reportCadences, ['daily', 'weekly']);
-    expect(cadenceLabel('daily'), 'Daily');
-    expect(cadenceLabel('weekly'), 'Weekly');
+    expect(cadenceLabel('daily', englishLocalizations), 'Daily');
+    expect(cadenceLabel('weekly', englishLocalizations), 'Weekly');
   });
 
   group('DioReportSchedulesRepository', () {

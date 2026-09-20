@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../../l10n/l10n.dart';
 import '../../webhooks/data/webhooks_repository.dart' show DeliveryStatus;
 
 export '../../webhooks/data/webhooks_repository.dart' show DeliveryStatus;
@@ -10,9 +11,13 @@ export '../../webhooks/data/webhooks_repository.dart' show DeliveryStatus;
 const reportCadences = <String>['daily', 'weekly'];
 
 /// A cadence slug as a person reads it.
-String cadenceLabel(String cadence) => switch (cadence) {
-      'daily' => 'Daily',
-      'weekly' => 'Weekly',
+///
+/// The slug is the wire's and stays English. A cadence outside the allow-list
+/// falls back to the slug rather than to an invented translation — the column
+/// is free text, and a word nobody chose is worse than the raw value.
+String cadenceLabel(String cadence, AppLocalizations l10n) => switch (cadence) {
+      'daily' => l10n.cadenceDaily,
+      'weekly' => l10n.cadenceWeekly,
       _ => cadence,
     };
 

@@ -7458,5 +7458,1148 @@
         "type": "String"
       }
     }
+  },
+  "reportsTitle": "Reports",
+  "@reportsTitle": {
+    "description": "Screen title: the manager's saved report definitions."
+  },
+  "reportsFact": "Definitions run on demand against live data.",
+  "@reportsFact": {
+    "description": "Header fact under the Reports title."
+  },
+  "reportsRefresh": "Refresh the saved reports",
+  "@reportsRefresh": {
+    "description": "Semantic label of the header's refresh button. Names what it does, never just 'Refresh'."
+  },
+  "reportsSkeleton": "reports",
+  "@reportsSkeleton": {
+    "description": "What the skeleton and the error region say they are for, inside 'Still fetching the …'."
+  },
+  "reportsSection": "Reports",
+  "@reportsSection": {
+    "description": "Section rule above the list of report definitions."
+  },
+  "reportsSchedules": "Schedules",
+  "@reportsSchedules": {
+    "description": "Verb that opens the report schedules route."
+  },
+  "reportsEmptyHeadline": "No saved reports.",
+  "@reportsEmptyHeadline": {
+    "description": "In-panel empty state: this client has saved no report definitions."
+  },
+  "reportsEmptyBody": "Build one, then run it to see how many rows it returns.",
+  "@reportsEmptyBody": {
+    "description": "Body of the reports empty state."
+  },
+  "reportsNew": "New report",
+  "@reportsNew": {
+    "description": "Verb that opens the create-report form."
+  },
+  "reportsFooterMore": "Showing the first {shown}. There are more.",
+  "@reportsFooterMore": {
+    "description": "Pagination footer with no total: it never invents the number the endpoint does not send.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "reportsFooterOf": "Showing the first {shown} of {total}.",
+  "@reportsFooterOf": {
+    "description": "Pagination footer with a total from the server.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "reportRun": "Run",
+  "@reportRun": {
+    "description": "Row verb that generates this report's CSV."
+  },
+  "reportRunning": "Running…",
+  "@reportRunning": {
+    "description": "The Run verb while the report is being generated."
+  },
+  "reportDelete": "Delete",
+  "@reportDelete": {
+    "description": "Row verb that deletes a saved report definition."
+  },
+  "reportWordRunning": "Running",
+  "@reportWordRunning": {
+    "description": "Row word while the report is being generated."
+  },
+  "reportWordReady": "Ready",
+  "@reportWordReady": {
+    "description": "Row word: the definition has not been run in this session."
+  },
+  "reportWordFailed": "Could not run",
+  "@reportWordFailed": {
+    "description": "Row word: the run failed. The previous count is kept."
+  },
+  "reportWordZeroRows": "0 rows — the query matched nothing",
+  "@reportWordZeroRows": {
+    "description": "Row word for a measured zero. Zero is a real answer, never an error and never suppressed."
+  },
+  "reportWordGenerated": "Generated",
+  "@reportWordGenerated": {
+    "description": "Row word: the run produced a file."
+  },
+  "reportRowsAndFile": "{rows} rows · {filename}",
+  "@reportRowsAndFile": {
+    "description": "Row subtitle after a run: the count saved and the file it was saved as.",
+    "placeholders": {
+      "rows": {
+        "type": "String"
+      },
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "reportRowsSpoken": "{rows} rows",
+  "@reportRowsSpoken": {
+    "description": "The row count alone, in the row's spoken sentence.",
+    "placeholders": {
+      "rows": {
+        "type": "String"
+      }
+    }
+  },
+  "reportDownloaded": "Downloaded {filename}.",
+  "@reportDownloaded": {
+    "description": "Toast after a run when the platform did not say where the file landed.",
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "reportSavedTo": "Saved {filename} to {location}.",
+  "@reportSavedTo": {
+    "description": "Toast after a run, naming the folder the file landed in.",
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      },
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "reportDeleteAction": "Delete {name}?",
+  "@reportDeleteAction": {
+    "description": "What the confirm sheet says will happen.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reportDeleteConsequenceEveryone": "The definition is removed for everyone on this client.",
+  "@reportDeleteConsequenceEveryone": {
+    "description": "First consequence of deleting a report definition."
+  },
+  "reportDeleteConsequenceSchedules": "Any schedule that runs it stops running.",
+  "@reportDeleteConsequenceSchedules": {
+    "description": "Second consequence of deleting a report definition."
+  },
+  "reportDeleteConsequenceFiles": "Files already downloaded are not affected.",
+  "@reportDeleteConsequenceFiles": {
+    "description": "Third consequence: what deleting does NOT do."
+  },
+  "reportDeleteCommit": "Delete this report",
+  "@reportDeleteCommit": {
+    "description": "The confirm sheet's commit verb."
+  },
+  "reportDeleteCancel": "Keep it",
+  "@reportDeleteCancel": {
+    "description": "The confirm sheet's way out."
+  },
+  "reportDeleteFailed": "That report was not deleted. {reason}",
+  "@reportDeleteFailed": {
+    "description": "Failure toast after a delete. The reason is the sanitised server message.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "reportTypeVisits": "Visits",
+  "@reportTypeVisits": {
+    "description": "Report type: one row per submitted visit. A slug is what the machine calls it; this is what a manager picks it by."
+  },
+  "reportTypeScorecards": "Scorecards",
+  "@reportTypeScorecards": {
+    "description": "Report type: one row per scored visit."
+  },
+  "reportTypeTasks": "Tasks",
+  "@reportTypeTasks": {
+    "description": "Report type: one row per task raised."
+  },
+  "reportTypeOrders": "Orders",
+  "@reportTypeOrders": {
+    "description": "Report type: one row per order captured in store."
+  },
+  "reportTypeVisitsConsequence": "One row per submitted visit.",
+  "@reportTypeVisitsConsequence": {
+    "description": "What choosing the Visits report type will produce."
+  },
+  "reportTypeScorecardsConsequence": "One row per scored visit.",
+  "@reportTypeScorecardsConsequence": {
+    "description": "What choosing the Scorecards report type will produce."
+  },
+  "reportTypeTasksConsequence": "One row per task raised.",
+  "@reportTypeTasksConsequence": {
+    "description": "What choosing the Tasks report type will produce."
+  },
+  "reportTypeOrdersConsequence": "One row per order captured in store.",
+  "@reportTypeOrdersConsequence": {
+    "description": "What choosing the Orders report type will produce."
+  },
+  "reportTypeOtherConsequence": "One row per record.",
+  "@reportTypeOtherConsequence": {
+    "description": "Fallback consequence for a report type the app does not know by name."
+  },
+  "reportFilterDateFormat": "Use the form 2026-09-20, or leave it blank for any date.",
+  "@reportFilterDateFormat": {
+    "description": "Why a date box cannot be saved. The server stores filters verbatim and reads them back as ISO dates, so the format is not localised."
+  },
+  "reportFormTitle": "New report",
+  "@reportFormTitle": {
+    "description": "Title of the create-report form."
+  },
+  "reportFormFact": "It runs on demand against live data.",
+  "@reportFormFact": {
+    "description": "Header fact on the create-report form."
+  },
+  "reportFormBack": "Back to Reports",
+  "@reportFormBack": {
+    "description": "The way out of the create-report form, naming where it lands."
+  },
+  "reportFormCommit": "Create this report",
+  "@reportFormCommit": {
+    "description": "The form's commit verb."
+  },
+  "reportFormSaving": "Saving…",
+  "@reportFormSaving": {
+    "description": "Blocked reason while the create request is in flight."
+  },
+  "reportFormBlockedName": "Give the report a name first.",
+  "@reportFormBlockedName": {
+    "description": "Why Create cannot be pressed: the name box is empty."
+  },
+  "reportFormBlockedFrom": "The From date is not a date. Use the form 2026-09-20.",
+  "@reportFormBlockedFrom": {
+    "description": "Why Create cannot be pressed: the From box does not hold an ISO date."
+  },
+  "reportFormBlockedTo": "The To date is not a date. Use the form 2026-09-20.",
+  "@reportFormBlockedTo": {
+    "description": "Why Create cannot be pressed: the To box does not hold an ISO date."
+  },
+  "reportFormBlockedOrder": "The To date is before the From date.",
+  "@reportFormBlockedOrder": {
+    "description": "Why Create cannot be pressed: the window runs backwards."
+  },
+  "reportFormSectionReport": "Report",
+  "@reportFormSectionReport": {
+    "description": "Section rule above the report's name and kind."
+  },
+  "reportFormSectionNarrowed": "Narrowed to",
+  "@reportFormSectionNarrowed": {
+    "description": "Section rule above the filters."
+  },
+  "reportFormName": "Name",
+  "@reportFormName": {
+    "description": "Label of the report's name box."
+  },
+  "reportFormNameHint": "Outlet coverage, September",
+  "@reportFormNameHint": {
+    "description": "Example report name, shown as a hint."
+  },
+  "reportFormNameHelp": "What a manager will look for in the list.",
+  "@reportFormNameHelp": {
+    "description": "Help under the report's name box."
+  },
+  "reportFormType": "What it queries",
+  "@reportFormType": {
+    "description": "Label of the report-type choice."
+  },
+  "reportFormTypeNotAnswered": "Pick what the report is about.",
+  "@reportFormTypeNotAnswered": {
+    "description": "State line of the report-type choice while nothing is selected."
+  },
+  "reportFormFrom": "From",
+  "@reportFormFrom": {
+    "description": "Label of the filter's start-date box."
+  },
+  "reportFormTo": "To",
+  "@reportFormTo": {
+    "description": "Label of the filter's end-date box."
+  },
+  "reportFormDateHelp": "Leave blank for any date.",
+  "@reportFormDateHelp": {
+    "description": "Help under each date box: an empty box is not a filter."
+  },
+  "reportFormOutlet": "Outlet",
+  "@reportFormOutlet": {
+    "description": "Label of the outlet filter, and title of the picker sheet."
+  },
+  "reportFormAllOutlets": "All outlets",
+  "@reportFormAllOutlets": {
+    "description": "The outlet filter's unset value — a real choice, and the first row of the picker, rather than an absence."
+  },
+  "reportFormOutletSemantics": "Outlet. {outlet}. Choose an outlet.",
+  "@reportFormOutletSemantics": {
+    "description": "Spoken sentence of the outlet filter row.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "reportFormFailed": "The report was not created.",
+  "@reportFormFailed": {
+    "description": "Headline of the inline error when the create request was refused."
+  },
+  "reportOutletSheetSubtitle": "The report is narrowed to the one you pick.",
+  "@reportOutletSheetSubtitle": {
+    "description": "Subtitle of the outlet picker sheet."
+  },
+  "reportOutletSheetSkeleton": "outlets",
+  "@reportOutletSheetSkeleton": {
+    "description": "What the outlet picker's skeleton says it is loading."
+  },
+  "reportOutletSheetEmptyHeadline": "No outlets on this client yet.",
+  "@reportOutletSheetEmptyHeadline": {
+    "description": "In-panel empty state of the outlet picker."
+  },
+  "reportOutletSheetEmptyBody": "The report will cover every outlet added later.",
+  "@reportOutletSheetEmptyBody": {
+    "description": "Body of the outlet picker's empty state."
+  },
+  "cadenceDaily": "Daily",
+  "@cadenceDaily": {
+    "description": "A schedule's cadence, as a person reads it. The slug stays English on the wire."
+  },
+  "cadenceWeekly": "Weekly",
+  "@cadenceWeekly": {
+    "description": "A schedule's cadence, as a person reads it."
+  },
+  "schedulesTitle": "Report schedules",
+  "@schedulesTitle": {
+    "description": "Screen title: which saved reports run on their own."
+  },
+  "schedulesFact": "A schedule runs its report server-side and delivers the result.",
+  "@schedulesFact": {
+    "description": "Header fact under the Report schedules title."
+  },
+  "schedulesRefresh": "Refresh the schedules",
+  "@schedulesRefresh": {
+    "description": "Semantic label of the header's refresh button."
+  },
+  "schedulesSkeleton": "report schedules",
+  "@schedulesSkeleton": {
+    "description": "What the skeleton and the error region say they are for."
+  },
+  "schedulesDeliveryNote": "Active schedules run automatically on their cadence and are sent to your webhooks subscribed to report.generated. Recipients are emailed when email is set up on the server.",
+  "@schedulesDeliveryNote": {
+    "description": "The standing note on the schedules screen. 'report.generated' is a wire event name and stays as it is."
+  },
+  "schedulesBackToReports": "Back to reports",
+  "@schedulesBackToReports": {
+    "description": "Verb that returns to the Reports list."
+  },
+  "schedulesEmptyHeadline": "No schedules.",
+  "@schedulesEmptyHeadline": {
+    "description": "In-panel empty state: nothing runs on its own yet."
+  },
+  "schedulesEmptyBody": "A report runs on demand until you schedule it.",
+  "@schedulesEmptyBody": {
+    "description": "Body of the schedules empty state."
+  },
+  "schedulesNew": "New schedule",
+  "@schedulesNew": {
+    "description": "Verb that opens the create-schedule form."
+  },
+  "schedulesGroupActive": "Active",
+  "@schedulesGroupActive": {
+    "description": "Section rule over the schedules that run on their own."
+  },
+  "schedulesGroupOff": "Off",
+  "@schedulesGroupOff": {
+    "description": "Section rule over the paused schedules. Off is a section, not a shade."
+  },
+  "schedulesGroupActiveEmpty": "Nothing is running on its own.",
+  "@schedulesGroupActiveEmpty": {
+    "description": "Empty line of the Active section, which renders whatever its count is."
+  },
+  "schedulesGroupOffEmpty": "Nothing is paused.",
+  "@schedulesGroupOffEmpty": {
+    "description": "Empty line of the Off section."
+  },
+  "scheduleUntitledReport": "Untitled report",
+  "@scheduleUntitledReport": {
+    "description": "Stand-in when the API sends a schedule with no report name."
+  },
+  "scheduleNeverRun": "Never run",
+  "@scheduleNeverRun": {
+    "description": "A schedule that has not fired yet. Not a blank and not a zero."
+  },
+  "scheduleLastRun": "Last run {stamp}",
+  "@scheduleLastRun": {
+    "description": "When the schedule last fired, in local time.",
+    "placeholders": {
+      "stamp": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleNextRun": "Next run {stamp}",
+  "@scheduleNextRun": {
+    "description": "When the schedule fires next, in local time.",
+    "placeholders": {
+      "stamp": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleNextRunNone": "Next run not scheduled",
+  "@scheduleNextRunNone": {
+    "description": "An active schedule the server has set no next run for."
+  },
+  "schedulePausedNoNextRun": "Paused, no next run",
+  "@schedulePausedNoNextRun": {
+    "description": "A paused schedule says so rather than showing a stale time."
+  },
+  "scheduleNoRecipients": "No recipients",
+  "@scheduleNoRecipients": {
+    "description": "Severity word on a schedule that delivers to nobody by email."
+  },
+  "scheduleNoRecipientsLine": "No recipients — this schedule delivers to nobody by email.",
+  "@scheduleNoRecipientsLine": {
+    "description": "The meta line under a schedule with an empty recipients list."
+  },
+  "scheduleRecipientCount": "{count, plural, =1{1 recipient} other{{count} recipients}}",
+  "@scheduleRecipientCount": {
+    "description": "How many addresses a schedule delivers to.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleRunsOnItsOwn": "Runs on its own",
+  "@scheduleRunsOnItsOwn": {
+    "description": "Label of the toggle that activates or pauses a schedule."
+  },
+  "scheduleOn": "On",
+  "@scheduleOn": {
+    "description": "The toggle's on word."
+  },
+  "scheduleOff": "Off",
+  "@scheduleOff": {
+    "description": "The toggle's off word."
+  },
+  "scheduleWaitingForServer": "Waiting for the server.",
+  "@scheduleWaitingForServer": {
+    "description": "Why the toggle is disabled: a request is in flight."
+  },
+  "scheduleRunningOnItsOwn": "Running on its own",
+  "@scheduleRunningOnItsOwn": {
+    "description": "Spoken state of an active schedule, at the end of the row's sentence."
+  },
+  "scheduleShowRecipients": "Show recipients",
+  "@scheduleShowRecipients": {
+    "description": "Verb that expands the addresses in place."
+  },
+  "scheduleHideRecipients": "Hide recipients",
+  "@scheduleHideRecipients": {
+    "description": "Verb that collapses the expanded addresses."
+  },
+  "scheduleRunNow": "Run now",
+  "@scheduleRunNow": {
+    "description": "Row verb that generates and delivers the report immediately."
+  },
+  "scheduleHistory": "History",
+  "@scheduleHistory": {
+    "description": "Row verb that opens this schedule's run history."
+  },
+  "scheduleEdit": "Edit",
+  "@scheduleEdit": {
+    "description": "Row verb that opens the schedule for editing."
+  },
+  "scheduleDelete": "Delete",
+  "@scheduleDelete": {
+    "description": "Row verb that deletes the schedule."
+  },
+  "scheduleDeleteAction": "Delete this schedule?",
+  "@scheduleDeleteAction": {
+    "description": "What the confirm sheet says will happen."
+  },
+  "scheduleDeleteConsequenceStops": "{name} stops running on its own.",
+  "@scheduleDeleteConsequenceStops": {
+    "description": "First consequence of deleting a schedule.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleDeleteConsequenceReportKept": "The saved report itself is kept.",
+  "@scheduleDeleteConsequenceReportKept": {
+    "description": "Second consequence: what deleting does NOT do."
+  },
+  "scheduleDeleteConsequenceRuns": "Runs already delivered are not withdrawn.",
+  "@scheduleDeleteConsequenceRuns": {
+    "description": "Third consequence of deleting a schedule."
+  },
+  "scheduleDeleteCommit": "Delete this schedule",
+  "@scheduleDeleteCommit": {
+    "description": "The confirm sheet's commit verb."
+  },
+  "scheduleDeleteCancel": "Keep it",
+  "@scheduleDeleteCancel": {
+    "description": "The confirm sheet's way out."
+  },
+  "scheduleDeleteFailed": "Could not delete the schedule.",
+  "@scheduleDeleteFailed": {
+    "description": "Lead of the failure toast after a delete."
+  },
+  "scheduleResumeFailed": "Could not resume the schedule.",
+  "@scheduleResumeFailed": {
+    "description": "Lead of the failure toast when activating a schedule was refused. The toggle goes back."
+  },
+  "schedulePauseFailed": "Could not pause the schedule.",
+  "@schedulePauseFailed": {
+    "description": "Lead of the failure toast when pausing a schedule was refused."
+  },
+  "scheduleRunFailed": "Run failed.",
+  "@scheduleRunFailed": {
+    "description": "Lead of the failure toast after Run now."
+  },
+  "scheduleFailureToast": "{lead} {reason}",
+  "@scheduleFailureToast": {
+    "description": "A failure toast: what could not be done, then the sanitised server message.",
+    "placeholders": {
+      "lead": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "runNowGeneratedRows": "Generated {rowsText} {rows, plural, =1{row} other{rows}}.",
+  "@runNowGeneratedRows": {
+    "description": "First sentence of the Run now report. `rowsText` is the count already formatted through TiqNumber, so it groups the reader's way; `rows` only picks the singular or the plural.",
+    "placeholders": {
+      "rowsText": {
+        "type": "String"
+      },
+      "rows": {
+        "type": "int"
+      }
+    }
+  },
+  "runNowQueuedWebhooks": "Queued for {count, plural, =1{1 webhook} other{{count} webhooks}}.",
+  "@runNowQueuedWebhooks": {
+    "description": "How many webhooks the run was queued for.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runNowWebhookFailed": "Webhook delivery failed.",
+  "@runNowWebhookFailed": {
+    "description": "The webhook channel refused the run."
+  },
+  "runNowNoSubscriber": "Not sent: no webhook is subscribed to report.generated.",
+  "@runNowNoSubscriber": {
+    "description": "Nothing listens for the run. 'report.generated' is a wire event name."
+  },
+  "runNowEmailing": "Emailing {count, plural, =1{1 recipient} other{{count} recipients}}.",
+  "@runNowEmailing": {
+    "description": "How many addresses the run is being emailed to.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runNowEmailNotConfigured": "Email is not set up on the server.",
+  "@runNowEmailNotConfigured": {
+    "description": "Why nothing was emailed: the server has no SMTP."
+  },
+  "runNowEmailNoSubscribers": "Not emailed: no valid email recipients.",
+  "@runNowEmailNoSubscribers": {
+    "description": "Why nothing was emailed: no address on the schedule is usable."
+  },
+  "runNowEmailFailed": "Email delivery failed.",
+  "@runNowEmailFailed": {
+    "description": "The email channel refused the run."
+  },
+  "runStatusDelivering": "Delivering",
+  "@runStatusDelivering": {
+    "description": "Run status word: the run is still being sent."
+  },
+  "runStatusDelivered": "Delivered",
+  "@runStatusDelivered": {
+    "description": "Run status word: every channel took it."
+  },
+  "runStatusPartial": "Partly delivered",
+  "@runStatusPartial": {
+    "description": "Run status word: some channel did not take it."
+  },
+  "runStatusFailed": "Failed",
+  "@runStatusFailed": {
+    "description": "Run status word: the run did not deliver at all."
+  },
+  "runStatusNotSent": "Not sent",
+  "@runStatusNotSent": {
+    "description": "Run status word: nothing was subscribed, or email is not set up. Not a failure."
+  },
+  "runStatusUnknown": "Unknown",
+  "@runStatusUnknown": {
+    "description": "Run status word: the API sent a status this app does not know. Never guessed at."
+  },
+  "runTitleScheduled": "Scheduled run",
+  "@runTitleScheduled": {
+    "description": "Title of a run the schedule fired on its own."
+  },
+  "runTitleManual": "Run now",
+  "@runTitleManual": {
+    "description": "Title of a run a manager started by hand."
+  },
+  "runGeneratedAt": "Generated {stamp}",
+  "@runGeneratedAt": {
+    "description": "When the run produced its file, in local time.",
+    "placeholders": {
+      "stamp": {
+        "type": "String"
+      }
+    }
+  },
+  "runDueAndGenerated": "Due {due} · {generated}",
+  "@runDueAndGenerated": {
+    "description": "A scheduled run's due time and when it actually ran. A Run now has no due time.",
+    "placeholders": {
+      "due": {
+        "type": "String"
+      },
+      "generated": {
+        "type": "String"
+      }
+    }
+  },
+  "runRowCount": "{rowsText} {rows, plural, =1{row} other{rows}}",
+  "@runRowCount": {
+    "description": "How many rows the run produced. `rowsText` is the count already formatted through TiqNumber so it groups the reader's way; `rows` only picks the singular or the plural.",
+    "placeholders": {
+      "rowsText": {
+        "type": "String"
+      },
+      "rows": {
+        "type": "int"
+      }
+    }
+  },
+  "runHistoryFooterMore": "Showing the {shown} most recent. There are more.",
+  "@runHistoryFooterMore": {
+    "description": "Pagination footer with no total. It never invents a number: a fabricated total on a delivery history is a manager believing they have seen every failure.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "runHistoryFooterOf": "Showing the {shown} most recent of {total}.",
+  "@runHistoryFooterOf": {
+    "description": "Pagination footer with a total from the server.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "runCountDelivered": "{count} delivered",
+  "@runCountDelivered": {
+    "description": "Part of a channel's count line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runCountPending": "{count} pending",
+  "@runCountPending": {
+    "description": "Part of a channel's count line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runCountFailed": "{count} failed",
+  "@runCountFailed": {
+    "description": "Part of a channel's count line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runCountSent": "{count} sent",
+  "@runCountSent": {
+    "description": "Part of the email channel's count line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runCountsQueued": "queued",
+  "@runCountsQueued": {
+    "description": "What a channel's count line says when every count is zero: it was queued and nothing has happened yet."
+  },
+  "runWebhooksLine": "Webhooks: {counts}",
+  "@runWebhooksLine": {
+    "description": "What the webhook channel did with the run.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "runWebhooksNoneSubscribed": "Webhooks: none subscribed",
+  "@runWebhooksNoneSubscribed": {
+    "description": "Nothing listened for this run."
+  },
+  "runWebhooksFailedLine": "Webhooks: failed",
+  "@runWebhooksFailedLine": {
+    "description": "The webhook channel refused the run."
+  },
+  "runEmailLine": "Email: {counts}",
+  "@runEmailLine": {
+    "description": "What the email channel did with the run.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "runEmailNotSetUpLine": "Email: not set up ({count} not emailed)",
+  "@runEmailNotSetUpLine": {
+    "description": "The server has no SMTP, and how many addresses went without.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runEmailNoRecipientsLine": "Email: no valid recipients",
+  "@runEmailNoRecipientsLine": {
+    "description": "No address on the schedule was usable."
+  },
+  "runEmailFailedLine": "Email: failed",
+  "@runEmailFailedLine": {
+    "description": "The email channel refused the run."
+  },
+  "runNoDeliveryRecorded": "No delivery recorded",
+  "@runNoDeliveryRecorded": {
+    "description": "The run has no delivery outcome at all — stated, never guessed at."
+  },
+  "deliveryWordQueued": "Queued",
+  "@deliveryWordQueued": {
+    "description": "One delivery's state: waiting to be attempted."
+  },
+  "deliveryWordDelivered": "Delivered",
+  "@deliveryWordDelivered": {
+    "description": "One webhook delivery's state: the endpoint took it."
+  },
+  "deliveryWordSent": "Sent",
+  "@deliveryWordSent": {
+    "description": "One email delivery's state: the server accepted it."
+  },
+  "deliveryWordRetrying": "Retrying",
+  "@deliveryWordRetrying": {
+    "description": "One delivery's state: it failed and is being tried again."
+  },
+  "deliveryWordGaveUp": "Gave up",
+  "@deliveryWordGaveUp": {
+    "description": "One webhook delivery's state: every retry is spent."
+  },
+  "deliveryWordEmailFailed": "Failed",
+  "@deliveryWordEmailFailed": {
+    "description": "One email delivery's state: every retry is spent."
+  },
+  "deliveryAttempts": "{count, plural, =1{1 attempt} other{{count} attempts}}",
+  "@deliveryAttempts": {
+    "description": "How many times a delivery has been tried.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deliveryHttpStatus": "HTTP {code}",
+  "@deliveryHttpStatus": {
+    "description": "The status code the endpoint answered with. HTTP is a protocol name and stays as it is.",
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "deliveryNotSentYet": "Not sent yet",
+  "@deliveryNotSentYet": {
+    "description": "A webhook delivery with no attempts behind it."
+  },
+  "deliveryNoResponse": "No response",
+  "@deliveryNoResponse": {
+    "description": "A webhook delivery that was attempted and got nothing back."
+  },
+  "runNoCsvLinkNote": "No download link. Links need signed links set up on the server, and stop working 7 days after the run.",
+  "@runNoCsvLinkNote": {
+    "description": "Why a run has no download link. The API does not say which of the two it is, so both are named."
+  },
+  "runHistoryTitle": "Run history",
+  "@runHistoryTitle": {
+    "description": "Screen title: a schedule's runs, newest first."
+  },
+  "runHistoryBack": "Back to Report schedules",
+  "@runHistoryBack": {
+    "description": "The way out of the run history, naming where it lands."
+  },
+  "runHistorySkeleton": "report runs",
+  "@runHistorySkeleton": {
+    "description": "What the skeleton and the error region say they are for."
+  },
+  "runHistoryRefresh": "Refresh",
+  "@runHistoryRefresh": {
+    "description": "Verb that reloads the first page of runs."
+  },
+  "runHistorySection": "Runs",
+  "@runHistorySection": {
+    "description": "Section rule above the list of runs."
+  },
+  "runHistoryEmptyHeadline": "No runs yet.",
+  "@runHistoryEmptyHeadline": {
+    "description": "In-panel empty state: the schedule has never fired."
+  },
+  "runHistoryEmptyBody": "A run appears each time the schedule fires or you use Run now.",
+  "@runHistoryEmptyBody": {
+    "description": "Body of the run history's empty state."
+  },
+  "runHistoryLoadMore": "Load more",
+  "@runHistoryLoadMore": {
+    "description": "Verb that fetches the next page of runs."
+  },
+  "runShowDetails": "Show run details",
+  "@runShowDetails": {
+    "description": "Row verb that opens a run's per-channel results."
+  },
+  "runHideDetails": "Hide run details",
+  "@runHideDetails": {
+    "description": "Row verb that closes a run's per-channel results."
+  },
+  "runDownloadCsv": "Download CSV",
+  "@runDownloadCsv": {
+    "description": "Row verb that opens the signed link sheet. CSV is a file format and stays as it is."
+  },
+  "runRowSubtitle": "{rows} · {delivery}",
+  "@runRowSubtitle": {
+    "description": "A run row's subtitle: how many rows, and what each channel did.",
+    "placeholders": {
+      "rows": {
+        "type": "String"
+      },
+      "delivery": {
+        "type": "String"
+      }
+    }
+  },
+  "runDetailSectionWebhooks": "Webhooks",
+  "@runDetailSectionWebhooks": {
+    "description": "Section rule over a run's webhook results."
+  },
+  "runDetailSectionEmail": "Email",
+  "@runDetailSectionEmail": {
+    "description": "Section rule over a run's per-recipient email deliveries."
+  },
+  "runDetailSectionFile": "The file",
+  "@runDetailSectionFile": {
+    "description": "Section rule over what happened to the run's CSV."
+  },
+  "runSignedLink": "Signed download link.",
+  "@runSignedLink": {
+    "description": "The run has a working link, with no expiry given."
+  },
+  "runSignedLinkUntil": "Signed download link, works until {stamp}.",
+  "@runSignedLinkUntil": {
+    "description": "The run has a working link and when it stops working.",
+    "placeholders": {
+      "stamp": {
+        "type": "String"
+      }
+    }
+  },
+  "runWebhookNoSubscriber": "Not sent: no webhook is subscribed to report.generated.",
+  "@runWebhookNoSubscriber": {
+    "description": "Detail note: nothing listened for this run. 'report.generated' is a wire event name."
+  },
+  "runWebhookDeliveryFailed": "Webhook delivery failed.",
+  "@runWebhookDeliveryFailed": {
+    "description": "Detail note: the webhook channel refused the run, with no diagnostic."
+  },
+  "runWebhookDeliveryFailedWhy": "Webhook delivery failed: {detail}",
+  "@runWebhookDeliveryFailedWhy": {
+    "description": "Detail note: the webhook channel refused the run, and why.",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "runWebhookTargetsDeleted": "The webhooks this run was sent to have since been deleted.",
+  "@runWebhookTargetsDeleted": {
+    "description": "Detail note: the run was queued, and its targets no longer exist."
+  },
+  "runWebhookNoneRecorded": "No webhook delivery was recorded.",
+  "@runWebhookNoneRecorded": {
+    "description": "Detail note: the run has no webhook outcome at all."
+  },
+  "runEmailNotConfiguredDetail": "Not emailed to {count, plural, =1{1 recipient} other{{count} recipients}}: email is not set up on the server.",
+  "@runEmailNotConfiguredDetail": {
+    "description": "Detail note: the server has no SMTP, and how many addresses went without.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runEmailNoRecipientsDetail": "Not emailed: no valid email recipients.",
+  "@runEmailNoRecipientsDetail": {
+    "description": "Detail note: no address on the schedule was usable."
+  },
+  "runEmailDeliveryFailed": "Email delivery failed.",
+  "@runEmailDeliveryFailed": {
+    "description": "Detail note: the email channel refused the run, with no diagnostic."
+  },
+  "runEmailDeliveryFailedWhy": "Email delivery failed: {detail}",
+  "@runEmailDeliveryFailedWhy": {
+    "description": "Detail note: the email channel refused the run, and why.",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "runEmailNoneRecorded": "No email delivery was recorded.",
+  "@runEmailNoneRecorded": {
+    "description": "Detail note: the run has no email outcome at all."
+  },
+  "runEmailSkeleton": "email deliveries",
+  "@runEmailSkeleton": {
+    "description": "What the per-recipient skeleton says it is loading."
+  },
+  "runEmailNoneQueued": "No emails were queued for this run.",
+  "@runEmailNoneQueued": {
+    "description": "The run queued email and the list came back empty."
+  },
+  "csvLinkSheetSubtitle": "Open this link in a browser to download the report. Anyone with the link can download it.",
+  "@csvLinkSheetSubtitle": {
+    "description": "Subtitle of the CSV link sheet, when the link has no stated expiry."
+  },
+  "csvLinkSheetSubtitleUntil": "Open this link in a browser to download the report. Anyone with the link can download it until {stamp}.",
+  "@csvLinkSheetSubtitleUntil": {
+    "description": "Subtitle of the CSV link sheet, naming when the link stops working.",
+    "placeholders": {
+      "stamp": {
+        "type": "String"
+      }
+    }
+  },
+  "csvLinkCopy": "Copy the link",
+  "@csvLinkCopy": {
+    "description": "The CSV link sheet's action. The console has no way to open a URL, so the link is text and Copy is the verb."
+  },
+  "scheduleFormTitleNew": "New schedule",
+  "@scheduleFormTitleNew": {
+    "description": "Title of the create-schedule form."
+  },
+  "scheduleFormTitleEdit": "Edit schedule",
+  "@scheduleFormTitleEdit": {
+    "description": "Title of the edit-schedule form."
+  },
+  "scheduleFormFact": "It runs server-side and delivers the result.",
+  "@scheduleFormFact": {
+    "description": "Header fact on the schedule form."
+  },
+  "scheduleFormBack": "Back to Report schedules",
+  "@scheduleFormBack": {
+    "description": "The way out of the schedule form, naming where it lands."
+  },
+  "scheduleFormCommitNew": "Create this schedule",
+  "@scheduleFormCommitNew": {
+    "description": "The create form's commit verb."
+  },
+  "scheduleFormCommitEdit": "Save these changes",
+  "@scheduleFormCommitEdit": {
+    "description": "The edit form's commit verb."
+  },
+  "scheduleFormSaving": "Saving…",
+  "@scheduleFormSaving": {
+    "description": "Blocked reason while the save is in flight."
+  },
+  "scheduleFormBlockedLoading": "Loading the saved reports.",
+  "@scheduleFormBlockedLoading": {
+    "description": "Why the commit cannot be pressed: the report list has not arrived."
+  },
+  "scheduleFormBlockedReportsFailed": "The saved reports could not be loaded, so there is nothing to schedule yet.",
+  "@scheduleFormBlockedReportsFailed": {
+    "description": "Why the commit cannot be pressed: the report list failed."
+  },
+  "scheduleFormBlockedNoReports": "There are no saved reports yet. Build one on Reports first.",
+  "@scheduleFormBlockedNoReports": {
+    "description": "Why the commit cannot be pressed: this client has no report definitions."
+  },
+  "scheduleFormBlockedNoReport": "Pick the report this schedule runs.",
+  "@scheduleFormBlockedNoReport": {
+    "description": "Why the commit cannot be pressed: no report is chosen."
+  },
+  "scheduleFormBlockedNoCadence": "Pick how often it runs.",
+  "@scheduleFormBlockedNoCadence": {
+    "description": "Why the commit cannot be pressed: no cadence is chosen. Also the cadence choice's own state line."
+  },
+  "scheduleFormSectionReport": "Report",
+  "@scheduleFormSectionReport": {
+    "description": "Section rule above the schedule's report. Also the label and the picker sheet's title."
+  },
+  "scheduleFormSectionSchedule": "Schedule",
+  "@scheduleFormSectionSchedule": {
+    "description": "Section rule above the cadence and the recipients."
+  },
+  "scheduleFormReportLocked": "Locked",
+  "@scheduleFormReportLocked": {
+    "description": "Subtitle of the read-only report on an edited schedule."
+  },
+  "scheduleFormReportLockedNote": "The report on a schedule cannot be changed. To schedule a different report, create a new schedule.",
+  "@scheduleFormReportLockedNote": {
+    "description": "Why the report cannot be picked when editing: the PATCH route accepts only active, cadence and recipients."
+  },
+  "scheduleFormReportLockedSemantics": "{name}. Locked. {note}",
+  "@scheduleFormReportLockedSemantics": {
+    "description": "Spoken sentence of the read-only report row.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleFormReportsSkeleton": "saved reports",
+  "@scheduleFormReportsSkeleton": {
+    "description": "What the report picker's skeleton says it is loading."
+  },
+  "scheduleFormNoReportsHeadline": "No saved reports yet.",
+  "@scheduleFormNoReportsHeadline": {
+    "description": "In-panel empty state: there is nothing to schedule."
+  },
+  "scheduleFormNoReportsBody": "Build one on the Reports screen, then schedule it.",
+  "@scheduleFormNoReportsBody": {
+    "description": "Body of the no-reports empty state."
+  },
+  "scheduleFormReportNotPicked": "Not picked yet",
+  "@scheduleFormReportNotPicked": {
+    "description": "Subtitle of the report field before a report is chosen."
+  },
+  "scheduleFormReportSemantics": "Report. {report}. Choose the report this schedule runs.",
+  "@scheduleFormReportSemantics": {
+    "description": "Spoken sentence of the report picker row.",
+    "placeholders": {
+      "report": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleFormCadence": "How often",
+  "@scheduleFormCadence": {
+    "description": "Label of the cadence choice."
+  },
+  "scheduleFormCadenceDailyConsequence": "Every day, 06:00 UTC.",
+  "@scheduleFormCadenceDailyConsequence": {
+    "description": "What choosing Daily means. UTC is a time standard and stays as it is."
+  },
+  "scheduleFormCadenceWeeklyConsequence": "Every Monday, 06:00 UTC.",
+  "@scheduleFormCadenceWeeklyConsequence": {
+    "description": "What choosing Weekly means."
+  },
+  "scheduleFormCadenceHelp": "Runs automatically on this cadence (UTC), is sent to webhooks subscribed to report.generated, and is emailed to the recipients when email is set up on the server.",
+  "@scheduleFormCadenceHelp": {
+    "description": "Help under the cadence choice. 'report.generated' is a wire event name."
+  },
+  "scheduleFormRecipients": "Recipients",
+  "@scheduleFormRecipients": {
+    "description": "Label of the recipients box."
+  },
+  "scheduleFormRecipientsHelp": "Email addresses, one per line or separated by commas.",
+  "@scheduleFormRecipientsHelp": {
+    "description": "Help under the recipients box."
+  },
+  "scheduleFormRecipientsEmpty": "Add at least one recipient",
+  "@scheduleFormRecipientsEmpty": {
+    "description": "Why the recipients box cannot be saved: it is empty. Mirrors the backend."
+  },
+  "scheduleFormRecipientsInvalid": "Not an email address: {entry}",
+  "@scheduleFormRecipientsInvalid": {
+    "description": "Why the recipients box cannot be saved, naming the first entry that is not an address.",
+    "placeholders": {
+      "entry": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleFormRecipientsTooMany": "At most {max} recipients",
+  "@scheduleFormRecipientsTooMany": {
+    "description": "Why the recipients box cannot be saved: the API's cap.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleFormFailedNew": "The schedule was not created.",
+  "@scheduleFormFailedNew": {
+    "description": "Headline when the create request was refused."
+  },
+  "scheduleFormFailedEdit": "The changes were not saved.",
+  "@scheduleFormFailedEdit": {
+    "description": "Headline when the update request was refused."
+  },
+  "scheduleFormFailedBody": "{headline} {reason}",
+  "@scheduleFormFailedBody": {
+    "description": "The inline error's body: what was refused, then the sanitised server message.",
+    "placeholders": {
+      "headline": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleReportSheetSubtitle": "The schedule runs this definition on its cadence.",
+  "@scheduleReportSheetSubtitle": {
+    "description": "Subtitle of the report picker sheet."
   }
 }
