@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
 // WCAG 2.x relative luminance + contrast ratio, written out in full so a
 // palette regression fails with the actual ratio in the message.
@@ -253,6 +254,51 @@ void main() {
           ink3,
           greaterThan(ink4),
           reason: '$name ink3 ($ink3:1) must outrank ink4 ($ink4:1)',
+        );
+      });
+    }
+  });
+
+  /// THE MIGRATION SHIM'S NAV SLOTS.
+  ///
+  /// `TiqColors.fromSkin` is read by widgets inside the unmigrated Lumen
+  /// console shell — there is no `TorchScope` above them and there cannot be
+  /// one. Anything amber it hands out is therefore an amber no census can
+  /// count. It used to hand out `flame600` for the active nav slot, which on
+  /// Day is 1.30:1 on the bar it sits on: an unclaimed amber that was also
+  /// invisible.
+  group('TiqColors.fromSkin nav slots', () {
+    for (final (name, skin) in <(String, TiqSkin)>[
+      ('night', TiqSkin.night()),
+      ('day', TiqSkin.day()),
+      ('veld', TiqSkin.veld()),
+    ]) {
+      final c = TiqColors.fromSkin(skin);
+      final p = skin.palette;
+      final ambers = <Color>{
+        p.flame300,
+        p.flame500,
+        p.flame600,
+        p.flame700,
+        p.flame900,
+      };
+
+      test('$name: the shim hands out no amber for the nav', () {
+        expect(ambers, isNot(contains(c.navActiveInk)));
+        expect(ambers, isNot(contains(c.navInactiveInk)));
+        expect(ambers, isNot(contains(c.navActivePillBg)));
+        expect(ambers, isNot(contains(c.navBarBg)));
+        expect(ambers, isNot(contains(c.navBarLine)));
+      });
+
+      test('$name: the active nav ink clears AA on the nav body', () {
+        final ratio = contrastRatio(c.navActiveInk, c.navBarBg);
+        expect(
+          ratio,
+          greaterThanOrEqualTo(4.5),
+          reason:
+              '$name active nav ink is $ratio:1 on the bar — it was 1.30:1 '
+              'on Day, which is the tab nobody could see',
         );
       });
     }
