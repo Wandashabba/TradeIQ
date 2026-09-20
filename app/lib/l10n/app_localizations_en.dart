@@ -3599,4 +3599,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meContestsDetail => 'See where you stand';
+
+  @override
+  String get contestsBackToMe => 'Back to Me';
+
+  @override
+  String get contestsBackToToday => 'Back to Today';
+
+  @override
+  String get contestRankEyebrow => 'Your rank';
+
+  @override
+  String get contestPointsEyebrow => 'Your points';
+
+  @override
+  String contestRankOutOf(int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: 'of $total agents',
+      one: 'of 1 agent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get contestNobodyRanked => 'Nobody has earned points yet.';
 }

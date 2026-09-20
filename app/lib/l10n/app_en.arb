@@ -4731,13 +4731,48 @@
   "@meLedgerScoreRowSemantics": {
     "description": "The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.",
     "placeholders": {
-      "reason": { "type": "String" },
-      "day": { "type": "String" },
-      "score": { "type": "String" }
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
     }
   },
   "meContestsDetail": "See where you stand",
   "@meContestsDetail": {
     "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
+  },
+  "contestsBackToMe": "Back to Me",
+  "@contestsBackToMe": {
+    "description": "Screen-reader label for the back control on the agent’s Contests view when there is a screen to return to."
+  },
+  "contestsBackToToday": "Back to Today",
+  "@contestsBackToToday": {
+    "description": "Screen-reader label for the back control on the agent’s Contests view reached by a deep link."
+  },
+  "contestRankEyebrow": "Your rank",
+  "@contestRankEyebrow": {
+    "description": "Stat tile label above the agent’s place in a contest. Sentence case; the tile uppercases it for display."
+  },
+  "contestPointsEyebrow": "Your points",
+  "@contestPointsEyebrow": {
+    "description": "Stat tile label above the agent’s points in a contest. Sentence case; the tile uppercases it for display."
+  },
+  "contestRankOutOf": "{total, plural, =1{of 1 agent} other{of {total} agents}}",
+  "@contestRankOutOf": {
+    "description": "How many agents the contest ranks, beneath the agent’s own rank.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "contestNobodyRanked": "Nobody has earned points yet.",
+  "@contestNobodyRanked": {
+    "description": "Shown under the Standings rule when a contest has no ranked agents."
   }
 }

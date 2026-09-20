@@ -5575,6 +5575,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See where you stand'**
   String get meContestsDetail;
+
+  /// Screen-reader label for the back control on the agent’s Contests view when there is a screen to return to.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Me'**
+  String get contestsBackToMe;
+
+  /// Screen-reader label for the back control on the agent’s Contests view reached by a deep link.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Today'**
+  String get contestsBackToToday;
+
+  /// Stat tile label above the agent’s place in a contest. Sentence case; the tile uppercases it for display.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rank'**
+  String get contestRankEyebrow;
+
+  /// Stat tile label above the agent’s points in a contest. Sentence case; the tile uppercases it for display.
+  ///
+  /// In en, this message translates to:
+  /// **'Your points'**
+  String get contestPointsEyebrow;
+
+  /// How many agents the contest ranks, beneath the agent’s own rank.
+  ///
+  /// In en, this message translates to:
+  /// **'{total, plural, =1{of 1 agent} other{of {total} agents}}'**
+  String contestRankOutOf(int total);
+
+  /// Shown under the Standings rule when a contest has no ranked agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has earned points yet.'**
+  String get contestNobodyRanked;
 }
 
 class _AppLocalizationsDelegate

@@ -44,6 +44,7 @@ class PersonRow extends StatelessWidget {
     this.unknownLabel,
     this.trailingWord,
     this.trailing,
+    this.trailingLabel,
     this.deactivated = false,
     this.onTap,
     this.onLongPress,
@@ -84,6 +85,19 @@ class PersonRow extends StatelessWidget {
   /// A trailing widget, when the row needs a figure rather than a word.
   /// Ignored if [trailingWord] is set.
   final Widget? trailing;
+
+  /// What [trailing] **says**, for the row's one semantics node.
+  ///
+  /// A `SoftRow` composes its label and excludes everything beneath it, so a
+  /// rank, a points figure or a status chip dropped into [trailing] is painted
+  /// and announced nowhere — the same hole that lost the worklists their row
+  /// verbs. [trailingWord] never had the problem because it is a string the
+  /// row can read; a widget is not, so the caller says what it means here.
+  ///
+  /// Required in spirit rather than in code: a decorative trailing (a chevron)
+  /// genuinely has nothing to announce, and an assertion would make the
+  /// chevron illegal.
+  final String? trailingLabel;
 
   /// Ink drops to ink-mute, the chevron goes, the row stops being tappable —
   /// and the caller passes the reason as [trailingWord] ("No longer active").
@@ -142,7 +156,9 @@ class PersonRow extends StatelessWidget {
         hasName ? name : unknownLabel,
         if (parts.isNotEmpty) parts.join(', '),
         if (showIdentifier) '$identifierLabel ${_spell(identifier!)}',
-        trailingWord,
+        // Whichever trailing the row actually painted — the word, or what the
+        // widget says. Both can never be set: `_trailing` prefers the word.
+        trailingWord ?? (trailing == null ? null : trailingLabel),
       ].whereType<String>().join(', '),
     );
   }

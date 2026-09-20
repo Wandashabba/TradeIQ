@@ -911,5 +911,11 @@
   "meReasonScorecard": "Telkaart",
   "meReasonPoints": "Punte",
   "meLedgerScoreRowSemantics": "{reason}, {day}, {score} behaal",
-  "meContestsDetail": "Kyk waar jy staan"
+  "meContestsDetail": "Kyk waar jy staan",
+  "contestsBackToMe": "Terug na Ek",
+  "contestsBackToToday": "Terug na Vandag",
+  "contestRankEyebrow": "Jou posisie",
+  "contestPointsEyebrow": "Jou punte",
+  "contestRankOutOf": "{total, plural, =1{uit 1 agent} other{uit {total} agente}}",
+  "contestNobodyRanked": "Niemand het nog punte verdien nie."
 }
