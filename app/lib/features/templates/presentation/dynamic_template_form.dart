@@ -189,40 +189,49 @@ class _Field extends StatelessWidget {
       case TemplateFieldType.boolean:
         // Not a toggle: unanswered and "no" are different facts, and a switch
         // that renders off cannot say which one it is showing.
-        return ChoiceRow<bool>(
-          key: key,
+        return _Question(
           label: field.label,
-          value: value is bool ? value : null,
-          notAnsweredLine: 'Not answered yet.',
-          options: const <ChoiceOption<bool>>[
-            ChoiceOption<bool>(value: true, label: 'Yes'),
-            ChoiceOption<bool>(value: false, label: 'No'),
-          ],
-          onChanged: (v) => walk.set(field.id, v),
-          clear: value is bool
-              ? TorchTertiaryButton(
-                  key: ValueKey<String>('field-clear-${field.id}'),
-                  label: 'Clear this answer',
-                  onPressed: () => walk.set(field.id, null),
-                )
-              : null,
+          help: help,
+          child: ChoiceRow<bool>(
+            key: key,
+            label: field.label,
+            value: value is bool ? value : null,
+            notAnsweredLine: 'Not answered yet.',
+            options: const <ChoiceOption<bool>>[
+              ChoiceOption<bool>(value: true, label: 'Yes'),
+              ChoiceOption<bool>(value: false, label: 'No'),
+            ],
+            onChanged: (v) => walk.set(field.id, v),
+            clear: value is bool
+                ? TorchTertiaryButton(
+                    key: ValueKey<String>('field-clear-${field.id}'),
+                    label: 'Clear this answer',
+                    onPressed: () => walk.set(field.id, null),
+                  )
+                : null,
+          ),
         );
 
       case TemplateFieldType.choice:
         final selected = value is String && field.options.contains(value)
             ? value
             : null;
-        if (field.options.length <= DynamicTemplateForm.inlineChoiceLimit) {
-          return ChoiceRow<String>(
-            key: key,
+        if (field.options.length >= 2 &&
+            field.options.length <= DynamicTemplateForm.inlineChoiceLimit) {
+          return _Question(
             label: field.label,
-            value: selected,
-            notAnsweredLine: 'Not answered yet.',
-            options: <ChoiceOption<String>>[
-              for (final option in field.options)
-                ChoiceOption<String>(value: option, label: option),
-            ],
-            onChanged: (v) => walk.set(field.id, v),
+            help: help,
+            child: ChoiceRow<String>(
+              key: key,
+              label: field.label,
+              value: selected,
+              notAnsweredLine: 'Not answered yet.',
+              options: <ChoiceOption<String>>[
+                for (final option in field.options)
+                  ChoiceOption<String>(value: option, label: option),
+              ],
+              onChanged: (v) => walk.set(field.id, v),
+            ),
           );
         }
         return SoftRow(
@@ -299,6 +308,50 @@ class _Field extends StatelessWidget {
               'with the audit-flow integration.',
         );
     }
+  }
+}
+
+/// A CHOICE ROW'S QUESTION, ON SCREEN.
+///
+/// [ChoiceRow] carries its `label` as a **semantics** label and draws nothing:
+/// the options are the only words it paints. Dropped into a template that way
+/// it renders "Yes / No" under a section title with the question itself
+/// nowhere on screen — a reader hears it and everybody else guesses. So the
+/// question is drawn here, excluded from semantics so the row stays one node
+/// and the reader does not hear it twice.
+class _Question extends StatelessWidget {
+  const _Question({required this.label, required this.child, this.help});
+
+  final String label;
+  final String? help;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Text(
+            label,
+            style: skin.text.label.style(color: skin.palette.ink2),
+          ),
+        ),
+        if (help != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s1),
+          ExcludeSemantics(
+            child: Text(
+              help!,
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ),
+        ],
+        const SizedBox(height: TiqSpace.s2),
+        child,
+      ],
+    );
   }
 }
 

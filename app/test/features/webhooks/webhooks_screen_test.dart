@@ -1,38 +1,44 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/lumen_palette.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
 
-final _firstWebhook = Webhook(
+/// An `Error` rather than an `Exception`: Riverpod 3 retries an Exception and
+/// the screen then never leaves its loading phase.
+StateError get _networkFailure =>
+    StateError('SocketException: Failed host lookup: api.tradeiq.co.za');
+
+final _healthy = Webhook(
   id: 'w-first',
   url: 'https://example.com/first',
   event: 'visit.submitted',
   active: true,
   health: WebhookHealth.healthy,
+  hasSecret: true,
   lastDeliveryStatus: DeliveryStatus.succeeded,
   lastDeliveryAt: DateTime.now().subtract(const Duration(minutes: 5)),
 );
 
-final _secondWebhook = Webhook(
+final _failing = Webhook(
   id: 'w-second',
   url: 'https://example.com/second',
-  event: 'task.closed',
+  event: 'order.created',
   active: true,
   health: WebhookHealth.failing,
   lastDeliveryStatus: DeliveryStatus.failedRetrying,
   lastDeliveryAt: DateTime.now().subtract(const Duration(hours: 2)),
 );
 
-const _thirdWebhook = Webhook(
+const _unhealthy = Webhook(
   id: 'w-third',
   url: 'https://example.com/third',
   event: 'alert.raised',
@@ -43,7 +49,7 @@ const _thirdWebhook = Webhook(
 
 List<WebhookDelivery> _deliveries() {
   final now = DateTime.now();
-  return [
+  return <WebhookDelivery>[
     WebhookDelivery(
       id: 'd-ok',
       event: 'visit.submitted',
@@ -75,41 +81,55 @@ List<WebhookDelivery> _deliveries() {
 }
 
 class _FakeWebhooksRepository implements WebhooksRepository {
+  _FakeWebhooksRepository({
+    List<Webhook>? webhooks,
+    this.listFailure,
+    this.setActiveFailure,
+    this.createFailure,
+  }) : webhooks = webhooks ?? <Webhook>[_healthy, _failing, _unhealthy];
+
+  final List<Webhook> webhooks;
+  final Object? listFailure;
+  final Object? setActiveFailure;
+  final Object? createFailure;
+
   String? deletedId;
   String? createdUrl;
   String? createdEvent;
+  String? createdSecret;
   String? deliveriesFor;
   String? redeliveredId;
+  String? toggledId;
+  bool? toggledValue;
 
   @override
-  Future<PaginatedResponse<Webhook>> listWebhooks() async => PaginatedResponse(
-    data: [_firstWebhook, _secondWebhook, _thirdWebhook],
-    nextCursor: null,
-  );
+  Future<PaginatedResponse<Webhook>> listWebhooks() async {
+    if (listFailure != null) throw listFailure!;
+    return PaginatedResponse<Webhook>(data: webhooks, nextCursor: null);
+  }
 
   @override
   Future<Webhook> createWebhook({
     required String url,
     required String event,
+    String? secret,
   }) async {
     createdUrl = url;
     createdEvent = event;
+    createdSecret = secret;
+    if (createFailure != null) throw createFailure!;
     return Webhook(id: 'w-new', url: url, event: event, active: true);
   }
 
   @override
-  Future<void> deleteWebhook(String id) async {
-    deletedId = id;
-  }
-
-  String? toggledId;
-  bool? toggledValue;
+  Future<void> deleteWebhook(String id) async => deletedId = id;
 
   @override
   Future<Webhook> setActive(String id, bool active) async {
     toggledId = id;
     toggledValue = active;
-    return _firstWebhook;
+    if (setActiveFailure != null) throw setActiveFailure!;
+    return _healthy;
   }
 
   @override
@@ -128,300 +148,472 @@ class _FakeWebhooksRepository implements WebhooksRepository {
   }
 }
 
-class _ThrowingWebhooksRepository implements WebhooksRepository {
-  @override
-  Future<PaginatedResponse<Webhook>> listWebhooks() async =>
-      throw Exception('boom');
-
-  @override
-  Future<Webhook> createWebhook({
-    required String url,
-    required String event,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteWebhook(String id) async => throw UnimplementedError();
-
-  @override
-  Future<Webhook> setActive(String id, bool active) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<List<WebhookDelivery>> listDeliveries(
-    String webhookId, {
-    int limit = 10,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<WebhookDelivery> redeliver(String deliveryId) async =>
-      throw UnimplementedError();
-}
-
-Widget _app(WebhooksRepository repo, {ThemeData? theme}) => routedApp(
-      const WebhooksScreen(),
-      theme: theme,
-      overrides: [
-        webhooksRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
-
-/// Taps a webhook row's own title. Scoped to the row, because once it is open
-/// its delivery tiles repeat the same event name.
-Future<void> _expand(
-  WidgetTester tester,
-  String webhookId,
-  String webhookEvent,
-) async {
-  await tester.tap(
-    find.descendant(
-      of: find.byKey(ValueKey<String>('webhook-$webhookId')),
-      matching: find.text(webhookEvent),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-/// The pill's words must clear AA over the tile they sit on: the status tint
-/// composited onto the no-blur tile fill, composited onto the theme's plane.
-void _expectPillAA(
-  WidgetTester tester,
-  String word,
-  LumenStatus status, {
-  required TiqColors colors,
-  required LumenPalette lumen,
-}) {
-  final text = find.text(word.toUpperCase()).first;
-  final ink = tester.widget<Text>(text).style!.color!;
-  final sw = status.swatchOf(colors);
-  expect(ink, sw.ink, reason: '$word must be set in its status ink');
-
-  final pill = tester.widget<Container>(
-    find.ancestor(of: text, matching: find.byType(Container)).first,
-  );
-  final tint = (pill.decoration! as BoxDecoration).color!;
-  expect(tint, sw.tint);
-
-  final ground = Color.alphaBlend(
-    tint,
-    Color.alphaBlend(lumen.solidFill, colors.plane),
-  );
-  final ratio = contrastRatio(ink, ground);
-  expect(
-    ratio,
-    greaterThanOrEqualTo(4.5),
-    reason: '$word is $ratio:1 on its pill — pill words are 8.5px, so AA '
-        'demands 4.5:1.',
-  );
-}
-
 void main() {
-  testWidgets('light: endpoints are no-blur glass tiles in a glass panel', (
+  Future<void> pump(
+    WidgetTester tester, {
+    required _FakeWebhooksRepository repo,
+    TiqSkin? skin,
+    double textScale = 1.0,
+  }) => pumpWorklist(
     tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(_FakeWebhooksRepository(), theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
+    const WebhooksScreen(),
+    skin: skin,
+    textScale: textScale,
+    overrides: <Override>[
+      webhooksRepositoryProvider.overrideWithValue(repo),
+    ],
+  );
 
-    final panes = tester
-        .widgetList<GlassPane>(
-          find.ancestor(
-            of: find.text('visit.submitted'),
-            matching: find.byType(GlassPane),
-          ),
-        )
-        .toList();
-    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-    expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
-  });
-
-  testWidgets('renders webhook events once loaded', (tester) async {
-    await tester.pumpWidget(_app(_FakeWebhooksRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('visit.submitted'), findsOneWidget);
-    expect(find.text('task.closed'), findsOneWidget);
-  });
-
-  for (final (name, theme, colors, lumen) in [
-    ('light', AppTheme.light(), TiqColors.light, LumenPalette.light),
-    ('dark', AppTheme.dark(), TiqColors.night, LumenPalette.dark),
-  ]) {
-    testWidgets('$name: each webhook carries its health as a word and the '
-        'time of its last delivery', (tester) async {
-      await tester.pumpWidget(_app(_FakeWebhooksRepository(), theme: theme));
-      await tester.pumpAndSettle();
-
-      expect(find.text('HEALTHY'), findsOneWidget);
-      expect(find.text('FAILING'), findsOneWidget);
-      expect(find.text('UNHEALTHY'), findsOneWidget);
-      expect(find.text('Last delivery 5m ago'), findsOneWidget);
-      expect(find.text('Last delivery 2h ago'), findsOneWidget);
-      expect(find.text('No deliveries yet'), findsOneWidget);
-      expect(find.text('1 unhealthy', findRichText: true), findsNothing);
-      expect(find.textContaining('1 unhealthy'), findsOneWidget);
-
-      _expectPillAA(tester, 'Healthy', LumenStatus.good,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Failing', LumenStatus.warn,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Unhealthy', LumenStatus.crit,
-          colors: colors, lumen: lumen);
+  group('relativeTime', () {
+    final now = DateTime(2026, 9, 20, 12);
+    test('says just now, minutes, hours and days', () {
+      expect(relativeTime(now, now: now), 'just now');
+      expect(
+        relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
+        '5m ago',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(hours: 3)), now: now),
+        '3h ago',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 2)), now: now),
+        '2d ago',
+      );
     });
 
-    testWidgets('$name: opening a webhook lists its deliveries as no-blur '
-        'tiles with status, code, attempts and timing', (tester) async {
+    test('a future time reads forwards', () {
+      expect(
+        relativeTime(now.add(const Duration(minutes: 25)), now: now),
+        'in 25m',
+      );
+      expect(
+        relativeTime(now.add(const Duration(seconds: 20)), now: now),
+        'in under a minute',
+      );
+    });
+  });
+
+  group('the list', () {
+    testWidgets('each endpoint names its event, address and health', (
+      tester,
+    ) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      expect(find.text('visit.submitted'), findsOneWidget);
+      expect(find.text('https://example.com/first'), findsOneWidget);
+      expect(find.text('Healthy'), findsOneWidget);
+      expect(find.text('Failing'), findsOneWidget);
+    });
+
+    testWidgets('an endpoint that is not receiving is said once at the top, '
+        'and carried on the row', (tester) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      expect(
+        find.byKey(const ValueKey<String>('webhooks-unhealthy')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('1 endpoint is not receiving'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an empty list is a stated result', (tester) async {
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(webhooks: <Webhook>[]),
+      );
+
+      expect(find.text('No endpoints registered.'), findsOneWidget);
+      expect(find.byType(EmptyState), findsOneWidget);
+    });
+
+    testWidgets('a failure is sanitised and offers one retry', (tester) async {
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(listFailure: _networkFailure),
+      );
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('webhooks-retry')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('a secret is never rendered', () {
+    testWidgets('a signed endpoint says Signed, and nothing else', (
+      tester,
+    ) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('signing-w-first')),
+            )
+            .data,
+        'Signed — deliveries carry an HMAC signature.',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('signing-w-second')),
+            )
+            .data,
+        'Not signed — deliveries carry no signature.',
+      );
+    });
+
+    testWidgets('the model does not even carry one', (tester) async {
+      // The repository parses `hasSecret` and there is no `secret` field to
+      // read — the value stops at the server. A screen cannot render what the
+      // client never holds.
+      final parsed = Webhook.fromJson(const <String, dynamic>{
+        'id': 'w',
+        'url': 'https://example.com/x',
+        'event': 'visit.submitted',
+        'active': true,
+        'hasSecret': true,
+        // A server that regressed and sent one: it is dropped in the parse.
+        'secret': 'whsec_do_not_render_me',
+      });
+      expect(parsed.hasSecret, isTrue);
+      expect(parsed.toString(), isNot(contains('whsec_')));
+    });
+
+    testWidgets('the create sheet takes one and never shows it back', (
+      tester,
+    ) async {
       final repo = _FakeWebhooksRepository();
-      await tester.pumpWidget(_app(repo, theme: theme));
+      await pump(tester, repo: repo);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('webhook-create')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('webhook-create')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('deliveries-w-first')), findsNothing);
-      await _expand(tester, 'w-first', 'visit.submitted');
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-url')),
+        'https://example.com/new',
+      );
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('new-secret')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-secret')),
+        'whsec_abc123',
+      );
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TorchTextField>(
+        find.byKey(const ValueKey<String>('new-secret')),
+      );
+      expect(
+        field.obscureText,
+        isTrue,
+        reason: 'A secret is never on screen, even while it is being typed.',
+      );
+
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-webhook')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('create-webhook')));
+      await tester.pumpAndSettle();
+
+      expect(repo.createdUrl, 'https://example.com/new');
+      expect(repo.createdEvent, 'visit.submitted');
+      expect(repo.createdSecret, 'whsec_abc123');
+      // Back on the list, and the value is nowhere.
+      expect(find.textContaining('whsec_'), findsNothing);
+    });
+  });
+
+  group('the create sheet', () {
+    testWidgets('says why it cannot save until the address is a web address', (
+      tester,
+    ) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('webhook-create')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('webhook-create')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Give the endpoint a web address.'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-url')),
+        'ftp://example.com/x',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('The address has to start with http:// or https://.'),
+        findsWidgets,
+      );
+    });
+  });
+
+  group('the toggle', () {
+    testWidgets('pauses and resumes, and tells the server', (tester) async {
+      final repo = _FakeWebhooksRepository();
+      await pump(tester, repo: repo);
+
+      final toggle = find.byKey(const ValueKey<String>('toggle-w-first'));
+      await scrollWorklistTo(tester, toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      expect(repo.toggledId, 'w-first');
+      expect(repo.toggledValue, isFalse);
+    });
+
+    testWidgets('a refused toggle goes back and says so', (tester) async {
+      final repo = _FakeWebhooksRepository(setActiveFailure: _networkFailure);
+      await pump(tester, repo: repo);
+
+      final toggle = find.byKey(const ValueKey<String>('toggle-w-first'));
+      await scrollWorklistTo(tester, toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TorchToggle>(toggle).value, isTrue);
+      expect(find.byType(TorchToast), findsOneWidget);
+      await settleToasts(tester);
+    });
+  });
+
+  group('deliveries', () {
+    testWidgets('open on the row, and each says what happened', (
+      tester,
+    ) async {
+      final repo = _FakeWebhooksRepository();
+      await pump(tester, repo: repo);
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
 
       expect(repo.deliveriesFor, 'w-first');
-      expect(find.text('RECENT DELIVERIES'), findsOneWidget);
-      expect(find.text('DELIVERED'), findsOneWidget);
-      expect(find.text('RETRYING'), findsOneWidget);
-      expect(find.text('GAVE UP'), findsOneWidget);
-      expect(find.text('HTTP 200'), findsOneWidget);
-      expect(find.text('HTTP 503'), findsOneWidget);
-      expect(find.text('No response'), findsOneWidget);
-      expect(find.text('1 attempt'), findsOneWidget);
-      expect(find.text('2 attempts'), findsOneWidget);
-      expect(find.text('6 attempts'), findsOneWidget);
-      expect(find.text('Delivered 5m ago'), findsOneWidget);
-      expect(find.text('Next retry in 25m'), findsOneWidget);
-      expect(find.text('No more retries'), findsOneWidget);
-
-      for (final id in ['d-ok', 'd-retry', 'd-dead']) {
-        final pane = tester.widget<GlassPane>(
-          find.byKey(ValueKey<String>('delivery-$id')),
-        );
-        expect(pane.kind, GlassKind.tile);
-        expect(pane.blur, isFalse);
-      }
-
-      _expectPillAA(tester, 'Delivered', LumenStatus.good,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Retrying', LumenStatus.warn,
-          colors: colors, lumen: lumen);
-      _expectPillAA(tester, 'Gave up', LumenStatus.crit,
-          colors: colors, lumen: lumen);
-
-      // Tapping again closes it.
-      await _expand(tester, 'w-first', 'visit.submitted');
-      expect(find.byKey(const ValueKey('deliveries-w-first')), findsNothing);
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('delivery-d-dead')),
+      );
+      expect(find.text('Gave up'), findsOneWidget);
+      expect(find.text('connect ECONNREFUSED'), findsOneWidget);
     });
-  }
 
-  testWidgets('Redeliver is offered on failed rows only, and calls the '
-      'repository', (tester) async {
-    final repo = _FakeWebhooksRepository();
-    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
-    await tester.pumpAndSettle();
-    await _expand(tester, 'w-first', 'visit.submitted');
+    testWidgets('a failed delivery can be re-queued', (tester) async {
+      final repo = _FakeWebhooksRepository();
+      await pump(tester, repo: repo);
 
-    expect(find.byKey(const ValueKey('redeliver-d-ok')), findsNothing);
-    expect(find.byKey(const ValueKey('redeliver-d-retry')), findsOneWidget);
-    expect(find.byKey(const ValueKey('redeliver-d-dead')), findsOneWidget);
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('redeliver-d-dead')));
-    await tester.pumpAndSettle();
+      final redeliver = find.byKey(
+        const ValueKey<String>('redeliver-d-dead'),
+      );
+      await scrollWorklistTo(tester, redeliver);
+      await tester.tap(redeliver);
+      await tester.pumpAndSettle();
 
-    expect(repo.redeliveredId, 'd-dead');
-    expect(find.text('Redelivery queued'), findsOneWidget);
+      expect(repo.redeliveredId, 'd-dead');
+      await settleToasts(tester);
+    });
+
+    testWidgets('a delivered one offers no re-queue', (tester) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('redeliver-d-ok')),
+        findsNothing,
+      );
+    });
   });
 
-  test('relativeTime reads past and future spans', () {
-    final now = DateTime(2026, 9, 14, 12);
-    expect(relativeTime(now.subtract(const Duration(seconds: 20)), now: now),
-        'just now');
-    expect(relativeTime(now.subtract(const Duration(minutes: 7)), now: now),
-        '7m ago');
-    expect(relativeTime(now.subtract(const Duration(hours: 3)), now: now),
-        '3h ago');
-    expect(relativeTime(now.subtract(const Duration(days: 2)), now: now),
-        '2d ago');
-    expect(relativeTime(now.add(const Duration(minutes: 5)), now: now),
-        'in 5m');
-    expect(relativeTime(now.add(const Duration(seconds: 10)), now: now),
-        'in under a minute');
+  group('delete', () {
+    testWidgets('asks first and names the endpoint', (tester) async {
+      final repo = _FakeWebhooksRepository();
+      await pump(tester, repo: repo);
+
+      final delete = find.byKey(const ValueKey<String>('delete-w-first'));
+      await scrollWorklistTo(tester, delete);
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ConfirmSheet), findsOneWidget);
+      expect(find.text('https://example.com/first'), findsWidgets);
+
+      await tester.tap(find.text('Keep it'));
+      await tester.pumpAndSettle();
+      expect(repo.deletedId, isNull);
+    });
+
+    testWidgets('confirming deletes', (tester) async {
+      final repo = _FakeWebhooksRepository();
+      await pump(tester, repo: repo);
+
+      final delete = find.byKey(const ValueKey<String>('delete-w-first'));
+      await scrollWorklistTo(tester, delete);
+      await tester.tap(delete);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete this endpoint'));
+      await tester.pumpAndSettle();
+
+      expect(repo.deletedId, 'w-first');
+    });
   });
 
-  testWidgets('tapping delete records the webhook id', (tester) async {
-    final repo = _FakeWebhooksRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('the amber census', () {
+    testWidgets('Night paints exactly one lit object: the nav tab', (
+      tester,
+    ) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
 
-    await tester.tap(find.byKey(const ValueKey<String>('delete-w-first')));
-    await tester.pumpAndSettle();
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'webhooks',
+        phase: 'loaded',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
 
-    expect(repo.deletedId, 'w-first');
+    testWidgets('Night, empty, still exactly the nav tab', (tester) async {
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(webhooks: <Webhook>[]),
+      );
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('Night, error, still exactly the nav tab', (tester) async {
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(listFailure: _networkFailure),
+      );
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('Night, the create sheet armed: one, and the nav is out', (
+      tester,
+    ) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('webhook-create')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('webhook-create')));
+      await tester.pumpAndSettle();
+
+      var census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        0,
+        reason:
+            'Nothing typed yet, so the commit is not armed and declares no '
+            'claim; the nav beneath the sheet has gone out.\n'
+            '${census.describe()}',
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-url')),
+        'https://example.com/new',
+      );
+      await tester.pumpAndSettle();
+      // The commit is past the fold inside the sheet, and the census counts
+      // pixels: a button nobody has scrolled to has not been painted.
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-webhook')),
+      );
+
+      census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'webhooks/new',
+        phase: 'sheet',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      for (final phase in const <String>['loaded', 'empty', 'error']) {
+        testWidgets('${skin.mode.name}, $phase, paints no amber at all', (
+          tester,
+        ) async {
+          await pump(
+            tester,
+            skin: skin,
+            repo: _FakeWebhooksRepository(
+              webhooks: phase == 'empty' ? <Webhook>[] : null,
+              listFailure: phase == 'error' ? _networkFailure : null,
+            ),
+          );
+
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'webhooks',
+            phase: phase,
+          );
+          expect(census.objectCount, 0, reason: census.describe());
+        });
+      }
+    }
   });
 
-  testWidgets('creating a webhook records the entered args', (tester) async {
-    final repo = _FakeWebhooksRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  testWidgets('2.0x: the endpoints survive and nothing overflows', (
+    tester,
+  ) async {
+    await pump(tester, repo: _FakeWebhooksRepository(), textScale: 2.0);
 
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pumpAndSettle();
+    await scrollWorklistTo(tester, find.text('visit.submitted'));
+    expect(find.text('visit.submitted'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-url')),
-      'https://example.com/new',
+  testWidgets('Veld builds the list', (tester) async {
+    await pump(
+      tester,
+      repo: _FakeWebhooksRepository(),
+      skin: TiqSkin.veld(),
     );
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-event')),
-      'stock.captured',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('create-webhook')));
-    await tester.pumpAndSettle();
 
-    expect(repo.createdUrl, 'https://example.com/new');
-    expect(repo.createdEvent, 'stock.captured');
-  });
-
-  testWidgets('the create form lists the events, report.generated included',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeWebhooksRepository()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pumpAndSettle();
-
-    expect(webhookEvents, contains('report.generated'));
-    expect(
-      find.text(
-        'One of: visit.submitted, alert.raised, order.created, '
-        'report.generated',
-      ),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('toggling active calls setActive', (tester) async {
-    final repo = _FakeWebhooksRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    // _firstWebhook starts active; toggling turns it off.
-    await tester.tap(find.byKey(const ValueKey<String>('toggle-w-first')));
-    await tester.pumpAndSettle();
-
-    expect(repo.toggledId, 'w-first');
-    expect(repo.toggledValue, false);
-  });
-
-  testWidgets('shows an error message when loading fails', (tester) async {
-    await tester.pumpWidget(_app(_ThrowingWebhooksRepository()));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('Failed to load webhooks'),
-      findsOneWidget,
-    );
+    expect(find.text('visit.submitted'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

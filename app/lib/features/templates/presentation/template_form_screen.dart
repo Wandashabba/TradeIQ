@@ -34,20 +34,29 @@ class TemplateFormScreen extends ConsumerStatefulWidget {
 class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
   TemplateWalk? _walk;
 
+  /// The raw JSON the current walk was parsed from.
+  ///
+  /// Compared by **identity**, not by value: `TemplateSchema.parse` returns a
+  /// fresh object every call and `TemplateSchema` has no `==`, so keying the
+  /// walk on the parsed schema rebuilt it on every frame — which threw away
+  /// the section the manager was on and every answer with it, the moment they
+  /// pressed Next. The provider hands back the same map instance until it
+  /// refetches, and that is the thing to hold on to.
+  Map<String, dynamic>? _raw;
+
   @override
   void dispose() {
     _walk?.dispose();
     super.dispose();
   }
 
-  /// One walk per parsed schema. A refetch that hands back the same shape must
-  /// not throw away where the manager had got to.
-  TemplateWalk _walkFor(TemplateSchema schema) {
+  TemplateWalk _walkFor(Map<String, dynamic> raw) {
     final existing = _walk;
-    if (existing != null && existing.schema == schema) return existing;
+    if (existing != null && identical(_raw, raw)) return existing;
     existing?.dispose();
-    final walk = TemplateWalk(schema)..addListener(_changed);
+    final walk = TemplateWalk(TemplateSchema.parse(raw))..addListener(_changed);
     _walk = walk;
+    _raw = raw;
     return walk;
   }
 
@@ -122,7 +131,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
   }
 
   Widget _loaded(AuditTemplateDetail detail, TorchIconButton back) {
-    final walk = _walkFor(TemplateSchema.parse(detail.schema));
+    final walk = _walkFor(detail.schema);
     final missing = walk.hasSections
         ? walk.missingHere
         : const <TemplateField>[];
@@ -149,7 +158,13 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
       primaryArmed: armed,
       primary: walk.hasSections
           ? TorchPrimaryButton(
-              key: const ValueKey<String>('form-next'),
+              // Keyed by SECTION, not by role. The primary is debounced 400ms
+              // against a double press, and the debounce lives on the
+              // element: with one key across the walk, "Next section" and
+              // "Finish preview" shared a press history, so pressing Next and
+              // then Finish inside the window swallowed the second press and
+              // the preview simply would not end.
+              key: ValueKey<String>('form-next-${walk.sectionIndex}'),
               label: walk.isLast ? 'Finish preview' : 'Next section',
               claimId: ConsolePage.primaryClaimId,
               blockedReason: blocked,
