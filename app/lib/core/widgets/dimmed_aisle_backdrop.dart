@@ -29,11 +29,7 @@ class DimmedAisleBackdrop extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF101216),
-                  Color(0xFF0A0C10),
-                  Color(0xFF07080B),
-                ],
+                colors: [Color(0xFF101216), Color(0xFF0A0C10), Color(0xFF07080B)],
               ),
             ),
           ),

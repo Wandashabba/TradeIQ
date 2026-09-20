@@ -16,7 +16,7 @@ abstract class ThemeModeStore {
 
 class SecureThemeModeStore implements ThemeModeStore {
   SecureThemeModeStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? appSecureStorage;
+      : _storage = storage ?? appSecureStorage;
 
   final FlutterSecureStorage _storage;
 
@@ -48,9 +48,8 @@ class SecureThemeModeStore implements ThemeModeStore {
   }
 }
 
-final themeModeStoreProvider = Provider<ThemeModeStore>(
-  (ref) => SecureThemeModeStore(),
-);
+final themeModeStoreProvider =
+    Provider<ThemeModeStore>((ref) => SecureThemeModeStore());
 
 /// light/dark only — ThemeMode.system is deliberately out of scope (managers
 /// on desktop web; two explicit modes are clearer than three). Default and
@@ -79,6 +78,5 @@ class ThemeModeController extends Notifier<ThemeMode> {
   }
 }
 
-final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(
-  ThemeModeController.new,
-);
+final themeModeProvider =
+    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);

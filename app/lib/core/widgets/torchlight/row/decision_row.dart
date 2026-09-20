@@ -92,8 +92,7 @@ class DecisionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     // The sparkline drops first at 2.0×, then the figure moves onto its own
     // line — and the second half of that is the row's own layout, not a rule
     // written here. Veld drops it too: a 64×20 grey zigzag is under 9:1 by

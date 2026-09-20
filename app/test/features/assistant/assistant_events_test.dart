@@ -121,15 +121,12 @@ void main() {
       });
 
       test('a missing or wrong-typed list is an empty event', () {
+        expect((AssistantEvent.parse('sources', '{}')! as SourcesEvent).sources,
+            isEmpty);
         expect(
-          (AssistantEvent.parse('sources', '{}')! as SourcesEvent).sources,
-          isEmpty,
-        );
-        expect(
-          (AssistantEvent.parse('sources', '{"sources":"x"}')! as SourcesEvent)
-              .sources,
-          isEmpty,
-        );
+            (AssistantEvent.parse('sources', '{"sources":"x"}')! as SourcesEvent)
+                .sources,
+            isEmpty);
       });
 
       test('caps at ten', () {
@@ -137,7 +134,8 @@ void main() {
           14,
           (i) => '{"title":"t$i","url":"https://e.com/$i","domain":"e.com"}',
         ).join(',');
-        final event = AssistantEvent.parse('sources', '{"sources":[$entries]}');
+        final event =
+            AssistantEvent.parse('sources', '{"sources":[$entries]}');
         expect((event! as SourcesEvent).sources, hasLength(10));
       });
     });
@@ -149,10 +147,8 @@ void main() {
       final events = parser.add(
         frame('token', '{"text":"a"}') + frame('done', '{}'),
       );
-      expect(events.map((e) => e.runtimeType).toList(), [
-        TokenEvent,
-        DoneEvent,
-      ]);
+      expect(events.map((e) => e.runtimeType).toList(),
+          [TokenEvent, DoneEvent]);
     });
 
     test('buffers a frame split across chunks', () {
@@ -210,9 +206,7 @@ void main() {
       // a single newline inside the JSON payload must not split a frame — and
       // the server JSON-encodes it, which is what makes that true.
       final parser = SseParser();
-      final events = parser.add(
-        frame('token', '{"text":"line one\\nline two"}'),
-      );
+      final events = parser.add(frame('token', '{"text":"line one\\nline two"}'));
       expect((events.first as TokenEvent).text, 'line one\nline two');
     });
 
@@ -223,10 +217,8 @@ void main() {
             frame('future_thing', '{"x":1}') +
             frame('done', '{}'),
       );
-      expect(events.map((e) => e.runtimeType).toList(), [
-        TokenEvent,
-        DoneEvent,
-      ]);
+      expect(events.map((e) => e.runtimeType).toList(),
+          [TokenEvent, DoneEvent]);
     });
   });
 }

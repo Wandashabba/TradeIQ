@@ -37,8 +37,7 @@ final Map<String, ViewSpecBuilder> viewSpecRegistry = {
       AgentScorecardCard(artifact: artifact),
   'trend_chart': (context, artifact) => TrendChartCard(artifact: artifact),
   'outlet_map': (context, artifact) => OutletMapCard(artifact: artifact),
-  'pillar_metrics': (context, artifact) =>
-      PillarMetricsCard(artifact: artifact),
+  'pillar_metrics': (context, artifact) => PillarMetricsCard(artifact: artifact),
   'stat_tiles': (context, artifact) => StatTilesCard(artifact: artifact),
   'ranked_bars': (context, artifact) => RankedBarsCard(artifact: artifact),
 };

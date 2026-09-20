@@ -9,12 +9,7 @@ final _schema = TemplateSchema.parse(const {
       'id': 'promo',
       'title': 'Promo',
       'fields': [
-        {
-          'id': 'standUp',
-          'label': 'Stand up?',
-          'type': 'boolean',
-          'required': true,
-        },
+        {'id': 'standUp', 'label': 'Stand up?', 'type': 'boolean', 'required': true},
         {
           'id': 'facings',
           'label': 'Facings',
@@ -56,42 +51,28 @@ void main() {
     expect(_field('loose').required, isFalse);
   });
 
-  test(
-    'a hidden required question does not block; a required photo never does',
-    () {
-      // facings is hidden until standUp is true; photos cannot be captured yet.
-      expect(_missing(const {}), ['standUp', 'zone']);
-      expect(_field('photo').blocksSubmit, isFalse);
-    },
-  );
+  test('a hidden required question does not block; a required photo never does', () {
+    // facings is hidden until standUp is true; photos cannot be captured yet.
+    expect(_missing(const {}), ['standUp', 'zone']);
+    expect(_field('photo').blocksSubmit, isFalse);
+  });
 
   test('revealing a required question makes it block until answered', () {
     expect(_missing(const {'standUp': true, 'zone': 'eye'}), ['facings']);
-    expect(
-      _missing(const {'standUp': true, 'zone': 'eye', 'facings': 3}),
-      isEmpty,
-    );
+    expect(_missing(const {'standUp': true, 'zone': 'eye', 'facings': 3}), isEmpty);
   });
 
-  test(
-    'a switch recorded off is an answer; blank text and bad types are not',
-    () {
-      expect(_missing(const {'standUp': false, 'zone': 'eye'}), isEmpty);
-      expect(_field('note').isAnswered(const {'note': '   '}), isFalse);
-      expect(_field('facings').isAnswered(const {'facings': '3'}), isFalse);
-      expect(_field('zone').isAnswered(const {'zone': ''}), isFalse);
-    },
-  );
+  test('a switch recorded off is an answer; blank text and bad types are not', () {
+    expect(_missing(const {'standUp': false, 'zone': 'eye'}), isEmpty);
+    expect(_field('note').isAnswered(const {'note': '   '}), isFalse);
+    expect(_field('facings').isAnswered(const {'facings': '3'}), isFalse);
+    expect(_field('zone').isAnswered(const {'zone': ''}), isFalse);
+  });
 
-  test(
-    'withSwitchDefaults records untouched visible switches as off, never overwriting',
-    () {
-      expect(_schema.withSwitchDefaults(const {}), {'standUp': false});
-      expect(_schema.withSwitchDefaults(const {'standUp': true}), {
-        'standUp': true,
-      });
-    },
-  );
+  test('withSwitchDefaults records untouched visible switches as off, never overwriting', () {
+    expect(_schema.withSwitchDefaults(const {}), {'standUp': false});
+    expect(_schema.withSwitchDefaults(const {'standUp': true}), {'standUp': true});
+  });
 
   test('withSwitchDefaults follows a switch revealed by another switch', () {
     final chained = TemplateSchema.parse(const {
@@ -121,22 +102,19 @@ void main() {
     expect(_schema.hasRequired, isTrue);
   });
 
-  test(
-    'a template of optional questions (and required photos) never blocks',
-    () {
-      final optional = TemplateSchema.parse(const {
-        'sections': [
-          {
-            'id': 's',
-            'fields': [
-              {'id': 'n', 'label': 'N', 'type': 'text'},
-              {'id': 'p', 'label': 'P', 'type': 'photo', 'required': true},
-            ],
-          },
-        ],
-      });
-      expect(optional.hasRequired, isFalse);
-      expect(optional.missingRequired(const {}), isEmpty);
-    },
-  );
+  test('a template of optional questions (and required photos) never blocks', () {
+    final optional = TemplateSchema.parse(const {
+      'sections': [
+        {
+          'id': 's',
+          'fields': [
+            {'id': 'n', 'label': 'N', 'type': 'text'},
+            {'id': 'p', 'label': 'P', 'type': 'photo', 'required': true},
+          ],
+        },
+      ],
+    });
+    expect(optional.hasRequired, isFalse);
+    expect(optional.missingRequired(const {}), isEmpty);
+  });
 }

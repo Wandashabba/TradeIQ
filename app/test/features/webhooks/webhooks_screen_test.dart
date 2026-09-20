@@ -156,7 +156,9 @@ void main() {
     const WebhooksScreen(),
     skin: skin,
     textScale: textScale,
-    overrides: <Override>[webhooksRepositoryProvider.overrideWithValue(repo)],
+    overrides: <Override>[
+      webhooksRepositoryProvider.overrideWithValue(repo),
+    ],
   );
 
   group('relativeTime', () {
@@ -216,7 +218,10 @@ void main() {
     });
 
     testWidgets('an empty list is a stated result', (tester) async {
-      await pump(tester, repo: _FakeWebhooksRepository(webhooks: <Webhook>[]));
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(webhooks: <Webhook>[]),
+      );
 
       expect(find.text('No endpoints registered.'), findsOneWidget);
       expect(find.byType(EmptyState), findsOneWidget);
@@ -245,7 +250,9 @@ void main() {
 
       expect(
         tester
-            .widget<Text>(find.byKey(const ValueKey<String>('signing-w-first')))
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('signing-w-first')),
+            )
             .data,
         'Signed — deliveries carry an HMAC signature.',
       );
@@ -341,7 +348,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('webhook-create')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Give the endpoint a web address.'), findsOneWidget);
+      expect(
+        find.text('Give the endpoint a web address.'),
+        findsOneWidget,
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('new-url')),
@@ -385,7 +395,9 @@ void main() {
   });
 
   group('deliveries', () {
-    testWidgets('open on the row, and each says what happened', (tester) async {
+    testWidgets('open on the row, and each says what happened', (
+      tester,
+    ) async {
       final repo = _FakeWebhooksRepository();
       await pump(tester, repo: repo);
 
@@ -416,7 +428,9 @@ void main() {
       await tester.tap(expander);
       await tester.pumpAndSettle();
 
-      final redeliver = find.byKey(const ValueKey<String>('redeliver-d-dead'));
+      final redeliver = find.byKey(
+        const ValueKey<String>('redeliver-d-dead'),
+      );
       await scrollWorklistTo(tester, redeliver);
       await tester.tap(redeliver);
       await tester.pumpAndSettle();
@@ -492,7 +506,10 @@ void main() {
     });
 
     testWidgets('Night, empty, still exactly the nav tab', (tester) async {
-      await pump(tester, repo: _FakeWebhooksRepository(webhooks: <Webhook>[]));
+      await pump(
+        tester,
+        repo: _FakeWebhooksRepository(webhooks: <Webhook>[]),
+      );
       final census = await amberCensus(tester);
       expect(census.objectCount, 1, reason: census.describe());
     });
@@ -587,7 +604,11 @@ void main() {
   });
 
   testWidgets('Veld builds the list', (tester) async {
-    await pump(tester, repo: _FakeWebhooksRepository(), skin: TiqSkin.veld());
+    await pump(
+      tester,
+      repo: _FakeWebhooksRepository(),
+      skin: TiqSkin.veld(),
+    );
 
     expect(find.text('visit.submitted'), findsOneWidget);
     expect(tester.takeException(), isNull);

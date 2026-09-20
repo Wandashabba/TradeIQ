@@ -392,7 +392,8 @@ class WorklistRow extends StatefulWidget {
   /// How far a resolved row fades, per palette. Glass fades less: its lighter
   /// #241F47 ink blended 60% toward the glass card reads only 4.1:1, and a
   /// done row must still be readable.
-  static double resolvedOpacityOf(TiqColors colors) => colors.glass ? 0.7 : 0.6;
+  static double resolvedOpacityOf(TiqColors colors) =>
+      colors.glass ? 0.7 : 0.6;
 
   @override
   State<WorklistRow> createState() => _WorklistRowState();

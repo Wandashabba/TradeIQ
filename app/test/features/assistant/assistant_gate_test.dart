@@ -20,11 +20,11 @@ import 'ask_harness.dart'
     show ScriptedRepository, askBoundaryKey, askSkins, screenText;
 
 ClientConfig config({required bool assistantEnabled}) => ClientConfig(
-  name: 'Acme',
-  scorecardWeights: const {},
-  kpiThresholds: const {},
-  assistantEnabled: assistantEnabled,
-);
+      name: 'Acme',
+      scorecardWeights: const {},
+      kpiThresholds: const {},
+      assistantEnabled: assistantEnabled,
+    );
 
 class StubClients implements ClientsRepository {
   StubClients(this.result);
@@ -103,17 +103,14 @@ Future<void> pumpGate(
 }
 
 void main() {
-  testWidgets('shows the chat when the tenant is in the rollout', (
-    tester,
-  ) async {
+  testWidgets('shows the chat when the tenant is in the rollout', (tester) async {
     await pumpGate(tester, config(assistantEnabled: true));
 
     expect(find.byType(AssistantChatScreen), findsOneWidget);
   });
 
-  testWidgets('explains itself when the tenant is not in the rollout', (
-    tester,
-  ) async {
+  testWidgets('explains itself when the tenant is not in the rollout',
+      (tester) async {
     await pumpGate(tester, config(assistantEnabled: false));
 
     expect(find.byType(AssistantChatScreen), findsNothing);
@@ -123,9 +120,8 @@ void main() {
     expect(find.textContaining('TradeIQ contact'), findsOneWidget);
   });
 
-  testWidgets('fails toward the chat when the config call errors', (
-    tester,
-  ) async {
+  testWidgets('fails toward the chat when the config call errors',
+      (tester) async {
     // Telling someone their feature is switched off because one unrelated call
     // timed out is the worse way to be wrong — the server refuses the turn with
     // a message anyway if they really are outside the rollout.
@@ -140,10 +136,7 @@ void main() {
       await pumpGate(tester, config(assistantEnabled: false), skin: skin);
 
       expect(tester.takeException(), isNull);
-      expect(
-        find.byKey(const ValueKey<String>('ask-not-enabled')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey<String>('ask-not-enabled')), findsOneWidget);
       // The header is the route's, so it does not appear to arrive late.
       expect(find.byType(TorchAppHeader), findsOneWidget);
       final text = screenText(tester);

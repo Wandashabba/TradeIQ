@@ -52,10 +52,7 @@ void main() {
 
         // The dominant metric and its supports as meta.
         expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
-        expect(
-          find.textContaining('Coverage 33 of 42 outlets'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('Coverage 33 of 42 outlets'), findsOneWidget);
 
         // The knocked-out section rule.
         expect(find.byType(SectionRule), findsOneWidget);
@@ -158,21 +155,24 @@ void main() {
       },
     );
 
-    testWidgets('outlets but no visits is The Floor with an absence, not the '
-        'first-run board', (tester) async {
-      await pumpFloor(
-        tester,
-        const TheFloorScreen(),
-        current: emptyWindowKpis(),
-      );
+    testWidgets(
+      'outlets but no visits is The Floor with an absence, not the '
+      'first-run board',
+      (tester) async {
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          current: emptyWindowKpis(),
+        );
 
-      // Never-measured and not-measured-lately are different facts.
-      expect(find.byType(FirstRunBoard), findsNothing);
-      expect(find.byType(TiqPlate), findsOneWidget);
+        // Never-measured and not-measured-lately are different facts.
+        expect(find.byType(FirstRunBoard), findsNothing);
+        expect(find.byType(TiqPlate), findsOneWidget);
 
-      expect(find.text(emDash), findsWidgets);
-      expect(find.text('No visits in this window'), findsOneWidget);
-    });
+        expect(find.text(emDash), findsWidgets);
+        expect(find.text('No visits in this window'), findsOneWidget);
+      },
+    );
 
     testWidgets('a thin sample keeps the figure and drops the delta', (
       tester,
@@ -429,26 +429,26 @@ void main() {
       );
     });
 
-    test(
-      'a short screen collapses the plate rather than starving the list',
-      () {
-        // 600dp: 600-440 = 160, under the 200 floor.
-        expect(PlateSpec.heightFor(600), lessThan(200));
-        final spec = PlateSpec.resolve(
-          skin: TiqSkin.night(),
-          viewportHeight: 600,
-        );
-        expect(spec.form, PlateForm.collapsed);
-        expect(spec.height, 96);
-      },
-    );
+    test('a short screen collapses the plate rather than starving the list', () {
+      // 600dp: 600-440 = 160, under the 200 floor.
+      expect(PlateSpec.heightFor(600), lessThan(200));
+      final spec = PlateSpec.resolve(
+        skin: TiqSkin.night(),
+        viewportHeight: 600,
+      );
+      expect(spec.form, PlateForm.collapsed);
+      expect(spec.height, 96);
+    });
 
     test('a tall phone caps the plate at 360', () {
       expect(PlateSpec.heightFor(1200), 360);
     });
 
     test('Veld draws no plate at all', () {
-      final spec = PlateSpec.resolve(skin: TiqSkin.veld(), viewportHeight: 900);
+      final spec = PlateSpec.resolve(
+        skin: TiqSkin.veld(),
+        viewportHeight: 900,
+      );
       expect(spec.form, PlateForm.none);
       expect(spec.height, 0);
     });

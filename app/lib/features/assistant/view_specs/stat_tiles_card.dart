@@ -72,9 +72,7 @@ class _StatTilesCardState extends State<StatTilesCard> {
     // open as further clusters of the same size, never as one cluster
     // bigger than the law allows.
     final limit = StatTilesCard.limitFor(skin);
-    final shown = _all
-        ? tiles.length
-        : StatTilesCard.capped(tiles, skin).length;
+    final shown = _all ? tiles.length : StatTilesCard.capped(tiles, skin).length;
     final clusters = <Widget>[
       for (var i = 0; i < shown; i += limit)
         StatCluster(

@@ -33,9 +33,9 @@ class NotificationPreferencesController
     if (previous == null) return false;
     state = AsyncData(previous.withValue(category, enabled));
     try {
-      final saved = await ref.read(pushRepositoryProvider).updatePreferences({
-        category: enabled,
-      });
+      final saved = await ref
+          .read(pushRepositoryProvider)
+          .updatePreferences({category: enabled});
       state = AsyncData(saved);
       return true;
     } catch (_) {

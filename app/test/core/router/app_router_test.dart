@@ -1023,8 +1023,7 @@ void main() {
       expect(
         tester.getSemantics(back).label,
         contains('Back to Me'),
-        reason:
-            'the agent reached this from their record, so the control '
+        reason: 'the agent reached this from their record, so the control '
             'says so; "Back to Today" is the deep-link case.',
       );
       await tester.tap(back);

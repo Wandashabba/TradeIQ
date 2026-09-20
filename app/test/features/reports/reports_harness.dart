@@ -134,10 +134,7 @@ class FakeReportsRepository implements ReportsRepository {
 
 /// What the Run action handed the platform, without a filesystem or a DOM.
 class RecordingDownloader implements FileDownloader {
-  RecordingDownloader({
-    this.fails = false,
-    this.location = '/Users/me/Downloads',
-  });
+  RecordingDownloader({this.fails = false, this.location = '/Users/me/Downloads'});
 
   final bool fails;
   final String? location;
@@ -205,9 +202,9 @@ class _PushedHostState extends State<PushedHost> {
     _pushed = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (context) => widget.child));
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (context) => widget.child),
+      );
     });
   }
 

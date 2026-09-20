@@ -124,8 +124,7 @@ class CampaignsScreen extends ConsumerWidget {
             key: ValueKey<String>('campaigns-empty'),
             scope: EmptyScope.inPanel,
             headline: 'No campaigns yet.',
-            body:
-                'Create one to track visit coverage, planogram and promo '
+            body: 'Create one to track visit coverage, planogram and promo '
                 'compliance against a date window.',
           )
         else

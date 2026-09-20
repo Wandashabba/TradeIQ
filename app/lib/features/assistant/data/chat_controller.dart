@@ -71,8 +71,7 @@ Map<String, TileReconciliation> _reconcile(
     return const <String, TileReconciliation>{};
   }
   final before = <String, num?>{
-    for (final tile in StatTileData.listFrom(previous.data))
-      tile.label: tile.value,
+    for (final tile in StatTileData.listFrom(previous.data)) tile.label: tile.value,
   };
   final out = <String, TileReconciliation>{...previous.reconciled};
   for (final tile in StatTileData.listFrom(data)) {
@@ -117,18 +116,17 @@ class ToolActivity {
       : endedAt!.difference(startedAt!);
 
   ToolActivity finished(bool succeeded, {DateTime? at}) => ToolActivity(
-    name: name,
-    pillar: pillar,
-    ok: succeeded,
-    startedAt: startedAt,
-    endedAt: at,
-  );
+        name: name,
+        pillar: pillar,
+        ok: succeeded,
+        startedAt: startedAt,
+        endedAt: at,
+      );
 }
 
 /// The clock the timeline measures against. A provider so a test can step it.
-final assistantClockProvider = Provider<DateTime Function()>(
-  (ref) => DateTime.now,
-);
+final assistantClockProvider =
+    Provider<DateTime Function()>((ref) => DateTime.now);
 
 enum ChatRole { user, assistant }
 
@@ -208,21 +206,22 @@ class ChatMessage {
     bool? streaming,
     bool? stopped,
     DateTime? lastEventAt,
-  }) => ChatMessage(
-    role: role,
-    text: text ?? this.text,
-    artifacts: artifacts ?? this.artifacts,
-    tools: tools ?? this.tools,
-    sources: sources ?? this.sources,
-    error: error ?? this.error,
-    errorCode: errorCode ?? this.errorCode,
-    notice: notice ?? this.notice,
-    focus: focus ?? this.focus,
-    streaming: streaming ?? this.streaming,
-    stopped: stopped ?? this.stopped,
-    askedAt: askedAt,
-    lastEventAt: lastEventAt ?? this.lastEventAt,
-  );
+  }) =>
+      ChatMessage(
+        role: role,
+        text: text ?? this.text,
+        artifacts: artifacts ?? this.artifacts,
+        tools: tools ?? this.tools,
+        sources: sources ?? this.sources,
+        error: error ?? this.error,
+        errorCode: errorCode ?? this.errorCode,
+        notice: notice ?? this.notice,
+        focus: focus ?? this.focus,
+        streaming: streaming ?? this.streaming,
+        stopped: stopped ?? this.stopped,
+        askedAt: askedAt,
+        lastEventAt: lastEventAt ?? this.lastEventAt,
+      );
 }
 
 /// What the server appends to an answer a budget cut short.
@@ -266,9 +265,8 @@ String sanitiseAssistantError(String raw) {
   if (flat.length > assistantErrorMessageCap) return assistantErrorFallback;
   if (flat.contains('<') || flat.contains('>')) return assistantErrorFallback;
   // `at Object.foo (/srv/app.js:12:9)`, `Error: ECONNREFUSED`, `#0 main`.
-  if (RegExp(
-    r'(^|\s)(at\s+\S+\s*\(|#\d+\s|[A-Za-z]+Error:|Exception:)',
-  ).hasMatch(flat)) {
+  if (RegExp(r'(^|\s)(at\s+\S+\s*\(|#\d+\s|[A-Za-z]+Error:|Exception:)')
+      .hasMatch(flat)) {
     return assistantErrorFallback;
   }
   if (flat.contains('\\') || RegExp(r'/[\w.-]+/[\w.-]+').hasMatch(flat)) {
@@ -284,9 +282,9 @@ class ChatState {
   final bool sending;
 
   ChatState copyWith({List<ChatMessage>? messages, bool? sending}) => ChatState(
-    messages: messages ?? this.messages,
-    sending: sending ?? this.sending,
-  );
+        messages: messages ?? this.messages,
+        sending: sending ?? this.sending,
+      );
 }
 
 /// Drives one conversation.
@@ -378,13 +376,10 @@ class ChatController extends Notifier<ChatState> {
             if (err is DioException && CancelToken.isCancel(err)) {
               _finish();
             } else {
-              _apply(
-                const ErrorEvent(
-                  code: 'network',
-                  message:
-                      'Could not reach the assistant. Check your connection.',
-                ),
-              );
+              _apply(const ErrorEvent(
+                code: 'network',
+                message: 'Could not reach the assistant. Check your connection.',
+              ));
               _finish();
             }
             if (!completer.isCompleted) completer.complete();
@@ -406,12 +401,10 @@ class ChatController extends Notifier<ChatState> {
       // the assistant" as though the model had said it teaches it that such a
       // reply is in character.
       if (message.error != null || message.text.isEmpty) continue;
-      entries.add(
-        ChatHistoryEntry(
-          role: message.role == ChatRole.user ? 'user' : 'assistant',
-          content: message.text,
-        ),
-      );
+      entries.add(ChatHistoryEntry(
+        role: message.role == ChatRole.user ? 'user' : 'assistant',
+        content: message.text,
+      ));
     }
     if (entries.length <= historyLimit) return entries;
     return entries.sublist(entries.length - historyLimit);
@@ -606,6 +599,5 @@ class ChatController extends Notifier<ChatState> {
   }
 }
 
-final chatControllerProvider = NotifierProvider<ChatController, ChatState>(
-  ChatController.new,
-);
+final chatControllerProvider =
+    NotifierProvider<ChatController, ChatState>(ChatController.new);

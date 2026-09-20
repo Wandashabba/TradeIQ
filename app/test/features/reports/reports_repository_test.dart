@@ -79,23 +79,21 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "r1", "name": "Coverage by outlet", '
-          '"type": "coverage"}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "r1", "name": "Coverage by outlet", '
+        '"type": "coverage"}], '
+        '"nextCursor": "cursor-1"}',
+      );
 
-        final page = await DioReportsRepository().listReports();
+      final page = await DioReportsRepository().listReports();
 
-        expect(page, isA<PaginatedResponse<ReportDefinition>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 'r1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<ReportDefinition>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'r1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }
 
@@ -104,7 +102,10 @@ void main() {
 void _csvRowCounting() {
   group('ReportCsv.countRows', () {
     test('a header and three rows is three rows', () {
-      expect(ReportCsv.countRows('outlet,visits\nA,1\nB,2\nC,3\n'), 3);
+      expect(
+        ReportCsv.countRows('outlet,visits\nA,1\nB,2\nC,3\n'),
+        3,
+      );
     });
 
     test('a header alone is a measured zero, not an unknown', () {
@@ -129,7 +130,10 @@ void _csvRowCounting() {
     });
 
     test('a doubled quote inside a quoted cell keeps the parity', () {
-      expect(ReportCsv.countRows('outlet,note\nA,"said ""hello"" twice"\n'), 1);
+      expect(
+        ReportCsv.countRows('outlet,note\nA,"said ""hello"" twice"\n'),
+        1,
+      );
     });
 
     test('a last line without a trailing newline still counts', () {

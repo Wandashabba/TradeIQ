@@ -18,9 +18,7 @@ class _FakeOutletsRepository implements OutletsRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse<Outlet>(
-    data: <Outlet>[
-      Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-    ],
+    data: <Outlet>[Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0)],
     nextCursor: null,
   );
 
@@ -100,7 +98,9 @@ void main() {
     expect(repo.createdFilters, isEmpty);
   });
 
-  testWidgets('the dates and the outlet ride along as filters', (tester) async {
+  testWidgets('the dates and the outlet ride along as filters', (
+    tester,
+  ) async {
     final repo = FakeReportsRepository();
     await pump(tester, repo: repo);
 
@@ -149,7 +149,10 @@ void main() {
       await type(tester, 'report-from-date', '2026-09-30');
       await type(tester, 'report-to-date', '2026-09-01');
 
-      expect(find.text('The To date is before the From date.'), findsOneWidget);
+      expect(
+        find.text('The To date is before the From date.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a date that is not a date', (tester) async {

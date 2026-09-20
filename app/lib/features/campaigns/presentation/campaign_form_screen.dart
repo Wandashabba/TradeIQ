@@ -117,8 +117,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
   Future<void> _submit() async {
     final nameBlank = _nameCtrl.text.trim().isEmpty;
     final budgetRaw = _budgetCtrl.text.trim();
-    final budgetBad =
-        budgetRaw.isNotEmpty && double.tryParse(budgetRaw) == null;
+    final budgetBad = budgetRaw.isNotEmpty && double.tryParse(budgetRaw) == null;
     String? dateError;
     if (!widget.isEditing) {
       if (_startDate == null || _endDate == null) {
@@ -437,8 +436,7 @@ class _OutletMultiSelect extends ConsumerWidget {
               key: ValueKey<String>('campaign-outlets-empty'),
               scope: EmptyScope.inline,
               headline: 'No outlets yet.',
-              body:
-                  'A campaign with no outlets covers every outlet you add '
+              body: 'A campaign with no outlets covers every outlet you add '
                   'later.',
             )
           else ...<Widget>[

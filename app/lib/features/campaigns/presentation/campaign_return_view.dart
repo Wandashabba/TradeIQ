@@ -177,7 +177,9 @@ class _ReturnLine extends StatelessWidget {
               unit: TiqUnit.currency,
               decimals: 2,
               signed: signed,
-              state: value == null ? FigureState.missing : FigureState.measured,
+              state: value == null
+                  ? FigureState.missing
+                  : FigureState.measured,
               semanticsLabel: value == null ? 'Not set' : null,
               color: value == null ? skin.palette.ink3 : skin.palette.ink1,
               textAlign: TextAlign.end,

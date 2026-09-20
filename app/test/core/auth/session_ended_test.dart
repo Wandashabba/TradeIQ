@@ -184,25 +184,22 @@ void main() {
       );
     });
 
-    test(
-      'a 401 on a clean phone records an empty ending, not a sheet',
-      () async {
-        await container.read(sessionControllerProvider.future);
-        await signIn();
+    test('a 401 on a clean phone records an empty ending, not a sheet', () async {
+      await container.read(sessionControllerProvider.future);
+      await signIn();
 
-        await container
-            .read(sessionControllerProvider.notifier)
-            .logout(expired: true);
+      await container
+          .read(sessionControllerProvider.notifier)
+          .logout(expired: true);
 
-        expect(container.read(sessionEndedProvider)!.isEmpty, isTrue);
-      },
-    );
+      expect(container.read(sessionEndedProvider)!.isEmpty, isTrue);
+    });
 
     test('a deliberate sign-out clears any previous ending', () async {
       await container.read(sessionControllerProvider.future);
-      container.read(sessionEndedProvider.notifier).record(<HeldLine>[
-        const HeldLine(entityType: 'photo', count: 2),
-      ]);
+      container.read(sessionEndedProvider.notifier).record(
+        <HeldLine>[const HeldLine(entityType: 'photo', count: 2)],
+      );
 
       await container.read(sessionControllerProvider.notifier).logout();
 
@@ -217,9 +214,9 @@ void main() {
 
     test('signing back in clears it too', () async {
       await container.read(sessionControllerProvider.future);
-      container.read(sessionEndedProvider.notifier).record(<HeldLine>[
-        const HeldLine(entityType: 'photo', count: 2),
-      ]);
+      container.read(sessionEndedProvider.notifier).record(
+        <HeldLine>[const HeldLine(entityType: 'photo', count: 2)],
+      );
 
       await signIn();
 
@@ -228,9 +225,7 @@ void main() {
 
     test('answered keeps the lines and never fires twice', () {
       final notifier = container.read(sessionEndedProvider.notifier);
-      notifier.record(<HeldLine>[
-        const HeldLine(entityType: 'photo', count: 2),
-      ]);
+      notifier.record(<HeldLine>[const HeldLine(entityType: 'photo', count: 2)]);
       notifier.answered();
       final once = container.read(sessionEndedProvider);
       notifier.answered();

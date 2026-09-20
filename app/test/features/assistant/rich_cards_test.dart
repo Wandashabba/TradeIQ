@@ -31,12 +31,7 @@ const _tiles = {
       'label': 'Sell-in, units',
       'value': 48210,
       'unit': 'units',
-      'delta': {
-        'value': 12.4,
-        'unit': 'pct',
-        'direction': 'down',
-        'sentiment': 'bad',
-      },
+      'delta': {'value': 12.4, 'unit': 'pct', 'direction': 'down', 'sentiment': 'bad'},
       'comparedTo': "vs 55,034 · Aug '25",
     },
     {'label': 'Target attainment', 'value': 81, 'unit': 'pct', 'meter': 81},
@@ -44,23 +39,13 @@ const _tiles = {
       'label': 'On-shelf availability',
       'value': 88,
       'unit': 'pct',
-      'delta': {
-        'value': 4,
-        'unit': 'pts',
-        'direction': 'down',
-        'sentiment': 'warn',
-      },
+      'delta': {'value': 4, 'unit': 'pts', 'direction': 'down', 'sentiment': 'warn'},
     },
     {
       'label': 'Outlets with a stock-out',
       'value': 17,
       'unit': 'count',
-      'delta': {
-        'value': 9,
-        'unit': 'count',
-        'direction': 'up',
-        'sentiment': 'good',
-      },
+      'delta': {'value': 9, 'unit': 'count', 'direction': 'up', 'sentiment': 'good'},
     },
     {
       'label': 'Neutral one',
@@ -90,72 +75,61 @@ void main() {
     final name = skin.mode.name;
 
     group('$name: StatTilesCard', () {
-      testWidgets(
-        'the fold holds the lawful count; Show all reaches the rest',
-        (tester) async {
-          await tester.pumpWidget(
-            wrap(
-              ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-              skin: skin,
-            ),
-          );
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull);
-          expect(find.byType(StatTilesCard), findsOneWidget);
-          final veld = skin.density == TiqDensity.veld;
-          var text = screenText(tester);
-          expect(text, contains('48,210'));
-          expect(text, contains('81%'));
-          // Four on a phone, two in Veld: two figures is a reading, four is
-          // analysis, and nobody does analysis in the sun.
-          if (veld) {
-            expect(text, isNot(contains('88%')));
-          } else {
-            expect(text, contains('88%'));
-            expect(text, contains('17'));
-          }
-          expect(text, isNot(contains('NEUTRAL ONE')));
-          // A fall is signed as a fall: the sign is the direction's, never a
-          // '+' beside a down triangle.
-          expect(text, contains('${minusSign}12.4%'));
-          expect(text, isNot(contains('+12.4%')));
-
-          // Stat tiles are answer-only: there is no full view to send a reader
-          // to, so a figure past the fold must still be reachable here.
-          final showAll = find.byKey(
-            const ValueKey<String>('stat-tiles-show-all'),
-          );
-          expect(showAll, findsOneWidget);
-          expect(screenText(tester), contains('Show all 6'));
-          await tester.ensureVisible(showAll);
-          await tester.tap(showAll);
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull);
-          text = screenText(tester);
+      testWidgets('the fold holds the lawful count; Show all reaches the rest', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(StatTilesCard), findsOneWidget);
+        final veld = skin.density == TiqDensity.veld;
+        var text = screenText(tester);
+        expect(text, contains('48,210'));
+        expect(text, contains('81%'));
+        // Four on a phone, two in Veld: two figures is a reading, four is
+        // analysis, and nobody does analysis in the sun.
+        if (veld) {
+          expect(text, isNot(contains('88%')));
+        } else {
           expect(text, contains('88%'));
           expect(text, contains('17'));
-          expect(text, contains('NEUTRAL ONE'));
-          // A tile whose value is not a number keeps its place as an unknown —
-          // an em dash and a sentence — and is never drawn as 0.
-          expect(text, contains('UNREADABLE'));
-          expect(text, contains('Nothing measured in this window'));
-          expect(showAll, findsNothing);
-        },
-      );
+        }
+        expect(text, isNot(contains('NEUTRAL ONE')));
+        // A fall is signed as a fall: the sign is the direction's, never a
+        // '+' beside a down triangle.
+        expect(text, contains('${minusSign}12.4%'));
+        expect(text, isNot(contains('+12.4%')));
+
+        // Stat tiles are answer-only: there is no full view to send a reader
+        // to, so a figure past the fold must still be reachable here.
+        final showAll = find.byKey(const ValueKey<String>('stat-tiles-show-all'));
+        expect(showAll, findsOneWidget);
+        expect(screenText(tester), contains('Show all 6'));
+        await tester.ensureVisible(showAll);
+        await tester.tap(showAll);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        text = screenText(tester);
+        expect(text, contains('88%'));
+        expect(text, contains('17'));
+        expect(text, contains('NEUTRAL ONE'));
+        // A tile whose value is not a number keeps its place as an unknown —
+        // an em dash and a sentence — and is never drawn as 0.
+        expect(text, contains('UNREADABLE'));
+        expect(text, contains('Nothing measured in this window'));
+        expect(showAll, findsNothing);
+      });
 
       testWidgets('the delta is the server verdict, never inferred', (
         tester,
       ) async {
         await tester.pumpWidget(
-          wrap(
-            ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-            skin: skin,
-          ),
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
         );
         await tester.pumpAndSettle();
-        final showAll = find.byKey(
-          const ValueKey<String>('stat-tiles-show-all'),
-        );
+        final showAll = find.byKey(const ValueKey<String>('stat-tiles-show-all'));
         await tester.ensureVisible(showAll);
         await tester.tap(showAll);
         await tester.pumpAndSettle();
@@ -179,10 +153,7 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          wrap(
-            ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-            skin: skin,
-          ),
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
         );
         await tester.pumpAndSettle();
         final meters = find.byType(Meter);
@@ -199,10 +170,7 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          wrap(
-            ArtifactView(artifact: artifact('ranked_bars', _bars)),
-            skin: skin,
-          ),
+          wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), skin: skin),
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
@@ -285,10 +253,7 @@ void main() {
               .first,
         );
         final bars = <Rect>[for (var i = 0; i < 3; i++) barOf(i)];
-        expect(
-          bars.map((r) => r.left.toStringAsFixed(3)).toSet(),
-          hasLength(1),
-        );
+        expect(bars.map((r) => r.left.toStringAsFixed(3)).toSet(), hasLength(1));
         expect(bars[0].width / bars[1].width, closeTo(0.5, 1e-6));
         expect(bars[2].width / bars[1].width, closeTo(0.25, 1e-6));
 
@@ -385,10 +350,7 @@ void main() {
                 'metric': 'availability',
                 'interval': 'day',
                 'points': points,
-                'comparison': {
-                  'label': 'month to date last year',
-                  'points': [],
-                },
+                'comparison': {'label': 'month to date last year', 'points': []},
               }),
             ),
             skin: skin,
@@ -459,10 +421,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        wrap(
-          ArtifactView(artifact: artifact('ranked_bars', _bars)),
-          reduce: false,
-        ),
+        wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), reduce: false),
       );
       await tester.pump(const Duration(milliseconds: 50));
       final growing = tester
@@ -496,8 +455,10 @@ void main() {
             artifact: artifact('ranked_bars', <String, Object>{
               'unit': 'count',
               'items': <Map<String, Object>>[
-                for (var i = 0; i < 9; i++)
-                  <String, Object>{'label': 'Outlet $i', 'value': 20 - i},
+                for (var i = 0; i < 9; i++) <String, Object>{
+                  'label': 'Outlet $i',
+                  'value': 20 - i,
+                },
               ],
             }),
           ),
@@ -552,16 +513,19 @@ void main() {
 
     test('a delta is a positive magnitude; its arrow comes from direction', () {
       TileDelta delta(String direction) => TileDelta.tryParse({
-        'value': 12.4,
-        'unit': 'pct',
-        'direction': direction,
-        'sentiment': 'bad',
-      })!;
+            'value': 12.4,
+            'unit': 'pct',
+            'direction': direction,
+            'sentiment': 'bad',
+          })!;
       // No U+25BC: Onest never carried it and package:pdf drew it as nothing
       // (#401). The sign is the direction, and the table twin reads it.
       expect(delta('down').text(), '${minusSign}12.4%');
       expect(delta('up').text(), '+12.4%');
-      expect(delta('down').text(number: TiqNumber.af), '${minusSign}12,4%');
+      expect(
+        delta('down').text(number: TiqNumber.af),
+        '${minusSign}12,4%',
+      );
     });
 
     // THE GUARD THAT WAS DELETED ONCE. `RankedBarItem.value` is a non-null
@@ -571,13 +535,7 @@ void main() {
     // `ArtifactView`'s catch, because `AnswerFocusTarget.resolve` parses the
     // same data at screen level, above it. The whole Ask route goes red.
     test('a bar with an unreadable value is dropped, not thrown on', () {
-      for (final bad in <Object?>[
-        null,
-        'n/a',
-        double.nan,
-        double.infinity,
-        [],
-      ]) {
+      for (final bad in <Object?>[null, 'n/a', double.nan, double.infinity, []]) {
         final data = RankedBarsData.from({
           'items': [
             {'label': 'Kept', 'value': 3},
@@ -624,16 +582,10 @@ void main() {
 
       // 2. The card itself still draws, with the readable bars only.
       late BuildContext ctx;
-      await tester.pumpWidget(
-        wrap(
-          Builder(
-            builder: (context) {
-              ctx = context;
-              return ArtifactView(artifact: message.artifacts.first);
-            },
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrap(Builder(builder: (context) {
+        ctx = context;
+        return ArtifactView(artifact: message.artifacts.first);
+      })));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byType(RankedBarsCard), findsOneWidget);
@@ -649,43 +601,20 @@ void main() {
         'nope',
         const {},
         const {'tiles': 'x'},
-        const {
-          'items': [1, 2],
-        },
+        const {'items': [1, 2]},
         // An item MAP whose value is null, missing or a string: the shape the
         // deleted guard was the only thing standing between and a dead route.
-        const {
-          'items': [
-            {'label': 'a', 'value': null},
-          ],
-        },
-        const {
-          'items': [
-            {'label': 'a'},
-          ],
-        },
-        const {
-          'items': [
-            {'label': 'a', 'value': 'n/a'},
-            {'label': 'b', 'value': 2},
-          ],
-        },
-        const {
-          'tiles': [
-            {'label': 'a', 'value': null},
-          ],
-        },
+        const {'items': [{'label': 'a', 'value': null}]},
+        const {'items': [{'label': 'a'}]},
+        const {'items': [{'label': 'a', 'value': 'n/a'}, {'label': 'b', 'value': 2}]},
+        const {'tiles': [{'label': 'a', 'value': null}]},
       ]) {
-        await tester.pumpWidget(
-          wrap(
-            Column(
-              children: [
-                ArtifactView(artifact: artifact('stat_tiles', data)),
-                ArtifactView(artifact: artifact('ranked_bars', data)),
-              ],
-            ),
-          ),
-        );
+        await tester.pumpWidget(wrap(
+          Column(children: [
+            ArtifactView(artifact: artifact('stat_tiles', data)),
+            ArtifactView(artifact: artifact('ranked_bars', data)),
+          ]),
+        ));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }

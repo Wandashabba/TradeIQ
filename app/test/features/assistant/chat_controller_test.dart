@@ -73,10 +73,8 @@ void main() {
 
       await container.read(chatControllerProvider.notifier).send('stock?');
 
-      expect(
-        container.read(chatControllerProvider).messages.last.text,
-        'Stock is down 4%.',
-      );
+      expect(container.read(chatControllerProvider).messages.last.text,
+          'Stock is down 4%.');
     });
 
     test('ignores empty and whitespace-only messages', () async {
@@ -110,11 +108,7 @@ void main() {
 
         await container.read(chatControllerProvider.notifier).send('stock?');
 
-        final tools = container
-            .read(chatControllerProvider)
-            .messages
-            .last
-            .tools;
+        final tools = container.read(chatControllerProvider).messages.last.tools;
         expect(tools, hasLength(1));
         expect(tools.single.ok, isTrue);
       });
@@ -134,11 +128,7 @@ void main() {
 
         await container.read(chatControllerProvider.notifier).send('compare');
 
-        final tools = container
-            .read(chatControllerProvider)
-            .messages
-            .last
-            .tools;
+        final tools = container.read(chatControllerProvider).messages.last.tools;
         expect(tools.map((t) => t.ok).toList(), [true, false]);
       });
 
@@ -175,11 +165,8 @@ void main() {
 
         await container.read(chatControllerProvider.notifier).send('scorecard');
 
-        final artifacts = container
-            .read(chatControllerProvider)
-            .messages
-            .last
-            .artifacts;
+        final artifacts =
+            container.read(chatControllerProvider).messages.last.artifacts;
         expect(artifacts, hasLength(1));
         expect(artifacts.single.type, 'agent_scorecard');
       });
@@ -206,39 +193,24 @@ void main() {
 
         await container.read(chatControllerProvider.notifier).send('q');
 
-        final artifacts = container
-            .read(chatControllerProvider)
-            .messages
-            .last
-            .artifacts;
+        final artifacts =
+            container.read(chatControllerProvider).messages.last.artifacts;
         expect(artifacts, hasLength(1));
         expect((artifacts.single.data as Map)['averageScore'], 82);
       });
 
       test('keeps two artifacts with different ids', () async {
         final repository = StubRepository([
-          const ArtifactEvent(
-            id: 'a1',
-            type: 'agent_scorecard',
-            params: {},
-            data: {},
-          ),
-          const ArtifactEvent(
-            id: 'a2',
-            type: 'agent_scorecard',
-            params: {},
-            data: {},
-          ),
+          const ArtifactEvent(id: 'a1', type: 'agent_scorecard', params: {}, data: {}),
+          const ArtifactEvent(id: 'a2', type: 'agent_scorecard', params: {}, data: {}),
           const DoneEvent(),
         ]);
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
 
-        expect(
-          container.read(chatControllerProvider).messages.last.artifacts,
-          hasLength(2),
-        );
+        expect(container.read(chatControllerProvider).messages.last.artifacts,
+            hasLength(2));
       });
     });
 
@@ -257,16 +229,13 @@ void main() {
       });
 
       test('reports a transport failure in the transcript', () async {
-        final repository = StubRepository([])
-          ..throwError = Exception('offline');
+        final repository = StubRepository([])..throwError = Exception('offline');
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
 
-        expect(
-          container.read(chatControllerProvider).messages.last.error,
-          contains('connection'),
-        );
+        expect(container.read(chatControllerProvider).messages.last.error,
+            contains('connection'));
       });
 
       test('clears streaming when the stream ends with no done frame', () async {
@@ -288,25 +257,21 @@ void main() {
 
         await container.read(chatControllerProvider.notifier).send('q');
 
-        expect(
-          container.read(chatControllerProvider).messages.last.error,
-          isNotNull,
-        );
+        expect(container.read(chatControllerProvider).messages.last.error,
+            isNotNull);
       });
 
-      test(
-        'leaves sending false after a failure so the composer unlocks',
-        () async {
-          // A stuck `sending` flag disables the input permanently — the user
-          // cannot even retry.
-          final repository = StubRepository([])..throwError = Exception('boom');
-          final container = containerWith(repository);
+      test('leaves sending false after a failure so the composer unlocks',
+          () async {
+        // A stuck `sending` flag disables the input permanently — the user
+        // cannot even retry.
+        final repository = StubRepository([])..throwError = Exception('boom');
+        final container = containerWith(repository);
 
-          await container.read(chatControllerProvider.notifier).send('q');
+        await container.read(chatControllerProvider.notifier).send('q');
 
-          expect(container.read(chatControllerProvider).sending, isFalse);
-        },
-      );
+        expect(container.read(chatControllerProvider).sending, isFalse);
+      });
     });
 
     group('history', () {
@@ -331,7 +296,8 @@ void main() {
         await controller.send('second');
 
         final history = repository.histories.last;
-        expect(history.map((e) => e.content).toList(), ['first', 'An answer.']);
+        expect(history.map((e) => e.content).toList(),
+            ['first', 'An answer.']);
         expect(history.map((e) => e.role).toList(), ['user', 'assistant']);
       });
 
@@ -350,54 +316,46 @@ void main() {
           ..add(const DoneEvent());
         await controller.send('second');
 
-        expect(repository.histories.last.map((e) => e.content).toList(), [
-          'first',
-        ]);
+        expect(repository.histories.last.map((e) => e.content).toList(),
+            ['first']);
       });
 
-      test(
-        'caps history so a long conversation forgets rather than fails',
-        () async {
-          final repository = StubRepository([
-            const TokenEvent('ok'),
-            const DoneEvent(),
-          ]);
-          final container = containerWith(repository);
-          final controller = container.read(chatControllerProvider.notifier);
+      test('caps history so a long conversation forgets rather than fails',
+          () async {
+        final repository = StubRepository([
+          const TokenEvent('ok'),
+          const DoneEvent(),
+        ]);
+        final container = containerWith(repository);
+        final controller = container.read(chatControllerProvider.notifier);
 
-          for (var i = 0; i < 20; i++) {
-            await controller.send('question $i');
-          }
+        for (var i = 0; i < 20; i++) {
+          await controller.send('question $i');
+        }
 
-          expect(
-            repository.histories.last.length,
-            lessThanOrEqualTo(ChatController.historyLimit),
-          );
-        },
-      );
+        expect(repository.histories.last.length,
+            lessThanOrEqualTo(ChatController.historyLimit));
+      });
     });
 
     group('the conversation id', () {
-      test(
-        'is absent on the first turn and echoed on every one after',
-        () async {
-          // Without the echo the server opens a new conversation per turn, and
-          // both the live-artifact manifest and the params-change note have
-          // nothing to report — the backend works and the feature is invisible.
-          final repository = StubRepository([
-            const ConversationEvent('conv-7'),
-            const TokenEvent('ok'),
-            const DoneEvent(),
-          ]);
-          final container = containerWith(repository);
-          final controller = container.read(chatControllerProvider.notifier);
+      test('is absent on the first turn and echoed on every one after', () async {
+        // Without the echo the server opens a new conversation per turn, and
+        // both the live-artifact manifest and the params-change note have
+        // nothing to report — the backend works and the feature is invisible.
+        final repository = StubRepository([
+          const ConversationEvent('conv-7'),
+          const TokenEvent('ok'),
+          const DoneEvent(),
+        ]);
+        final container = containerWith(repository);
+        final controller = container.read(chatControllerProvider.notifier);
 
-          await controller.send('first');
-          await controller.send('second');
+        await controller.send('first');
+        await controller.send('second');
 
-          expect(repository.conversationIds, [null, 'conv-7']);
-        },
-      );
+        expect(repository.conversationIds, [null, 'conv-7']);
+      });
 
       test('is not rendered as a turn', () async {
         final repository = StubRepository([

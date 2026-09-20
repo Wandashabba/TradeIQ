@@ -92,7 +92,7 @@ abstract class ImagePickerGateway {
 
 class ImagePickerGatewayImpl implements ImagePickerGateway {
   ImagePickerGatewayImpl({ImagePicker? picker})
-    : _picker = picker ?? ImagePicker();
+      : _picker = picker ?? ImagePicker();
 
   final ImagePicker _picker;
 
@@ -101,11 +101,12 @@ class ImagePickerGatewayImpl implements ImagePickerGateway {
     required ImageSource source,
     required double maxWidth,
     required int imageQuality,
-  }) => _picker.pickImage(
-    source: source,
-    maxWidth: maxWidth,
-    imageQuality: imageQuality,
-  );
+  }) =>
+      _picker.pickImage(
+        source: source,
+        maxWidth: maxWidth,
+        imageQuality: imageQuality,
+      );
 }
 
 /// Captures a shelf/closure photo and encodes it for upload.

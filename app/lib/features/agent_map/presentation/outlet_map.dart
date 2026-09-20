@@ -69,6 +69,7 @@ class AgentOutletMap extends StatefulWidget {
   @visibleForTesting
   static int debugFailureThreshold = 6;
 
+
   @override
   State<AgentOutletMap> createState() => _AgentOutletMapState();
 }
@@ -79,6 +80,7 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
   /// forecourt with no signal, and swapping the map out for a sentence because
   /// of one 504 would be its own kind of lie.
   int _failures = 0;
+
 
   void _tileFailed() {
     if (_failures >= AgentOutletMap.debugFailureThreshold || !mounted) {
@@ -203,8 +205,7 @@ class _Basemap extends StatelessWidget {
               // the shell's scroll view, and a wheel that sometimes zooms and
               // sometimes scrolls is a wheel nobody trusts.
               interactionOptions: const InteractionOptions(
-                flags:
-                    InteractiveFlag.drag |
+                flags: InteractiveFlag.drag |
                     InteractiveFlag.pinchZoom |
                     InteractiveFlag.doubleTapZoom |
                     InteractiveFlag.pinchMove,
@@ -308,10 +309,7 @@ class _HereMarker extends StatelessWidget {
       child: Center(
         child: CustomPaint(
           size: Size.square(size),
-          painter: _HerePainter(
-            ink: night.palette.ink1,
-            ground: night.palette.ground,
-          ),
+          painter: _HerePainter(ink: night.palette.ink1, ground: night.palette.ground),
         ),
       ),
     );
@@ -330,22 +328,14 @@ class _HerePainter extends CustomPainter {
     // A ring in the ground colour under the ink ring, so the mark reads over a
     // pale road as well as a dark block — two strokes, no shadow.
     canvas
-      ..drawCircle(
-        centre,
-        size.width / 2 - 1,
-        Paint()
-          ..color = ground
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4,
-      )
-      ..drawCircle(
-        centre,
-        size.width / 2 - 1,
-        Paint()
-          ..color = ink
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      )
+      ..drawCircle(centre, size.width / 2 - 1, Paint()
+        ..color = ground
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4)
+      ..drawCircle(centre, size.width / 2 - 1, Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2)
       ..drawCircle(centre, size.width / 5, Paint()..color = ink);
   }
 
@@ -390,7 +380,8 @@ class MapPinGlyph extends StatelessWidget {
 
   /// The glyph size in a list row: 24dp, scaling to 48 at 2.0× like every
   /// other meaning-bearing glyph.
-  static double rowSize(BuildContext context) => MarkScale.glyph(context, 24);
+  static double rowSize(BuildContext context) =>
+      MarkScale.glyph(context, 24);
 
   /// The glyph size **on the map**: 24dp, scaling to at most 32.
   ///
@@ -562,10 +553,7 @@ class MapLegend extends StatelessWidget {
         // inside one: at 2.0× "On today's route" is wider than the phone, and
         // without this the item overflows instead of taking a second line.
         Flexible(
-          child: Text(
-            word,
-            style: skin.text.meta.style(color: skin.palette.ink2),
-          ),
+          child: Text(word, style: skin.text.meta.style(color: skin.palette.ink2)),
         ),
       ],
     );

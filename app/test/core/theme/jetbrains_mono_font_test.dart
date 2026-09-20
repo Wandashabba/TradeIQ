@@ -28,12 +28,10 @@ void main() {
     final manifest =
         json.decode(await rootBundle.loadString('FontManifest.json')) as List;
     final mono = manifest.cast<Map<String, dynamic>>().firstWhere(
-      (family) => family['family'] == 'JetBrains Mono',
-      orElse: () => fail(
-        'JetBrains Mono is not declared in '
-        'FontManifest.json — the pubspec.yaml fonts entry is missing',
-      ),
-    );
+          (family) => family['family'] == 'JetBrains Mono',
+          orElse: () => fail('JetBrains Mono is not declared in '
+              'FontManifest.json — the pubspec.yaml fonts entry is missing'),
+        );
     final declared = <int, String>{
       for (final font in (mono['fonts'] as List).cast<Map<String, dynamic>>())
         font['weight'] as int: font['asset'] as String,
@@ -41,22 +39,13 @@ void main() {
     expect(declared, expectedWeights);
   });
 
-  test(
-    'every declared JetBrains Mono asset ships real TrueType bytes',
-    () async {
-      for (final entry in expectedWeights.entries) {
-        final bytes = await rootBundle.load(entry.value);
-        expect(
-          bytes.lengthInBytes,
-          greaterThan(100 * 1024),
-          reason: '${entry.value} is implausibly small for a full face',
-        );
-        expect(
-          bytes.getUint32(0),
-          0x00010000,
-          reason: '${entry.value} is not a TrueType font file',
-        );
-      }
-    },
-  );
+  test('every declared JetBrains Mono asset ships real TrueType bytes', () async {
+    for (final entry in expectedWeights.entries) {
+      final bytes = await rootBundle.load(entry.value);
+      expect(bytes.lengthInBytes, greaterThan(100 * 1024),
+          reason: '${entry.value} is implausibly small for a full face');
+      expect(bytes.getUint32(0), 0x00010000,
+          reason: '${entry.value} is not a TrueType font file');
+    }
+  });
 }

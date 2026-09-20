@@ -15,12 +15,10 @@ class RealGeolocatorGateway implements GeolocatorGateway {
   Future<LocationPermission> checkPermission() => Geolocator.checkPermission();
 
   @override
-  Future<LocationPermission> requestPermission() =>
-      Geolocator.requestPermission();
+  Future<LocationPermission> requestPermission() => Geolocator.requestPermission();
 
   @override
-  Future<bool> isLocationServiceEnabled() =>
-      Geolocator.isLocationServiceEnabled();
+  Future<bool> isLocationServiceEnabled() => Geolocator.isLocationServiceEnabled();
 
   @override
   Future<Position> getCurrentPosition() => Geolocator.getCurrentPosition();

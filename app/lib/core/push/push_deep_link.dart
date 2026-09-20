@@ -8,9 +8,7 @@ import '../router/app_router.dart';
 /// router, so it is checked anyway — no scheme, no `//host`. Which screens a
 /// role may see stays the router's redirect's job, as for any other link.
 bool isSafePushRoute(String route) {
-  if (!route.startsWith('/') ||
-      route.startsWith('//') ||
-      route.contains(r'\')) {
+  if (!route.startsWith('/') || route.startsWith('//') || route.contains(r'\')) {
     return false;
   }
   final uri = Uri.tryParse(route);

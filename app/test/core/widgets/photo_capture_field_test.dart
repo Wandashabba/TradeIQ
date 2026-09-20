@@ -325,7 +325,9 @@ void main() {
         photoCaptureServiceProvider.overrideWithValue(
           PhotoCaptureService(
             gateway: _FakeGateway(file: _xfile(Uint8List.fromList([1, 2]))),
-            geotagger: PhotoGeotagger(location: _GrantedLocation()),
+            geotagger: PhotoGeotagger(
+              location: _GrantedLocation(),
+            ),
             clock: () => shutter,
           ),
         ),

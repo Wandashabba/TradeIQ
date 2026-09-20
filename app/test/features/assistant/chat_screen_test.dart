@@ -40,10 +40,7 @@ void main() {
       await tester.tap(row);
       await tester.pumpAndSettle();
 
-      expect(
-        repository.sent.single,
-        'Which outlets keep running out of stock?',
-      );
+      expect(repository.sent.single, 'Which outlets keep running out of stock?');
       await disposeAsk(tester);
     });
 
@@ -229,9 +226,7 @@ void main() {
     });
 
     testWidgets('sending an empty message does nothing', (tester) async {
-      final repository = ScriptedRepository(const <AssistantEvent>[
-        DoneEvent(),
-      ]);
+      final repository = ScriptedRepository(const <AssistantEvent>[DoneEvent()]);
       await pumpAsk(tester, repository: repository);
 
       await ask(tester, '   ');
@@ -285,8 +280,7 @@ void main() {
         repository: ScriptedRepository(const <AssistantEvent>[
           ErrorEvent(
             code: 'internal',
-            message:
-                'TypeError: Cannot read properties of undefined '
+            message: 'TypeError: Cannot read properties of undefined '
                 '(reading "rows") at Object.run (/srv/app/tools.js:12:9)',
           ),
         ]),
@@ -360,19 +354,15 @@ void main() {
 
       final question =
           'Which outlets in Soweto ran out of the 500ml line last week, '
-              'and how does that compare with the same week last month, and '
-              'which agents visited them, and what did they report about the '
-              'shelf, and was there a promotion running at the time? ' *
-          2;
+          'and how does that compare with the same week last month, and '
+          'which agents visited them, and what did they report about the '
+          'shelf, and was there a promotion running at the time? ' * 2;
       await pumpAsk(tester, repository: ScriptedRepository(tilesTurn()));
       await ask(tester, question);
 
       final bubble = tester.widget<Text>(
         find
-            .descendant(
-              of: find.byType(QuestionBubble),
-              matching: find.byType(Text),
-            )
+            .descendant(of: find.byType(QuestionBubble), matching: find.byType(Text))
             .first,
       );
       // Six lines, then a way to the rest — never a fade over the text.
@@ -535,9 +525,7 @@ void main() {
       tester,
     ) async {
       final semantics = tester.ensureSemantics();
-      final repository = ScriptedRepository(const <AssistantEvent>[
-        DoneEvent(),
-      ]);
+      final repository = ScriptedRepository(const <AssistantEvent>[DoneEvent()]);
       await pumpAsk(tester, repository: repository, online: false);
 
       expect(screenText(tester), contains('No connection'));
@@ -589,10 +577,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey<String>('ask-history-chip')));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey<String>('ask-history-0')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey<String>('ask-history-0')), findsOneWidget);
       await disposeAsk(tester);
     });
 
@@ -609,9 +594,7 @@ void main() {
       await ask(tester, 'first question');
       await tester.tap(find.byKey(const ValueKey<String>('ask-history-chip')));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('ask-start-over-row')),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('ask-start-over-row')));
       await tester.pumpAndSettle();
 
       // A decision, not an instant wipe.
@@ -634,12 +617,10 @@ void main() {
       // The pill may go icon-only as a whole when a label does not fit; the
       // labels it measured, and speaks, are the reader's.
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      expect(pill.slots.map((s) => s.label), <String>[
-        'Vloer',
-        'Werk',
-        'Vra',
-        'Kieslys',
-      ]);
+      expect(
+        pill.slots.map((s) => s.label),
+        <String>['Vloer', 'Werk', 'Vra', 'Kieslys'],
+      );
       expect(screenText(tester), contains('Vra oor jou gebied.'));
       await disposeAsk(tester);
     });
@@ -693,10 +674,7 @@ void main() {
     });
 
     testWidgets('a measured zero is a zero', (tester) async {
-      await pumpAsk(
-        tester,
-        repository: ScriptedRepository(tilesTurn(value: 0)),
-      );
+      await pumpAsk(tester, repository: ScriptedRepository(tilesTurn(value: 0)));
       await ask(tester, 'How is sell-in?');
       expect(screenText(tester), isNot(contains('Nothing measured')));
       expect(
@@ -711,44 +689,45 @@ void main() {
 
   group('a figure recomputed while she reads it', () {
     /// The same card, patched in place: `stat_tiles` under one id (#410).
-    List<AssistantEvent> patched({num? second = 1290000}) => <AssistantEvent>[
-      const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
-      const ToolEndEvent(name: 'getSalesPerformance', ok: true),
-      const ArtifactEvent(
-        id: 'getSalesPerformance-stat_tiles-1',
-        type: 'stat_tiles',
-        params: <String, dynamic>{},
-        data: <String, dynamic>{
-          'outsideData': false,
-          'tiles': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'label': 'Sell-in, units',
-              'value': 1284990.5,
-              'unit': 'units',
-              'origin': 'internal',
+    List<AssistantEvent> patched({num? second = 1290000}) =>
+        <AssistantEvent>[
+          const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
+          const ToolEndEvent(name: 'getSalesPerformance', ok: true),
+          const ArtifactEvent(
+            id: 'getSalesPerformance-stat_tiles-1',
+            type: 'stat_tiles',
+            params: <String, dynamic>{},
+            data: <String, dynamic>{
+              'outsideData': false,
+              'tiles': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'label': 'Sell-in, units',
+                  'value': 1284990.5,
+                  'unit': 'units',
+                  'origin': 'internal',
+                },
+              ],
             },
-          ],
-        },
-      ),
-      ArtifactEvent(
-        id: 'getSalesPerformance-stat_tiles-1',
-        type: 'stat_tiles',
-        params: const <String, dynamic>{},
-        data: <String, dynamic>{
-          'outsideData': false,
-          'tiles': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'label': 'Sell-in, units',
-              'value': second,
-              'unit': 'units',
-              'origin': 'internal',
+          ),
+          ArtifactEvent(
+            id: 'getSalesPerformance-stat_tiles-1',
+            type: 'stat_tiles',
+            params: const <String, dynamic>{},
+            data: <String, dynamic>{
+              'outsideData': false,
+              'tiles': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'label': 'Sell-in, units',
+                  'value': second,
+                  'unit': 'units',
+                  'origin': 'internal',
+                },
+              ],
             },
-          ],
-        },
-      ),
-      const TokenEvent('Sell-in held steady.'),
-      const DoneEvent(),
-    ];
+          ),
+          const TokenEvent('Sell-in held steady.'),
+          const DoneEvent(),
+        ];
 
     testWidgets('says what she saw and when it stopped being true', (
       tester,

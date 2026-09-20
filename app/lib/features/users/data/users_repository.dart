@@ -24,12 +24,12 @@ class AppUser {
   String get label => personLabel(displayName, email);
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-    id: json['id'] as String,
-    email: json['email'] as String,
-    role: json['role'] as String,
-    active: json['active'] as bool? ?? true,
-    displayName: json['displayName'] as String?,
-  );
+        id: json['id'] as String,
+        email: json['email'] as String,
+        role: json['role'] as String,
+        active: json['active'] as bool? ?? true,
+        displayName: json['displayName'] as String?,
+      );
 }
 
 abstract class UsersRepository {
@@ -71,43 +71,38 @@ class DioUsersRepository implements UsersRepository {
     String? displayName,
   }) async {
     final name = nonBlankName(displayName);
-    final response = await dio.post(
-      '/users',
-      data: {
-        'email': email,
-        'password': password,
-        'role': role,
-        // Omitted rather than sent blank: the server stores no name either way,
-        // and an absent key keeps the request identical for unnamed users.
-        'displayName': ?name,
-      },
-    );
+    final response = await dio.post('/users', data: {
+      'email': email,
+      'password': password,
+      'role': role,
+      // Omitted rather than sent blank: the server stores no name either way,
+      // and an absent key keeps the request identical for unnamed users.
+      'displayName': ?name,
+    });
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<AppUser> setActive(String id, bool active) async {
-    final response = await dio.patch('/users/$id', data: {'active': active});
+    final response = await dio.patch('/users/$id', data: {
+      'active': active,
+    });
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<AppUser> updateDisplayName(String id, String? displayName) async {
-    final response = await dio.patch(
-      '/users/$id',
-      data: {
-        // Always present, unlike on create: an absent key means "leave it
-        // unchanged", so clearing must send an explicit null.
-        'displayName': nonBlankName(displayName),
-      },
-    );
+    final response = await dio.patch('/users/$id', data: {
+      // Always present, unlike on create: an absent key means "leave it
+      // unchanged", so clearing must send an explicit null.
+      'displayName': nonBlankName(displayName),
+    });
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final usersRepositoryProvider = Provider<UsersRepository>(
-  (ref) => DioUsersRepository(),
-);
+final usersRepositoryProvider =
+    Provider<UsersRepository>((ref) => DioUsersRepository());
 
 // The provider exposes the FIRST PAGE as a plain list: the admin roster
 // screen wants the current set, not the whole history, and "load more" UI is

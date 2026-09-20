@@ -147,25 +147,24 @@ void main() {
       (DeltaTone.warn, LumenStatus.warn),
       (DeltaTone.bad, LumenStatus.crit),
     ]) {
-      testWidgets(
-        '$tone takes the ${status.name} swatch, opaque, clearing AA',
-        (tester) async {
-          final (bg, fg) = await _pumpAndRead(
-            tester,
-            DeltaPill(delta: 1.0, tone: tone),
-            theme: AppTheme.light(),
-          );
+      testWidgets('$tone takes the ${status.name} swatch, opaque, clearing AA', (
+        tester,
+      ) async {
+        final (bg, fg) = await _pumpAndRead(
+          tester,
+          DeltaPill(delta: 1.0, tone: tone),
+          theme: AppTheme.light(),
+        );
 
-          final sw = status.swatchOf(TiqColors.light);
-          // An opaque composite, never the raw translucent tint — contrast is
-          // only honest against a ground that cannot change beneath it.
-          expect(bg, Color.alphaBlend(sw.tint, TiqColors.light.surface1));
-          expect(bg.a, 1.0);
-          expect(fg, sw.ink);
-          final ratio = contrastRatio(fg, bg);
-          expect(ratio, greaterThanOrEqualTo(4.5), reason: '$tone is $ratio:1');
-        },
-      );
+        final sw = status.swatchOf(TiqColors.light);
+        // An opaque composite, never the raw translucent tint — contrast is
+        // only honest against a ground that cannot change beneath it.
+        expect(bg, Color.alphaBlend(sw.tint, TiqColors.light.surface1));
+        expect(bg.a, 1.0);
+        expect(fg, sw.ink);
+        final ratio = contrastRatio(fg, bg);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$tone is $ratio:1');
+      });
     }
 
     testWidgets('a mono figure on a rimmed chip, the glyph kept', (

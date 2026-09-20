@@ -139,9 +139,7 @@ void main() {
       clock.advance(const Duration(seconds: 11));
       await tester.pump(const Duration(seconds: 11));
       repo.emit(const ToolEndEvent(name: 'getStockLevels', ok: true));
-      repo.emit(
-        const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
-      );
+      repo.emit(const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'));
       await pumpEvent(tester);
       clock.advance(const Duration(seconds: 2));
       await tester.pump(const Duration(seconds: 2));
@@ -315,33 +313,17 @@ void main() {
 
     test('labels competitor retailer-website prices apart from our own', () {
       const tool = ToolActivity(
-        name: 'getCompetitorShelfPrices',
-        pillar: 'competition',
-      );
+          name: 'getCompetitorShelfPrices', pillar: 'competition');
       expect(stepLabel(tool), 'Competitor shelf prices');
       expect(stepLabel(tool), isNot(contains('get')));
       expect(
-        stepLabel(tool),
-        isNot(
-          stepLabel(
-            const ToolActivity(
-              name: 'getPriceCompliance',
-              pillar: 'competition',
-            ),
-          ),
-        ),
-      );
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getPriceCompliance', pillar: 'competition'))));
       expect(
-        stepLabel(tool),
-        isNot(
-          stepLabel(
-            const ToolActivity(
-              name: 'getCompetitorActivity',
-              pillar: 'competition',
-            ),
-          ),
-        ),
-      );
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getCompetitorActivity', pillar: 'competition'))));
     });
   });
 

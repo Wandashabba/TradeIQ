@@ -57,8 +57,9 @@ Future<FakeContestsRepository> _pump(
     // The real standings screen, so "a row opens its standings" is the real
     // navigation and not a stub that would pass whatever the row did.
     routes: <String, GoRouterWidgetBuilder>{
-      '/contests/:id': (context, state) =>
-          const ContestStandingsScreen(contestId: 'c-active'),
+      '/contests/:id': (context, state) => const ContestStandingsScreen(
+        contestId: 'c-active',
+      ),
     },
   );
   return fake;

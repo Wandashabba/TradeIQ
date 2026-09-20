@@ -100,27 +100,30 @@ void main() {
         );
       });
 
-      testWidgets('$name self-contained AA pairs (ink/brand, onAction/action, '
-          'ink2/surface1)', (tester) async {
-        // White carries brand by day; night's pale lavender brand carries
-        // the dark action ink instead.
-        final onBrand = palette.isNight ? palette.onAction : Colors.white;
-        expect(
-          contrastRatio(onBrand, palette.brand),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name ink-on-brand',
-        );
-        expect(
-          contrastRatio(palette.onAction, palette.action),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name onAction-on-action',
-        );
-        expect(
-          contrastRatio(palette.ink2, palette.surface1),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name ink2-on-surface1',
-        );
-      });
+      testWidgets(
+        '$name self-contained AA pairs (ink/brand, onAction/action, '
+        'ink2/surface1)',
+        (tester) async {
+          // White carries brand by day; night's pale lavender brand carries
+          // the dark action ink instead.
+          final onBrand = palette.isNight ? palette.onAction : Colors.white;
+          expect(
+            contrastRatio(onBrand, palette.brand),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name ink-on-brand',
+          );
+          expect(
+            contrastRatio(palette.onAction, palette.action),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name onAction-on-action',
+          );
+          expect(
+            contrastRatio(palette.ink2, palette.surface1),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name ink2-on-surface1',
+          );
+        },
+      );
 
       testWidgets('$name is a button carrying its selected state', (
         tester,

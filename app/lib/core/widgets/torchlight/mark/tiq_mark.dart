@@ -198,8 +198,7 @@ class MarkScale {
   /// a factor multiplied into a size — a factor stops being right the moment
   /// the platform stops being linear.
   static double factor(BuildContext context) {
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     return scaler.clamp(maxScaleFactor: ceiling).scale(100) / 100;
   }
 
@@ -210,11 +209,7 @@ class MarkScale {
   /// The section-state tile: 28 at 1.0×, **48** at 2.0× — not 56. The tile is
   /// a container for a glyph, and a container that doubled would push a
   /// nine-rung ladder off the fold at the exact setting that needed it most.
-  static double tile(
-    BuildContext context, {
-    double base = 28,
-    double max = 48,
-  }) {
+  static double tile(BuildContext context, {double base = 28, double max = 48}) {
     final t = (factor(context) - 1).clamp(0.0, 1.0);
     return base + (max - base) * t;
   }
@@ -296,15 +291,9 @@ class MarkPainter extends CustomPainter {
           fill,
         );
       case MarkShape.deltaHollowUp:
-        canvas.drawPath(
-          _triangle(rect.deflate(strokeWidth / 2), up: true),
-          stroke,
-        );
+        canvas.drawPath(_triangle(rect.deflate(strokeWidth / 2), up: true), stroke);
       case MarkShape.deltaHollowDown:
-        canvas.drawPath(
-          _triangle(rect.deflate(strokeWidth / 2), up: false),
-          stroke,
-        );
+        canvas.drawPath(_triangle(rect.deflate(strokeWidth / 2), up: false), stroke);
       case MarkShape.flagBrokenRing:
         // A ring with a bite out of its right side: the fence is not closed.
         canvas.drawArc(
@@ -453,10 +442,7 @@ class MarkPainter extends CustomPainter {
       stroke,
     );
     canvas.drawLine(
-      Offset(
-        r.center.dx + headRadius * 0.72,
-        headCentre.dy + headRadius * 0.72,
-      ),
+      Offset(r.center.dx + headRadius * 0.72, headCentre.dy + headRadius * 0.72),
       Offset(r.center.dx, r.bottom),
       stroke,
     );
@@ -468,16 +454,8 @@ class MarkPainter extends CustomPainter {
     final y = r.center.dy;
     final wallX = r.right - s * 0.06;
     canvas
-      ..drawLine(
-        Offset(wallX, r.top + s * 0.14),
-        Offset(wallX, r.bottom - s * 0.14),
-        stroke,
-      )
-      ..drawLine(
-        Offset(r.left + s * 0.10, y),
-        Offset(wallX - s * 0.12, y),
-        stroke,
-      )
+      ..drawLine(Offset(wallX, r.top + s * 0.14), Offset(wallX, r.bottom - s * 0.14), stroke)
+      ..drawLine(Offset(r.left + s * 0.10, y), Offset(wallX - s * 0.12, y), stroke)
       ..drawPath(
         Path()
           ..moveTo(r.left + s * 0.10, y)

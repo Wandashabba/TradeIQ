@@ -200,7 +200,10 @@ class _ConfigBody extends ConsumerWidget {
 
         // ── The weights ───────────────────────────────────────────────
         SizedBox(height: skin.space.blockGap),
-        SectionRule('Scorecard weights', count: config.scorecardWeights.length),
+        SectionRule(
+          'Scorecard weights',
+          count: config.scorecardWeights.length,
+        ),
         const SizedBox(height: TiqSpace.s5),
         TorchBleed(
           extra: gutter * 2,
@@ -242,10 +245,8 @@ class _ConfigBody extends ConsumerWidget {
             child: TorchSecondaryButton(
               key: const ValueKey<String>('edit-thresholds'),
               label: 'Edit the thresholds',
-              onPressed: () => showThresholdsSheet(
-                context,
-                thresholds: config.kpiThresholds,
-              ),
+              onPressed: () =>
+                  showThresholdsSheet(context, thresholds: config.kpiThresholds),
             ),
           )
         else
@@ -811,14 +812,14 @@ class _WeightsSheet extends ConsumerStatefulWidget {
 class _WeightsSheetState extends ConsumerState<_WeightsSheet> {
   static const String commitClaimId = 'weights-save';
 
-  late final Map<String, TextEditingController> _controllers =
-      <String, TextEditingController>{
-        for (final e in widget.weights.entries)
-          // The share column has to move as you type, or the weights are just
-          // opaque numbers.
-          e.key: TextEditingController(text: '${e.value}')
-            ..addListener(() => setState(() {})),
-      };
+  late final Map<String, TextEditingController> _controllers = <String,
+      TextEditingController>{
+    for (final e in widget.weights.entries)
+      // The share column has to move as you type, or the weights are just
+      // opaque numbers.
+      e.key: TextEditingController(text: '${e.value}')
+        ..addListener(() => setState(() {})),
+  };
   bool _saving = false;
   TorchErrorMessage? _failure;
 
@@ -1048,8 +1049,7 @@ class _ThresholdsSheetState extends ConsumerState<_ThresholdsSheet> {
               controller: _controllers[t],
               decimals: 2,
               enabled: !_saving,
-              help:
-                  '${t.help} Blank uses the engine\'s own '
+              help: '${t.help} Blank uses the engine\'s own '
                   '${TiqNumber.of(context).format(t.fallback)}.',
             ),
             const SizedBox(height: TiqSpace.s5),
@@ -1233,8 +1233,7 @@ class ReadOnlyNotice extends StatelessWidget {
       key: ValueKey<String>('read-only-notice'),
       scope: EmptyScope.inline,
       headline: 'Read-only.',
-      body:
-          'Only an administrator can change scoring config — these figures '
+      body: 'Only an administrator can change scoring config — these figures '
           'are shown because they explain your scores.',
     );
   }

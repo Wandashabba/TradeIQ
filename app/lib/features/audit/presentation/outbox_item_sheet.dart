@@ -161,8 +161,9 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   /// out of the shop — and the reconciliation line ("Now scored 71 — it was
   /// 84 when you saw it") only ever appears on a LATER open, so without a way
   /// back it could not appear at all.
-  String? get _submittedVisit =>
-      widget.state == OutboxState.sent ? _item.visitDraftId : null;
+  String? get _submittedVisit => widget.state == OutboxState.sent
+      ? _item.visitDraftId
+      : null;
 
   @override
   Widget build(BuildContext context) {

@@ -131,43 +131,42 @@ class GeolocatorBackgroundLocationGateway implements BackgroundLocationGateway {
   Stream<BackgroundFix> positions({
     required Duration interval,
     required BackgroundNotificationText notification,
-  }) =>
-      Geolocator.getPositionStream(
-        locationSettings: AndroidSettings(
-          // Balanced rather than best: the question this tier answers is "did they
-          // travel between these stores", which a fused-provider fix answers at a
-          // fraction of the battery of a GPS lock (#153 risk 5). A background ping
-          // is never allowed to claim the agent is IN a store anyway, so the extra
-          // precision would buy nothing it is permitted to say.
-          accuracy: LocationAccuracy.medium,
-          // Zero, deliberately. A distance filter suppresses emissions until the
-          // phone has moved that far — so an agent standing in one shop for two
-          // hours would produce nothing at all, and the ten-minute floor the notice
-          // promises would quietly not exist. The interval is the rule; Android
-          // decides for itself how cheaply to serve each fix.
-          distanceFilter: 0,
-          intervalDuration: interval,
-          foregroundNotificationConfig: ForegroundNotificationConfig(
-            notificationTitle: notification.title,
-            notificationText: notification.body,
-            notificationChannelName: notification.channelName,
-            // The system may doze between fixes; without this the ten-minute
-            // cadence collapses into a burst whenever the phone next wakes.
-            enableWakeLock: true,
-            // Non-dismissable. Android requires a notification for a location
-            // foreground service, and an agent must not be able to swipe away the
-            // one thing telling them their route is being recorded.
-            setOngoing: true,
-          ),
-        ),
-      ).map(
-        (position) => BackgroundFix(
-          lat: position.latitude,
-          lng: position.longitude,
-          accuracyM: position.accuracy,
-          fixedAt: position.timestamp,
-        ),
-      );
+  }) => Geolocator.getPositionStream(
+    locationSettings: AndroidSettings(
+      // Balanced rather than best: the question this tier answers is "did they
+      // travel between these stores", which a fused-provider fix answers at a
+      // fraction of the battery of a GPS lock (#153 risk 5). A background ping
+      // is never allowed to claim the agent is IN a store anyway, so the extra
+      // precision would buy nothing it is permitted to say.
+      accuracy: LocationAccuracy.medium,
+      // Zero, deliberately. A distance filter suppresses emissions until the
+      // phone has moved that far — so an agent standing in one shop for two
+      // hours would produce nothing at all, and the ten-minute floor the notice
+      // promises would quietly not exist. The interval is the rule; Android
+      // decides for itself how cheaply to serve each fix.
+      distanceFilter: 0,
+      intervalDuration: interval,
+      foregroundNotificationConfig: ForegroundNotificationConfig(
+        notificationTitle: notification.title,
+        notificationText: notification.body,
+        notificationChannelName: notification.channelName,
+        // The system may doze between fixes; without this the ten-minute
+        // cadence collapses into a burst whenever the phone next wakes.
+        enableWakeLock: true,
+        // Non-dismissable. Android requires a notification for a location
+        // foreground service, and an agent must not be able to swipe away the
+        // one thing telling them their route is being recorded.
+        setOngoing: true,
+      ),
+    ),
+  ).map(
+    (position) => BackgroundFix(
+      lat: position.latitude,
+      lng: position.longitude,
+      accuracyM: position.accuracy,
+      fixedAt: position.timestamp,
+    ),
+  );
 }
 
 /// The gateway, or **null on every platform but Android**.
@@ -264,8 +263,7 @@ class BackgroundLocationState {
   }
 
   BackgroundTrackingStep get step {
-    if (!supported || settings == null)
-      return BackgroundTrackingStep.unavailable;
+    if (!supported || settings == null) return BackgroundTrackingStep.unavailable;
     if (showingNotice) return BackgroundTrackingStep.notice;
     if (!accepted) return BackgroundTrackingStep.off;
     if (!permitted) return BackgroundTrackingStep.needsPermission;
@@ -303,8 +301,7 @@ class BackgroundLocationController extends Notifier<BackgroundLocationState> {
   bool _disposed = false;
   String? _userId;
   DateTime? _lastRecordedAt;
-  BackgroundNotificationText _notification =
-      BackgroundNotificationText.fallback;
+  BackgroundNotificationText _notification = BackgroundNotificationText.fallback;
 
   @override
   BackgroundLocationState build() {
@@ -351,10 +348,7 @@ class BackgroundLocationController extends Notifier<BackgroundLocationState> {
 
     return BackgroundLocationState(
       supported: true,
-      settings: ref
-          .read(locationSharingControllerProvider)
-          .settings
-          ?.background,
+      settings: ref.read(locationSharingControllerProvider).settings?.background,
       now: _now(),
     );
   }
@@ -383,9 +377,7 @@ class BackgroundLocationController extends Notifier<BackgroundLocationState> {
   Future<void> enable() async {
     if (!state.supported || state.settings == null) return;
     state = state.copyWith(showingNotice: false);
-    await ref
-        .read(locationSharingControllerProvider.notifier)
-        .acceptBackground();
+    await ref.read(locationSharingControllerProvider.notifier).acceptBackground();
     await requestPermission();
   }
 
@@ -394,9 +386,7 @@ class BackgroundLocationController extends Notifier<BackgroundLocationState> {
   /// leaves the heartbeat exactly as it was.
   Future<void> stop() async {
     state = state.copyWith(showingNotice: false);
-    await ref
-        .read(locationSharingControllerProvider.notifier)
-        .declineBackground();
+    await ref.read(locationSharingControllerProvider.notifier).declineBackground();
   }
 
   /// Android's two-step background-location flow.

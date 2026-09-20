@@ -256,7 +256,8 @@ class Delta extends StatelessWidget {
               ],
             ),
           ),
-          if (data.comparedTo != null) Text(data.comparedTo!, style: metaStyle),
+          if (data.comparedTo != null)
+            Text(data.comparedTo!, style: metaStyle),
         ],
       ),
     );

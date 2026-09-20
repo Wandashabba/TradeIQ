@@ -72,10 +72,10 @@ class _FailingRepo implements GamificationRepository {
 }
 
 Widget _app(GamificationRepository repo, {ThemeData? theme}) => routedApp(
-  const AgentPointsScreen(agentId: 'a-1'),
-  theme: theme,
-  overrides: [gamificationRepositoryProvider.overrideWithValue(repo)],
-);
+      const AgentPointsScreen(agentId: 'a-1'),
+      theme: theme,
+      overrides: [gamificationRepositoryProvider.overrideWithValue(repo)],
+    );
 
 void main() {
   for (final (label, theme) in [
@@ -122,18 +122,15 @@ void main() {
       expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
     });
 
-    testWidgets('$label: an agent with no entries gets an empty state', (
-      tester,
-    ) async {
+    testWidgets('$label: an agent with no entries gets an empty state',
+        (tester) async {
       await tester.pumpWidget(
         _app(
-          _FakeRepo(
-            const AgentPointsHistory(
-              agentId: 'a-1',
-              email: 'new@example.com',
-              entries: [],
-            ),
-          ),
+          _FakeRepo(const AgentPointsHistory(
+            agentId: 'a-1',
+            email: 'new@example.com',
+            entries: [],
+          )),
           theme: theme,
         ),
       );
@@ -144,9 +141,8 @@ void main() {
     });
   }
 
-  testWidgets('flat palette: the figure line keeps the row meta style', (
-    tester,
-  ) async {
+  testWidgets('flat palette: the figure line keeps the row meta style',
+      (tester) async {
     await tester.pumpWidget(_app(_FakeRepo(_history)));
     await tester.pumpAndSettle();
 
@@ -160,9 +156,6 @@ void main() {
     await tester.pumpWidget(_app(_FailingRepo()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load points history'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load points history'), findsOneWidget);
   });
 }

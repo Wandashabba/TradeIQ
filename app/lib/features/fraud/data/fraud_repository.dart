@@ -4,14 +4,17 @@ import '../../../core/network/paginated_response.dart';
 
 /// A single risk signal contributing to a flagged visit's score.
 class FraudSignal {
-  const FraudSignal({required this.code, required this.detail});
+  const FraudSignal({
+    required this.code,
+    required this.detail,
+  });
   final String code;
   final String detail;
 
   factory FraudSignal.fromJson(Map<String, dynamic> json) => FraudSignal(
-    code: json['code'] as String,
-    detail: json['detail'] as String,
-  );
+        code: json['code'] as String,
+        detail: json['detail'] as String,
+      );
 }
 
 /// A visit flagged by the fraud engine, returned by GET /fraud/flagged.
@@ -30,16 +33,15 @@ class FlaggedVisit {
   final List<FraudSignal> signals;
 
   factory FlaggedVisit.fromJson(Map<String, dynamic> json) => FlaggedVisit(
-    visitId: json['visitId'] as String,
-    outletId: json['outletId'] as String,
-    agentId: json['agentId'] as String,
-    riskScore: (json['riskScore'] as num).toDouble(),
-    signals:
-        (json['signals'] as List?)
-            ?.map((s) => FraudSignal.fromJson(s as Map<String, dynamic>))
-            .toList() ??
-        [],
-  );
+        visitId: json['visitId'] as String,
+        outletId: json['outletId'] as String,
+        agentId: json['agentId'] as String,
+        riskScore: (json['riskScore'] as num).toDouble(),
+        signals: (json['signals'] as List?)
+                ?.map((s) => FraudSignal.fromJson(s as Map<String, dynamic>))
+                .toList() ??
+            [],
+      );
 }
 
 /// One page of GET /fraud/flagged: the standard `{data, nextCursor}` envelope,
@@ -85,9 +87,8 @@ class DioFraudRepository implements FraudRepository {
   }
 }
 
-final fraudRepositoryProvider = Provider<FraudRepository>(
-  (ref) => DioFraudRepository(),
-);
+final fraudRepositoryProvider =
+    Provider<FraudRepository>((ref) => DioFraudRepository());
 
 // The FIRST PAGE, riskiest first. "Load more" is out of scope, as for every
 // list (see the pagination spec); the screen says when there is more.

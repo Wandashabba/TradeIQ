@@ -205,10 +205,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Where their stores are. The nav's third slot, and the reason it exists
       // again (#383's sibling): a tab with no destination was cut at
       // migration rather than faked.
-      GoRoute(
-        path: '/map',
-        builder: (context, state) => const AgentMapScreen(),
-      ),
+      GoRoute(path: '/map', builder: (context, state) => const AgentMapScreen()),
       // The field agent's own record: their visits, their points, and the
       // honest story about a score that changed (#383/#384). Self-scoped on
       // the server, so it is not in `managerOnly` and not guarded here — a

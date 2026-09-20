@@ -96,7 +96,11 @@ String runDeliverySummaryLabel(ReportRun run) {
   switch (webhook.status) {
     case 'queued':
       parts.add(
-        'Webhooks: ${_counts(<(int, String)>[(webhook.delivered, 'delivered'), (webhook.pending, 'pending'), (webhook.failed, 'failed')], 'queued')}',
+        'Webhooks: ${_counts(<(int, String)>[
+          (webhook.delivered, 'delivered'),
+          (webhook.pending, 'pending'),
+          (webhook.failed, 'failed'),
+        ], 'queued')}',
       );
     case 'no_subscribers':
       parts.add('Webhooks: none subscribed');
@@ -108,7 +112,11 @@ String runDeliverySummaryLabel(ReportRun run) {
   switch (email.status) {
     case 'queued':
       parts.add(
-        'Email: ${_counts(<(int, String)>[(email.sent, 'sent'), (email.pending, 'pending'), (email.failed, 'failed')], 'queued')}',
+        'Email: ${_counts(<(int, String)>[
+          (email.sent, 'sent'),
+          (email.pending, 'pending'),
+          (email.failed, 'failed'),
+        ], 'queued')}',
       );
     case 'not_configured':
       parts.add('Email: not set up (${email.notConfigured} not emailed)');
@@ -300,8 +308,7 @@ class _ReportRunHistoryScreenState
         const EmptyState(
           scope: EmptyScope.inPanel,
           headline: 'No runs yet.',
-          body:
-              'A run appears each time the schedule fires or you use Run '
+          body: 'A run appears each time the schedule fires or you use Run '
               'now.',
         ),
       ];
@@ -474,8 +481,7 @@ class _RunRowState extends State<_RunRow> {
           key: ValueKey<String>('run-row-${run.id}'),
           density: SoftRowDensity.tall,
           title: runTitle(run),
-          subtitle:
-              '${rowCountLabel(run.rowCount)} · '
+          subtitle: '${rowCountLabel(run.rowCount)} · '
               '${runDeliverySummaryLabel(run)}',
           severity: run.status == ReportRunStatus.failed
               ? SoftRowSeverity.critical
@@ -618,7 +624,9 @@ class _RunDetail extends StatelessWidget {
       return <Widget>[
         for (var i = 0; i < run.webhookDeliveries.length; i++)
           _DeliveryRow(
-            key: ValueKey<String>('run-webhook-${run.webhookDeliveries[i].id}'),
+            key: ValueKey<String>(
+              'run-webhook-${run.webhookDeliveries[i].id}',
+            ),
             // A URL is a thing the system calls, not prose.
             subject: run.webhookDeliveries[i].url,
             word: webhookDeliveryWord(run.webhookDeliveries[i].status),
@@ -706,8 +714,7 @@ class _EmailDeliveries extends ConsumerWidget {
         message: TorchErrorMessage.sanitise(error),
         action: TorchSecondaryButton(
           label: 'Try again',
-          onPressed: () =>
-              ref.invalidate(reportRunEmailDeliveriesProvider(key)),
+          onPressed: () => ref.invalidate(reportRunEmailDeliveriesProvider(key)),
         ),
       ),
       data: (list) => list.isEmpty
@@ -786,7 +793,12 @@ class _DeliveryRow extends StatelessWidget {
         ],
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel: <String>[subject, word, ...facts, ?error].join('. '),
+      semanticsLabel: <String>[
+        subject,
+        word,
+        ...facts,
+        ?error,
+      ].join('. '),
     );
   }
 }

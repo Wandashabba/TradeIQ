@@ -335,7 +335,10 @@ class _Change extends StatelessWidget {
             // "n/a" rather than a percentage the server refused to invent.
             row.deltaPct == null
                 ? 'n/a'
-                : formatChangePct(row.deltaPct!, number: TiqNumber.of(context)),
+                : formatChangePct(
+                    row.deltaPct!,
+                    number: TiqNumber.of(context),
+                  ),
             style: colors.glass
                 ? LumenGlass.figure(
                     size: 11.5,

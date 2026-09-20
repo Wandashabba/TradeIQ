@@ -522,7 +522,9 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await ref.read(webhooksRepositoryProvider).redeliver(widget.delivery.id);
+      await ref
+          .read(webhooksRepositoryProvider)
+          .redeliver(widget.delivery.id);
       if (!mounted) return;
       showTorchToast(
         context,

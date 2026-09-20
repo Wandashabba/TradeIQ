@@ -114,10 +114,8 @@ void main() {
       expect(chips[1].level, StatusLevel.held);
 
       // The word reaches the row's one semantics node through trailingLabel.
-      expect(
-        tester.getSemantics(keyed('user-u-named')).label,
-        contains('Active'),
-      );
+      expect(tester.getSemantics(keyed('user-u-named')).label,
+          contains('Active'));
       expect(
         tester.getSemantics(keyed('user-u-inactive')).label,
         contains('Inactive'),
@@ -181,7 +179,10 @@ void main() {
       tester,
     ) async {
       await _pump(tester, role: 'manager');
-      expect(find.text('Only admins can add or change users.'), findsOneWidget);
+      expect(
+        find.text('Only admins can add or change users.'),
+        findsOneWidget,
+      );
       expect(keyed('user-create'), findsNothing);
 
       // A manager may reset a field agent and nobody else — the same rule the
@@ -282,30 +283,28 @@ void main() {
       expect(find.text('Lerato Dube'), findsOneWidget);
     });
 
-    testWidgets(
-      'a blank name clears it and the row falls back to the address',
-      (tester) async {
-        final repo = await _pump(
-          tester,
-          repo: FakeUsersRepository(users: const <AppUser>[namedUser]),
-        );
-        await openEdit(tester, 'u-named');
+    testWidgets('a blank name clears it and the row falls back to the address',
+        (tester) async {
+      final repo = await _pump(
+        tester,
+        repo: FakeUsersRepository(users: const <AppUser>[namedUser]),
+      );
+      await openEdit(tester, 'u-named');
 
-        await tester.enterText(keyed('edit-name-field'), '   ');
-        await tester.pumpAndSettle();
-        await tester.tap(keyed('edit-name-save'));
-        await tester.pumpAndSettle();
+      await tester.enterText(keyed('edit-name-field'), '   ');
+      await tester.pumpAndSettle();
+      await tester.tap(keyed('edit-name-save'));
+      await tester.pumpAndSettle();
 
-        expect(repo.updatedDisplayName, isNull);
-        expect(find.text('Sipho Ndlovu'), findsNothing);
-        final handle = tester.ensureSemantics();
-        expect(
-          tester.getSemantics(keyed('user-u-named')).label,
-          contains('agent7@example.com'),
-        );
-        handle.dispose();
-      },
-    );
+      expect(repo.updatedDisplayName, isNull);
+      expect(find.text('Sipho Ndlovu'), findsNothing);
+      final handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(keyed('user-u-named')).label,
+        contains('agent7@example.com'),
+      );
+      handle.dispose();
+    });
 
     testWidgets('an unchanged name closes without a request', (tester) async {
       final repo = await _pump(

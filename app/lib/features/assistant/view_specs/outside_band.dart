@@ -92,8 +92,8 @@ class OutsideDataBand extends StatelessWidget {
     if (rows.isEmpty) return const SizedBox.shrink();
 
     final date = readAt == null ? null : _shortDate(readAt);
-    final stale =
-        readAt != null && now.difference(readAt).inDays > staleAfterDays;
+    final stale = readAt != null &&
+        now.difference(readAt).inDays > staleAfterDays;
 
     final label = <String>[
       l10n.askOutsideData,
@@ -169,8 +169,7 @@ class _OutsideRow extends StatelessWidget {
           semanticsLabel: tile.value == null ? l10n.askTileNoData : null,
         ),
       ),
-      semanticsLabel:
-          '${tile.label}, '
+      semanticsLabel: '${tile.label}, '
           '${tile.formatted(number: TiqNumber.of(context))}, '
           '${l10n.askOutsideFigure}',
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,

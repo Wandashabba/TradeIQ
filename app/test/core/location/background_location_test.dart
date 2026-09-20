@@ -180,9 +180,9 @@ class _Harness {
 
   Future<List<SyncQueueItem>> rows(WidgetTester tester, String type) async =>
       (await tester.runAsync(
-        () => (db.select(
-          db.syncQueueItems,
-        )..where((t) => t.entityType.equals(type))).get(),
+        () => (db.select(db.syncQueueItems)
+              ..where((t) => t.entityType.equals(type)))
+            .get(),
       ))!;
 }
 
@@ -268,25 +268,27 @@ void main() {
       BackgroundFix(lat: -26.1, lng: 28.05, accuracyM: 14, fixedAt: at);
 
   group('nothing runs until every gate is open', () {
-    _trackingTest(
-      'before the background notice is accepted, nothing is collected',
-      (tester) async {
-        final h = await _start(tester, settings: _settings(closesAt: closesAt));
+    _trackingTest('before the background notice is accepted, nothing is collected', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(closesAt: closesAt),
+      );
 
-        expect(h.state.supported, isTrue);
-        expect(h.state.unanswered, isTrue);
-        expect(h.state.step, BackgroundTrackingStep.off);
-        expect(h.state.running, isFalse);
-        // No service, so no notification and no permission prompt either — the
-        // agent has not been told what it is for yet.
-        expect(h.gateway.starts, 0);
-        expect(h.gateway.permissionRequests, 0);
+      expect(h.state.supported, isTrue);
+      expect(h.state.unanswered, isTrue);
+      expect(h.state.step, BackgroundTrackingStep.off);
+      expect(h.state.running, isFalse);
+      // No service, so no notification and no permission prompt either — the
+      // agent has not been told what it is for yet.
+      expect(h.gateway.starts, 0);
+      expect(h.gateway.permissionRequests, 0);
 
-        h.gateway.emit(fixAt(DateTime.utc(2026, 9, 17, 9, 30)));
-        await _settle(tester);
-        expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
-      },
-    );
+      h.gateway.emit(fixAt(DateTime.utc(2026, 9, 17, 9, 30)));
+      await _settle(tester);
+      expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
+    });
 
     _trackingTest('a decline keeps it off', (tester) async {
       final h = await _start(
@@ -300,9 +302,7 @@ void main() {
       expect(h.gateway.starts, 0);
     });
 
-    _trackingTest('outside working hours, nothing is collected', (
-      tester,
-    ) async {
+    _trackingTest('outside working hours, nothing is collected', (tester) async {
       final h = await _start(
         tester,
         settings: _settings(
@@ -323,24 +323,23 @@ void main() {
       expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
     });
 
-    _trackingTest(
-      'without Android’s background permission, nothing is collected',
-      (tester) async {
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-          gateway: _Gateway(permission: LocationPermission.whileInUse),
-        );
+    _trackingTest('without Android’s background permission, nothing is collected', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+        gateway: _Gateway(permission: LocationPermission.whileInUse),
+      );
 
-        expect(h.state.permitted, isFalse);
-        expect(h.state.step, BackgroundTrackingStep.needsPermission);
-        expect(h.state.running, isFalse);
-        expect(h.gateway.starts, 0);
-      },
-    );
+      expect(h.state.permitted, isFalse);
+      expect(h.state.step, BackgroundTrackingStep.needsPermission);
+      expect(h.state.running, isFalse);
+      expect(h.gateway.starts, 0);
+    });
 
     _trackingTest('on anything but Android it is inert', (tester) async {
       final h = await _start(
@@ -372,43 +371,42 @@ void main() {
   });
 
   group('inside working hours, with consent', () {
-    _trackingTest(
-      'runs a foreground service and queues pings through the outbox',
-      (tester) async {
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-        );
+    _trackingTest('runs a foreground service and queues pings through the outbox', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+      );
 
-        expect(h.state.step, BackgroundTrackingStep.running);
-        expect(h.state.running, isTrue);
-        expect(h.gateway.starts, 1);
-        expect(h.gateway.interval, const Duration(minutes: 10));
-        // Whatever words it carries, the notification is non-dismissable — that
-        // is set on the config the real gateway builds, and the fake proves only
-        // that one was supplied at all.
-        expect(h.gateway.notification, isNotNull);
+      expect(h.state.step, BackgroundTrackingStep.running);
+      expect(h.state.running, isTrue);
+      expect(h.gateway.starts, 1);
+      expect(h.gateway.interval, const Duration(minutes: 10));
+      // Whatever words it carries, the notification is non-dismissable — that
+      // is set on the config the real gateway builds, and the fake proves only
+      // that one was supplied at all.
+      expect(h.gateway.notification, isNotNull);
 
-        final at = DateTime.utc(2026, 9, 17, 9, 30);
-        h.gateway.emit(fixAt(at));
-        await _settle(tester);
+      final at = DateTime.utc(2026, 9, 17, 9, 30);
+      h.gateway.emit(fixAt(at));
+      await _settle(tester);
 
-        final rows = await h.rows(tester, locationBackgroundPingEntity);
-        expect(rows, hasLength(1));
-        expect(jsonDecode(rows.single.payloadJson), {
-          'lat': -26.1,
-          'lng': 28.05,
-          'accuracyM': 14,
-          'recordedAt': at.toIso8601String(),
-        });
-        // The foreground lane stays empty: these are not heartbeat pings, and the
-        // two are posted in separate requests with separate sources.
-        expect(await h.rows(tester, locationPingEntity), isEmpty);
-      },
-    );
+      final rows = await h.rows(tester, locationBackgroundPingEntity);
+      expect(rows, hasLength(1));
+      expect(jsonDecode(rows.single.payloadJson), {
+        'lat': -26.1,
+        'lng': 28.05,
+        'accuracyM': 14,
+        'recordedAt': at.toIso8601String(),
+      });
+      // The foreground lane stays empty: these are not heartbeat pings, and the
+      // two are posted in separate requests with separate sources.
+      expect(await h.rows(tester, locationPingEntity), isEmpty);
+    });
 
     _trackingTest('stamps the FIX time, not the moment it was delivered', (
       tester,
@@ -480,167 +478,158 @@ void main() {
   });
 
   group('the two notices are independent', () {
-    _trackingTest(
-      'accepting background records its own answer and starts the service',
-      (tester) async {
-        final h = await _start(tester, settings: _settings(closesAt: closesAt));
-        expect(h.state.step, BackgroundTrackingStep.off);
+    _trackingTest('accepting background records its own answer and starts the service', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(closesAt: closesAt),
+      );
+      expect(h.state.step, BackgroundTrackingStep.off);
 
-        await tester.runAsync(h.controller.enable);
-        await _settle(tester);
+      await tester.runAsync(h.controller.enable);
+      await _settle(tester);
 
-        expect(h.state.accepted, isTrue);
-        expect(h.state.step, BackgroundTrackingStep.running);
-        expect(h.gateway.starts, 1);
+      expect(h.state.accepted, isTrue);
+      expect(h.state.step, BackgroundTrackingStep.running);
+      expect(h.gateway.starts, 1);
 
-        final answers = await h.rows(tester, locationConsentEntity);
-        expect(answers, hasLength(1));
-        final payload = jsonDecode(answers.single.payloadJson) as Map;
-        expect(payload['kind'], 'background');
-        expect(payload['decision'], 'acknowledged');
-        expect(payload['noticeVersion'], 'bg-v1');
+      final answers = await h.rows(tester, locationConsentEntity);
+      expect(answers, hasLength(1));
+      final payload = jsonDecode(answers.single.payloadJson) as Map;
+      expect(payload['kind'], 'background');
+      expect(payload['decision'], 'acknowledged');
+      expect(payload['noticeVersion'], 'bg-v1');
 
-        // The foreground notice is untouched — still unanswered.
-        expect(h.sharing.settings?.decision, isNull);
-        expect(h.sharing.running, isFalse);
-      },
-    );
+      // The foreground notice is untouched — still unanswered.
+      expect(h.sharing.settings?.decision, isNull);
+      expect(h.sharing.running, isFalse);
+    });
 
-    _trackingTest(
-      'the permission is only asked for AFTER the notice is accepted',
-      (tester) async {
-        final h = await _start(
-          tester,
-          settings: _settings(closesAt: closesAt),
-          gateway: _Gateway(permission: LocationPermission.denied),
-        );
-        expect(h.gateway.permissionRequests, 0);
+    _trackingTest('the permission is only asked for AFTER the notice is accepted', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(closesAt: closesAt),
+        gateway: _Gateway(permission: LocationPermission.denied),
+      );
+      expect(h.gateway.permissionRequests, 0);
 
-        await tester.runAsync(h.controller.enable);
-        await _settle(tester);
-        expect(h.gateway.permissionRequests, greaterThan(0));
-      },
-    );
+      await tester.runAsync(h.controller.enable);
+      await _settle(tester);
+      expect(h.gateway.permissionRequests, greaterThan(0));
+    });
 
-    _trackingTest(
-      'stopping background tracking leaves foreground sharing alone',
-      (tester) async {
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            foreground: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-        );
-        expect(h.state.running, isTrue);
-        expect(h.sharing.acknowledged, isTrue);
+    _trackingTest('stopping background tracking leaves foreground sharing alone', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          foreground: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+      );
+      expect(h.state.running, isTrue);
+      expect(h.sharing.acknowledged, isTrue);
 
-        h.gateway.emit(fixAt(DateTime.utc(2026, 9, 17, 9, 30)));
-        await _settle(tester);
-        expect(
-          await h.rows(tester, locationBackgroundPingEntity),
-          hasLength(1),
-        );
+      h.gateway.emit(fixAt(DateTime.utc(2026, 9, 17, 9, 30)));
+      await _settle(tester);
+      expect(await h.rows(tester, locationBackgroundPingEntity), hasLength(1));
 
-        await tester.runAsync(h.controller.stop);
-        await _settle(tester);
+      await tester.runAsync(h.controller.stop);
+      await _settle(tester);
 
-        expect(h.state.accepted, isFalse);
-        expect(h.state.step, BackgroundTrackingStep.off);
-        expect(h.state.running, isFalse);
-        expect(h.gateway.cancels, 1);
-        // The queued route points never leave the phone...
-        expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
-        // ...and foreground sharing is exactly where it was.
-        expect(h.sharing.acknowledged, isTrue);
-        expect(
-          h.sharing.settings?.decision?.consent,
-          LocationConsent.acknowledged,
-        );
-      },
-    );
+      expect(h.state.accepted, isFalse);
+      expect(h.state.step, BackgroundTrackingStep.off);
+      expect(h.state.running, isFalse);
+      expect(h.gateway.cancels, 1);
+      // The queued route points never leave the phone...
+      expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
+      // ...and foreground sharing is exactly where it was.
+      expect(h.sharing.acknowledged, isTrue);
+      expect(h.sharing.settings?.decision?.consent, LocationConsent.acknowledged);
+    });
 
-    _trackingTest(
-      'stopping foreground sharing leaves background tracking running',
-      (tester) async {
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            foreground: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-        );
-        expect(h.state.running, isTrue);
+    _trackingTest('stopping foreground sharing leaves background tracking running', (
+      tester,
+    ) async {
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          foreground: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+      );
+      expect(h.state.running, isTrue);
 
-        await tester.runAsync(
-          h.container.read(locationSharingControllerProvider.notifier).decline,
-        );
-        await _settle(tester);
+      await tester.runAsync(
+        h.container.read(locationSharingControllerProvider.notifier).decline,
+      );
+      await _settle(tester);
 
-        expect(h.sharing.acknowledged, isFalse);
-        expect(h.state.accepted, isTrue);
-        expect(h.state.step, BackgroundTrackingStep.running);
-        expect(h.gateway.cancels, 0);
-      },
-    );
+      expect(h.sharing.acknowledged, isFalse);
+      expect(h.state.accepted, isTrue);
+      expect(h.state.step, BackgroundTrackingStep.running);
+      expect(h.gateway.cancels, 0);
+    });
   });
 
   group('a refusal stops this and nothing else', () {
-    _trackingTest(
-      'whileInUse offers the settings page rather than asking again forever',
-      (tester) async {
-        final gateway = _Gateway(permission: LocationPermission.whileInUse);
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            foreground: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-          gateway: gateway,
-        );
+    _trackingTest('whileInUse offers the settings page rather than asking again forever', (
+      tester,
+    ) async {
+      final gateway = _Gateway(permission: LocationPermission.whileInUse);
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          foreground: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+        gateway: gateway,
+      );
 
-        await tester.runAsync(h.controller.requestPermission);
-        await _settle(tester);
+      await tester.runAsync(h.controller.requestPermission);
+      await _settle(tester);
 
-        expect(h.state.permissionRefused, isTrue);
-        expect(h.state.step, BackgroundTrackingStep.needsPermission);
-        expect(h.gateway.starts, 0);
-        // The heartbeat is entirely unaffected by the refusal.
-        expect(h.sharing.acknowledged, isTrue);
+      expect(h.state.permissionRefused, isTrue);
+      expect(h.state.step, BackgroundTrackingStep.needsPermission);
+      expect(h.gateway.starts, 0);
+      // The heartbeat is entirely unaffected by the refusal.
+      expect(h.sharing.acknowledged, isTrue);
 
-        await tester.runAsync(h.controller.openSettings);
-        expect(h.gateway.settingsOpened, 1);
-      },
-    );
+      await tester.runAsync(h.controller.openSettings);
+      expect(h.gateway.settingsOpened, 1);
+    });
 
-    _trackingTest(
-      'granting it from the settings page starts tracking on resume',
-      (tester) async {
-        final gateway = _Gateway(permission: LocationPermission.whileInUse);
-        final h = await _start(
-          tester,
-          settings: _settings(
-            background: LocationConsent.acknowledged,
-            closesAt: closesAt,
-          ),
-          gateway: gateway,
-        );
-        expect(h.state.running, isFalse);
+    _trackingTest('granting it from the settings page starts tracking on resume', (
+      tester,
+    ) async {
+      final gateway = _Gateway(permission: LocationPermission.whileInUse);
+      final h = await _start(
+        tester,
+        settings: _settings(
+          background: LocationConsent.acknowledged,
+          closesAt: closesAt,
+        ),
+        gateway: gateway,
+      );
+      expect(h.state.running, isFalse);
 
-        // They came back from Android's settings having chosen "Allow all the
-        // time"; the app only finds out by looking again.
-        gateway.permission = LocationPermission.always;
-        h.controller.handleLifecycle(AppLifecycleState.resumed);
-        await _settle(tester);
+      // They came back from Android's settings having chosen "Allow all the
+      // time"; the app only finds out by looking again.
+      gateway.permission = LocationPermission.always;
+      h.controller.handleLifecycle(AppLifecycleState.resumed);
+      await _settle(tester);
 
-        expect(h.state.permitted, isTrue);
-        expect(h.state.running, isTrue);
-        expect(h.gateway.starts, 1);
-      },
-    );
+      expect(h.state.permitted, isTrue);
+      expect(h.state.running, isTrue);
+      expect(h.gateway.starts, 1);
+    });
 
     _trackingTest('a hard denial is not an error, it is just no tracking', (
       tester,
@@ -670,8 +659,7 @@ void main() {
     expect(h.gateway.starts, 1);
 
     h.container.read(sessionControllerProvider.notifier);
-    (h.container.read(sessionControllerProvider.notifier) as _Session)
-        .signOut();
+    (h.container.read(sessionControllerProvider.notifier) as _Session).signOut();
     currentLocalUserId = null;
     await _settle(tester);
 
@@ -687,9 +675,7 @@ void main() {
     expect(await h.rows(tester, locationBackgroundPingEntity), isEmpty);
   });
 
-  _trackingTest('a server that predates T2 offers nothing at all', (
-    tester,
-  ) async {
+  _trackingTest('a server that predates T2 offers nothing at all', (tester) async {
     final h = await _start(
       tester,
       settings: _settings(withBackgroundBlock: false),

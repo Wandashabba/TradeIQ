@@ -401,7 +401,9 @@ class _TerritoryField extends ConsumerWidget {
           // A list that did not arrive cannot be chosen from. The row keeps
           // the scope it has and says why beneath, rather than offering a
           // picker with one option in it.
-          onTap: territories.hasValue ? () => _pick(context, list) : null,
+          onTap: territories.hasValue
+              ? () => _pick(context, list)
+              : null,
           semanticsLabel: 'Territory. $word. Change the territory.',
         ),
         if (territories.hasError) ...<Widget>[

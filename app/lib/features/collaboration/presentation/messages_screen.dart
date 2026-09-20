@@ -150,7 +150,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     super.dispose();
   }
 
-  bool get _hasDraft => _body.text.trim().isNotEmpty || _pending.isNotEmpty;
+  bool get _hasDraft =>
+      _body.text.trim().isNotEmpty || _pending.isNotEmpty;
 
   /// Pick or take a photo through the same [PhotoCaptureService] the audit
   /// flow uses — downscaled, encoded, and size-checked before it is ever sent.
@@ -224,7 +225,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           .read(collaborationRepositoryProvider)
           .sendMessage(
             body,
-            attachmentPhotoIds: <String>[for (final a in _pending) a.photoId!],
+            attachmentPhotoIds: <String>[
+              for (final a in _pending) a.photoId!,
+            ],
             clientMessageId: clientMessageId,
           );
     } catch (e) {
@@ -351,7 +354,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                 count: announcements.value?.length,
                 countLoading: announcements.isLoading,
                 selected: onAnnouncements,
-                onSelected: () => setState(() => _feed = _Feed.announcements),
+                onSelected: () =>
+                    setState(() => _feed = _Feed.announcements),
               ),
             ],
           ),
@@ -390,14 +394,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               ),
             ),
           ],
-          _ =>
-            onAnnouncements
-                ? _announcements(
-                    announcements.value ?? const <Announcement>[],
-                    canAnnounce: canAnnounce,
-                    gutter: gutter,
-                  )
-                : _messages(messages.value ?? const <Message>[], gutter),
+          _ => onAnnouncements
+              ? _announcements(
+                  announcements.value ?? const <Announcement>[],
+                  canAnnounce: canAnnounce,
+                  gutter: gutter,
+                )
+              : _messages(messages.value ?? const <Message>[], gutter),
         },
       ],
     );
@@ -467,7 +470,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             children: <Widget>[
               for (var i = 0; i < announcements.length; i++)
                 _AnnouncementRow(
-                  key: ValueKey<String>('announcement-${announcements[i].id}'),
+                  key: ValueKey<String>(
+                    'announcement-${announcements[i].id}',
+                  ),
                   announcement: announcements[i],
                   last: i == announcements.length - 1,
                 ),
@@ -497,7 +502,9 @@ class _MessageRow extends StatelessWidget {
     final user = directory[id];
     if (user == null) return null;
     final display = user.displayName;
-    return display != null && display.trim().isNotEmpty ? display : user.email;
+    return display != null && display.trim().isNotEmpty
+        ? display
+        : user.email;
   }
 
   @override
@@ -739,9 +746,10 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
             blockedReason: blocked,
             onPressed: blocked != null
                 ? null
-                : () => Navigator.of(
-                    context,
-                  ).pop((title: _title.text.trim(), body: _body.text.trim())),
+                : () => Navigator.of(context).pop((
+                    title: _title.text.trim(),
+                    body: _body.text.trim(),
+                  )),
           ),
           const SizedBox(height: TiqSpace.s2),
           TorchSecondaryButton(

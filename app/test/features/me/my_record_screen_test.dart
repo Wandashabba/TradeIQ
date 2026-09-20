@@ -315,18 +315,8 @@ void main() {
       expect(find.text('POINTS ALL TIME'), findsOneWidget);
       // The header's fact used to be `formatMonthHeading(DateTime.now())`.
       for (final month in <String>[
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-        'December',
+        'January', 'February', 'March', 'April', 'May', 'June', 'July',
+        'August', 'September', 'October', 'November', 'December',
       ]) {
         expect(
           find.textContaining(month),
@@ -483,10 +473,7 @@ void main() {
           find.descendant(of: row, matching: find.byType(FigureSlot)),
           findsOneWidget,
         );
-        expect(
-          find.descendant(of: row, matching: find.text('85')),
-          findsOneWidget,
-        );
+        expect(find.descendant(of: row, matching: find.text('85')), findsOneWidget);
         // And no delta at all: a delta never stands beside nothing.
         expect(
           find.descendant(of: row, matching: find.byType(Delta)),

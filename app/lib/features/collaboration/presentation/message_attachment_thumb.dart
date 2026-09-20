@@ -125,8 +125,7 @@ class MessageAttachmentSheet extends ConsumerWidget {
                 message: const TorchErrorMessage(
                   kind: TorchErrorKind.rejected,
                   headline: 'This photo could not be displayed.',
-                  body:
-                      'The file arrived, but it is not an image this device '
+                  body: 'The file arrived, but it is not an image this device '
                       'can decode.',
                   offersRetry: false,
                 ),

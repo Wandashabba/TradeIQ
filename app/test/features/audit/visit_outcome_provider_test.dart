@@ -105,20 +105,17 @@ void main() {
     );
   });
 
-  test(
-    'a history that loaded and held no earlier card is a first visit',
-    () async {
-      final outcome = await _outcome(
-        db,
-        _Repo(history: const <ServerScorecard>[_card]),
-      );
+  test('a history that loaded and held no earlier card is a first visit', () async {
+    final outcome = await _outcome(
+      db,
+      _Repo(history: const <ServerScorecard>[_card]),
+    );
 
-      // The visit that just ended is in its own history; there is nothing
-      // before it. That IS a first scored visit, and the sentence is true.
-      expect(outcome.previous, isNull);
-      expect(outcome.previousUnknown, isFalse);
-    },
-  );
+    // The visit that just ended is in its own history; there is nothing
+    // before it. That IS a first scored visit, and the sentence is true.
+    expect(outcome.previous, isNull);
+    expect(outcome.previousUnknown, isFalse);
+  });
 
   test('a history with an earlier card carries it', () async {
     final outcome = await _outcome(
@@ -131,19 +128,13 @@ void main() {
     expect(outcome.delta, 71 - 65);
   });
 
-  test(
-    'no score at all is held on the phone, not an unknown history',
-    () async {
-      final outcome = await _outcome(
-        db,
-        _Repo(score: null, historyThrows: true),
-      );
+  test('no score at all is held on the phone, not an unknown history', () async {
+    final outcome = await _outcome(db, _Repo(score: null, historyThrows: true));
 
-      // Nothing to compare against because there is nothing to compare: the
-      // held receipt owns this case, and it must not also carry the
-      // could-not-load sentence.
-      expect(outcome.isHeldOnPhone, isTrue);
-      expect(outcome.previousUnknown, isFalse);
-    },
-  );
+    // Nothing to compare against because there is nothing to compare: the
+    // held receipt owns this case, and it must not also carry the
+    // could-not-load sentence.
+    expect(outcome.isHeldOnPhone, isTrue);
+    expect(outcome.previousUnknown, isFalse);
+  });
 }

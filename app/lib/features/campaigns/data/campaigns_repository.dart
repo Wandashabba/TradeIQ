@@ -24,16 +24,16 @@ class Campaign {
   final double? budget;
 
   factory Campaign.fromJson(Map<String, dynamic> json) => Campaign(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    status: json['status'] as String,
-    startDate: json['startDate'] as String,
-    endDate: json['endDate'] as String,
-    outletCount:
-        (json['_count'] as Map<String, dynamic>?)?['outlets'] as int? ?? 0,
-    objective: json['objective'] as String?,
-    budget: (json['budget'] as num?)?.toDouble(),
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        status: json['status'] as String,
+        startDate: json['startDate'] as String,
+        endDate: json['endDate'] as String,
+        outletCount:
+            (json['_count'] as Map<String, dynamic>?)?['outlets'] as int? ?? 0,
+        objective: json['objective'] as String?,
+        budget: (json['budget'] as num?)?.toDouble(),
+      );
 }
 
 /// The compliance rollup returned by GET /campaigns/:id/compliance.
@@ -160,7 +160,8 @@ class CampaignRoi {
       baselineOrders: (orders['baseline'] as num?)?.toInt() ?? 0,
       attributedRevenue: (json['attributedRevenue'] as num?)?.toDouble() ?? 0,
       baselineRevenue: (json['baselineRevenue'] as num?)?.toDouble() ?? 0,
-      incrementalRevenue: (json['incrementalRevenue'] as num?)?.toDouble() ?? 0,
+      incrementalRevenue:
+          (json['incrementalRevenue'] as num?)?.toDouble() ?? 0,
       spend: (json['spend'] as num?)?.toDouble(),
       roiPct: (json['roiPct'] as num?)?.toDouble(),
       // A null percentage with no reason is still unmeasurable: never let it
@@ -232,17 +233,14 @@ class DioCampaignsRepository implements CampaignsRepository {
     double? budget,
     List<String>? outletIds,
   }) async {
-    final response = await dio.post(
-      '/campaigns',
-      data: {
-        'name': name,
-        'startDate': startDate,
-        'endDate': endDate,
-        'objective': ?objective,
-        'budget': ?budget,
-        if (outletIds != null && outletIds.isNotEmpty) 'outletIds': outletIds,
-      },
-    );
+    final response = await dio.post('/campaigns', data: {
+      'name': name,
+      'startDate': startDate,
+      'endDate': endDate,
+      'objective': ?objective,
+      'budget': ?budget,
+      if (outletIds != null && outletIds.isNotEmpty) 'outletIds': outletIds,
+    });
     return Campaign.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -254,22 +252,18 @@ class DioCampaignsRepository implements CampaignsRepository {
     double? budget,
     String? status,
   }) async {
-    final response = await dio.patch(
-      '/campaigns/$id',
-      data: {
-        'name': ?name,
-        'objective': ?objective,
-        'budget': ?budget,
-        'status': ?status,
-      },
-    );
+    final response = await dio.patch('/campaigns/$id', data: {
+      'name': ?name,
+      'objective': ?objective,
+      'budget': ?budget,
+      'status': ?status,
+    });
     return Campaign.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final campaignsRepositoryProvider = Provider<CampaignsRepository>(
-  (ref) => DioCampaignsRepository(),
-);
+final campaignsRepositoryProvider =
+    Provider<CampaignsRepository>((ref) => DioCampaignsRepository());
 
 // The provider exposes the FIRST PAGE as a plain list: the campaigns screen
 // wants the current campaigns, not the whole history, and "load more" UI is

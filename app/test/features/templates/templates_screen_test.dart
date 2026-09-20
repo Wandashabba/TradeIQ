@@ -21,7 +21,9 @@ void main() {
     const TemplatesScreen(),
     skin: skin,
     textScale: textScale,
-    overrides: <Override>[templatesRepositoryProvider.overrideWithValue(repo)],
+    overrides: <Override>[
+      templatesRepositoryProvider.overrideWithValue(repo),
+    ],
   );
 
   group('the list', () {
@@ -64,7 +66,10 @@ void main() {
 
   group('which one is in use', () {
     testWidgets('is said once, at the top, in words', (tester) async {
-      await pump(tester, repo: FakeTemplatesRepository(selectedId: 'tpl-1'));
+      await pump(
+        tester,
+        repo: FakeTemplatesRepository(selectedId: 'tpl-1'),
+      );
 
       expect(find.text('“Grocery Audit” (v2)'), findsOneWidget);
       expect(
@@ -111,7 +116,9 @@ void main() {
       final repo = FakeTemplatesRepository(selectedId: 'tpl-1');
       await pump(tester, repo: repo);
 
-      final stop = find.byKey(const ValueKey<String>('templates-stop-using'));
+      final stop = find.byKey(
+        const ValueKey<String>('templates-stop-using'),
+      );
       await scrollWorklistTo(tester, stop);
       await tester.tap(stop);
       await tester.pumpAndSettle();
@@ -146,7 +153,10 @@ void main() {
     await tester.tap(find.text('Grocery Audit'));
     await tester.pumpAndSettle();
 
-    expect(find.text('stub:/audit-templates/tpl-1/preview'), findsOneWidget);
+    expect(
+      find.text('stub:/audit-templates/tpl-1/preview'),
+      findsOneWidget,
+    );
   });
 
   group('the amber census', () {

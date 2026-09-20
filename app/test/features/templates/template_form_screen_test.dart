@@ -107,9 +107,8 @@ void main() {
     expect(find.text('Back wall empty'), findsOneWidget);
   });
 
-  testWidgets('a photo question says it cannot be answered, and never blocks', (
-    tester,
-  ) async {
+  testWidgets('a photo question says it cannot be answered, and never blocks',
+      (tester) async {
     await pump(tester, repo: FakeTemplatesRepository());
 
     await tester.tap(find.text('Next section'));

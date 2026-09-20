@@ -68,8 +68,7 @@ void main() {
           expect(
             deco.color,
             colors.glass
-                ? (colors.isNight ? LumenPalette.dark : LumenPalette.light)
-                      .track
+                ? (colors.isNight ? LumenPalette.dark : LumenPalette.light).track
                 : colors.surface3,
           );
           expect((deco.border! as Border).top.color, colors.lineStrong);

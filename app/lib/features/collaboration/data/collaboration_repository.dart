@@ -43,15 +43,15 @@ class Message {
   final List<MessageAttachment> attachments;
 
   factory Message.fromJson(Map<String, dynamic> json) => Message(
-    id: json['id'] as String,
-    body: json['body'] as String,
-    senderId: json['senderId'] as String?,
-    recipientId: json['recipientId'] as String?,
-    attachments: [
-      for (final a in (json['attachments'] as List<dynamic>? ?? const []))
-        MessageAttachment.fromJson(a as Map<String, dynamic>),
-    ],
-  );
+        id: json['id'] as String,
+        body: json['body'] as String,
+        senderId: json['senderId'] as String?,
+        recipientId: json['recipientId'] as String?,
+        attachments: [
+          for (final a in (json['attachments'] as List<dynamic>? ?? const []))
+            MessageAttachment.fromJson(a as Map<String, dynamic>),
+        ],
+      );
 }
 
 /// A broadcast announcement returned by GET /announcements.
@@ -66,10 +66,10 @@ class Announcement {
   final String body;
 
   factory Announcement.fromJson(Map<String, dynamic> json) => Announcement(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    body: json['body'] as String,
-  );
+        id: json['id'] as String,
+        title: json['title'] as String,
+        body: json['body'] as String,
+      );
 }
 
 abstract class CollaborationRepository {
@@ -160,9 +160,8 @@ class DioCollaborationRepository implements CollaborationRepository {
   }
 }
 
-final collaborationRepositoryProvider = Provider<CollaborationRepository>(
-  (ref) => DioCollaborationRepository(),
-);
+final collaborationRepositoryProvider =
+    Provider<CollaborationRepository>((ref) => DioCollaborationRepository());
 
 // Both providers expose the FIRST PAGE as a plain list: the messages/
 // announcements panel wants the most recent items, not the whole history,
@@ -174,11 +173,7 @@ final messagesProvider = FutureProvider<List<Message>>((ref) async {
   return page.data;
 });
 
-final announcementsListProvider = FutureProvider<List<Announcement>>((
-  ref,
-) async {
-  final page = await ref
-      .read(collaborationRepositoryProvider)
-      .listAnnouncements();
+final announcementsListProvider = FutureProvider<List<Announcement>>((ref) async {
+  final page = await ref.read(collaborationRepositoryProvider).listAnnouncements();
   return page.data;
 });

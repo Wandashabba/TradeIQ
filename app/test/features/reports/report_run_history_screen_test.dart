@@ -193,21 +193,22 @@ void main() {
       );
     });
 
-    test(
-      'times: a scheduled run shows its due time, Run now only generated',
-      () {
-        expect(
-          runTimesLabel(_delivered),
-          'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
-        );
-        expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
-      },
-    );
+    test('times: a scheduled run shows its due time, Run now only generated', () {
+      expect(
+        runTimesLabel(_delivered),
+        'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
+      );
+      expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
+    });
 
     group('the footer counts honestly', () {
       test('with a total it names it', () {
         expect(
-          runHistoryFooterSummary(shown: 20, total: 74, format: (n) => '$n'),
+          runHistoryFooterSummary(
+            shown: 20,
+            total: 74,
+            format: (n) => '$n',
+          ),
           'Showing the 20 most recent of 74.',
         );
       });
@@ -253,10 +254,7 @@ void main() {
   testWidgets('a run with no rows says 0, and 0 is not an error', (
     tester,
   ) async {
-    await pump(
-      tester,
-      repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]),
-    );
+    await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]));
 
     expect(find.textContaining('0 rows'), findsOneWidget);
     expect(find.byType(ErrorState), findsNothing);
@@ -294,10 +292,7 @@ void main() {
     testWidgets('a run that was not sent says why, without fetching emails', (
       tester,
     ) async {
-      await pump(
-        tester,
-        repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]),
-      );
+      await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]));
 
       await expand(tester, 'run-not-sent');
 
@@ -306,7 +301,9 @@ void main() {
         find.byKey(const ValueKey<String>('run-webhook-note-run-not-sent')),
       );
       expect(
-        find.text('Not sent: no webhook is subscribed to report.generated.'),
+        find.text(
+          'Not sent: no webhook is subscribed to report.generated.',
+        ),
         findsOneWidget,
       );
       expect(
@@ -320,10 +317,7 @@ void main() {
     testWidgets('a run with no signed link says so, and offers no action', (
       tester,
     ) async {
-      await pump(
-        tester,
-        repo: FakeSchedulesRepository(runs: <ReportRun>[_partial]),
-      );
+      await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_partial]));
 
       expect(
         find.byKey(const ValueKey<String>('download-run-partial')),
@@ -356,10 +350,7 @@ void main() {
       ),
     );
 
-    await pump(
-      tester,
-      repo: FakeSchedulesRepository(runs: <ReportRun>[_delivered]),
-    );
+    await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_delivered]));
 
     final download = find.byKey(
       const ValueKey<String>('download-run-delivered'),
@@ -368,10 +359,7 @@ void main() {
     await tester.tap(download);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('csv-link-sheet')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('csv-link-sheet')), findsOneWidget);
     expect(find.text(_csvUrl), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey<String>('copy-csv-link')));

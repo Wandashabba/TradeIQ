@@ -5,21 +5,18 @@ void main() {
   final now = DateTime(2026, 7, 14, 9);
 
   group('DashboardRange — like for like, complete days (#365)', () {
-    test(
-      'a 30-day window is the last 30 complete days, against the 30 before',
-      () {
-        const range = DashboardRange.last30;
+    test('a 30-day window is the last 30 complete days, against the 30 before', () {
+      const range = DashboardRange.last30;
 
-        final (from, to) = range.window(now);
-        // Today (14 Jul, still in progress) is out: it ends at local midnight.
-        expect(from, DateTime(2026, 6, 14));
-        expect(to, DateTime(2026, 7, 14));
+      final (from, to) = range.window(now);
+      // Today (14 Jul, still in progress) is out: it ends at local midnight.
+      expect(from, DateTime(2026, 6, 14));
+      expect(to, DateTime(2026, 7, 14));
 
-        final previous = range.previousWindow(now)!;
-        expect(previous.$1, DateTime(2026, 5, 15));
-        expect(previous.$2, from);
-      },
-    );
+      final previous = range.previousWindow(now)!;
+      expect(previous.$1, DateTime(2026, 5, 15));
+      expect(previous.$2, from);
+    });
 
     test('YTD compares the same calendar days of last year', () {
       final (from, to) = DashboardRange.ytd.window(now);
@@ -54,23 +51,16 @@ void main() {
       expect(DashboardRange.allTime.window(now), (null, now));
     });
 
-    test(
-      'query bounds go out in UTC, with the inclusive end a millisecond early',
-      () {
-        final midnight = DateTime(2026, 7, 14);
-        expect(
-          dashboardQueryFrom(midnight),
-          midnight.toUtc().toIso8601String(),
-        );
-        expect(dashboardQueryFrom(midnight), endsWith('Z'));
-        expect(
-          DateTime.parse(dashboardQueryTo(midnight)).isAtSameMomentAs(
-            midnight.subtract(const Duration(milliseconds: 1)),
-          ),
-          isTrue,
-        );
-      },
-    );
+    test('query bounds go out in UTC, with the inclusive end a millisecond early', () {
+      final midnight = DateTime(2026, 7, 14);
+      expect(dashboardQueryFrom(midnight), midnight.toUtc().toIso8601String());
+      expect(dashboardQueryFrom(midnight), endsWith('Z'));
+      expect(
+        DateTime.parse(dashboardQueryTo(midnight))
+            .isAtSameMomentAs(midnight.subtract(const Duration(milliseconds: 1))),
+        isTrue,
+      );
+    });
   });
 
   group('KpiDelta', () {

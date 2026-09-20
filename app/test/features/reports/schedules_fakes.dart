@@ -126,8 +126,7 @@ class FakeSchedulesRepository implements ReportSchedulesRepository {
   Future<PaginatedResponse<ReportSchedule>> listSchedules() async {
     listCalls++;
     if (listFailure != null) throw listFailure!;
-    if (listPending)
-      return Completer<PaginatedResponse<ReportSchedule>>().future;
+    if (listPending) return Completer<PaginatedResponse<ReportSchedule>>().future;
     return PaginatedResponse<ReportSchedule>(
       data: <ReportSchedule>[...schedules],
       nextCursor: null,

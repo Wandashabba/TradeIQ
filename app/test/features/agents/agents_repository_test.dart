@@ -9,9 +9,8 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 
 /// Matches the backend's own `ISO_INSTANT_RE` in agents.routes.ts — the exact
 /// pattern the server 400s on if the client sends anything looser.
-final _isoInstantRe = RegExp(
-  r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$',
-);
+final _isoInstantRe =
+    RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$');
 
 /// A fake HTTP layer that records the outgoing request and returns a
 /// canned body, following the pattern in
@@ -260,12 +259,10 @@ void main() {
       );
       final pinnedNow = DateTime(2026, 1, 15, 9);
 
-      final container = ProviderContainer(
-        overrides: [
-          agentsRepositoryProvider.overrideWithValue(fakeRepo),
-          nowProvider.overrideWithValue(() => pinnedNow),
-        ],
-      );
+      final container = ProviderContainer(overrides: [
+        agentsRepositoryProvider.overrideWithValue(fakeRepo),
+        nowProvider.overrideWithValue(() => pinnedNow),
+      ]);
       addTearDown(container.dispose);
 
       await container.read(agentActivityTodayProvider.future);
@@ -275,30 +272,27 @@ void main() {
   });
 
   group('agentActivityForDayProvider', () {
-    test(
-      'is autoDispose: its state is gone once the last listener drops',
-      () async {
-        final fakeRepo = _FakeAgentsRepository(
-          const AgentActivityPage(agents: [], truncated: false),
-        );
-        final container = ProviderContainer(
-          overrides: [agentsRepositoryProvider.overrideWithValue(fakeRepo)],
-        );
-        addTearDown(container.dispose);
+    test('is autoDispose: its state is gone once the last listener drops', () async {
+      final fakeRepo = _FakeAgentsRepository(
+        const AgentActivityPage(agents: [], truncated: false),
+      );
+      final container = ProviderContainer(overrides: [
+        agentsRepositoryProvider.overrideWithValue(fakeRepo),
+      ]);
+      addTearDown(container.dispose);
 
-        final day = DateTime(2026, 7, 22);
-        final provider = agentActivityForDayProvider(day);
+      final day = DateTime(2026, 7, 22);
+      final provider = agentActivityForDayProvider(day);
 
-        final subscription = container.listen(provider, (_, _) {});
-        expect(container.exists(provider), isTrue);
+      final subscription = container.listen(provider, (_, _) {});
+      expect(container.exists(provider), isTrue);
 
-        subscription.close();
-        // Disposal for autoDispose providers is scheduled for the end of the
-        // current event loop, not synchronous — container.pump() is Riverpod's
-        // own hook for awaiting exactly that.
-        await container.pump();
-        expect(container.exists(provider), isFalse);
-      },
-    );
+      subscription.close();
+      // Disposal for autoDispose providers is scheduled for the end of the
+      // current event loop, not synchronous — container.pump() is Riverpod's
+      // own hook for awaiting exactly that.
+      await container.pump();
+      expect(container.exists(provider), isFalse);
+    });
   });
 }

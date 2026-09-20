@@ -29,11 +29,7 @@ const List<TorchNavSlot> consoleNavSlots = <TorchNavSlot>[
     activeIcon: Icons.checklist,
     label: 'Work',
   ),
-  TorchNavSlot(
-    icon: Icons.forum_outlined,
-    activeIcon: Icons.forum,
-    label: 'Ask',
-  ),
+  TorchNavSlot(icon: Icons.forum_outlined, activeIcon: Icons.forum, label: 'Ask'),
   TorchNavSlot(icon: Icons.menu, activeIcon: Icons.menu_open, label: 'Menu'),
 ];
 

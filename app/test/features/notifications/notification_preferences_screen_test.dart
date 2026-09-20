@@ -95,8 +95,9 @@ Future<void> _pump(
   );
 }
 
-bool _toggleValue(WidgetTester tester, NotificationCategory category) =>
-    tester.widget<TorchToggle>(keyed('push-pref-${category.name}')).value;
+bool _toggleValue(WidgetTester tester, NotificationCategory category) => tester
+    .widget<TorchToggle>(keyed('push-pref-${category.name}'))
+    .value;
 
 TorchToggle _toggle(WidgetTester tester, NotificationCategory category) =>
     tester.widget<TorchToggle>(keyed('push-pref-${category.name}'));
@@ -210,10 +211,8 @@ void main() {
       );
 
       expect(find.byType(ErrorState), findsOneWidget);
-      expect(
-        find.text('Kon nie jou kennisgewing-instellings laai nie'),
-        findsOneWidget,
-      );
+      expect(find.text('Kon nie jou kennisgewing-instellings laai nie'),
+          findsOneWidget);
       // #400: a preferences load that fails must never hide this.
       await scrollConsoleTo(tester, keyed('account-change-password'));
       expect(keyed('account-change-password'), findsOneWidget);

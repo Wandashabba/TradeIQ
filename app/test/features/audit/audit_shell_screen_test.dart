@@ -118,8 +118,7 @@ void main() {
         expect(
           button.blockedReason!.contains(name),
           isTrue,
-          reason:
-              'the BarNote must name $name — it got:\n'
+          reason: 'the BarNote must name $name — it got:\n'
               '${button.blockedReason}',
         );
       }
@@ -177,27 +176,30 @@ void main() {
   });
 
   group("can't confirm is reachable (#389)", () {
-    testWidgets('a product list that will not load makes the per-SKU sections '
-        "can't-confirm, not done", (tester) async {
-      // The real derivation, from a real failing repository.
-      await pumpVisitLive(
-        tester,
-        visits: ScriptedVisits.succeeds(),
-        skus: FakeSkus(fail: true),
-      );
+    testWidgets(
+      'a product list that will not load makes the per-SKU sections '
+      "can't-confirm, not done",
+      (tester) async {
+        // The real derivation, from a real failing repository.
+        await pumpVisitLive(
+          tester,
+          visits: ScriptedVisits.succeeds(),
+          skus: FakeSkus(fail: true),
+        );
 
-      final row = find.byKey(const ValueKey<String>('section-stock'));
-      await dragAgentUp(tester);
-      final glyph = tester.widget<SectionStateGlyph>(
-        find.descendant(of: row, matching: find.byType(SectionStateGlyph)),
-      );
-      expect(glyph.state, SectionState.cantConfirm);
-      expect(
-        find.textContaining('The product list did not load'),
-        findsWidgets,
-      );
-      await disposeAgentScreen(tester);
-    });
+        final row = find.byKey(const ValueKey<String>('section-stock'));
+        await dragAgentUp(tester);
+        final glyph = tester.widget<SectionStateGlyph>(
+          find.descendant(of: row, matching: find.byType(SectionStateGlyph)),
+        );
+        expect(glyph.state, SectionState.cantConfirm);
+        expect(
+          find.textContaining('The product list did not load'),
+          findsWidgets,
+        );
+        await disposeAgentScreen(tester);
+      },
+    );
 
     testWidgets('and the submit is blocked, with the reason named', (
       tester,
@@ -218,7 +220,10 @@ void main() {
             'on zero captures, and a visit with nothing in it went through '
             'the gate printing "This store is clean".',
       );
-      expect(button.blockedReason!.contains('Stock & availability'), isTrue);
+      expect(
+        button.blockedReason!.contains('Stock & availability'),
+        isTrue,
+      );
       await disposeAgentScreen(tester);
     });
 
@@ -231,7 +236,9 @@ void main() {
         templates: NoTemplate(throwsOnPin: true),
       );
 
-      final row = find.byKey(const ValueKey<String>('section-clientQuestions'));
+      final row = find.byKey(
+        const ValueKey<String>('section-clientQuestions'),
+      );
       await dragAgentUp(tester, by: 400);
       expect(row, findsOneWidget);
       expect(
@@ -249,7 +256,10 @@ void main() {
       );
       // Two facts, not one figure: a section nobody could measure is not a
       // section somebody skipped.
-      expect(find.text('1 section can’t be confirmed'), findsOneWidget);
+      expect(
+        find.text('1 section can’t be confirmed'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -360,14 +370,19 @@ void main() {
     ) async {
       await pumpVisit(
         tester,
-        visits: ScriptedVisits.noGps(CheckInLocationProblem.servicesDisabled),
+        visits: ScriptedVisits.noGps(
+          CheckInLocationProblem.servicesDisabled,
+        ),
       );
       expect(find.text('Can’t find your location'), findsOneWidget);
       expect(
         find.text('Turn location on in your phone’s settings, then try again.'),
         findsOneWidget,
       );
-      expect(find.textContaining('Nothing is lost'), findsOneWidget);
+      expect(
+        find.textContaining('Nothing is lost'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('permission denied gets its own fix', (tester) async {
@@ -406,7 +421,10 @@ void main() {
 
       expect(find.byType(CheckInRadar), findsNothing);
       expect(find.text('Could not start the visit'), findsOneWidget);
-      expect(find.textContaining('Nothing is lost'), findsOneWidget);
+      expect(
+        find.textContaining('Nothing is lost'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the error code is there to be read down a phone', (
@@ -456,7 +474,11 @@ void main() {
       });
 
       testWidgets('too far is exactly one — ${skin.name}', (tester) async {
-        await pumpVisit(tester, visits: ScriptedVisits.tooFar(180), skin: skin);
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.tooFar(180),
+          skin: skin,
+        );
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
@@ -581,8 +603,13 @@ void main() {
   group('the claims are declared, not painted', () {
     testWidgets('a blocked hub declares nothing', (tester) async {
       await pumpVisit(tester, visits: ScriptedVisits.succeeds());
-      final scope = TorchScope.maybeOf(tester.element(find.byType(TorchShell)));
-      expect(scope!.allocation.isLit(AuditShellScreen.submitClaimId), isFalse);
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(
+        scope!.allocation.isLit(AuditShellScreen.submitClaimId),
+        isFalse,
+      );
     });
 
     testWidgets('an armed hub declares exactly the submit', (tester) async {
@@ -591,7 +618,9 @@ void main() {
         visits: ScriptedVisits.succeeds(),
         progress: readyToSubmit,
       );
-      final scope = TorchScope.maybeOf(tester.element(find.byType(TorchShell)));
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
       expect(scope!.allocation.isLit(AuditShellScreen.submitClaimId), isTrue);
     });
 
@@ -603,11 +632,19 @@ void main() {
       // The allocator is where it can still be held to account.
       await pumpVisit(tester, visits: ScriptedVisits.pending(), settle: false);
       await tester.pump();
-      final scope = TorchScope.maybeOf(tester.element(find.byType(TorchShell)));
-      expect(scope!.allocation.isLit(AuditShellScreen.locatingClaimId), isTrue);
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(
+        scope!.allocation.isLit(AuditShellScreen.locatingClaimId),
+        isTrue,
+      );
       // And nothing else asks: there is no primary while waiting, and the
       // zone does not pretend there is.
-      expect(scope.allocation.isLit(AuditShellScreen.retryClaimId), isFalse);
+      expect(
+        scope.allocation.isLit(AuditShellScreen.retryClaimId),
+        isFalse,
+      );
     });
   });
 }

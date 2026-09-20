@@ -269,9 +269,7 @@ class _TemplateRow extends StatelessWidget {
       key: ValueKey<String>('template-row-${t.id}'),
       density: SoftRowDensity.tall,
       title: t.name,
-      subtitle: industry == null
-          ? 'v${t.version}'
-          : 'v${t.version} · $industry',
+      subtitle: industry == null ? 'v${t.version}' : 'v${t.version} · $industry',
       leading: TiqMark(
         shape: inAudits
             ? MarkShape.sectionTickDisc

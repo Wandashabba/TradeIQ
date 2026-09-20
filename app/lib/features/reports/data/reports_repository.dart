@@ -27,14 +27,17 @@ class ReportDefinition {
 
 /// The outcome of GET /reports/:id/generate.
 class ReportResult {
-  const ReportResult({required this.rowCount, required this.generatedAt});
+  const ReportResult({
+    required this.rowCount,
+    required this.generatedAt,
+  });
   final int rowCount;
   final String generatedAt;
 
   factory ReportResult.fromJson(Map<String, dynamic> json) => ReportResult(
-    rowCount: json['rowCount'] as int? ?? 0,
-    generatedAt: json['generatedAt'] as String,
-  );
+        rowCount: json['rowCount'] as int? ?? 0,
+        generatedAt: json['generatedAt'] as String,
+      );
 }
 
 /// The file `GET /reports/:id/generate?format=csv` returns.
@@ -167,10 +170,11 @@ class DioReportsRepository implements ReportsRepository {
     required String type,
     required Map<String, dynamic> filters,
   }) async {
-    final response = await dio.post(
-      '/reports',
-      data: {'name': name, 'type': type, 'filters': filters},
-    );
+    final response = await dio.post('/reports', data: {
+      'name': name,
+      'type': type,
+      'filters': filters,
+    });
     return ReportDefinition.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -180,20 +184,18 @@ class DioReportsRepository implements ReportsRepository {
   }
 }
 
-final reportsRepositoryProvider = Provider<ReportsRepository>(
-  (ref) => DioReportsRepository(),
-);
+final reportsRepositoryProvider =
+    Provider<ReportsRepository>((ref) => DioReportsRepository());
 
 /// The FIRST PAGE of saved definitions, cursor and all.
 ///
 /// The cursor is kept rather than dropped so the screen can say the list was
 /// cut. A first page that renders as the whole truth is what a pagination
 /// footer exists to stop, and a screen cannot draw one from a bare list.
-final reportsPageProvider = FutureProvider<PaginatedResponse<ReportDefinition>>(
-  (ref) async {
-    return ref.read(reportsRepositoryProvider).listReports();
-  },
-);
+final reportsPageProvider =
+    FutureProvider<PaginatedResponse<ReportDefinition>>((ref) async {
+  return ref.read(reportsRepositoryProvider).listReports();
+});
 
 /// The definitions themselves, for the screens that only need the rows.
 final reportsListProvider = FutureProvider<List<ReportDefinition>>((ref) async {

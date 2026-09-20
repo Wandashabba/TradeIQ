@@ -291,7 +291,11 @@ void main() {
     testWidgets('a budget is mono, and its unit is the locale’s', (
       tester,
     ) async {
-      await _pump(tester, repo: FakeCampaignsRepository(), campaign: campaignA);
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(),
+        campaign: campaignA,
+      );
       await scrollConsoleTo(tester, keyed('campaign-budget-field'));
       final field = tester.widget<TorchNumericField>(
         keyed('campaign-budget-field'),

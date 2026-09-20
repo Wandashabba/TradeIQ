@@ -57,51 +57,39 @@ void main() {
       expect(store.stored, ThemeMode.light);
     });
 
-    test(
-      'a toggle made before the restore lands is not clobbered by it',
-      () async {
-        final container = withStore(FakeThemeModeStore(ThemeMode.light));
-        await container.read(themeModeProvider.notifier).toggle(); // → dark
-        await Future<void>.delayed(Duration.zero); // restore resolves 'light'
-        expect(container.read(themeModeProvider), ThemeMode.dark);
-      },
-    );
+    test('a toggle made before the restore lands is not clobbered by it', () async {
+      final container = withStore(FakeThemeModeStore(ThemeMode.light));
+      await container.read(themeModeProvider.notifier).toggle(); // → dark
+      await Future<void>.delayed(Duration.zero); // restore resolves 'light'
+      expect(container.read(themeModeProvider), ThemeMode.dark);
+    });
   });
 
   group('SecureThemeModeStore', () {
     test('maps stored strings to modes and unknown values to null', () async {
       final storage = _MockSecureStorage();
       final store = SecureThemeModeStore(storage: storage);
-      when(
-        () => storage.read(key: any(named: 'key')),
-      ).thenAnswer((_) async => 'light');
+      when(() => storage.read(key: any(named: 'key')))
+          .thenAnswer((_) async => 'light');
       expect(await store.read(), ThemeMode.light);
-      when(
-        () => storage.read(key: any(named: 'key')),
-      ).thenAnswer((_) async => 'banana');
+      when(() => storage.read(key: any(named: 'key')))
+          .thenAnswer((_) async => 'banana');
       expect(await store.read(), isNull);
     });
 
     test('an unreadable store yields null — caller keeps dark', () async {
       final storage = _MockSecureStorage();
-      when(
-        () => storage.read(key: any(named: 'key')),
-      ).thenThrow(PlatformException(code: 'boom'));
+      when(() => storage.read(key: any(named: 'key')))
+          .thenThrow(PlatformException(code: 'boom'));
       expect(await SecureThemeModeStore(storage: storage).read(), isNull);
     });
 
     test('writes under the spec key tiq.themeMode', () async {
       final storage = _MockSecureStorage();
-      when(
-        () => storage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        ),
-      ).thenAnswer((_) async {});
+      when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+          .thenAnswer((_) async {});
       await SecureThemeModeStore(storage: storage).write(ThemeMode.light);
-      verify(
-        () => storage.write(key: 'tiq.themeMode', value: 'light'),
-      ).called(1);
+      verify(() => storage.write(key: 'tiq.themeMode', value: 'light')).called(1);
     });
   });
 }

@@ -87,10 +87,8 @@ void main() {
     });
 
     test('a signed rise gets an explicit plus, a signed zero does not', () {
-      expect(
-        TiqNumber.en.format(4.2, signed: true, unit: TiqUnit.percent),
-        '+4.2%',
-      );
+      expect(TiqNumber.en.format(4.2, signed: true, unit: TiqUnit.percent),
+          '+4.2%');
       expect(TiqNumber.en.format(0, signed: true), '0');
       expect(TiqNumber.en.format(-4.2, signed: true), '−4.2');
     });
@@ -111,10 +109,8 @@ void main() {
 
   group('units', () {
     test('rand is a prefix with a space in it', () {
-      expect(
-        TiqNumber.en.format(1284990, unit: TiqUnit.currency),
-        'R 1,284,990',
-      );
+      expect(TiqNumber.en.format(1284990, unit: TiqUnit.currency),
+          'R 1,284,990');
       expect(
         TiqNumber.af.format(1284990, unit: TiqUnit.currency),
         'R 1 284 990',
@@ -132,7 +128,10 @@ void main() {
 
     test('percent is hard against the digits; a word is not', () {
       expect(TiqNumber.en.split(81, unit: TiqUnit.percent).suffix, '%');
-      expect(TiqNumber.en.split(4, unit: TiqUnit.worded('pts')).suffix, ' pts');
+      expect(
+        TiqNumber.en.split(4, unit: TiqUnit.worded('pts')).suffix,
+        ' pts',
+      );
       expect(
         TiqNumber.en.split(4, unit: TiqUnit.worded('x', tight: true)).suffix,
         'x',
@@ -214,11 +213,7 @@ void main() {
         unit: TiqUnit.percent,
         state: FigureState.lowSample,
       );
-      expect(
-        low.run,
-        '71.4',
-        reason: 'The figure is real; the sample is thin.',
-      );
+      expect(low.run, '71.4', reason: 'The figure is real; the sample is thin.');
       expect(low.suffix, '%');
       expect(
         low.allowsDelta,
@@ -277,10 +272,7 @@ void main() {
     });
 
     test('an unknown language falls back to English rather than throwing', () {
-      expect(
-        TiqNumber.forLocale(const Locale('zu')).symbols.languageCode,
-        'en',
-      );
+      expect(TiqNumber.forLocale(const Locale('zu')).symbols.languageCode, 'en');
       expect(TiqNumber.forLocale(null).symbols.languageCode, 'en');
     });
   });

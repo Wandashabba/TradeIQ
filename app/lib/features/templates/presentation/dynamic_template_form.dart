@@ -37,7 +37,9 @@ class TemplateWalk extends ChangeNotifier {
   TextEditingController controllerFor(TemplateField field) =>
       _controllers.putIfAbsent(field.id, () {
         final existing = _answers[field.id];
-        return TextEditingController(text: existing == null ? '' : '$existing');
+        return TextEditingController(
+          text: existing == null ? '' : '$existing',
+        );
       });
 
   @override
@@ -49,8 +51,7 @@ class TemplateWalk extends ChangeNotifier {
   }
 
   int get sectionIndex => _sectionIndex;
-  Map<String, Object?> get answers =>
-      Map<String, Object?>.unmodifiable(_answers);
+  Map<String, Object?> get answers => Map<String, Object?>.unmodifiable(_answers);
 
   bool get hasSections => schema.sections.isNotEmpty;
   int get sectionCount => schema.sections.length;

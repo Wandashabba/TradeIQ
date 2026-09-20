@@ -54,7 +54,10 @@ void main() {
       final rejected = SyncError.of(_http(422));
       expect(rejected.problem, SyncProblem.rejected);
       expect(rejected.status, 422);
-      expect(SyncError.of(Exception('boom')).problem, SyncProblem.couldNotSend);
+      expect(
+        SyncError.of(Exception('boom')).problem,
+        SyncProblem.couldNotSend,
+      );
     });
 
     test('every problem maps to English and Afrikaans copy', () {

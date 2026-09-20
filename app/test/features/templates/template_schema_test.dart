@@ -10,12 +10,7 @@ void main() {
             'id': 'availability',
             'title': 'Availability',
             'fields': [
-              {
-                'id': 'onShelf',
-                'label': 'On shelf?',
-                'type': 'boolean',
-                'weight': 10,
-              },
+              {'id': 'onShelf', 'label': 'On shelf?', 'type': 'boolean', 'weight': 10},
               {
                 'id': 'facing',
                 'label': 'Facing count',

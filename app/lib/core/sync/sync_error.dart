@@ -45,8 +45,7 @@ class SyncError {
 
   /// Classifies a flush failure.
   static SyncError of(Object error) {
-    if (error is StateError)
-      return const SyncError(SyncProblem.waitingForVisit);
+    if (error is StateError) return const SyncError(SyncProblem.waitingForVisit);
     if (error is DioException) {
       final status = error.response?.statusCode;
       if (status == null) return const SyncError(SyncProblem.noConnection);
@@ -102,9 +101,8 @@ class SyncError {
       _ => null,
     };
     if (problem != null) return SyncError(problem);
-    final rejected = RegExp(
-      r'^Rejected by the server \((\d+)\)$',
-    ).firstMatch(stored);
+    final rejected = RegExp(r'^Rejected by the server \((\d+)\)$')
+        .firstMatch(stored);
     if (rejected != null) {
       return SyncError(SyncProblem.rejected, int.parse(rejected.group(1)!));
     }

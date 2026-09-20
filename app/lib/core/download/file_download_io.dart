@@ -30,9 +30,7 @@ class IoFileDownloader implements FileDownloader {
               : null) ??
           await getApplicationDocumentsDirectory();
     } on Object catch (e) {
-      throw DownloadRefused(
-        'This device would not open a folder to save in. $e',
-      );
+      throw DownloadRefused('This device would not open a folder to save in. $e');
     }
 
     final unique = await _freeName(directory, filename);

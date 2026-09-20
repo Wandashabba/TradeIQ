@@ -62,10 +62,7 @@ void main() {
     });
 
     testWidgets('a failure names itself and offers one retry', (tester) async {
-      await pump(
-        tester,
-        repo: FakeReportsRepository(listFailure: networkFailure),
-      );
+      await pump(tester, repo: FakeReportsRepository(listFailure: networkFailure));
 
       expect(find.byType(ErrorState), findsOneWidget);
       // Sanitised: the host the client could not reach is not a sentence for
@@ -80,10 +77,16 @@ void main() {
     testWidgets('a cut list says so, and never invents a total', (
       tester,
     ) async {
-      await pump(tester, repo: FakeReportsRepository(nextCursor: 'cursor-2'));
+      await pump(
+        tester,
+        repo: FakeReportsRepository(nextCursor: 'cursor-2'),
+      );
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
 
-      expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
+      expect(
+        find.text('Showing the first 2. There are more.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('with a total the footer names it', (tester) async {
@@ -147,7 +150,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('run-r-a')));
       await tester.pumpAndSettle();
 
-      expect(find.text('0 rows — the query matched nothing'), findsOneWidget);
+      expect(
+        find.text('0 rows — the query matched nothing'),
+        findsOneWidget,
+      );
       expect(find.byType(ErrorState), findsNothing);
 
       await settleToasts(tester);
@@ -156,10 +162,7 @@ void main() {
     testWidgets('a failed run says so and keeps the previous count', (
       tester,
     ) async {
-      await pump(
-        tester,
-        repo: FakeReportsRepository(csvFailure: networkFailure),
-      );
+      await pump(tester, repo: FakeReportsRepository(csvFailure: networkFailure));
 
       await tester.tap(find.byKey(const ValueKey<String>('run-r-a')));
       await tester.pumpAndSettle();
@@ -272,15 +275,14 @@ void main() {
     });
 
     testWidgets('Night, error, still exactly the nav tab', (tester) async {
-      await pump(
-        tester,
-        repo: FakeReportsRepository(listFailure: networkFailure),
-      );
+      await pump(tester, repo: FakeReportsRepository(listFailure: networkFailure));
       final census = await amberCensus(tester);
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    testWidgets('Night, the delete sheet, everything goes out', (tester) async {
+    testWidgets('Night, the delete sheet, everything goes out', (
+      tester,
+    ) async {
       await pump(tester, repo: FakeReportsRepository());
       await tester.tap(find.byKey(const ValueKey<String>('delete-r-a')));
       await tester.pumpAndSettle();
@@ -313,7 +315,12 @@ void main() {
           );
 
           final census = await amberCensus(tester);
-          expectWithinAmberBudget(census, skin, route: 'reports', phase: phase);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'reports',
+            phase: phase,
+          );
           expect(census.objectCount, 0, reason: census.describe());
         });
       }
