@@ -151,9 +151,7 @@ void main() {
       await pumpTorch(
         tester,
         skin: TiqSkin.veld(),
-        child: _chart(
-          veldReplacement: const Text('the figures, as rows'),
-        ),
+        child: _chart(veldReplacement: const Text('the figures, as rows')),
       );
 
       expect(find.text('the figures, as rows'), findsOneWidget);

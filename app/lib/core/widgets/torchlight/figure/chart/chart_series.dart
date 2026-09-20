@@ -73,8 +73,7 @@ class ChartSeries {
   final ChartSeriesRole role;
 
   /// The readings that actually measured something.
-  Iterable<ChartReading> get measured =>
-      readings.where((r) => r.value != null);
+  Iterable<ChartReading> get measured => readings.where((r) => r.value != null);
 
   bool get hasData => measured.isNotEmpty;
 

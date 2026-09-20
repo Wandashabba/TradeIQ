@@ -60,17 +60,10 @@ class ChartLegend extends StatelessWidget {
         // A Wrap and not a Row: at 2.0x in Afrikaans "Kliëntgemiddeld" and
         // "Gekonfigureerde standaard" do not share a 360dp line, and a legend
         // that ellipsised would be a key you cannot read.
-        Wrap(
-          spacing: TiqSpace.s5,
-          runSpacing: TiqSpace.s2,
-          children: entries,
-        ),
+        Wrap(spacing: TiqSpace.s5, runSpacing: TiqSpace.s2, children: entries),
         if (gapNote != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s2),
-          Text(
-            gapNote!,
-            style: skin.text.meta.style(color: skin.palette.ink3),
-          ),
+          Text(gapNote!, style: skin.text.meta.style(color: skin.palette.ink3)),
         ],
       ],
     );
@@ -93,7 +86,8 @@ class _LegendEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     // The swatch is meaning-bearing — it is the only place the dash pattern is
     // named — so it scales with the text, at half rate like every other
     // graphic.
@@ -164,5 +158,7 @@ class _SwatchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwatchPainter old) =>
-      old.colour != colour || old.dashed != dashed || old.thickness != thickness;
+      old.colour != colour ||
+      old.dashed != dashed ||
+      old.thickness != thickness;
 }

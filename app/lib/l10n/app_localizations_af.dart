@@ -3726,7 +3726,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get territoryAgentsWord => 'Agente';
 
   @override
-  String territoryVisitedOf(int total, int visited) {
+  String territoryVisitedOf(int visited, int total) {
     return '$visited van $total besoek in hierdie venster';
   }
 

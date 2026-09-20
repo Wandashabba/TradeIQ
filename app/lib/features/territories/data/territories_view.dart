@@ -10,10 +10,20 @@ import 'territories_repository.dart';
 /// coverage block that fails must fail in its own row rather than taking the
 /// list with it. That was the shape before this migration and it is the right
 /// one.
+///
+/// Retries are disabled on every provider in this group, and it is one
+/// decision rather than four: Riverpod's default policy backs off silently
+/// for several seconds — up to ten attempts — before surfacing an error,
+/// which leaves a screen somebody is actively looking at showing a bare
+/// skeleton with no explanation. Failing fast and offering the kit's own
+/// Retry, once per region, is the better trade. `territory_map_screen.dart`
+/// argued this first; it now applies to the list, the coverage, the ranking
+/// and the trends.
 final territoryCoverageProvider =
-    FutureProvider.family<TerritoryCoverage, String>((ref, id) {
-  return ref.read(territoriesRepositoryProvider).getCoverage(id);
-});
+    FutureProvider.family<TerritoryCoverage, String>(
+      (ref, id) => ref.read(territoriesRepositoryProvider).getCoverage(id),
+      retry: (retryCount, error) => null,
+    );
 
 /// Which of the three things a territory row's coverage figure is.
 ///
@@ -66,7 +76,10 @@ class TerritoryRow {
   /// The rate, or null. Never a defaulted zero.
   double? get coverageRate => coverage?.measuredCoverageRate;
 
-  static TerritoryRow from(Territory territory, AsyncValue<TerritoryCoverage> async) {
+  static TerritoryRow from(
+    Territory territory,
+    AsyncValue<TerritoryCoverage> async,
+  ) {
     return switch (async) {
       AsyncData(:final value) when !value.coverageMeasured => TerritoryRow(
         territory: territory,

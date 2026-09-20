@@ -4847,10 +4847,10 @@
   "@territoryVisitedOf": {
     "description": "The state line under a coverage percentage.",
     "placeholders": {
-      "total": {
+      "visited": {
         "type": "int"
       },
-      "visited": {
+      "total": {
         "type": "int"
       }
     }

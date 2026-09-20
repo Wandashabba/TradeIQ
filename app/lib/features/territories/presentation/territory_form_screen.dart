@@ -80,7 +80,9 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
     final l10n = context.l10n;
     final region = _region.text.trim();
     try {
-      await ref.read(territoriesRepositoryProvider).createTerritory(
+      await ref
+          .read(territoriesRepositoryProvider)
+          .createTerritory(
             name: _nameValue,
             code: _codeValue,
             region: region.isEmpty ? null : region,

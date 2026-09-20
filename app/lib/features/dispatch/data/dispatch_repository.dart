@@ -34,10 +34,7 @@ class DispatchCandidate {
 
 /// The result of ranking agents for an outlet via POST /dispatch.
 class DispatchResult {
-  const DispatchResult({
-    required this.candidates,
-    this.recommended,
-  });
+  const DispatchResult({required this.candidates, this.recommended});
   final List<DispatchCandidate> candidates;
   final DispatchCandidate? recommended;
 
@@ -66,10 +63,13 @@ class DioDispatchRepository implements DispatchRepository {
   }
 }
 
-final dispatchRepositoryProvider =
-    Provider<DispatchRepository>((ref) => DioDispatchRepository());
+final dispatchRepositoryProvider = Provider<DispatchRepository>(
+  (ref) => DioDispatchRepository(),
+);
 
-final dispatchResultProvider =
-    FutureProvider.family<DispatchResult, String>((ref, outletId) {
-  return ref.read(dispatchRepositoryProvider).dispatch(outletId);
-});
+/// Retries are disabled: a silent multi-second backoff behind a skeleton is
+/// worse than a failure with a Retry on it, on a screen somebody is watching.
+final dispatchResultProvider = FutureProvider.family<DispatchResult, String>(
+  (ref, outletId) => ref.read(dispatchRepositoryProvider).dispatch(outletId),
+  retry: (retryCount, error) => null,
+);

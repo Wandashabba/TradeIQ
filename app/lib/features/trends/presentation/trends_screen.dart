@@ -80,7 +80,9 @@ class TrendsScreen extends ConsumerWidget {
         TorchBleed(extra: gutter * 2, child: const _TrendFilters()),
         SizedBox(height: context.skin.space.blockGap),
         if (view == TrendsView.compareTerritories)
-          const _TerritoryBenchmarkPanel(key: ValueKey<String>('trend-benchmark'))
+          const _TerritoryBenchmarkPanel(
+            key: ValueKey<String>('trend-benchmark'),
+          )
         else ...<Widget>[
           _TrendPanel(
             key: const ValueKey<String>('trend-scorecards'),
@@ -157,7 +159,9 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
           loading: () => Skeleton(
             label: widget.heading,
             slowLine: l10n.torchStillFetching,
-            child: SkeletonShell(height: veld ? 120 : trendChartHeight(context)),
+            child: SkeletonShell(
+              height: veld ? 120 : trendChartHeight(context),
+            ),
           ),
           error: (error, _) => TorchErrorRegion(
             name: widget.heading,
@@ -312,11 +316,7 @@ class _TrendFilters extends ConsumerWidget {
                 : l10n.trendsWeekly,
             selected: interval == query.interval,
             onSelected: () => update(
-              TrendQuery(
-                interval: interval,
-                from: query.from,
-                to: query.to,
-              ),
+              TrendQuery(interval: interval, from: query.from, to: query.to),
             ),
           ),
         TorchFilterChip(
@@ -403,8 +403,7 @@ class _TerritoryBenchmarkPanelState
                   action: TorchSecondaryButton(
                     key: const ValueKey<String>('benchmark-retry'),
                     label: l10n.torchTryAgain,
-                    onPressed: () =>
-                        ref.invalidate(territoryBenchmarkProvider),
+                    onPressed: () => ref.invalidate(territoryBenchmarkProvider),
                   ),
                 ),
               ),
@@ -460,8 +459,7 @@ class _TerritoryBenchmarkPanelState
                   clientAverage: clientAverage,
                   unit: unit,
                   selected:
-                      report.territories[i].territoryId ==
-                      selected.territoryId,
+                      report.territories[i].territoryId == selected.territoryId,
                   last: i == report.territories.length - 1,
                   onTap: () => setState(
                     () => _selectedId = report.territories[i].territoryId,
@@ -603,16 +601,12 @@ class _BenchmarkRow extends StatelessWidget {
               style: skin.text.label.style(color: skin.palette.ink1),
             ),
           FigureSlot(
-            key: ValueKey<String>(
-              'benchmark-average-${territory.territoryId}',
-            ),
+            key: ValueKey<String>('benchmark-average-${territory.territoryId}'),
             value: average,
             role: skin.text.figureS,
             unit: average == null ? TiqUnit.none : unit,
             decimals: 1,
-            state: average == null
-                ? FigureState.missing
-                : FigureState.measured,
+            state: average == null ? FigureState.missing : FigureState.measured,
             textAlign: TextAlign.end,
             semanticsLabel: average == null ? l10n.trendsNotMeasured : null,
           ),
@@ -642,10 +636,14 @@ class _BenchmarkRow extends StatelessWidget {
     final samples = _samples(l10n, report.metric, territory.count);
     final delta = territory.deltaFromClient;
     return switch (territory.position) {
-      BenchmarkPosition.above when delta != null =>
-        l10n.trendsAboveBy(_trim(delta.abs()), samples),
-      BenchmarkPosition.below when delta != null =>
-        l10n.trendsBelowBy(_trim(delta.abs()), samples),
+      BenchmarkPosition.above when delta != null => l10n.trendsAboveBy(
+        _trim(delta.abs()),
+        samples,
+      ),
+      BenchmarkPosition.below when delta != null => l10n.trendsBelowBy(
+        _trim(delta.abs()),
+        samples,
+      ),
       _ => l10n.trendsLevelWith(samples),
     };
   }

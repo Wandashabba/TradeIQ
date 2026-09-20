@@ -78,8 +78,7 @@ class TerritoryMapScreen extends ConsumerStatefulWidget {
   static int debugFailureThreshold = 6;
 
   @override
-  ConsumerState<TerritoryMapScreen> createState() =>
-      _TerritoryMapScreenState();
+  ConsumerState<TerritoryMapScreen> createState() => _TerritoryMapScreenState();
 }
 
 class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
@@ -214,10 +213,7 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
                 extra: skin.space.gutter * 2,
                 child: SizedBox(
                   height: height,
-                  child: _Basemap(
-                    outlets: outlets,
-                    onTileError: _tileFailed,
-                  ),
+                  child: _Basemap(outlets: outlets, onTileError: _tileFailed),
                 ),
               ),
 
@@ -249,7 +245,10 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
     );
   }
 
-  List<String> _facts(BuildContext context, AsyncValue<TerritoryCoverage> async) {
+  List<String> _facts(
+    BuildContext context,
+    AsyncValue<TerritoryCoverage> async,
+  ) {
     final l10n = context.l10n;
     final region = widget.territory.region;
     final coverage = async.value;
@@ -334,7 +333,8 @@ class _Basemap extends StatelessWidget {
               // and a wheel that sometimes zooms and sometimes scrolls is a
               // wheel nobody trusts.
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.drag |
+                flags:
+                    InteractiveFlag.drag |
                     InteractiveFlag.pinchZoom |
                     InteractiveFlag.doubleTapZoom |
                     InteractiveFlag.pinchMove,
@@ -368,8 +368,7 @@ class _Basemap extends StatelessWidget {
   /// fetched twice does not throw away a pan the manager just made.
   static String _signature(List<LatLng> points) => points
       .map(
-        (p) =>
-            '${(p.latitude * 1e4).round()},${(p.longitude * 1e4).round()}',
+        (p) => '${(p.latitude * 1e4).round()},${(p.longitude * 1e4).round()}',
       )
       .join(';');
 }

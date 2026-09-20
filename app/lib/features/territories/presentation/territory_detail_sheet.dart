@@ -45,10 +45,8 @@ Future<void> showTerritoryDetailSheet(
 }) {
   return showTorchSheet<void>(
     context,
-    builder: (_) => _TerritoryDetailSheet(
-      territory: territory,
-      canManage: canManage,
-    ),
+    builder: (_) =>
+        _TerritoryDetailSheet(territory: territory, canManage: canManage),
   );
 }
 
@@ -66,8 +64,7 @@ class _TerritoryDetailSheet extends ConsumerStatefulWidget {
       _TerritoryDetailSheetState();
 }
 
-class _TerritoryDetailSheetState
-    extends ConsumerState<_TerritoryDetailSheet> {
+class _TerritoryDetailSheetState extends ConsumerState<_TerritoryDetailSheet> {
   static const String assignClaimId = 'assign-agent';
 
   bool _assigning = false;
@@ -116,7 +113,9 @@ class _TerritoryDetailSheetState
       title: _assigning
           ? l10n.territoryAssignTitle(widget.territory.name)
           : widget.territory.name,
-      subtitle: _assigning ? l10n.territoryAssignSubtitle : widget.territory.code,
+      subtitle: _assigning
+          ? l10n.territoryAssignSubtitle
+          : widget.territory.code,
       claims: _assigning
           ? const <TorchClaim>[TorchClaim.primaryCommit(assignClaimId)]
           : const <TorchClaim>[],
@@ -316,6 +315,13 @@ class _CoverageCluster extends StatelessWidget {
     final visited = coverage.outletsVisited;
     final total = coverage.outletsTotal;
 
+    // Veld takes two cells, not four (unify §1.4 / the cluster's own
+    // assertion): outdoors a grid is read one cell at a time and a third
+    // column is a column nobody reaches. The outlet count is the one that
+    // goes, because it is already in the header of the map this sheet opens
+    // and it is the least actionable of the three.
+    final veld = context.skin.density == TiqDensity.veld;
+
     return StatCluster(
       semanticsLabel: l10n.territoryCoverageCluster,
       tiles: <StatTile>[
@@ -334,13 +340,14 @@ class _CoverageCluster extends StatelessWidget {
               ? l10n.territoryVisitedOf(visited, total)
               : null,
         ),
-        StatTile(
-          eyebrow: l10n.territoryOutletsWord,
-          // outletCount is the length of a list the server sent, so it is
-          // measured whenever the block arrived at all — including at zero.
-          value: coverage.outletCount,
-          unit: TiqUnit.none,
-        ),
+        if (!veld)
+          StatTile(
+            eyebrow: l10n.territoryOutletsWord,
+            // outletCount is the length of a list the server sent, so it is
+            // measured whenever the block arrived at all — including at zero.
+            value: coverage.outletCount,
+            unit: TiqUnit.none,
+          ),
         StatTile(
           eyebrow: l10n.territoryAgentsWord,
           value: coverage.agentCount,

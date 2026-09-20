@@ -5712,7 +5712,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{visited} of {total} visited in this window'**
-  String territoryVisitedOf(int total, int visited);
+  String territoryVisitedOf(int visited, int total);
 
   /// A header fact on the territory map: how many of its outlets were visited.
   ///

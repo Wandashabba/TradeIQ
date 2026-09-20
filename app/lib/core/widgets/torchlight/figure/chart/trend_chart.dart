@@ -174,7 +174,8 @@ class _TrendChartState extends State<TrendChart> {
                       axisStyle: skin.text.axisLabel.style(
                         color: skin.palette.ink3,
                       ),
-                      axisScale: TiqTextScale.sizeOf(
+                      axisScale:
+                          TiqTextScale.sizeOf(
                             MediaQuery.maybeTextScalerOf(context) ??
                                 TextScaler.noScaling,
                             skin.text.axisLabel,
@@ -257,16 +258,11 @@ class TrendChartPainter extends CustomPainter {
       math.max(size.height - band, 1),
     );
 
-    final scale = niceScale(
-      <double>[
-        for (final r in readings)
-          ?r.value,
-        if (comparison != null)
-          for (final r in comparison!.readings)
-            ?r.value,
-      ],
-      include: threshold?.value,
-    );
+    final scale = niceScale(<double>[
+      for (final r in readings) ?r.value,
+      if (comparison != null)
+        for (final r in comparison!.readings) ?r.value,
+    ], include: threshold?.value);
 
     double y(double value) {
       final span = scale.max - scale.min;
@@ -383,7 +379,10 @@ class TrendChartPainter extends CustomPainter {
       )..layout(maxWidth: math.max(plot.width / 2, 24));
       var left = x(index) - painter.width / 2;
       left = left.clamp(0.0, math.max(plot.width - painter.width, 0.0));
-      painter.paint(canvas, Offset(left, plot.bottom + (band - painter.height) / 2));
+      painter.paint(
+        canvas,
+        Offset(left, plot.bottom + (band - painter.height) / 2),
+      );
       painter.dispose();
     }
   }
