@@ -4731,9 +4731,15 @@
   "@meLedgerScoreRowSemantics": {
     "description": "The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.",
     "placeholders": {
-      "reason": { "type": "String" },
-      "day": { "type": "String" },
-      "score": { "type": "String" }
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
     }
   },
   "meContestsDetail": "See where you stand",
@@ -4904,21 +4910,678 @@
   "@sessionHeldEntry": {
     "description": "One line of the session-ended proof block: how many of one kind of capture are held. 'kind' comes from the outbox's own vocabulary (Photo, Stock count, Submitted visit).",
     "placeholders": {
-          "count": {
-                "type": "int"
-          },
-          "kind": {
-                "type": "String"
-          }
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
     }
   },
   "sessionHeldWaiting": "{count, plural, =1{1 capture is waiting to send.} other{{count} captures are waiting to send.}}",
   "@sessionHeldWaiting": {
     "description": "The line under the sign-in header after 'Not now'. Oatmeal and a square, never crimson — being signed out with held work is a state with one action attached, not a fault.",
     "placeholders": {
-          "count": {
-                "type": "int"
-          }
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "torchTryAgain": "Try again",
+  "@torchTryAgain": {
+    "description": "The one retry verb, wherever a region offers one."
+  },
+  "torchStillFetching": "Still fetching · this is slower than usual",
+  "@torchStillFetching": {
+    "description": "The line a skeleton shows after ten seconds, so an 8s stall does not read as frozen."
+  },
+  "roleFieldAgent": "Field agent",
+  "@roleFieldAgent": {
+    "description": "A person's role, on a person row."
+  },
+  "territoriesTitle": "Territories",
+  "@territoriesTitle": {
+    "description": "Screen title: the manager's list of territories."
+  },
+  "territoriesFact": "A territory groups outlets and the agents who work them.",
+  "@territoriesFact": {
+    "description": "The header fact under the Territories title."
+  },
+  "territoriesRefresh": "Refresh the territories list",
+  "@territoriesRefresh": {
+    "description": "Semantic label of the header's refresh button. Names what it does, never just 'Refresh'."
+  },
+  "territoriesSectionAll": "All territories",
+  "@territoriesSectionAll": {
+    "description": "Section rule above the list of territories."
+  },
+  "territoriesNew": "New territory",
+  "@territoriesNew": {
+    "description": "The verb that opens the create form, in the section rule's action slot."
+  },
+  "territoriesEmptyHeadline": "No territories yet",
+  "@territoriesEmptyHeadline": {
+    "description": "Whole-screen empty state: the client has no territories at all."
+  },
+  "territoriesEmptyBody": "A territory groups outlets and the agents who work them. Create one and outlets can be assigned to it.",
+  "@territoriesEmptyBody": {
+    "description": "Body under territoriesEmptyHeadline."
+  },
+  "territoryOutlets": "{count, plural, =0{No outlets} =1{1 outlet} other{{count} outlets}}",
+  "@territoryOutlets": {
+    "description": "How many outlets are in a territory.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "territoryAgents": "{count, plural, =0{No agents} =1{1 agent} other{{count} agents}}",
+  "@territoryAgents": {
+    "description": "How many agents are assigned to a territory.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "territoryCoveredWord": "Covered",
+  "@territoryCoveredWord": {
+    "description": "The word under a coverage percentage."
+  },
+  "territoryCoveredPercent": "{percent}% covered",
+  "@territoryCoveredPercent": {
+    "description": "The coverage figure as a sentence, for a screen reader.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "territoryCoverageLoading": "Loading coverage",
+  "@territoryCoverageLoading": {
+    "description": "A row's coverage request is still in flight. Never a zero."
+  },
+  "territoryCoverageFailed": "Coverage did not load",
+  "@territoryCoverageFailed": {
+    "description": "A row's coverage request failed. An em dash and this sentence, never a zero."
+  },
+  "territoryCoverageNoOutlets": "No outlets to cover yet",
+  "@territoryCoverageNoOutlets": {
+    "description": "There is nothing to take a percentage of. The wire sends 0 here and a nought over an empty denominator is a verdict nobody reached."
+  },
+  "territoryUnassigned": "Unassigned",
+  "@territoryUnassigned": {
+    "description": "A territory with no agents on it."
+  },
+  "territoryUnassignedLine": "Nobody works this territory yet.",
+  "@territoryUnassignedLine": {
+    "description": "The sentence under an agent count of zero."
+  },
+  "territoryCoverageCluster": "Coverage for this territory",
+  "@territoryCoverageCluster": {
+    "description": "Semantic label of the coverage figures in the territory sheet."
+  },
+  "territoryOutletsWord": "Outlets",
+  "@territoryOutletsWord": {
+    "description": "Eyebrow over the outlet count, and the section rule over the outlet list."
+  },
+  "territoryAgentsWord": "Agents",
+  "@territoryAgentsWord": {
+    "description": "Eyebrow over the agent count."
+  },
+  "territoryVisitedOf": "{visited} of {total} visited in this window",
+  "@territoryVisitedOf": {
+    "description": "The state line under a coverage percentage.",
+    "placeholders": {
+      "visited": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "territoryVisitedCount": "{count, plural, =0{None visited} =1{1 visited} other{{count} visited}}",
+  "@territoryVisitedCount": {
+    "description": "A header fact on the territory map: how many of its outlets were visited.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "territoryOpenMap": "Open the map",
+  "@territoryOpenMap": {
+    "description": "Opens one territory's map from its sheet."
+  },
+  "territoryAssign": "Assign an agent",
+  "@territoryAssign": {
+    "description": "Opens the roster, and commits the assignment once one is picked."
+  },
+  "territoryAssignTitle": "Assign to {territory}",
+  "@territoryAssignTitle": {
+    "description": "Title of the roster pane in the territory sheet.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "territoryAssignSubtitle": "Pick a field agent to work this territory.",
+  "@territoryAssignSubtitle": {
+    "description": "Subtitle of the roster pane."
+  },
+  "territoryFieldAgents": "Field agents",
+  "@territoryFieldAgents": {
+    "description": "Section rule over the roster."
+  },
+  "territoryAgentPicked": "Picked",
+  "@territoryAgentPicked": {
+    "description": "The word on the agent row the manager has selected."
+  },
+  "territoryAgentInactive": "No longer active",
+  "@territoryAgentInactive": {
+    "description": "The word on a deactivated agent's row, which cannot be picked."
+  },
+  "territoryAssignBlocked": "Pick a field agent first.",
+  "@territoryAssignBlocked": {
+    "description": "Why the Assign button is disabled."
+  },
+  "territoryAssignBack": "Back to coverage",
+  "@territoryAssignBack": {
+    "description": "Returns the sheet to its evidence pane."
+  },
+  "territoryAssignDone": "Assigned to {territory}.",
+  "@territoryAssignDone": {
+    "description": "Toast after a successful assignment.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "territoryAssignFailed": "That agent was not assigned. Nothing changed.",
+  "@territoryAssignFailed": {
+    "description": "Toast after a failed assignment. The honest half is that nothing changed."
+  },
+  "territoryNoAgentsHeadline": "No field agents yet",
+  "@territoryNoAgentsHeadline": {
+    "description": "The roster is empty."
+  },
+  "territoryNoAgentsBody": "Add a field agent under Users, then assign them here.",
+  "@territoryNoAgentsBody": {
+    "description": "Body under territoryNoAgentsHeadline."
+  },
+  "territoryNewTitle": "New territory",
+  "@territoryNewTitle": {
+    "description": "Title of the create-territory screen."
+  },
+  "territoryNewFact": "A code is what the back office quotes. It must be unique for this client.",
+  "@territoryNewFact": {
+    "description": "Header fact on the create form."
+  },
+  "territoryBackToList": "Back to territories",
+  "@territoryBackToList": {
+    "description": "The back button's spoken label. Names the destination, never just 'Back'."
+  },
+  "territoryNameLabel": "Name",
+  "@territoryNameLabel": {
+    "description": "Field label: the territory's name."
+  },
+  "territoryNameHelp": "What people call this patch — Gauteng North.",
+  "@territoryNameHelp": {
+    "description": "Help under the name field."
+  },
+  "territoryCodeLabel": "Code",
+  "@territoryCodeLabel": {
+    "description": "Field label: the territory's code."
+  },
+  "territoryCodeHelp": "The short code outlets are filed under — GP-N.",
+  "@territoryCodeHelp": {
+    "description": "Help under the code field."
+  },
+  "territoryRegionLabel": "Region",
+  "@territoryRegionLabel": {
+    "description": "Field label: the optional region."
+  },
+  "territoryRegionHelp": "Optional. The wider area this sits in.",
+  "@territoryRegionHelp": {
+    "description": "Help under the region field."
+  },
+  "territoryFieldRequired": "This is required.",
+  "@territoryFieldRequired": {
+    "description": "Validation message on an empty required field."
+  },
+  "territoryCreate": "Create territory",
+  "@territoryCreate": {
+    "description": "The commit button on the create form."
+  },
+  "territoryCreateBlocked": "A name and a code are both required.",
+  "@territoryCreateBlocked": {
+    "description": "Why the create button is disabled."
+  },
+  "territoryCreated": "{territory} created.",
+  "@territoryCreated": {
+    "description": "Toast after a territory is created.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "territoryMapTitle": "Territory map",
+  "@territoryMapTitle": {
+    "description": "Title of the territory map route while the territory itself is still being resolved."
+  },
+  "territoryMapEmptyHeadline": "No outlets in this territory",
+  "@territoryMapEmptyHeadline": {
+    "description": "Designed state: the territory exists and nothing is filed under it."
+  },
+  "territoryMapEmptyBody": "Outlets are filed under a territory by its code. Give an outlet this territory's code and it appears here.",
+  "@territoryMapEmptyBody": {
+    "description": "Body under territoryMapEmptyHeadline."
+  },
+  "territoryTilesOffBody": "The map did not load, so {territory} is listed below instead. Every store and its state is there.",
+  "@territoryTilesOffBody": {
+    "description": "Body when the basemap tiles never arrived. Not an error: the list carries everything.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "territoryOutletVisited": "Visited",
+  "@territoryOutletVisited": {
+    "description": "A store somebody has been to in this window."
+  },
+  "territoryOutletNotVisited": "Not visited yet",
+  "@territoryOutletNotVisited": {
+    "description": "A store nobody has been to in this window."
+  },
+  "territoryOutletVisitedLine": "A visit landed here inside the coverage window.",
+  "@territoryOutletVisitedLine": {
+    "description": "The sentence under the visited state in the outlet sheet."
+  },
+  "territoryOutletNotVisitedLine": "No visit has landed here inside the coverage window.",
+  "@territoryOutletNotVisitedLine": {
+    "description": "The sentence under the not-visited state in the outlet sheet."
+  },
+  "territoryOutletPosition": "Pinned at",
+  "@territoryOutletPosition": {
+    "description": "Label before an outlet's coordinates."
+  },
+  "territoryNotFoundHeadline": "We could not find that territory",
+  "@territoryNotFoundHeadline": {
+    "description": "The id in the URL matches nothing this client can see."
+  },
+  "territoryNotFoundBody": "It may have been deleted, or the link may belong to another client.",
+  "@territoryNotFoundBody": {
+    "description": "Body under territoryNotFoundHeadline."
+  },
+  "dispatchTitle": "Dispatch",
+  "@dispatchTitle": {
+    "description": "Screen title: ranking agents for one outlet."
+  },
+  "dispatchFact": "Agents are ranked in-territory first, then by distance from their last known location.",
+  "@dispatchFact": {
+    "description": "Header fact on Dispatch."
+  },
+  "dispatchOutletSection": "The outlet",
+  "@dispatchOutletSection": {
+    "description": "Section rule over the outlet picker."
+  },
+  "dispatchChooseOutlet": "Choose an outlet",
+  "@dispatchChooseOutlet": {
+    "description": "The picker's title when nothing is chosen."
+  },
+  "dispatchChooseOutletHint": "Ranking needs a destination to measure distance from.",
+  "@dispatchChooseOutletHint": {
+    "description": "Why an outlet has to be chosen first."
+  },
+  "dispatchChangeOutlet": "Outlet: {outlet}. Choose a different one.",
+  "@dispatchChangeOutlet": {
+    "description": "Spoken label of the picker once an outlet is chosen.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchNoOutletHeadline": "Pick an outlet to rank agents",
+  "@dispatchNoOutletHeadline": {
+    "description": "In-panel empty state before an outlet is chosen."
+  },
+  "dispatchNoOutletBody": "Nobody can be ranked until there is somewhere to rank them against.",
+  "@dispatchNoOutletBody": {
+    "description": "Body under dispatchNoOutletHeadline."
+  },
+  "dispatchNoOutletsHeadline": "No outlets yet",
+  "@dispatchNoOutletsHeadline": {
+    "description": "The outlet list came back empty."
+  },
+  "dispatchNoOutletsBody": "Add an outlet and it can be dispatched.",
+  "@dispatchNoOutletsBody": {
+    "description": "Body under dispatchNoOutletsHeadline."
+  },
+  "dispatchCandidatesSection": "Candidates",
+  "@dispatchCandidatesSection": {
+    "description": "Section rule over the ranked agents."
+  },
+  "dispatchNoCandidatesHeadline": "No agent can be ranked",
+  "@dispatchNoCandidatesHeadline": {
+    "description": "The server returned no candidates."
+  },
+  "dispatchNoCandidatesBody": "Ranking needs agents assigned to a territory, or a last known location — neither is recorded yet.",
+  "@dispatchNoCandidatesBody": {
+    "description": "Body under dispatchNoCandidatesHeadline."
+  },
+  "dispatchInTerritory": "In territory",
+  "@dispatchInTerritory": {
+    "description": "This agent's territory contains the outlet."
+  },
+  "dispatchOutsideTerritory": "Outside territory",
+  "@dispatchOutsideTerritory": {
+    "description": "This agent's territory does not contain the outlet."
+  },
+  "dispatchRecommended": "Recommended",
+  "@dispatchRecommended": {
+    "description": "The server's own pick. Never a rank this screen computed."
+  },
+  "dispatchMetresAway": "{metres} m away",
+  "@dispatchMetresAway": {
+    "description": "How far the server last saw this agent from the outlet.",
+    "placeholders": {
+      "metres": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchNoLocation": "No last-known location",
+  "@dispatchNoLocation": {
+    "description": "The server cannot place this agent. Never a zero — an agent with no fix must not look like one on the doorstep."
+  },
+  "trendsTitle": "Trends",
+  "@trendsTitle": {
+    "description": "Screen title: the manager's trend charts."
+  },
+  "trendsFact": "Server-side buckets — weeks start Monday, UTC.",
+  "@trendsFact": {
+    "description": "Header fact on Trends."
+  },
+  "trendsFilters": "Filters",
+  "@trendsFilters": {
+    "description": "Spoken label of the filter rail scoping every chart."
+  },
+  "trendsOverTime": "Over time",
+  "@trendsOverTime": {
+    "description": "The view showing three series over the window."
+  },
+  "trendsCompare": "Compare territories",
+  "@trendsCompare": {
+    "description": "The view comparing every territory against the client average."
+  },
+  "trendsDaily": "Daily",
+  "@trendsDaily": {
+    "description": "The day bucket."
+  },
+  "trendsWeekly": "Weekly",
+  "@trendsWeekly": {
+    "description": "The week bucket."
+  },
+  "trendsServerDefault": "Server default",
+  "@trendsServerDefault": {
+    "description": "No range was asked for. Null is not 'all time' — it is the server's own lookback."
+  },
+  "trendsCustomRange": "Custom range",
+  "@trendsCustomRange": {
+    "description": "A range the manager chose."
+  },
+  "trendsClearRange": "Clear the range",
+  "@trendsClearRange": {
+    "description": "Drops back to the server's default lookback."
+  },
+  "trendsViewAs": "Show as",
+  "@trendsViewAs": {
+    "description": "Spoken label of the chart-or-table toggle."
+  },
+  "trendsAsChart": "Chart",
+  "@trendsAsChart": {
+    "description": "Show the series as a chart."
+  },
+  "trendsAsTable": "Table",
+  "@trendsAsTable": {
+    "description": "Show the series as its table twin."
+  },
+  "trendsPeriod": "Period",
+  "@trendsPeriod": {
+    "description": "First column of the table twin."
+  },
+  "trendsNotMeasured": "Not measured",
+  "@trendsNotMeasured": {
+    "description": "A bucket with no reading. Never a zero."
+  },
+  "trendsScrubHint": "Drag across the chart to read one bucket.",
+  "@trendsScrubHint": {
+    "description": "How to reach the scrub readout. Everything it shows is also in the table."
+  },
+  "trendsChartHint": "{name}, {count} buckets. The exact figures are in the table view.",
+  "@trendsChartHint": {
+    "description": "Spoken label of a chart. The values live in the table, not in a paragraph read at 200 words a minute.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsGapNote": "{count, plural, =1{1 bucket not measured} other{{count} buckets not measured}}",
+  "@trendsGapNote": {
+    "description": "How many buckets broke the line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsEmptyHeadline": "No data in range",
+  "@trendsEmptyHeadline": {
+    "description": "Designed state: the window measured nothing."
+  },
+  "trendsEmptyBody": "Trends fill in as visits are submitted and scored.",
+  "@trendsEmptyBody": {
+    "description": "Body under trendsEmptyHeadline."
+  },
+  "trendScorecards": "Scorecard trend",
+  "@trendScorecards": {
+    "description": "Section rule over the scorecard series."
+  },
+  "trendScorecardsSeries": "Weighted execution score",
+  "@trendScorecardsSeries": {
+    "description": "The scorecard series' name in its legend."
+  },
+  "trendAvailability": "Availability trend",
+  "@trendAvailability": {
+    "description": "Section rule over the availability series."
+  },
+  "trendAvailabilitySeries": "On-shelf availability",
+  "@trendAvailabilitySeries": {
+    "description": "The availability series' name in its legend."
+  },
+  "trendPerfectStore": "Perfect store trend",
+  "@trendPerfectStore": {
+    "description": "Section rule over the perfect-store series."
+  },
+  "trendPerfectStoreSeries": "Outlets passing every gate",
+  "@trendPerfectStoreSeries": {
+    "description": "The perfect-store series' name in its legend."
+  },
+  "trendsMetric": "Metric",
+  "@trendsMetric": {
+    "description": "Spoken label of the metric rail."
+  },
+  "trendsMetricScore": "Score",
+  "@trendsMetricScore": {
+    "description": "The scorecard metric."
+  },
+  "trendsMetricPerfectStore": "Perfect store",
+  "@trendsMetricPerfectStore": {
+    "description": "The perfect-store metric."
+  },
+  "trendsMetricAvailability": "Availability",
+  "@trendsMetricAvailability": {
+    "description": "The availability metric."
+  },
+  "trendsMetricShareOfShelf": "Share of shelf",
+  "@trendsMetricShareOfShelf": {
+    "description": "The share-of-shelf metric."
+  },
+  "trendsClientAverage": "Client average",
+  "@trendsClientAverage": {
+    "description": "The client's own line, which every territory is read against."
+  },
+  "trendsTarget": "Target",
+  "@trendsTarget": {
+    "description": "The client's configured standard, when the wire names none."
+  },
+  "trendsUnassignedNote": "Also includes {samples} from outlets outside every territory.",
+  "@trendsUnassignedNote": {
+    "description": "Why the client average can differ from the territories' own.",
+    "placeholders": {
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsNoTerritoriesHeadline": "No territories set up",
+  "@trendsNoTerritoriesHeadline": {
+    "description": "There is nothing to compare."
+  },
+  "trendsNoTerritoriesBody": "Add territories and each one can be read against the client average.",
+  "@trendsNoTerritoriesBody": {
+    "description": "Body under trendsNoTerritoriesHeadline."
+  },
+  "trendsCompareEmptyBody": "The comparison fills in as visits are submitted and scored.",
+  "@trendsCompareEmptyBody": {
+    "description": "Body when the client average itself was never measured."
+  },
+  "trendsAboveAverage": "Above average",
+  "@trendsAboveAverage": {
+    "description": "This territory sits above the client average."
+  },
+  "trendsBelowAverage": "Below average",
+  "@trendsBelowAverage": {
+    "description": "This territory sits below the client average. A watch, not a breach — sitting under your own average is not failing a threshold."
+  },
+  "trendsAtAverage": "At average",
+  "@trendsAtAverage": {
+    "description": "This territory is level with the client average."
+  },
+  "trendsAboveBy": "{points} points above the client average · {samples}",
+  "@trendsAboveBy": {
+    "description": "The note under a territory above the line.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsBelowBy": "{points} points below the client average · {samples}",
+  "@trendsBelowBy": {
+    "description": "The note under a territory below the line.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsLevelWith": "Level with the client average · {samples}",
+  "@trendsLevelWith": {
+    "description": "The note under a territory on the line.",
+    "placeholders": {
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsNothingMeasuredHere": "Nothing measured in this window",
+  "@trendsNothingMeasuredHere": {
+    "description": "The note under a territory with no reading."
+  },
+  "trendsRank": "Ranked {rank}",
+  "@trendsRank": {
+    "description": "A territory's rank, spoken.",
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsUnranked": "Not ranked",
+  "@trendsUnranked": {
+    "description": "The server could not rank this territory. A rank is never invented."
+  },
+  "trendsShowing": "Showing",
+  "@trendsShowing": {
+    "description": "The word on the territory row whose series the chart is drawing."
+  },
+  "trendsAgainstClient": "{territory} against the client average",
+  "@trendsAgainstClient": {
+    "description": "Section rule over the comparison chart.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsMeterHint": "{territory}: {value}, client average {average}",
+  "@trendsMeterHint": {
+    "description": "Spoken value of a territory's meter.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      },
+      "value": {
+        "type": "int"
+      },
+      "average": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsSamplesScorecards": "{count, plural, =1{1 scorecard} other{{count} scorecards}}",
+  "@trendsSamplesScorecards": {
+    "description": "How many scorecards are behind a figure.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsSamplesStockLines": "{count, plural, =1{1 stock line} other{{count} stock lines}}",
+  "@trendsSamplesStockLines": {
+    "description": "How many stock lines are behind a figure.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trendsSamplesFacings": "{count, plural, =1{1 visit with facings} other{{count} visits with facings}}",
+  "@trendsSamplesFacings": {
+    "description": "How many visits with facings are behind a figure.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
     }
   }
 }

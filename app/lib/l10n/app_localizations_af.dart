@@ -3772,4 +3772,511 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get torchTryAgain => 'Probeer weer';
+
+  @override
+  String get torchStillFetching => 'Haal steeds · dit is stadiger as gewoonlik';
+
+  @override
+  String get roleFieldAgent => 'Veldagent';
+
+  @override
+  String get territoriesTitle => 'Gebiede';
+
+  @override
+  String get territoriesFact =>
+      '’n Gebied groepeer winkels en die agente wat hulle bewerk.';
+
+  @override
+  String get territoriesRefresh => 'Herlaai die gebiedelys';
+
+  @override
+  String get territoriesSectionAll => 'Alle gebiede';
+
+  @override
+  String get territoriesNew => 'Nuwe gebied';
+
+  @override
+  String get territoriesEmptyHeadline => 'Nog geen gebiede nie';
+
+  @override
+  String get territoriesEmptyBody =>
+      '’n Gebied groepeer winkels en die agente wat hulle bewerk. Skep een en winkels kan daaraan toegeken word.';
+
+  @override
+  String territoryOutlets(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkels',
+      one: '1 winkel',
+      zero: 'Geen winkels',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String territoryAgents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agente',
+      one: '1 agent',
+      zero: 'Geen agente',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get territoryCoveredWord => 'Gedek';
+
+  @override
+  String territoryCoveredPercent(int percent) {
+    return '$percent% gedek';
+  }
+
+  @override
+  String get territoryCoverageLoading => 'Dekking laai';
+
+  @override
+  String get territoryCoverageFailed => 'Dekking het nie gelaai nie';
+
+  @override
+  String get territoryCoverageNoOutlets => 'Nog geen winkels om te dek nie';
+
+  @override
+  String get territoryUnassigned => 'Nie toegeken nie';
+
+  @override
+  String get territoryUnassignedLine =>
+      'Niemand bewerk hierdie gebied nog nie.';
+
+  @override
+  String get territoryCoverageCluster => 'Dekking vir hierdie gebied';
+
+  @override
+  String get territoryOutletsWord => 'Winkels';
+
+  @override
+  String get territoryAgentsWord => 'Agente';
+
+  @override
+  String territoryVisitedOf(int visited, int total) {
+    return '$visited van $total besoek in hierdie venster';
+  }
+
+  @override
+  String territoryVisitedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count besoek',
+      one: '1 besoek',
+      zero: 'Geen besoek',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get territoryOpenMap => 'Maak die kaart oop';
+
+  @override
+  String get territoryAssign => 'Ken ’n agent toe';
+
+  @override
+  String territoryAssignTitle(String territory) {
+    return 'Ken toe aan $territory';
+  }
+
+  @override
+  String get territoryAssignSubtitle =>
+      'Kies ’n veldagent om hierdie gebied te bewerk.';
+
+  @override
+  String get territoryFieldAgents => 'Veldagente';
+
+  @override
+  String get territoryAgentPicked => 'Gekies';
+
+  @override
+  String get territoryAgentInactive => 'Nie meer aktief nie';
+
+  @override
+  String get territoryAssignBlocked => 'Kies eers ’n veldagent.';
+
+  @override
+  String get territoryAssignBack => 'Terug na dekking';
+
+  @override
+  String territoryAssignDone(String territory) {
+    return 'Toegeken aan $territory.';
+  }
+
+  @override
+  String get territoryAssignFailed =>
+      'Daardie agent is nie toegeken nie. Niks het verander nie.';
+
+  @override
+  String get territoryNoAgentsHeadline => 'Nog geen veldagente nie';
+
+  @override
+  String get territoryNoAgentsBody =>
+      'Voeg ’n veldagent onder Gebruikers by, en ken hom of haar dan hier toe.';
+
+  @override
+  String get territoryNewTitle => 'Nuwe gebied';
+
+  @override
+  String get territoryNewFact =>
+      '’n Kode is wat die kantoor aanhaal. Dit moet uniek wees vir hierdie kliënt.';
+
+  @override
+  String get territoryBackToList => 'Terug na gebiede';
+
+  @override
+  String get territoryNameLabel => 'Naam';
+
+  @override
+  String get territoryNameHelp =>
+      'Wat mense hierdie streek noem — Gauteng-Noord.';
+
+  @override
+  String get territoryCodeLabel => 'Kode';
+
+  @override
+  String get territoryCodeHelp =>
+      'Die kort kode waaronder winkels geliasseer word — GP-N.';
+
+  @override
+  String get territoryRegionLabel => 'Streek';
+
+  @override
+  String get territoryRegionHelp => 'Opsioneel. Die wyer gebied waarin dit lê.';
+
+  @override
+  String get territoryFieldRequired => 'Dit is verpligtend.';
+
+  @override
+  String get territoryCreate => 'Skep gebied';
+
+  @override
+  String get territoryCreateBlocked =>
+      '’n Naam en ’n kode is albei verpligtend.';
+
+  @override
+  String territoryCreated(String territory) {
+    return '$territory geskep.';
+  }
+
+  @override
+  String get territoryMapTitle => 'Gebiedskaart';
+
+  @override
+  String get territoryMapEmptyHeadline => 'Geen winkels in hierdie gebied nie';
+
+  @override
+  String get territoryMapEmptyBody =>
+      'Winkels word onder ’n gebied geliasseer volgens sy kode. Gee ’n winkel hierdie gebied se kode en dit verskyn hier.';
+
+  @override
+  String territoryTilesOffBody(String territory) {
+    return 'Die kaart het nie gelaai nie, so $territory word hieronder gelys. Elke winkel en sy toestand is daar.';
+  }
+
+  @override
+  String get territoryOutletVisited => 'Besoek';
+
+  @override
+  String get territoryOutletNotVisited => 'Nog nie besoek nie';
+
+  @override
+  String get territoryOutletVisitedLine =>
+      '’n Besoek het hier geland binne die dekkingsvenster.';
+
+  @override
+  String get territoryOutletNotVisitedLine =>
+      'Geen besoek het hier geland binne die dekkingsvenster nie.';
+
+  @override
+  String get territoryOutletPosition => 'Vasgespeld by';
+
+  @override
+  String get territoryNotFoundHeadline => 'Ons kon nie daardie gebied kry nie';
+
+  @override
+  String get territoryNotFoundBody =>
+      'Dit is dalk geskrap, of die skakel behoort aan ’n ander kliënt.';
+
+  @override
+  String get dispatchTitle => 'Versending';
+
+  @override
+  String get dispatchFact =>
+      'Agente word eers binne-gebied gerangskik, daarna volgens afstand vanaf hul laas bekende ligging.';
+
+  @override
+  String get dispatchOutletSection => 'Die winkel';
+
+  @override
+  String get dispatchChooseOutlet => 'Kies ’n winkel';
+
+  @override
+  String get dispatchChooseOutletHint =>
+      'Rangskikking het ’n bestemming nodig om afstand vandaan te meet.';
+
+  @override
+  String dispatchChangeOutlet(String outlet) {
+    return 'Winkel: $outlet. Kies ’n ander een.';
+  }
+
+  @override
+  String get dispatchNoOutletHeadline => 'Kies ’n winkel om agente te rangskik';
+
+  @override
+  String get dispatchNoOutletBody =>
+      'Niemand kan gerangskik word voordat daar iets is om hulle teen te rangskik nie.';
+
+  @override
+  String get dispatchNoOutletsHeadline => 'Nog geen winkels nie';
+
+  @override
+  String get dispatchNoOutletsBody =>
+      'Voeg ’n winkel by en dit kan versend word.';
+
+  @override
+  String get dispatchCandidatesSection => 'Kandidate';
+
+  @override
+  String get dispatchNoCandidatesHeadline =>
+      'Geen agent kan gerangskik word nie';
+
+  @override
+  String get dispatchNoCandidatesBody =>
+      'Rangskikking het agente nodig wat aan ’n gebied toegeken is, of ’n laas bekende ligging — nog geen van albei is aangeteken nie.';
+
+  @override
+  String get dispatchInTerritory => 'Binne gebied';
+
+  @override
+  String get dispatchOutsideTerritory => 'Buite gebied';
+
+  @override
+  String get dispatchRecommended => 'Aanbeveel';
+
+  @override
+  String dispatchMetresAway(int metres) {
+    return '$metres m weg';
+  }
+
+  @override
+  String get dispatchNoLocation => 'Geen laas bekende ligging nie';
+
+  @override
+  String get trendsTitle => 'Tendense';
+
+  @override
+  String get trendsFact => 'Bedienerkant-bakke — weke begin Maandag, UTC.';
+
+  @override
+  String get trendsFilters => 'Filters';
+
+  @override
+  String get trendsOverTime => 'Oor tyd';
+
+  @override
+  String get trendsCompare => 'Vergelyk gebiede';
+
+  @override
+  String get trendsDaily => 'Daagliks';
+
+  @override
+  String get trendsWeekly => 'Weekliks';
+
+  @override
+  String get trendsServerDefault => 'Bediener se verstek';
+
+  @override
+  String get trendsCustomRange => 'Eie reeks';
+
+  @override
+  String get trendsClearRange => 'Maak die reeks skoon';
+
+  @override
+  String get trendsViewAs => 'Wys as';
+
+  @override
+  String get trendsAsChart => 'Grafiek';
+
+  @override
+  String get trendsAsTable => 'Tabel';
+
+  @override
+  String get trendsPeriod => 'Tydperk';
+
+  @override
+  String get trendsNotMeasured => 'Nie gemeet nie';
+
+  @override
+  String get trendsScrubHint => 'Sleep oor die grafiek om een bak te lees.';
+
+  @override
+  String trendsChartHint(String name, int count) {
+    return '$name, $count bakke. Die presiese syfers is in die tabelaansig.';
+  }
+
+  @override
+  String trendsGapNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bakke nie gemeet nie',
+      one: '1 bak nie gemeet nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get trendsEmptyHeadline => 'Geen data in die reeks nie';
+
+  @override
+  String get trendsEmptyBody =>
+      'Tendense vul in soos besoeke ingedien en bepunt word.';
+
+  @override
+  String get trendScorecards => 'Telkaart-tendens';
+
+  @override
+  String get trendScorecardsSeries => 'Geweegde uitvoeringstelling';
+
+  @override
+  String get trendAvailability => 'Beskikbaarheidstendens';
+
+  @override
+  String get trendAvailabilitySeries => 'Beskikbaarheid op rak';
+
+  @override
+  String get trendPerfectStore => 'Perfekte-winkel-tendens';
+
+  @override
+  String get trendPerfectStoreSeries => 'Winkels wat elke hek slaag';
+
+  @override
+  String get trendsMetric => 'Maatstaf';
+
+  @override
+  String get trendsMetricScore => 'Telling';
+
+  @override
+  String get trendsMetricPerfectStore => 'Perfekte winkel';
+
+  @override
+  String get trendsMetricAvailability => 'Beskikbaarheid';
+
+  @override
+  String get trendsMetricShareOfShelf => 'Rakaandeel';
+
+  @override
+  String get trendsClientAverage => 'Kliëntgemiddeld';
+
+  @override
+  String get trendsTarget => 'Teiken';
+
+  @override
+  String trendsUnassignedNote(String samples) {
+    return 'Sluit ook $samples in van winkels buite elke gebied.';
+  }
+
+  @override
+  String get trendsNoTerritoriesHeadline => 'Geen gebiede opgestel nie';
+
+  @override
+  String get trendsNoTerritoriesBody =>
+      'Voeg gebiede by en elkeen kan teen die kliëntgemiddeld gelees word.';
+
+  @override
+  String get trendsCompareEmptyBody =>
+      'Die vergelyking vul in soos besoeke ingedien en bepunt word.';
+
+  @override
+  String get trendsAboveAverage => 'Bo gemiddeld';
+
+  @override
+  String get trendsBelowAverage => 'Onder gemiddeld';
+
+  @override
+  String get trendsAtAverage => 'Op gemiddeld';
+
+  @override
+  String trendsAboveBy(String points, String samples) {
+    return '$points punte bo die kliëntgemiddeld · $samples';
+  }
+
+  @override
+  String trendsBelowBy(String points, String samples) {
+    return '$points punte onder die kliëntgemiddeld · $samples';
+  }
+
+  @override
+  String trendsLevelWith(String samples) {
+    return 'Gelyk met die kliëntgemiddeld · $samples';
+  }
+
+  @override
+  String get trendsNothingMeasuredHere => 'Niks gemeet in hierdie venster nie';
+
+  @override
+  String trendsRank(int rank) {
+    return 'Gerangskik $rank';
+  }
+
+  @override
+  String get trendsUnranked => 'Nie gerangskik nie';
+
+  @override
+  String get trendsShowing => 'Wys tans';
+
+  @override
+  String trendsAgainstClient(String territory) {
+    return '$territory teen die kliëntgemiddeld';
+  }
+
+  @override
+  String trendsMeterHint(String territory, int value, int average) {
+    return '$territory: $value, kliëntgemiddeld $average';
+  }
+
+  @override
+  String trendsSamplesScorecards(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count telkaarte',
+      one: '1 telkaart',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trendsSamplesStockLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count voorraadlyne',
+      one: '1 voorraadlyn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trendsSamplesFacings(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count besoeke met rakfronte',
+      one: '1 besoek met rakfronte',
+    );
+    return '$_temp0';
+  }
 }

@@ -4,11 +4,7 @@ import '../../../core/network/api_client.dart';
 /// A single point on an executive trend line returned by the /trends/*
 /// endpoints, e.g. one bucket of the scorecard trend over an interval.
 class TrendPoint {
-  const TrendPoint({
-    required this.period,
-    required this.value,
-    this.count = 0,
-  });
+  const TrendPoint({required this.period, required this.value, this.count = 0});
   final String period;
   final double value;
 
@@ -17,10 +13,10 @@ class TrendPoint {
   final int count;
 
   factory TrendPoint.fromJson(Map<String, dynamic> json) => TrendPoint(
-        period: json['period'] as String,
-        value: (json['value'] as num).toDouble(),
-        count: (json['count'] as num?)?.toInt() ?? 0,
-      );
+    period: json['period'] as String,
+    value: (json['value'] as num).toDouble(),
+    count: (json['count'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// The bucket width the server groups by. Only these two exist — the route
@@ -42,10 +38,10 @@ class TrendQuery {
   bool get isRanged => from != null || to != null;
 
   Map<String, dynamic> toQueryParameters() => {
-        'interval': interval.name,
-        if (from != null) 'from': from!.toIso8601String(),
-        if (to != null) 'to': to!.toIso8601String(),
-      };
+    'interval': interval.name,
+    if (from != null) 'from': from!.toIso8601String(),
+    if (to != null) 'to': to!.toIso8601String(),
+  };
 }
 
 /// The metrics `GET /trends/benchmark` compares. [name] is the wire value.
@@ -53,19 +49,18 @@ enum BenchmarkMetric { scorecards, perfectStore, availability, shareOfShelf }
 
 extension BenchmarkMetricLabels on BenchmarkMetric {
   String get label => switch (this) {
-        BenchmarkMetric.scorecards => 'Score',
-        BenchmarkMetric.perfectStore => 'Perfect store',
-        BenchmarkMetric.availability => 'Availability',
-        BenchmarkMetric.shareOfShelf => 'Share of shelf',
-      };
+    BenchmarkMetric.scorecards => 'Score',
+    BenchmarkMetric.perfectStore => 'Perfect store',
+    BenchmarkMetric.availability => 'Availability',
+    BenchmarkMetric.shareOfShelf => 'Share of shelf',
+  };
 
   /// `count` rows of this metric in words — "3 scorecards", "1 stock line".
   String samples(int count) {
     final one = count == 1;
     final noun = switch (this) {
       BenchmarkMetric.scorecards ||
-      BenchmarkMetric.perfectStore =>
-        one ? 'scorecard' : 'scorecards',
+      BenchmarkMetric.perfectStore => one ? 'scorecard' : 'scorecards',
       BenchmarkMetric.availability => one ? 'stock line' : 'stock lines',
       BenchmarkMetric.shareOfShelf =>
         one ? 'visit with facings' : 'visits with facings',
@@ -78,18 +73,18 @@ extension BenchmarkMetricLabels on BenchmarkMetric {
 enum BenchmarkPosition { above, below, level }
 
 BenchmarkPosition? _position(Object? raw) => switch (raw) {
-      'above' => BenchmarkPosition.above,
-      'below' => BenchmarkPosition.below,
-      'level' => BenchmarkPosition.level,
-      _ => null,
-    };
+  'above' => BenchmarkPosition.above,
+  'below' => BenchmarkPosition.below,
+  'level' => BenchmarkPosition.level,
+  _ => null,
+};
 
 double? _nullableDouble(Object? raw) => (raw as num?)?.toDouble();
 
 List<TrendPoint> _points(Object? raw) => [
-      for (final json in (raw as List? ?? const []))
-        TrendPoint.fromJson(json as Map<String, dynamic>),
-    ];
+  for (final json in (raw as List? ?? const []))
+    TrendPoint.fromJson(json as Map<String, dynamic>),
+];
 
 /// A series plus its period average. [average] is null — never 0 — when
 /// nothing in the window was measured.
@@ -192,8 +187,8 @@ class TerritoryBenchmarkReport {
       targetLabel: target?['label'] as String?,
       unassignedCount:
           ((json['unassigned'] as Map<String, dynamic>?)?['count'] as num?)
-                  ?.toInt() ??
-              0,
+              ?.toInt() ??
+          0,
     );
   }
 }
@@ -210,8 +205,10 @@ abstract class TrendsRepository {
 
 class DioTrendsRepository implements TrendsRepository {
   Future<List<TrendPoint>> _points(String path, TrendQuery query) async {
-    final response =
-        await dio.get(path, queryParameters: query.toQueryParameters());
+    final response = await dio.get(
+      path,
+      queryParameters: query.toQueryParameters(),
+    );
     final points = (response.data as Map<String, dynamic>)['points'] as List;
     return points
         .map((json) => TrendPoint.fromJson(json as Map<String, dynamic>))
@@ -219,20 +216,19 @@ class DioTrendsRepository implements TrendsRepository {
   }
 
   @override
-  Future<List<TrendPoint>> scorecards([TrendQuery query = const TrendQuery()]) =>
-      _points('/trends/scorecards', query);
+  Future<List<TrendPoint>> scorecards([
+    TrendQuery query = const TrendQuery(),
+  ]) => _points('/trends/scorecards', query);
 
   @override
   Future<List<TrendPoint>> availability([
     TrendQuery query = const TrendQuery(),
-  ]) =>
-      _points('/trends/availability', query);
+  ]) => _points('/trends/availability', query);
 
   @override
   Future<List<TrendPoint>> perfectStore([
     TrendQuery query = const TrendQuery(),
-  ]) =>
-      _points('/trends/perfect-store', query);
+  ]) => _points('/trends/perfect-store', query);
 
   @override
   Future<TerritoryBenchmarkReport> benchmark(
@@ -249,8 +245,9 @@ class DioTrendsRepository implements TrendsRepository {
   }
 }
 
-final trendsRepositoryProvider =
-    Provider<TrendsRepository>((ref) => DioTrendsRepository());
+final trendsRepositoryProvider = Provider<TrendsRepository>(
+  (ref) => DioTrendsRepository(),
+);
 
 /// One query drives every trend on the screen, so two charts can never disagree
 /// about which slice of time they are showing.
@@ -261,26 +258,33 @@ class TrendQueryNotifier extends Notifier<TrendQuery> {
   void set(TrendQuery next) => state = next;
 }
 
-final trendQueryProvider =
-    NotifierProvider<TrendQueryNotifier, TrendQuery>(TrendQueryNotifier.new);
+final trendQueryProvider = NotifierProvider<TrendQueryNotifier, TrendQuery>(
+  TrendQueryNotifier.new,
+);
 
-final scorecardsTrendProvider = FutureProvider<List<TrendPoint>>((ref) {
-  return ref.read(trendsRepositoryProvider).scorecards(
-        ref.watch(trendQueryProvider),
-      );
-});
+final scorecardsTrendProvider = FutureProvider<List<TrendPoint>>(
+  (ref) => ref
+      .read(trendsRepositoryProvider)
+      .scorecards(ref.watch(trendQueryProvider)),
+  // Retries are disabled everywhere in this group — see territoriesListProvider.
+  retry: (retryCount, error) => null,
+);
 
-final availabilityTrendProvider = FutureProvider<List<TrendPoint>>((ref) {
-  return ref.read(trendsRepositoryProvider).availability(
-        ref.watch(trendQueryProvider),
-      );
-});
+final availabilityTrendProvider = FutureProvider<List<TrendPoint>>(
+  (ref) => ref
+      .read(trendsRepositoryProvider)
+      .availability(ref.watch(trendQueryProvider)),
+  // Retries are disabled everywhere in this group — see territoriesListProvider.
+  retry: (retryCount, error) => null,
+);
 
-final perfectStoreTrendProvider = FutureProvider<List<TrendPoint>>((ref) {
-  return ref.read(trendsRepositoryProvider).perfectStore(
-        ref.watch(trendQueryProvider),
-      );
-});
+final perfectStoreTrendProvider = FutureProvider<List<TrendPoint>>(
+  (ref) => ref
+      .read(trendsRepositoryProvider)
+      .perfectStore(ref.watch(trendQueryProvider)),
+  // Retries are disabled everywhere in this group — see territoriesListProvider.
+  retry: (retryCount, error) => null,
+);
 
 /// Which of the screen's two views is showing.
 enum TrendsView { overTime, compareTerritories }
@@ -292,8 +296,9 @@ class TrendsViewNotifier extends Notifier<TrendsView> {
   void set(TrendsView next) => state = next;
 }
 
-final trendsViewProvider =
-    NotifierProvider<TrendsViewNotifier, TrendsView>(TrendsViewNotifier.new);
+final trendsViewProvider = NotifierProvider<TrendsViewNotifier, TrendsView>(
+  TrendsViewNotifier.new,
+);
 
 class BenchmarkMetricNotifier extends Notifier<BenchmarkMetric> {
   @override
@@ -304,15 +309,17 @@ class BenchmarkMetricNotifier extends Notifier<BenchmarkMetric> {
 
 final benchmarkMetricProvider =
     NotifierProvider<BenchmarkMetricNotifier, BenchmarkMetric>(
-  BenchmarkMetricNotifier.new,
-);
+      BenchmarkMetricNotifier.new,
+    );
 
 /// The territory comparison reads through the same [trendQueryProvider] as
 /// every series, so the two views always describe the same window.
-final territoryBenchmarkProvider =
-    FutureProvider<TerritoryBenchmarkReport>((ref) {
-  return ref.read(trendsRepositoryProvider).benchmark(
+final territoryBenchmarkProvider = FutureProvider<TerritoryBenchmarkReport>(
+  (ref) => ref
+      .read(trendsRepositoryProvider)
+      .benchmark(
         ref.watch(benchmarkMetricProvider),
         ref.watch(trendQueryProvider),
-      );
-});
+      ),
+  retry: (retryCount, error) => null,
+);
