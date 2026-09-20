@@ -4119,6 +4119,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get trendsNotMeasured => 'Nie gemeet nie';
 
   @override
+  String get trendsDashed => 'gestippel';
+
+  @override
   String get trendsScrubHint => 'Sleep oor die grafiek om een bak te lees.';
 
   @override
@@ -4221,6 +4224,14 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String trendsLevelWith(String samples) {
     return 'Gelyk met die kliëntgemiddeld · $samples';
+  }
+
+  @override
+  String get trendsSmallSample => 'Klein steekproef';
+
+  @override
+  String trendsTooFewToCompare(String samples) {
+    return 'Te min om te vergelyk · $samples';
   }
 
   @override

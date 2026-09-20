@@ -12,9 +12,15 @@ class ScrubEntry {
     required this.name,
     required this.value,
     required this.role,
+    this.lowSample = false,
   });
 
   final String name;
+
+  /// This bucket's own row count was below the metric's threshold. The figure
+  /// steps to ink-2 — the same treatment a tile gets, because a thin week
+  /// read under a thumb is the same thin week.
+  final bool lowSample;
 
   /// Null is a bucket nobody measured, and it renders as the em dash with the
   /// unit suppressed — the same rule the tiles obey. A scrub readout that
@@ -42,6 +48,7 @@ class ScrubReadout extends StatelessWidget {
     required this.entries,
     required this.unit,
     required this.notMeasuredWord,
+    this.lowSampleWord,
     this.decimals,
   });
 
@@ -57,11 +64,21 @@ class ScrubReadout extends StatelessWidget {
   /// — never "0", never "n/a", and never an em dash read out as "em dash".
   final String notMeasuredWord;
 
+  /// The words a thin bucket is announced with — "Small sample", "Klein
+  /// steekproef". Required whenever any entry is [ScrubEntry.lowSample],
+  /// because ink-2 is a channel a screen reader does not have.
+  final String? lowSampleWord;
+
   final int? decimals;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    assert(
+      lowSampleWord != null || entries.every((e) => !e.lowSample),
+      'ScrubReadout: a thin bucket steps to ink-2, and ink is not a channel a '
+      'screen reader has. Pass lowSampleWord.',
+    );
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: TiqSpace.s3,
@@ -105,10 +122,19 @@ class ScrubReadout extends StatelessWidget {
                     decimals: decimals,
                     state: entry.value == null
                         ? FigureState.missing
+                        : entry.lowSample
+                        ? FigureState.lowSample
                         : FigureState.measured,
                     textAlign: TextAlign.end,
+                    // The value AND the qualification in one utterance: a
+                    // reader who hears "92 percent" and then, a beat later,
+                    // "small sample" has already acted on the first half.
                     semanticsLabel: entry.value == null
                         ? '${entry.name}, $notMeasuredWord'
+                        : entry.lowSample
+                        ? '${entry.name}, '
+                              '${TiqNumber.of(context).format(entry.value, unit: unit, decimals: decimals)}, '
+                              '${lowSampleWord ?? ''}'
                         : null,
                   ),
                 ],

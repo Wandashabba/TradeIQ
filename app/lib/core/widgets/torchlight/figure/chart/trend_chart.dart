@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../../design/tiq_number.dart';
 import '../../../../theme/torchlight/tiq_skin.dart';
+import '../sample_threshold.dart';
 import 'chart_legend.dart';
 import 'chart_series.dart';
 import 'scrub_readout.dart';
@@ -48,10 +49,18 @@ class TrendChart extends StatefulWidget {
     this.threshold,
     this.decimals,
     required this.notMeasuredWord,
+    required this.dashedWord,
+    this.sampleKind,
+    this.lowSampleWord,
     this.gapNote,
     this.veldReplacement,
     this.scrubHint,
-  }) : assert(series.length > 0, 'A chart with no series is not a chart.');
+  }) : assert(series.length > 0, 'A chart with no series is not a chart.'),
+       assert(
+         sampleKind == null || lowSampleWord != null,
+         'TrendChart: a chart that steps a thin bucket down needs the words '
+         'for it. Ink-2 is not a channel a screen reader has.',
+       );
 
   /// The subject first, the comparison after it. At most one of each — see
   /// [ChartSeriesRole].
@@ -70,6 +79,19 @@ class TrendChart extends StatefulWidget {
 
   /// The words a null reading takes in the scrub readout, localised.
   final String notMeasuredWord;
+
+  /// The word the legend uses for a dashed swatch — "dashed", "gestippel".
+  /// Required and localised by the caller; see [ChartLegend.dashedWord].
+  final String dashedWord;
+
+  /// What kind of quantity these readings are. Non-null makes the scrub
+  /// readout read [ChartReading.sampleSize] and step a thin bucket down to
+  /// ink-2; null is today's behaviour. See [TableTwin.sampleKind].
+  final MetricKind? sampleKind;
+
+  /// The words a thin bucket is announced with in the scrub readout.
+  /// Required alongside [sampleKind].
+  final String? lowSampleWord;
 
   /// "2 weeks not measured", from the caller's own plural rules.
   final String? gapNote;
@@ -115,6 +137,7 @@ class _TrendChartState extends State<TrendChart> {
     final skin = context.skin;
     final legend = ChartLegend(
       series: widget.series,
+      dashedWord: widget.dashedWord,
       threshold: widget.threshold,
       gapNote: widget.gapNote,
     );
@@ -202,11 +225,18 @@ class _TrendChartState extends State<TrendChart> {
                     name: s.name,
                     value: s.readings[scrubIndex].value,
                     role: s.role,
+                    lowSample:
+                        widget.sampleKind != null &&
+                        TiqSample.isLow(
+                          widget.sampleKind!,
+                          s.readings[scrubIndex].sampleSize,
+                        ),
                   ),
             ],
             unit: widget.unit,
             decimals: widget.decimals,
             notMeasuredWord: widget.notMeasuredWord,
+            lowSampleWord: widget.lowSampleWord,
           ),
         ] else if (widget.scrubHint != null) ...<Widget>[
           SizedBox(height: skin.space.intraBlock),

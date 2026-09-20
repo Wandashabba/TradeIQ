@@ -5361,6 +5361,10 @@
   "@trendsNotMeasured": {
     "description": "A bucket with no reading. Never a zero."
   },
+  "trendsDashed": "dashed",
+  "@trendsDashed": {
+    "description": "The word a screen reader hears for a dashed legend swatch. The dash is the second channel the legend carries, so it is spoken as well as drawn."
+  },
   "trendsScrubHint": "Drag across the chart to read one bucket.",
   "@trendsScrubHint": {
     "description": "How to reach the scrub readout. Everything it shows is also in the table."
@@ -5506,6 +5510,19 @@
   "trendsLevelWith": "Level with the client average · {samples}",
   "@trendsLevelWith": {
     "description": "The note under a territory on the line.",
+    "placeholders": {
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "trendsSmallSample": "Small sample",
+  "@trendsSmallSample": {
+    "description": "Stands in for the above/below verdict on a territory whose figure came from too few rows. A delta never stands beside a sample this thin."
+  },
+  "trendsTooFewToCompare": "Too few to compare · {samples}",
+  "@trendsTooFewToCompare": {
+    "description": "Replaces the delta sentence on a territory row whose sample is below the metric's threshold.",
     "placeholders": {
       "samples": {
         "type": "String"

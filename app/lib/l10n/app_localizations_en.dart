@@ -4079,6 +4079,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trendsNotMeasured => 'Not measured';
 
   @override
+  String get trendsDashed => 'dashed';
+
+  @override
   String get trendsScrubHint => 'Drag across the chart to read one bucket.';
 
   @override
@@ -4181,6 +4184,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String trendsLevelWith(String samples) {
     return 'Level with the client average · $samples';
+  }
+
+  @override
+  String get trendsSmallSample => 'Small sample';
+
+  @override
+  String trendsTooFewToCompare(String samples) {
+    return 'Too few to compare · $samples';
   }
 
   @override
