@@ -804,11 +804,13 @@ class _DisputeBlock extends StatelessWidget {
       actions: verbs.isEmpty
           ? null
           : Wrap(spacing: TiqSpace.s4, children: verbs),
-      // The same words, in the order they are read on the page. Without this
-      // the row's label is the agent's name and the time of day, and the
-      // evidence the screen exists to present is silent.
+      // The same words, in the order a listener needs them. Without this the
+      // row's label is the agent's name and the time of day, and the evidence
+      // the screen exists to present is silent. The status leads, as severity
+      // leads every other row in this system: whether this report is still
+      // open is what decides if the rest is worth hearing.
       semanticsLabel: <String?>[
-        dispute.isOpen ? l10n.outletDisputeOpen : null,
+        status,
         dispute.agentLabel,
         '${formatDayShort(context, dispute.createdAt.toLocal())} · '
             '${formatClock(context, dispute.createdAt.toLocal())}',
@@ -818,7 +820,6 @@ class _DisputeBlock extends StatelessWidget {
         if (note != null && note.isNotEmpty) note,
         if (dispute.photos.isNotEmpty)
           l10n.outletDisputePhotoCount(dispute.photos.length),
-        status,
       ].whereType<String>().where((s) => s.isNotEmpty).join('. '),
     );
   }
