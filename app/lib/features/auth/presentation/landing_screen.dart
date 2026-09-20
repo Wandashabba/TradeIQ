@@ -1,26 +1,48 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/auth/session_controller.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_motion.dart' show reduceMotion;
+import '../../../core/design/motion_budget.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/entry_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/dimmed_aisle_backdrop.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/trade_iq_logo.dart';
-import '../../../core/theme/lumen_palette.dart';
+import 'entry_brand.dart';
 
-/// The splash: the aisle footage dimmed to texture, the wordmark fading up,
-/// and self-managed navigation at `max(5s, session-restore)` — never before
-/// 5 seconds (the brand hold), never before restore resolves (advancing blind
-/// would route a logged-in manager to sign-in). Tap anywhere skips the hold
-/// but still waits for restore. The router's redirect exempts '/' so nothing
-/// cuts the hold short.
+/// THE SPLASH — the aisle, the wordmark, and five seconds.
+///
+/// It advances at `max(5s, session-restore)`: never before 5 seconds (the
+/// brand hold), never before restore resolves (advancing blind would route a
+/// logged-in manager to sign-in). Tap anywhere skips the hold but still waits
+/// for restore. The router's redirect exempts '/' so nothing cuts the hold
+/// short.
+///
+/// ## Amber: none, in any skin
+///
+/// Nothing here is armed and nothing here is a control, so the route declares
+/// no claims at all and the census counts zero objects in Night, Day and Veld.
+/// A splash is the one screen in the product with nothing to commit.
+///
+/// ## The one screen with no skin cycle, and why that is not an exception
+///
+/// [TorchShell] puts the cycle on every screen because the control that gets
+/// somebody out of a skin they cannot read belongs everywhere they can reach.
+/// This screen has no chrome at all: no header, no bottom region, no scroll,
+/// and **no words to read** beyond a wordmark. It holds for five seconds, the
+/// whole surface is the skip, and the screen it hands to carries the cycle. A
+/// 56dp control on a five-second brand moment would be a control nobody has
+/// time to find and a tap target competing with the skip.
+///
+/// ## The footage is Night's ground, and Night's only
+///
+/// Day is paper and Veld removes every image in the system (unify §4); a
+/// near-black video under a white ground is not a lighter version of the same
+/// idea, it is a different screen. So Day and Veld get the skin's own ground
+/// and the same mark on it.
 class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
@@ -76,13 +98,16 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
     if (_decidedAutoplay || !_videoController.value.isInitialized) return;
     _decidedAutoplay = true;
 
-    // Under reduced motion the video stays on its first frame — still a
+    // Under the motion budget the video stays on its first frame — still a
     // photograph of a real aisle, just not a moving one. There is no longer a
     // pause control: the WCAG 2.2.2 (Level A) concern it served applied to the
     // old indefinite loop, and this screen now auto-advances within ~5 seconds
     // — under the SC's 5-second threshold — with the whole tap surface acting
     // as the skip.
-    if (!reduceMotion(context)) {
+    //
+    // `MotionBudget.still` and not `reduceMotion` alone: Veld has no motion at
+    // all, and Veld does not render the footage either.
+    if (!MotionBudget.of(context).still) {
       _videoController.play();
     }
   }
@@ -113,95 +138,58 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final still = reduceMotion(context);
-    final glass = context.colors.glass;
-
-    final wordmark = TweenAnimationBuilder<double>(
-      tween: Tween(begin: still ? 1 : 0, end: 1),
-      duration: Duration(milliseconds: still ? 0 : 900),
-      curve: Curves.easeOutCubic,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, (1 - t) * 12),
-          child: child,
-        ),
-      ),
-      child: glass
-          // Lumen Glass: the monogram on its own pane, the wordmark in ink.
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GlassPane(
-                  kind: GlassKind.panel,
-                  radius: 26,
-                  padding: EdgeInsets.all(18),
-                  child: TradeIqLogo(size: 52),
-                ),
-                SizedBox(height: 22),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: 'TRADE'),
-                      TextSpan(
-                        text: 'IQ',
-                        style: TextStyle(color: context.lumen.accentSolid),
-                      ),
-                    ],
-                  ),
-                  style: TextStyle(
-                    color: context.lumen.ink,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 4.5,
-                  ),
-                ),
-              ],
-            )
-          : const Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: 'TRADE'),
-                  TextSpan(
-                    text: 'IQ',
-                    style: TextStyle(color: AppColors.blueLight),
-                  ),
-                ],
-              ),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 34,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 4.5,
+    return EntryTorchlightRoute(
+      child: Builder(
+        builder: (context) {
+          final skin = context.skin;
+          final still = MotionBudget.of(context).still;
+          final wordmark = TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: still ? 1 : 0, end: 1),
+            duration: Duration(milliseconds: still ? 0 : 900),
+            curve: TiqMotion.enterCurve,
+            builder: (context, t, child) => Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, (1 - t) * 12),
+                child: child,
               ),
             ),
-    );
+            child: const EntryBrand(monogram: 52),
+          );
 
-    final splash = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        _skipped = true;
-        _maybeAdvance();
-      },
-      child: Scaffold(
-        backgroundColor: glass ? context.colors.plane : null,
-        body: glass
-            ? LitGround(
-                backdrop: AisleFootage(controller: _videoController),
-                child: Center(child: wordmark),
-              )
-            : Stack(
-                fit: StackFit.expand,
-                children: [
-                  DimmedAisleBackdrop(controller: _videoController),
-                  Center(child: wordmark),
-                ],
+          return TorchScope(
+            skin: skin,
+            phase: 'holding',
+            navRenders: false,
+            tabbedRoute: false,
+            claims: const <TorchClaim>[],
+            child: DefaultTextStyle(
+              style: skin.text.body.style(color: skin.palette.ink1),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _skipped = true;
+                  _maybeAdvance();
+                },
+                child: ColoredBox(
+                  color: skin.palette.ground,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      // Night only. The dim is a flat colour over the frame,
+                      // not a blur or a saveLayer — nothing new on the paint
+                      // budget.
+                      if (skin.mode == SkinMode.night)
+                        DimmedAisleBackdrop(controller: _videoController),
+                      Center(child: wordmark),
+                    ],
+                  ),
+                ),
               ),
+            ),
+          );
+        },
       ),
     );
-
-    // Light is Lumen Glass on the lit ground; dark keeps the dimmed aisle
-    // footage, pinned to the dark theme as before.
-    return glass ? splash : Theme(data: AppTheme.dark(), child: splash);
   }
 }

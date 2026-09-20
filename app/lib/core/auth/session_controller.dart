@@ -6,6 +6,7 @@ import '../network/api_client.dart';
 import '../storage/local_db.dart';
 import 'auth_repository.dart';
 import 'jwt.dart';
+import 'session_ended.dart';
 import 'token_store.dart';
 
 class SessionState {
@@ -24,8 +25,14 @@ class SessionController extends AsyncNotifier<SessionState> {
     // A 401 on any authenticated request means this session is over. The router
     // already sends an empty session to /login, so signing out is the whole
     // fix — nothing here needs to know about navigation.
+    //
+    // It does need to know what is still on the phone. A session that ends
+    // under an agent holding six captured sections is a **state**, not an
+    // error (#380/#392), and the sentence that makes it one — "everything you
+    // captured is still here" — has to be counted before the sign-out clears
+    // the owner the outbox is keyed by.
     onUnauthorized = () {
-      if (state.value?.role != null) logout();
+      if (state.value?.role != null) logout(expired: true);
     };
 
     try {
@@ -90,12 +97,36 @@ class SessionController extends AsyncNotifier<SessionState> {
           // ignore
         }
       }
+      // Signed in again: whatever the last ending held is now the sync
+      // service's problem, not a line under a form nobody is looking at.
+      ref.read(sessionEndedProvider.notifier).clear();
       return SessionState(role: result.role, token: result.token);
     });
   }
 
-  Future<void> logout() async {
+  /// Signs out.
+  ///
+  /// [expired] marks the one ending the person did not ask for: a 401 on an
+  /// authenticated request. It is the difference between "I am done" and "the
+  /// clock ran out under me", and only the second one owes the person a count
+  /// of what is still held on their phone.
+  Future<void> logout({bool expired = false}) async {
     final departing = currentLocalUserId;
+    if (expired) {
+      // Before the owner is cleared — the outbox query is scoped by it.
+      // Best-effort: a database that will not answer must never strand
+      // somebody in a half-signed-out state.
+      try {
+        final held = await countHeldWork(ref.read(localDbProvider), departing);
+        ref.read(sessionEndedProvider.notifier).record(held);
+      } catch (_) {
+        // ignore — no proof block, and the plain sign-in screen instead
+      }
+    } else {
+      // A deliberate sign-out answers its own question: nothing is owed and a
+      // held line left over from a previous ending would be a lie.
+      ref.read(sessionEndedProvider.notifier).clear();
+    }
     currentAuthToken = null;
     currentLocalUserId = null;
     // Clear in-memory state first so the UI/router react immediately; the

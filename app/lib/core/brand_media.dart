@@ -7,9 +7,14 @@
 /// does the matching constant point at it. The app never calls a generative
 /// API at runtime — these are static committed assets, or nothing.
 ///
-/// Honesty rule (non-negotiable): these slots feed empty states and the
-/// menu-sheet header ONLY — never data rows, where imagery is evidence
-/// (captured shelf photos) and generated art would counterfeit it.
+/// Honesty rule (non-negotiable): these slots feed empty states ONLY — never
+/// data rows, where imagery is evidence (captured shelf photos) and generated
+/// art would counterfeit it.
+///
+/// The menu-sheet banner is gone. The Torchlight menu is a sheet of rows under
+/// three section rules, and a decorative 88dp band above them spent the top of
+/// the fold on a picture of nothing. `tool/generate_brand_media` still has a
+/// `menu-header` prompt; nothing reads its output.
 abstract final class BrandMedia {
   /// Tasks screen, empty worklist — "Nothing outstanding".
   static const String? tasksAllClear = null;
@@ -19,7 +24,4 @@ abstract final class BrandMedia {
 
   /// Fallback for other empty lists that have no art of their own.
   static const String? emptyGeneric = null;
-
-  /// Wide banner atop the nav menu sheet.
-  static const String? menuHeader = null;
 }
