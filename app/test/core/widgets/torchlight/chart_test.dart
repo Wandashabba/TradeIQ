@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/chart/chart.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart'
+    show FigureSlot, MetricKind;
 
 import '../../design/amber_golden.dart';
 import 'torch_harness.dart';
@@ -31,6 +35,11 @@ Widget _chart({
   ChartThreshold? threshold,
   String? gapNote,
   Widget? veldReplacement,
+  // Afrikaans by default in the tests that care: the kit takes these words
+  // from the caller, and a test that only ever passes English cannot tell a
+  // threaded string from a hardcoded one.
+  String dashedWord = 'gestippel',
+  MetricKind? sampleKind,
 }) => Padding(
   padding: const EdgeInsets.all(16),
   child: TrendChart(
@@ -38,6 +47,9 @@ Widget _chart({
     unit: TiqUnit.percent,
     semanticsLabel: 'Scorecard trend, three weeks',
     notMeasuredWord: 'Not measured',
+    dashedWord: dashedWord,
+    sampleKind: sampleKind,
+    lowSampleWord: sampleKind == null ? null : 'Klein steekproef',
     threshold: threshold,
     gapNote: gapNote,
     veldReplacement: veldReplacement,
@@ -69,19 +81,85 @@ void main() {
       expect(find.text('Target 70'), findsOneWidget);
     });
 
-    testWidgets('the comparison swatch is announced as dashed', (tester) async {
+    testWidgets('the comparison swatch is announced as dashed, in the '
+        'caller\'s language', (tester) async {
       // Colour is never the only signal: a reader who cannot separate Truffle
-      // from chart-neutral gets the word.
+      // from chart-neutral gets the word. The dash is the second channel the
+      // whole legend exists to carry, so it is the LAST word that may be left
+      // in English — this used to read `'\$label, dashed'` in the kit, and an
+      // Afrikaans manager on TalkBack heard "Kliëntgemiddeld, dashed".
       await pumpTorch(
         tester,
         skin: TiqSkin.night(),
-        child: _chart(series: <ChartSeries>[_subject(), _comparison]),
+        child: _chart(
+          series: <ChartSeries>[_subject(), _comparison],
+          dashedWord: 'gestippel',
+        ),
       );
 
-      final semantics = tester.getSemantics(
-        find.bySemanticsLabel('Client average, dashed'),
+      expect(
+        find.bySemanticsLabel('Client average, gestippel'),
+        findsOneWidget,
       );
-      expect(semantics, isNotNull);
+      expect(find.bySemanticsLabel('Client average, dashed'), findsNothing);
+      // The subject is solid, so it carries no dash word at all.
+      expect(find.bySemanticsLabel('Gauteng North'), findsOneWidget);
+    });
+
+    testWidgets('a threshold is dashed too, and says so in the same word', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: _chart(
+          dashedWord: 'gestippel',
+          threshold: const ChartThreshold(value: 70, label: 'Standaard 70'),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('Standaard 70, gestippel'), findsOneWidget);
+    });
+
+    test('no file in the chart kit hardcodes an English word for a reader', () {
+      // `chart_series.dart` says "Localised by the caller — nothing in this
+      // folder hardcodes English", and this is what holds the WHOLE folder to
+      // it rather than the one line that was caught. A string literal is the
+      // only way English reaches a reader from here; doc comments are for us.
+      final offenders = <String>[];
+      final english = RegExp(
+        r'\b(dashed|dotted|solid|not measured|small sample|average|'
+        r'target|period|week|month)\b',
+        caseSensitive: false,
+      );
+      // Dart string literals, single- and double-quoted, on one line.
+      final literals = RegExp(
+        '\'(?:[^\'\\\\\\n]|\\\\.)*\'|"(?:[^"\\\\\\n]|\\\\.)*"',
+      );
+      for (final entity in Directory(
+        'lib/core/widgets/torchlight/figure/chart',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart'))) {
+        for (final line in entity.readAsLinesSync()) {
+          final code = line.trimLeft();
+          // A doc comment or a comment is not something a reader hears.
+          if (code.startsWith('//')) continue;
+          for (final match in literals.allMatches(line)) {
+            final text = match.group(0)!;
+            // An import URI is not something a reader hears.
+            if (text.contains('/') || text.contains('package:')) continue;
+            if (english.hasMatch(text)) {
+              offenders.add('${entity.uri.pathSegments.last}: $text');
+            }
+          }
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Every word a reader hears comes from the caller, never from the '
+            'kit — the kit has no l10n and cannot get one.',
+      );
     });
   });
 
@@ -189,6 +267,114 @@ void main() {
         );
       });
     }
+  });
+
+  group('a thin bucket is not a confident one', () {
+    // unify line 271: "Low sample keeps the figure at ink-2, outlines the
+    // fill, and removes the delta." `ChartReading.sampleSize` was collected by
+    // every caller and read by nothing, which is a field that reads as
+    // implemented and is not.
+    const List<ChartReading> thin = <ChartReading>[
+      ChartReading(
+        label: 'W26',
+        longLabel: '2026-W26',
+        value: 40,
+        sampleSize: 2,
+      ),
+      ChartReading(
+        label: 'W27',
+        longLabel: '2026-W27',
+        value: 80,
+        sampleSize: 30,
+      ),
+    ];
+
+    testWidgets('the table twin steps a two-row bucket down to ink-2', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: TableTwin(
+            series: <ChartSeries>[
+              ChartSeries(name: 'Gauteng North', readings: thin),
+            ],
+            unit: TiqUnit.percent,
+            periodHeading: 'Period',
+            notMeasuredWord: 'Not measured',
+            // A rate: n >= 5.
+            sampleKind: MetricKind.rate,
+            lowSampleWord: 'Klein steekproef',
+          ),
+        ),
+      );
+
+      final slots = tester
+          .widgetList<FigureSlot>(find.byType(FigureSlot))
+          .toList();
+      final byValue = <double?, FigureState>{
+        for (final slot in slots) slot.value?.toDouble(): slot.state,
+      };
+      expect(byValue[40], FigureState.lowSample);
+      expect(byValue[80], FigureState.measured);
+    });
+
+    testWidgets('and leaves every bucket alone when the caller names no kind', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: TableTwin(
+            series: <ChartSeries>[
+              ChartSeries(name: 'Gauteng North', readings: thin),
+            ],
+            unit: TiqUnit.percent,
+            periodHeading: 'Period',
+            notMeasuredWord: 'Not measured',
+          ),
+        ),
+      );
+
+      expect(
+        tester
+            .widgetList<FigureSlot>(find.byType(FigureSlot))
+            .where((s) => s.state == FigureState.lowSample),
+        isEmpty,
+      );
+    });
+
+    testWidgets('the scrub readout says so under the thumb', (tester) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: _chart(
+          series: <ChartSeries>[
+            ChartSeries(name: 'Gauteng North', readings: thin),
+          ],
+          sampleKind: MetricKind.rate,
+        ),
+      );
+
+      // Land the thumb on the first bucket — the one with two rows behind it
+      // — and hold it there.
+      final plot = tester.getRect(find.byType(CustomPaint).last);
+      final gesture = await tester.startGesture(plot.center);
+      await gesture.moveTo(plot.centerLeft);
+      await tester.pump();
+      addTearDown(() async => gesture.up());
+
+      final readout = find.byType(ScrubReadout);
+      expect(readout, findsOneWidget);
+      final slot = tester.widget<FigureSlot>(
+        find.descendant(of: readout, matching: find.byType(FigureSlot)),
+      );
+      expect(slot.state, FigureState.lowSample);
+    });
   });
 
   group('the scale', () {

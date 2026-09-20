@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/chart/chart.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
@@ -68,6 +69,39 @@ TerritoryBenchmarkReport _report({
         ),
       ],
 );
+
+/// Availability after a load-shedding week: Gauteng North has TWO stock lines
+/// on file and they both happened to be in stock. 92% is arithmetically true
+/// and epistemically worthless — a rate needs n >= 5.
+TerritoryBenchmarkReport _thin({int territoryN = 2, int clientN = 2}) =>
+    TerritoryBenchmarkReport(
+      metric: BenchmarkMetric.availability,
+      isPercent: true,
+      client: BenchmarkSeries(
+        average: 55,
+        count: clientN,
+        points: const <TrendPoint>[
+          TrendPoint(period: '2026-W26', value: 55, count: 1),
+          TrendPoint(period: '2026-W28', value: 55, count: 1),
+        ],
+      ),
+      territories: <TerritoryBenchmark>[
+        TerritoryBenchmark(
+          territoryId: 'ter-1',
+          territoryName: 'Gauteng North',
+          territoryCode: 'GP-N',
+          average: 92,
+          count: territoryN,
+          points: const <TrendPoint>[
+            TrendPoint(period: '2026-W26', value: 92, count: 1),
+            TrendPoint(period: '2026-W28', value: 92, count: 1),
+          ],
+          rank: 1,
+          deltaFromClient: 37,
+          position: BenchmarkPosition.above,
+        ),
+      ],
+    );
 
 Future<FakeTrendsRepository> _pump(
   WidgetTester tester, {
@@ -455,6 +489,251 @@ void main() {
       );
       expect(measured.meta, isNotNull);
       expect(unmeasured.meta, isNull);
+    });
+  });
+
+  group('the compare pane is readable without a drag', () {
+    // The plot is wrapped in `excludeSemantics`, so a reader hears one
+    // sentence and that sentence says "the exact figures are in the table
+    // view". Outside Veld there was no table view on this pane at all, and
+    // the only other way in was a horizontal drag-scrub — which a screen
+    // reader cannot perform and a printed page does not carry.
+    for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+      testWidgets('${skin.mode.name}: the table its own hint promises', (
+        tester,
+      ) async {
+        await _pump(tester, skin: skin, report: _report());
+        await _compare(tester);
+
+        final chart = tester.widget<TrendChart>(
+          find.byKey(const ValueKey<String>('benchmark-chart')),
+        );
+        expect(chart.semanticsLabel, contains('table view'));
+
+        final toggle = find.descendant(
+          of: find.byKey(const ValueKey<String>('trend-benchmark')),
+          matching: find.byKey(const ValueKey<String>('view-table')),
+        );
+        expect(
+          toggle,
+          findsOneWidget,
+          reason:
+              'The over-time panels prove the pattern was affordable. A pane '
+              'that names a table view has to have one.',
+        );
+
+        await tester.tap(toggle);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('benchmark-chart')),
+          findsNothing,
+        );
+        final twin = tester.widget<TableTwin>(
+          find.byKey(const ValueKey<String>('benchmark-table')),
+        );
+        // Both runs, so the territory can actually be read AGAINST the client
+        // line rather than merely listed.
+        expect(twin.series.map((s) => s.name), <String>[
+          'Gauteng North',
+          'Client average',
+        ]);
+        expect(twin.series.last.role, ChartSeriesRole.comparison);
+        // The unabbreviated week and the exact figure, which the scrub was
+        // the only other way to reach.
+        expect(find.text('2026-W28'), findsOneWidget);
+        expect(find.text('72'), findsOneWidget);
+        // The strike week is still a hole in the table, not a nought.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey<String>('benchmark-table')),
+            matching: find.text('Not measured'),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
+
+    testWidgets('and the toggle goes back to the chart', (tester) async {
+      await _pump(tester, report: _report());
+      await _compare(tester);
+
+      final panel = find.byKey(const ValueKey<String>('trend-benchmark'));
+      await tester.tap(
+        find.descendant(
+          of: panel,
+          matching: find.byKey(const ValueKey<String>('view-table')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: panel,
+          matching: find.byKey(const ValueKey<String>('view-chart')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('benchmark-chart')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('benchmark-table')),
+        findsNothing,
+      );
+    });
+  });
+
+  group('a figure off two observations is not a verdict', () {
+    testWidgets('the delta clause comes off, and the ranking word with it', (
+      tester,
+    ) async {
+      await _pump(tester, report: _thin());
+      await _compare(tester);
+
+      // THIS is the sentence a manager reassigns an agent over.
+      expect(
+        find.text('37 points above the client average · 2 stock lines'),
+        findsNothing,
+        reason:
+            'unify line 271: low sample removes the delta. Two observations '
+            'do not support a 37-point verdict.',
+      );
+      expect(find.text('Too few to compare · 2 stock lines'), findsOneWidget);
+      // "Above average" is a delta wearing a word.
+      expect(find.text('Above average'), findsNothing);
+      expect(find.text('Small sample'), findsOneWidget);
+    });
+
+    testWidgets('the figure itself steps down, and so does its meter', (
+      tester,
+    ) async {
+      await _pump(tester, report: _thin());
+      await _compare(tester);
+
+      final slot = tester.widget<FigureSlot>(
+        find.byKey(const ValueKey<String>('benchmark-average-ter-1')),
+      );
+      expect(slot.state, FigureState.lowSample);
+      // ink-2 and an outline are not channels a screen reader has, so the
+      // qualification rides in the SAME utterance as the figure. A reader who
+      // hears "92 percent" and only a beat later "small sample" has already
+      // acted on the first half.
+      expect(slot.semanticsLabel, '92%, Small sample');
+
+      final meter = tester.widget<Meter>(find.byType(Meter).first);
+      // Outline against fill — a shape distinction, not a paler colour.
+      expect(meter.state, MeterState.lowSample);
+
+      // The client line is two stock lines deep as well.
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('benchmark-client-average')),
+      );
+      expect(tile.figureState, FigureState.lowSample);
+      // In this screen's words, never the kit's English "from 2".
+      expect(tile.sampleNote, '2 stock lines');
+    });
+
+    testWidgets('exactly at the threshold is the normal treatment', (
+      tester,
+    ) async {
+      // The boundary is not a gradient: a rate needs n >= 5, and 5 is enough.
+      await _pump(tester, report: _thin(territoryN: 5, clientN: 40));
+      await _compare(tester);
+
+      final slot = tester.widget<FigureSlot>(
+        find.byKey(const ValueKey<String>('benchmark-average-ter-1')),
+      );
+      expect(slot.state, FigureState.measured);
+      expect(find.text('Above average'), findsOneWidget);
+    });
+
+    testWidgets('a count the server did not send is not a sample of zero', (
+      tester,
+    ) async {
+      // `count` defaults to 0 when the field is absent, and marking every
+      // figure weak the day the field is dropped is the same lie in the other
+      // direction.
+      await _pump(tester, report: _thin(territoryN: 0, clientN: 0));
+      await _compare(tester);
+
+      final slot = tester.widget<FigureSlot>(
+        find.byKey(const ValueKey<String>('benchmark-average-ter-1')),
+      );
+      expect(slot.state, FigureState.measured);
+      expect(find.text('Small sample'), findsNothing);
+    });
+
+    testWidgets('a thin week inside the table twin is stepped down too', (
+      tester,
+    ) async {
+      // `ChartReading.sampleSize` was collected by every caller and read by
+      // nothing.
+      await _pump(tester, skin: TiqSkin.veld(), report: _thin());
+      await _compare(tester);
+
+      final twin = tester.widget<TableTwin>(
+        find.byKey(const ValueKey<String>('benchmark-table')),
+      );
+      expect(twin.sampleKind, MetricKind.rate);
+      expect(twin.lowSampleWord, isNotNull);
+      expect(
+        tester
+            .widgetList<FigureSlot>(find.byType(FigureSlot))
+            .where((s) => s.state == FigureState.lowSample),
+        isNotEmpty,
+      );
+    });
+
+    testWidgets('Afrikaans hears all of it in Afrikaans', (tester) async {
+      await _pump(tester, locale: const Locale('af'), report: _thin());
+      await _compare(tester);
+
+      expect(
+        find.text('Te min om te vergelyk · 2 voorraadlyne'),
+        findsOneWidget,
+      );
+      expect(find.text('Klein steekproef'), findsWidgets);
+      expect(find.text('Small sample'), findsNothing);
+    });
+  });
+
+  group('the legend speaks the reader\'s language', () {
+    testWidgets('the dashed swatch is announced in Afrikaans', (tester) async {
+      // "Kliëntgemiddeld, dashed" is what an Afrikaans manager on TalkBack
+      // used to hear — and the dash is the ONE channel that survives
+      // greyscale and deuteranopia, so it is the last word that may be left
+      // in English.
+      final handle = tester.ensureSemantics();
+      await _pump(tester, locale: const Locale('af'), report: _report());
+      await _compare(tester);
+
+      // The legend's entries are merged into the chart block's one utterance,
+      // so this is a substring of what TalkBack actually says on that focus
+      // stop — which is the thing under test.
+      expect(
+        find.bySemanticsLabel(RegExp('Kliëntgemiddeld, gestippel')),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('dashed')),
+        findsNothing,
+        reason: 'No English may survive anywhere in the af utterance.',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('and in English on an English phone', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, report: _report());
+      await _compare(tester);
+
+      expect(
+        find.bySemanticsLabel(RegExp('Client average, dashed')),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
   });
 
