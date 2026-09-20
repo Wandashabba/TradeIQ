@@ -59,6 +59,58 @@ describe('webhooks routes', () => {
     webhookId = res.body.id;
   });
 
+  // The signing secret is what lets a subscriber tell our delivery from a
+  // forged one. It used to ride back on create, on every list and on every
+  // patch, because each handler returned the raw Prisma row — so a console
+  // that never rendered it still received it, on every page load, for every
+  // endpoint on the client.
+  describe('the signing secret never leaves the server', () => {
+    it('is absent from the create response, which says only whether there is one', async () => {
+      const res = await request(app)
+        .post('/webhooks')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ url: 'https://example.com/signed', event: 'order.created', secret: 'whsec_abc' });
+
+      expect(res.status).toBe(201);
+      expect(res.body).not.toHaveProperty('secret');
+      expect(res.body.hasSecret).toBe(true);
+      expect(JSON.stringify(res.body)).not.toContain('whsec_abc');
+
+      // And it really was stored: the column holds it, the response did not.
+      const row = await prisma.webhook.findUnique({ where: { id: res.body.id } });
+      expect(row?.secret).toBe('whsec_abc');
+    });
+
+    it('is absent from every row of the list', async () => {
+      const res = await request(app).get('/webhooks').set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      for (const webhook of res.body.data) {
+        expect(webhook).not.toHaveProperty('secret');
+      }
+      expect(JSON.stringify(res.body)).not.toContain('whsec_abc');
+      expect(JSON.stringify(res.body)).not.toContain('s3cr3t');
+    });
+
+    it('is absent from a patch response', async () => {
+      const res = await request(app)
+        .patch(`/webhooks/${webhookId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ active: false });
+
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('secret');
+      expect(res.body.hasSecret).toBe(true);
+
+      // Put it back for the tests below.
+      await request(app)
+        .patch(`/webhooks/${webhookId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ active: true });
+    });
+  });
+
   it('rejects a url whose protocol is not http(s) (400)', async () => {
     const res = await request(app)
       .post('/webhooks')

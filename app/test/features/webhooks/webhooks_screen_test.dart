@@ -85,13 +85,11 @@ class _FakeWebhooksRepository implements WebhooksRepository {
     List<Webhook>? webhooks,
     this.listFailure,
     this.setActiveFailure,
-    this.createFailure,
   }) : webhooks = webhooks ?? <Webhook>[_healthy, _failing, _unhealthy];
 
   final List<Webhook> webhooks;
   final Object? listFailure;
   final Object? setActiveFailure;
-  final Object? createFailure;
 
   String? deletedId;
   String? createdUrl;
@@ -117,7 +115,6 @@ class _FakeWebhooksRepository implements WebhooksRepository {
     createdUrl = url;
     createdEvent = event;
     createdSecret = secret;
-    if (createFailure != null) throw createFailure!;
     return Webhook(id: 'w-new', url: url, event: event, active: true);
   }
 
