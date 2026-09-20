@@ -420,6 +420,34 @@ void main() {
       );
     });
 
+    /// The refused build was the one account screen with no length test, and
+    /// it is the worst candidate to skip: three paragraphs and a sentence
+    /// carrying two version numbers, on a phone whose owner cannot get past
+    /// it. Veld as well as Night, because Veld is the skin this screen is
+    /// most likely to be read in — outdoors, stuck.
+    for (final skin in <SkinMode>[SkinMode.night, SkinMode.veld]) {
+      testWidgets('Afrikaans at 2.0× still lays out in ${skin.name}', (
+        tester,
+      ) async {
+        appUpdateRequired.value = const AppUpdateRequired(
+          minimumVersion: '9.1.0',
+        );
+        await pumpAgentScreen(
+          tester,
+          const UpdateRequiredScreen(),
+          path: '/update-required',
+          textScale: 2.0,
+          locale: const Locale('af'),
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: skin),
+            entrySkinProvider.overrideWith(() => PinnedEntrySkin(skin)),
+          ],
+        );
+        expect(find.text('Dateer TradeIQ op'), findsWidgets);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     testWidgets('"Try again" clears the state', (tester) async {
       appUpdateRequired.value = const AppUpdateRequired(
         minimumVersion: '9.1.0',
