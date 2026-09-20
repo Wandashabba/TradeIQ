@@ -1766,6 +1766,7 @@ three sheet commit actions the ruling put on the ladder, and those are
 | `ChoiceRow` | *(new)* | none |
 | `TorchFilterChip` / `TorchFilterRail` | `ChoiceChip` | none |
 | `TorchHandednessScope` | *(new — #407)* | none |
+| `VerdictControl` | *(new — #392)* — the fraud queue's ruling | its commit |
 
 `SectionRule` is **not** in this list. It landed in Phase 1 and already
 generalises — count slot, action slot, empty line, the 2.0× wrap and the Veld
@@ -2038,8 +2039,19 @@ does not scroll: horizontal-scroll discovery fails outdoors.
   obvious; see §15.4.
 * **The amber text-field focus rule.** Argued above; one token, one allowlist
   entry, one claim when it lands.
-* **`Menu sheet`** and **`Verdict control`** — both on the canonical list, both
-  waiting on the screens that use them.
+* **`Menu sheet`** — on the canonical list, still waiting on a screen that
+  needs the grouped-with-counts form; the console's overflow ships as the
+  plain rows-and-rules version in `console_frame.dart`.
+* ~~**`Verdict control`**~~ — **landed with the fraud review queue.** Three
+  stacked rows and a commit, in `input/verdict_control.dart`. It stacks
+  whatever the measurement says (`ChoiceRow.forceColumn`, added for it):
+  one of its options accuses a person of faking their work, a verdict is
+  INSERT-ONLY against a unique `visit_id`, and three 44dp targets side by side
+  on a 360dp phone is a mis-tap that cannot be taken back. Nothing is
+  pre-selected — a control that defaulted to "cleared" would record a decision
+  nobody made every time somebody opened the sheet and closed it. A ruling that
+  demands a note cannot be committed without one, and the primary's
+  `blockedReason` names what is missing rather than leaving a dead button.
 * **The sync status *chip*.** The banner form is built; the chip is a Phase 1
   header component and the two are one component in two forms (§1.14).
 * **Toast queue collapsing** ("3 captures held" from three toasts in two
