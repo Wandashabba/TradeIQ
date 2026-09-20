@@ -122,7 +122,7 @@ class TodayRoute {
 /// restarting the app.
 void invalidateRouteProgress(Ref ref) {
   ref.invalidate(currentFixProvider);
-  ref.invalidate(beatPlansListProvider);
+  ref.invalidate(beatPlansPageProvider);
   ref.invalidate(beatPlanDetailProvider);
   ref.invalidate(todayRouteProvider);
 }

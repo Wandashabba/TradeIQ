@@ -45,7 +45,11 @@ class _CountingBeatPlansRepository implements BeatPlansRepository {
   }
 
   @override
-  Future<void> markStopVisited(String planId, String stopId, bool visited) async {}
+  Future<void> markStopVisited(
+    String planId,
+    String stopId,
+    bool visited,
+  ) async {}
 
   @override
   Future<BeatPlan> createBeatPlan({
@@ -117,17 +121,22 @@ void main() {
     await container.read(beatPlanDetailProvider('bp1').future);
   });
 
-  test('a submitted visit reaching the server refetches the beat plans (#52)', () async {
-    expect(repo.listCalls, 1);
-    expect(repo.detailCalls, 1);
+  test(
+    'a submitted visit reaching the server refetches the beat plans (#52)',
+    () async {
+      expect(repo.listCalls, 1);
+      expect(repo.detailCalls, 1);
 
-    container.read(syncServiceProvider).onItemSynced!(_synced('visit_submit'));
-    await container.read(beatPlansListProvider.future);
-    await container.read(beatPlanDetailProvider('bp1').future);
+      container.read(syncServiceProvider).onItemSynced!(
+        _synced('visit_submit'),
+      );
+      await container.read(beatPlansListProvider.future);
+      await container.read(beatPlanDetailProvider('bp1').future);
 
-    expect(repo.listCalls, 2);
-    expect(repo.detailCalls, 2);
-  });
+      expect(repo.listCalls, 2);
+      expect(repo.detailCalls, 2);
+    },
+  );
 
   test('other captures syncing leave the cached route alone', () async {
     container.read(syncServiceProvider).onItemSynced!(_synced('stock'));
@@ -178,49 +187,55 @@ void main() {
       return routed;
     }
 
-    test('a submitted visit reaching the server re-measures every stop',
-        () async {
-      final routed = await standUp();
-      final morning = (await routed.read(todayRouteProvider.future))!;
-      expect(location.calls, 1);
-      expect(morning.stops.single.distanceMeters!.round(), 1112);
+    test(
+      'a submitted visit reaching the server re-measures every stop',
+      () async {
+        final routed = await standUp();
+        final morning = (await routed.read(todayRouteProvider.future))!;
+        expect(location.calls, 1);
+        expect(morning.stops.single.distanceMeters!.round(), 1112);
 
-      routed.read(syncServiceProvider).onItemSynced!(_synced('visit_submit'));
-      final afternoon = (await routed.read(todayRouteProvider.future))!;
+        routed.read(syncServiceProvider).onItemSynced!(_synced('visit_submit'));
+        final afternoon = (await routed.read(todayRouteProvider.future))!;
 
-      expect(
-        location.calls,
-        2,
-        reason: 'the route was rebuilt, so the phone must be asked again — '
-            'a rebuilt route on a cached fix measures from where the agent '
-            'was this morning',
-      );
-      expect(
-        afternoon.stops.single.distanceMeters!.round(),
-        2224,
-        reason: 'the agent has walked; the distance must follow them',
-      );
-    });
+        expect(
+          location.calls,
+          2,
+          reason:
+              'the route was rebuilt, so the phone must be asked again — '
+              'a rebuilt route on a cached fix measures from where the agent '
+              'was this morning',
+        );
+        expect(
+          afternoon.stops.single.distanceMeters!.round(),
+          2224,
+          reason: 'the agent has walked; the distance must follow them',
+        );
+      },
+    );
 
-    test('a refusal is not kept: turning location on brings distances back',
-        () async {
-      final routed = await standUp(refuseFirst: true);
-      final before = (await routed.read(todayRouteProvider.future))!;
-      expect(before.hasLocation, isFalse);
-      expect(before.stops.single.distanceMeters, isNull);
+    test(
+      'a refusal is not kept: turning location on brings distances back',
+      () async {
+        final routed = await standUp(refuseFirst: true);
+        final before = (await routed.read(todayRouteProvider.future))!;
+        expect(before.hasLocation, isFalse);
+        expect(before.stops.single.distanceMeters, isNull);
 
-      routed.read(syncServiceProvider).onItemSynced!(_synced('visit_submit'));
-      final after = (await routed.read(todayRouteProvider.future))!;
+        routed.read(syncServiceProvider).onItemSynced!(_synced('visit_submit'));
+        final after = (await routed.read(todayRouteProvider.future))!;
 
-      expect(location.calls, 2);
-      expect(
-        after.hasLocation,
-        isTrue,
-        reason: 'a cached LocationDenied would keep the agent without '
-            'distances until they restarted the app',
-      );
-      expect(after.stops.single.distanceMeters, isNotNull);
-    });
+        expect(location.calls, 2);
+        expect(
+          after.hasLocation,
+          isTrue,
+          reason:
+              'a cached LocationDenied would keep the agent without '
+              'distances until they restarted the app',
+        );
+        expect(after.stops.single.distanceMeters, isNotNull);
+      },
+    );
 
     test('other captures syncing do not spend a GPS fix', () async {
       final routed = await standUp();

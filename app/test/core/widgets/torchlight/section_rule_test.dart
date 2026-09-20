@@ -1,3 +1,4 @@
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -63,10 +64,7 @@ void main() {
         child: const SectionRule('Needs a decision', count: 5),
       );
 
-      expect(
-        find.bySemanticsLabel('Needs a decision, 5'),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel('Needs a decision, 5'), findsOneWidget);
       handle.dispose();
     });
 
@@ -86,6 +84,69 @@ void main() {
       expect(box.height, greaterThanOrEqualTo(44));
       await tester.tap(find.byType(SectionRuleAction));
       expect(tapped, isTrue);
+    });
+
+    // THE THIRD PLACE THE KIT SWALLOWED A VERB.
+    //
+    // The heading's own `Semantics` used to wrap the whole component with
+    // `excludeSemantics: true`, so the action had no node at all; and the
+    // action's node declared `button: true` without an `onTap`, so even once
+    // the node existed a reader could focus it and not press it. Both are
+    // failures a `tester.tap` cannot see, because a tap goes through the
+    // render tree and a screen reader goes through the semantics tree.
+    testWidgets('an action is announced AND can be performed by a reader', (
+      tester,
+    ) async {
+      var tapped = false;
+      final handle = tester.ensureSemantics();
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: SectionRule(
+          'Needs a decision',
+          count: 12,
+          action: SectionRuleAction('See all', onTap: () => tapped = true),
+        ),
+      );
+
+      final data = tester
+          .getSemantics(find.bySemanticsLabel('See all'))
+          .getSemanticsData();
+      expect(
+        data.flagsCollection.isButton,
+        isTrue,
+        reason: 'The action has to have a node of its own to be announced.',
+      );
+      expect(
+        data.hasAction(SemanticsAction.tap),
+        isTrue,
+        reason:
+            'A button that announces itself and carries no tap action is a '
+            'control a screen-reader user can focus and cannot use.',
+      );
+
+      await tester.tap(find.bySemanticsLabel('See all'));
+      expect(tapped, isTrue);
+      handle.dispose();
+    });
+
+    testWidgets('the heading is still one utterance', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: SectionRule(
+          'Needs a decision',
+          count: 12,
+          action: SectionRuleAction('See all', onTap: () {}),
+        ),
+      );
+
+      final heading = tester
+          .getSemantics(find.bySemanticsLabel('Needs a decision, 12'))
+          .getSemanticsData();
+      expect(heading.flagsCollection.isHeader, isTrue);
+      handle.dispose();
     });
 
     testWidgets('at 2.0x it does not overflow', (tester) async {

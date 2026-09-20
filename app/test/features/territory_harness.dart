@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +15,9 @@ import 'package:tradeiq_app/features/territories/data/territories_repository.dar
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
+
+export 'a11y_guard.dart'
+    show expectEveryButtonActivatable, semanticsDump, semanticsNodes;
 
 /// Everything territories, trends and dispatch need to stand a screen up
 /// without a server.
@@ -475,67 +476,6 @@ Future<void> scrollRailTo(
   await tester.pumpAndSettle();
 }
 
-// ── The a11y guard ────────────────────────────────────────────────────
-
-/// Every semantics node under the pumped tree, root first.
-List<SemanticsNode> semanticsNodes(WidgetTester tester, {Finder? from}) {
-  SemanticsNode root = tester.getSemantics(from ?? find.byType(MaterialApp));
-  while (root.parent != null) {
-    root = root.parent!;
-  }
-  final out = <SemanticsNode>[];
-  void walk(SemanticsNode node) {
-    out.add(node);
-    node.visitChildren((child) {
-      walk(child);
-      return true;
-    });
-  }
-
-  walk(root);
-  return out;
-}
-
-/// `BUTTON label="…" tap=true` per node — the dump a failure prints, so the
-/// reason is readable without a debugger.
-String semanticsDump(WidgetTester tester, {Finder? from}) =>
-    semanticsNodes(tester, from: from)
-        .map((n) => n.getSemanticsData())
-        .where((d) => d.label.isNotEmpty || d.actions != 0)
-        .map(
-          (d) =>
-              '${d.flagsCollection.isButton ? 'BUTTON' : 'node'} '
-              'label="${d.label}" '
-              'tap=${d.hasAction(SemanticsAction.tap)}',
-        )
-        .join('\n');
-
-/// THE LAW: a node that announces itself as a button, and is not announced as
-/// disabled, carries [SemanticsAction.tap].
-///
-/// A `Semantics(button: true, …, excludeSemantics: true)` around a
-/// `GestureDetector` drops the descendant's node and declares a button with no
-/// action on it. It reads correct in the source and is inert in the hand —
-/// which is how the whole component kit shipped unpressable once. This is the
-/// same guard, applied to this group's five routes.
-void expectEveryButtonActivatable(WidgetTester tester, {Finder? from}) {
-  final inert = <String>[];
-  for (final node in semanticsNodes(tester, from: from)) {
-    final data = node.getSemanticsData();
-    final flags = data.flagsCollection;
-    if (!flags.isButton) continue;
-    // A disabled control is allowed to have no action — that is what disabled
-    // means. An enabled one is not.
-    if (flags.isEnabled == Tristate.isFalse) continue;
-    if (!data.hasAction(SemanticsAction.tap)) {
-      inert.add('"${data.label}"');
-    }
-  }
-  expect(
-    inert,
-    isEmpty,
-    reason:
-        'These announce as buttons and cannot be activated: '
-        '${inert.join(', ')}\n\n${semanticsDump(tester, from: from)}',
-  );
-}
+// The a11y guard moved to `a11y_guard.dart` when the operations group needed
+// the same law on nine more screens. Re-exported here so this group's tests
+// keep reading `territory_harness.dart` alone.

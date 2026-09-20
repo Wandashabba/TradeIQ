@@ -80,68 +80,76 @@ class SectionRule extends StatelessWidget {
     final ruleWidth = skin.depth.borderWidth;
     final knockOut = knockOutFor(skin);
 
-    final label = _Label(name: name, count: count);
-
-    return Semantics(
+    // THE HEADING IS ONE UTTERANCE; THE ACTION IS NOT INSIDE IT.
+    //
+    // This node used to wrap the whole component, `action` included — and
+    // `excludeSemantics` drops every descendant node, so a `SectionRuleAction`
+    // was painted, hit-tested, and announced nowhere at all. It is the same
+    // defect the button family was repaired for, in a third place: a heading
+    // that swallows its own verb. The node now wraps the label alone, and the
+    // action keeps the node its own `Semantics` builds.
+    final label = Semantics(
       header: true,
       label: count == null ? name : '$name, $count',
       excludeSemantics: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final wrapped = _labelWraps(context, skin, constraints.maxWidth);
-              // At 2.0x the name wraps and the rule drops BELOW the text block
-              // rather than running through it. Afrikaans wraps the same way,
-              // and for the same reason: a rule crossing two lines of type is
-              // a strike-through.
-              if (wrapped) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    label,
-                    const SizedBox(height: TiqSpace.s2),
-                    _Rule(colour: ruleColour, thickness: ruleWidth),
-                    if (action != null) ...<Widget>[
-                      const SizedBox(height: TiqSpace.s2),
-                      action!,
-                    ],
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+      child: _Label(name: name, count: count),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wrapped = _labelWraps(context, skin, constraints.maxWidth);
+            // At 2.0x the name wraps and the rule drops BELOW the text block
+            // rather than running through it. Afrikaans wraps the same way,
+            // and for the same reason: a rule crossing two lines of type is
+            // a strike-through.
+            if (wrapped) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  SizedBox(
-                    width: leadIn,
-                    child: _Rule(colour: ruleColour, thickness: ruleWidth),
-                  ),
-                  SizedBox(width: knockOut),
-                  Flexible(child: label),
-                  SizedBox(width: knockOut),
-                  Expanded(
-                    child: _Rule(colour: ruleColour, thickness: ruleWidth),
-                  ),
+                  label,
+                  const SizedBox(height: TiqSpace.s2),
+                  _Rule(colour: ruleColour, thickness: ruleWidth),
                   if (action != null) ...<Widget>[
-                    SizedBox(width: knockOut),
+                    const SizedBox(height: TiqSpace.s2),
                     action!,
                   ],
                 ],
               );
-            },
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                SizedBox(
+                  width: leadIn,
+                  child: _Rule(colour: ruleColour, thickness: ruleWidth),
+                ),
+                SizedBox(width: knockOut),
+                Flexible(child: label),
+                SizedBox(width: knockOut),
+                Expanded(
+                  child: _Rule(colour: ruleColour, thickness: ruleWidth),
+                ),
+                if (action != null) ...<Widget>[
+                  SizedBox(width: knockOut),
+                  action!,
+                ],
+              ],
+            );
+          },
+        ),
+        if (emptyLine != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            emptyLine!,
+            style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          if (emptyLine != null) ...<Widget>[
-            const SizedBox(height: TiqSpace.s3),
-            Text(
-              emptyLine!,
-              style: skin.text.body.style(color: skin.palette.ink2),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 
@@ -171,6 +179,13 @@ class SectionRule extends StatelessWidget {
 }
 
 /// The ghost text action a section rule may carry at its right end.
+///
+/// **The node carries the tap itself.** `excludeSemantics` drops the
+/// descendant `GestureDetector`'s node, so an outer `Semantics(button: true)`
+/// without its own `onTap` announces a button a screen-reader user can focus
+/// and cannot activate — the kit-wide defect the button family was repaired
+/// for, which this one widget still had. `section_rule_test.dart` performs the
+/// action through `SemanticsAction.tap` so it cannot come back.
 class SectionRuleAction extends StatelessWidget {
   const SectionRuleAction(this.label, {super.key, required this.onTap});
 
@@ -183,6 +198,7 @@ class SectionRuleAction extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
