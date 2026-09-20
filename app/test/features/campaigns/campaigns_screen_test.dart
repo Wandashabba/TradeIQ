@@ -406,6 +406,45 @@ void main() {
       expect(find.byType(Skeleton), findsOneWidget);
     });
 
+    testWidgets('New campaign is on the screen in every phase, not only when '
+        'the list loaded', (tester) async {
+      // The capability, written as the failure. Before the fix the create
+      // control was built inside `_loaded`, so an admin whose GET /campaigns
+      // 500s was offered exactly one thing: "Try again". Creating a campaign
+      // is a POST; it has nothing to do with whether the list arrived, and
+      // before the migration it was a FAB on the scaffold that survived
+      // every state.
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listFailure: offline()),
+      );
+      expect(keyed('campaigns-retry'), findsOneWidget);
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
+    });
+
+    testWidgets('New campaign is there while the list is still loading', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listPending: true),
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
+    });
+
+    testWidgets('New campaign is there on an empty list', (tester) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),
+      );
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
+    });
+
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
       await _pump(tester, repo: FakeCampaignsRepository(listFailure: offline()));
       expect(find.byType(ErrorState), findsOneWidget);

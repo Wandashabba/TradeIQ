@@ -110,6 +110,72 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('fractional points are not rounded into a contradiction', (
+      tester,
+    ) async {
+      // The failure, written as itself. Points are fractional by
+      // construction — the backend returns
+      // `round2(avgScorecard + sum(ledgerPoints))` — and this board rounded
+      // them to whole numbers, so 7.6 at rank 1 and 7.4 at rank 2 both read
+      // "8", directly beneath the line this screen prints about itself:
+      // "equal points share a rank". The only two numbers on the board said
+      // the ordering was arbitrary.
+      await _pump(
+        tester,
+        repo: FakeContestsRepository(
+          standingsById: const <String, ContestStandings>{
+            'c-active': ContestStandings(
+              contest: activeContest,
+              participantCount: 2,
+              standings: <ContestStanding>[
+                ContestStanding(
+                  rank: 1,
+                  agentId: 'a-1',
+                  email: 'aisha@example.com',
+                  displayName: 'Aisha Patel',
+                  points: 7.6,
+                ),
+                ContestStanding(
+                  rank: 2,
+                  agentId: 'a-2',
+                  email: 'bongani@example.com',
+                  displayName: 'Bongani Dube',
+                  points: 7.4,
+                ),
+              ],
+            ),
+          },
+        ),
+      );
+      await scrollConsoleTo(tester, keyed('standing-a-1'));
+      expect(find.text('7.6'), findsOneWidget);
+      await scrollConsoleTo(tester, keyed('standing-a-2'));
+      expect(find.text('7.4'), findsOneWidget);
+      expect(
+        find.text('8'),
+        findsNothing,
+        reason: 'two agents both reading "8" at ranks 1 and 2 contradicts '
+            'the tie rule the screen prints above them',
+      );
+    });
+
+    testWidgets('the announced points match the painted ones', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      await scrollConsoleTo(tester, keyed('standing-a-me'));
+
+      // `trailingLabel` is built from the same local as the figure, so a
+      // reader who hears the row and a reader who sees it get one number.
+      final node = tester.getSemantics(keyed('standing-a-me'));
+      expect(
+        node.label,
+        contains('7.5 points'),
+        reason: 'the row announced: ${node.label}',
+      );
+      expect(find.text('7.5'), findsOneWidget);
+      handle.dispose();
+    });
+
     testWidgets('a measured zero keeps its place', (tester) async {
       await _pump(
         tester,
