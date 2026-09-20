@@ -3599,4 +3599,343 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meContestsDetail => 'See where you stand';
+
+  @override
+  String get outletsTitle => 'Stores';
+
+  @override
+  String get outletsSubtitle =>
+      'A store without coordinates cannot be geofenced.';
+
+  @override
+  String get outletsRefresh => 'Reload the store list';
+
+  @override
+  String get outletsCreateStore => 'Add a store';
+
+  @override
+  String get outletsSectionHeading => 'Stores';
+
+  @override
+  String get outletsNoLocation => 'No location';
+
+  @override
+  String get outletsNoCoordinates => 'No coordinates on file';
+
+  @override
+  String get outletsPlaced => 'Placed';
+
+  @override
+  String get outletsEmptyHeadline => 'No stores yet.';
+
+  @override
+  String get outletsEmptyBody => 'Add a store to put it on a beat plan.';
+
+  @override
+  String get outletsLoadErrorHeadline => 'The store list did not load.';
+
+  @override
+  String get outletsRetry => 'Try again';
+
+  @override
+  String get outletsPinReportsHeading => 'Open pin reports';
+
+  @override
+  String get outletsPinReportsNote =>
+      'Agents who could not check in where the pin says the store is.';
+
+  @override
+  String get outletsPinReported => 'Pin reported';
+
+  @override
+  String outletsPinReportStood(String agent, String distance) {
+    return '$agent stood $distance away';
+  }
+
+  @override
+  String get outletDetailTitle => 'Store';
+
+  @override
+  String get outletDetailBack => 'Back to stores';
+
+  @override
+  String get outletDetailLoadErrorHeadline => 'This store did not load.';
+
+  @override
+  String outletDetailDisputesHeadline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents reported this pin as wrong',
+      one: 'One agent reported this pin as wrong',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outletDetailDisputesBody =>
+      'Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.';
+
+  @override
+  String get outletDetailFormHeading => 'This store';
+
+  @override
+  String get outletFieldName => 'Store name';
+
+  @override
+  String get outletFieldCode => 'Store code';
+
+  @override
+  String get outletFieldChannel => 'Channel type';
+
+  @override
+  String get outletFieldChannelHelp =>
+      'For example: supermarket, spaza, forecourt.';
+
+  @override
+  String get outletFieldTerritory => 'Territory';
+
+  @override
+  String get outletFieldLatitude => 'Latitude';
+
+  @override
+  String get outletFieldLongitude => 'Longitude';
+
+  @override
+  String get outletFieldLatitudeHelp =>
+      'Between -90 and 90. Johannesburg is about -26,2.';
+
+  @override
+  String get outletFieldLongitudeHelp =>
+      'Between -180 and 180. Johannesburg is about 28,0.';
+
+  @override
+  String get outletFieldStatus => 'Status';
+
+  @override
+  String get outletStatusActive => 'Active';
+
+  @override
+  String get outletStatusClosed => 'Closed';
+
+  @override
+  String get outletStatusClosedConsequence =>
+      'Kept out of planning. Check-in still works — an agent at the door must be able to work.';
+
+  @override
+  String get outletStatusActiveConsequence => 'Planned as usual.';
+
+  @override
+  String get outletRequired => 'Required';
+
+  @override
+  String get outletCoordinateNotANumber =>
+      'Enter a number, for example -26,2041';
+
+  @override
+  String get outletLatitudeOutOfRange => 'A latitude is between -90 and 90';
+
+  @override
+  String get outletLongitudeOutOfRange => 'A longitude is between -180 and 180';
+
+  @override
+  String get outletSave => 'Save';
+
+  @override
+  String get outletSaveBlocked =>
+      'Fill in the store\'s name and both coordinates first.';
+
+  @override
+  String get outletSaved => 'Store updated.';
+
+  @override
+  String get outletSaveFailed => 'That store was not saved. It is unchanged.';
+
+  @override
+  String get outletUsingAttempt =>
+      'Using an agent\'s recorded position. The server reads the coordinates from that check-in itself.';
+
+  @override
+  String get outletAttemptsHeading => 'Rejected check-ins';
+
+  @override
+  String get outletAttemptsNote =>
+      'Where agents actually were when this store turned them away.';
+
+  @override
+  String get outletAttemptsEmptyHeadline => 'No rejected check-ins.';
+
+  @override
+  String get outletAttemptsEmptyBody =>
+      'Nobody has been turned away by this pin.';
+
+  @override
+  String outletAttemptSubtitle(String distance, String agent) {
+    return '$distance away · $agent';
+  }
+
+  @override
+  String get outletUseThisPosition => 'Use this position';
+
+  @override
+  String get outletUseTheirPosition => 'Use their position';
+
+  @override
+  String get outletFixMocked =>
+      'The device reported this position as a mock location. It cannot become this store\'s pin.';
+
+  @override
+  String get outletFixUnknown =>
+      'The device did not report how accurate this position was.';
+
+  @override
+  String outletFixCoarse(String metres) {
+    return 'Accurate to about $metres m — too coarse to set a pin with.';
+  }
+
+  @override
+  String outletFixGood(String metres) {
+    return 'Accurate to about $metres m.';
+  }
+
+  @override
+  String get outletDisputesHeading => 'Pin reports';
+
+  @override
+  String outletDisputeStood(String position, String distance, String pin) {
+    return 'Stood at $position — $distance from the pin, which then read $pin.';
+  }
+
+  @override
+  String get outletDisputeSoleVisitor =>
+      'No other agent has ever visited this store, so nobody else\'s check-ins can disagree with a pin moved here.';
+
+  @override
+  String get outletDisputeOpen => 'Open';
+
+  @override
+  String get outletDisputeAnswering => 'Answering this report on save.';
+
+  @override
+  String get outletDisputeAnswer => 'Answer this report';
+
+  @override
+  String outletDisputeApplied(String who) {
+    return 'Applied by $who';
+  }
+
+  @override
+  String outletDisputeRejected(String who) {
+    return 'Rejected by $who';
+  }
+
+  @override
+  String get outletDisputeResolvedByManager => 'a manager';
+
+  @override
+  String get outletPhotoCamera => 'Taken with the camera';
+
+  @override
+  String get outletPhotoGallery => 'Chosen from the gallery';
+
+  @override
+  String get outletPhotoUnknownSource => 'Source not recorded';
+
+  @override
+  String outletPhotoPhoneSaid(String when) {
+    return 'Phone said $when';
+  }
+
+  @override
+  String outletPhotoReceived(String when) {
+    return 'Received $when';
+  }
+
+  @override
+  String get outletPhotoAlt => 'Storefront photograph from this pin report';
+
+  @override
+  String get outletPhotoMissing => 'That photograph did not load.';
+
+  @override
+  String get outletChangesHeading => 'Change history';
+
+  @override
+  String outletChangePinMoved(String before, String after) {
+    return 'Pin moved from $before to $after';
+  }
+
+  @override
+  String get outletChangePinFromAgent => 'from an agent\'s recorded position';
+
+  @override
+  String outletChangeRenamed(String before, String after) {
+    return 'Renamed from \"$before\" to \"$after\"';
+  }
+
+  @override
+  String outletChangeStatus(String before, String after) {
+    return 'Status $before to $after';
+  }
+
+  @override
+  String get outletChangeOther => 'Changed';
+
+  @override
+  String get outletChangeUnknownCoordinate => 'not recorded';
+
+  @override
+  String get createOutletTitle => 'Add a store';
+
+  @override
+  String get createOutletBack => 'Back to stores';
+
+  @override
+  String get createOutletSubmit => 'Add the store';
+
+  @override
+  String get createOutletBlocked =>
+      'Fill in the name, code, channel, territory and both coordinates first.';
+
+  @override
+  String get createOutletFailed =>
+      'That store was not created. Nothing was saved.';
+
+  @override
+  String get createOutletLocationHeading => 'Where this store is';
+
+  @override
+  String get createOutletLocating => 'Finding where this phone is…';
+
+  @override
+  String get createOutletLocationDenied =>
+      'This phone will not say where it is. Type the store\'s coordinates instead.';
+
+  @override
+  String get createOutletLocationFailed =>
+      'This phone could not find where it is. Type the store\'s coordinates instead.';
+
+  @override
+  String get createOutletLocationFound =>
+      'Seeded from this phone. Type over it if you are not standing in the store.';
+
+  @override
+  String get createOutletUseThisPhone => 'Use this phone\'s position';
+
+  @override
+  String get createOutletTerritoriesLoading => 'Loading territories…';
+
+  @override
+  String get createOutletTerritoriesFailed =>
+      'The territory list did not load.';
+
+  @override
+  String get createOutletTerritoriesRetry => 'Try again';
+
+  @override
+  String get createOutletNoTerritories =>
+      'No territories yet — create one under Territories first.';
+
+  @override
+  String get createOutletTerritoryNotChosen => 'Choose a territory';
 }

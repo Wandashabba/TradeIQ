@@ -4739,5 +4739,471 @@
   "meContestsDetail": "See where you stand",
   "@meContestsDetail": {
     "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
+  },
+  "outletsTitle": "Stores",
+  "@outletsTitle": {
+    "description": "Title of the manager's outlet list route."
+  },
+  "outletsSubtitle": "A store without coordinates cannot be geofenced.",
+  "@outletsSubtitle": {
+    "description": "Header fact on the outlet list: why the coordinate state is the row's status."
+  },
+  "outletsRefresh": "Reload the store list",
+  "@outletsRefresh": {
+    "description": "Semantic label of the refresh icon button in the outlet list header."
+  },
+  "outletsCreateStore": "Add a store",
+  "@outletsCreateStore": {
+    "description": "Label of the nav circle that opens the create-store form from the outlet list."
+  },
+  "outletsSectionHeading": "Stores",
+  "@outletsSectionHeading": {
+    "description": "Section rule above the list of outlets."
+  },
+  "outletsNoLocation": "No location",
+  "@outletsNoLocation": {
+    "description": "Severity word on an outlet row whose coordinates are unset. Reads in greyscale beside the crimson bar."
+  },
+  "outletsNoCoordinates": "No coordinates on file",
+  "@outletsNoCoordinates": {
+    "description": "Subtitle of an outlet row that has no usable coordinates."
+  },
+  "outletsPlaced": "Placed",
+  "@outletsPlaced": {
+    "description": "Word for an outlet that does have usable coordinates."
+  },
+  "outletsEmptyHeadline": "No stores yet.",
+  "@outletsEmptyHeadline": {
+    "description": "Whole-screen empty state on the outlet list."
+  },
+  "outletsEmptyBody": "Add a store to put it on a beat plan.",
+  "@outletsEmptyBody": {
+    "description": "Body of the outlet list's empty state."
+  },
+  "outletsLoadErrorHeadline": "The store list did not load.",
+  "@outletsLoadErrorHeadline": {
+    "description": "Headline of the outlet list's error state."
+  },
+  "outletsRetry": "Try again",
+  "@outletsRetry": {
+    "description": "Retry action on the outlet list's error state."
+  },
+  "outletsPinReportsHeading": "Open pin reports",
+  "@outletsPinReportsHeading": {
+    "description": "Section rule above the outlets whose pin an agent has reported as wrong."
+  },
+  "outletsPinReportsNote": "Agents who could not check in where the pin says the store is.",
+  "@outletsPinReportsNote": {
+    "description": "Sentence under the open pin reports section rule."
+  },
+  "outletsPinReported": "Pin reported",
+  "@outletsPinReported": {
+    "description": "Severity word on a row standing for an open pin report."
+  },
+  "outletsPinReportStood": "{agent} stood {distance} away",
+  "@outletsPinReportStood": {
+    "description": "Subtitle of an open pin report row: who reported it and how far they were from the pin.",
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDetailTitle": "Store",
+  "@outletDetailTitle": {
+    "description": "Title of the outlet detail route, where a wrong pin is corrected."
+  },
+  "outletDetailBack": "Back to stores",
+  "@outletDetailBack": {
+    "description": "Semantic label of the outlet detail back button. Names the destination, never 'Back'."
+  },
+  "outletDetailLoadErrorHeadline": "This store did not load.",
+  "@outletDetailLoadErrorHeadline": {
+    "description": "Headline of the outlet detail error state."
+  },
+  "outletDetailDisputesHeadline": "{count, plural, =1{One agent reported this pin as wrong} other{{count} agents reported this pin as wrong}}",
+  "@outletDetailDisputesHeadline": {
+    "description": "Headline of the open-reports banner at the top of the outlet detail screen.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outletDetailDisputesBody": "Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.",
+  "@outletDetailDisputesBody": {
+    "description": "Body of the open-reports banner on outlet detail."
+  },
+  "outletDetailFormHeading": "This store",
+  "@outletDetailFormHeading": {
+    "description": "Section rule above the outlet's editable fields."
+  },
+  "outletFieldName": "Store name",
+  "@outletFieldName": {
+    "description": "Label of the outlet name field."
+  },
+  "outletFieldCode": "Store code",
+  "@outletFieldCode": {
+    "description": "Label of the outlet code field."
+  },
+  "outletFieldChannel": "Channel type",
+  "@outletFieldChannel": {
+    "description": "Label of the outlet channel-type field."
+  },
+  "outletFieldChannelHelp": "For example: supermarket, spaza, forecourt.",
+  "@outletFieldChannelHelp": {
+    "description": "Help line under the channel-type field."
+  },
+  "outletFieldTerritory": "Territory",
+  "@outletFieldTerritory": {
+    "description": "Label of the territory picker."
+  },
+  "outletFieldLatitude": "Latitude",
+  "@outletFieldLatitude": {
+    "description": "Label of the latitude field."
+  },
+  "outletFieldLongitude": "Longitude",
+  "@outletFieldLongitude": {
+    "description": "Label of the longitude field."
+  },
+  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26,2.",
+  "@outletFieldLatitudeHelp": {
+    "description": "Help line under the latitude field."
+  },
+  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28,0.",
+  "@outletFieldLongitudeHelp": {
+    "description": "Help line under the longitude field."
+  },
+  "outletFieldStatus": "Status",
+  "@outletFieldStatus": {
+    "description": "Label of the outlet status choice row."
+  },
+  "outletStatusActive": "Active",
+  "@outletStatusActive": {
+    "description": "Outlet status option: the store is trading and gets planned."
+  },
+  "outletStatusClosed": "Closed",
+  "@outletStatusClosed": {
+    "description": "Outlet status option: the store is kept out of planning."
+  },
+  "outletStatusClosedConsequence": "Kept out of planning. Check-in still works — an agent at the door must be able to work.",
+  "@outletStatusClosedConsequence": {
+    "description": "Consequence line under the Closed status option."
+  },
+  "outletStatusActiveConsequence": "Planned as usual.",
+  "@outletStatusActiveConsequence": {
+    "description": "Consequence line under the Active status option."
+  },
+  "outletRequired": "Required",
+  "@outletRequired": {
+    "description": "Validation message for an empty required field on the outlet forms."
+  },
+  "outletCoordinateNotANumber": "Enter a number, for example -26,2041",
+  "@outletCoordinateNotANumber": {
+    "description": "Validation message when a coordinate field holds something that is not a number."
+  },
+  "outletLatitudeOutOfRange": "A latitude is between -90 and 90",
+  "@outletLatitudeOutOfRange": {
+    "description": "Validation message when a latitude is off the globe."
+  },
+  "outletLongitudeOutOfRange": "A longitude is between -180 and 180",
+  "@outletLongitudeOutOfRange": {
+    "description": "Validation message when a longitude is off the globe."
+  },
+  "outletSave": "Save",
+  "@outletSave": {
+    "description": "Commit button on the outlet detail screen."
+  },
+  "outletSaveBlocked": "Fill in the store's name and both coordinates first.",
+  "@outletSaveBlocked": {
+    "description": "Blocked reason under the outlet detail save button while the form is incomplete."
+  },
+  "outletSaved": "Store updated.",
+  "@outletSaved": {
+    "description": "Toast after the outlet detail save succeeds."
+  },
+  "outletSaveFailed": "That store was not saved. It is unchanged.",
+  "@outletSaveFailed": {
+    "description": "Toast after the outlet detail save fails. Says what is still true rather than printing the error."
+  },
+  "outletUsingAttempt": "Using an agent's recorded position. The server reads the coordinates from that check-in itself.",
+  "@outletUsingAttempt": {
+    "description": "Line under the coordinate fields while an agent's recorded position has been adopted."
+  },
+  "outletAttemptsHeading": "Rejected check-ins",
+  "@outletAttemptsHeading": {
+    "description": "Section rule above the failed check-in evidence on outlet detail."
+  },
+  "outletAttemptsNote": "Where agents actually were when this store turned them away.",
+  "@outletAttemptsNote": {
+    "description": "Sentence under the rejected check-ins section rule."
+  },
+  "outletAttemptsEmptyHeadline": "No rejected check-ins.",
+  "@outletAttemptsEmptyHeadline": {
+    "description": "Inline empty state for the rejected check-in evidence."
+  },
+  "outletAttemptsEmptyBody": "Nobody has been turned away by this pin.",
+  "@outletAttemptsEmptyBody": {
+    "description": "Body of the rejected check-ins empty state."
+  },
+  "outletAttemptSubtitle": "{distance} away · {agent}",
+  "@outletAttemptSubtitle": {
+    "description": "Subtitle of a rejected check-in row.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "outletUseThisPosition": "Use this position",
+  "@outletUseThisPosition": {
+    "description": "Action on a rejected check-in row that adopts its coordinates as the store's pin."
+  },
+  "outletUseTheirPosition": "Use their position",
+  "@outletUseTheirPosition": {
+    "description": "Action on a pin report that adopts the reporting agent's own position."
+  },
+  "outletFixMocked": "The device reported this position as a mock location. It cannot become this store's pin.",
+  "@outletFixMocked": {
+    "description": "Fix-quality sentence for a position the platform flagged as mocked."
+  },
+  "outletFixUnknown": "The device did not report how accurate this position was.",
+  "@outletFixUnknown": {
+    "description": "Fix-quality sentence when accuracy was not recorded."
+  },
+  "outletFixCoarse": "Accurate to about {metres} m — too coarse to set a pin with.",
+  "@outletFixCoarse": {
+    "description": "Fix-quality sentence for a position too imprecise to adopt.",
+    "placeholders": {
+      "metres": {
+        "type": "String"
+      }
+    }
+  },
+  "outletFixGood": "Accurate to about {metres} m.",
+  "@outletFixGood": {
+    "description": "Fix-quality sentence for a usable position.",
+    "placeholders": {
+      "metres": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputesHeading": "Pin reports",
+  "@outletDisputesHeading": {
+    "description": "Section rule above the pin reports on outlet detail."
+  },
+  "outletDisputeStood": "Stood at {position} — {distance} from the pin, which then read {pin}.",
+  "@outletDisputeStood": {
+    "description": "The geometry of one pin report, in one sentence.",
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      },
+      "pin": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeSoleVisitor": "No other agent has ever visited this store, so nobody else's check-ins can disagree with a pin moved here.",
+  "@outletDisputeSoleVisitor": {
+    "description": "Caution shown when the reporting agent is the outlet's only visitor. Not a refusal."
+  },
+  "outletDisputeOpen": "Open",
+  "@outletDisputeOpen": {
+    "description": "State word on a pin report nobody has answered yet."
+  },
+  "outletDisputeAnswering": "Answering this report on save.",
+  "@outletDisputeAnswering": {
+    "description": "State line on the pin report the next save will answer."
+  },
+  "outletDisputeAnswer": "Answer this report",
+  "@outletDisputeAnswer": {
+    "description": "Action that marks a pin report as the one the next save answers."
+  },
+  "outletDisputeApplied": "Applied by {who}",
+  "@outletDisputeApplied": {
+    "description": "Resolution line on a pin report that was accepted.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeRejected": "Rejected by {who}",
+  "@outletDisputeRejected": {
+    "description": "Resolution line on a pin report that was turned down.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeResolvedByManager": "a manager",
+  "@outletDisputeResolvedByManager": {
+    "description": "Stand-in for the resolving person's name when the wire did not send one."
+  },
+  "outletPhotoCamera": "Taken with the camera",
+  "@outletPhotoCamera": {
+    "description": "Provenance of a pin-report photograph captured in the app."
+  },
+  "outletPhotoGallery": "Chosen from the gallery",
+  "@outletPhotoGallery": {
+    "description": "Provenance of a pin-report photograph picked from the device's library."
+  },
+  "outletPhotoUnknownSource": "Source not recorded",
+  "@outletPhotoUnknownSource": {
+    "description": "Provenance of an older pin-report photograph that carries no source."
+  },
+  "outletPhotoPhoneSaid": "Phone said {when}",
+  "@outletPhotoPhoneSaid": {
+    "description": "The device's own timestamp on a pin-report photograph.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "outletPhotoReceived": "Received {when}",
+  "@outletPhotoReceived": {
+    "description": "When the server took delivery of a pin-report photograph.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "outletPhotoAlt": "Storefront photograph from this pin report",
+  "@outletPhotoAlt": {
+    "description": "Semantic label of a pin-report photograph."
+  },
+  "outletPhotoMissing": "That photograph did not load.",
+  "@outletPhotoMissing": {
+    "description": "Shown in place of a pin-report photograph whose bytes could not be fetched."
+  },
+  "outletChangesHeading": "Change history",
+  "@outletChangesHeading": {
+    "description": "Section rule above the outlet's change ledger."
+  },
+  "outletChangePinMoved": "Pin moved from {before} to {after}",
+  "@outletChangePinMoved": {
+    "description": "Change ledger line for a coordinate move.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangePinFromAgent": "from an agent's recorded position",
+  "@outletChangePinFromAgent": {
+    "description": "Appended to a pin-move ledger line when the new coordinates came from a check-in."
+  },
+  "outletChangeRenamed": "Renamed from \"{before}\" to \"{after}\"",
+  "@outletChangeRenamed": {
+    "description": "Change ledger line for a rename.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangeStatus": "Status {before} to {after}",
+  "@outletChangeStatus": {
+    "description": "Change ledger line for a status change.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangeOther": "Changed",
+  "@outletChangeOther": {
+    "description": "Change ledger line when the recorded change is none of the known kinds."
+  },
+  "outletChangeUnknownCoordinate": "not recorded",
+  "@outletChangeUnknownCoordinate": {
+    "description": "Stand-in inside a pin-move ledger line when a before or after coordinate is missing."
+  },
+  "createOutletTitle": "Add a store",
+  "@createOutletTitle": {
+    "description": "Title of the create-store route."
+  },
+  "createOutletBack": "Back to stores",
+  "@createOutletBack": {
+    "description": "Semantic label of the create-store back button."
+  },
+  "createOutletSubmit": "Add the store",
+  "@createOutletSubmit": {
+    "description": "Commit button on the create-store form."
+  },
+  "createOutletBlocked": "Fill in the name, code, channel, territory and both coordinates first.",
+  "@createOutletBlocked": {
+    "description": "Blocked reason under the create-store commit button."
+  },
+  "createOutletFailed": "That store was not created. Nothing was saved.",
+  "@createOutletFailed": {
+    "description": "Toast after the create-store request fails."
+  },
+  "createOutletLocationHeading": "Where this store is",
+  "@createOutletLocationHeading": {
+    "description": "Section rule above the location block on the create-store form."
+  },
+  "createOutletLocating": "Finding where this phone is…",
+  "@createOutletLocating": {
+    "description": "Line shown while the device position is being fetched, to seed the coordinate fields."
+  },
+  "createOutletLocationDenied": "This phone will not say where it is. Type the store's coordinates instead.",
+  "@createOutletLocationDenied": {
+    "description": "Shown when location permission was refused on the create-store form."
+  },
+  "createOutletLocationFailed": "This phone could not find where it is. Type the store's coordinates instead.",
+  "@createOutletLocationFailed": {
+    "description": "Shown when the device position lookup failed on the create-store form."
+  },
+  "createOutletLocationFound": "Seeded from this phone. Type over it if you are not standing in the store.",
+  "@createOutletLocationFound": {
+    "description": "Shown when the device position seeded the coordinate fields."
+  },
+  "createOutletUseThisPhone": "Use this phone's position",
+  "@createOutletUseThisPhone": {
+    "description": "Action that re-seeds the coordinate fields from the device."
+  },
+  "createOutletTerritoriesLoading": "Loading territories…",
+  "@createOutletTerritoriesLoading": {
+    "description": "Placeholder while the territory list is being fetched."
+  },
+  "createOutletTerritoriesFailed": "The territory list did not load.",
+  "@createOutletTerritoriesFailed": {
+    "description": "Shown when the territory list could not be fetched on the create-store form."
+  },
+  "createOutletTerritoriesRetry": "Try again",
+  "@createOutletTerritoriesRetry": {
+    "description": "Retry action beside the failed territory list."
+  },
+  "createOutletNoTerritories": "No territories yet — create one under Territories first.",
+  "@createOutletNoTerritories": {
+    "description": "Shown when the account has no territories, so no store can be filed."
+  },
+  "createOutletTerritoryNotChosen": "Choose a territory",
+  "@createOutletTerritoryNotChosen": {
+    "description": "Validation message when the territory picker has no selection."
   }
 }

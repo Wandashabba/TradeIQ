@@ -26,27 +26,30 @@ void main() {
       // A grey "Unknown" chip is a claim that the system looked. Where a level
       // has not been computed, no chip renders and an em dash carries the
       // figure with "not scored" beside it.
-      expect(
-        StatusLevel.values.map((l) => l.name),
-        isNot(contains('unknown')),
-      );
+      expect(StatusLevel.values.map((l) => l.name), isNot(contains('unknown')));
       expect(StatusLevel.values, hasLength(5));
     });
 
-    test('severity is one hue at two commitment levels: outline, then solid',
-        () {
-      final skin = TiqSkin.night();
-      final critical = StatusLevelToken.of(skin, StatusLevel.critical);
-      final watch = StatusLevelToken.of(skin, StatusLevel.watch);
-      expect(critical.fill, skin.palette.badSolid, reason: 'Solid = Critical.');
-      expect(watch.fill, isNull, reason: 'Outline = Watch.');
-      expect(watch.border, skin.palette.bad);
-      expect(
-        critical.shape,
-        isNot(watch.shape),
-        reason: 'Each commitment level has its own silhouette as well.',
-      );
-    });
+    test(
+      'severity is one hue at two commitment levels: outline, then solid',
+      () {
+        final skin = TiqSkin.night();
+        final critical = StatusLevelToken.of(skin, StatusLevel.critical);
+        final watch = StatusLevelToken.of(skin, StatusLevel.watch);
+        expect(
+          critical.fill,
+          skin.palette.badSolid,
+          reason: 'Solid = Critical.',
+        );
+        expect(watch.fill, isNull, reason: 'Outline = Watch.');
+        expect(watch.border, skin.palette.bad);
+        expect(
+          critical.shape,
+          isNot(watch.shape),
+          reason: 'Each commitment level has its own silhouette as well.',
+        );
+      },
+    );
 
     test('Held is Oatmeal on the well, never Truffle', () {
       final skin = TiqSkin.night();
@@ -98,8 +101,9 @@ void main() {
       expect(find.byType(GestureDetector), findsNothing);
     });
 
-    testWidgets('every level renders in every skin without clipping at 2.0x',
-        (tester) async {
+    testWidgets('every level renders in every skin without clipping at 2.0x', (
+      tester,
+    ) async {
       for (final skin in allSkins) {
         for (final level in StatusLevel.values) {
           await tester.pumpWidget(
@@ -109,7 +113,11 @@ void main() {
               textScale: 2.0,
             ),
           );
-          expect(tester.takeException(), isNull, reason: '${skin.mode.name}/$level');
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${skin.mode.name}/$level',
+          );
         }
       }
     });
@@ -162,8 +170,9 @@ void main() {
       expect(words, hasLength(FlagKind.values.length));
     });
 
-    testWidgets('the neutral six are legible in greyscale by construction',
-        (tester) async {
+    testWidgets('the neutral six are legible in greyscale by construction', (
+      tester,
+    ) async {
       // No colour difference between them at all, so the members have to be
       // carried by shape. Render each and prove no two frames are the same
       // grey.
@@ -209,8 +218,9 @@ void main() {
       expect(find.text('Out of fence · 140 m'), findsOneWidget);
     });
 
-    testWidgets('a cleared flag steps to a declared token and says so',
-        (tester) async {
+    testWidgets('a cleared flag steps to a declared token and says so', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -232,8 +242,9 @@ void main() {
       );
     });
 
-    testWidgets('a tappable chip is a button at the full tap target',
-        (tester) async {
+    testWidgets('a tappable chip is a button at the full tap target', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),

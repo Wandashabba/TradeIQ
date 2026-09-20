@@ -1,38 +1,82 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/torch_scope.dart';
 import '../../../core/location/location_service.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/outlets_repository.dart';
+import 'outlet_coordinates.dart';
 
-class CreateOutletScreen extends ConsumerStatefulWidget {
+/// ADD A STORE — and where it is, typed rather than assumed (#386).
+///
+/// ```text
+///   ← Stores
+///   Add a store
+///   ── Where this store is ─────────────────────
+///   Seeded from this phone. Type over it if you
+///   are not standing in the store.
+///   Latitude
+///   ┌────────────────────────────────┐
+///   │ -26.20410                      │
+///   └────────────────────────────────┘
+///   Between -90 and 90. Johannesburg is about -26,2.
+///   ── This store ──────────────────────────────
+///   Store name   Store code   Channel   Territory
+///   [ ☾ ]  [        Add the store        ]
+/// ```
+///
+/// ## The phone seeds the pin; it does not set it
+///
+/// `getCurrentPosition()` used to BE the coordinates, with no field to
+/// override them. A manager onboarding forty stores from the depot on a Monday
+/// pinned forty stores to the depot car park — and until `PATCH /outlets/:id`
+/// existed, no screen in the product could correct a single one of them. The
+/// fields are editable, they are the source of truth on submit, and the
+/// location block says in words that what it found is a seed.
+///
+/// ## The amber, counted
+///
+/// Not a tab root — a manager came here to add one store and leave — so the
+/// nav takes no slot and the thumb zone carries the one commit. Night's two
+/// content grants go to **one** object, "Add the store"; Day and Veld light
+/// the same block and nothing else. With the keyboard up the nav is gone
+/// anyway, so a focused field plus the lit primary is still inside the budget.
+class CreateOutletScreen extends ConsumerWidget {
   const CreateOutletScreen({super.key});
 
+  /// "Add the store". Rung 1, and the only claim this route makes.
+  static const String submitClaimId = 'create-outlet-submit';
+
   @override
-  ConsumerState<CreateOutletScreen> createState() => _CreateOutletScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const ConsoleTorchlightRoute(child: _CreateOutlet());
+  }
 }
 
-class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _CreateOutlet extends ConsumerStatefulWidget {
+  const _CreateOutlet();
+
+  @override
+  ConsumerState<_CreateOutlet> createState() => _CreateOutletState();
+}
+
+class _CreateOutletState extends ConsumerState<_CreateOutlet> {
   final _nameCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _channelCtrl = TextEditingController();
 
-  /// The coordinates that will actually be sent (#386).
-  ///
-  /// The device position seeds these and nothing more. It used to BE them:
-  /// `getCurrentPosition()` was the only source an outlet's pin could have, so
-  /// a manager onboarding forty stores from the depot on a Monday pinned forty
-  /// stores to the depot car park — and until PATCH /outlets/:id existed, no
-  /// screen in the product could correct a single one of them.
+  /// The coordinates that will actually be sent (#386). The device position
+  /// seeds these and nothing more.
   final _latCtrl = TextEditingController();
   final _lngCtrl = TextEditingController();
 
@@ -44,431 +88,355 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
   /// error to explain it.
   String? _territoryCode;
 
-  double? _lat;
-  double? _lng;
   bool _locating = false;
   bool _submitting = false;
-  String? _locationError;
+
+  /// Which sentence the location block is telling, or null while it has not
+  /// tried yet.
+  _LocationOutcome? _outcome;
+
+  /// Per-field refusals, shown under the field they belong to rather than in a
+  /// snack bar that covers the thing it is complaining about.
+  final Map<String, String> _errors = <String, String>{};
 
   @override
   void initState() {
     super.initState();
-    _fetchLocation();
+    // A controller's text is the form's state, so the submit gate has to
+    // rebuild when any of them changes.
+    for (final controller in <TextEditingController>[
+      _nameCtrl,
+      _codeCtrl,
+      _channelCtrl,
+      _latCtrl,
+      _lngCtrl,
+    ]) {
+      controller.addListener(_onTyped);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchLocation());
+  }
+
+  void _onTyped() => setState(() {});
+
+  @override
+  void dispose() {
+    for (final controller in <TextEditingController>[
+      _nameCtrl,
+      _codeCtrl,
+      _channelCtrl,
+      _latCtrl,
+      _lngCtrl,
+    ]) {
+      controller
+        ..removeListener(_onTyped)
+        ..dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _fetchLocation() async {
     setState(() {
       _locating = true;
-      _locationError = null;
+      _outcome = null;
     });
     final result = await ref.read(locationServiceProvider).getCurrentPosition();
+    if (!mounted) return;
     setState(() {
       _locating = false;
       if (result is LocationGranted) {
-        _lat = result.lat;
-        _lng = result.lng;
+        _outcome = _LocationOutcome.found;
         // Seeded, not locked. A manager standing in the store keeps what the
-        // phone found; one sitting at the depot types the real numbers over it.
+        // phone found; one sitting at the depot types the real numbers over
+        // it.
         _latCtrl.text = result.lat.toString();
         _lngCtrl.text = result.lng.toString();
       } else if (result is LocationDenied) {
-        _locationError = 'Location permission denied.';
-      } else if (result is LocationError) {
-        _locationError = (result).message;
+        _outcome = _LocationOutcome.denied;
+      } else {
+        _outcome = _LocationOutcome.failed;
       }
     });
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    // The typed fields are the source of truth now, not `_lat`/`_lng` — so a
-    // store can be created with the right coordinates even when the phone
-    // never got a fix, which is the whole point of the fields being editable.
-    final lat = double.tryParse(_latCtrl.text.trim());
-    final lng = double.tryParse(_lngCtrl.text.trim());
-    if (lat == null || lng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the store\'s coordinates.')),
-      );
-      return;
+  /// Everything the server needs, or null with [_errors] filled in.
+  Map<String, String>? _validate(AppLocalizations l10n) {
+    final errors = <String, String>{};
+    String need(String key, TextEditingController controller) {
+      final text = controller.text.trim();
+      if (text.isEmpty) errors[key] = l10n.outletRequired;
+      return text;
     }
+
+    final name = need('name', _nameCtrl);
+    final code = need('code', _codeCtrl);
+    final channel = need('channel', _channelCtrl);
+    final lat = validateCoordinate(l10n, _latCtrl.text, latitude: true);
+    final lng = validateCoordinate(l10n, _lngCtrl.text, latitude: false);
+    if (lat != null) errors['lat'] = lat;
+    if (lng != null) errors['lng'] = lng;
+    if (_territoryCode == null) {
+      errors['territory'] = l10n.createOutletTerritoryNotChosen;
+    }
+
+    if (errors.isNotEmpty) {
+      setState(
+        () => _errors
+          ..clear()
+          ..addAll(errors),
+      );
+      return null;
+    }
+    setState(_errors.clear);
+    return <String, String>{
+      'name': name,
+      'code': code,
+      'channel': channel,
+      'lat': _latCtrl.text.trim(),
+      'lng': _lngCtrl.text.trim(),
+    };
+  }
+
+  /// Whether every required value is present. The button is armed on this and
+  /// nothing else: a primary that is lit and refuses is a primary nobody
+  /// trusts.
+  bool get _complete =>
+      _nameCtrl.text.trim().isNotEmpty &&
+      _codeCtrl.text.trim().isNotEmpty &&
+      _channelCtrl.text.trim().isNotEmpty &&
+      _territoryCode != null &&
+      double.tryParse(_latCtrl.text.trim()) != null &&
+      double.tryParse(_lngCtrl.text.trim()) != null;
+
+  Future<void> _submit() async {
+    final l10n = context.l10n;
+    final values = _validate(l10n);
+    if (values == null) return;
+
     setState(() => _submitting = true);
     try {
       await ref
           .read(outletsRepositoryProvider)
           .createOutlet(
-            name: _nameCtrl.text.trim(),
-            code: _codeCtrl.text.trim(),
-            channelType: _channelCtrl.text.trim(),
-            lat: lat,
-            lng: lng,
+            name: values['name']!,
+            code: values['code']!,
+            channelType: values['channel']!,
+            // The typed fields are the source of truth, not what the phone
+            // found — so a store can be created with the right coordinates
+            // even when the phone never got a fix, which is the whole point of
+            // the fields being editable.
+            lat: double.parse(values['lat']!),
+            lng: double.parse(values['lng']!),
             territoryId: _territoryCode!,
           );
       ref.invalidate(outletsListProvider);
       if (mounted) context.pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to create store: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      // Sanitised: a `catch` object in a toast is how a host name reaches a
+      // screenshot in a WhatsApp group.
+      showTorchToast(
+        context,
+        message: l10n.createOutletFailed,
+        kind: ToastKind.failure,
+      );
     }
   }
 
   @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _codeCtrl.dispose();
-    _channelCtrl.dispose();
-    _latCtrl.dispose();
-    _lngCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final glass = context.colors.glass;
-    final storeFields = <Widget>[
-      TextFormField(
-        controller: _nameCtrl,
-        decoration: const InputDecoration(
-          labelText: 'Store Name',
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-      ),
-      const SizedBox(height: 12),
-      TextFormField(
-        controller: _codeCtrl,
-        decoration: const InputDecoration(
-          labelText: 'Store Code',
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-      ),
-      const SizedBox(height: 12),
-      TextFormField(
-        controller: _channelCtrl,
-        decoration: const InputDecoration(
-          labelText: 'Channel Type (e.g. supermarket)',
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-      ),
-      const SizedBox(height: 12),
-      // Names on screen, codes on the wire. A manager knows the store is
-      // in "Gauteng North"; nobody memorises that its code is
-      // 'gauteng-north' — still less '2773u'.
-      ref
-          .watch(territoriesListProvider)
-          .when(
-            loading: () => const InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Territory',
-                border: OutlineInputBorder(),
-              ),
-              child: Text('Loading territories…'),
-            ),
-            error: (err, _) => InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Territory',
-                border: OutlineInputBorder(),
-                errorText: 'Could not load territories',
-              ),
-              child: TextButton(
-                onPressed: () => ref.invalidate(territoriesListProvider),
-                child: const Text('Retry'),
-              ),
-            ),
-            data: (territories) => territories.isEmpty
-                // Better than an empty dropdown that looks broken: the
-                // outlet genuinely cannot be filed until a territory
-                // exists, and this says who can fix it.
-                ? const InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Territory',
-                      border: OutlineInputBorder(),
-                      errorText:
-                          'No territories yet — create one under Territories first',
-                    ),
-                    child: SizedBox.shrink(),
-                  )
-                : DropdownButtonFormField<String>(
-                    key: const ValueKey<String>('territory-picker'),
-                    initialValue: _territoryCode,
-                    decoration: const InputDecoration(
-                      labelText: 'Territory',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      for (final t in territories)
-                        DropdownMenuItem<String>(
-                          value: t.code,
-                          child: Text(t.name),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _territoryCode = value),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Required' : null,
-                  ),
-          ),
-      const SizedBox(height: 12),
-      // Editable, seeded from the phone (#386). A manager who is not standing
-      // in the store must be able to type where the store actually is, or the
-      // pin is wrong the moment it is created and stays wrong forever.
-      TextFormField(
-        key: const ValueKey<String>('create-outlet-lat'),
-        controller: _latCtrl,
-        keyboardType:
-            const TextInputType.numberWithOptions(signed: true, decimal: true),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-        ],
-        decoration: const InputDecoration(
-          labelText: 'Latitude',
-          helperText: 'Between -90 and 90. Johannesburg is about -26.2',
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => _coordinate(v, 90, 'latitude'),
-      ),
-      const SizedBox(height: 12),
-      TextFormField(
-        key: const ValueKey<String>('create-outlet-lng'),
-        controller: _lngCtrl,
-        keyboardType:
-            const TextInputType.numberWithOptions(signed: true, decimal: true),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-        ],
-        decoration: const InputDecoration(
-          labelText: 'Longitude',
-          helperText: 'Between -180 and 180. Johannesburg is about 28.0',
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => _coordinate(v, 180, 'longitude'),
-      ),
-      const SizedBox(height: 12)
-    ];
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final territories = ref.watch(territoriesListProvider);
 
-    return GlassPageScaffold(
-      title: const Text('Create Store'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: glass
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GlassLocation(
-                      locating: _locating,
-                      error: _locationError,
-                      lat: _lat,
-                      lng: _lng,
-                      onRetry: _fetchLocation,
-                    ),
-                    const SizedBox(height: 14),
-                    GlassPane(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Kicker('Store'),
-                          const SizedBox(height: 12),
-                          ...storeFields,
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    GlassPrimaryButton(
-                      label: 'Create Store',
-                      busy: _submitting,
-                      onPressed: _submit,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Location status
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: _locating
-                            ? const Row(
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text('Getting your location...'),
-                                ],
-                              )
-                            : _locationError != null
-                            ? Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_off,
-                                    color: Colors.red,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _locationError!,
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: _fetchLocation,
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              )
-                            : Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: Colors.green,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ...storeFields,
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Create Store'),
-                    ),
-                  ],
-                ),
+    return TorchScope(
+      skin: skin,
+      phase: _submitting ? 'submitting' : 'form',
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        TorchPrimaryButton.claim(CreateOutletScreen.submitClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: l10n.createOutletTitle,
+          back: TorchIconButton(
+            icon: Icons.arrow_back,
+            // A destination, never "Back".
+            semanticLabel: l10n.createOutletBack,
+            onPressed: () => context.pop(),
+          ),
         ),
+        skinCycle: const ConsoleSkinCycle(),
+        primary: TorchPrimaryButton(
+          key: const ValueKey<String>('create-outlet-submit'),
+          label: l10n.createOutletSubmit,
+          claimId: CreateOutletScreen.submitClaimId,
+          busy: _submitting,
+          blockedReason: _complete ? null : l10n.createOutletBlocked,
+          onPressed: _complete && !_submitting ? _submit : null,
+        ),
+        children: <Widget>[
+          SectionRule(l10n.createOutletLocationHeading),
+          const SizedBox(height: TiqSpace.s4),
+          _LocationLine(
+            locating: _locating,
+            outcome: _outcome,
+            onRetry: _fetchLocation,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('create-outlet-lat'),
+            label: l10n.outletFieldLatitude,
+            controller: _latCtrl,
+            help: l10n.outletFieldLatitudeHelp,
+            error: _errors['lat'],
+            keyboardType: coordinateKeyboard,
+            autocorrect: false,
+            identifier: true,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('create-outlet-lng'),
+            label: l10n.outletFieldLongitude,
+            controller: _lngCtrl,
+            help: l10n.outletFieldLongitudeHelp,
+            error: _errors['lng'],
+            keyboardType: coordinateKeyboard,
+            autocorrect: false,
+            identifier: true,
+          ),
+          const SizedBox(height: TiqSpace.s7),
+
+          SectionRule(l10n.outletDetailFormHeading),
+          const SizedBox(height: TiqSpace.s4),
+          TorchTextField(
+            key: const ValueKey<String>('create-outlet-name'),
+            label: l10n.outletFieldName,
+            controller: _nameCtrl,
+            error: _errors['name'],
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('create-outlet-code'),
+            label: l10n.outletFieldCode,
+            controller: _codeCtrl,
+            error: _errors['code'],
+            autocorrect: false,
+            identifier: true,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('create-outlet-channel'),
+            label: l10n.outletFieldChannel,
+            controller: _channelCtrl,
+            help: l10n.outletFieldChannelHelp,
+            error: _errors['channel'],
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          // Names on screen, codes on the wire. A manager knows the store is
+          // in "Gauteng North"; nobody memorises that its code is
+          // 'gauteng-north' — still less '2773u'.
+          territories.when(
+            loading: () => Skeleton(
+              label: l10n.outletFieldTerritory,
+              child: const SkeletonShell(height: 72, outlined: true),
+            ),
+            error: (error, stack) => ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.createOutletTerritoriesFailed,
+                body: l10n.createOutletNoTerritories,
+                offersRetry: true,
+              ),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('territories-retry'),
+                label: l10n.createOutletTerritoriesRetry,
+                onPressed: () => ref.invalidate(territoriesListProvider),
+              ),
+            ),
+            data: (list) => TorchPickerField<String>(
+              key: const ValueKey<String>('territory-picker'),
+              label: l10n.outletFieldTerritory,
+              value: _territoryCode,
+              options: <PickerOption<String>>[
+                for (final territory in list)
+                  PickerOption<String>(
+                    value: territory.code,
+                    label: territory.name,
+                    identifier: territory.code,
+                  ),
+              ],
+              notChosenLine: l10n.createOutletTerritoryNotChosen,
+              error: _errors['territory'],
+              // Better than an empty sheet that looks broken: the store
+              // genuinely cannot be filed until a territory exists, and this
+              // says who can fix it.
+              emptyHeadline: l10n.createOutletNoTerritories,
+              onChanged: (code) => setState(() {
+                _territoryCode = code;
+                _errors.remove('territory');
+              }),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Where the store will be pinned, in glass. The fix is the store's geofence,
-/// so it leads the form: a figure when it lands, and a failure that carries
-/// its own words on an opaque crit wash (AA on its own) with the retry beside.
-class _GlassLocation extends StatelessWidget {
-  const _GlassLocation({
+/// What the location lookup last said.
+enum _LocationOutcome { found, denied, failed }
+
+/// Where the store will be pinned, in one sentence and one action.
+///
+/// No figure: the coordinates are in the two fields directly beneath, and
+/// printing them twice invites a manager to correct the copy that is not the
+/// one being sent.
+class _LocationLine extends StatelessWidget {
+  const _LocationLine({
     required this.locating,
-    required this.error,
-    required this.lat,
-    required this.lng,
+    required this.outcome,
     required this.onRetry,
   });
 
   final bool locating;
-  final String? error;
-  final double? lat;
-  final double? lng;
+  final _LocationOutcome? outcome;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final lumen = context.lumen;
-    final Widget status;
-    if (locating) {
-      status = Row(
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Getting your location...',
-            style: TextStyle(fontSize: 13, color: lumen.inkMuted),
-          ),
-        ],
-      );
-    } else if (error != null) {
-      final crit = LumenStatus.crit.swatchOf(colors);
-      status = Container(
-        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(crit.tint, colors.surface1),
-          borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
-          border: Border.all(color: crit.rim),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.location_off, size: 18, color: crit.ink),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                error!,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: crit.ink,
-                ),
-              ),
-            ),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      );
-    } else {
-      final good = LumenStatus.good.swatchOf(colors);
-      status = Row(
-        children: [
-          Icon(Icons.location_on, size: 18, color: good.ink),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}',
-              style: LumenGlass.figure(size: 15, color: lumen.ink),
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    final String sentence = locating
+        ? l10n.createOutletLocating
+        : switch (outcome) {
+            _LocationOutcome.found => l10n.createOutletLocationFound,
+            _LocationOutcome.denied => l10n.createOutletLocationDenied,
+            _LocationOutcome.failed => l10n.createOutletLocationFailed,
+            null => l10n.createOutletLocating,
+          };
+
+    return Column(
+      key: const ValueKey<String>('create-outlet-location'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(sentence, style: skin.text.meta.style(color: skin.palette.ink3)),
+        if (!locating) ...<Widget>[
+          const SizedBox(height: TiqSpace.s2),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchTertiaryButton(
+              key: const ValueKey<String>('create-outlet-relocate'),
+              label: l10n.createOutletUseThisPhone,
+              onPressed: onRetry,
             ),
           ),
         ],
-      );
-    }
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [const Kicker('Location'), const SizedBox(height: 10), status],
-      ),
+      ],
     );
   }
-}
-
-/// A typed coordinate, or the reason it is not one.
-String? _coordinate(String? value, double bound, String what) {
-  final text = value?.trim() ?? '';
-  if (text.isEmpty) return 'Required';
-  final parsed = double.tryParse(text);
-  if (parsed == null) return 'Enter a number, e.g. -26.2041';
-  if (parsed < -bound || parsed > bound) {
-    return 'A $what is between -${bound.toInt()} and ${bound.toInt()}';
-  }
-  return null;
 }

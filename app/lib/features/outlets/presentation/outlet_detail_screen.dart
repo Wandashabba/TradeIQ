@@ -1,50 +1,176 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/network/human_error.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../audit/data/photos_repository.dart';
 import '../data/outlets_repository.dart';
+import 'outlet_coordinates.dart';
+import 'outlets_list_screen.dart' show formatDistance;
 
-/// One outlet, and the screen where a wrong pin gets fixed (#386).
+/// ONE STORE, and the screen where a wrong pin gets fixed (#386).
+///
+/// ```text
+///   ← Stores
+///   Kasi Corner Spaza          [ Out of fence ]
+///   KCS-001 · spaza
+///   ┌──────────────────────────────────────┐
+///   │ ▲ Two agents reported this pin wrong │
+///   └──────────────────────────────────────┘
+///   ── This store ─────────────────────────
+///   Store name · Latitude · Longitude · Status
+///   ── Rejected check-ins  3 ──────────────
+///   ▏ -26,21140, 28,04930        [Use this]
+///   ▏ 8,4 km away · Thandi M
+///   ── Pin reports  2 ─────────────────────
+///   ── Change history ─────────────────────
+///   [ ☾ ]  [            Save            ]
+/// ```
 ///
 /// Until this existed an outlet's coordinates were write-once, taken from
 /// wherever the manager's phone happened to be when they submitted the create
 /// form. Forty stores onboarded during a Monday planning session at the depot
 /// were forty stores pinned to the depot car park, and the agent standing
 /// inside one of them on Tuesday measured 8.4 km with nothing to press but
-/// Retry — because the outlets screen listed and created, and the backend
-/// exposed only GET and POST.
+/// Retry.
 ///
-/// **No map picker, on purpose.** #386's own ruling is that manual entry plus
-/// the attempt evidence covers it, and the evidence is the better half of
-/// that: a manager guessing at a map tile is guessing, while an agent's
-/// recorded position is where somebody actually stood holding the phone.
+/// **No map picker, on purpose.** #386's ruling is that manual entry plus the
+/// attempt evidence covers it, and the evidence is the better half: a manager
+/// guessing at a map tile is guessing, while an agent's recorded position is
+/// where somebody actually stood holding the phone.
 ///
-/// Deliberately plain. Every widget here is one the app already has, because a
-/// later pass restyles these screens and inventing a look now would only have
-/// to be undone.
+/// ## The amber, counted
+///
+/// Not a tab root: a manager came here to fix one store. The thumb zone
+/// carries the one commit and Night's two content grants go to **one** object,
+/// "Save". Day and Veld light the same block. Every other thing on this screen
+/// that looks urgent — the reports banner, the severity on a rejected
+/// check-in, the refusal on a mocked position — is crimson plus a silhouette
+/// plus a word, because a count of problems is never light.
 class OutletDetailScreen extends ConsumerWidget {
   const OutletDetailScreen({super.key, required this.outletId});
+
+  /// "Save". Rung 1, and the only claim this route makes.
+  static const String saveClaimId = 'outlet-detail-save';
 
   final String outletId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return ConsoleTorchlightRoute(child: _OutletDetail(outletId: outletId));
+  }
+}
+
+class _OutletDetail extends ConsumerWidget {
+  const _OutletDetail({required this.outletId});
+
+  final String outletId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final detail = ref.watch(outletDetailProvider(outletId));
-    return ManagerScaffold(
-      title: 'Outlet',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          AsyncSection<OutletDetail>(
-            value: detail,
-            label: 'this outlet',
-            onRetry: () => ref.invalidate(outletDetailProvider(outletId)),
-            builder: (data) => _OutletDetailBody(detail: data),
+
+    return detail.when(
+      loading: () => _OutletFrame(
+        phase: 'loading',
+        title: l10n.outletDetailTitle,
+        children: <Widget>[
+          Skeleton(
+            label: l10n.outletDetailTitle,
+            child: const SkeletonRows(count: 4, rowHeight: 72),
           ),
         ],
+      ),
+      error: (error, stack) => _OutletFrame(
+        phase: 'error',
+        title: l10n.outletDetailTitle,
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'outlet-detail',
+            child: ErrorState(
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.outletDetailLoadErrorHeadline,
+                body: humanErrorMessage(error, l10n),
+                offersRetry: true,
+              ),
+              drawing: EmptyDrawing.pin,
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('outlet-detail-retry'),
+                label: l10n.outletsRetry,
+                onPressed: () => ref.invalidate(outletDetailProvider(outletId)),
+              ),
+            ),
+          ),
+        ],
+      ),
+      data: (data) => _OutletDetailBody(detail: data),
+    );
+  }
+}
+
+/// The frame every state of this route wears.
+class _OutletFrame extends StatelessWidget {
+  const _OutletFrame({
+    required this.phase,
+    required this.title,
+    required this.children,
+    this.facts = const <String>[],
+    this.flagChips = const <Widget>[],
+    this.primary,
+  });
+
+  final String phase;
+  final String title;
+  final List<String> facts;
+  final List<Widget> flagChips;
+  final Widget? primary;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    return TorchScope(
+      skin: skin,
+      phase: phase,
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        if (primary != null)
+          TorchPrimaryButton.claim(OutletDetailScreen.saveClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: title,
+          facts: facts,
+          flagChips: flagChips,
+          back: TorchIconButton(
+            icon: Icons.arrow_back,
+            semanticLabel: l10n.outletDetailBack,
+            onPressed: () => context.pop(),
+          ),
+        ),
+        skinCycle: const ConsoleSkinCycle(),
+        primary: primary,
+        children: children,
       ),
     );
   }
@@ -60,7 +186,6 @@ class _OutletDetailBody extends ConsumerStatefulWidget {
 }
 
 class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
-  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _latCtrl;
   late final TextEditingController _lngCtrl;
@@ -79,22 +204,38 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
   String? _disputeId;
 
   bool _saving = false;
+  final Map<String, String> _errors = <String, String>{};
 
   @override
   void initState() {
     super.initState();
-    final o = widget.detail.outlet;
-    _nameCtrl = TextEditingController(text: o.name);
-    _latCtrl = TextEditingController(text: o.lat.toString());
-    _lngCtrl = TextEditingController(text: o.lng.toString());
-    _status = o.status;
+    final outlet = widget.detail.outlet;
+    _nameCtrl = TextEditingController(text: outlet.name)..addListener(_onTyped);
+    _latCtrl = TextEditingController(text: outlet.lat.toString());
+    _lngCtrl = TextEditingController(text: outlet.lng.toString());
+    _status = outlet.status;
+    // Typing over an adopted position makes it a manual correction again: the
+    // server would otherwise record "moved to the agent's recorded position"
+    // beside numbers nobody stood on.
+    _latCtrl.addListener(_onCoordinateTyped);
+    _lngCtrl.addListener(_onCoordinateTyped);
   }
+
+  void _onTyped() => setState(() {});
+
+  void _onCoordinateTyped() => setState(() => _fromAttemptId = null);
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _latCtrl.dispose();
-    _lngCtrl.dispose();
+    _nameCtrl
+      ..removeListener(_onTyped)
+      ..dispose();
+    _latCtrl
+      ..removeListener(_onCoordinateTyped)
+      ..dispose();
+    _lngCtrl
+      ..removeListener(_onCoordinateTyped)
+      ..dispose();
     super.dispose();
   }
 
@@ -104,27 +245,54 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
   /// agree to, but they are NOT what gets sent: the request carries the
   /// attempt id and the server reads the numbers out of that row itself.
   void _useAttempt(CheckInAttemptEvidence attempt, {String? disputeId}) {
+    // The listeners clear `_fromAttemptId` on every programmatic write too, so
+    // the id is set after the text rather than before it.
+    _latCtrl.text = attempt.lat.toString();
+    _lngCtrl.text = attempt.lng.toString();
     setState(() {
       _fromAttemptId = attempt.id;
       _disputeId = disputeId ?? _disputeId;
-      _latCtrl.text = attempt.lat.toString();
-      _lngCtrl.text = attempt.lng.toString();
     });
   }
 
+  bool get _complete =>
+      _nameCtrl.text.trim().isNotEmpty &&
+      double.tryParse(_latCtrl.text.trim()) != null &&
+      double.tryParse(_lngCtrl.text.trim()) != null;
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    final o = widget.detail.outlet;
+    final l10n = context.l10n;
+    final errors = <String, String>{};
+    if (_nameCtrl.text.trim().isEmpty) errors['name'] = l10n.outletRequired;
+    final lat = validateCoordinate(l10n, _latCtrl.text, latitude: true);
+    final lng = validateCoordinate(l10n, _lngCtrl.text, latitude: false);
+    if (lat != null) errors['lat'] = lat;
+    if (lng != null) errors['lng'] = lng;
+    if (errors.isNotEmpty) {
+      setState(
+        () => _errors
+          ..clear()
+          ..addAll(errors),
+      );
+      return;
+    }
+    setState(_errors.clear);
+
+    final outlet = widget.detail.outlet;
     final typedLat = double.parse(_latCtrl.text.trim());
     final typedLng = double.parse(_lngCtrl.text.trim());
-    final pinMoved = typedLat != o.lat || typedLng != o.lng;
+    final pinMoved = typedLat != outlet.lat || typedLng != outlet.lng;
 
     setState(() => _saving = true);
     try {
-      await ref.read(outletAdminRepositoryProvider).updateOutlet(
-            id: o.id,
-            name: _nameCtrl.text.trim() == o.name ? null : _nameCtrl.text.trim(),
-            status: _status == o.status ? null : _status,
+      await ref
+          .read(outletAdminRepositoryProvider)
+          .updateOutlet(
+            id: outlet.id,
+            name: _nameCtrl.text.trim() == outlet.name
+                ? null
+                : _nameCtrl.text.trim(),
+            status: _status == outlet.status ? null : _status,
             // Either the attempt id or the typed numbers reach the wire, never
             // both — see _fromAttemptId.
             fromAttemptId: _fromAttemptId,
@@ -132,168 +300,136 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
             lng: _fromAttemptId == null && pinMoved ? typedLng : null,
             disputeId: _disputeId,
           );
-      ref.invalidate(outletDetailProvider(o.id));
+      ref.invalidate(outletDetailProvider(outlet.id));
       ref.invalidate(outletsListProvider);
       ref.invalidate(openPinDisputesProvider);
-      if (mounted) {
-        setState(() {
-          _fromAttemptId = null;
-          _disputeId = null;
-        });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Outlet updated.')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not save: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (!mounted) return;
+      setState(() {
+        _fromAttemptId = null;
+        _disputeId = null;
+        _saving = false;
+      });
+      showTorchToast(
+        context,
+        message: l10n.outletSaved,
+        kind: ToastKind.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showTorchToast(
+        context,
+        message: l10n.outletSaveFailed,
+        kind: ToastKind.failure,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final detail = widget.detail;
-    final o = detail.outlet;
+    final outlet = detail.outlet;
     final openDisputes = detail.disputes.where((d) => d.isOpen).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(o.name, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 4),
-        Text(o.channelType.isEmpty ? o.code : '${o.code} · ${o.channelType}'),
-        const SizedBox(height: 16),
-
-        if (openDisputes.isNotEmpty) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '${openDisputes.length} agent'
-                    '${openDisputes.length == 1 ? '' : 's'} '
-                    'reported this pin as wrong',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Each of these checked in anyway, flagged, and the visit is '
-                    'on the manager review queue. Correcting the pin closes the '
-                    'report; saving without moving it records that you looked '
-                    'and the pin stands.',
-                  ),
-                ],
-              ),
-            ),
+    return _OutletFrame(
+      phase: _saving ? 'saving' : 'loaded',
+      title: outlet.name,
+      facts: <String>[
+        outlet.channelType.isEmpty
+            ? outlet.code
+            : '${outlet.code} · ${outlet.channelType}',
+      ],
+      flagChips: <Widget>[
+        if (openDisputes.isNotEmpty)
+          FlagChip(
+            key: const ValueKey<String>('outlet-disputes-flag'),
+            kind: FlagKind.forReview,
+            label: l10n.outletsPinReported,
           ),
-          const SizedBox(height: 16),
+      ],
+      primary: TorchPrimaryButton(
+        key: const ValueKey<String>('save-outlet'),
+        label: l10n.outletSave,
+        claimId: OutletDetailScreen.saveClaimId,
+        busy: _saving,
+        blockedReason: _complete ? null : l10n.outletSaveBlocked,
+        onPressed: _complete && !_saving ? _save : null,
+      ),
+      children: <Widget>[
+        if (openDisputes.isNotEmpty) ...<Widget>[
+          _DisputeBanner(count: openDisputes.length),
+          const SizedBox(height: TiqSpace.s7),
         ],
 
-        // ── The edit form ────────────────────────────────────────────────
-        Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                key: const ValueKey<String>('outlet-name'),
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Store name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const ValueKey<String>('outlet-lat'),
-                controller: _latCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(signed: true, decimal: true),
-                // Coordinates are typed by hand here, so the field must not
-                // silently accept a comma decimal or a pasted "-26.2041, 28.04"
-                // pair and turn it into a pin nobody meant.
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Latitude',
-                  helperText: 'Between -90 and 90. Johannesburg is about -26.2',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() => _fromAttemptId = null),
-                validator: (v) => _coordinate(v, 90, 'latitude'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const ValueKey<String>('outlet-lng'),
-                controller: _lngCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(signed: true, decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Longitude',
-                  helperText: 'Between -180 and 180. Johannesburg is about 28.0',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() => _fromAttemptId = null),
-                validator: (v) => _coordinate(v, 180, 'longitude'),
-              ),
-              if (_fromAttemptId != null) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'Using an agent\'s recorded position. The server reads the '
-                  'coordinates from that check-in itself.',
-                ),
-              ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: const ValueKey<String>('outlet-status'),
-                initialValue: _status,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  helperText:
-                      'Closed keeps the store out of planning. It does not block '
-                      'check-in — an agent standing at the door must still be able '
-                      'to work.',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem<String>(value: 'active', child: Text('Active')),
-                  DropdownMenuItem<String>(value: 'closed', child: Text('Closed')),
-                ],
-                onChanged: (v) => setState(() => _status = v ?? _status),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                key: const ValueKey<String>('save-outlet'),
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save'),
-              ),
-            ],
+        SectionRule(l10n.outletDetailFormHeading),
+        const SizedBox(height: TiqSpace.s4),
+        TorchTextField(
+          key: const ValueKey<String>('outlet-name'),
+          label: l10n.outletFieldName,
+          controller: _nameCtrl,
+          error: _errors['name'],
+        ),
+        const SizedBox(height: TiqSpace.s5),
+        TorchTextField(
+          key: const ValueKey<String>('outlet-lat'),
+          label: l10n.outletFieldLatitude,
+          controller: _latCtrl,
+          help: l10n.outletFieldLatitudeHelp,
+          error: _errors['lat'],
+          keyboardType: coordinateKeyboard,
+          autocorrect: false,
+          identifier: true,
+        ),
+        const SizedBox(height: TiqSpace.s5),
+        TorchTextField(
+          key: const ValueKey<String>('outlet-lng'),
+          label: l10n.outletFieldLongitude,
+          controller: _lngCtrl,
+          help: l10n.outletFieldLongitudeHelp,
+          error: _errors['lng'],
+          keyboardType: coordinateKeyboard,
+          autocorrect: false,
+          identifier: true,
+        ),
+        if (_fromAttemptId != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            key: const ValueKey<String>('outlet-using-attempt'),
+            l10n.outletUsingAttempt,
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
+            ),
           ),
+        ],
+        const SizedBox(height: TiqSpace.s5),
+        // Two options with a consequence each: a choice row, not a dropdown.
+        // "Closed" has a real consequence and the row says it, because a
+        // manager closing a store must not discover from an agent that it
+        // also blocked their check-in — it does not.
+        ChoiceRow<String>(
+          key: const ValueKey<String>('outlet-status'),
+          label: l10n.outletFieldStatus,
+          value: _status,
+          notAnsweredLine: l10n.outletRequired,
+          options: <ChoiceOption<String>>[
+            ChoiceOption<String>(
+              value: 'active',
+              label: l10n.outletStatusActive,
+              consequence: l10n.outletStatusActiveConsequence,
+            ),
+            ChoiceOption<String>(
+              value: 'closed',
+              label: l10n.outletStatusClosed,
+              consequence: l10n.outletStatusClosedConsequence,
+            ),
+          ],
+          onChanged: (value) => setState(() => _status = value),
         ),
+        const SizedBox(height: TiqSpace.s7),
 
-        const SizedBox(height: 24),
-        _FailedAttempts(
-          attempts: detail.failedAttempts,
-          onUse: _useAttempt,
-        ),
-        const SizedBox(height: 24),
+        _FailedAttempts(attempts: detail.failedAttempts, onUse: _useAttempt),
+        const SizedBox(height: TiqSpace.s7),
         _Disputes(
           disputes: detail.disputes,
           attempts: detail.failedAttempts,
@@ -301,22 +437,42 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
           onAnswer: (id) => setState(() => _disputeId = id),
           answering: _disputeId,
         ),
-        const SizedBox(height: 24),
         _ChangeLedger(changes: detail.changes),
       ],
     );
   }
 }
 
-String? _coordinate(String? value, double bound, String what) {
-  final text = value?.trim() ?? '';
-  if (text.isEmpty) return 'Required';
-  final parsed = double.tryParse(text);
-  if (parsed == null) return 'Enter a number, e.g. -26.2041';
-  if (parsed < -bound || parsed > bound) {
-    return 'A $what is between -${bound.toInt()} and ${bound.toInt()}';
+/// How many agents said the pin is wrong, and what saving does about it.
+///
+/// Crimson at the watch level plus the triangle plus the sentence — three
+/// channels, never amber. A count of problems is the least lit thing on a
+/// screen whose one light is the commit.
+class _DisputeBanner extends StatelessWidget {
+  const _DisputeBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    return SoftRow(
+      key: const ValueKey<String>('outlet-disputes-banner'),
+      form: SoftRowForm.standalone,
+      density: SoftRowDensity.tall,
+      title: l10n.outletDetailDisputesHeadline(count),
+      leading: SeverityMark(
+        kind: SeverityMarkKind.watch,
+        semanticsLabel: l10n.outletsPinReported,
+      ),
+      meta: Text(
+        l10n.outletDetailDisputesBody,
+        style: skin.text.meta.style(color: skin.palette.ink2),
+      ),
+    );
   }
-  return null;
 }
 
 /// The evidence. Each row is an agent who stood somewhere and was told they
@@ -331,48 +487,115 @@ class _FailedAttempts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Rejected check-ins', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 4),
-        const Text(
-          'Where agents actually were when this store turned them away.',
+      children: <Widget>[
+        SectionRule(
+          l10n.outletAttemptsHeading,
+          count: attempts.isEmpty ? null : attempts.length,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: TiqSpace.s3),
+        Text(
+          l10n.outletAttemptsNote,
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+        const SizedBox(height: TiqSpace.s4),
         if (attempts.isEmpty)
-          const Card(
-            child: ListTile(
-              title: Text('No rejected check-ins'),
-              subtitle: Text('Nobody has been turned away by this pin.'),
-            ),
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: l10n.outletAttemptsEmptyHeadline,
+            body: l10n.outletAttemptsEmptyBody,
           )
         else
-          for (final a in attempts)
-            Card(
-              key: ValueKey<String>('attempt-${a.id}'),
-              child: ListTile(
-                title: Text(
-                  '${a.lat.toStringAsFixed(5)}, ${a.lng.toStringAsFixed(5)}',
-                ),
-                subtitle: Text(
-                  '${_metres(a.distanceM)} away · ${a.agentLabel} · '
-                  '${_when(a.createdAt)}\n${_fixQuality(a.accuracyM, a.isMocked)}',
-                ),
-                isThreeLine: true,
-                trailing: TextButton(
-                  key: ValueKey<String>('use-attempt-${a.id}'),
-                  // A position the platform called fake, or one only good to
-                  // hundreds of metres, cannot become the place a shop is: the
-                  // pin decides who may check in there. The server refuses it
-                  // too (outlets.service) — this is the same rule where the
-                  // manager can see it before they press.
-                  onPressed: a.isAdoptable ? () => onUse(a) : null,
-                  child: const Text('Use this'),
-                ),
-              ),
+          TorchBleed(
+            extra: gutter.left * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (var i = 0; i < attempts.length; i++)
+                  _AttemptRow(
+                    attempt: attempts[i],
+                    last: i == attempts.length - 1,
+                    onUse: () => onUse(attempts[i]),
+                  ),
+              ],
             ),
+          ),
       ],
+    );
+  }
+}
+
+class _AttemptRow extends StatelessWidget {
+  const _AttemptRow({
+    required this.attempt,
+    required this.last,
+    required this.onUse,
+  });
+
+  final CheckInAttemptEvidence attempt;
+  final bool last;
+  final VoidCallback onUse;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final position = formatPosition(context, attempt.lat, attempt.lng);
+    final quality = fixQuality(
+      l10n,
+      context,
+      attempt.accuracyM,
+      attempt.isMocked,
+    );
+
+    return SoftRow(
+      key: ValueKey<String>('attempt-${attempt.id}'),
+      density: SoftRowDensity.tall,
+      title: position,
+      subtitle: l10n.outletAttemptSubtitle(
+        formatDistance(context, attempt.distanceM),
+        attempt.agentLabel,
+      ),
+      meta: Text(
+        <String>[
+          '${formatDayShort(context, attempt.createdAt.toLocal())} · '
+              '${formatClock(context, attempt.createdAt.toLocal())}',
+          quality,
+        ].join(' · '),
+        style: skin.text.meta.style(color: skin.palette.ink3),
+      ),
+      // A position the platform called fake, or one only good to hundreds of
+      // metres, cannot become the place a shop is: the pin decides who may
+      // check in there. The server refuses it too (outlets.service) — this is
+      // the same rule where the manager can see it before they press.
+      //
+      // The verb lives in `actions`, never in `meta`: `meta` is inside the
+      // row's excluded label, so a button there is painted and announced
+      // nowhere.
+      actions: attempt.isAdoptable
+          ? Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TorchTertiaryButton(
+                key: ValueKey<String>('use-attempt-${attempt.id}'),
+                label: l10n.outletUseThisPosition,
+                onPressed: onUse,
+              ),
+            )
+          : null,
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        position,
+        l10n.outletAttemptSubtitle(
+          formatDistance(context, attempt.distanceM),
+          attempt.agentLabel,
+        ),
+        quality,
+      ].join('. '),
     );
   }
 }
@@ -388,99 +611,32 @@ class _Disputes extends StatelessWidget {
 
   final List<PinDispute> disputes;
   final List<CheckInAttemptEvidence> attempts;
-  final void Function(CheckInAttemptEvidence attempt, {String? disputeId}) onUse;
+  final void Function(CheckInAttemptEvidence attempt, {String? disputeId})
+  onUse;
   final void Function(String disputeId) onAnswer;
   final String? answering;
 
   @override
   Widget build(BuildContext context) {
     if (disputes.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Pin reports', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        for (final d in disputes)
-          Card(
-            key: ValueKey<String>('dispute-${d.id}'),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('${d.agentLabel} · ${_when(d.createdAt)}'),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Stood at ${d.lat.toStringAsFixed(5)}, '
-                    '${d.lng.toStringAsFixed(5)} — ${_metres(d.distanceM)} from '
-                    'the pin, which then read ${d.outletLat.toStringAsFixed(5)}, '
-                    '${d.outletLng.toStringAsFixed(5)}.',
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    key: ValueKey<String>('dispute-fix-${d.id}'),
-                    _fixQuality(d.accuracyM, d.isMocked),
-                  ),
-                  if (d.agentIsOnlyVisitor) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      key: ValueKey<String>('dispute-sole-${d.id}'),
-                      // Not a refusal. A store visited once by one agent is
-                      // also a store visited once by one agent.
-                      'No other agent has ever visited this outlet, so nobody '
-                      "else's check-ins can disagree with a pin moved here.",
-                    ),
-                  ],
-                  if (d.note != null && d.note!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text('"${d.note}"'),
-                  ],
-                  if (d.photos.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    // The photo itself, not a count of photos. A manager
-                    // deciding where a shop is from "1 storefront photo
-                    // attached." is deciding from nothing.
-                    for (final photo in d.photos) _DisputePhoto(photo: photo),
-                  ],
-                  const SizedBox(height: 8),
-                  if (d.isOpen)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            answering == d.id
-                                ? 'Answering this report on save.'
-                                : 'Open',
-                          ),
-                        ),
-                        TextButton(
-                          key: ValueKey<String>('answer-${d.id}'),
-                          onPressed: () => onAnswer(d.id),
-                          child: const Text('Answer this'),
-                        ),
-                        // Adopting the reporting agent's own position is the
-                        // common repair, so it is one tap from the report
-                        // rather than a hunt through the attempt list.
-                        if (_attemptFor(d) != null)
-                          TextButton(
-                            key: ValueKey<String>('adopt-${d.id}'),
-                            onPressed: _attemptFor(d)!.isAdoptable
-                                ? () => onUse(_attemptFor(d)!, disputeId: d.id)
-                                : null,
-                            child: const Text('Use their position'),
-                          ),
-                      ],
-                    )
-                  else
-                    Text(
-                      d.status == 'applied'
-                          ? 'Applied by ${d.resolvedByLabel ?? 'a manager'}'
-                          : 'Rejected by ${d.resolvedByLabel ?? 'a manager'}',
-                    ),
-                ],
-              ),
-            ),
+      children: <Widget>[
+        SectionRule(l10n.outletDisputesHeading, count: disputes.length),
+        const SizedBox(height: TiqSpace.s4),
+        for (final dispute in disputes) ...<Widget>[
+          _DisputeBlock(
+            dispute: dispute,
+            attempt: _attemptFor(dispute),
+            onUse: onUse,
+            onAnswer: onAnswer,
+            answering: answering,
           ),
+          const SizedBox(height: TiqSpace.s6),
+        ],
+        const SizedBox(height: TiqSpace.s3),
       ],
     );
   }
@@ -488,17 +644,140 @@ class _Disputes extends StatelessWidget {
   /// The rejected check-in that matches this report's position, if it is still
   /// in the evidence window. Matched on coordinates because the dispute and
   /// the attempt are two records of one moment.
-  CheckInAttemptEvidence? _attemptFor(PinDispute d) {
-    for (final a in attempts) {
-      if (a.lat == d.lat && a.lng == d.lng) return a;
+  CheckInAttemptEvidence? _attemptFor(PinDispute dispute) {
+    for (final attempt in attempts) {
+      if (attempt.lat == dispute.lat && attempt.lng == dispute.lng) {
+        return attempt;
+      }
     }
     return null;
   }
 }
 
-/// Who has changed this outlet, and what it was before. An outlet's
-/// coordinates decide who can check in where, so moving one is a change to an
-/// access boundary and is recorded as such.
+class _DisputeBlock extends StatelessWidget {
+  const _DisputeBlock({
+    required this.dispute,
+    required this.attempt,
+    required this.onUse,
+    required this.onAnswer,
+    required this.answering,
+  });
+
+  final PinDispute dispute;
+  final CheckInAttemptEvidence? attempt;
+  final void Function(CheckInAttemptEvidence attempt, {String? disputeId})
+  onUse;
+  final void Function(String disputeId) onAnswer;
+  final String? answering;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final meta = skin.text.meta.style(color: skin.palette.ink3);
+    final body = skin.text.body.style(color: skin.palette.ink2);
+    final adoptable = attempt;
+
+    final verbs = <Widget>[
+      if (dispute.isOpen)
+        TorchTertiaryButton(
+          key: ValueKey<String>('answer-${dispute.id}'),
+          label: l10n.outletDisputeAnswer,
+          onPressed: () => onAnswer(dispute.id),
+        ),
+      // Adopting the reporting agent's own position is the common repair, so
+      // it is one tap from the report rather than a hunt through the attempt
+      // list. An unadoptable fix gets no button at all, not a dead one.
+      if (dispute.isOpen && adoptable != null && adoptable.isAdoptable)
+        TorchTertiaryButton(
+          key: ValueKey<String>('adopt-${dispute.id}'),
+          label: l10n.outletUseTheirPosition,
+          onPressed: () => onUse(adoptable, disputeId: dispute.id),
+        ),
+    ];
+
+    return SoftRow(
+      key: ValueKey<String>('dispute-${dispute.id}'),
+      form: SoftRowForm.standalone,
+      density: SoftRowDensity.tall,
+      title: dispute.agentLabel,
+      subtitle:
+          '${formatDayShort(context, dispute.createdAt.toLocal())} · '
+          '${formatClock(context, dispute.createdAt.toLocal())}',
+      leading: dispute.isOpen
+          ? SeverityMark(
+              kind: SeverityMarkKind.watch,
+              semanticsLabel: l10n.outletDisputeOpen,
+            )
+          : null,
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            l10n.outletDisputeStood(
+              formatPosition(context, dispute.lat, dispute.lng),
+              formatDistance(context, dispute.distanceM),
+              formatPosition(context, dispute.outletLat, dispute.outletLng),
+            ),
+            style: body,
+          ),
+          const SizedBox(height: TiqSpace.s2),
+          Text(
+            key: ValueKey<String>('dispute-fix-${dispute.id}'),
+            fixQuality(l10n, context, dispute.accuracyM, dispute.isMocked),
+            style: meta,
+          ),
+          if (dispute.agentIsOnlyVisitor) ...<Widget>[
+            const SizedBox(height: TiqSpace.s2),
+            Text(
+              key: ValueKey<String>('dispute-sole-${dispute.id}'),
+              // Not a refusal. A store visited once by one agent is also a
+              // store visited once by one agent.
+              l10n.outletDisputeSoleVisitor,
+              style: meta,
+            ),
+          ],
+          if (dispute.note != null && dispute.note!.isNotEmpty) ...<Widget>[
+            const SizedBox(height: TiqSpace.s2),
+            Text('“${dispute.note}”', style: body),
+          ],
+          if (dispute.photos.isNotEmpty) ...<Widget>[
+            const SizedBox(height: TiqSpace.s4),
+            // The photo itself, not a count of photos. A manager deciding
+            // where a shop is from "1 storefront photo attached." is deciding
+            // from nothing.
+            for (final photo in dispute.photos) _DisputePhoto(photo: photo),
+          ],
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            dispute.isOpen
+                ? (answering == dispute.id
+                      ? l10n.outletDisputeAnswering
+                      : l10n.outletDisputeOpen)
+                : dispute.status == 'applied'
+                ? l10n.outletDisputeApplied(
+                    dispute.resolvedByLabel ??
+                        l10n.outletDisputeResolvedByManager,
+                  )
+                : l10n.outletDisputeRejected(
+                    dispute.resolvedByLabel ??
+                        l10n.outletDisputeResolvedByManager,
+                  ),
+            style: meta,
+          ),
+        ],
+      ),
+      actions: verbs.isEmpty
+          ? null
+          : Wrap(spacing: TiqSpace.s4, children: verbs),
+    );
+  }
+}
+
+/// Who has changed this store, and what it was before. A store's coordinates
+/// decide who can check in where, so moving one is a change to an access
+/// boundary and is recorded as such.
 class _ChangeLedger extends StatelessWidget {
   const _ChangeLedger({required this.changes});
 
@@ -507,48 +786,86 @@ class _ChangeLedger extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (changes.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final gutter = context.skin.space.gutterFor(
+      MediaQuery.sizeOf(context).width,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Change history', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        for (final c in changes)
-          Card(
-            key: ValueKey<String>('change-${c.id}'),
-            child: ListTile(
-              title: Text(_describe(c)),
-              subtitle: Text('${c.userLabel} · ${_when(c.createdAt)}'),
-            ),
+      children: <Widget>[
+        SectionRule(l10n.outletChangesHeading, count: changes.length),
+        const SizedBox(height: TiqSpace.s4),
+        TorchBleed(
+          extra: gutter.left * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (var i = 0; i < changes.length; i++)
+                SoftRow(
+                  key: ValueKey<String>('change-${changes[i].id}'),
+                  density: SoftRowDensity.tall,
+                  title: _describe(context, changes[i]),
+                  subtitle:
+                      '${changes[i].userLabel} · '
+                      '${formatDayShort(context, changes[i].createdAt.toLocal())} · '
+                      '${formatClock(context, changes[i].createdAt.toLocal())}',
+                  separator: i == changes.length - 1
+                      ? SoftRowSeparator.none
+                      : SoftRowSeparator.auto,
+                ),
+            ],
           ),
+        ),
       ],
     );
   }
 
-  String _describe(OutletChange c) {
+  String _describe(BuildContext context, OutletChange change) {
+    final l10n = context.l10n;
     final parts = <String>[];
-    if (c.after.containsKey('lat')) {
+    if (change.after.containsKey('lat')) {
+      final moved = l10n.outletChangePinMoved(
+        '${formatLedgerCoordinate(context, change.before['lat'])}, '
+            '${formatLedgerCoordinate(context, change.before['lng'])}',
+        '${formatLedgerCoordinate(context, change.after['lat'])}, '
+            '${formatLedgerCoordinate(context, change.after['lng'])}',
+      );
       parts.add(
-        'Pin moved from ${_coord(c.before['lat'])}, ${_coord(c.before['lng'])} '
-        'to ${_coord(c.after['lat'])}, ${_coord(c.after['lng'])}'
-        '${c.pinSource == 'agent_position' ? " (an agent's recorded position${c.fromAgentId == null ? '' : ', agent ${c.fromAgentId}'})" : ''}',
+        change.pinSource == 'agent_position'
+            ? '$moved (${l10n.outletChangePinFromAgent})'
+            : moved,
       );
     }
-    if (c.after.containsKey('name')) {
-      parts.add('Renamed from "${c.before['name']}" to "${c.after['name']}"');
+    if (change.after.containsKey('name')) {
+      parts.add(
+        l10n.outletChangeRenamed(
+          '${change.before['name']}',
+          '${change.after['name']}',
+        ),
+      );
     }
-    if (c.after.containsKey('status')) {
-      parts.add('Status ${c.before['status']} → ${c.after['status']}');
+    if (change.after.containsKey('status')) {
+      parts.add(
+        l10n.outletChangeStatus(
+          _statusWord(l10n, change.before['status']),
+          _statusWord(l10n, change.after['status']),
+        ),
+      );
     }
-    return parts.isEmpty ? 'Changed' : parts.join('. ');
+    return parts.isEmpty ? l10n.outletChangeOther : parts.join('. ');
   }
 
-  String _coord(Object? value) =>
-      value is num ? value.toDouble().toStringAsFixed(5) : '?';
+  String _statusWord(AppLocalizations l10n, Object? value) => switch (value) {
+    'active' => l10n.outletStatusActive,
+    'closed' => l10n.outletStatusClosed,
+    _ => '$value',
+  };
 }
 
 /// One storefront photo, with both accounts of it side by side.
 ///
-/// The device's timestamp is what the agent's phone said; `Received` is when
+/// The device's timestamp is what the agent's phone said; "Received" is when
 /// this server took delivery, and the source is how the image was obtained. A
 /// picture chosen from the gallery is stamped with the moment it was PICKED,
 /// so a screenshot taken at home arrives with a fresh time and a home position
@@ -562,42 +879,56 @@ class _DisputePhoto extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final bytes = ref.watch(thumbnailBytesProvider(photo.id));
+    final meta = skin.text.meta.style(color: skin.palette.ink3);
+
     return Padding(
       key: ValueKey<String>('dispute-photo-${photo.id}'),
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: TiqSpace.s4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           SizedBox(
             width: 72,
             height: 72,
             child: bytes.when(
-              data: (data) => Image.memory(data, fit: BoxFit.cover),
-              loading: () => const Center(
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+              data: (data) => Semantics(
+                image: true,
+                label: l10n.outletPhotoAlt,
+                excludeSemantics: true,
+                child: Image.memory(data, fit: BoxFit.cover),
               ),
-              error: (_, _) => const Center(child: Text('—')),
+              loading: () => const SkeletonShell(height: 72, outlined: true),
+              error: (_, _) => Text(l10n.outletPhotoMissing, style: meta),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: TiqSpace.s3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(switch (photo.source) {
+                  'camera' => l10n.outletPhotoCamera,
+                  'gallery' => l10n.outletPhotoGallery,
+                  _ => l10n.outletPhotoUnknownSource,
+                }, style: skin.text.body.style(color: skin.palette.ink2)),
                 Text(
-                  switch (photo.source) {
-                    'camera' => 'Taken with the camera',
-                    'gallery' => 'Chosen from the gallery',
-                    _ => 'Source not recorded',
-                  },
+                  l10n.outletPhotoPhoneSaid(
+                    '${formatDayShort(context, photo.timestamp.toLocal())} · '
+                    '${formatClock(context, photo.timestamp.toLocal())}',
+                  ),
+                  style: meta,
                 ),
-                Text('Phone said ${_when(photo.timestamp)}'),
-                Text('Received ${_when(photo.receivedAt)}'),
+                Text(
+                  l10n.outletPhotoReceived(
+                    '${formatDayShort(context, photo.receivedAt.toLocal())} · '
+                    '${formatClock(context, photo.receivedAt.toLocal())}',
+                  ),
+                  style: meta,
+                ),
               ],
             ),
           ),
@@ -607,27 +938,18 @@ class _DisputePhoto extends ConsumerWidget {
   }
 }
 
-/// What the device said about a fix, in words — including when it said nothing.
-String _fixQuality(double? accuracyM, bool? isMocked) {
-  if (isMocked == true) {
-    return 'The device reported this position as a MOCK location. It cannot '
-        "become this outlet's pin.";
-  }
-  if (accuracyM == null) {
-    return 'The device did not report how accurate this position was.';
-  }
-  final rounded = accuracyM.round();
+/// What the device said about a fix, in words — including when it said
+/// nothing.
+String fixQuality(
+  AppLocalizations l10n,
+  BuildContext context,
+  double? accuracyM,
+  bool? isMocked,
+) {
+  if (isMocked == true) return l10n.outletFixMocked;
+  if (accuracyM == null) return l10n.outletFixUnknown;
+  final metres = TiqNumber.of(context).format(accuracyM.round());
   return accuracyM > 100
-      ? 'Accurate to about $rounded m — too coarse to set a pin with.'
-      : 'Accurate to about $rounded m.';
-}
-
-String _metres(double m) =>
-    m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km' : '${m.round()} m';
-
-String _when(DateTime at) {
-  final local = at.toLocal();
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} '
-      '${two(local.hour)}:${two(local.minute)}';
+      ? l10n.outletFixCoarse(metres)
+      : l10n.outletFixGood(metres);
 }

@@ -1,98 +1,381 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsAction;
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/outlets_list_screen.dart';
 
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../operations_harness.dart';
 
-class FakeOutletsRepository implements OutletsRepository {
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-        data: [
-          Outlet(
-            id: 'o1',
-            name: 'Test Hypermarket',
-            code: 'TH-001',
-            lat: -26.2041,
-            lng: 28.0473,
-          ),
-          // An outlet at 0,0 has no usable coordinates — it cannot be geofenced,
-          // so a visit to it cannot be verified. The list has to say so.
-          Outlet(id: 'o2', name: 'Unplaced Spaza', code: 'US-002', lat: 0, lng: 0),
-        ],
-        nextCursor: null,
-      );
+final List<Outlet> _outlets = <Outlet>[
+  opsOutlet('o1', 'Test Hypermarket', code: 'TH-001'),
+  // An outlet at 0,0 has no usable coordinates — it cannot be geofenced, so a
+  // visit to it cannot be verified. The list has to say so.
+  opsOutlet('o2', 'Unplaced Spaza', code: 'US-002', lat: 0, lng: 0),
+];
 
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) =>
-      throw UnimplementedError();
+PinDispute _dispute({
+  String id = 'd1',
+  String outletId = 'o2',
+  String outletName = 'Unplaced Spaza',
+  double distanceM = 8400,
+}) => PinDispute(
+  id: id,
+  outletId: outletId,
+  outletName: outletName,
+  outletCode: 'US-002',
+  visitId: 'v1',
+  agentLabel: 'Thandi Mokoena',
+  lat: -26.2114,
+  lng: 28.0493,
+  distanceM: distanceM,
+  outletLat: 0,
+  outletLng: 0,
+  note: null,
+  status: 'open',
+  resolvedByLabel: null,
+  resolvedAt: null,
+  accuracyM: 12,
+  isMocked: false,
+  createdAt: DateTime.utc(2026, 9, 18, 7),
+  agentIsOnlyVisitor: false,
+  photos: const <PinDisputePhoto>[],
+);
+
+Future<void> _pump(
+  WidgetTester tester, {
+  List<Outlet> outlets = const <Outlet>[],
+  List<PinDispute> disputes = const <PinDispute>[],
+  Object? listFailure,
+  bool listPending = false,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+  Size size = const Size(360, 720),
+}) async {
+  await pumpOperations(
+    tester,
+    const OutletsListScreen(),
+    skin: skin,
+    size: size,
+    textScale: textScale,
+    locale: locale,
+    settle: !listPending,
+    overrides: <Override>[
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOpsOutletsRepository(
+          outlets: outlets,
+          listFailure: listFailure,
+          listPending: listPending,
+        ),
+      ),
+      outletAdminRepositoryProvider.overrideWithValue(
+        FakeOutletAdminRepository(disputes: disputes),
+      ),
+    ],
+  );
 }
 
-/// OutletsListScreen now uses ManagerScaffold, which reads GoRouterState — a
-/// bare MaterialApp(home:) throws, so it must be pumped under a real route.
-Widget _app({ThemeData? theme}) => routedApp(
-      const OutletsListScreen(),
-      theme: theme,
-      overrides: [
-        outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository()),
-      ],
-    );
-
 void main() {
-  testWidgets('renders outlet names once loaded', (tester) async {
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
+  group('the list', () {
+    testWidgets('names every store', (tester) async {
+      await _pump(tester, outlets: _outlets);
+      expect(find.text('Test Hypermarket'), findsOneWidget);
+      expect(find.text('Unplaced Spaza'), findsOneWidget);
+    });
 
-    expect(find.text('Test Hypermarket'), findsOneWidget);
+    testWidgets('flags a store that cannot be geofenced, in words', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('outlet-o2')),
+      );
+      expect(row.severity, SoftRowSeverity.watch);
+      // The bar is crimson and the WORD is what survives greyscale.
+      expect(row.severityLabel, 'No location');
+      expect(find.text('No coordinates on file'), findsOneWidget);
+    });
+
+    testWidgets('a located store carries no severity at all', (tester) async {
+      await _pump(tester, outlets: _outlets);
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('outlet-o1')),
+      );
+      expect(row.severity, SoftRowSeverity.none);
+      expect(row.severityLabel, isNull);
+    });
+
+    testWidgets('the code wears the identifier face, never the title', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      final code = tester.widget<Text>(find.text('TH-001'));
+      expect(code.style?.fontFamily, 'JetBrains Mono');
+    });
+
+    testWidgets('a row goes to the repair screen', (tester) async {
+      await _pump(tester, outlets: _outlets);
+
+      await tester.tap(find.byKey(const ValueKey<String>('outlet-o2')));
+      await tester.pumpAndSettle();
+      expect(find.text('stub:/outlets/o2'), findsOneWidget);
+    });
   });
 
-  testWidgets('wears the console shell, so the nav rail is reachable', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1400, 1000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  group('unplaced stores, as a figure', () {
+    testWidgets('a measured zero renders 0 and keeps its place', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: <Outlet>[_outlets.first]);
 
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
+      final tile = find.byKey(const ValueKey<String>('outlets-unplaced'));
+      expect(tile, findsOneWidget);
+      expect(
+        find.descendant(of: tile, matching: find.text('0')),
+        findsOneWidget,
+        reason:
+            'The provider walks every page, so nought unplaced stores is a '
+            'measured fact. An em dash here would claim we did not count.',
+      );
+      final mark = tester.widget<SeverityMark>(
+        find.descendant(of: tile, matching: find.byType(SeverityMark)),
+      );
+      expect(mark.kind, SeverityMarkKind.onTarget);
+    });
 
-    // Previously this screen was a bare Scaffold — a manager who landed here
-    // lost navigation entirely.
-    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
-    expect(find.byKey(const ValueKey('nav-/alerts')), findsOneWidget);
+    testWidgets('one unplaced store raises the watch mark', (tester) async {
+      await _pump(tester, outlets: _outlets);
+
+      final tile = find.byKey(const ValueKey<String>('outlets-unplaced'));
+      expect(find.descendant(of: tile, matching: find.text('1')), findsOneWidget);
+      final mark = tester.widget<SeverityMark>(
+        find.descendant(of: tile, matching: find.byType(SeverityMark)),
+      );
+      expect(mark.kind, SeverityMarkKind.watch);
+    });
   });
 
-  testWidgets('flags an outlet that cannot be geofenced', (tester) async {
-    await tester.pumpWidget(_app());
-    await tester.pumpAndSettle();
+  group('open pin reports', () {
+    testWidgets('are silent when there are none', (tester) async {
+      await _pump(tester, outlets: _outlets);
+      expect(find.text('Open pin reports'), findsNothing);
+    });
 
-    expect(find.text('Unplaced Spaza'), findsOneWidget);
-    expect(find.byKey(const ValueKey('outlet-o2')), findsOneWidget);
+    testWidgets('name the agent and how far they stood', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        disputes: <PinDispute>[_dispute()],
+      );
+
+      expect(find.text('Open pin reports'), findsOneWidget);
+      expect(
+        find.text('Thandi Mokoena stood 8.4 km away'),
+        findsOneWidget,
+        reason:
+            'The distance goes through the one formatter — the locale owns '
+            'the decimal mark — and the km/m choice is RouteDistance’s.',
+      );
+    });
+
+    testWidgets('stay silent when the queue itself fails to load', (
+      tester,
+    ) async {
+      await pumpOperations(
+        tester,
+        const OutletsListScreen(),
+        overrides: <Override>[
+          outletsRepositoryProvider.overrideWithValue(
+            FakeOpsOutletsRepository(outlets: _outlets),
+          ),
+          outletAdminRepositoryProvider.overrideWithValue(
+            _FailingAdminRepository(),
+          ),
+        ],
+      );
+
+      // A manager who cannot reach the disputes endpoint still needs the
+      // store list underneath it.
+      expect(find.text('Open pin reports'), findsNothing);
+      expect(find.text('Test Hypermarket'), findsOneWidget);
+    });
   });
 
-  testWidgets('light: rows sit on glass worklist tiles', (tester) async {
-    await tester.pumpWidget(_app(theme: AppTheme.light()));
-    await tester.pumpAndSettle();
+  group('the states', () {
+    testWidgets('loading is a skeleton, not a spinner', (tester) async {
+      await _pump(tester, listPending: true);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.byType(Skeleton), findsOneWidget);
+    });
 
-    final tile = tester.widget<GlassPane>(
-      find
-          .ancestor(of: find.text('Unplaced Spaza'), matching: find.byType(GlassPane))
-          .first,
-    );
-    expect(tile.kind, GlassKind.tile);
+    testWidgets('empty offers the one next step', (tester) async {
+      await _pump(tester);
+      expect(find.text('No stores yet.'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('create-outlet')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('error sanitises and retries', (tester) async {
+      await _pump(
+        tester,
+        listFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      expect(find.text('The store list did not load.'), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('outlets-retry')),
+        findsOneWidget,
+      );
+    });
   });
+
+  group('every interactive element is operable by a screen reader', () {
+    testWidgets('"Add a store" on the section rule can be activated', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      final handle = tester.ensureSemantics();
+      final action = find.byType(SectionRuleAction);
+      expect(action, findsOneWidget);
+
+      // Not `tester.tap`: the question is whether a screen-reader user can
+      // perform the action, and an excluding Semantics node with no `onTap`
+      // announces a button that does nothing.
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        tester.getSemantics(action).id,
+        SemanticsAction.tap,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('stub:/outlets/create'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('the refresh button announces its destination', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+      final handle = tester.ensureSemantics();
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey<String>('outlets-refresh')))
+            .label,
+        contains('Reload the store list'),
+      );
+      handle.dispose();
+    });
+  });
+
+  group('Afrikaans', () {
+    testWidgets('has no English left on it', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        disputes: <PinDispute>[_dispute()],
+        locale: const Locale('af'),
+      );
+      expect(find.text('Winkels'), findsWidgets);
+      expect(find.text('Geen koördinate op rekord nie'), findsOneWidget);
+      expect(find.text('Oop pen-verslae'), findsOneWidget);
+      // The severity word lives in the row's spoken label, which is where it
+      // has to be legible too.
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('outlet-o2')),
+      );
+      expect(row.severityLabel, 'Geen ligging');
+      expect(find.text('Stores'), findsNothing);
+    });
+  });
+
+  group('2.0x text', () {
+    testWidgets('the structure survives and nothing overflows', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        disputes: <PinDispute>[_dispute()],
+        textScale: 2.0,
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SoftRow), findsWidgets);
+    });
+
+    testWidgets('Afrikaans at 1.4x does not overflow either', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        disputes: <PinDispute>[_dispute()],
+        textScale: 1.4,
+        locale: const Locale('af'),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// The stores list nominates no content amber, so the arithmetic is the
+    /// same everywhere: Night paints the nav's active tab and nothing else;
+    /// Day and Veld paint nothing, because their one rung is the primary
+    /// commit block and this route has none armed.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          outlets: _outlets,
+          disputes: <PinDispute>[_dispute()],
+        ),
+        'empty': (t) => _pump(t, skin: skin),
+        'loading': (t) async {
+          await _pump(t, skin: skin, listPending: true);
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          listFailure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'outlets',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+    }
+  });
+}
+
+class _FailingAdminRepository extends FakeOutletAdminRepository {
+  @override
+  Future<PaginatedResponse<PinDispute>> listPinDisputes({
+    String? status,
+    String? outletId,
+    int? limit,
+    String? cursor,
+  }) async => throw StateError('no route to host');
 }

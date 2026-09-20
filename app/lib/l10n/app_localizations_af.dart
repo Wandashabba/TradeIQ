@@ -3635,4 +3635,349 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get meContestsDetail => 'Kyk waar jy staan';
+
+  @override
+  String get outletsTitle => 'Winkels';
+
+  @override
+  String get outletsSubtitle =>
+      '’n Winkel sonder koördinate kan nie omhein word nie.';
+
+  @override
+  String get outletsRefresh => 'Herlaai die winkellys';
+
+  @override
+  String get outletsCreateStore => 'Voeg ’n winkel by';
+
+  @override
+  String get outletsSectionHeading => 'Winkels';
+
+  @override
+  String get outletsNoLocation => 'Geen ligging';
+
+  @override
+  String get outletsNoCoordinates => 'Geen koördinate op rekord nie';
+
+  @override
+  String get outletsPlaced => 'Geplaas';
+
+  @override
+  String get outletsEmptyHeadline => 'Nog geen winkels nie.';
+
+  @override
+  String get outletsEmptyBody =>
+      'Voeg ’n winkel by om dit op ’n besoekplan te sit.';
+
+  @override
+  String get outletsLoadErrorHeadline => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String get outletsRetry => 'Probeer weer';
+
+  @override
+  String get outletsPinReportsHeading => 'Oop pen-verslae';
+
+  @override
+  String get outletsPinReportsNote =>
+      'Agente wat nie kon inklok waar die pen sê die winkel is nie.';
+
+  @override
+  String get outletsPinReported => 'Pen aangemeld';
+
+  @override
+  String outletsPinReportStood(String agent, String distance) {
+    return '$agent het $distance daarvandaan gestaan';
+  }
+
+  @override
+  String get outletDetailTitle => 'Winkel';
+
+  @override
+  String get outletDetailBack => 'Terug na winkels';
+
+  @override
+  String get outletDetailLoadErrorHeadline =>
+      'Hierdie winkel het nie gelaai nie.';
+
+  @override
+  String outletDetailDisputesHeadline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agente het hierdie pen as verkeerd aangemeld',
+      one: 'Een agent het hierdie pen as verkeerd aangemeld',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outletDetailDisputesBody =>
+      'Elkeen van hulle het in elk geval ingeklok, is gemerk, en die besoek is op die hersieningslys. Om die pen reg te stel sluit die verslag; om te stoor sonder om dit te skuif teken aan dat jy gekyk het en die pen bly staan.';
+
+  @override
+  String get outletDetailFormHeading => 'Hierdie winkel';
+
+  @override
+  String get outletFieldName => 'Winkelnaam';
+
+  @override
+  String get outletFieldCode => 'Winkelkode';
+
+  @override
+  String get outletFieldChannel => 'Kanaaltipe';
+
+  @override
+  String get outletFieldChannelHelp =>
+      'Byvoorbeeld: supermark, spaza, vulstasiewinkel.';
+
+  @override
+  String get outletFieldTerritory => 'Gebied';
+
+  @override
+  String get outletFieldLatitude => 'Breedtegraad';
+
+  @override
+  String get outletFieldLongitude => 'Lengtegraad';
+
+  @override
+  String get outletFieldLatitudeHelp =>
+      'Tussen -90 en 90. Johannesburg is omtrent -26,2.';
+
+  @override
+  String get outletFieldLongitudeHelp =>
+      'Tussen -180 en 180. Johannesburg is omtrent 28,0.';
+
+  @override
+  String get outletFieldStatus => 'Status';
+
+  @override
+  String get outletStatusActive => 'Aktief';
+
+  @override
+  String get outletStatusClosed => 'Gesluit';
+
+  @override
+  String get outletStatusClosedConsequence =>
+      'Word uit beplanning gehou. Inklok werk steeds — ’n agent by die deur moet kan werk.';
+
+  @override
+  String get outletStatusActiveConsequence => 'Word soos gewoonlik beplan.';
+
+  @override
+  String get outletRequired => 'Verpligtend';
+
+  @override
+  String get outletCoordinateNotANumber =>
+      'Tik ’n getal in, byvoorbeeld -26,2041';
+
+  @override
+  String get outletLatitudeOutOfRange => '’n Breedtegraad is tussen -90 en 90';
+
+  @override
+  String get outletLongitudeOutOfRange =>
+      '’n Lengtegraad is tussen -180 en 180';
+
+  @override
+  String get outletSave => 'Stoor';
+
+  @override
+  String get outletSaveBlocked =>
+      'Vul eers die winkel se naam en albei koördinate in.';
+
+  @override
+  String get outletSaved => 'Winkel bygewerk.';
+
+  @override
+  String get outletSaveFailed =>
+      'Daardie winkel is nie gestoor nie. Dit is onveranderd.';
+
+  @override
+  String get outletUsingAttempt =>
+      'Gebruik ’n agent se aangetekende posisie. Die bediener lees die koördinate uit daardie inklok self.';
+
+  @override
+  String get outletAttemptsHeading => 'Afgekeurde inklokke';
+
+  @override
+  String get outletAttemptsNote =>
+      'Waar agente werklik was toe hierdie winkel hulle weggewys het.';
+
+  @override
+  String get outletAttemptsEmptyHeadline => 'Geen afgekeurde inklokke nie.';
+
+  @override
+  String get outletAttemptsEmptyBody =>
+      'Niemand is deur hierdie pen weggewys nie.';
+
+  @override
+  String outletAttemptSubtitle(String distance, String agent) {
+    return '$distance daarvandaan · $agent';
+  }
+
+  @override
+  String get outletUseThisPosition => 'Gebruik hierdie posisie';
+
+  @override
+  String get outletUseTheirPosition => 'Gebruik hul posisie';
+
+  @override
+  String get outletFixMocked =>
+      'Die toestel het hierdie posisie as ’n vals ligging aangemeld. Dit kan nie hierdie winkel se pen word nie.';
+
+  @override
+  String get outletFixUnknown =>
+      'Die toestel het nie gesê hoe akkuraat hierdie posisie was nie.';
+
+  @override
+  String outletFixCoarse(String metres) {
+    return 'Akkuraat tot ongeveer $metres m — te grof om ’n pen mee te stel.';
+  }
+
+  @override
+  String outletFixGood(String metres) {
+    return 'Akkuraat tot ongeveer $metres m.';
+  }
+
+  @override
+  String get outletDisputesHeading => 'Pen-verslae';
+
+  @override
+  String outletDisputeStood(String position, String distance, String pin) {
+    return 'Het by $position gestaan — $distance van die pen af, wat toe $pin gelees het.';
+  }
+
+  @override
+  String get outletDisputeSoleVisitor =>
+      'Geen ander agent het hierdie winkel al besoek nie, so niemand anders se inklokke kan met ’n pen wat hierheen geskuif is verskil nie.';
+
+  @override
+  String get outletDisputeOpen => 'Oop';
+
+  @override
+  String get outletDisputeAnswering =>
+      'Antwoord hierdie verslag wanneer jy stoor.';
+
+  @override
+  String get outletDisputeAnswer => 'Antwoord hierdie verslag';
+
+  @override
+  String outletDisputeApplied(String who) {
+    return 'Toegepas deur $who';
+  }
+
+  @override
+  String outletDisputeRejected(String who) {
+    return 'Verwerp deur $who';
+  }
+
+  @override
+  String get outletDisputeResolvedByManager => '’n bestuurder';
+
+  @override
+  String get outletPhotoCamera => 'Met die kamera geneem';
+
+  @override
+  String get outletPhotoGallery => 'Uit die galery gekies';
+
+  @override
+  String get outletPhotoUnknownSource => 'Bron nie aangeteken nie';
+
+  @override
+  String outletPhotoPhoneSaid(String when) {
+    return 'Foon het $when gesê';
+  }
+
+  @override
+  String outletPhotoReceived(String when) {
+    return 'Ontvang $when';
+  }
+
+  @override
+  String get outletPhotoAlt => 'Winkelfront-foto uit hierdie pen-verslag';
+
+  @override
+  String get outletPhotoMissing => 'Daardie foto het nie gelaai nie.';
+
+  @override
+  String get outletChangesHeading => 'Veranderingsgeskiedenis';
+
+  @override
+  String outletChangePinMoved(String before, String after) {
+    return 'Pen geskuif van $before na $after';
+  }
+
+  @override
+  String get outletChangePinFromAgent =>
+      'vanaf ’n agent se aangetekende posisie';
+
+  @override
+  String outletChangeRenamed(String before, String after) {
+    return 'Hernoem van “$before” na “$after”';
+  }
+
+  @override
+  String outletChangeStatus(String before, String after) {
+    return 'Status $before na $after';
+  }
+
+  @override
+  String get outletChangeOther => 'Verander';
+
+  @override
+  String get outletChangeUnknownCoordinate => 'nie aangeteken nie';
+
+  @override
+  String get createOutletTitle => 'Voeg ’n winkel by';
+
+  @override
+  String get createOutletBack => 'Terug na winkels';
+
+  @override
+  String get createOutletSubmit => 'Voeg die winkel by';
+
+  @override
+  String get createOutletBlocked =>
+      'Vul eers die naam, kode, kanaal, gebied en albei koördinate in.';
+
+  @override
+  String get createOutletFailed =>
+      'Daardie winkel is nie geskep nie. Niks is gestoor nie.';
+
+  @override
+  String get createOutletLocationHeading => 'Waar hierdie winkel is';
+
+  @override
+  String get createOutletLocating => 'Soek waar hierdie foon is…';
+
+  @override
+  String get createOutletLocationDenied =>
+      'Hierdie foon wil nie sê waar dit is nie. Tik eerder die winkel se koördinate in.';
+
+  @override
+  String get createOutletLocationFailed =>
+      'Hierdie foon kon nie vind waar dit is nie. Tik eerder die winkel se koördinate in.';
+
+  @override
+  String get createOutletLocationFound =>
+      'Vanaf hierdie foon ingevul. Tik daaroor as jy nie in die winkel staan nie.';
+
+  @override
+  String get createOutletUseThisPhone => 'Gebruik hierdie foon se posisie';
+
+  @override
+  String get createOutletTerritoriesLoading => 'Laai gebiede…';
+
+  @override
+  String get createOutletTerritoriesFailed =>
+      'Die gebiedelys het nie gelaai nie.';
+
+  @override
+  String get createOutletTerritoriesRetry => 'Probeer weer';
+
+  @override
+  String get createOutletNoTerritories =>
+      'Nog geen gebiede nie — skep eers een onder Gebiede.';
+
+  @override
+  String get createOutletTerritoryNotChosen => 'Kies ’n gebied';
 }

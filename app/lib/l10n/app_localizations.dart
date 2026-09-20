@@ -5575,6 +5575,576 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See where you stand'**
   String get meContestsDetail;
+
+  /// Title of the manager's outlet list route.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get outletsTitle;
+
+  /// Header fact on the outlet list: why the coordinate state is the row's status.
+  ///
+  /// In en, this message translates to:
+  /// **'A store without coordinates cannot be geofenced.'**
+  String get outletsSubtitle;
+
+  /// Semantic label of the refresh icon button in the outlet list header.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the store list'**
+  String get outletsRefresh;
+
+  /// Label of the nav circle that opens the create-store form from the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store'**
+  String get outletsCreateStore;
+
+  /// Section rule above the list of outlets.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get outletsSectionHeading;
+
+  /// Severity word on an outlet row whose coordinates are unset. Reads in greyscale beside the crimson bar.
+  ///
+  /// In en, this message translates to:
+  /// **'No location'**
+  String get outletsNoLocation;
+
+  /// Subtitle of an outlet row that has no usable coordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'No coordinates on file'**
+  String get outletsNoCoordinates;
+
+  /// Word for an outlet that does have usable coordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'Placed'**
+  String get outletsPlaced;
+
+  /// Whole-screen empty state on the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores yet.'**
+  String get outletsEmptyHeadline;
+
+  /// Body of the outlet list's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store to put it on a beat plan.'**
+  String get outletsEmptyBody;
+
+  /// Headline of the outlet list's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get outletsLoadErrorHeadline;
+
+  /// Retry action on the outlet list's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get outletsRetry;
+
+  /// Section rule above the outlets whose pin an agent has reported as wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Open pin reports'**
+  String get outletsPinReportsHeading;
+
+  /// Sentence under the open pin reports section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents who could not check in where the pin says the store is.'**
+  String get outletsPinReportsNote;
+
+  /// Severity word on a row standing for an open pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported'**
+  String get outletsPinReported;
+
+  /// Subtitle of an open pin report row: who reported it and how far they were from the pin.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} stood {distance} away'**
+  String outletsPinReportStood(String agent, String distance);
+
+  /// Title of the outlet detail route, where a wrong pin is corrected.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get outletDetailTitle;
+
+  /// Semantic label of the outlet detail back button. Names the destination, never 'Back'.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to stores'**
+  String get outletDetailBack;
+
+  /// Headline of the outlet detail error state.
+  ///
+  /// In en, this message translates to:
+  /// **'This store did not load.'**
+  String get outletDetailLoadErrorHeadline;
+
+  /// Headline of the open-reports banner at the top of the outlet detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One agent reported this pin as wrong} other{{count} agents reported this pin as wrong}}'**
+  String outletDetailDisputesHeadline(int count);
+
+  /// Body of the open-reports banner on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.'**
+  String get outletDetailDisputesBody;
+
+  /// Section rule above the outlet's editable fields.
+  ///
+  /// In en, this message translates to:
+  /// **'This store'**
+  String get outletDetailFormHeading;
+
+  /// Label of the outlet name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Store name'**
+  String get outletFieldName;
+
+  /// Label of the outlet code field.
+  ///
+  /// In en, this message translates to:
+  /// **'Store code'**
+  String get outletFieldCode;
+
+  /// Label of the outlet channel-type field.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel type'**
+  String get outletFieldChannel;
+
+  /// Help line under the channel-type field.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: supermarket, spaza, forecourt.'**
+  String get outletFieldChannelHelp;
+
+  /// Label of the territory picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get outletFieldTerritory;
+
+  /// Label of the latitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get outletFieldLatitude;
+
+  /// Label of the longitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get outletFieldLongitude;
+
+  /// Help line under the latitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Between -90 and 90. Johannesburg is about -26,2.'**
+  String get outletFieldLatitudeHelp;
+
+  /// Help line under the longitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Between -180 and 180. Johannesburg is about 28,0.'**
+  String get outletFieldLongitudeHelp;
+
+  /// Label of the outlet status choice row.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get outletFieldStatus;
+
+  /// Outlet status option: the store is trading and gets planned.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get outletStatusActive;
+
+  /// Outlet status option: the store is kept out of planning.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get outletStatusClosed;
+
+  /// Consequence line under the Closed status option.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept out of planning. Check-in still works — an agent at the door must be able to work.'**
+  String get outletStatusClosedConsequence;
+
+  /// Consequence line under the Active status option.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned as usual.'**
+  String get outletStatusActiveConsequence;
+
+  /// Validation message for an empty required field on the outlet forms.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get outletRequired;
+
+  /// Validation message when a coordinate field holds something that is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number, for example -26,2041'**
+  String get outletCoordinateNotANumber;
+
+  /// Validation message when a latitude is off the globe.
+  ///
+  /// In en, this message translates to:
+  /// **'A latitude is between -90 and 90'**
+  String get outletLatitudeOutOfRange;
+
+  /// Validation message when a longitude is off the globe.
+  ///
+  /// In en, this message translates to:
+  /// **'A longitude is between -180 and 180'**
+  String get outletLongitudeOutOfRange;
+
+  /// Commit button on the outlet detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get outletSave;
+
+  /// Blocked reason under the outlet detail save button while the form is incomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the store\'s name and both coordinates first.'**
+  String get outletSaveBlocked;
+
+  /// Toast after the outlet detail save succeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Store updated.'**
+  String get outletSaved;
+
+  /// Toast after the outlet detail save fails. Says what is still true rather than printing the error.
+  ///
+  /// In en, this message translates to:
+  /// **'That store was not saved. It is unchanged.'**
+  String get outletSaveFailed;
+
+  /// Line under the coordinate fields while an agent's recorded position has been adopted.
+  ///
+  /// In en, this message translates to:
+  /// **'Using an agent\'s recorded position. The server reads the coordinates from that check-in itself.'**
+  String get outletUsingAttempt;
+
+  /// Section rule above the failed check-in evidence on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected check-ins'**
+  String get outletAttemptsHeading;
+
+  /// Sentence under the rejected check-ins section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Where agents actually were when this store turned them away.'**
+  String get outletAttemptsNote;
+
+  /// Inline empty state for the rejected check-in evidence.
+  ///
+  /// In en, this message translates to:
+  /// **'No rejected check-ins.'**
+  String get outletAttemptsEmptyHeadline;
+
+  /// Body of the rejected check-ins empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has been turned away by this pin.'**
+  String get outletAttemptsEmptyBody;
+
+  /// Subtitle of a rejected check-in row.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} away · {agent}'**
+  String outletAttemptSubtitle(String distance, String agent);
+
+  /// Action on a rejected check-in row that adopts its coordinates as the store's pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this position'**
+  String get outletUseThisPosition;
+
+  /// Action on a pin report that adopts the reporting agent's own position.
+  ///
+  /// In en, this message translates to:
+  /// **'Use their position'**
+  String get outletUseTheirPosition;
+
+  /// Fix-quality sentence for a position the platform flagged as mocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The device reported this position as a mock location. It cannot become this store\'s pin.'**
+  String get outletFixMocked;
+
+  /// Fix-quality sentence when accuracy was not recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'The device did not report how accurate this position was.'**
+  String get outletFixUnknown;
+
+  /// Fix-quality sentence for a position too imprecise to adopt.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate to about {metres} m — too coarse to set a pin with.'**
+  String outletFixCoarse(String metres);
+
+  /// Fix-quality sentence for a usable position.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate to about {metres} m.'**
+  String outletFixGood(String metres);
+
+  /// Section rule above the pin reports on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reports'**
+  String get outletDisputesHeading;
+
+  /// The geometry of one pin report, in one sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Stood at {position} — {distance} from the pin, which then read {pin}.'**
+  String outletDisputeStood(String position, String distance, String pin);
+
+  /// Caution shown when the reporting agent is the outlet's only visitor. Not a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'No other agent has ever visited this store, so nobody else\'s check-ins can disagree with a pin moved here.'**
+  String get outletDisputeSoleVisitor;
+
+  /// State word on a pin report nobody has answered yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get outletDisputeOpen;
+
+  /// State line on the pin report the next save will answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Answering this report on save.'**
+  String get outletDisputeAnswering;
+
+  /// Action that marks a pin report as the one the next save answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer this report'**
+  String get outletDisputeAnswer;
+
+  /// Resolution line on a pin report that was accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied by {who}'**
+  String outletDisputeApplied(String who);
+
+  /// Resolution line on a pin report that was turned down.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected by {who}'**
+  String outletDisputeRejected(String who);
+
+  /// Stand-in for the resolving person's name when the wire did not send one.
+  ///
+  /// In en, this message translates to:
+  /// **'a manager'**
+  String get outletDisputeResolvedByManager;
+
+  /// Provenance of a pin-report photograph captured in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken with the camera'**
+  String get outletPhotoCamera;
+
+  /// Provenance of a pin-report photograph picked from the device's library.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen from the gallery'**
+  String get outletPhotoGallery;
+
+  /// Provenance of an older pin-report photograph that carries no source.
+  ///
+  /// In en, this message translates to:
+  /// **'Source not recorded'**
+  String get outletPhotoUnknownSource;
+
+  /// The device's own timestamp on a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone said {when}'**
+  String outletPhotoPhoneSaid(String when);
+
+  /// When the server took delivery of a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Received {when}'**
+  String outletPhotoReceived(String when);
+
+  /// Semantic label of a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront photograph from this pin report'**
+  String get outletPhotoAlt;
+
+  /// Shown in place of a pin-report photograph whose bytes could not be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'That photograph did not load.'**
+  String get outletPhotoMissing;
+
+  /// Section rule above the outlet's change ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Change history'**
+  String get outletChangesHeading;
+
+  /// Change ledger line for a coordinate move.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin moved from {before} to {after}'**
+  String outletChangePinMoved(String before, String after);
+
+  /// Appended to a pin-move ledger line when the new coordinates came from a check-in.
+  ///
+  /// In en, this message translates to:
+  /// **'from an agent\'s recorded position'**
+  String get outletChangePinFromAgent;
+
+  /// Change ledger line for a rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed from \"{before}\" to \"{after}\"'**
+  String outletChangeRenamed(String before, String after);
+
+  /// Change ledger line for a status change.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {before} to {after}'**
+  String outletChangeStatus(String before, String after);
+
+  /// Change ledger line when the recorded change is none of the known kinds.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed'**
+  String get outletChangeOther;
+
+  /// Stand-in inside a pin-move ledger line when a before or after coordinate is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'not recorded'**
+  String get outletChangeUnknownCoordinate;
+
+  /// Title of the create-store route.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store'**
+  String get createOutletTitle;
+
+  /// Semantic label of the create-store back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to stores'**
+  String get createOutletBack;
+
+  /// Commit button on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the store'**
+  String get createOutletSubmit;
+
+  /// Blocked reason under the create-store commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the name, code, channel, territory and both coordinates first.'**
+  String get createOutletBlocked;
+
+  /// Toast after the create-store request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That store was not created. Nothing was saved.'**
+  String get createOutletFailed;
+
+  /// Section rule above the location block on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'Where this store is'**
+  String get createOutletLocationHeading;
+
+  /// Line shown while the device position is being fetched, to seed the coordinate fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding where this phone is…'**
+  String get createOutletLocating;
+
+  /// Shown when location permission was refused on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone will not say where it is. Type the store\'s coordinates instead.'**
+  String get createOutletLocationDenied;
+
+  /// Shown when the device position lookup failed on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone could not find where it is. Type the store\'s coordinates instead.'**
+  String get createOutletLocationFailed;
+
+  /// Shown when the device position seeded the coordinate fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Seeded from this phone. Type over it if you are not standing in the store.'**
+  String get createOutletLocationFound;
+
+  /// Action that re-seeds the coordinate fields from the device.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this phone\'s position'**
+  String get createOutletUseThisPhone;
+
+  /// Placeholder while the territory list is being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading territories…'**
+  String get createOutletTerritoriesLoading;
+
+  /// Shown when the territory list could not be fetched on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'The territory list did not load.'**
+  String get createOutletTerritoriesFailed;
+
+  /// Retry action beside the failed territory list.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get createOutletTerritoriesRetry;
+
+  /// Shown when the account has no territories, so no store can be filed.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories yet — create one under Territories first.'**
+  String get createOutletNoTerritories;
+
+  /// Validation message when the territory picker has no selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a territory'**
+  String get createOutletTerritoryNotChosen;
 }
 
 class _AppLocalizationsDelegate

@@ -30,9 +30,7 @@ void main() {
       final marks = <RowMark>{};
       for (final state in OutboxState.values) {
         await pumpRow(tester, skin: TiqSkin.night(), child: row(state));
-        marks.add(
-          tester.widget<RowMarkTile>(find.byType(RowMarkTile)).mark,
-        );
+        marks.add(tester.widget<RowMarkTile>(find.byType(RowMarkTile)).mark);
       }
       expect(
         marks.length,
@@ -60,14 +58,11 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('sending is Oatmeal dots and never an amber pulse',
-        (tester) async {
+    testWidgets('sending is Oatmeal dots and never an amber pulse', (
+      tester,
+    ) async {
       final skin = TiqSkin.night();
-      await pumpRow(
-        tester,
-        skin: skin,
-        child: row(OutboxState.sending),
-      );
+      await pumpRow(tester, skin: skin, child: row(OutboxState.sending));
       expect(
         tester.widget<RowMarkTile>(find.byType(RowMarkTile)).mark,
         RowMark.dots,
@@ -85,8 +80,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('under reduce-motion the dots stop and the words carry it',
-        (tester) async {
+    testWidgets('under reduce-motion the dots stop and the words carry it', (
+      tester,
+    ) async {
       await pumpRow(
         tester,
         skin: TiqSkin.night(),
@@ -122,15 +118,13 @@ void main() {
         skin: TiqSkin.night(),
         child: row(OutboxState.waitingForVisit),
       );
-      expect(
-        isButtonNode(tester.getSemantics(find.byType(SoftRow))),
-        isFalse,
-      );
+      expect(isButtonNode(tester.getSemantics(find.byType(SoftRow))), isFalse);
       handle.dispose();
     });
 
-    testWidgets('an unknown size renders nothing rather than a zero',
-        (tester) async {
+    testWidgets('an unknown size renders nothing rather than a zero', (
+      tester,
+    ) async {
       await pumpRow(
         tester,
         skin: TiqSkin.night(),
@@ -148,7 +142,8 @@ void main() {
       expect(
         PayloadSize.of(400).value,
         1,
-        reason: 'nobody decides anything on 400 bytes, and "0,0 MB" beside a '
+        reason:
+            'nobody decides anything on 400 bytes, and "0,0 MB" beside a '
             'photo reads as a bug',
       );
       expect(PayloadSize.of(-1).value, 0);
@@ -177,8 +172,9 @@ void main() {
   });
 
   group('HeldWorkRow (#391)', () {
-    testWidgets('held is Truffle, and Truffle is never a severity',
-        (tester) async {
+    testWidgets('held is Truffle, and Truffle is never a severity', (
+      tester,
+    ) async {
       final skin = TiqSkin.night();
       await pumpRow(
         tester,
@@ -204,8 +200,9 @@ void main() {
       );
     });
 
-    testWidgets('stuck is watch, not critical: the work is late, not lost',
-        (tester) async {
+    testWidgets('stuck is watch, not critical: the work is late, not lost', (
+      tester,
+    ) async {
       await pumpRow(
         tester,
         skin: TiqSkin.night(),
@@ -235,10 +232,7 @@ void main() {
           onTap: () {},
         ),
       );
-      expect(
-        isButtonNode(tester.getSemantics(find.byType(SoftRow))),
-        isFalse,
-      );
+      expect(isButtonNode(tester.getSemantics(find.byType(SoftRow))), isFalse);
       expect(
         find.text("This agent's app is on an older version"),
         findsOneWidget,
@@ -266,8 +260,9 @@ void main() {
   });
 
   group('DecisionRow', () {
-    testWidgets('severity, title, reason, figure — in that order, in words',
-        (tester) async {
+    testWidgets('severity, title, reason, figure — in that order, in words', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       await pumpRow(
         tester,
@@ -323,8 +318,9 @@ void main() {
       expect(find.textContaining('—'), findsWidgets);
     });
 
-    testWidgets('no sparkline omits the slot rather than inventing a shape',
-        (tester) async {
+    testWidgets('no sparkline omits the slot rather than inventing a shape', (
+      tester,
+    ) async {
       await pumpRow(
         tester,
         skin: TiqSkin.night(),
@@ -338,8 +334,9 @@ void main() {
       expect(find.byKey(const ValueKey<String>('sparkline')), findsNothing);
     });
 
-    testWidgets('the sparkline drops first at 2.0×, then in Veld',
-        (tester) async {
+    testWidgets('the sparkline drops first at 2.0×, then in Veld', (
+      tester,
+    ) async {
       const sparkline = SizedBox(key: ValueKey<String>('sparkline'));
       Widget row() => const DecisionRow(
         title: 'Shoprite Klipspruit Mall',
@@ -400,10 +397,7 @@ void main() {
       await pumpRow(
         tester,
         skin: TiqSkin.night(),
-        child: const PersonRow(
-          name: 'Thandi Mokoena',
-          role: 'Field agent',
-        ),
+        child: const PersonRow(name: 'Thandi Mokoena', role: 'Field agent'),
       );
       expect(find.text('TM'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
@@ -419,28 +413,31 @@ void main() {
       );
     });
 
-    testWidgets('with no name the role leads and the id drops to a third line',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      await pumpRow(
-        tester,
-        skin: TiqSkin.night(),
-        child: const PersonRow(
-          unknownLabel: 'Unknown agent',
-          identifier: 'a4f2c118',
-          identifierLabel: 'Reference',
-        ),
-      );
-      expect(find.text('Unknown agent'), findsOneWidget);
-      expect(find.text('a4f2c118'), findsOneWidget);
-      expect(
-        tester.getSemantics(find.byType(SoftRow)).label,
-        'Unknown agent, Reference a 4 f 2 c 1 1 8',
-        reason: 'a reference is repeated down a phone line, character by '
-            'character',
-      );
-      handle.dispose();
-    });
+    testWidgets(
+      'with no name the role leads and the id drops to a third line',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await pumpRow(
+          tester,
+          skin: TiqSkin.night(),
+          child: const PersonRow(
+            unknownLabel: 'Unknown agent',
+            identifier: 'a4f2c118',
+            identifierLabel: 'Reference',
+          ),
+        );
+        expect(find.text('Unknown agent'), findsOneWidget);
+        expect(find.text('a4f2c118'), findsOneWidget);
+        expect(
+          tester.getSemantics(find.byType(SoftRow)).label,
+          'Unknown agent, Reference a 4 f 2 c 1 1 8',
+          reason:
+              'a reference is repeated down a phone line, character by '
+              'character',
+        );
+        handle.dispose();
+      },
+    );
 
     testWidgets('a deactivated person is ink-mute, chevron-less and not '
         'tappable', (tester) async {
@@ -458,10 +455,7 @@ void main() {
         ),
       );
       expect(find.byType(SoftRowChevron), findsNothing);
-      expect(
-        isButtonNode(tester.getSemantics(find.byType(SoftRow))),
-        isFalse,
-      );
+      expect(isButtonNode(tester.getSemantics(find.byType(SoftRow))), isFalse);
       expect(
         tester.widget<Text>(find.text('Thandi Mokoena')).style!.color,
         skin.palette.inkMute,
@@ -469,8 +463,9 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('a long name wraps and keeps its discriminating half',
-        (tester) async {
+    testWidgets('a long name wraps and keeps its discriminating half', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       for (final name in <String>[longName, similarName]) {
         await pumpRow(
@@ -511,8 +506,9 @@ void main() {
       );
     });
 
-    testWidgets('long-press is the one legitimate way to reach the id',
-        (tester) async {
+    testWidgets('long-press is the one legitimate way to reach the id', (
+      tester,
+    ) async {
       var copies = 0;
       await pumpRow(
         tester,

@@ -27,8 +27,9 @@ List<String> _printed(WidgetTester tester) => tester
 
 void main() {
   group('a null never renders as 0', () {
-    testWidgets('the figure is an em dash and the words are on the screen',
-        (tester) async {
+    testWidgets('the figure is an em dash and the words are on the screen', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -62,8 +63,9 @@ void main() {
       expect(find.text('No visits in this window'), findsOneWidget);
     });
 
-    testWidgets('the eyebrow stays at full ink — the label is still true',
-        (tester) async {
+    testWidgets('the eyebrow stays at full ink — the label is still true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -118,8 +120,9 @@ void main() {
   });
 
   group('a measured zero renders 0', () {
-    testWidgets('never suppressed, and the delta is the flat bar',
-        (tester) async {
+    testWidgets('never suppressed, and the delta is the flat bar', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -154,8 +157,9 @@ void main() {
   });
 
   group('a low sample keeps the figure and loses the delta', () {
-    testWidgets('ink-2, the hollow square, the sample words, no delta',
-        (tester) async {
+    testWidgets('ink-2, the hollow square, the sample words, no delta', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -186,14 +190,16 @@ void main() {
       expect(
         find.byType(Delta),
         findsNothing,
-        reason: 'A delta computed off a thin sample is a number pretending '
+        reason:
+            'A delta computed off a thin sample is a number pretending '
             'to be a movement.',
       );
       expect(find.text(DeltaStrings.defaults.tooFewToCompare), findsOneWidget);
     });
 
-    testWidgets('a healthy figure with a thin baseline keeps its full ink',
-        (tester) async {
+    testWidgets('a healthy figure with a thin baseline keeps its full ink', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -219,8 +225,9 @@ void main() {
       expect(find.text(DeltaStrings.defaults.baselineTooThin), findsOneWidget);
     });
 
-    testWidgets('an unknown count says "small sample", never a number',
-        (tester) async {
+    testWidgets('an unknown count says "small sample", never a number', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
@@ -236,12 +243,11 @@ void main() {
   });
 
   group('not measured', () {
-    testWidgets('an em dash, a full-width hatch on the track, and a reason',
-        (tester) async {
+    testWidgets('an em dash, a full-width hatch on the track, and a reason', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _tile(
-          const NotMeasured(reason: 'No competitor on shelf'),
-        ),
+        _tile(const NotMeasured(reason: 'No competitor on shelf')),
       );
       expect(_printed(tester).any((s) => s.contains(emDash)), isTrue);
       expect(find.text('No competitor on shelf'), findsOneWidget);
@@ -258,8 +264,9 @@ void main() {
       // cannot reach the skin.
     });
 
-    testWidgets('a hatched meter with no reason trips the assert',
-        (tester) async {
+    testWidgets('a hatched meter with no reason trips the assert', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(const Meter(value: null, state: MeterState.notMeasured)),
       );
@@ -308,8 +315,9 @@ void main() {
       expect(figure.dy, greaterThan(eyebrow.dy));
     });
 
-    testWidgets('nothing clips at 2.0x with a two-line Afrikaans eyebrow',
-        (tester) async {
+    testWidgets('nothing clips at 2.0x with a two-line Afrikaans eyebrow', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _tile(
           const StatTile(
