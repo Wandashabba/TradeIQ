@@ -121,16 +121,44 @@ void main() {
       expect(find.bySemanticsLabel('Standaard 70, gestippel'), findsOneWidget);
     });
 
-    test('the kit hardcodes no English for the dash', () {
-      // The folder's own doc comment says "Localised by the caller — nothing
-      // in this folder hardcodes English", and this is what holds it to it.
-      final source = File(
-        'lib/core/widgets/torchlight/figure/chart/chart_legend.dart',
-      ).readAsStringSync();
+    test('no file in the chart kit hardcodes an English word for a reader', () {
+      // `chart_series.dart` says "Localised by the caller — nothing in this
+      // folder hardcodes English", and this is what holds the WHOLE folder to
+      // it rather than the one line that was caught. A string literal is the
+      // only way English reaches a reader from here; doc comments are for us.
+      final offenders = <String>[];
+      final english = RegExp(
+        r'\b(dashed|dotted|solid|not measured|small sample|average|'
+        r'target|period|week|month)\b',
+        caseSensitive: false,
+      );
+      // Dart string literals, single- and double-quoted, on one line.
+      final literals = RegExp(
+        '\'(?:[^\'\\\\\\n]|\\\\.)*\'|"(?:[^"\\\\\\n]|\\\\.)*"',
+      );
+      for (final entity in Directory(
+        'lib/core/widgets/torchlight/figure/chart',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart'))) {
+        for (final line in entity.readAsLinesSync()) {
+          final code = line.trimLeft();
+          // A doc comment or a comment is not something a reader hears.
+          if (code.startsWith('//')) continue;
+          for (final match in literals.allMatches(line)) {
+            final text = match.group(0)!;
+            // An import URI is not something a reader hears.
+            if (text.contains('/') || text.contains('package:')) continue;
+            if (english.hasMatch(text)) {
+              offenders.add('${entity.uri.pathSegments.last}: $text');
+            }
+          }
+        }
+      }
       expect(
-        source.contains("'\$label, dashed'"),
-        isFalse,
-        reason: 'The dash word comes from the caller, never from the kit.',
+        offenders,
+        isEmpty,
+        reason:
+            'Every word a reader hears comes from the caller, never from the '
+            'kit — the kit has no l10n and cannot get one.',
       );
     });
   });
