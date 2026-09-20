@@ -6462,4 +6462,303 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get scheduleReportSheetSubtitle =>
       'Die skedule loop hierdie definisie op sy ritme.';
+
+  @override
+  String get relativeJustNow => 'nou net';
+
+  @override
+  String get relativeUnderAMinute => 'binne ’n minuut';
+
+  @override
+  String relativeMinutesAgo(int minutes) {
+    return '${minutes}m gelede';
+  }
+
+  @override
+  String relativeHoursAgo(int hours) {
+    return '${hours}u gelede';
+  }
+
+  @override
+  String relativeDaysAgo(int days) {
+    return '${days}d gelede';
+  }
+
+  @override
+  String relativeInMinutes(int minutes) {
+    return 'oor ${minutes}m';
+  }
+
+  @override
+  String relativeInHours(int hours) {
+    return 'oor ${hours}u';
+  }
+
+  @override
+  String relativeInDays(int days) {
+    return 'oor ${days}d';
+  }
+
+  @override
+  String get webhookHealthHealthy => 'Gesond';
+
+  @override
+  String get webhookHealthFailing => 'Faal';
+
+  @override
+  String get webhookHealthUnhealthy => 'Ongesond';
+
+  @override
+  String get webhookDeliveryQueued => 'In tou';
+
+  @override
+  String get webhookDeliveryDelivered => 'Afgelewer';
+
+  @override
+  String get webhookDeliveryRetrying => 'Probeer weer';
+
+  @override
+  String get webhookDeliveryGaveUp => 'Opgegee';
+
+  @override
+  String get webhooksTitle => 'Webhake';
+
+  @override
+  String get webhooksFactPost =>
+      'Elke eindpunt ontvang ’n POST wanneer sy gebeurtenis afgaan.';
+
+  @override
+  String get webhooksFactRetries =>
+      'Mislukte afleweringe word vir ongeveer agt uur herprobeer.';
+
+  @override
+  String get webhooksRefresh => 'Herlaai die eindpunte';
+
+  @override
+  String get webhooksSkeleton => 'webhake';
+
+  @override
+  String get webhooksSection => 'Eindpunte';
+
+  @override
+  String webhooksUnhealthyNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count eindpunte ontvang nie. ’n Aflewering daarheen het ná elke herprobeer opgegee.',
+      one:
+          '1 eindpunt ontvang nie. ’n Aflewering daarheen het ná elke herprobeer opgegee.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhooksEmptyHeadline => 'Geen eindpunte geregistreer nie.';
+
+  @override
+  String get webhooksEmptyBody =>
+      'Voeg een by om gebeurtenisse na ’n eksterne stelsel aan te stuur.';
+
+  @override
+  String get webhookAdd => 'Voeg ’n eindpunt by';
+
+  @override
+  String get webhookNoDeliveriesYet => 'Nog geen afleweringe nie';
+
+  @override
+  String webhookLastDelivery(String when) {
+    return 'Laaste aflewering $when';
+  }
+
+  @override
+  String get webhookSigned =>
+      'Onderteken — afleweringe dra ’n HMAC-handtekening.';
+
+  @override
+  String get webhookNotSigned =>
+      'Nie onderteken nie — afleweringe dra geen handtekening nie.';
+
+  @override
+  String get webhookSignedShort => 'Onderteken';
+
+  @override
+  String get webhookNotSignedShort => 'Nie onderteken nie';
+
+  @override
+  String get webhookReceivingEvents => 'Ontvang gebeurtenisse';
+
+  @override
+  String get webhookOn => 'Aan';
+
+  @override
+  String get webhookOff => 'Af';
+
+  @override
+  String get webhookWaitingForServer => 'Wag vir die bediener.';
+
+  @override
+  String get webhookReceiving => 'Ontvang';
+
+  @override
+  String get webhookPaused => 'Onderbreek';
+
+  @override
+  String get webhookShowDeliveries => 'Wys afleweringe';
+
+  @override
+  String get webhookHideDeliveries => 'Versteek afleweringe';
+
+  @override
+  String get webhookDelete => 'Skrap';
+
+  @override
+  String webhookResumeFailed(String reason) {
+    return 'Daardie eindpunt is nie hervat nie. $reason';
+  }
+
+  @override
+  String webhookPauseFailed(String reason) {
+    return 'Daardie eindpunt is nie onderbreek nie. $reason';
+  }
+
+  @override
+  String get webhookDeleteAction => 'Skrap hierdie eindpunt?';
+
+  @override
+  String get webhookDeleteConsequenceStops =>
+      'Dit hou onmiddellik op om gebeurtenisse te ontvang.';
+
+  @override
+  String get webhookDeleteConsequenceHistory =>
+      'Sy afleweringsgeskiedenis word saam daarmee verwyder.';
+
+  @override
+  String get webhookDeleteConsequenceDelivered =>
+      'Niks wat reeds afgelewer is, word teruggetrek nie.';
+
+  @override
+  String get webhookDeleteCommit => 'Skrap hierdie eindpunt';
+
+  @override
+  String get webhookDeleteCancel => 'Hou dit';
+
+  @override
+  String webhookDeleteFailed(String reason) {
+    return 'Daardie eindpunt is nie geskrap nie. $reason';
+  }
+
+  @override
+  String get webhookDeliveriesSection => 'Onlangse afleweringe';
+
+  @override
+  String get webhookDeliveriesSkeleton => 'afleweringe';
+
+  @override
+  String get webhookDeliveriesEmptyHeadline => 'Nog geen afleweringe nie.';
+
+  @override
+  String get webhookDeliveriesEmptyBody =>
+      'Een verskyn elke keer as die gebeurtenis afgaan.';
+
+  @override
+  String webhookDeliveredWhen(String when) {
+    return 'Afgelewer $when';
+  }
+
+  @override
+  String webhookNextRetryWhen(String when) {
+    return 'Volgende herprobeer $when';
+  }
+
+  @override
+  String get webhookNoMoreRetries => 'Geen verdere herprobeer nie';
+
+  @override
+  String webhookCreatedWhen(String when) {
+    return 'Geskep $when';
+  }
+
+  @override
+  String webhookHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get webhookNotSentYet => 'Nog nie gestuur nie';
+
+  @override
+  String get webhookNoResponse => 'Geen antwoord nie';
+
+  @override
+  String webhookAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pogings',
+      one: '1 poging',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhookRedeliver => 'Lewer weer af';
+
+  @override
+  String get webhookQueueing => 'Plaas tans in tou…';
+
+  @override
+  String get webhookRedeliveryQueued => 'Heraflewering in die tou geplaas.';
+
+  @override
+  String webhookRedeliverFailed(String reason) {
+    return 'Daardie aflewering is nie weer in die tou geplaas nie. $reason';
+  }
+
+  @override
+  String get webhookCreateSubtitle =>
+      'Dit ontvang ’n POST elke keer as sy gebeurtenis afgaan.';
+
+  @override
+  String get webhookCreateAddress => 'Adres';
+
+  @override
+  String get webhookCreateAddressHelp =>
+      '’n Openbare http- of https-adres wat die bediener kan bereik.';
+
+  @override
+  String get webhookCreateNotAUrl => 'Dit is nie ’n webadres nie.';
+
+  @override
+  String get webhookCreateWrongScheme =>
+      'Die adres moet met http:// of https:// begin.';
+
+  @override
+  String get webhookCreateBlockedUrl => 'Gee die eindpunt ’n webadres.';
+
+  @override
+  String get webhookCreateBlockedEvent =>
+      'Kies die gebeurtenis waarna dit luister.';
+
+  @override
+  String get webhookCreateEvent => 'Gebeurtenis';
+
+  @override
+  String get webhookCreateSecret => 'Ondertekeningsgeheim (opsioneel)';
+
+  @override
+  String get webhookCreateSecretHelp =>
+      'Afleweringe word daarmee onderteken. Dit word op die bediener gestoor en nooit weer gewys nie — hou jou eie kopie.';
+
+  @override
+  String get webhookCreateFailed => 'Die eindpunt is nie bygevoeg nie.';
+
+  @override
+  String get webhookCreateCommit => 'Voeg hierdie eindpunt by';
+
+  @override
+  String get webhookCreateAdding => 'Voeg tans by…';
+
+  @override
+  String get webhookCreateCancel => 'Kanselleer';
 }

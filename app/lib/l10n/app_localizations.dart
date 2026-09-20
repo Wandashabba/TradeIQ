@@ -10133,6 +10133,480 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The schedule runs this definition on its cadence.'**
   String get scheduleReportSheetSubtitle;
+
+  /// A moment less than a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get relativeJustNow;
+
+  /// A moment less than a minute from now.
+  ///
+  /// In en, this message translates to:
+  /// **'in under a minute'**
+  String get relativeUnderAMinute;
+
+  /// How long ago, in minutes. The unit is abbreviated because it sits in a row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m ago'**
+  String relativeMinutesAgo(int minutes);
+
+  /// How long ago, in hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h ago'**
+  String relativeHoursAgo(int hours);
+
+  /// How long ago, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d ago'**
+  String relativeDaysAgo(int days);
+
+  /// How long until, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'in {minutes}m'**
+  String relativeInMinutes(int minutes);
+
+  /// How long until, in hours.
+  ///
+  /// In en, this message translates to:
+  /// **'in {hours}h'**
+  String relativeInHours(int hours);
+
+  /// How long until, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'in {days}d'**
+  String relativeInDays(int days);
+
+  /// An endpoint that is receiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Healthy'**
+  String get webhookHealthHealthy;
+
+  /// An endpoint some deliveries to which are failing and still retrying.
+  ///
+  /// In en, this message translates to:
+  /// **'Failing'**
+  String get webhookHealthFailing;
+
+  /// An endpoint a delivery to which has given up after every retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Unhealthy'**
+  String get webhookHealthUnhealthy;
+
+  /// A delivery waiting to be attempted.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get webhookDeliveryQueued;
+
+  /// A delivery the endpoint took.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get webhookDeliveryDelivered;
+
+  /// A delivery that failed and is being tried again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying'**
+  String get webhookDeliveryRetrying;
+
+  /// A delivery whose retries are spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Gave up'**
+  String get webhookDeliveryGaveUp;
+
+  /// Screen title: the client's outbound endpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks'**
+  String get webhooksTitle;
+
+  /// Header fact. POST is an HTTP method and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Each endpoint receives a POST when its event fires.'**
+  String get webhooksFactPost;
+
+  /// Header fact: how long the server keeps trying.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed deliveries retry for about eight hours.'**
+  String get webhooksFactRetries;
+
+  /// Semantic label of the header's refresh button.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the endpoints'**
+  String get webhooksRefresh;
+
+  /// What the skeleton and the error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'webhooks'**
+  String get webhooksSkeleton;
+
+  /// Section rule above the list of endpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoints'**
+  String get webhooksSection;
+
+  /// The standing warning above the list when some endpoint has stopped receiving.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 endpoint is not receiving. A delivery to it has given up after every retry.} other{{count} endpoints are not receiving. A delivery to them has given up after every retry.}}'**
+  String webhooksUnhealthyNote(int count);
+
+  /// In-panel empty state: this client forwards nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No endpoints registered.'**
+  String get webhooksEmptyHeadline;
+
+  /// Body of the webhooks empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one to forward events to an external system.'**
+  String get webhooksEmptyBody;
+
+  /// Verb that opens the create sheet. Also the sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an endpoint'**
+  String get webhookAdd;
+
+  /// Row subtitle for an endpoint nothing has been sent to.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries yet'**
+  String get webhookNoDeliveriesYet;
+
+  /// Row subtitle: when something was last sent to this endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Last delivery {when}'**
+  String webhookLastDelivery(String when);
+
+  /// The endpoint has a signing secret. The WORD, never the value: the secret is not on this screen at all. HMAC is a standard's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed — deliveries carry an HMAC signature.'**
+  String get webhookSigned;
+
+  /// The endpoint has no signing secret.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed — deliveries carry no signature.'**
+  String get webhookNotSigned;
+
+  /// The signing state in the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed'**
+  String get webhookSignedShort;
+
+  /// The signing state in the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed'**
+  String get webhookNotSignedShort;
+
+  /// Label of the toggle that activates or pauses an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving events'**
+  String get webhookReceivingEvents;
+
+  /// The toggle's on word.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get webhookOn;
+
+  /// The toggle's off word.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get webhookOff;
+
+  /// Why the toggle is disabled: a request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the server.'**
+  String get webhookWaitingForServer;
+
+  /// Spoken state of an active endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving'**
+  String get webhookReceiving;
+
+  /// Spoken state of a paused endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get webhookPaused;
+
+  /// Row verb that opens this endpoint's recent deliveries.
+  ///
+  /// In en, this message translates to:
+  /// **'Show deliveries'**
+  String get webhookShowDeliveries;
+
+  /// Row verb that closes the deliveries list.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide deliveries'**
+  String get webhookHideDeliveries;
+
+  /// Row verb that deletes the endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get webhookDelete;
+
+  /// Failure toast when activating was refused. The toggle goes back.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not resumed. {reason}'**
+  String webhookResumeFailed(String reason);
+
+  /// Failure toast when pausing was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not paused. {reason}'**
+  String webhookPauseFailed(String reason);
+
+  /// What the confirm sheet says will happen.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this endpoint?'**
+  String get webhookDeleteAction;
+
+  /// First consequence of deleting an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops receiving events immediately.'**
+  String get webhookDeleteConsequenceStops;
+
+  /// Second consequence of deleting an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Its delivery history is removed with it.'**
+  String get webhookDeleteConsequenceHistory;
+
+  /// Third consequence: what deleting does NOT do.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing already delivered is withdrawn.'**
+  String get webhookDeleteConsequenceDelivered;
+
+  /// The confirm sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this endpoint'**
+  String get webhookDeleteCommit;
+
+  /// The confirm sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get webhookDeleteCancel;
+
+  /// Failure toast after a delete.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not deleted. {reason}'**
+  String webhookDeleteFailed(String reason);
+
+  /// Section rule above an endpoint's deliveries.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent deliveries'**
+  String get webhookDeliveriesSection;
+
+  /// What the deliveries skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'deliveries'**
+  String get webhookDeliveriesSkeleton;
+
+  /// In-panel empty state: nothing has been sent to this endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries yet.'**
+  String get webhookDeliveriesEmptyHeadline;
+
+  /// Body of the deliveries empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'One appears each time the event fires.'**
+  String get webhookDeliveriesEmptyBody;
+
+  /// When a delivery succeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered {when}'**
+  String webhookDeliveredWhen(String when);
+
+  /// When a failing delivery will be tried again.
+  ///
+  /// In en, this message translates to:
+  /// **'Next retry {when}'**
+  String webhookNextRetryWhen(String when);
+
+  /// A delivery whose retries are spent.
+  ///
+  /// In en, this message translates to:
+  /// **'No more retries'**
+  String get webhookNoMoreRetries;
+
+  /// When a delivery was queued, where nothing better is known.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {when}'**
+  String webhookCreatedWhen(String when);
+
+  /// The status code the endpoint answered with. HTTP is a protocol name.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP {code}'**
+  String webhookHttpStatus(int code);
+
+  /// A delivery with no attempts behind it.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent yet'**
+  String get webhookNotSentYet;
+
+  /// A delivery that was attempted and got nothing back.
+  ///
+  /// In en, this message translates to:
+  /// **'No response'**
+  String get webhookNoResponse;
+
+  /// How many times a delivery has been tried.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attempt} other{{count} attempts}}'**
+  String webhookAttempts(int count);
+
+  /// Row verb that queues a delivery again.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeliver'**
+  String get webhookRedeliver;
+
+  /// The Redeliver verb while the request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Queueing…'**
+  String get webhookQueueing;
+
+  /// Toast after a successful redeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'Redelivery queued.'**
+  String get webhookRedeliveryQueued;
+
+  /// Failure toast after a redeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'That delivery was not re-queued. {reason}'**
+  String webhookRedeliverFailed(String reason);
+
+  /// Subtitle of the create sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'It receives a POST every time its event fires.'**
+  String get webhookCreateSubtitle;
+
+  /// Label of the endpoint's URL box.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get webhookCreateAddress;
+
+  /// Help under the URL box. Mirrors the server's own guard.
+  ///
+  /// In en, this message translates to:
+  /// **'A public http or https address the server can reach.'**
+  String get webhookCreateAddressHelp;
+
+  /// Why the URL cannot be saved: it does not parse.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a web address.'**
+  String get webhookCreateNotAUrl;
+
+  /// Why the URL cannot be saved: the scheme is not http(s). The schemes are not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'The address has to start with http:// or https://.'**
+  String get webhookCreateWrongScheme;
+
+  /// Why Add cannot be pressed: the URL box is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the endpoint a web address.'**
+  String get webhookCreateBlockedUrl;
+
+  /// Why Add cannot be pressed: no event is chosen. Also the event choice's own state line.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the event it listens for.'**
+  String get webhookCreateBlockedEvent;
+
+  /// Label of the event choice. The event names themselves are wire values and are not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get webhookCreateEvent;
+
+  /// Label of the write-only secret box.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing secret (optional)'**
+  String get webhookCreateSecret;
+
+  /// Help under the secret box: it is write-only by construction.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliveries are signed with it. It is stored on the server and never shown again — keep your own copy.'**
+  String get webhookCreateSecretHelp;
+
+  /// Headline of the inline error when the create request was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint was not added.'**
+  String get webhookCreateFailed;
+
+  /// The create sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this endpoint'**
+  String get webhookCreateCommit;
+
+  /// Blocked reason while the create request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding…'**
+  String get webhookCreateAdding;
+
+  /// The create sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get webhookCreateCancel;
 }
 
 class _AppLocalizationsDelegate

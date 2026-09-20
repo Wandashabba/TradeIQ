@@ -6400,4 +6400,300 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get scheduleReportSheetSubtitle =>
       'The schedule runs this definition on its cadence.';
+
+  @override
+  String get relativeJustNow => 'just now';
+
+  @override
+  String get relativeUnderAMinute => 'in under a minute';
+
+  @override
+  String relativeMinutesAgo(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String relativeHoursAgo(int hours) {
+    return '${hours}h ago';
+  }
+
+  @override
+  String relativeDaysAgo(int days) {
+    return '${days}d ago';
+  }
+
+  @override
+  String relativeInMinutes(int minutes) {
+    return 'in ${minutes}m';
+  }
+
+  @override
+  String relativeInHours(int hours) {
+    return 'in ${hours}h';
+  }
+
+  @override
+  String relativeInDays(int days) {
+    return 'in ${days}d';
+  }
+
+  @override
+  String get webhookHealthHealthy => 'Healthy';
+
+  @override
+  String get webhookHealthFailing => 'Failing';
+
+  @override
+  String get webhookHealthUnhealthy => 'Unhealthy';
+
+  @override
+  String get webhookDeliveryQueued => 'Queued';
+
+  @override
+  String get webhookDeliveryDelivered => 'Delivered';
+
+  @override
+  String get webhookDeliveryRetrying => 'Retrying';
+
+  @override
+  String get webhookDeliveryGaveUp => 'Gave up';
+
+  @override
+  String get webhooksTitle => 'Webhooks';
+
+  @override
+  String get webhooksFactPost =>
+      'Each endpoint receives a POST when its event fires.';
+
+  @override
+  String get webhooksFactRetries =>
+      'Failed deliveries retry for about eight hours.';
+
+  @override
+  String get webhooksRefresh => 'Refresh the endpoints';
+
+  @override
+  String get webhooksSkeleton => 'webhooks';
+
+  @override
+  String get webhooksSection => 'Endpoints';
+
+  @override
+  String webhooksUnhealthyNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count endpoints are not receiving. A delivery to them has given up after every retry.',
+      one:
+          '1 endpoint is not receiving. A delivery to it has given up after every retry.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhooksEmptyHeadline => 'No endpoints registered.';
+
+  @override
+  String get webhooksEmptyBody =>
+      'Add one to forward events to an external system.';
+
+  @override
+  String get webhookAdd => 'Add an endpoint';
+
+  @override
+  String get webhookNoDeliveriesYet => 'No deliveries yet';
+
+  @override
+  String webhookLastDelivery(String when) {
+    return 'Last delivery $when';
+  }
+
+  @override
+  String get webhookSigned => 'Signed — deliveries carry an HMAC signature.';
+
+  @override
+  String get webhookNotSigned => 'Not signed — deliveries carry no signature.';
+
+  @override
+  String get webhookSignedShort => 'Signed';
+
+  @override
+  String get webhookNotSignedShort => 'Not signed';
+
+  @override
+  String get webhookReceivingEvents => 'Receiving events';
+
+  @override
+  String get webhookOn => 'On';
+
+  @override
+  String get webhookOff => 'Off';
+
+  @override
+  String get webhookWaitingForServer => 'Waiting for the server.';
+
+  @override
+  String get webhookReceiving => 'Receiving';
+
+  @override
+  String get webhookPaused => 'Paused';
+
+  @override
+  String get webhookShowDeliveries => 'Show deliveries';
+
+  @override
+  String get webhookHideDeliveries => 'Hide deliveries';
+
+  @override
+  String get webhookDelete => 'Delete';
+
+  @override
+  String webhookResumeFailed(String reason) {
+    return 'That endpoint was not resumed. $reason';
+  }
+
+  @override
+  String webhookPauseFailed(String reason) {
+    return 'That endpoint was not paused. $reason';
+  }
+
+  @override
+  String get webhookDeleteAction => 'Delete this endpoint?';
+
+  @override
+  String get webhookDeleteConsequenceStops =>
+      'It stops receiving events immediately.';
+
+  @override
+  String get webhookDeleteConsequenceHistory =>
+      'Its delivery history is removed with it.';
+
+  @override
+  String get webhookDeleteConsequenceDelivered =>
+      'Nothing already delivered is withdrawn.';
+
+  @override
+  String get webhookDeleteCommit => 'Delete this endpoint';
+
+  @override
+  String get webhookDeleteCancel => 'Keep it';
+
+  @override
+  String webhookDeleteFailed(String reason) {
+    return 'That endpoint was not deleted. $reason';
+  }
+
+  @override
+  String get webhookDeliveriesSection => 'Recent deliveries';
+
+  @override
+  String get webhookDeliveriesSkeleton => 'deliveries';
+
+  @override
+  String get webhookDeliveriesEmptyHeadline => 'No deliveries yet.';
+
+  @override
+  String get webhookDeliveriesEmptyBody =>
+      'One appears each time the event fires.';
+
+  @override
+  String webhookDeliveredWhen(String when) {
+    return 'Delivered $when';
+  }
+
+  @override
+  String webhookNextRetryWhen(String when) {
+    return 'Next retry $when';
+  }
+
+  @override
+  String get webhookNoMoreRetries => 'No more retries';
+
+  @override
+  String webhookCreatedWhen(String when) {
+    return 'Created $when';
+  }
+
+  @override
+  String webhookHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get webhookNotSentYet => 'Not sent yet';
+
+  @override
+  String get webhookNoResponse => 'No response';
+
+  @override
+  String webhookAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attempts',
+      one: '1 attempt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhookRedeliver => 'Redeliver';
+
+  @override
+  String get webhookQueueing => 'Queueing…';
+
+  @override
+  String get webhookRedeliveryQueued => 'Redelivery queued.';
+
+  @override
+  String webhookRedeliverFailed(String reason) {
+    return 'That delivery was not re-queued. $reason';
+  }
+
+  @override
+  String get webhookCreateSubtitle =>
+      'It receives a POST every time its event fires.';
+
+  @override
+  String get webhookCreateAddress => 'Address';
+
+  @override
+  String get webhookCreateAddressHelp =>
+      'A public http or https address the server can reach.';
+
+  @override
+  String get webhookCreateNotAUrl => 'That is not a web address.';
+
+  @override
+  String get webhookCreateWrongScheme =>
+      'The address has to start with http:// or https://.';
+
+  @override
+  String get webhookCreateBlockedUrl => 'Give the endpoint a web address.';
+
+  @override
+  String get webhookCreateBlockedEvent => 'Pick the event it listens for.';
+
+  @override
+  String get webhookCreateEvent => 'Event';
+
+  @override
+  String get webhookCreateSecret => 'Signing secret (optional)';
+
+  @override
+  String get webhookCreateSecretHelp =>
+      'Deliveries are signed with it. It is stored on the server and never shown again — keep your own copy.';
+
+  @override
+  String get webhookCreateFailed => 'The endpoint was not added.';
+
+  @override
+  String get webhookCreateCommit => 'Add this endpoint';
+
+  @override
+  String get webhookCreateAdding => 'Adding…';
+
+  @override
+  String get webhookCreateCancel => 'Cancel';
 }

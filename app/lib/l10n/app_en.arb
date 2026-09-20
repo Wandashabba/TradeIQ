@@ -8601,5 +8601,406 @@
   "scheduleReportSheetSubtitle": "The schedule runs this definition on its cadence.",
   "@scheduleReportSheetSubtitle": {
     "description": "Subtitle of the report picker sheet."
+  },
+  "relativeJustNow": "just now",
+  "@relativeJustNow": {
+    "description": "A moment less than a minute ago."
+  },
+  "relativeUnderAMinute": "in under a minute",
+  "@relativeUnderAMinute": {
+    "description": "A moment less than a minute from now."
+  },
+  "relativeMinutesAgo": "{minutes}m ago",
+  "@relativeMinutesAgo": {
+    "description": "How long ago, in minutes. The unit is abbreviated because it sits in a row subtitle.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHoursAgo": "{hours}h ago",
+  "@relativeHoursAgo": {
+    "description": "How long ago, in hours.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeDaysAgo": "{days}d ago",
+  "@relativeDaysAgo": {
+    "description": "How long ago, in days.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeInMinutes": "in {minutes}m",
+  "@relativeInMinutes": {
+    "description": "How long until, in minutes.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeInHours": "in {hours}h",
+  "@relativeInHours": {
+    "description": "How long until, in hours.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeInDays": "in {days}d",
+  "@relativeInDays": {
+    "description": "How long until, in days.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "webhookHealthHealthy": "Healthy",
+  "@webhookHealthHealthy": {
+    "description": "An endpoint that is receiving."
+  },
+  "webhookHealthFailing": "Failing",
+  "@webhookHealthFailing": {
+    "description": "An endpoint some deliveries to which are failing and still retrying."
+  },
+  "webhookHealthUnhealthy": "Unhealthy",
+  "@webhookHealthUnhealthy": {
+    "description": "An endpoint a delivery to which has given up after every retry."
+  },
+  "webhookDeliveryQueued": "Queued",
+  "@webhookDeliveryQueued": {
+    "description": "A delivery waiting to be attempted."
+  },
+  "webhookDeliveryDelivered": "Delivered",
+  "@webhookDeliveryDelivered": {
+    "description": "A delivery the endpoint took."
+  },
+  "webhookDeliveryRetrying": "Retrying",
+  "@webhookDeliveryRetrying": {
+    "description": "A delivery that failed and is being tried again."
+  },
+  "webhookDeliveryGaveUp": "Gave up",
+  "@webhookDeliveryGaveUp": {
+    "description": "A delivery whose retries are spent."
+  },
+  "webhooksTitle": "Webhooks",
+  "@webhooksTitle": {
+    "description": "Screen title: the client's outbound endpoints."
+  },
+  "webhooksFactPost": "Each endpoint receives a POST when its event fires.",
+  "@webhooksFactPost": {
+    "description": "Header fact. POST is an HTTP method and stays as it is."
+  },
+  "webhooksFactRetries": "Failed deliveries retry for about eight hours.",
+  "@webhooksFactRetries": {
+    "description": "Header fact: how long the server keeps trying."
+  },
+  "webhooksRefresh": "Refresh the endpoints",
+  "@webhooksRefresh": {
+    "description": "Semantic label of the header's refresh button."
+  },
+  "webhooksSkeleton": "webhooks",
+  "@webhooksSkeleton": {
+    "description": "What the skeleton and the error region say they are for."
+  },
+  "webhooksSection": "Endpoints",
+  "@webhooksSection": {
+    "description": "Section rule above the list of endpoints."
+  },
+  "webhooksUnhealthyNote": "{count, plural, =1{1 endpoint is not receiving. A delivery to it has given up after every retry.} other{{count} endpoints are not receiving. A delivery to them has given up after every retry.}}",
+  "@webhooksUnhealthyNote": {
+    "description": "The standing warning above the list when some endpoint has stopped receiving.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "webhooksEmptyHeadline": "No endpoints registered.",
+  "@webhooksEmptyHeadline": {
+    "description": "In-panel empty state: this client forwards nothing."
+  },
+  "webhooksEmptyBody": "Add one to forward events to an external system.",
+  "@webhooksEmptyBody": {
+    "description": "Body of the webhooks empty state."
+  },
+  "webhookAdd": "Add an endpoint",
+  "@webhookAdd": {
+    "description": "Verb that opens the create sheet. Also the sheet's title."
+  },
+  "webhookNoDeliveriesYet": "No deliveries yet",
+  "@webhookNoDeliveriesYet": {
+    "description": "Row subtitle for an endpoint nothing has been sent to."
+  },
+  "webhookLastDelivery": "Last delivery {when}",
+  "@webhookLastDelivery": {
+    "description": "Row subtitle: when something was last sent to this endpoint.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookSigned": "Signed — deliveries carry an HMAC signature.",
+  "@webhookSigned": {
+    "description": "The endpoint has a signing secret. The WORD, never the value: the secret is not on this screen at all. HMAC is a standard's name."
+  },
+  "webhookNotSigned": "Not signed — deliveries carry no signature.",
+  "@webhookNotSigned": {
+    "description": "The endpoint has no signing secret."
+  },
+  "webhookSignedShort": "Signed",
+  "@webhookSignedShort": {
+    "description": "The signing state in the row's spoken sentence."
+  },
+  "webhookNotSignedShort": "Not signed",
+  "@webhookNotSignedShort": {
+    "description": "The signing state in the row's spoken sentence."
+  },
+  "webhookReceivingEvents": "Receiving events",
+  "@webhookReceivingEvents": {
+    "description": "Label of the toggle that activates or pauses an endpoint."
+  },
+  "webhookOn": "On",
+  "@webhookOn": {
+    "description": "The toggle's on word."
+  },
+  "webhookOff": "Off",
+  "@webhookOff": {
+    "description": "The toggle's off word."
+  },
+  "webhookWaitingForServer": "Waiting for the server.",
+  "@webhookWaitingForServer": {
+    "description": "Why the toggle is disabled: a request is in flight."
+  },
+  "webhookReceiving": "Receiving",
+  "@webhookReceiving": {
+    "description": "Spoken state of an active endpoint."
+  },
+  "webhookPaused": "Paused",
+  "@webhookPaused": {
+    "description": "Spoken state of a paused endpoint."
+  },
+  "webhookShowDeliveries": "Show deliveries",
+  "@webhookShowDeliveries": {
+    "description": "Row verb that opens this endpoint's recent deliveries."
+  },
+  "webhookHideDeliveries": "Hide deliveries",
+  "@webhookHideDeliveries": {
+    "description": "Row verb that closes the deliveries list."
+  },
+  "webhookDelete": "Delete",
+  "@webhookDelete": {
+    "description": "Row verb that deletes the endpoint."
+  },
+  "webhookResumeFailed": "That endpoint was not resumed. {reason}",
+  "@webhookResumeFailed": {
+    "description": "Failure toast when activating was refused. The toggle goes back.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookPauseFailed": "That endpoint was not paused. {reason}",
+  "@webhookPauseFailed": {
+    "description": "Failure toast when pausing was refused.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookDeleteAction": "Delete this endpoint?",
+  "@webhookDeleteAction": {
+    "description": "What the confirm sheet says will happen."
+  },
+  "webhookDeleteConsequenceStops": "It stops receiving events immediately.",
+  "@webhookDeleteConsequenceStops": {
+    "description": "First consequence of deleting an endpoint."
+  },
+  "webhookDeleteConsequenceHistory": "Its delivery history is removed with it.",
+  "@webhookDeleteConsequenceHistory": {
+    "description": "Second consequence of deleting an endpoint."
+  },
+  "webhookDeleteConsequenceDelivered": "Nothing already delivered is withdrawn.",
+  "@webhookDeleteConsequenceDelivered": {
+    "description": "Third consequence: what deleting does NOT do."
+  },
+  "webhookDeleteCommit": "Delete this endpoint",
+  "@webhookDeleteCommit": {
+    "description": "The confirm sheet's commit verb."
+  },
+  "webhookDeleteCancel": "Keep it",
+  "@webhookDeleteCancel": {
+    "description": "The confirm sheet's way out."
+  },
+  "webhookDeleteFailed": "That endpoint was not deleted. {reason}",
+  "@webhookDeleteFailed": {
+    "description": "Failure toast after a delete.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookDeliveriesSection": "Recent deliveries",
+  "@webhookDeliveriesSection": {
+    "description": "Section rule above an endpoint's deliveries."
+  },
+  "webhookDeliveriesSkeleton": "deliveries",
+  "@webhookDeliveriesSkeleton": {
+    "description": "What the deliveries skeleton says it is loading."
+  },
+  "webhookDeliveriesEmptyHeadline": "No deliveries yet.",
+  "@webhookDeliveriesEmptyHeadline": {
+    "description": "In-panel empty state: nothing has been sent to this endpoint."
+  },
+  "webhookDeliveriesEmptyBody": "One appears each time the event fires.",
+  "@webhookDeliveriesEmptyBody": {
+    "description": "Body of the deliveries empty state."
+  },
+  "webhookDeliveredWhen": "Delivered {when}",
+  "@webhookDeliveredWhen": {
+    "description": "When a delivery succeeded.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookNextRetryWhen": "Next retry {when}",
+  "@webhookNextRetryWhen": {
+    "description": "When a failing delivery will be tried again.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookNoMoreRetries": "No more retries",
+  "@webhookNoMoreRetries": {
+    "description": "A delivery whose retries are spent."
+  },
+  "webhookCreatedWhen": "Created {when}",
+  "@webhookCreatedWhen": {
+    "description": "When a delivery was queued, where nothing better is known.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookHttpStatus": "HTTP {code}",
+  "@webhookHttpStatus": {
+    "description": "The status code the endpoint answered with. HTTP is a protocol name.",
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "webhookNotSentYet": "Not sent yet",
+  "@webhookNotSentYet": {
+    "description": "A delivery with no attempts behind it."
+  },
+  "webhookNoResponse": "No response",
+  "@webhookNoResponse": {
+    "description": "A delivery that was attempted and got nothing back."
+  },
+  "webhookAttempts": "{count, plural, =1{1 attempt} other{{count} attempts}}",
+  "@webhookAttempts": {
+    "description": "How many times a delivery has been tried.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "webhookRedeliver": "Redeliver",
+  "@webhookRedeliver": {
+    "description": "Row verb that queues a delivery again."
+  },
+  "webhookQueueing": "Queueing…",
+  "@webhookQueueing": {
+    "description": "The Redeliver verb while the request is in flight."
+  },
+  "webhookRedeliveryQueued": "Redelivery queued.",
+  "@webhookRedeliveryQueued": {
+    "description": "Toast after a successful redeliver."
+  },
+  "webhookRedeliverFailed": "That delivery was not re-queued. {reason}",
+  "@webhookRedeliverFailed": {
+    "description": "Failure toast after a redeliver.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "webhookCreateSubtitle": "It receives a POST every time its event fires.",
+  "@webhookCreateSubtitle": {
+    "description": "Subtitle of the create sheet."
+  },
+  "webhookCreateAddress": "Address",
+  "@webhookCreateAddress": {
+    "description": "Label of the endpoint's URL box."
+  },
+  "webhookCreateAddressHelp": "A public http or https address the server can reach.",
+  "@webhookCreateAddressHelp": {
+    "description": "Help under the URL box. Mirrors the server's own guard."
+  },
+  "webhookCreateNotAUrl": "That is not a web address.",
+  "@webhookCreateNotAUrl": {
+    "description": "Why the URL cannot be saved: it does not parse."
+  },
+  "webhookCreateWrongScheme": "The address has to start with http:// or https://.",
+  "@webhookCreateWrongScheme": {
+    "description": "Why the URL cannot be saved: the scheme is not http(s). The schemes are not translated."
+  },
+  "webhookCreateBlockedUrl": "Give the endpoint a web address.",
+  "@webhookCreateBlockedUrl": {
+    "description": "Why Add cannot be pressed: the URL box is empty."
+  },
+  "webhookCreateBlockedEvent": "Pick the event it listens for.",
+  "@webhookCreateBlockedEvent": {
+    "description": "Why Add cannot be pressed: no event is chosen. Also the event choice's own state line."
+  },
+  "webhookCreateEvent": "Event",
+  "@webhookCreateEvent": {
+    "description": "Label of the event choice. The event names themselves are wire values and are not translated."
+  },
+  "webhookCreateSecret": "Signing secret (optional)",
+  "@webhookCreateSecret": {
+    "description": "Label of the write-only secret box."
+  },
+  "webhookCreateSecretHelp": "Deliveries are signed with it. It is stored on the server and never shown again — keep your own copy.",
+  "@webhookCreateSecretHelp": {
+    "description": "Help under the secret box: it is write-only by construction."
+  },
+  "webhookCreateFailed": "The endpoint was not added.",
+  "@webhookCreateFailed": {
+    "description": "Headline of the inline error when the create request was refused."
+  },
+  "webhookCreateCommit": "Add this endpoint",
+  "@webhookCreateCommit": {
+    "description": "The create sheet's commit verb."
+  },
+  "webhookCreateAdding": "Adding…",
+  "@webhookCreateAdding": {
+    "description": "Blocked reason while the create request is in flight."
+  },
+  "webhookCreateCancel": "Cancel",
+  "@webhookCreateCancel": {
+    "description": "The create sheet's way out."
   }
 }
