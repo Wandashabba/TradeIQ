@@ -28,6 +28,8 @@ import '../../features/contests/presentation/my_contests_screen.dart';
 import '../../features/alerts/presentation/alert_rules_screen.dart';
 import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
+import '../../features/territories/presentation/territory_form_screen.dart';
+import '../../features/territories/presentation/territory_map_gate.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/beatplans/presentation/beatplans_screen.dart';
 import '../../features/gamification/presentation/agent_points_screen.dart';
@@ -132,6 +134,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Template subroutes (e.g. /audit-templates/:id/preview) are manager
       // territory too — the exact-match set above only covers the list screen.
       final isTemplatesSubroute = loc.startsWith('/audit-templates/');
+      // Everything under /territories is manager territory too — the create
+      // form and one territory's map are both reached from a list an agent
+      // cannot see, and the exact-match set above only covers that list.
+      final isTerritoriesSubroute = loc.startsWith('/territories/');
       // A visit under review (/visits/:id) is supervisory: its API is
       // manager/admin-only, so an agent would only ever land on a 403.
       final isVisitReview = loc.startsWith('/visits/');
@@ -154,6 +160,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           (managerOnly.contains(loc) ||
               isUsersSubroute ||
               isTemplatesSubroute ||
+              isTerritoriesSubroute ||
               isVisitReview ||
               isAgentPointsHistory ||
               isContestsSubroute)) {
@@ -278,6 +285,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/territories',
         pageBuilder: (context, state) => managerPage(const TerritoriesScreen()),
+      ),
+      // The create form. Registered BEFORE /territories/:id/map so `new` is
+      // never read as a territory id — the same ordering rule /outlets/create
+      // documents two screens up.
+      GoRoute(
+        path: '/territories/new',
+        pageBuilder: (context, state) =>
+            managerPage(const TerritoryFormScreen()),
+      ),
+      // One territory as ground: every outlet in it, whether anyone has been,
+      // and the list that replaces the map in Veld and with no tiles.
+      //
+      // It reads the same coverage endpoint the list does, which has no role
+      // restriction, so it is not in `managerOnly` — every role that can see
+      // the territories list can open one.
+      GoRoute(
+        path: '/territories/:territoryId/map',
+        pageBuilder: (context, state) => managerPage(
+          TerritoryMapGate(territoryId: state.pathParameters['territoryId']!),
+        ),
       ),
       GoRoute(
         path: '/agents/activity',

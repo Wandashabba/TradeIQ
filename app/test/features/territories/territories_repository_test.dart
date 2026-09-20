@@ -57,34 +57,62 @@ void main() {
   });
 
   test(
-      'TerritoryCoverage.fromJson counts outlets and agents, and parses each outlet',
-      () {
-    final coverage = TerritoryCoverage.fromJson(const {
-      'territory': {'id': 't1'},
-      'outlets': [
-        {'id': 'o1', 'name': 'Outlet One', 'code': 'OUT-1', 'lat': -26.1, 'lng': 28.0, 'visited': true},
-        {'id': 'o2', 'name': 'Outlet Two', 'code': 'OUT-2', 'lat': -26.2, 'lng': 28.1, 'visited': false},
-        {'id': 'o3', 'name': 'Outlet Three', 'code': 'OUT-3', 'lat': -26.3, 'lng': 28.2, 'visited': false},
-      ],
-      'agents': [
-        {'id': 'a1'},
-        {'id': 'a2'},
-      ],
-      'coverage': {'outletsVisited': 1, 'outletsTotal': 3, 'coverageRate': 33.33},
-    });
+    'TerritoryCoverage.fromJson counts outlets and agents, and parses each outlet',
+    () {
+      final coverage = TerritoryCoverage.fromJson(const {
+        'territory': {'id': 't1'},
+        'outlets': [
+          {
+            'id': 'o1',
+            'name': 'Outlet One',
+            'code': 'OUT-1',
+            'lat': -26.1,
+            'lng': 28.0,
+            'visited': true,
+          },
+          {
+            'id': 'o2',
+            'name': 'Outlet Two',
+            'code': 'OUT-2',
+            'lat': -26.2,
+            'lng': 28.1,
+            'visited': false,
+          },
+          {
+            'id': 'o3',
+            'name': 'Outlet Three',
+            'code': 'OUT-3',
+            'lat': -26.3,
+            'lng': 28.2,
+            'visited': false,
+          },
+        ],
+        'agents': [
+          {'id': 'a1'},
+          {'id': 'a2'},
+        ],
+        'coverage': {
+          'outletsVisited': 1,
+          'outletsTotal': 3,
+          'coverageRate': 33.33,
+        },
+      });
 
-    expect(coverage.outletCount, 3);
-    expect(coverage.agentCount, 2);
-    expect(coverage.outlets.length, 3);
-    expect(coverage.outlets.first.visited, true);
-    expect(coverage.outlets[1].visited, false);
-    expect(coverage.outletsVisited, 1);
-    expect(coverage.outletsTotal, 3);
-    expect(coverage.coverageRate, 33.33);
-  });
+      expect(coverage.outletCount, 3);
+      expect(coverage.agentCount, 2);
+      expect(coverage.outlets.length, 3);
+      expect(coverage.outlets.first.visited, true);
+      expect(coverage.outlets[1].visited, false);
+      expect(coverage.outletsVisited, 1);
+      expect(coverage.outletsTotal, 3);
+      expect(coverage.coverageRate, 33.33);
+    },
+  );
 
-  test('TerritoryCoverage.fromJson defaults missing lists and coverage to zero',
-      () {
+  test('TerritoryCoverage.fromJson leaves a missing coverage block NULL', () {
+    // Not zero. A response with no coverage block has not measured a
+    // coverage of nought — it has not measured one at all, and the two read
+    // identically on screen if the client invents the difference away.
     final coverage = TerritoryCoverage.fromJson(const {
       'territory': {'id': 't1'},
     });
@@ -92,9 +120,37 @@ void main() {
     expect(coverage.outletCount, 0);
     expect(coverage.agentCount, 0);
     expect(coverage.outlets, isEmpty);
-    expect(coverage.outletsVisited, 0);
-    expect(coverage.outletsTotal, 0);
+    expect(coverage.outletsVisited, isNull);
+    expect(coverage.outletsTotal, isNull);
+    expect(coverage.coverageRate, isNull);
+    expect(coverage.coverageMeasured, isFalse);
+    expect(coverage.measuredCoverageRate, isNull);
+  });
+
+  test('a coverage rate over an empty denominator is not a measurement', () {
+    // `territories.service.ts` sends `outletsTotal > 0 ? rate : 0`, so a
+    // territory with nothing filed under it arrives as a confident 0%.
+    final coverage = TerritoryCoverage.fromJson(const {
+      'outlets': <Object>[],
+      'agents': <Object>[],
+      'coverage': {'outletsVisited': 0, 'outletsTotal': 0, 'coverageRate': 0},
+    });
+
     expect(coverage.coverageRate, 0);
+    expect(coverage.coverageMeasured, isFalse);
+    // Which is the value every caller reads.
+    expect(coverage.measuredCoverageRate, isNull);
+  });
+
+  test('a real nought over a real denominator IS a measurement', () {
+    final coverage = TerritoryCoverage.fromJson(const {
+      'outlets': <Object>[],
+      'agents': <Object>[],
+      'coverage': {'outletsVisited': 0, 'outletsTotal': 3, 'coverageRate': 0},
+    });
+
+    expect(coverage.coverageMeasured, isTrue);
+    expect(coverage.measuredCoverageRate, 0);
   });
 
   group('DioTerritoriesRepository.listTerritories', () {
@@ -108,19 +164,21 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
-        () async {
-      dio.httpClientAdapter = _RecordingAdapter(
-        '{"data": [{"id": "t1", "name": "Gauteng North", "code": "GP-N"}], '
-        '"nextCursor": "cursor-1"}',
-      );
+    test(
+      'parses the {data, nextCursor} envelope into a PaginatedResponse',
+      () async {
+        dio.httpClientAdapter = _RecordingAdapter(
+          '{"data": [{"id": "t1", "name": "Gauteng North", "code": "GP-N"}], '
+          '"nextCursor": "cursor-1"}',
+        );
 
-      final page = await DioTerritoriesRepository().listTerritories();
+        final page = await DioTerritoriesRepository().listTerritories();
 
-      expect(page, isA<PaginatedResponse<Territory>>());
-      expect(page.data, hasLength(1));
-      expect(page.data.first.id, 't1');
-      expect(page.nextCursor, 'cursor-1');
-    });
+        expect(page, isA<PaginatedResponse<Territory>>());
+        expect(page.data, hasLength(1));
+        expect(page.data.first.id, 't1');
+        expect(page.nextCursor, 'cursor-1');
+      },
+    );
   });
 }
