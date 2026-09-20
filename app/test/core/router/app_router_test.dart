@@ -678,7 +678,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Report schedules'), findsOneWidget);
-    expect(find.text('No report schedules'), findsOneWidget);
+    expect(find.text('No schedules.'), findsOneWidget);
   });
 
   testWidgets('a manager can open a template preview and see its form', (

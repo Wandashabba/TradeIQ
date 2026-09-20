@@ -26,11 +26,17 @@ class Message {
   const Message({
     required this.id,
     required this.body,
+    this.senderId,
     this.recipientId,
     this.attachments = const [],
   });
   final String id;
   final String body;
+
+  /// Who wrote it. Kept so a row can name a person: the wire has carried this
+  /// all along and the client used to drop it, which left the thread printing
+  /// cuids where names belong (unify §1.15).
+  final String? senderId;
   final String? recipientId;
 
   /// In the order the sender attached them. Empty for a text-only message.
@@ -39,6 +45,7 @@ class Message {
   factory Message.fromJson(Map<String, dynamic> json) => Message(
         id: json['id'] as String,
         body: json['body'] as String,
+        senderId: json['senderId'] as String?,
         recipientId: json['recipientId'] as String?,
         attachments: [
           for (final a in (json['attachments'] as List<dynamic>? ?? const []))

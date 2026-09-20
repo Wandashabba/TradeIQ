@@ -393,6 +393,12 @@ List<GoRoute> _stubRoutes() => <GoRoute>[
     '/tasks',
     '/assistant',
     '/visits/:id',
+    '/reports',
+    '/reports/schedules',
+    '/webhooks',
+    '/audit-templates',
+    '/audit-templates/:templateId/preview',
+    '/messages',
   ])
     GoRoute(
       path: path,
