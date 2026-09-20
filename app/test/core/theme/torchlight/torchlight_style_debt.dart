@@ -33,7 +33,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'auth/presentation/login_screen.dart': 13,
   'beatplans/presentation/beat_plan_form_screen.dart': 5,
   'beatplans/presentation/beatplans_screen.dart': 2,
-  'clients/presentation/client_config_screen.dart': 21,
   'collaboration/presentation/message_attachment_thumb.dart': 3,
   'collaboration/presentation/messages_screen.dart': 9,
   'dashboard/presentation/dashboard_shell_screen.dart': 32,
@@ -64,4 +63,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 248;
+const int torchlightStyleDebtTotal = 227;
