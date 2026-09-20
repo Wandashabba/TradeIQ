@@ -708,6 +708,103 @@ void main() {
     });
   });
 
+  group('the evidence is spoken, not only painted', () {
+    /// The label of the node the row with [key] owns.
+    String spoken(WidgetTester tester, String key) {
+      final node = tester.getSemantics(
+        find
+            .descendant(
+              of: find.byKey(ValueKey<String>(key)),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      return node.label;
+    }
+
+    // THE FAILURE, WRITTEN DOWN: every word of a pin report lived in
+    // `SoftRow.meta`, and `meta` sits inside the label the row excludes as
+    // soon as the row carries verbs. Painted on screen: where the agent
+    // stood, how far that is from the pin, whether the fix can be trusted,
+    // whether anyone else has ever been there, the agent's own note, the
+    // status. Spoken: "Nomsa Dlamini. Tue 15 Sep · 10:30", and two buttons.
+    // `expectEveryButtonActivatable` cannot see this — the buttons are fine
+    // and only the words are gone.
+    testWidgets('a pin report says the distance, the fix and the note', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        detail: _detail(
+          attempts: <CheckInAttemptEvidence>[_attempt(accuracyM: 9)],
+          disputes: <PinDispute>[
+            _dispute(accuracyM: 9, agentIsOnlyVisitor: true),
+          ],
+        ),
+      );
+      await _reveal(tester, find.byKey(const ValueKey<String>('dispute-d1')));
+
+      final label = spoken(tester, 'dispute-d1');
+      expect(label, contains('Nomsa Dlamini'));
+      expect(label, contains('8.4 km'), reason: 'how far from the pin');
+      expect(label, contains('Accurate to about 9 m'), reason: 'the fix');
+      expect(
+        label,
+        contains('I am standing at the till.'),
+        reason: "the agent's own words",
+      );
+      expect(
+        label,
+        contains('No other agent'),
+        reason: 'the sole-visitor caution',
+      );
+      expect(label, contains('storefront photograph'));
+      expect(label, contains('Open'), reason: 'the status');
+      handle.dispose();
+    });
+
+    testWidgets('a dead "Use their position" says why in the row label', (
+      tester,
+    ) async {
+      // The reason the verb is dead is in `meta` and nowhere else, so without
+      // this a reader hears a disabled button and no explanation anywhere on
+      // the screen.
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        detail: _detail(
+          attempts: <CheckInAttemptEvidence>[_attempt(isMocked: true)],
+          disputes: <PinDispute>[_dispute(isMocked: true)],
+        ),
+      );
+      await _reveal(tester, find.byKey(const ValueKey<String>('dispute-d1')));
+
+      expect(_button(tester, 'adopt-d1').onPressed, isNull);
+      expect(spoken(tester, 'dispute-d1'), contains('mock location'));
+      handle.dispose();
+    });
+
+    testWidgets('the reports banner speaks what saving does about them', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, detail: _detail(disputes: <PinDispute>[_dispute()]));
+      await _reveal(
+        tester,
+        find.byKey(const ValueKey<String>('outlet-disputes-banner')),
+      );
+
+      final label = spoken(tester, 'outlet-disputes-banner');
+      expect(label, contains('reported'));
+      // The body line — what saving does about a reported pin — was painted
+      // and announced nowhere.
+      expect(label.length, greaterThan(40));
+      expect(label, contains('Correcting the pin closes the report'));
+      handle.dispose();
+    });
+  });
+
   group('every button is operable by a screen reader', () {
     // The kit shipped a component family that announced itself and did
     // nothing when a screen reader activated it, and `SectionRuleAction` and

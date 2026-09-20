@@ -166,58 +166,61 @@ void main() {
     },
   );
 
-  test('the decoded payload size reaches the screen, and unknown stays unknown', () async {
-    // #410 stored it; this is the hop that makes OutboxRow able to show it.
-    await db.enqueue(
-      entityType: 'stock',
-      entityId: 'measured',
-      payloadJson: '{"items":[]}',
-    );
-    // A row queued before the column existed was never measured. It must
-    // reach the screen as null — an unmeasured row is not a row of 0 bytes.
-    await db
-        .into(db.syncQueueItems)
-        .insert(
-          SyncQueueItemsCompanion.insert(
-            entityType: 'photo',
-            entityId: 'legacy',
-            payloadJson: '{}',
-            userId: Value(currentLocalUserId),
-          ),
-        );
+  test(
+    'the decoded payload size reaches the screen, and unknown stays unknown',
+    () async {
+      // #410 stored it; this is the hop that makes OutboxRow able to show it.
+      await db.enqueue(
+        entityType: 'stock',
+        entityId: 'measured',
+        payloadJson: '{"items":[]}',
+      );
+      // A row queued before the column existed was never measured. It must
+      // reach the screen as null — an unmeasured row is not a row of 0 bytes.
+      await db
+          .into(db.syncQueueItems)
+          .insert(
+            SyncQueueItemsCompanion.insert(
+              entityType: 'photo',
+              entityId: 'legacy',
+              payloadJson: '{}',
+              userId: Value(currentLocalUserId),
+            ),
+          );
 
-    final s = await read();
-    final byType = {for (final i in s.pending) i.entityType: i};
-    expect(byType['stock']!.payloadBytes, '{"items":[]}'.length);
-    expect(byType['photo']!.payloadBytes, isNull);
-  });
+      final s = await read();
+      final byType = {for (final i in s.pending) i.entityType: i};
+      expect(byType['stock']!.payloadBytes, '{"items":[]}'.length);
+      expect(byType['photo']!.payloadBytes, isNull);
+    },
+  );
 
-  test('the screen reads the classification rather than re-deriving it', () async {
-    await _queue(db, entityType: 'stock', lastError: 'sync:waitingForVisit');
-    await _queue(db, entityType: 'photo', lastError: 'sync:signedOut');
-    await _queue(db, entityType: 'pricing', lastError: 'sync:rejected:422');
-    await _queue(db, entityType: 'risk', lastError: 'sync:tooLarge');
-    await _queue(db, entityType: 'task');
+  test(
+    'the screen reads the classification rather than re-deriving it',
+    () async {
+      await _queue(db, entityType: 'stock', lastError: 'sync:waitingForVisit');
+      await _queue(db, entityType: 'photo', lastError: 'sync:signedOut');
+      await _queue(db, entityType: 'pricing', lastError: 'sync:rejected:422');
+      await _queue(db, entityType: 'risk', lastError: 'sync:tooLarge');
+      await _queue(db, entityType: 'task');
 
-    final s = await read();
-    SyncItem of(String type) =>
-        s.pending.firstWhere((i) => i.entityType == type);
+      final s = await read();
+      SyncItem of(String type) =>
+          s.pending.firstWhere((i) => i.entityType == type);
 
-    expect(of('stock').waitsForVisit, isTrue);
-    expect(of('stock').needsAttention, isFalse);
-    expect(of('photo').sessionEnded, isTrue);
-    expect(of('pricing').isRejected, isTrue);
-    expect(of('risk').isRejected, isTrue, reason: 'a 413 fails identically');
-    expect(of('task').isRejected, isFalse);
+      expect(of('stock').waitsForVisit, isTrue);
+      expect(of('stock').needsAttention, isFalse);
+      expect(of('photo').sessionEnded, isTrue);
+      expect(of('pricing').isRejected, isTrue);
+      expect(of('risk').isRejected, isTrue, reason: 'a 413 fails identically');
+      expect(of('task').isRejected, isFalse);
 
-    // Waiting is the normal state and never counted with the ones that need
-    // a human; the session-ended subset is what moves the screen's amber.
-    expect(
-      s.waiting.map((i) => i.entityType).toSet(),
-      {'stock', 'task'},
-    );
-    expect(s.sessionEnded.map((i) => i.entityType), ['photo']);
-  });
+      // Waiting is the normal state and never counted with the ones that need
+      // a human; the session-ended subset is what moves the screen's amber.
+      expect(s.waiting.map((i) => i.entityType).toSet(), {'stock', 'task'});
+      expect(s.sessionEnded.map((i) => i.entityType), ['photo']);
+    },
+  );
 
   // unify §1.13: session-ended is a HELD state. It sends itself after sign-in,
   // so it is never counted with the captures that raise a colour.

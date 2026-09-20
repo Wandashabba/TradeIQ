@@ -84,8 +84,11 @@ class AgentTrailScreen extends ConsumerWidget {
               lastDate: DateTime.now(),
             );
             if (picked != null) {
-              ref.read(agentTrailDayProvider.notifier).state =
-                  DateTime(picked.year, picked.month, picked.day);
+              ref.read(agentTrailDayProvider.notifier).state = DateTime(
+                picked.year,
+                picked.month,
+                picked.day,
+              );
             }
           },
         ),
@@ -95,7 +98,9 @@ class AgentTrailScreen extends ConsumerWidget {
         label: 'agent activity',
         onRetry: () => ref.invalidate(agentActivityForDayProvider(day)),
         builder: (page) {
-          final withStops = page.agents.where((a) => a.stops.isNotEmpty).toList();
+          final withStops = page.agents
+              .where((a) => a.stops.isNotEmpty)
+              .toList();
           final glass = context.colors.glass;
           final nothingToDraw = withStops.isEmpty && livePositions.isEmpty;
           if (nothingToDraw && glass) {
@@ -170,11 +175,13 @@ class AgentTrailScreen extends ConsumerWidget {
           return Column(
             children: [
               _TrailLegend(truncated: page.truncated, live: live),
-              Expanded(child: _TrailMap(
-                          day: day,
-                          withStops: withStops,
-                          live: livePositions,
-                        )),
+              Expanded(
+                child: _TrailMap(
+                  day: day,
+                  withStops: withStops,
+                  live: livePositions,
+                ),
+              ),
             ],
           );
         },
@@ -636,8 +643,8 @@ class _StopPinState extends State<_StopPin>
   }
 
   void _syncBreathing() {
-    final shouldBreathe = !reduceMotion(context) &&
-        !AgentTrailScreen.debugDisableGlowBreathing;
+    final shouldBreathe =
+        !reduceMotion(context) && !AgentTrailScreen.debugDisableGlowBreathing;
     if (shouldBreathe && !_breath.isAnimating) {
       _breath.repeat(reverse: true);
     } else if (!shouldBreathe && _breath.isAnimating) {
@@ -679,108 +686,111 @@ class _StopPinState extends State<_StopPin>
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: '${widget.agentName}, stop ${widget.ordinal}, '
+      label:
+          '${widget.agentName}, stop ${widget.ordinal}, '
           '${stop.outletName}, $time',
       onTap: openVisit,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: openVisit,
         child: Tooltip(
-        // Leads with the agent name: every agent's pins restart at "1", so on
-        // a multi-agent day the tooltip is what tells three identical "1"
-        // pins apart for a sighted manager — the Semantics label above says
-        // the same thing, but `excludeSemantics: true` makes that
-        // screen-reader-only. The label below shows outlet + time already;
-        // the agent name is the part only the tooltip carries visually.
-        message: '${widget.agentName} · ${stop.outletName} · $time',
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: _discSize,
-              height: _discSize,
-              child: AnimatedBuilder(
-                animation: _breath,
-                builder: (context, child) {
-                  // easeInOut(0.5) == 0.5 → factor 1.0 at rest; the swing is
-                  // ±3% — ambient, not attention-seeking.
-                  final breathe = 0.97 +
-                      0.06 * Curves.easeInOut.transform(_breath.value);
-                  return DecoratedBox(
-                    key: widget.isLast
-                        ? const ValueKey<String>('agent-stop-last-halo')
-                        : null,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      // Lit-sphere gradient: a small highlight pushed to the
-                      // top-left, the rest of the disc the deep core the
-                      // white numeral is contrast-tested against.
-                      gradient: RadialGradient(
-                        center: const Alignment(-0.4, -0.5),
-                        radius: 1.0,
-                        colors: [highlight, core],
-                        stops: const [0.0, 0.75],
+          // Leads with the agent name: every agent's pins restart at "1", so on
+          // a multi-agent day the tooltip is what tells three identical "1"
+          // pins apart for a sighted manager — the Semantics label above says
+          // the same thing, but `excludeSemantics: true` makes that
+          // screen-reader-only. The label below shows outlet + time already;
+          // the agent name is the part only the tooltip carries visually.
+          message: '${widget.agentName} · ${stop.outletName} · $time',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: _discSize,
+                height: _discSize,
+                child: AnimatedBuilder(
+                  animation: _breath,
+                  builder: (context, child) {
+                    // easeInOut(0.5) == 0.5 → factor 1.0 at rest; the swing is
+                    // ±3% — ambient, not attention-seeking.
+                    final breathe =
+                        0.97 + 0.06 * Curves.easeInOut.transform(_breath.value);
+                    return DecoratedBox(
+                      key: widget.isLast
+                          ? const ValueKey<String>('agent-stop-last-halo')
+                          : null,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        // Lit-sphere gradient: a small highlight pushed to the
+                        // top-left, the rest of the disc the deep core the
+                        // white numeral is contrast-tested against.
+                        gradient: RadialGradient(
+                          center: const Alignment(-0.4, -0.5),
+                          radius: 1.0,
+                          colors: [highlight, core],
+                          stops: const [0.0, 0.75],
+                        ),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: glow.withValues(
+                              alpha: innerHaloAlpha * breathe,
+                            ),
+                            blurRadius: 22,
+                            spreadRadius: 6,
+                          ),
+                          BoxShadow(
+                            color: glow.withValues(
+                              alpha: outerHaloAlpha * breathe,
+                            ),
+                            blurRadius: 44,
+                            spreadRadius: 12,
+                          ),
+                        ],
                       ),
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: glow.withValues(
-                              alpha: innerHaloAlpha * breathe),
-                          blurRadius: 22,
-                          spreadRadius: 6,
-                        ),
-                        BoxShadow(
-                          color: glow.withValues(
-                              alpha: outerHaloAlpha * breathe),
-                          blurRadius: 44,
-                          spreadRadius: 12,
-                        ),
-                      ],
-                    ),
-                    child: child,
-                  );
-                },
-                child: Center(
-                  child: Text(
-                    '${widget.ordinal}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      child: child,
+                    );
+                  },
+                  child: Center(
+                    child: Text(
+                      '${widget.ordinal}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 3),
-            // The luminous label: what the old map hid in a hover tooltip,
-            // now readable on the map itself. The heavy dark shadow is what
-            // keeps it legible over whatever tile detail sits beneath.
-            //
-            // Suppressed when it would collide with a higher-priority label
-            // (#197) — two stops at outlets ~20m apart drew their labels over
-            // each other as garbled text. The disc above always survives, so
-            // the stop itself is never lost, only its caption.
-            if (widget.showLabel)
-              Text(
-                '${stop.outletName} · $time',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  // Glass tints the luminous label toward the accent, still
-                  // near-white over the dark basemap.
-                  color: glass
-                      ? const Color(0xFFEDE9FF)
-                      : const Color(0xFFD9E6FF),
-                  shadows: const [Shadow(blurRadius: 5, color: Colors.black)],
+              const SizedBox(height: 3),
+              // The luminous label: what the old map hid in a hover tooltip,
+              // now readable on the map itself. The heavy dark shadow is what
+              // keeps it legible over whatever tile detail sits beneath.
+              //
+              // Suppressed when it would collide with a higher-priority label
+              // (#197) — two stops at outlets ~20m apart drew their labels over
+              // each other as garbled text. The disc above always survives, so
+              // the stop itself is never lost, only its caption.
+              if (widget.showLabel)
+                Text(
+                  '${stop.outletName} · $time',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    // Glass tints the luminous label toward the accent, still
+                    // near-white over the dark basemap.
+                    color: glass
+                        ? const Color(0xFFEDE9FF)
+                        : const Color(0xFFD9E6FF),
+                    shadows: const [Shadow(blurRadius: 5, color: Colors.black)],
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

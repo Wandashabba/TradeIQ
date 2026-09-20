@@ -5996,6 +5996,15 @@
       }
     }
   },
+  "outletDisputePhotoCount": "{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}",
+  "@outletDisputePhotoCount": {
+    "description": "Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "outletPhotoAlt": "Storefront photograph from this pin report",
   "@outletPhotoAlt": {
     "description": "Semantic label of a pin-report photograph."

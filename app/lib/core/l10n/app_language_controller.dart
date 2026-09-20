@@ -32,7 +32,7 @@ abstract class AppLanguageStore {
 
 class SecureAppLanguageStore implements AppLanguageStore {
   SecureAppLanguageStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? appSecureStorage;
+    : _storage = storage ?? appSecureStorage;
 
   final FlutterSecureStorage _storage;
 
@@ -61,8 +61,9 @@ class SecureAppLanguageStore implements AppLanguageStore {
   }
 }
 
-final appLanguageStoreProvider =
-    Provider<AppLanguageStore>((ref) => SecureAppLanguageStore());
+final appLanguageStoreProvider = Provider<AppLanguageStore>(
+  (ref) => SecureAppLanguageStore(),
+);
 
 /// Defaults to [AppLanguage.system] (device locale) and restores a persisted
 /// override asynchronously, the same shape as the theme controller.

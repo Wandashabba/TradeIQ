@@ -247,7 +247,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder pending(int i) => find.byKey(ValueKey<String>('pending-attachment-$i'));
+  Finder pending(int i) =>
+      find.byKey(ValueKey<String>('pending-attachment-$i'));
 
   /// Let the primary's 400ms double-press debounce lapse.
   ///
@@ -281,7 +282,10 @@ void main() {
         ),
       );
 
-      expect(find.text('From Sipho Dlamini · To the whole team'), findsOneWidget);
+      expect(
+        find.text('From Sipho Dlamini · To the whole team'),
+        findsOneWidget,
+      );
       expect(
         find.text('From Sipho Dlamini · To Thandi Mkhize'),
         findsOneWidget,
@@ -300,10 +304,7 @@ void main() {
         ),
       );
 
-      expect(
-        find.text('Sender not on the roster: u-gone'),
-        findsOneWidget,
-      );
+      expect(find.text('Sender not on the roster: u-gone'), findsOneWidget);
     });
 
     testWidgets('an empty roster never prints an id in a name\'s place', (
@@ -668,9 +669,7 @@ void main() {
         'New targets from Monday',
       );
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('post-announcement')),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('post-announcement')));
       await tester.pumpAndSettle();
 
       expect(repo.posted?.title, 'Q4 Kickoff');
@@ -679,11 +678,7 @@ void main() {
     });
 
     testWidgets('an admin also gets the compose affordance', (tester) async {
-      await pump(
-        tester,
-        repo: _FakeCollaborationRepository(),
-        role: 'admin',
-      );
+      await pump(tester, repo: _FakeCollaborationRepository(), role: 'admin');
       await openAnnouncements(tester);
 
       expect(
@@ -807,16 +802,9 @@ void main() {
   });
 
   testWidgets('2.0x: the thread and the composer survive', (tester) async {
-    await pump(
-      tester,
-      repo: _FakeCollaborationRepository(),
-      textScale: 2.0,
-    );
+    await pump(tester, repo: _FakeCollaborationRepository(), textScale: 2.0);
 
-    expect(
-      find.byKey(const ValueKey<String>('message-body')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('message-body')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

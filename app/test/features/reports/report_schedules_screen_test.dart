@@ -189,9 +189,7 @@ void main() {
       expect(
         tester
             .widget<Text>(
-              find.byKey(
-                const ValueKey<String>('schedule-next-run-s-active'),
-              ),
+              find.byKey(const ValueKey<String>('schedule-next-run-s-active')),
             )
             .data,
         'Next run 2026-09-21 09:00',
@@ -199,9 +197,7 @@ void main() {
       expect(
         tester
             .widget<Text>(
-              find.byKey(
-                const ValueKey<String>('schedule-next-run-s-paused'),
-              ),
+              find.byKey(const ValueKey<String>('schedule-next-run-s-paused')),
             )
             .data,
         'Paused, no next run',
@@ -218,9 +214,7 @@ void main() {
       );
 
       expect(
-        find.text(
-          'No recipients — this schedule delivers to nobody by email.',
-        ),
+        find.text('No recipients — this schedule delivers to nobody by email.'),
         findsOneWidget,
       );
     });

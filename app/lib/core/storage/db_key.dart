@@ -22,8 +22,8 @@ abstract class DbKeyStore {
 
 class SecureDbKeyStore implements DbKeyStore {
   SecureDbKeyStore({FlutterSecureStorage? storage, Random? random})
-      : _storage = storage ?? appSecureStorage,
-        _random = random ?? Random.secure();
+    : _storage = storage ?? appSecureStorage,
+      _random = random ?? Random.secure();
 
   final FlutterSecureStorage _storage;
   final Random _random;

@@ -128,10 +128,7 @@ void main() {
             height: 400,
             child: FlutterMap(
               options: MapOptions(),
-              children: [
-                TiqTileLayer(),
-                TiqNavyTint(),
-              ],
+              children: [TiqTileLayer(), TiqNavyTint()],
             ),
           ),
         ),
@@ -172,44 +169,44 @@ void main() {
     expect(labels.urlTemplate, endsWith('/tile/{z}/{y}/{x}'));
   });
 
-  testWidgets('TiqNavyTint renders an ignore-pointer navy radial gradient wash', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 400,
-            height: 400,
-            child: FlutterMap(
-              options: MapOptions(),
-              children: [
-                TiqTileLayer(),
-                TiqNavyTint(),
-              ],
+  testWidgets(
+    'TiqNavyTint renders an ignore-pointer navy radial gradient wash',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 400,
+              child: FlutterMap(
+                options: MapOptions(),
+                children: [TiqTileLayer(), TiqNavyTint()],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final ignorePointer = tester.widget<IgnorePointer>(
-      find.descendant(
-        of: find.byType(TiqNavyTint),
-        matching: find.byType(IgnorePointer),
-      ),
-    );
-    expect(ignorePointer.ignoring, isTrue);
+      final ignorePointer = tester.widget<IgnorePointer>(
+        find.descendant(
+          of: find.byType(TiqNavyTint),
+          matching: find.byType(IgnorePointer),
+        ),
+      );
+      expect(ignorePointer.ignoring, isTrue);
 
-    final decoratedBox = tester.widget<DecoratedBox>(
-      find.descendant(
-        of: find.byType(TiqNavyTint),
-        matching: find.byType(DecoratedBox),
-      ),
-    );
-    final decoration = decoratedBox.decoration as BoxDecoration;
-    final gradient = decoration.gradient as RadialGradient;
-    expect(gradient.colors, [
-      const Color(0x3312294A),
-      const Color(0x66081226),
-    ]);
-  });
+      final decoratedBox = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byType(TiqNavyTint),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+      final decoration = decoratedBox.decoration as BoxDecoration;
+      final gradient = decoration.gradient as RadialGradient;
+      expect(gradient.colors, [
+        const Color(0x3312294A),
+        const Color(0x66081226),
+      ]);
+    },
+  );
 }

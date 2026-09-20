@@ -390,8 +390,7 @@ class TorchErrorRegion extends InheritedWidget {
   final List<Element> _actions = <Element>[];
 
   static void debugRegisterAction(BuildContext context) {
-    final region = context
-        .getInheritedWidgetOfExactType<TorchErrorRegion>();
+    final region = context.getInheritedWidgetOfExactType<TorchErrorRegion>();
     if (region == null) return;
     final element = context as Element;
     if (region._actions.contains(element)) return;

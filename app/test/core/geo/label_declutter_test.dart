@@ -51,7 +51,11 @@ void main() {
 
     test('is finite for every zoom the map can reach', () {
       for (var zoom = 0.0; zoom <= 20; zoom += 1) {
-        final offset = screenOffset(center: _center, point: _farAway, zoom: zoom);
+        final offset = screenOffset(
+          center: _center,
+          point: _farAway,
+          zoom: zoom,
+        );
         expect(offset.dx.isFinite, isTrue);
         expect(offset.dy.isFinite, isTrue);
       }

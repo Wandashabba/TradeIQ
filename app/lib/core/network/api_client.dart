@@ -30,52 +30,57 @@ const _connectTimeout = Duration(seconds: 30);
 /// connection that has genuinely stopped moving is.
 const _transferTimeout = Duration(seconds: 60);
 
-final dio = Dio(BaseOptions(
-  baseUrl: apiBaseUrl,
-  // Dio's defaults are null, meaning wait forever. On the flaky connectivity
-  // this app is built for, that is a request that never returns and a UI that
-  // spins until the agent force-quits — losing the queued work they were
-  // trying to send. It also left login_screen's timeout messages unreachable:
-  // it maps connectionTimeout/sendTimeout/receiveTimeout to a "check your
-  // connection" message that could never fire, because none could occur.
-  connectTimeout: _connectTimeout,
-  receiveTimeout: _transferTimeout,
-  sendTimeout: _transferTimeout,
-))
-  ..interceptors.add(InterceptorsWrapper(
-    onRequest: (options, handler) {
-      final token = currentAuthToken;
-      if (token != null) {
-        options.headers['Authorization'] = 'Bearer $token';
-      }
-      // Which build sent this (#400). Before this header the server could not
-      // tell which build produced a stuck outbox row, and had no way to turn
-      // away a build whose payloads it no longer understands.
-      options.headers[appVersionHeader] = appVersion;
-      options.headers[appBuildHeader] = appBuild;
-      handler.next(options);
-    },
-    onError: (error, handler) {
-      // The backend issues a 12h token and has no refresh endpoint, so expiry
-      // is not an edge case — it happens to every user every day. Without this,
-      // hour 12:01 leaves the app "logged in" with every screen erroring and
-      // nothing offering a way back.
-      //
-      // A 401 from the login request itself means wrong credentials, not an
-      // expired session. Logging out there would clobber the login screen's own
-      // error handling and tell the user the wrong story.
-      if (endsSession(error)) {
-        onUnauthorized?.call();
-      }
-      // The server has refused this build (#400). A 426 and not a 401, so the
-      // session survives: the build is stale, the password is fine.
-      final tooOld = AppUpdateRequired.fromError(error);
-      if (tooOld != null) appUpdateRequired.value = tooOld;
-      // Always forwarded: callers still need to see the failure. Signing out is
-      // in addition to the error, not instead of it.
-      handler.next(error);
-    },
-  ));
+final dio =
+    Dio(
+        BaseOptions(
+          baseUrl: apiBaseUrl,
+          // Dio's defaults are null, meaning wait forever. On the flaky connectivity
+          // this app is built for, that is a request that never returns and a UI that
+          // spins until the agent force-quits — losing the queued work they were
+          // trying to send. It also left login_screen's timeout messages unreachable:
+          // it maps connectionTimeout/sendTimeout/receiveTimeout to a "check your
+          // connection" message that could never fire, because none could occur.
+          connectTimeout: _connectTimeout,
+          receiveTimeout: _transferTimeout,
+          sendTimeout: _transferTimeout,
+        ),
+      )
+      ..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            final token = currentAuthToken;
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+            // Which build sent this (#400). Before this header the server could not
+            // tell which build produced a stuck outbox row, and had no way to turn
+            // away a build whose payloads it no longer understands.
+            options.headers[appVersionHeader] = appVersion;
+            options.headers[appBuildHeader] = appBuild;
+            handler.next(options);
+          },
+          onError: (error, handler) {
+            // The backend issues a 12h token and has no refresh endpoint, so expiry
+            // is not an edge case — it happens to every user every day. Without this,
+            // hour 12:01 leaves the app "logged in" with every screen erroring and
+            // nothing offering a way back.
+            //
+            // A 401 from the login request itself means wrong credentials, not an
+            // expired session. Logging out there would clobber the login screen's own
+            // error handling and tell the user the wrong story.
+            if (endsSession(error)) {
+              onUnauthorized?.call();
+            }
+            // The server has refused this build (#400). A 426 and not a 401, so the
+            // session survives: the build is stale, the password is fine.
+            final tooOld = AppUpdateRequired.fromError(error);
+            if (tooOld != null) appUpdateRequired.value = tooOld;
+            // Always forwarded: callers still need to see the failure. Signing out is
+            // in addition to the error, not instead of it.
+            handler.next(error);
+          },
+        ),
+      );
 
 /// The 401 `code`s that mean "a secret typed into THIS request was wrong", not
 /// "your session is over" (#400). Each is one constant per route on the

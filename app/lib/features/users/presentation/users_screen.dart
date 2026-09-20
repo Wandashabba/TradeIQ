@@ -710,7 +710,8 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
               ChoiceOption<String>(
                 value: 'admin',
                 label: 'Administrator',
-                consequence: 'Everything a manager can do, plus users and '
+                consequence:
+                    'Everything a manager can do, plus users and '
                     'scoring config.',
               ),
             ],

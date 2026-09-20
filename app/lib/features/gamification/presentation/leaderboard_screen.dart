@@ -54,7 +54,8 @@ class LeaderboardScreen extends ConsumerWidget {
             label: 'leaderboard',
             onRetry: () => ref.invalidate(leaderboardProvider),
             builder: (list) {
-              final ranked = [...list]..sort((a, b) => a.rank.compareTo(b.rank));
+              final ranked = [...list]
+                ..sort((a, b) => a.rank.compareTo(b.rank));
               return _LeaderboardList(entries: ranked);
             },
           ),

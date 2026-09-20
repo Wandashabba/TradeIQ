@@ -95,7 +95,11 @@ void main() {
       addTearDown(db.close);
 
       const payload = '{"skuId":"s1"}';
-      await db.enqueue(entityType: 'stock', entityId: 'e1', payloadJson: payload);
+      await db.enqueue(
+        entityType: 'stock',
+        entityId: 'e1',
+        payloadJson: payload,
+      );
 
       final row = await db.select(db.syncQueueItems).getSingle();
       expect(row.payloadBytes, decodedPayloadBytes(payload));

@@ -131,7 +131,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('There are no saved reports yet. Build one on Reports first.'),
+        find.text(
+          'There are no saved reports yet. Build one on Reports first.',
+        ),
         findsOneWidget,
       );
     });
@@ -162,10 +164,7 @@ void main() {
   group('a form that cannot save says why on the button', () {
     testWidgets('no report picked', (tester) async {
       await pump(tester, repo: FakeSchedulesRepository());
-      expect(
-        find.text('Pick the report this schedule runs.'),
-        findsOneWidget,
-      );
+      expect(find.text('Pick the report this schedule runs.'), findsOneWidget);
     });
 
     testWidgets('no recipients', (tester) async {

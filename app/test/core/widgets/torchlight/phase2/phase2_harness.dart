@@ -263,12 +263,12 @@ List<Phase2Case> phase2Cases({String? locale}) {
     Phase2Case(
       'ConfirmSheet',
       ConfirmSheet(
-        action: t(
-          'Delete this alert rule?',
-          'Skrap hierdie waarskuwingsreël?',
-        ),
+        action: t('Delete this alert rule?', 'Skrap hierdie waarskuwingsreël?'),
         consequences: <String>[
-          t('No new alerts will fire.', 'Geen nuwe waarskuwings sal afgaan nie.'),
+          t(
+            'No new alerts will fire.',
+            'Geen nuwe waarskuwings sal afgaan nie.',
+          ),
           t('Open alerts stay open.', 'Oop waarskuwings bly oop.'),
         ],
         record: 'RULE-4471',
@@ -350,7 +350,10 @@ List<Phase2Case> phase2Cases({String? locale}) {
       EmptyState(
         scope: EmptyScope.inPanel,
         headline: t('Nothing triaged yet', 'Nog niks gesorteer nie'),
-        body: t('Alerts arrive as visits land.', 'Waarskuwings kom in soos besoeke land.'),
+        body: t(
+          'Alerts arrive as visits land.',
+          'Waarskuwings kom in soos besoeke land.',
+        ),
       ),
     ),
     Phase2Case(

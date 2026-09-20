@@ -65,8 +65,9 @@ void main() {
     // "in progress" looks like. A hatched fourth state would pass a colour
     // test and fail this one.
     for (final skin in allSkins) {
-      testWidgets('${skin.mode.name}: the two frames differ with hue removed',
-          (tester) async {
+      testWidgets('${skin.mode.name}: the two frames differ with hue removed', (
+        tester,
+      ) async {
         Future<Uint8List> render(SectionState state) => paintMark(
           tester,
           skin: skin,

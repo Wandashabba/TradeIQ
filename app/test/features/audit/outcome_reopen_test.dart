@@ -160,14 +160,18 @@ void main() {
 
     // 4. The agent opens the submitted visit again: the row, its sheet, and
     //    the way back to the score.
-    await scrollAgentTo(tester, find.byKey(const ValueKey<String>('sync-item-7')));
+    await scrollAgentTo(
+      tester,
+      find.byKey(const ValueKey<String>('sync-item-7')),
+    );
     await tester.tap(find.byKey(const ValueKey<String>('sync-item-7')));
     await tester.pumpAndSettle();
     final seeScore = find.byKey(const ValueKey<String>('outbox-see-score'));
     expect(
       seeScore,
       findsOneWidget,
-      reason: 'a submitted visit has to be re-openable, or the reconciliation '
+      reason:
+          'a submitted visit has to be re-openable, or the reconciliation '
           'line is a component nobody can ever be on the right screen to read',
     );
     await tester.tap(seeScore);

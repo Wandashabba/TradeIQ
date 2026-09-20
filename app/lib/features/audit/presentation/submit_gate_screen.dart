@@ -13,8 +13,7 @@ import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import '../data/visit_progress.dart';
 import '../data/visit_review.dart';
-import 'audit_shell_screen.dart'
-    show VisitFrame, cantConfirmText, sectionLabel;
+import 'audit_shell_screen.dart' show VisitFrame, cantConfirmText, sectionLabel;
 
 /// THE SUBMIT GATE — the last screen before the visit leaves the agent's
 /// hands.
@@ -101,65 +100,61 @@ class SubmitGateScreen extends ConsumerWidget {
     final progress = progressAsync.hasValue ? progressAsync.value : null;
     final progressUnread = progress == null && progressAsync.hasError;
 
-    Widget frame({
-      required String phase,
-      required List<Widget> children,
-    }) => VisitFrame(
-      phase: phase,
-      title: l10n.visitSubmitButton,
-      facts: <String>[_inStore(l10n)],
-      // The gate is not the hub: there is no sync chip here, because the
-      // header already carries the outlet and the offline note carries the
-      // one fact about signal that matters at this moment.
-      showSyncChip: false,
-      claimSubmit: true,
-      claimId: SubmitGateScreen.submitClaimId,
-      submit: TorchPrimaryButton(
-        key: const ValueKey<String>('confirm-submit'),
-        claimId: SubmitGateScreen.submitClaimId,
-        label: l10n.visitSubmitButton,
-        // The label a reader hears is the whole sentence, so nobody is ever
-        // asked to confirm the word "Submit".
-        semanticLabel: l10n.submitPrimarySemantics,
-        onPressed: onConfirm,
-      ),
-      secondary: TorchSecondaryButton(
-        key: const ValueKey<String>('gate-back'),
-        label: l10n.submitGateBack,
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      children: <Widget>[
-        // Offline is not an error and it is not a blocker: submitting is a
-        // local write. A square glyph and a sentence, never crimson.
-        if (offline) ...<Widget>[
-          Row(
-            key: const ValueKey<String>('submit-offline-note'),
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const RowMarkTile(mark: RowMark.square),
-              const SizedBox(width: TiqSpace.s3),
-              Expanded(
-                child: Text(
-                  l10n.submitOfflineNote,
-                  style: context.skin.text.label.style(
-                    color: context.skin.palette.ink2,
-                  ),
-                ),
-              ),
-            ],
+    Widget frame({required String phase, required List<Widget> children}) =>
+        VisitFrame(
+          phase: phase,
+          title: l10n.visitSubmitButton,
+          facts: <String>[_inStore(l10n)],
+          // The gate is not the hub: there is no sync chip here, because the
+          // header already carries the outlet and the offline note carries the
+          // one fact about signal that matters at this moment.
+          showSyncChip: false,
+          claimSubmit: true,
+          claimId: SubmitGateScreen.submitClaimId,
+          submit: TorchPrimaryButton(
+            key: const ValueKey<String>('confirm-submit'),
+            claimId: SubmitGateScreen.submitClaimId,
+            label: l10n.visitSubmitButton,
+            // The label a reader hears is the whole sentence, so nobody is ever
+            // asked to confirm the word "Submit".
+            semanticLabel: l10n.submitPrimarySemantics,
+            onPressed: onConfirm,
           ),
-          const SizedBox(height: TiqSpace.s5),
-        ],
-        ...children,
-      ],
-    );
+          secondary: TorchSecondaryButton(
+            key: const ValueKey<String>('gate-back'),
+            label: l10n.submitGateBack,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          children: <Widget>[
+            // Offline is not an error and it is not a blocker: submitting is a
+            // local write. A square glyph and a sentence, never crimson.
+            if (offline) ...<Widget>[
+              Row(
+                key: const ValueKey<String>('submit-offline-note'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const RowMarkTile(mark: RowMark.square),
+                  const SizedBox(width: TiqSpace.s3),
+                  Expanded(
+                    child: Text(
+                      l10n.submitOfflineNote,
+                      style: context.skin.text.label.style(
+                        color: context.skin.palette.ink2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: TiqSpace.s5),
+            ],
+            ...children,
+          ],
+        );
 
     return TorchlightRoute(
       child: reviewAsync.when(
-        loading: () => frame(
-          phase: 'loading',
-          children: const <Widget>[_GateSkeleton()],
-        ),
+        loading: () =>
+            frame(phase: 'loading', children: const <Widget>[_GateSkeleton()]),
         // The gate still submits and says so. Failing to *read* what the visit
         // will raise is not failing to submit — the captures are in the outbox
         // either way, and a gate that took the primary away here would strand

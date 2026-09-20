@@ -172,7 +172,9 @@ void main() {
     ) async {
       await _pump(
         tester,
-        repo: FakeContestsRepository(contests: const <Contest>[upcomingContest]),
+        repo: FakeContestsRepository(
+          contests: const <Contest>[upcomingContest],
+        ),
         contest: upcomingContest,
         territoriesFailure: StateError('boom'),
       );

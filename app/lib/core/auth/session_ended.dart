@@ -105,22 +105,21 @@ final sessionEndedProvider =
 Future<List<HeldLine>> countHeldWork(LocalDb db, String? owner) async {
   if (owner == null) return const <HeldLine>[];
   try {
-    final rows =
-        await (db.select(db.syncQueueItems)..where(
-              (t) => t.synced.equals(false) & t.userId.equals(owner),
-            ))
-            .get();
+    final rows = await (db.select(
+      db.syncQueueItems,
+    )..where((t) => t.synced.equals(false) & t.userId.equals(owner))).get();
     final counts = <String, int>{};
     for (final row in rows) {
       counts[row.entityType] = (counts[row.entityType] ?? 0) + 1;
     }
-    final lines = <HeldLine>[
-      for (final entry in counts.entries)
-        HeldLine(entityType: entry.key, count: entry.value),
-    ]..sort((a, b) {
-      final byCount = b.count.compareTo(a.count);
-      return byCount != 0 ? byCount : a.entityType.compareTo(b.entityType);
-    });
+    final lines =
+        <HeldLine>[
+          for (final entry in counts.entries)
+            HeldLine(entityType: entry.key, count: entry.value),
+        ]..sort((a, b) {
+          final byCount = b.count.compareTo(a.count);
+          return byCount != 0 ? byCount : a.entityType.compareTo(b.entityType);
+        });
     return lines;
   } catch (_) {
     return const <HeldLine>[];

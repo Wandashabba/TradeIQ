@@ -268,11 +268,13 @@ final templateSectionRepositoryProvider = Provider<TemplateSectionRepository>(
 /// The client template pinned to a visit, or null when the visit has none.
 /// Read from the local database only — never the network — so the hub and the
 /// submit gate work the same with and without signal.
-final visitTemplateProvider =
-    StreamProvider.family<ClientTemplate?, String>((ref, visitDraftId) {
-      final db = ref.read(localDbProvider);
-      return (db.select(db.pinnedVisitTemplates)
-            ..where((t) => t.visitDraftId.equals(visitDraftId)))
-          .watchSingleOrNull()
-          .map(clientTemplateFrom);
-    });
+final visitTemplateProvider = StreamProvider.family<ClientTemplate?, String>((
+  ref,
+  visitDraftId,
+) {
+  final db = ref.read(localDbProvider);
+  return (db.select(db.pinnedVisitTemplates)
+        ..where((t) => t.visitDraftId.equals(visitDraftId)))
+      .watchSingleOrNull()
+      .map(clientTemplateFrom);
+});

@@ -97,7 +97,9 @@ void main() {
       tester,
     ) async {
       await _pump(tester);
-      final running = tester.widget<StatusChip>(_keyed('contest-when-c-active'));
+      final running = tester.widget<StatusChip>(
+        _keyed('contest-when-c-active'),
+      );
       expect(running.level, StatusLevel.live);
       expect(running.label, '3 days left');
 
@@ -154,10 +156,7 @@ void main() {
 
       // Never invented, never a 0, never a blank.
       expect(find.text(emDash), findsWidgets);
-      expect(
-        find.text('You’re not on this contest’s standings'),
-        findsWidgets,
-      );
+      expect(find.text('You’re not on this contest’s standings'), findsWidgets);
       // And no count beside an absence.
       expect(find.text('of 4 agents'), findsNothing);
     });
@@ -302,8 +301,11 @@ void main() {
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(t, skin: skin),
         'empty': (t) => _pump(t, skin: skin, repo: FakeContestsRepository()),
-        'error': (t) =>
-            _pump(t, skin: skin, repo: FakeContestsRepository(failCurrent: true)),
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          repo: FakeContestsRepository(failCurrent: true),
+        ),
       };
       for (final phase in phases.entries) {
         testWidgets('${skin.name}, ${phase.key}: 0', (tester) async {

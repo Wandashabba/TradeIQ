@@ -105,9 +105,7 @@ class _FakeClientsRepository implements ClientsRepository {
   }
 
   @override
-  Future<ClientConfig> updateThresholds(
-    Map<String, double> thresholds,
-  ) async {
+  Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async {
     if (saveFailure != null) throw saveFailure!;
     savedThresholds = thresholds;
     return getConfig();
@@ -225,10 +223,7 @@ void main() {
       await scrollConsoleTo(tester, keyed('threshold-amber'));
       // `amber` is not in the stored map; the engine's own 60 is what is true.
       expect(find.textContaining('60', findRichText: true), findsWidgets);
-      expect(
-        find.text('Not set — the engine uses this default'),
-        findsWidgets,
-      );
+      expect(find.text('Not set — the engine uses this default'), findsWidgets);
     });
 
     testWidgets('the four keys the engine reads, and no fifth', (tester) async {
@@ -586,10 +581,7 @@ void main() {
     testWidgets('a failed load is sanitised and offers one retry', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        repo: _FakeClientsRepository(loadFailure: offline()),
-      );
+      await _pump(tester, repo: _FakeClientsRepository(loadFailure: offline()));
       expect(find.byType(ErrorState), findsOneWidget);
       expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
       expect(keyed('config-retry'), findsOneWidget);

@@ -169,7 +169,7 @@ class _ReportScheduleFormScreenState
         _saving = false;
         _failure =
             '${_editing ? 'The changes were not saved.' : 'The schedule was '
-                  'not created.'} '
+                      'not created.'} '
             '${TorchErrorMessage.sanitise(error).body}';
       });
     }
@@ -191,9 +191,7 @@ class _ReportScheduleFormScreenState
   Widget build(BuildContext context) {
     final skin = context.skin;
     final reports = _editing
-        ? const AsyncValue<List<ReportDefinition>>.data(
-            <ReportDefinition>[],
-          )
+        ? const AsyncValue<List<ReportDefinition>>.data(<ReportDefinition>[])
         : ref.watch(reportsListProvider);
     final blocked = _blocked(reports);
     final armed = blocked == null && !_saving;

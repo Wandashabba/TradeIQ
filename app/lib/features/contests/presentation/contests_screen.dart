@@ -136,7 +136,8 @@ class ContestsScreen extends ConsumerWidget {
             key: ValueKey<String>('contests-empty'),
             scope: EmptyScope.inPanel,
             headline: 'No contests yet.',
-            body: 'Create one to rank agents by the points they earn between '
+            body:
+                'Create one to rank agents by the points they earn between '
                 'two dates, for a prize.',
           )
         else
@@ -285,15 +286,12 @@ class _ContestRow extends ConsumerWidget {
       // The verbs live in the row's action slot, not in `meta`: `meta` is
       // inside the row's excluded label, so a button there paints, hit-tests
       // and is announced nowhere.
-      actions: verbs.isEmpty ? null : Wrap(spacing: TiqSpace.s4, children: verbs),
+      actions: verbs.isEmpty
+          ? null
+          : Wrap(spacing: TiqSpace.s4, children: verbs),
       onTap: () => context.push('/contests/${c.id}'),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel: <String>[
-        statusWord,
-        c.name,
-        when,
-        facts,
-      ].join('. '),
+      semanticsLabel: <String>[statusWord, c.name, when, facts].join('. '),
     );
   }
 }

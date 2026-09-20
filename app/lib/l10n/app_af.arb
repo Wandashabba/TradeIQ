@@ -1170,6 +1170,7 @@
   "outletPhotoUnknownSource": "Bron nie aangeteken nie",
   "outletPhotoPhoneSaid": "Foon het {when} gesê",
   "outletPhotoReceived": "Ontvang {when}",
+  "outletDisputePhotoCount": "{count, plural, =1{1 winkelfront-foto aangeheg} other{{count} winkelfront-fotos aangeheg}}",
   "outletPhotoAlt": "Winkelfront-foto uit hierdie pen-verslag",
   "outletPhotoMissing": "Daardie foto het nie gelaai nie.",
   "outletChangesHeading": "Veranderingsgeskiedenis",

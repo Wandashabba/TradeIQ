@@ -117,13 +117,18 @@ class TorchClaim {
   /// over-claim in its own right and asserts.
   final bool subject;
 
-  const TorchClaim.primaryCommit(String id) : this(TorchClaimKind.primaryCommit, id: id);
-  const TorchClaim.plateStripLight(String id) : this(TorchClaimKind.plateStripLight, id: id);
+  const TorchClaim.primaryCommit(String id)
+    : this(TorchClaimKind.primaryCommit, id: id);
+  const TorchClaim.plateStripLight(String id)
+    : this(TorchClaimKind.plateStripLight, id: id);
   const TorchClaim.chartFocus(String id, {bool subject = false})
     : this(TorchClaimKind.chartFocus, id: id, subject: subject);
-  const TorchClaim.navCircle(String id) : this(TorchClaimKind.navCircle, id: id);
-  const TorchClaim.livePulse(String id) : this(TorchClaimKind.livePulse, id: id);
-  const TorchClaim.textFieldFocus(String id) : this(TorchClaimKind.textFieldFocus, id: id);
+  const TorchClaim.navCircle(String id)
+    : this(TorchClaimKind.navCircle, id: id);
+  const TorchClaim.livePulse(String id)
+    : this(TorchClaimKind.livePulse, id: id);
+  const TorchClaim.textFieldFocus(String id)
+    : this(TorchClaimKind.textFieldFocus, id: id);
 
   @override
   bool operator ==(Object other) =>
@@ -198,7 +203,9 @@ class TorchAllocation {
       ..writeln('TorchScope: $budget grant(s), ${granted.length} taken.')
       ..writeln('  lit:');
     for (final c in granted) {
-      buffer.writeln('    ${c.kind.name}  ${c.id}${c.subject ? '  (subject)' : ''}');
+      buffer.writeln(
+        '    ${c.kind.name}  ${c.id}${c.subject ? '  (subject)' : ''}',
+      );
     }
     if (denied.isNotEmpty) {
       buffer.writeln('  unlit:');
@@ -375,8 +382,12 @@ class TorchScope extends InheritedWidget {
     // A subject never outranks the nav tab: chrome that changed colour per
     // route would read as a bug.
     pending.sort((a, b) {
-      final ra = a.subject && a.kind != TorchClaimKind.navActiveTab ? 1 : _rung(a.kind);
-      final rb = b.subject && b.kind != TorchClaimKind.navActiveTab ? 1 : _rung(b.kind);
+      final ra = a.subject && a.kind != TorchClaimKind.navActiveTab
+          ? 1
+          : _rung(a.kind);
+      final rb = b.subject && b.kind != TorchClaimKind.navActiveTab
+          ? 1
+          : _rung(b.kind);
       if (ra != rb) return ra.compareTo(rb);
       return a.id.compareTo(b.id);
     });

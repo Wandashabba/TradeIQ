@@ -24,52 +24,52 @@ class LocalDb extends _$LocalDb {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(visitDrafts, visitDrafts.remoteId);
-          }
-          if (from < 4) {
-            // Pre-merge lineages carried StockDrafts with different column
-            // sets (visitId vs visitDraftId) — recreate it in the merged
-            // shape; draft rows are re-capturable, so the drop is safe.
-            await customStatement('DROP TABLE IF EXISTS stock_drafts');
-            await m.createTable(stockDrafts);
-          }
-          if (from < 5) {
-            // Additive — an agent mid-visit keeps every queued capture.
-            await m.addColumn(syncQueueItems, syncQueueItems.attempts);
-            await m.addColumn(syncQueueItems, syncQueueItems.lastError);
-            await m.addColumn(syncQueueItems, syncQueueItems.lastAttemptAt);
-          }
-          if (from < 7) {
-            // Additive, and deliberately left NULL for existing rows. Their
-            // owner is unrecoverable, and backfilling them to whoever happens
-            // to migrate the database would recreate the exact bug this column
-            // exists to prevent. Unowned rows are never flushed.
-            await m.addColumn(syncQueueItems, syncQueueItems.userId);
-          }
-          if (from < 8) {
-            // Additive: the client's audit template pinned per visit (#122).
-            // A visit already in progress has no pin and simply shows no
-            // client-questions section.
-            await m.createTable(pinnedVisitTemplates);
-          }
-          if (from < 9) {
-            // Additive, and left NULL for existing rows on purpose (#382). A
-            // row queued before this column has never had its payload measured,
-            // and backfilling it from `length(payload_json)` would record the
-            // ENCODED length — the one number this column exists not to be.
-            await m.addColumn(syncQueueItems, syncQueueItems.payloadBytes);
-            // Widening, not dropping: `units_available` becomes nullable so an
-            // uncounted SKU can be submitted as null instead of being coerced
-            // to 0 and reported as an empty shelf (#389). alterTable recreates
-            // the table and carries every in-progress count across — an agent
-            // mid-visit must not lose a morning's work to an app update.
-            await m.alterTable(TableMigration(stockDrafts));
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(visitDrafts, visitDrafts.remoteId);
+      }
+      if (from < 4) {
+        // Pre-merge lineages carried StockDrafts with different column
+        // sets (visitId vs visitDraftId) — recreate it in the merged
+        // shape; draft rows are re-capturable, so the drop is safe.
+        await customStatement('DROP TABLE IF EXISTS stock_drafts');
+        await m.createTable(stockDrafts);
+      }
+      if (from < 5) {
+        // Additive — an agent mid-visit keeps every queued capture.
+        await m.addColumn(syncQueueItems, syncQueueItems.attempts);
+        await m.addColumn(syncQueueItems, syncQueueItems.lastError);
+        await m.addColumn(syncQueueItems, syncQueueItems.lastAttemptAt);
+      }
+      if (from < 7) {
+        // Additive, and deliberately left NULL for existing rows. Their
+        // owner is unrecoverable, and backfilling them to whoever happens
+        // to migrate the database would recreate the exact bug this column
+        // exists to prevent. Unowned rows are never flushed.
+        await m.addColumn(syncQueueItems, syncQueueItems.userId);
+      }
+      if (from < 8) {
+        // Additive: the client's audit template pinned per visit (#122).
+        // A visit already in progress has no pin and simply shows no
+        // client-questions section.
+        await m.createTable(pinnedVisitTemplates);
+      }
+      if (from < 9) {
+        // Additive, and left NULL for existing rows on purpose (#382). A
+        // row queued before this column has never had its payload measured,
+        // and backfilling it from `length(payload_json)` would record the
+        // ENCODED length — the one number this column exists not to be.
+        await m.addColumn(syncQueueItems, syncQueueItems.payloadBytes);
+        // Widening, not dropping: `units_available` becomes nullable so an
+        // uncounted SKU can be submitted as null instead of being coerced
+        // to 0 and reported as an empty shelf (#389). alterTable recreates
+        // the table and carries every in-progress count across — an agent
+        // mid-visit must not lose a morning's work to an app update.
+        await m.alterTable(TableMigration(stockDrafts));
+      }
+    },
+  );
 
   static QueryExecutor _openConnection() => openDbConnection();
 }
@@ -124,7 +124,9 @@ int decodedPayloadBytes(String payloadJson) {
 /// Bytes a base64 string decodes to, from its length and padding alone.
 int _decodedBase64Length(String encoded) {
   var padding = 0;
-  while (padding < 2 && padding < encoded.length && encoded[encoded.length - 1 - padding] == '=') {
+  while (padding < 2 &&
+      padding < encoded.length &&
+      encoded[encoded.length - 1 - padding] == '=') {
     padding += 1;
   }
   // Well-formed base64 is a multiple of 4. Anything else is not ours to repair,

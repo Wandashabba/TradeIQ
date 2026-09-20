@@ -213,27 +213,27 @@ class ArtifactFilters extends ConsumerWidget {
                 sweep: false,
               )
             else
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                key: const ValueKey('artifact-export-pdf'),
-                // Disabled mid-refine on purpose: exporting what is on screen
-                // while the figures underneath are being replaced would produce
-                // a report of neither state.
-                onPressed: exporting || busy ? null : onExport,
-                icon: exporting
-                    ? const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      )
-                    : const Icon(Icons.picture_as_pdf_outlined, size: 15),
-                label: Text(
-                  exporting ? 'Preparing…' : 'Export PDF',
-                  style: const TextStyle(fontSize: 12.5),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('artifact-export-pdf'),
+                  // Disabled mid-refine on purpose: exporting what is on screen
+                  // while the figures underneath are being replaced would produce
+                  // a report of neither state.
+                  onPressed: exporting || busy ? null : onExport,
+                  icon: exporting
+                      ? const SizedBox(
+                          width: 13,
+                          height: 13,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined, size: 15),
+                  label: Text(
+                    exporting ? 'Preparing…' : 'Export PDF',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 6),
             Text(
               'The chart as an image, every figure as text you can select.',
@@ -312,7 +312,9 @@ class _PeriodControl extends StatelessWidget {
                       : context.lumen.ink,
                   backgroundColor: context.lumen.pillFill,
                   side: BorderSide(
-                    color: custom ? context.lumen.accent : context.lumen.pillRim,
+                    color: custom
+                        ? context.lumen.accent
+                        : context.lumen.pillRim,
                   ),
                 )
               : OutlinedButton.styleFrom(
@@ -396,30 +398,30 @@ class _ChoiceRow extends StatelessWidget {
               child: colors.glass
                   ? _glassPill(context, label, value == selected)
                   : Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: value == selected
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border.all(
-                    color: value == selected ? colors.brand : colors.line,
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: value == selected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: value == selected ? colors.ink1 : colors.ink2,
-                  ),
-                ),
-              ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: value == selected
+                            ? colors.surface3
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: value == selected ? colors.brand : colors.line,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: value == selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: value == selected ? colors.ink1 : colors.ink2,
+                        ),
+                      ),
+                    ),
             ),
           ),
       ],

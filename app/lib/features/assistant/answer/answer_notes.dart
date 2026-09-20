@@ -161,10 +161,7 @@ class UnsupportedArtifactNote extends StatelessWidget {
                     style: skin.text.body.style(color: p.ink2),
                   ),
                   const SizedBox(height: TiqSpace.s1),
-                  Text(
-                    type,
-                    style: skin.text.monoIdent.style(color: p.ink3),
-                  ),
+                  Text(type, style: skin.text.monoIdent.style(color: p.ink3)),
                 ],
               ),
             ),

@@ -444,7 +444,10 @@ void main() {
       expect(value.style?.fontFamily, LumenGlass.mono);
       // Every word on the chip, composited, measured against the chip.
       for (final text in ['78.4', '13 JUL', 'Execution score', '1.2']) {
-        final ratio = contrastRatio(Color.alphaBlend(ink(text), ground), ground);
+        final ratio = contrastRatio(
+          Color.alphaBlend(ink(text), ground),
+          ground,
+        );
         expect(ratio, greaterThanOrEqualTo(4.5), reason: '"$text" $ratio:1');
       }
       // The delta keeps its arrow — direction is never colour alone.
@@ -460,8 +463,7 @@ void main() {
           (w) =>
               w is Container &&
               w.decoration is BoxDecoration &&
-              (w.decoration! as BoxDecoration).color ==
-                  const Color(0xFF05060A),
+              (w.decoration! as BoxDecoration).color == const Color(0xFF05060A),
         ),
         findsOneWidget,
       );

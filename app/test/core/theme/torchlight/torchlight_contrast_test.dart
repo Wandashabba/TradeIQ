@@ -78,16 +78,13 @@ void main() {
 
     test('every banned pairing is listed, and there are five of them', () {
       // Pinned so that deleting a ban is a visible edit, not an omission.
-      expect(
-        TorchlightContrast.banned.map((b) => b.label).toList(),
-        <String>[
-          'flame-600 and ink-2 (Oatmeal) as adjacent bar fills',
-          'flame-900 ink on a pressed flame-500 block',
-          'flame-600 as text on the Palladian ground',
-          'edge-structure on the Day well',
-          'flame-600 as a line, icon, border or word on white',
-        ],
-      );
+      expect(TorchlightContrast.banned.map((b) => b.label).toList(), <String>[
+        'flame-600 and ink-2 (Oatmeal) as adjacent bar fills',
+        'flame-900 ink on a pressed flame-500 block',
+        'flame-600 as text on the Palladian ground',
+        'edge-structure on the Day well',
+        'flame-600 as a line, icon, border or word on white',
+      ]);
     });
 
     test('no skin puts a banned pairing in its own defaults', () {
@@ -279,8 +276,7 @@ void main() {
         expect(
           contrastRatio(p.edgeControl, p.ground),
           greaterThan(contrastRatio(p.edgeStructure, p.ground)),
-          reason:
-              '${skin.mode.name}: controls outrank containers, on purpose.',
+          reason: '${skin.mode.name}: controls outrank containers, on purpose.',
         );
       }
     });
@@ -408,10 +404,8 @@ void main() {
   group('data separation survives the channels hue does not', () {
     // Greyscale, deuteranopia and protanopia, because the audit's own focus
     // mechanism was a no-op in all three and nobody noticed for months.
-    double luminanceSeparation(Color a, Color b) => contrastRatio(
-      _greyscale(a),
-      _greyscale(b),
-    );
+    double luminanceSeparation(Color a, Color b) =>
+        contrastRatio(_greyscale(a), _greyscale(b));
 
     test('the focus bar separates from the neutral bar in greyscale', () {
       final p = TiqSkin.night().palette;
@@ -469,9 +463,7 @@ Color _greyscale(Color c) {
   final l = relativeLuminance(c);
   // Invert the sRGB transfer so the grey has the same *luminance*, not the
   // same average byte value.
-  final channel = l <= 0.0031308
-      ? l * 12.92
-      : 1.055 * _pow(l, 1 / 2.4) - 0.055;
+  final channel = l <= 0.0031308 ? l * 12.92 : 1.055 * _pow(l, 1 / 2.4) - 0.055;
   return Color.from(alpha: 1, red: channel, green: channel, blue: channel);
 }
 

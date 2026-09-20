@@ -164,17 +164,15 @@ class ContestStandingsScreen extends ConsumerWidget {
         _Fact('Counts', contestCountsSummary(c)),
 
         const SizedBox(height: TiqSpace.s7),
-        SectionRule(
-          'Ranked',
-          count: rows.isEmpty ? null : s.participantCount,
-        ),
+        SectionRule('Ranked', count: rows.isEmpty ? null : s.participantCount),
         const SizedBox(height: TiqSpace.s5),
         if (rows.isEmpty)
           const EmptyState(
             key: ValueKey<String>('standings-empty'),
             scope: EmptyScope.inPanel,
             headline: 'Nobody on the board.',
-            body: 'Active field agents in scope appear here, even before they '
+            body:
+                'Active field agents in scope appear here, even before they '
                 'earn points.',
           )
         else ...<Widget>[
@@ -242,11 +240,7 @@ class _Fact extends StatelessWidget {
 
 /// One agent's standing. A row names a person, never a database id.
 class _StandingRow extends StatelessWidget {
-  const _StandingRow({
-    super.key,
-    required this.standing,
-    required this.last,
-  });
+  const _StandingRow({super.key, required this.standing, required this.last});
 
   final ContestStanding standing;
   final bool last;

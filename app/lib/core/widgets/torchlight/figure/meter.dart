@@ -176,16 +176,14 @@ class MeterPainter extends CustomPainter {
     final radius = Radius.circular(skin.radii.chip == 0 ? 0 : trackHeight / 2);
     final rounded = RRect.fromRectAndRadius(track, radius);
 
-    canvas.drawRRect(
-      rounded,
-      Paint()..color = _trackFill(p),
-    );
+    canvas.drawRRect(rounded, Paint()..color = _trackFill(p));
 
     // A filled track needs no edge. An empty one is 1.3:1 from the panel
     // behind it and is simply invisible — and in Veld a white track on a white
     // ground is invisible in every state, which is why the border width is the
     // second half of this condition rather than a mode check.
-    final outlined = skin.depth.borderWidth >= 2 ||
+    final outlined =
+        skin.depth.borderWidth >= 2 ||
         state != MeterState.filled ||
         fraction == null ||
         fraction == 0;

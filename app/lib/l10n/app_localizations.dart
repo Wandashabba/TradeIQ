@@ -7124,6 +7124,12 @@ abstract class AppLocalizations {
   /// **'Received {when}'**
   String outletPhotoReceived(String when);
 
+  /// Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}'**
+  String outletDisputePhotoCount(int count);
+
   /// Semantic label of a pin-report photograph.
   ///
   /// In en, this message translates to:

@@ -73,59 +73,79 @@ void main() {
         ),
       );
 
-  test('posts the answers to /template-responses against the server visit', () async {
-    await syncedVisit();
+  test(
+    'posts the answers to /template-responses against the server visit',
+    () async {
+      await syncedVisit();
 
-    await flusher.flush(
-      _item({
-        'visitDraftId': 'v1',
+      await flusher.flush(
+        _item({
+          'visitDraftId': 'v1',
+          'templateId': 'tpl-1',
+          'templateVersion': 3,
+          'answers': {'standUp': true, 'facings': 4},
+        }),
+      );
+
+      expect(requests, hasLength(1));
+      expect(requests.single.method, 'POST');
+      expect(requests.single.path, '/template-responses');
+      expect(requests.single.data, {
+        'visitId': 'remote-v1',
         'templateId': 'tpl-1',
         'templateVersion': 3,
         'answers': {'standUp': true, 'facings': 4},
-      }),
-    );
-
-    expect(requests, hasLength(1));
-    expect(requests.single.method, 'POST');
-    expect(requests.single.path, '/template-responses');
-    expect(requests.single.data, {
-      'visitId': 'remote-v1',
-      'templateId': 'tpl-1',
-      'templateVersion': 3,
-      'answers': {'standUp': true, 'facings': 4},
-    });
-    // The local draft id never leaks to the server.
-    expect((requests.single.data as Map).containsKey('visitDraftId'), isFalse);
-  });
+      });
+      // The local draft id never leaks to the server.
+      expect(
+        (requests.single.data as Map).containsKey('visitDraftId'),
+        isFalse,
+      );
+    },
+  );
 
   test('omits templateVersion when the item has none', () async {
     await syncedVisit();
     await flusher.flush(
-      _item({'visitDraftId': 'v1', 'templateId': 'tpl-1', 'answers': <String, Object?>{}}),
+      _item({
+        'visitDraftId': 'v1',
+        'templateId': 'tpl-1',
+        'answers': <String, Object?>{},
+      }),
     );
-    expect((requests.single.data as Map).containsKey('templateVersion'), isFalse);
+    expect(
+      (requests.single.data as Map).containsKey('templateVersion'),
+      isFalse,
+    );
   });
 
-  test('waits for its visit to sync, so an offline answer is not lost', () async {
-    await db
-        .into(db.visitDrafts)
-        .insert(
-          VisitDraftsCompanion.insert(
-            id: 'v1',
-            outletId: 'o1',
-            checkinTs: DateTime(2026, 1, 1),
-            checkinLat: 0,
-            checkinLng: 0,
-            geofencePass: true,
-          ),
-        );
+  test(
+    'waits for its visit to sync, so an offline answer is not lost',
+    () async {
+      await db
+          .into(db.visitDrafts)
+          .insert(
+            VisitDraftsCompanion.insert(
+              id: 'v1',
+              outletId: 'o1',
+              checkinTs: DateTime(2026, 1, 1),
+              checkinLat: 0,
+              checkinLng: 0,
+              geofencePass: true,
+            ),
+          );
 
-    await expectLater(
-      flusher.flush(
-        _item({'visitDraftId': 'v1', 'templateId': 'tpl-1', 'answers': <String, Object?>{}}),
-      ),
-      throwsA(isA<StateError>()),
-    );
-    expect(requests, isEmpty);
-  });
+      await expectLater(
+        flusher.flush(
+          _item({
+            'visitDraftId': 'v1',
+            'templateId': 'tpl-1',
+            'answers': <String, Object?>{},
+          }),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(requests, isEmpty);
+    },
+  );
 }

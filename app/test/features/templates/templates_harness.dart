@@ -82,10 +82,7 @@ class FakeTemplatesRepository implements TemplatesRepository {
   @override
   Future<PaginatedResponse<AuditTemplate>> listTemplates() async {
     if (listFailure != null) throw listFailure!;
-    return PaginatedResponse<AuditTemplate>(
-      data: templates,
-      nextCursor: null,
-    );
+    return PaginatedResponse<AuditTemplate>(data: templates, nextCursor: null);
   }
 
   @override
@@ -103,7 +100,10 @@ class FakeTemplatesRepository implements TemplatesRepository {
   AuditTemplateDetail? _selected() {
     for (final t in templates) {
       if (t.id == selectedId) {
-        return AuditTemplateDetail(template: t, schema: const <String, dynamic>{});
+        return AuditTemplateDetail(
+          template: t,
+          schema: const <String, dynamic>{},
+        );
       }
     }
     return null;

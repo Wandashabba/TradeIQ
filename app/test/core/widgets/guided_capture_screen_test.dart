@@ -141,7 +141,10 @@ void main() {
 
       expect(find.text('Shelf photo'), findsOneWidget);
       expect(find.text(_Host.hint), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('framing-card')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('framing-card')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey<String>('framing-brackets')),
         findsOneWidget,
@@ -154,10 +157,7 @@ void main() {
         find.descendant(of: torch, matching: find.byType(RowMarkTile)),
         findsOneWidget,
       );
-      expect(
-        find.textContaining('Switch your phone torch on'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Switch your phone torch on'), findsOneWidget);
       // The geotag is stated up front, not discovered afterwards.
       expect(
         find.text('Your photo is stamped with the time and where you are.'),
@@ -178,9 +178,7 @@ void main() {
       expect(find.byType(TorchNavPill), findsNothing);
     });
 
-    testWidgets('the primary names what it does, for a reader', (
-      tester,
-    ) async {
+    testWidgets('the primary names what it does, for a reader', (tester) async {
       final handle = tester.ensureSemantics();
       await _pump(tester, gateway: _Gateway());
       await _open(tester);
@@ -227,7 +225,10 @@ void main() {
       // one for that section; the button is gone so nobody spends the work
       // first and is told afterwards.
       expect(
-        find.byKey(const ValueKey<String>('guided-gallery'), skipOffstage: false),
+        find.byKey(
+          const ValueKey<String>('guided-gallery'),
+          skipOffstage: false,
+        ),
         findsNothing,
       );
       // The camera is still there — this narrows one capture, it does not
@@ -259,11 +260,7 @@ void main() {
       tester,
     ) async {
       var popped = false;
-      await _pump(
-        tester,
-        gateway: _Gateway(),
-        onResult: (_) => popped = true,
-      );
+      await _pump(tester, gateway: _Gateway(), onResult: (_) => popped = true);
       await _open(tester);
       await _capture(tester);
 
@@ -281,7 +278,10 @@ void main() {
 
       // An agent who thinks the button is broken will stop filing evidence.
       expect(find.byType(GuidedCaptureScreen), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('guided-error')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('guided-error')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('there is no in-app viewfinder, and the screen does not '
@@ -308,7 +308,10 @@ void main() {
       await _capture(tester);
 
       expect(find.text('Check the photo'), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('photo-preview')),
+        findsOneWidget,
+      );
       expect(popped, isFalse, reason: 'the review step owns the pop');
     });
 
@@ -327,8 +330,14 @@ void main() {
       expect(find.text('Dark — retake?'), findsOneWidget);
       // Never auto-rejected: during Stage 6 it may be the only obtainable
       // evidence, so the frame is still there and "Use it" still works.
-      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('guided-use-it')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('photo-preview')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('guided-use-it')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a lit frame is not accused of being dark', (tester) async {
@@ -397,7 +406,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(gateway.calls, 2);
-      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('photo-preview')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the meta line states the geotag, present or absent', (
@@ -413,10 +425,7 @@ void main() {
 
       // An absent geotag is stated, not hidden: the geotag is what places a
       // stock count for the fraud module.
-      expect(
-        find.textContaining('no location on this photo'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('no location on this photo'), findsOneWidget);
     });
   });
 

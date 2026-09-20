@@ -67,12 +67,13 @@ class _HistoryPanel extends StatelessWidget {
       subtitle: entries.isEmpty
           ? null
           : 'Latest ${entries.length} '
-              '${entries.length == 1 ? 'entry' : 'entries'}, newest first',
+                '${entries.length == 1 ? 'entry' : 'entries'}, newest first',
       padded: false,
       child: entries.isEmpty
           ? const EmptyState(
               message: 'No points yet',
-              hint: 'Entries appear as this agent submits visits, closes '
+              hint:
+                  'Entries appear as this agent submits visits, closes '
                   'tasks and is scored.',
             )
           : Column(

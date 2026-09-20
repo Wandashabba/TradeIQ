@@ -97,12 +97,7 @@ Color simulateVision(Color c, VisionFilter filter) {
       return c;
     case VisionFilter.greyscale:
       final channel = _encode(relativeLuminance(c));
-      return Color.from(
-        alpha: 1,
-        red: channel,
-        green: channel,
-        blue: channel,
-      );
+      return Color.from(alpha: 1, red: channel, green: channel, blue: channel);
     case VisionFilter.deuteranopia:
     case VisionFilter.protanopia:
       final m = filter == VisionFilter.deuteranopia
@@ -182,14 +177,12 @@ class SeriesPair {
   double under(VisionFilter filter) => separationUnder(a, b, filter);
 
   /// The worst the pair ever gets, across every way of seeing it.
-  double get worst => VisionFilter.values
-      .map(under)
-      .reduce((x, y) => x < y ? x : y);
+  double get worst =>
+      VisionFilter.values.map(under).reduce((x, y) => x < y ? x : y);
 
   /// Which filter produces [worst].
-  VisionFilter get worstFilter => VisionFilter.values.reduce(
-    (x, y) => under(x) <= under(y) ? x : y,
-  );
+  VisionFilter get worstFilter =>
+      VisionFilter.values.reduce((x, y) => under(x) <= under(y) ? x : y);
 }
 
 /// What a pairing has to clear.

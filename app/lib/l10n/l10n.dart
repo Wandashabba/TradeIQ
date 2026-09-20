@@ -90,4 +90,3 @@ String formatDayShort(BuildContext context, DateTime date) {
     return DateFormat('EEE d MMM', 'en_US').format(date);
   }
 }
-

@@ -44,12 +44,7 @@ void main() {
   }) async {
     expect(phaseOf(tester), phase);
     final census = await amberCensus(tester);
-    expectWithinAmberBudget(
-      census,
-      skin,
-      route: 'ask',
-      phase: phase.name,
-    );
+    expectWithinAmberBudget(census, skin, route: 'ask', phase: phase.name);
     expect(
       census.objectCount,
       skin.amberIsInk ? light : night,
@@ -272,9 +267,7 @@ void main() {
           tester,
           skin: skin,
           size: const Size(360, 1400),
-          repository: ScriptedRepository(
-            rankedTurn(text: 'Short.'),
-          ),
+          repository: ScriptedRepository(rankedTurn(text: 'Short.')),
         );
         await ask(tester, 'Which outlets ran out?');
         await ask(tester, 'And the week before?');

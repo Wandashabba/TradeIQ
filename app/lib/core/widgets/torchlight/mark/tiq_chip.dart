@@ -75,12 +75,18 @@ class TiqChip extends StatelessWidget {
   /// The chip label role, derived from `label` so it is a token and not a
   /// seventeenth text style: 11/700 Console, 13/600 Field, 16/600 Veld.
   static TiqTypeToken labelRole(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console =>
-      skin.text.label.copyWith(size: 11, weight: FontWeight.w700),
-    TiqDensity.field =>
-      skin.text.label.copyWith(size: 13, weight: FontWeight.w600),
-    TiqDensity.veld =>
-      skin.text.label.copyWith(size: 16, weight: FontWeight.w600),
+    TiqDensity.console => skin.text.label.copyWith(
+      size: 11,
+      weight: FontWeight.w700,
+    ),
+    TiqDensity.field => skin.text.label.copyWith(
+      size: 13,
+      weight: FontWeight.w600,
+    ),
+    TiqDensity.veld => skin.text.label.copyWith(
+      size: 16,
+      weight: FontWeight.w600,
+    ),
   };
 
   @override

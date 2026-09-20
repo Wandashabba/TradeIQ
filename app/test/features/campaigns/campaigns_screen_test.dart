@@ -61,7 +61,10 @@ void main() {
       final chips = tester
           .widgetList<StatusChip>(find.byType(StatusChip))
           .toList();
-      expect(chips.map((c) => c.label), containsAll(<String>['Active', 'Draft']));
+      expect(
+        chips.map((c) => c.label),
+        containsAll(<String>['Active', 'Draft']),
+      );
       // Neither is a severity: running normally is not a verdict.
       expect(
         chips.every((c) => c.level == StatusLevel.held),
@@ -206,8 +209,10 @@ void main() {
         roiOf(spend: null, roiPct: null, unmeasurable: 'no_budget'),
       );
       expect(keyed('roi-unmeasurable'), findsOneWidget);
-      expect(find.text("No budget set — return can't be measured."),
-          findsOneWidget);
+      expect(
+        find.text("No budget set — return can't be measured."),
+        findsOneWidget,
+      );
       // Never 0%, never ∞, and never a grey "Unknown" chip — a chip is a
       // claim that the system looked and decided.
       expect(keyed('roi-headline'), findsNothing);
@@ -221,8 +226,10 @@ void main() {
         tester,
         roiOf(spend: 0, roiPct: null, unmeasurable: 'zero_budget'),
       );
-      expect(find.text("Budget is zero — return can't be measured."),
-          findsOneWidget);
+      expect(
+        find.text("Budget is zero — return can't be measured."),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the sell-in caveat is always on screen', (tester) async {
@@ -260,7 +267,10 @@ void main() {
     });
 
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
-      await _pump(tester, repo: FakeCampaignsRepository(listFailure: offline()));
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listFailure: offline()),
+      );
       expect(find.byType(ErrorState), findsOneWidget);
       expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
       expect(keyed('campaigns-retry'), findsOneWidget);

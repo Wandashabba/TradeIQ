@@ -20,7 +20,8 @@ class IncentiveScheme {
   final int rewardPoints;
   final bool active;
 
-  factory IncentiveScheme.fromJson(Map<String, dynamic> json) => IncentiveScheme(
+  factory IncentiveScheme.fromJson(Map<String, dynamic> json) =>
+      IncentiveScheme(
         id: json['id'] as String,
         name: json['name'] as String,
         metric: json['metric'] as String,
@@ -48,7 +49,8 @@ class EarnedIncentive {
   /// The name when there is one, otherwise the email.
   String get label => personLabel(displayName, email);
 
-  factory EarnedIncentive.fromJson(Map<String, dynamic> json) => EarnedIncentive(
+  factory EarnedIncentive.fromJson(Map<String, dynamic> json) =>
+      EarnedIncentive(
         schemeName: json['schemeName'] as String,
         email: json['email'] as String,
         rewardPoints: (json['rewardPoints'] as num).toInt(),
@@ -88,12 +90,15 @@ class DioIncentivesRepository implements IncentivesRepository {
     required double threshold,
     required int rewardPoints,
   }) async {
-    final response = await dio.post('/incentives', data: {
-      'name': name,
-      'metric': metric,
-      'threshold': threshold,
-      'rewardPoints': rewardPoints,
-    });
+    final response = await dio.post(
+      '/incentives',
+      data: {
+        'name': name,
+        'metric': metric,
+        'threshold': threshold,
+        'rewardPoints': rewardPoints,
+      },
+    );
     return IncentiveScheme.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -104,8 +109,10 @@ class DioIncentivesRepository implements IncentivesRepository {
 
   @override
   Future<IncentiveScheme> setActive(String id, bool active) async {
-    final response =
-        await dio.patch('/incentives/$id', data: {'active': active});
+    final response = await dio.patch(
+      '/incentives/$id',
+      data: {'active': active},
+    );
     return IncentiveScheme.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -118,15 +125,18 @@ class DioIncentivesRepository implements IncentivesRepository {
   }
 }
 
-final incentivesRepositoryProvider =
-    Provider<IncentivesRepository>((ref) => DioIncentivesRepository());
+final incentivesRepositoryProvider = Provider<IncentivesRepository>(
+  (ref) => DioIncentivesRepository(),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the incentives screen
 // wants the current schemes, not the whole history, and "load more" UI is
 // deliberately out of scope for the pagination sweep (see the spec).
 // `nextCursor` is available on the repository for any screen that later needs
 // to page; this provider intentionally drops it.
-final incentivesListProvider = FutureProvider<List<IncentiveScheme>>((ref) async {
+final incentivesListProvider = FutureProvider<List<IncentiveScheme>>((
+  ref,
+) async {
   final page = await ref.read(incentivesRepositoryProvider).listSchemes();
   return page.data;
 });

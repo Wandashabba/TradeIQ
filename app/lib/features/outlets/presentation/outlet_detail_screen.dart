@@ -481,6 +481,14 @@ class _DisputeBanner extends StatelessWidget {
         l10n.outletDetailDisputesBody,
         style: skin.text.meta.style(color: skin.palette.ink2),
       ),
+      // `meta` is inside the row's label, and the row's label is what the
+      // reader hears — so the sentence explaining what saving does about a
+      // reported pin has to be in it by name, not merely painted beneath it.
+      semanticsLabel: <String>[
+        l10n.outletsPinReported,
+        l10n.outletDetailDisputesHeadline(count),
+        l10n.outletDetailDisputesBody,
+      ].join('. '),
     );
   }
 }
@@ -689,6 +697,39 @@ class _DisputeBlock extends StatelessWidget {
     final body = skin.text.body.style(color: skin.palette.ink2);
     final adoptable = attempt;
 
+    // THE EVIDENCE, AS SENTENCES, BUILT ONCE.
+    //
+    // Everything below lives in `meta`, and `meta` is inside the row's
+    // excluded label whenever the row carries verbs — so the position, the
+    // distance, the fix quality, the sole-visitor caution, the agent's own
+    // note and the status were all painted and announced nowhere. A blind
+    // manager working this queue heard a name, a timestamp and two buttons,
+    // one of which is dead for a reason that was only in the excluded words.
+    // `_AttemptRow` three hundred lines up already does it this way.
+    final stood = l10n.outletDisputeStood(
+      formatPosition(context, dispute.lat, dispute.lng),
+      formatDistance(context, dispute.distanceM),
+      formatPosition(context, dispute.outletLat, dispute.outletLng),
+    );
+    final quality = fixQuality(
+      l10n,
+      context,
+      dispute.accuracyM,
+      dispute.isMocked,
+    );
+    final note = dispute.note;
+    final status = dispute.isOpen
+        ? (answering == dispute.id
+              ? l10n.outletDisputeAnswering
+              : l10n.outletDisputeOpen)
+        : dispute.status == 'applied'
+        ? l10n.outletDisputeApplied(
+            dispute.resolvedByLabel ?? l10n.outletDisputeResolvedByManager,
+          )
+        : l10n.outletDisputeRejected(
+            dispute.resolvedByLabel ?? l10n.outletDisputeResolvedByManager,
+          );
+
     final verbs = <Widget>[
       if (dispute.isOpen)
         TorchTertiaryButton(
@@ -728,18 +769,11 @@ class _DisputeBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text(
-            l10n.outletDisputeStood(
-              formatPosition(context, dispute.lat, dispute.lng),
-              formatDistance(context, dispute.distanceM),
-              formatPosition(context, dispute.outletLat, dispute.outletLng),
-            ),
-            style: body,
-          ),
+          Text(stood, style: body),
           const SizedBox(height: TiqSpace.s2),
           Text(
             key: ValueKey<String>('dispute-fix-${dispute.id}'),
-            fixQuality(l10n, context, dispute.accuracyM, dispute.isMocked),
+            quality,
             style: meta,
           ),
           if (dispute.agentIsOnlyVisitor) ...<Widget>[
@@ -752,9 +786,9 @@ class _DisputeBlock extends StatelessWidget {
               style: meta,
             ),
           ],
-          if (dispute.note != null && dispute.note!.isNotEmpty) ...<Widget>[
+          if (note != null && note.isNotEmpty) ...<Widget>[
             const SizedBox(height: TiqSpace.s2),
-            Text('“${dispute.note}”', style: body),
+            Text('“$note”', style: body),
           ],
           if (dispute.photos.isNotEmpty) ...<Widget>[
             const SizedBox(height: TiqSpace.s4),
@@ -764,27 +798,28 @@ class _DisputeBlock extends StatelessWidget {
             for (final photo in dispute.photos) _DisputePhoto(photo: photo),
           ],
           const SizedBox(height: TiqSpace.s3),
-          Text(
-            dispute.isOpen
-                ? (answering == dispute.id
-                      ? l10n.outletDisputeAnswering
-                      : l10n.outletDisputeOpen)
-                : dispute.status == 'applied'
-                ? l10n.outletDisputeApplied(
-                    dispute.resolvedByLabel ??
-                        l10n.outletDisputeResolvedByManager,
-                  )
-                : l10n.outletDisputeRejected(
-                    dispute.resolvedByLabel ??
-                        l10n.outletDisputeResolvedByManager,
-                  ),
-            style: meta,
-          ),
+          Text(status, style: meta),
         ],
       ),
       actions: verbs.isEmpty
           ? null
           : Wrap(spacing: TiqSpace.s4, children: verbs),
+      // The same words, in the order they are read on the page. Without this
+      // the row's label is the agent's name and the time of day, and the
+      // evidence the screen exists to present is silent.
+      semanticsLabel: <String?>[
+        dispute.isOpen ? l10n.outletDisputeOpen : null,
+        dispute.agentLabel,
+        '${formatDayShort(context, dispute.createdAt.toLocal())} · '
+            '${formatClock(context, dispute.createdAt.toLocal())}',
+        stood,
+        quality,
+        if (dispute.agentIsOnlyVisitor) l10n.outletDisputeSoleVisitor,
+        if (note != null && note.isNotEmpty) note,
+        if (dispute.photos.isNotEmpty)
+          l10n.outletDisputePhotoCount(dispute.photos.length),
+        status,
+      ].whereType<String>().where((s) => s.isNotEmpty).join('. '),
     );
   }
 }

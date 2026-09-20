@@ -81,9 +81,9 @@ class SessionController extends AsyncNotifier<SessionState> {
         // Best-effort persist: a storage failure must not fail an otherwise
         // successful login.
         try {
-          await ref.read(tokenStoreProvider).save(
-                StoredSession(token: result.token, role: result.role),
-              );
+          await ref
+              .read(tokenStoreProvider)
+              .save(StoredSession(token: result.token, role: result.role));
         } catch (_) {
           // ignore — the in-memory session is still valid for this run
         }
@@ -155,15 +155,16 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (userId == null) return;
     try {
       final db = ref.read(localDbProvider);
-      await (db.delete(db.syncQueueItems)
-            ..where((t) => t.synced.equals(true) & t.userId.equals(userId)))
-          .go();
+      await (db.delete(
+        db.syncQueueItems,
+      )..where((t) => t.synced.equals(true) & t.userId.equals(userId))).go();
     } catch (_) {
       // ignore — these rows are already on the server; they are litter, not data
     }
   }
 }
 
-final sessionControllerProvider = AsyncNotifierProvider<SessionController, SessionState>(
-  SessionController.new,
-);
+final sessionControllerProvider =
+    AsyncNotifierProvider<SessionController, SessionState>(
+      SessionController.new,
+    );

@@ -43,22 +43,22 @@ class IncentivesScreen extends ConsumerWidget {
             builder: (list) {
               final live = list.where((s) => s.active).length;
               return PanelCard(
-                title: '${list.length} '
+                title:
+                    '${list.length} '
                     '${list.length == 1 ? 'scheme' : 'schemes'}',
                 subtitle: '$live awarding',
                 padded: false,
                 child: list.isEmpty
                     ? const EmptyState(
                         message: 'No schemes configured',
-                        hint: 'Add a scheme to start rewarding agents who clear '
+                        hint:
+                            'Add a scheme to start rewarding agents who clear '
                             'a threshold.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final s in list) _SchemeRow(scheme: s),
-                        ],
+                        children: [for (final s in list) _SchemeRow(scheme: s)],
                       ),
               );
             },
@@ -136,7 +136,8 @@ class _CreateSchemeDialog extends ConsumerStatefulWidget {
   const _CreateSchemeDialog();
 
   @override
-  ConsumerState<_CreateSchemeDialog> createState() => _CreateSchemeDialogState();
+  ConsumerState<_CreateSchemeDialog> createState() =>
+      _CreateSchemeDialogState();
 }
 
 class _CreateSchemeDialogState extends ConsumerState<_CreateSchemeDialog> {
@@ -157,7 +158,9 @@ class _CreateSchemeDialogState extends ConsumerState<_CreateSchemeDialog> {
   Future<void> _create() async {
     setState(() => _submitting = true);
     try {
-      await ref.read(incentivesRepositoryProvider).createScheme(
+      await ref
+          .read(incentivesRepositoryProvider)
+          .createScheme(
             name: _nameCtrl.text.trim(),
             metric: _metric,
             threshold: double.tryParse(_thresholdCtrl.text) ?? 0,
@@ -168,9 +171,9 @@ class _CreateSchemeDialogState extends ConsumerState<_CreateSchemeDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create scheme: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create scheme: $e')));
       }
     }
   }

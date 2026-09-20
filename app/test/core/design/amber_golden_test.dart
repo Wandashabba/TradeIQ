@@ -258,8 +258,7 @@ void main() {
           // the live pulse. On a light ground nothing here is a commit action,
           // so nothing is armed and there is no amber at all.
           skin.amberIsInk ? 0 : 2,
-          reason:
-              '${skin.mode.name} visit route:\n${census.describe()}',
+          reason: '${skin.mode.name} visit route:\n${census.describe()}',
         );
       });
     }

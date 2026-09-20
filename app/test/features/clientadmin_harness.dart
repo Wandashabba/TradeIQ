@@ -26,7 +26,8 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 /// throw is worth keeping; stubs, because the assertion is that the screen
 /// navigated and not what it navigated to.
 List<GoRoute> stubRoutes({
-  Map<String, GoRouterWidgetBuilder> real = const <String, GoRouterWidgetBuilder>{},
+  Map<String, GoRouterWidgetBuilder> real =
+      const <String, GoRouterWidgetBuilder>{},
 }) {
   final paths = <String>{
     // Wherever the nav pill and the Menu sheet can send a manager.
@@ -182,9 +183,9 @@ class _PushHostState extends State<_PushHost> {
     _pushed = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => widget.child),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => widget.child));
     });
   }
 

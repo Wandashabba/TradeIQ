@@ -1164,11 +1164,7 @@ class _SparkPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round,
     );
-    canvas.drawCircle(
-      at(values.length - 1),
-      2.5,
-      Paint()..color = ink.series,
-    );
+    canvas.drawCircle(at(values.length - 1), 2.5, Paint()..color = ink.series);
   }
 
   @override

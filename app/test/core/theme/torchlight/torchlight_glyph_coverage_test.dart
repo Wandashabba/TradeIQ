@@ -122,7 +122,10 @@ void main() {
 
     test('every character in the translations is in every shipped weight', () {
       final needed = <int>{};
-      for (final arb in <String>['lib/l10n/app_en.arb', 'lib/l10n/app_af.arb']) {
+      for (final arb in <String>[
+        'lib/l10n/app_en.arb',
+        'lib/l10n/app_af.arb',
+      ]) {
         final file = File(arb);
         if (!file.existsSync()) continue;
         final json =
@@ -137,15 +140,16 @@ void main() {
 
       for (final path in pdfFonts) {
         final covered = _cmapCodepoints(File(path).readAsBytesSync());
-        final missing = needed
-            .where((c) => c >= 0x20 && !covered.contains(c))
-            .map(
-              (c) =>
-                  'U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')} '
-                  '"${String.fromCharCode(c)}"',
-            )
-            .toList()
-          ..sort();
+        final missing =
+            needed
+                .where((c) => c >= 0x20 && !covered.contains(c))
+                .map(
+                  (c) =>
+                      'U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')} '
+                      '"${String.fromCharCode(c)}"',
+                )
+                .toList()
+              ..sort();
         expect(
           missing,
           isEmpty,
@@ -203,10 +207,11 @@ void main() {
     test('no file gains a triangle, and unlisted files have none', () {
       final counts = <String, int>{};
       final lines = <String>[];
-      for (final file in Directory('lib')
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))) {
+      for (final file
+          in Directory('lib')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.dart'))) {
         final rel = file.path
             .substring(file.path.indexOf('lib/') + 4)
             .replaceAll(r'\', '/');
@@ -252,8 +257,7 @@ void main() {
 
       final improved = <String>[
         for (final MapEntry(key: file, value: allowed) in ledger.entries)
-          if ((counts[file] ?? 0) < allowed)
-            "  '$file': ${counts[file] ?? 0},",
+          if ((counts[file] ?? 0) < allowed) "  '$file': ${counts[file] ?? 0},",
       ];
       if (improved.isNotEmpty) {
         // ignore: avoid_print

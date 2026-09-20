@@ -4592,6 +4592,17 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String outletDisputePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkelfront-fotos aangeheg',
+      one: '1 winkelfront-foto aangeheg',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outletPhotoAlt => 'Winkelfront-foto uit hierdie pen-verslag';
 
   @override
