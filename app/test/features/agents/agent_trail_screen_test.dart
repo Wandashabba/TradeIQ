@@ -46,7 +46,8 @@ AgentActivity _agent({
   state: AgentState.inTransit,
   currentOutletName: currentOutletName,
   lastSeenAt: DateTime(2026, 7, 22, 11),
-  stops: stops ??
+  stops:
+      stops ??
       <AgentStop>[
         _stop('v1', 'Sandton Spar', -26.10, 28.05, 8),
         _stop('v2', 'Kasi Corner Spaza', -26.12, 28.07, 11),
@@ -188,9 +189,7 @@ void main() {
       await _pump(tester, agents: <AgentActivity>[_agent()]);
 
       expect(
-        find.bySemanticsLabel(
-          RegExp('Thandi Mokoena.*Field agent.*2 stops'),
-        ),
+        find.bySemanticsLabel(RegExp('Thandi Mokoena.*Field agent.*2 stops')),
         findsOneWidget,
       );
       handle.dispose();
@@ -239,6 +238,39 @@ void main() {
 
       await tester.tap(find.textContaining('1. Sandton Spar'));
       await tester.pumpAndSettle();
+      expect(find.text('stub:/visits/v1'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('the pin on the map opens the same visit as its row (#208)', (
+      tester,
+    ) async {
+      // The migration carried the pin's `button: true` across and left its
+      // callback behind, so for a screen reader the map was two hundred
+      // buttons that announced a stop and did nothing — the very defect the
+      // kit's button family was fixed for, rebuilt locally. The row beside
+      // it kept working, which is why only a test that presses the PIN
+      // catches this.
+      final handle = tester.ensureSemantics();
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      final pin = find.byKey(const ValueKey<String>('agent-stop-a1-0'));
+      expect(pin, findsOneWidget);
+      expect(
+        tester
+            .getSemantics(pin)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+        reason: 'a pin that announces itself a button must be pressable',
+      );
+
+      // `warnIfMissed: false`: the pin sits on a live basemap, so the hit
+      // test walks flutter_map's arena before it reaches the marker. The
+      // assertion above is the one about the reader; this one is the thumb.
+      await tester.tap(pin, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
       expect(find.text('stub:/visits/v1'), findsOneWidget);
       handle.dispose();
     });
@@ -342,11 +374,7 @@ void main() {
     testWidgets('a caption is dropped at 2.0x, never shrunk into a tile', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        textScale: 2.0,
-        agents: <AgentActivity>[_agent()],
-      );
+      await _pump(tester, textScale: 2.0, agents: <AgentActivity>[_agent()]);
 
       // A marker's box is a fixed 128x72 of ground and type that grows inside
       // one spills over the tiles. Every outlet and time is in the list
@@ -417,11 +445,7 @@ void main() {
     });
 
     testWidgets('a truncated page owns up to being truncated', (tester) async {
-      await _pump(
-        tester,
-        agents: <AgentActivity>[_agent()],
-        truncated: true,
-      );
+      await _pump(tester, agents: <AgentActivity>[_agent()], truncated: true);
 
       // A partial map that looks complete is worse than no map.
       expect(
@@ -435,11 +459,7 @@ void main() {
     testWidgets('today carries the live layer and says when it was true', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        agents: <AgentActivity>[_agent()],
-        live: _livePage(),
-      );
+      await _pump(tester, agents: <AgentActivity>[_agent()], live: _livePage());
 
       expect(
         find.byKey(const ValueKey<String>('trail-live-legend')),
@@ -490,6 +510,38 @@ void main() {
     });
   });
 
+  // ── Every button a reader announces, a reader can press ───────────────
+  //
+  // The kit once shipped a whole button family that announced itself and did
+  // nothing when a screen reader activated it, and `SectionRuleAction` and
+  // `PaginationFooter.action` were still shipping it when this group started.
+  // This is that law on this screen, in every phase, so no local
+  // `Semantics(button: true, ..., excludeSemantics: true)` around a bare
+  // gesture detector can bring it back here.
+  group('every button a screen reader announces can be activated', () {
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(
+        t,
+        agents: <AgentActivity>[
+          _agent(),
+          _agent(agentId: 'a2', name: 'Busi Dlamini'),
+        ],
+        truncated: true,
+      ),
+      'empty': (t) => _pump(t),
+      'error': (t) =>
+          _pump(t, failure: StateError('SocketException: api.tradeiq.co.za')),
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, every phase in every skin', () {
     // A record of where somebody has been has no commit action and no chart
     // focus, so the route nominates nothing. Amber also leaves the map
@@ -511,15 +563,9 @@ void main() {
           ],
           truncated: true,
         ),
-        'empty': (t) =>
-            _pump(t, skin: skin, size: const Size(360, 720)),
+        'empty': (t) => _pump(t, skin: skin, size: const Size(360, 720)),
         'loading': (t) async {
-          await _pump(
-            t,
-            skin: skin,
-            size: const Size(360, 720),
-            pending: true,
-          );
+          await _pump(t, skin: skin, size: const Size(360, 720), pending: true);
           await t.pump(const Duration(milliseconds: 700));
         },
         'error': (t) => _pump(

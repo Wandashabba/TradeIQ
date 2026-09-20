@@ -60,6 +60,7 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
 
   final Brightness brightness;
   final TiqPalette palette;
+
   /// The type scale for this skin's density. Named `text` and not `type`
   /// because `ThemeExtension` already uses `type` as its lookup key.
   final TiqType text;
@@ -167,14 +168,13 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     Brightness platformBrightness = Brightness.dark,
     TiqDensity? density,
   }) => switch (mode) {
-    SkinMode.night => TiqSkin.night(
-      density: density ?? TiqDensity.console,
-    ),
+    SkinMode.night => TiqSkin.night(density: density ?? TiqDensity.console),
     SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.field),
     SkinMode.veld => TiqSkin.veld(),
-    SkinMode.auto => platformBrightness == Brightness.dark
-        ? TiqSkin.night(density: density ?? TiqDensity.console)
-        : TiqSkin.day(density: density ?? TiqDensity.field),
+    SkinMode.auto =>
+      platformBrightness == Brightness.dark
+          ? TiqSkin.night(density: density ?? TiqDensity.console)
+          : TiqSkin.day(density: density ?? TiqDensity.field),
   };
 
   /// The default ink for a body of text on this skin's ground.

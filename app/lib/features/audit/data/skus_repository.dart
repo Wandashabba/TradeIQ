@@ -117,7 +117,9 @@ Future<List<Sku>> _fetchAllSkus(SkusRepository repo, String outletId) async {
     // whose `skip: 1` re-yields the same page would otherwise spin here
     // forever, accumulating rows until the app dies.
     if (next == cursor) {
-      throw StateError('SKU paging stalled: the server repeated cursor "$next".');
+      throw StateError(
+        'SKU paging stalled: the server repeated cursor "$next".',
+      );
     }
     cursor = next;
   }
@@ -130,6 +132,5 @@ Future<List<Sku>> _fetchAllSkus(SkusRepository repo, String outletId) async {
 }
 
 final skusListProvider = FutureProvider.family<List<Sku>, String>(
-  (ref, outletId) =>
-      _fetchAllSkus(ref.read(skusRepositoryProvider), outletId),
+  (ref, outletId) => _fetchAllSkus(ref.read(skusRepositoryProvider), outletId),
 );

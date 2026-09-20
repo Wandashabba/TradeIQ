@@ -66,8 +66,7 @@ class TiqNumberSymbols {
 
   static const List<TiqNumberSymbols> all = <TiqNumberSymbols>[en, af];
 
-  static TiqNumberSymbols forLanguage(String code) =>
-      code == 'af' ? af : en;
+  static TiqNumberSymbols forLanguage(String code) => code == 'af' ? af : en;
 }
 
 /// What a figure is a quantity *of*.

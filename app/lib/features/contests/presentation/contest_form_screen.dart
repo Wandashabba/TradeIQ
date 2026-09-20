@@ -49,7 +49,8 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     _startDate = (c == null ? null : DateTime.tryParse(c.startDate)) ?? today;
-    _endDate = (c == null ? null : DateTime.tryParse(c.endDate)) ??
+    _endDate =
+        (c == null ? null : DateTime.tryParse(c.endDate)) ??
         today.add(const Duration(days: 6));
     _territoryId = c?.territoryId;
     _eventTypes = {...?c?.eventTypes};
@@ -124,8 +125,9 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -180,34 +182,36 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
     );
     final eventTypes = _EventTypesField(
       selected: _eventTypes,
-      onToggle: (type, on) => setState(
-        () => on ? _eventTypes.add(type) : _eventTypes.remove(type),
-      ),
+      onToggle: (type, on) =>
+          setState(() => on ? _eventTypes.add(type) : _eventTypes.remove(type)),
     );
-    const scheduleNote = _Note(
-      'Both days count in full, in your timezone.',
-    );
+    const scheduleNote = _Note('Both days count in full, in your timezone.');
 
     final sections = <(String, List<Widget>)>[
-      ('Details', [
-        nameField,
-        const SizedBox(height: 8),
-        descriptionField,
-        const SizedBox(height: 12),
-        prizeField,
-      ]),
-      ('Schedule', [
-        startRow,
-        const SizedBox(height: 10),
-        endRow,
-        const SizedBox(height: 6),
-        scheduleNote,
-      ]),
-      ('Who and what counts', [
-        territoryField,
-        const SizedBox(height: 12),
-        eventTypes,
-      ]),
+      (
+        'Details',
+        [
+          nameField,
+          const SizedBox(height: 8),
+          descriptionField,
+          const SizedBox(height: 12),
+          prizeField,
+        ],
+      ),
+      (
+        'Schedule',
+        [
+          startRow,
+          const SizedBox(height: 10),
+          endRow,
+          const SizedBox(height: 6),
+          scheduleNote,
+        ],
+      ),
+      (
+        'Who and what counts',
+        [territoryField, const SizedBox(height: 12), eventTypes],
+      ),
     ];
 
     return GlassPageScaffold(
@@ -286,8 +290,9 @@ class _Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted =
-        context.colors.glass ? context.lumen.inkMuted : context.colors.ink3;
+    final muted = context.colors.glass
+        ? context.lumen.inkMuted
+        : context.colors.ink3;
     return Text(text, style: TextStyle(fontSize: 12, color: muted));
   }
 }

@@ -82,7 +82,8 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
               key: ValueKey<String>('verdict-no-signals'),
               scope: EmptyScope.inline,
               headline: 'No signals recorded.',
-              body: 'The visit scored above the threshold but the rules that '
+              body:
+                  'The visit scored above the threshold but the rules that '
                   'fired were not stored with it. Open the visit to judge it '
                   'on its own record.',
             )
@@ -121,7 +122,8 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
               error: _error,
               noteLabel: 'Note',
               noteHint: 'What you checked, and what you found',
-              noteHelp: 'Whoever reads this decision next sees only what you '
+              noteHelp:
+                  'Whoever reads this decision next sees only what you '
                   'write here.',
               notChosenLine: 'No ruling chosen yet',
               chooseFirstReason: 'Choose a ruling first.',
@@ -129,19 +131,22 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.cleared,
                   label: 'Cleared',
-                  consequence: 'The visit stands and leaves the queue. The '
+                  consequence:
+                      'The visit stands and leaves the queue. The '
                       'agent keeps its points.',
                 ),
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.confirmed,
                   label: 'Confirmed',
-                  consequence: 'The work is recorded as faked. This is the '
+                  consequence:
+                      'The work is recorded as faked. This is the '
                       'one ruling that accuses a person.',
                 ),
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.needsEvidence,
                   label: 'Needs evidence',
-                  consequence: 'Nobody can tell yet. It leaves the open queue '
+                  consequence:
+                      'Nobody can tell yet. It leaves the open queue '
                       'and the note is what somebody works from.',
                   requiresNote: true,
                   noteIsRequiredBecause:
@@ -174,11 +179,7 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
     try {
       final recorded = await ref
           .read(fraudRepositoryProvider)
-          .recordVerdict(
-            visitId: widget.row.visitId,
-            kind: kind,
-            note: note,
-          );
+          .recordVerdict(visitId: widget.row.visitId, kind: kind, note: note);
       if (!mounted) return;
       setState(() {
         _busy = false;

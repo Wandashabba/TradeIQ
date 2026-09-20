@@ -187,10 +187,8 @@ class TiqRadii {
   );
 
   /// An input is a trough — it holds at the BOTTOM.
-  BorderRadius get input => BorderRadius.vertical(
-    top: Radius.zero,
-    bottom: Radius.circular(control),
-  );
+  BorderRadius get input =>
+      BorderRadius.vertical(top: Radius.zero, bottom: Radius.circular(control));
 
   TiqRadii lerp(TiqRadii other, double t) => TiqRadii(
     rule: lerpDouble(rule, other.rule, t)!,

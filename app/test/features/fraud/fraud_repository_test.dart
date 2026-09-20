@@ -134,9 +134,7 @@ void main() {
       );
       dio.httpClientAdapter = adapter;
 
-      await DioFraudRepository().flagged(
-        reviewed: FlaggedReviewFilter.decided,
-      );
+      await DioFraudRepository().flagged(reviewed: FlaggedReviewFilter.decided);
 
       expect(adapter.lastRequest!.queryParameters['reviewed'], 'true');
     });
@@ -164,28 +162,31 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('records a ruling under the wire word, never the screen word', () async {
-      final adapter = _RecordingAdapter(
-        '{"visitId": "v1", "verdict": "dismissed", '
-        '"reviewer": {"id": "u1", "label": "Nomsa Dlamini-Mkhize"}, '
-        '"note": null, "riskScoreAtReview": 82, '
-        '"decidedAt": "2026-09-20T09:00:00.000Z"}',
-        status: 201,
-      );
-      dio.httpClientAdapter = adapter;
+    test(
+      'records a ruling under the wire word, never the screen word',
+      () async {
+        final adapter = _RecordingAdapter(
+          '{"visitId": "v1", "verdict": "dismissed", '
+          '"reviewer": {"id": "u1", "label": "Nomsa Dlamini-Mkhize"}, '
+          '"note": null, "riskScoreAtReview": 82, '
+          '"decidedAt": "2026-09-20T09:00:00.000Z"}',
+          status: 201,
+        );
+        dio.httpClientAdapter = adapter;
 
-      final verdict = await DioFraudRepository().recordVerdict(
-        visitId: 'v1',
-        kind: FraudVerdictKind.cleared,
-      );
+        final verdict = await DioFraudRepository().recordVerdict(
+          visitId: 'v1',
+          kind: FraudVerdictKind.cleared,
+        );
 
-      // "Cleared" is what a reviewer reads; `dismissed` is what the wire says.
-      expect(adapter.lastBody!['verdict'], 'dismissed');
-      expect(verdict.kind, FraudVerdictKind.cleared);
-      expect(verdict.reviewerLabel, 'Nomsa Dlamini-Mkhize');
-      expect(verdict.riskScoreAtReview, 82);
-      expect(verdict.note, isNull);
-    });
+        // "Cleared" is what a reviewer reads; `dismissed` is what the wire says.
+        expect(adapter.lastBody!['verdict'], 'dismissed');
+        expect(verdict.kind, FraudVerdictKind.cleared);
+        expect(verdict.reviewerLabel, 'Nomsa Dlamini-Mkhize');
+        expect(verdict.riskScoreAtReview, 82);
+        expect(verdict.note, isNull);
+      },
+    );
 
     test('a blank note is no note, and is not sent as one', () async {
       final adapter = _RecordingAdapter(
@@ -246,10 +247,16 @@ void main() {
         ),
         throwsA(
           isA<FraudVerdictConflict>()
-              .having((e) => e.standing.kind, 'kind',
-                  FraudVerdictKind.confirmed)
-              .having((e) => e.standing.reviewerLabel, 'reviewer',
-                  'Nomsa Dlamini-Mkhize'),
+              .having(
+                (e) => e.standing.kind,
+                'kind',
+                FraudVerdictKind.confirmed,
+              )
+              .having(
+                (e) => e.standing.reviewerLabel,
+                'reviewer',
+                'Nomsa Dlamini-Mkhize',
+              ),
         ),
       );
     });

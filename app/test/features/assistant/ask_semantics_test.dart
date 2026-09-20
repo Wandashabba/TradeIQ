@@ -22,10 +22,9 @@ import 'ask_harness.dart';
 
 /// The one node whose label is exactly [label], read from the semantics tree.
 SemanticsData nodeLabelled(WidgetTester tester, String label) {
-  final matches = semanticsNodes(tester)
-      .map((n) => n.getSemanticsData())
-      .where((d) => d.label == label)
-      .toList();
+  final matches = semanticsNodes(
+    tester,
+  ).map((n) => n.getSemanticsData()).where((d) => d.label == label).toList();
   expect(
     matches,
     hasLength(1),
@@ -38,9 +37,9 @@ SemanticsData nodeLabelled(WidgetTester tester, String label) {
 }
 
 /// The node id for [label], so the test can fire the action the platform fires.
-int nodeIdLabelled(WidgetTester tester, String label) => semanticsNodes(tester)
-    .firstWhere((n) => n.getSemanticsData().label == label)
-    .id;
+int nodeIdLabelled(WidgetTester tester, String label) => semanticsNodes(
+  tester,
+).firstWhere((n) => n.getSemanticsData().label == label).id;
 
 /// Perform a semantics action exactly as the platform does — through the
 /// binding, not by calling the widget's callback.

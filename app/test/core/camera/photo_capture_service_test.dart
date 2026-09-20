@@ -41,7 +41,9 @@ XFile _xfile(Uint8List bytes, {String name = 'shelf.jpg', String? mimeType}) =>
 void main() {
   test('encodes a captured image as a data URL', () async {
     final bytes = Uint8List.fromList([1, 2, 3, 4]);
-    final service = PhotoCaptureService(gateway: _FakeGateway(file: _xfile(bytes)));
+    final service = PhotoCaptureService(
+      gateway: _FakeGateway(file: _xfile(bytes)),
+    );
 
     final photo = await service.capture(PhotoSource.camera);
 
@@ -82,7 +84,9 @@ void main() {
     // The server rejects >8MB of base64 with a 400. Failing here instead means
     // the agent gets a sentence they can act on, not a failed upload.
     final huge = Uint8List(7 * 1024 * 1024); // ~9.3MB once base64-encoded
-    final service = PhotoCaptureService(gateway: _FakeGateway(file: _xfile(huge)));
+    final service = PhotoCaptureService(
+      gateway: _FakeGateway(file: _xfile(huge)),
+    );
 
     expect(
       () => service.capture(PhotoSource.camera),
@@ -105,7 +109,9 @@ void main() {
   test('falls back to the extension when the picker reports no type', () async {
     // image_picker_for_web frequently leaves mimeType null.
     final service = PhotoCaptureService(
-      gateway: _FakeGateway(file: _xfile(Uint8List.fromList([9]), name: 'shelf.png')),
+      gateway: _FakeGateway(
+        file: _xfile(Uint8List.fromList([9]), name: 'shelf.png'),
+      ),
     );
 
     final photo = await service.capture(PhotoSource.gallery);
@@ -146,16 +152,19 @@ void main() {
       expect(photo.capturedAt, shutter);
     });
 
-    test('with location refused, the photo is still captured, untagged', () async {
-      final photo = await service(
-        () async => LocationDenied(),
-      ).capture(PhotoSource.camera, geotag: true);
+    test(
+      'with location refused, the photo is still captured, untagged',
+      () async {
+        final photo = await service(
+          () async => LocationDenied(),
+        ).capture(PhotoSource.camera, geotag: true);
 
-      expect(photo, isNotNull);
-      expect(photo!.dataUrl, startsWith('data:image/jpeg;base64,'));
-      expect(photo.gpsTag, isEmpty);
-      expect(photo.capturedAt, shutter);
-    });
+        expect(photo, isNotNull);
+        expect(photo!.dataUrl, startsWith('data:image/jpeg;base64,'));
+        expect(photo.gpsTag, isEmpty);
+        expect(photo.capturedAt, shutter);
+      },
+    );
 
     test('a fix that never comes does not hold the capture', () async {
       final watch = Stopwatch()..start();

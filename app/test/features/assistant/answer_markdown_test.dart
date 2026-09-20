@@ -7,7 +7,8 @@ ParsedAnswer live(String s) => parseAnswer(s, streaming: true);
 String visible(String s, {required bool streaming}) =>
     plainInline(s, streaming: streaming);
 
-const _mockupAnswer = '''Gauteng is **down 12.4%** on last August, and Soweto is most of the story.
+const _mockupAnswer =
+    '''Gauteng is **down 12.4%** on last August, and Soweto is most of the story.
 
 > **What explains it**
 > The **500ml Kalahari Cola** was out of stock at **5 of Soweto's 8 outlets** for 9 days.
@@ -72,7 +73,8 @@ void main() {
     });
 
     test('a long first paragraph is body text, not a headline', () {
-      final long = 'The **quarter** ${'went broadly to plan across the region ' * 6}.';
+      final long =
+          'The **quarter** ${'went broadly to plan across the region ' * 6}.';
       expect(done('$long\n\n- one').headline, isNull);
       expect(done('Short **headline**.\n\n- one').headline, isNotNull);
     });
@@ -85,16 +87,18 @@ void main() {
 
     test('snake_case is not emphasis, and not markdown', () {
       expect(done('the outlet_id column').hasMarkdown, isFalse);
-      expect(visible('the outlet_id column', streaming: false),
-          'the outlet_id column');
+      expect(
+        visible('the outlet_id column', streaming: false),
+        'the outlet_id column',
+      );
     });
   });
 
   group('blockquote callout', () {
     test('a bold first line is the kicker', () {
-      final quote = done('> **What explains it**\n> The cola ran out.')
-          .blocks
-          .single;
+      final quote = done(
+        '> **What explains it**\n> The cola ran out.',
+      ).blocks.single;
       expect(quote.kind, AnswerBlockKind.quote);
       expect(quote.kicker, 'What explains it');
       expect(quote.text, 'The cola ran out.');
@@ -196,10 +200,14 @@ void main() {
     });
 
     test('an unfinished marker mid-stream is hidden, not printed', () {
-      expect(visible('Gauteng is **down 12', streaming: true),
-          'Gauteng is down 12');
-      expect(parseInline('Gauteng is **down 12', streaming: true).last,
-          const InlineRun('down 12', bold: true));
+      expect(
+        visible('Gauteng is **down 12', streaming: true),
+        'Gauteng is down 12',
+      );
+      expect(
+        parseInline('Gauteng is **down 12', streaming: true).last,
+        const InlineRun('down 12', bold: true),
+      );
       expect(visible('Gauteng is *', streaming: true), 'Gauteng is ');
       expect(visible('Gauteng is **', streaming: true), 'Gauteng is ');
       expect(visible('Use `sku_5', streaming: true), 'Use sku_5');
@@ -239,7 +247,17 @@ void main() {
     });
 
     test('garbage does not throw', () {
-      for (final junk in ['', '\n\n', '***', '```', '>', '> **', '_', '`', '**_*`']) {
+      for (final junk in [
+        '',
+        '\n\n',
+        '***',
+        '```',
+        '>',
+        '> **',
+        '_',
+        '`',
+        '**_*`',
+      ]) {
         expect(() => done(junk), returnsNormally, reason: junk);
         expect(() => live(junk), returnsNormally, reason: junk);
         expect(() => parseInline(junk, streaming: true), returnsNormally);

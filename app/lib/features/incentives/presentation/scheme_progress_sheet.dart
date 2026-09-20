@@ -27,10 +27,7 @@ Future<void> showSchemeProgressSheet(
 }
 
 class _SchemeProgressSheet extends StatelessWidget {
-  const _SchemeProgressSheet({
-    required this.row,
-    required this.agentsMeasured,
-  });
+  const _SchemeProgressSheet({required this.row, required this.agentsMeasured});
 
   final IncentiveSchemeRow row;
   final int agentsMeasured;
@@ -43,9 +40,7 @@ class _SchemeProgressSheet extends StatelessWidget {
     final threshold = numbers.format(row.scheme.threshold);
     final reward = '${numbers.format(row.scheme.rewardPoints)} pts';
     final unit = metric?.unitWord ?? '';
-    final rewardLabel = metric == null
-        ? reward
-        : '$reward at $threshold $unit';
+    final rewardLabel = metric == null ? reward : '$reward at $threshold $unit';
 
     return TorchSheet(
       title: row.scheme.name,
@@ -65,7 +60,8 @@ class _SchemeProgressSheet extends StatelessWidget {
               key: ValueKey<String>('scheme-progress-empty'),
               scope: EmptyScope.inPanel,
               headline: 'No agent figures loaded.',
-              body: 'Progress toward this reward is read from the board, and '
+              body:
+                  'Progress toward this reward is read from the board, and '
                   'the board has not answered.',
             )
           else

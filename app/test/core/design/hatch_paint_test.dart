@@ -65,13 +65,7 @@ void main() {
         expect(negative.line, p.bad);
         for (final pattern in HatchPattern.values) {
           expect(
-            <Color>[
-              p.flame300,
-              p.flame500,
-              p.flame600,
-              p.flame700,
-              p.flame900,
-            ],
+            <Color>[p.flame300, p.flame500, p.flame600, p.flame700, p.flame900],
             isNot(contains(HatchPaint.spec(skin, pattern).line)),
             reason:
                 '${skin.mode.name} ${pattern.name} is drawn in an amber. '
@@ -142,11 +136,7 @@ void main() {
       final recorder = record();
       final canvas = Canvas(recorder);
       expect(
-        () => HatchPaint.paint(
-          canvas,
-          const Rect.fromLTWH(0, 0, 40, 3),
-          spec,
-        ),
+        () => HatchPaint.paint(canvas, const Rect.fromLTWH(0, 0, 40, 3), spec),
         throwsA(
           isA<AssertionError>().having(
             (e) => e.message.toString(),

@@ -138,7 +138,9 @@ class ArtifactExporter {
       image.dispose();
       return data?.buffer.asUint8List();
     } catch (err) {
-      debugPrint('[assistant] chart capture failed, exporting without it: $err');
+      debugPrint(
+        '[assistant] chart capture failed, exporting without it: $err',
+      );
       return null;
     }
   }

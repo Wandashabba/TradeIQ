@@ -94,8 +94,9 @@ void main() {
   for (final name in rowSkinMatrix.map((e) => e.$1)) {
     final skin = skinFor(name);
     for (final scale in <double>[1.0, 2.0]) {
-      testWidgets('$name at ${scale}x paints zero amber objects',
-          (tester) async {
+      testWidgets('$name at ${scale}x paints zero amber objects', (
+        tester,
+      ) async {
         await pumpAmberRoute(
           tester,
           skin: skin,
@@ -170,20 +171,22 @@ void main() {
     }
   });
 
-  testWidgets('a row inside a TorchScope with a full budget still paints none',
-      (tester) async {
-    // The strongest version of the claim: even on a route where amber is
-    // available, a row does not take any. It declares no claim, so there is
-    // nothing for it to be granted.
-    final skin = TiqSkin.night();
-    await pumpAmberRoute(
-      tester,
-      skin: skin,
-      child: TorchScopeFixture(skin: skin, child: everyRow().first),
-    );
-    final census = await amberCensus(tester);
-    expect(census.objectCount, 0);
-  });
+  testWidgets(
+    'a row inside a TorchScope with a full budget still paints none',
+    (tester) async {
+      // The strongest version of the claim: even on a route where amber is
+      // available, a row does not take any. It declares no claim, so there is
+      // nothing for it to be granted.
+      final skin = TiqSkin.night();
+      await pumpAmberRoute(
+        tester,
+        skin: skin,
+        child: TorchScopeFixture(skin: skin, child: everyRow().first),
+      );
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 0);
+    },
+  );
 }
 
 /// A Night route with both grants already declared, so a row that quietly lit

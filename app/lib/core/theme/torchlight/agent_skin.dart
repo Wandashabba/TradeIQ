@@ -32,7 +32,8 @@ class AgentSkinController extends Notifier<SkinMode> {
   @override
   SkinMode build() => SkinMode.day;
 
-  void set(SkinMode mode) => state = mode == SkinMode.auto ? SkinMode.day : mode;
+  void set(SkinMode mode) =>
+      state = mode == SkinMode.auto ? SkinMode.day : mode;
 }
 
 final agentSkinProvider = NotifierProvider<AgentSkinController, SkinMode>(

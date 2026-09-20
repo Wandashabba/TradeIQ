@@ -125,9 +125,7 @@ class PillarMetricsCard extends StatelessWidget {
   /// Integers stay integers — "24 lines", not "24.0 lines" — and a rate
   /// keeps one place.
   static int decimalsFor(String key, num value) =>
-      !_percentSuffixed.contains(key) && value == value.roundToDouble()
-      ? 0
-      : 1;
+      !_percentSuffixed.contains(key) && value == value.roundToDouble() ? 0 : 1;
 
   @override
   Widget build(BuildContext context) {

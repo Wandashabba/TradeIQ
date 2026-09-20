@@ -145,14 +145,17 @@ void main() {
     expect(entry('', 0).reasonLabel, 'Points');
   });
 
-  test('LeaderboardEntry.fromJson parses displayName, and label prefers it', () {
-    final entry = LeaderboardEntry.fromJson(const {
-      'agentId': 'a-3',
-      'email': 'agent3@example.com',
-      'displayName': 'Chantal Adams',
-    });
+  test(
+    'LeaderboardEntry.fromJson parses displayName, and label prefers it',
+    () {
+      final entry = LeaderboardEntry.fromJson(const {
+        'agentId': 'a-3',
+        'email': 'agent3@example.com',
+        'displayName': 'Chantal Adams',
+      });
 
-    expect(entry.displayName, 'Chantal Adams');
-    expect(entry.label, 'Chantal Adams');
-  });
+      expect(entry.displayName, 'Chantal Adams');
+      expect(entry.label, 'Chantal Adams');
+    },
+  );
 }

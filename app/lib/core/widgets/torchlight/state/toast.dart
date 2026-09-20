@@ -179,7 +179,10 @@ class TorchToast extends StatelessWidget {
             TiqMark(
               shape: _shape,
               color: glyphInk,
-              size: MarkScale.glyph(context, kind == ToastKind.neutral ? 8 : 16),
+              size: MarkScale.glyph(
+                context,
+                kind == ToastKind.neutral ? 8 : 16,
+              ),
             ),
             const SizedBox(width: TiqSpace.s3),
             Expanded(

@@ -36,7 +36,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'These construct their own secure storage instead of using '
+      reason:
+          'These construct their own secure storage instead of using '
           "appSecureStorage from '$allowed'.",
     );
   });

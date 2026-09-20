@@ -222,8 +222,9 @@ class WebSource {
       pageAge: pageAge is String && pageAge.trim().isNotEmpty
           ? pageAge.trim()
           : null,
-      retrievedAt:
-          retrievedAt is String ? DateTime.tryParse(retrievedAt) : null,
+      retrievedAt: retrievedAt is String
+          ? DateTime.tryParse(retrievedAt)
+          : null,
       snippet: snippet is String && snippet.trim().isNotEmpty
           ? snippet.trim()
           : null,

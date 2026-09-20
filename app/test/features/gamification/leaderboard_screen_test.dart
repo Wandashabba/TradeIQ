@@ -128,18 +128,21 @@ void main() {
       expect(view.total, 3);
     });
 
-    test('an unranked agent sorts by name, not by the zero they were given', () {
-      final view = LeaderboardView.of(<LeaderboardEntry>[
-        _entry(agentId: 'z', displayName: 'Zanele Khumalo', rank: null),
-        _entry(agentId: 'a', displayName: 'Ayanda Nkosi', rank: null),
-      ]);
+    test(
+      'an unranked agent sorts by name, not by the zero they were given',
+      () {
+        final view = LeaderboardView.of(<LeaderboardEntry>[
+          _entry(agentId: 'z', displayName: 'Zanele Khumalo', rank: null),
+          _entry(agentId: 'a', displayName: 'Ayanda Nkosi', rank: null),
+        ]);
 
-      expect(
-        view.unranked.map((e) => e.label),
-        <String>['Ayanda Nkosi', 'Zanele Khumalo'],
-      );
-      expect(view.ranked, isEmpty);
-    });
+        expect(view.unranked.map((e) => e.label), <String>[
+          'Ayanda Nkosi',
+          'Zanele Khumalo',
+        ]);
+        expect(view.ranked, isEmpty);
+      },
+    );
 
     test('an empty board is empty, not a board of nobody', () {
       expect(LeaderboardView.of(const <LeaderboardEntry>[]).isEmpty, isTrue);
@@ -214,18 +217,14 @@ void main() {
     testWidgets('an unmeasured agent sits in their own section, with a word', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        entries: <LeaderboardEntry>[..._board, _unmeasured],
-      );
+      await _pump(tester, entries: <LeaderboardEntry>[..._board, _unmeasured]);
 
       expect(find.text('Not ranked yet'), findsWidgets);
-      expect(find.byKey(const ValueKey<String>('leaderboard-unranked-note')),
-          findsOneWidget);
       expect(
-        find.textContaining('They are not last'),
+        find.byKey(const ValueKey<String>('leaderboard-unranked-note')),
         findsOneWidget,
       );
+      expect(find.textContaining('They are not last'), findsOneWidget);
       // And they are listed: an agent missing from the board reads as an
       // agent who left. Past the fold on a 360dp phone, which is the point of
       // a lazy list and not a reason to pump a viewport nobody holds.
@@ -302,6 +301,33 @@ void main() {
     });
   });
 
+  // ── Every button a reader announces, a reader can press ───────────────
+  //
+  // The kit once shipped a whole button family that announced itself and did
+  // nothing when a screen reader activated it, and `SectionRuleAction` and
+  // `PaginationFooter.action` were still shipping it when this group started.
+  // This is that law on this screen, in every phase, so no local
+  // `Semantics(button: true, ..., excludeSemantics: true)` around a bare
+  // gesture detector can bring it back here.
+  group('every button a screen reader announces can be activated', () {
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(t, entries: _board),
+      'nobody-measured': (t) =>
+          _pump(t, entries: <LeaderboardEntry>[_unmeasured]),
+      'empty': (t) => _pump(t),
+      'error': (t) =>
+          _pump(t, failure: StateError('SocketException: api.tradeiq.co.za')),
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, every phase in every skin', () {
     // A ranking has nothing armed: no commit action, no chart focus, no
     // plate. Night paints the nav's active tab and nothing else; Day and Veld
@@ -366,9 +392,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Veld is built, and it still names the person', (
-      tester,
-    ) async {
+    testWidgets('Veld is built, and it still names the person', (tester) async {
       final handle = tester.ensureSemantics();
       await _pump(tester, skin: TiqSkin.veld(), entries: _board);
 
@@ -376,10 +400,7 @@ void main() {
       // Veld sets body at 17 with a 24dp gutter, so a two-word name
       // middle-truncates on a 360dp row — which is the ruling, and the reason
       // the FULL name is what a screen reader is handed whatever is painted.
-      expect(
-        find.bySemanticsLabel(RegExp('Thandi Mokoena')),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
       expect(tester.takeException(), isNull);
       handle.dispose();
     });

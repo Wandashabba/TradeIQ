@@ -326,9 +326,7 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
     if (confirmed != true || !mounted) return;
     setState(() => _deleting = true);
     try {
-      await ref
-          .read(reportsRepositoryProvider)
-          .deleteReport(widget.report.id);
+      await ref.read(reportsRepositoryProvider).deleteReport(widget.report.id);
       if (!mounted) return;
       widget.onDeleted();
     } catch (error) {
@@ -336,7 +334,8 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
       setState(() => _deleting = false);
       showTorchToast(
         context,
-        message: 'That report was not deleted. ${TorchErrorMessage.sanitise(error).body}',
+        message:
+            'That report was not deleted. ${TorchErrorMessage.sanitise(error).body}',
         kind: ToastKind.failure,
       );
     }
@@ -358,7 +357,10 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
         : outcome.rows == 0
         // Zero is a real answer, and it gets the comparison square rather than
         // a severity: a query that matched nothing is not a fault.
-        ? (MarkShape.notMeasuredBarredSquare, '0 rows — the query matched nothing')
+        ? (
+            MarkShape.notMeasuredBarredSquare,
+            '0 rows — the query matched nothing',
+          )
         : (MarkShape.onTargetCircle, 'Generated');
 
     final slug = Text(

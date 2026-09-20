@@ -75,10 +75,7 @@ class _FakeIncentives implements IncentivesRepository {
   Future<PaginatedResponse<IncentiveScheme>> listSchemes() async {
     if (failure != null) throw failure!;
     if (pending) return Completer<PaginatedResponse<IncentiveScheme>>().future;
-    return PaginatedResponse<IncentiveScheme>(
-      data: schemes,
-      nextCursor: null,
-    );
+    return PaginatedResponse<IncentiveScheme>(data: schemes, nextCursor: null);
   }
 
   @override
@@ -116,7 +113,10 @@ class _FakeIncentives implements IncentivesRepository {
 }
 
 class _FakeGamification implements GamificationRepository {
-  _FakeGamification({this.board = const <LeaderboardEntry>[], this.fails = false});
+  _FakeGamification({
+    this.board = const <LeaderboardEntry>[],
+    this.fails = false,
+  });
 
   final List<LeaderboardEntry> board;
   final bool fails;
@@ -189,19 +189,21 @@ void main() {
         isNull,
       );
       final measured = _agent(avg: 0, scored: 4);
-      expect(
-        IncentiveMetric.valueFor(IncentiveMetric.scorecard, measured),
-        0,
-      );
+      expect(IncentiveMetric.valueFor(IncentiveMetric.scorecard, measured), 0);
     });
 
-    test('a count of nought IS a zero — nothing closed is a measured nothing',
-        () {
-      expect(
-        IncentiveMetric.valueFor(IncentiveMetric.tasksClosed, _agent(tasks: 0)),
-        0,
-      );
-    });
+    test(
+      'a count of nought IS a zero — nothing closed is a measured nothing',
+      () {
+        expect(
+          IncentiveMetric.valueFor(
+            IncentiveMetric.tasksClosed,
+            _agent(tasks: 0),
+          ),
+          0,
+        );
+      },
+    );
 
     test('a metric this client has not been taught is not renamed away', () {
       expect(IncentiveMetric.fromWire('visits'), IncentiveMetric.visits);
@@ -262,8 +264,10 @@ void main() {
         find.byKey(const ValueKey<String>('scheme-bar-s-1')),
       );
       expect(bar.label, 'Closest: Thandi Mokoena');
-      expect(find.textContaining('1 of 2 agents have earned it.'),
-          findsOneWidget);
+      expect(
+        find.textContaining('1 of 2 agents have earned it.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('nobody on the way says so rather than drawing an empty bar', (
@@ -420,8 +424,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ConfirmSheet), findsOneWidget);
-      expect(find.textContaining('It stops awarding immediately.'),
-          findsOneWidget);
+      expect(
+        find.textContaining('It stops awarding immediately.'),
+        findsOneWidget,
+      );
       expect(
         find.textContaining('1 agent has earned it so far.'),
         findsOneWidget,
@@ -621,6 +627,43 @@ void main() {
     });
   });
 
+  // ── Every button a reader announces, a reader can press ───────────────
+  //
+  // The kit once shipped a whole button family that announced itself and did
+  // nothing when a screen reader activated it, and `SectionRuleAction` and
+  // `PaginationFooter.action` were still shipping it when this group started.
+  // This is that law on this screen, in every phase, so no local
+  // `Semantics(button: true, ..., excludeSemantics: true)` around a bare
+  // gesture detector can bring it back here.
+  group('every button a screen reader announces can be activated', () {
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(
+        t,
+        schemes: <IncentiveScheme>[
+          _scheme(),
+          _scheme(id: 's-2', name: 'Ten closures', active: false),
+        ],
+        board: <LeaderboardEntry>[
+          _agent(),
+          _agent(agentId: 'a-2', visits: 40),
+        ],
+      ),
+      'empty': (t) => _pump(t),
+      'error': (t) =>
+          _pump(t, failure: StateError('SocketException: api.tradeiq.co.za')),
+      'no-board': (t) =>
+          _pump(t, schemes: <IncentiveScheme>[_scheme()], boardFails: true),
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, every phase in every skin', () {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
@@ -636,7 +679,10 @@ void main() {
             _scheme(),
             _scheme(id: 's-2', name: 'Ten closures', active: false),
           ],
-          board: <LeaderboardEntry>[_agent(), _agent(agentId: 'a-2', visits: 40)],
+          board: <LeaderboardEntry>[
+            _agent(),
+            _agent(agentId: 'a-2', visits: 40),
+          ],
         ),
         'empty': (t) => _pump(t, skin: skin),
         'loading': (t) async {

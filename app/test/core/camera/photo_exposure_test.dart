@@ -21,10 +21,10 @@ import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 /// checked-in binary.
 Future<Uint8List> _png(Color colour) async {
   final recorder = ui.PictureRecorder();
-  ui.Canvas(recorder, const Rect.fromLTWH(0, 0, 8, 8)).drawRect(
+  ui.Canvas(
+    recorder,
     const Rect.fromLTWH(0, 0, 8, 8),
-    ui.Paint()..color = colour,
-  );
+  ).drawRect(const Rect.fromLTWH(0, 0, 8, 8), ui.Paint()..color = colour);
   final image = await recorder.endRecording().toImage(8, 8);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
@@ -114,8 +114,10 @@ void main() {
     await tester.runAsync(() async {
       expect(await meanLumaOfDataUrl('https://example.test/shelf.jpg'), isNull);
       expect(await meanLumaOfDataUrl('data:image/png;base64'), isNull);
-      expect(await meanLumaOfDataUrl('data:image/png;base64,not-base64!'),
-          isNull);
+      expect(
+        await meanLumaOfDataUrl('data:image/png;base64,not-base64!'),
+        isNull,
+      );
     });
   });
 }

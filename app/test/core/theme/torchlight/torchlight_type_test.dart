@@ -141,9 +141,10 @@ void main() {
               as List<dynamic>;
       final mono = manifest.cast<Map<String, dynamic>>().firstWhere(
         (f) => f['family'] == TiqFonts.mono,
-        orElse: () =>
-            fail('JetBrains Mono is not declared — every figure would fall '
-                'back to a proportional system face.'),
+        orElse: () => fail(
+          'JetBrains Mono is not declared — every figure would fall '
+          'back to a proportional system face.',
+        ),
       );
       final weights = (mono['fonts'] as List)
           .cast<Map<String, dynamic>>()

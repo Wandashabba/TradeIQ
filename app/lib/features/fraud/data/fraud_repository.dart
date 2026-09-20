@@ -5,17 +5,14 @@ import '../../../core/network/paginated_response.dart';
 
 /// A single risk signal contributing to a flagged visit's score.
 class FraudSignal {
-  const FraudSignal({
-    required this.code,
-    required this.detail,
-  });
+  const FraudSignal({required this.code, required this.detail});
   final String code;
   final String detail;
 
   factory FraudSignal.fromJson(Map<String, dynamic> json) => FraudSignal(
-        code: json['code'] as String,
-        detail: json['detail'] as String,
-      );
+    code: json['code'] as String,
+    detail: json['detail'] as String,
+  );
 }
 
 /// The three rulings a reviewer may reach, as the wire spells them.
@@ -77,16 +74,16 @@ class FraudVerdict {
   final int? riskScoreAtReview;
 
   factory FraudVerdict.fromJson(Map<String, dynamic> json) => FraudVerdict(
-        visitId: json['visitId'] as String? ?? '',
-        kind: FraudVerdictKind.fromWire(json['verdict'] as String?) ??
-            FraudVerdictKind.needsEvidence,
-        reviewerLabel:
-            (json['reviewer'] as Map<String, dynamic>?)?['label'] as String? ??
-                '',
-        note: json['note'] as String?,
-        riskScoreAtReview: (json['riskScoreAtReview'] as num?)?.toInt(),
-        decidedAt: DateTime.parse(json['decidedAt'] as String),
-      );
+    visitId: json['visitId'] as String? ?? '',
+    kind:
+        FraudVerdictKind.fromWire(json['verdict'] as String?) ??
+        FraudVerdictKind.needsEvidence,
+    reviewerLabel:
+        (json['reviewer'] as Map<String, dynamic>?)?['label'] as String? ?? '',
+    note: json['note'] as String?,
+    riskScoreAtReview: (json['riskScoreAtReview'] as num?)?.toInt(),
+    decidedAt: DateTime.parse(json['decidedAt'] as String),
+  );
 }
 
 /// A second reviewer got there first (#392).
@@ -100,8 +97,7 @@ class FraudVerdictConflict implements Exception {
   final FraudVerdict standing;
 
   @override
-  String toString() =>
-      '${standing.reviewerLabel} already ruled this visit.';
+  String toString() => '${standing.reviewerLabel} already ruled this visit.';
 }
 
 /// A visit flagged by the fraud engine, returned by GET /fraud/flagged.
@@ -131,21 +127,22 @@ class FlaggedVisit {
   final FraudVerdict? verdict;
 
   factory FlaggedVisit.fromJson(Map<String, dynamic> json) => FlaggedVisit(
-        visitId: json['visitId'] as String,
-        outletId: json['outletId'] as String,
-        agentId: json['agentId'] as String,
-        riskScore: (json['riskScore'] as num).toDouble(),
-        signals: (json['signals'] as List?)
-                ?.map((s) => FraudSignal.fromJson(s as Map<String, dynamic>))
-                .toList() ??
-            [],
-        scoredAt: json['scoredAt'] == null
-            ? null
-            : DateTime.parse(json['scoredAt'] as String),
-        verdict: json['verdict'] == null
-            ? null
-            : FraudVerdict.fromJson(json['verdict'] as Map<String, dynamic>),
-      );
+    visitId: json['visitId'] as String,
+    outletId: json['outletId'] as String,
+    agentId: json['agentId'] as String,
+    riskScore: (json['riskScore'] as num).toDouble(),
+    signals:
+        (json['signals'] as List?)
+            ?.map((s) => FraudSignal.fromJson(s as Map<String, dynamic>))
+            .toList() ??
+        [],
+    scoredAt: json['scoredAt'] == null
+        ? null
+        : DateTime.parse(json['scoredAt'] as String),
+    verdict: json['verdict'] == null
+        ? null
+        : FraudVerdict.fromJson(json['verdict'] as Map<String, dynamic>),
+  );
 }
 
 /// Which side of the review line `GET /fraud/flagged` answers about (#392).
@@ -251,13 +248,14 @@ class DioFraudRepository implements FraudRepository {
   }
 }
 
-final fraudRepositoryProvider =
-    Provider<FraudRepository>((ref) => DioFraudRepository());
+final fraudRepositoryProvider = Provider<FraudRepository>(
+  (ref) => DioFraudRepository(),
+);
 
 // The FIRST PAGE of the OPEN queue, riskiest first. "Load more" is out of
 // scope, as for every list (see the pagination spec); the screen says when
 // there is more, and the unscored count says what is not on either side.
 final flaggedVisitsProvider =
     FutureProvider.family<FlaggedPage, FlaggedReviewFilter>((ref, filter) {
-  return ref.read(fraudRepositoryProvider).flagged(reviewed: filter);
-});
+      return ref.read(fraudRepositoryProvider).flagged(reviewed: filter);
+    });

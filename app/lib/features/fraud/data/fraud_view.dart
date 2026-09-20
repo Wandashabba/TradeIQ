@@ -26,16 +26,16 @@ enum FraudRiskBand {
   static FraudRiskBand of(double score) => score >= 70
       ? FraudRiskBand.high
       : score >= 50
-          ? FraudRiskBand.elevated
-          : FraudRiskBand.low;
+      ? FraudRiskBand.elevated
+      : FraudRiskBand.low;
 
   /// How hard a row commits to the accusation: solid for high, outlined for
   /// elevated, no bar at all below the review threshold.
   SoftRowSeverity? get severity => switch (this) {
-        FraudRiskBand.high => SoftRowSeverity.critical,
-        FraudRiskBand.elevated => SoftRowSeverity.watch,
-        FraudRiskBand.low => null,
-      };
+    FraudRiskBand.high => SoftRowSeverity.critical,
+    FraudRiskBand.elevated => SoftRowSeverity.watch,
+    FraudRiskBand.low => null,
+  };
 }
 
 /// One flagged visit, ready to render.
@@ -127,48 +127,49 @@ class FraudView {
 /// outlet list names the shop. A slow or failed lookup leaves a row saying so
 /// in words and never takes the queue down with it — a review queue that
 /// will not load because a name will not resolve is a queue nobody reviews.
-final fraudViewProvider =
-    FutureProvider.family<FraudView, FlaggedReviewFilter>((ref, filter) async {
-  final page = await ref.read(fraudRepositoryProvider).flagged(
-        reviewed: filter,
-      );
+final fraudViewProvider = FutureProvider.family<FraudView, FlaggedReviewFilter>(
+  (ref, filter) async {
+    final page = await ref
+        .read(fraudRepositoryProvider)
+        .flagged(reviewed: filter);
 
-  final outlets = ref
-      .watch(outletsListProvider)
-      .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
-  final outletNames = <String, String>{for (final o in outlets) o.id: o.name};
+    final outlets = ref
+        .watch(outletsListProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
+    final outletNames = <String, String>{for (final o in outlets) o.id: o.name};
 
-  final users = ref
-      .watch(usersListProvider)
-      .maybeWhen(data: (list) => list, orElse: () => const <AppUser>[]);
-  final people = <String, AppUser>{for (final u in users) u.id: u};
+    final users = ref
+        .watch(usersListProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const <AppUser>[]);
+    final people = <String, AppUser>{for (final u in users) u.id: u};
 
-  final sorted = <FlaggedVisit>[...page.data]
-    ..sort((a, b) => b.riskScore.compareTo(a.riskScore));
+    final sorted = <FlaggedVisit>[...page.data]
+      ..sort((a, b) => b.riskScore.compareTo(a.riskScore));
 
-  return FraudView(
-    unscored: page.unscored,
-    nextCursor: page.nextCursor,
-    rows: <FraudRow>[
-      for (final v in sorted)
-        FraudRow(
-          visitId: v.visitId,
-          agentId: v.agentId,
-          // The one fallback every screen that shows a person uses: the
-          // display name when there is one, otherwise the address. Null only
-          // where the roster does not carry this agent at all, and the row
-          // then says so in words.
-          agentName: _nameOf(people[v.agentId]),
-          outletName: outletNames[v.outletId] ?? FraudView.unnamedOutlet,
-          riskScore: v.riskScore,
-          band: FraudRiskBand.of(v.riskScore),
-          signals: v.signals,
-          verdict: v.verdict,
-          scoredAt: v.scoredAt,
-        ),
-    ],
-  );
-});
+    return FraudView(
+      unscored: page.unscored,
+      nextCursor: page.nextCursor,
+      rows: <FraudRow>[
+        for (final v in sorted)
+          FraudRow(
+            visitId: v.visitId,
+            agentId: v.agentId,
+            // The one fallback every screen that shows a person uses: the
+            // display name when there is one, otherwise the address. Null only
+            // where the roster does not carry this agent at all, and the row
+            // then says so in words.
+            agentName: _nameOf(people[v.agentId]),
+            outletName: outletNames[v.outletId] ?? FraudView.unnamedOutlet,
+            riskScore: v.riskScore,
+            band: FraudRiskBand.of(v.riskScore),
+            signals: v.signals,
+            verdict: v.verdict,
+            scoredAt: v.scoredAt,
+          ),
+      ],
+    );
+  },
+);
 
 String? _nameOf(AppUser? user) =>
     user == null ? null : personLabel(user.displayName, user.email);

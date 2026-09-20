@@ -48,7 +48,10 @@ class PrimaryActionButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(label),
-                  if (trailing != null) ...[const SizedBox(width: 9), trailing!],
+                  if (trailing != null) ...[
+                    const SizedBox(width: 9),
+                    trailing!,
+                  ],
                 ],
               ),
       ),

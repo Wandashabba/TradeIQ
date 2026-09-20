@@ -18,8 +18,7 @@ const campaignReturnCaveat =
 /// The honest sentence shown in place of a percentage that cannot be measured.
 String roiUnmeasurableReason(RoiUnmeasurable reason) => switch (reason) {
   RoiUnmeasurable.noBudget => "No budget set — return can't be measured.",
-  RoiUnmeasurable.zeroBudget =>
-    "Budget is zero — return can't be measured.",
+  RoiUnmeasurable.zeroBudget => "Budget is zero — return can't be measured.",
   RoiUnmeasurable.unknown => "Return can't be measured for this campaign.",
 };
 

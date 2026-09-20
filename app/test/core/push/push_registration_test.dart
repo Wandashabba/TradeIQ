@@ -115,23 +115,26 @@ void main() {
     return c;
   }
 
-  test('login registers the token; logout unregisters it with the departing session', () async {
-    final client = _FakePushClient();
-    final c = container(client);
-    await _settle();
-    expect(repository.registered, isEmpty, reason: 'nobody is signed in yet');
+  test(
+    'login registers the token; logout unregisters it with the departing session',
+    () async {
+      final client = _FakePushClient();
+      final c = container(client);
+      await _settle();
+      expect(repository.registered, isEmpty, reason: 'nobody is signed in yet');
 
-    await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
-    await _settle();
-    expect(repository.registered, [('fcm-token-1', PushPlatform.android)]);
-    expect(c.read(pushRegistrationProvider).registeredToken, 'fcm-token-1');
+      await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
+      await _settle();
+      expect(repository.registered, [('fcm-token-1', PushPlatform.android)]);
+      expect(c.read(pushRegistrationProvider).registeredToken, 'fcm-token-1');
 
-    await c.read(sessionControllerProvider.notifier).logout();
-    await _settle();
-    expect(repository.unregistered, [('fcm-token-1', 'session-token-1')]);
-    expect(client.deleted, isTrue);
-    expect(c.read(pushRegistrationProvider).registeredToken, isNull);
-  });
+      await c.read(sessionControllerProvider.notifier).logout();
+      await _settle();
+      expect(repository.unregistered, [('fcm-token-1', 'session-token-1')]);
+      expect(client.deleted, isTrue);
+      expect(c.read(pushRegistrationProvider).registeredToken, isNull);
+    },
+  );
 
   test('a refreshed token is registered again for the same session', () async {
     final client = _FakePushClient();
@@ -151,41 +154,50 @@ void main() {
     expect(repository.unregistered, [('fcm-token-2', 'session-token-1')]);
   });
 
-  test('tapping a notification opens its route; an unsafe route is ignored', () async {
-    final client = _FakePushClient();
-    final c = container(client);
-    await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
-    await _settle();
+  test(
+    'tapping a notification opens its route; an unsafe route is ignored',
+    () async {
+      final client = _FakePushClient();
+      final c = container(client);
+      await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
+      await _settle();
 
-    client.opened
-      ..add('/tasks')
-      ..add('https://evil.example');
-    await _settle();
+      client.opened
+        ..add('/tasks')
+        ..add('https://evil.example');
+      await _settle();
 
-    expect(openedRoutes, ['/tasks']);
-  });
+      expect(openedRoutes, ['/tasks']);
+    },
+  );
 
-  test('with no token (permission refused) nothing is registered or unregistered', () async {
-    final client = _FakePushClient(token: null);
-    final c = container(client);
-    await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
-    await _settle();
-    await c.read(sessionControllerProvider.notifier).logout();
-    await _settle();
+  test(
+    'with no token (permission refused) nothing is registered or unregistered',
+    () async {
+      final client = _FakePushClient(token: null);
+      final c = container(client);
+      await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
+      await _settle();
+      await c.read(sessionControllerProvider.notifier).logout();
+      await _settle();
 
-    expect(repository.registered, isEmpty);
-    expect(repository.unregistered, isEmpty);
-  });
+      expect(repository.registered, isEmpty);
+      expect(repository.unregistered, isEmpty);
+    },
+  );
 
-  test('with the no-op client (push unconfigured) login and logout touch nothing', () async {
-    final c = container(const NoopPushClient());
-    await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
-    await _settle();
-    expect(c.read(sessionControllerProvider).value?.role, 'field_agent');
-    await c.read(sessionControllerProvider.notifier).logout();
-    await _settle();
+  test(
+    'with the no-op client (push unconfigured) login and logout touch nothing',
+    () async {
+      final c = container(const NoopPushClient());
+      await c.read(sessionControllerProvider.notifier).login('a@b.co', 'pw');
+      await _settle();
+      expect(c.read(sessionControllerProvider).value?.role, 'field_agent');
+      await c.read(sessionControllerProvider.notifier).logout();
+      await _settle();
 
-    expect(repository.registered, isEmpty);
-    expect(repository.unregistered, isEmpty);
-  });
+      expect(repository.registered, isEmpty);
+      expect(repository.unregistered, isEmpty);
+    },
+  );
 }

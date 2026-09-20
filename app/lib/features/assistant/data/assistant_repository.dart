@@ -91,9 +91,9 @@ class AssistantRepository {
     // `utf8.decoder` rather than decoding each chunk on its own: a multi-byte
     // character can straddle a chunk boundary, and decoding per chunk turns an
     // outlet name with an accent into a replacement character.
-    final decoded = body.stream
-        .cast<List<int>>()
-        .transform<String>(utf8.decoder);
+    final decoded = body.stream.cast<List<int>>().transform<String>(
+      utf8.decoder,
+    );
 
     await for (final chunk in decoded) {
       for (final event in parser.add(chunk)) {

@@ -104,24 +104,25 @@ class PointsEntry {
   /// `my_record_screen.dart`, which maps the same three wire values through
   /// the ARB and falls back to this for a reason it does not know.
   String get reasonLabel => switch (reason) {
-        'visit_submitted' => 'Visit submitted',
-        'task_closed' => 'Task closed',
-        'scorecard' => 'Scorecard',
-        '' => 'Points',
-        _ => '${reason[0].toUpperCase()}'
-            '${reason.substring(1).replaceAll('_', ' ')}',
-      };
+    'visit_submitted' => 'Visit submitted',
+    'task_closed' => 'Task closed',
+    'scorecard' => 'Scorecard',
+    '' => 'Points',
+    _ =>
+      '${reason[0].toUpperCase()}'
+          '${reason.substring(1).replaceAll('_', ' ')}',
+  };
 
   factory PointsEntry.fromJson(Map<String, dynamic> json) => PointsEntry(
-        id: json['id'] as String,
-        points: (json['points'] as num?)?.toInt() ?? 0,
-        reason: json['reason'] as String? ?? '',
-        sourceType: json['sourceType'] as String? ?? '',
-        sourceId: json['sourceId'] as String? ?? '',
-        score: (json['score'] as num?)?.toDouble(),
-        occurredAt: DateTime.parse(json['occurredAt'] as String),
-        outletName: json['outletName'] as String?,
-      );
+    id: json['id'] as String,
+    points: (json['points'] as num?)?.toInt() ?? 0,
+    reason: json['reason'] as String? ?? '',
+    sourceType: json['sourceType'] as String? ?? '',
+    sourceId: json['sourceId'] as String? ?? '',
+    score: (json['score'] as num?)?.toDouble(),
+    occurredAt: DateTime.parse(json['occurredAt'] as String),
+    outletName: json['outletName'] as String?,
+  );
 }
 
 /// GET /gamification/agents/:agentId/points — who, and their latest entries.
@@ -181,14 +182,17 @@ class DioGamificationRepository implements GamificationRepository {
   }
 }
 
-final gamificationRepositoryProvider =
-    Provider<GamificationRepository>((ref) => DioGamificationRepository());
+final gamificationRepositoryProvider = Provider<GamificationRepository>(
+  (ref) => DioGamificationRepository(),
+);
 
 final leaderboardProvider = FutureProvider<List<LeaderboardEntry>>((ref) {
   return ref.read(gamificationRepositoryProvider).leaderboard();
 });
 
-final agentPointsProvider =
-    FutureProvider.family<AgentPointsHistory, String>((ref, agentId) {
+final agentPointsProvider = FutureProvider.family<AgentPointsHistory, String>((
+  ref,
+  agentId,
+) {
   return ref.read(gamificationRepositoryProvider).agentPoints(agentId);
 });

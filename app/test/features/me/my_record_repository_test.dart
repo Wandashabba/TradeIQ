@@ -74,24 +74,27 @@ void main() {
 
     tearDown(() => dio.httpClientAdapter = original);
 
-    test('asks for the whole record, with no window — as the words say', () async {
-      await DioMyRecordRepository().myEarnings();
+    test(
+      'asks for the whole record, with no window — as the words say',
+      () async {
+        await DioMyRecordRepository().myEarnings();
 
-      final me = adapter.requestFor('/gamification/me');
-      // `/gamification/me` takes optional from/to; `parseWindow` returns {}
-      // when both are absent and the service then omits the occurredAt filter
-      // entirely, so this request is LIFETIME. That is deliberate — the
-      // incentive payout engine has no window either, and a month-scoped bar
-      // would promise a reward the engine will not pay — and the screen says
-      // "All time" and "POINTS ALL TIME" because of it.
-      //
-      // This assertion is the pin between the two. If a window is ever added
-      // here, the three strings move back in the same commit, and this test
-      // is what says so.
-      expect(me.queryParameters['from'], isNull);
-      expect(me.queryParameters['to'], isNull);
-      expect(me.uri.query, isEmpty);
-    });
+        final me = adapter.requestFor('/gamification/me');
+        // `/gamification/me` takes optional from/to; `parseWindow` returns {}
+        // when both are absent and the service then omits the occurredAt filter
+        // entirely, so this request is LIFETIME. That is deliberate — the
+        // incentive payout engine has no window either, and a month-scoped bar
+        // would promise a reward the engine will not pay — and the screen says
+        // "All time" and "POINTS ALL TIME" because of it.
+        //
+        // This assertion is the pin between the two. If a window is ever added
+        // here, the three strings move back in the same commit, and this test
+        // is what says so.
+        expect(me.queryParameters['from'], isNull);
+        expect(me.queryParameters['to'], isNull);
+        expect(me.uri.query, isEmpty);
+      },
+    );
 
     test('and reads the agent\'s own visits without naming an agent', () async {
       adapter.bodies['/visits/me'] = <String, dynamic>{'data': <dynamic>[]};

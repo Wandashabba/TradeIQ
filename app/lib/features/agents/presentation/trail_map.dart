@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:go_router/go_router.dart';
 // `hide Path`: latlong2 exports a `Path` of its own, and the pins below are
 // drawn with dart:ui's.
 import 'package:latlong2/latlong.dart' hide Path;
@@ -120,7 +121,10 @@ class _TrailMapState extends State<TrailMap> {
 
     return TorchBleed(
       extra: skin.space.gutter * 2,
-      child: SizedBox(height: height, child: _Basemap(state: this)),
+      child: SizedBox(
+        height: height,
+        child: _Basemap(state: this),
+      ),
     );
   }
 }
@@ -163,9 +167,7 @@ class _Basemap extends StatelessWidget {
         final (center, zoom) = fitFor(
           points.isNotEmpty
               ? points
-              : <LatLng>[
-                  for (final a in widget.live) LatLng(a.lat!, a.lng!),
-                ],
+              : <LatLng>[for (final a in widget.live) LatLng(a.lat!, a.lng!)],
           size: size,
           padding: 40,
           singleZoom: 13,
@@ -213,6 +215,13 @@ class _Basemap extends StatelessWidget {
                   ordinal: i + 1,
                   isLast: i == a.stops.length - 1,
                   showLabel: labelVisible[index],
+                  // Every stop is a confirmed visit, so a tap opens it for
+                  // review (#208). The pin announces itself as a button, and
+                  // a button that a screen reader can read but not press is
+                  // the kit-wide defect this project already fixed once —
+                  // dropping the callback here would have reintroduced it
+                  // behind a local `excludeSemantics` wrapper.
+                  onTap: () => context.push('/visits/${a.stops[i].visitId}'),
                 ),
               ),
             );
@@ -246,7 +255,8 @@ class _Basemap extends StatelessWidget {
               // scroll view, and a wheel that sometimes zooms and sometimes
               // scrolls is a wheel nobody trusts.
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.drag |
+                flags:
+                    InteractiveFlag.drag |
                     InteractiveFlag.pinchZoom |
                     InteractiveFlag.doubleTapZoom |
                     InteractiveFlag.pinchMove,
@@ -289,8 +299,7 @@ class _Basemap extends StatelessWidget {
   /// figure, and a key has no business going near a formatter.
   static String _signature(List<LatLng> points) => points
       .map(
-        (p) =>
-            '${(p.latitude * 1e4).round()},${(p.longitude * 1e4).round()}',
+        (p) => '${(p.latitude * 1e4).round()},${(p.longitude * 1e4).round()}',
       )
       .join(';');
 }
@@ -317,9 +326,7 @@ class _TrailLines extends StatelessWidget {
         for (final a in withStops)
           if (a.stops.length > 1)
             Polyline<Object>(
-              points: <LatLng>[
-                for (final s in a.stops) LatLng(s.lat, s.lng),
-              ],
+              points: <LatLng>[for (final s in a.stops) LatLng(s.lat, s.lng)],
               strokeWidth: 3,
               color: night.palette.ink2,
               pattern: StrokePattern.dashed(segments: const <double>[8, 6]),
@@ -407,12 +414,18 @@ class TrailStopPin extends StatelessWidget {
     // numeral is clamped for the same reason — a 26dp digit in a 32dp disc is
     // a digit with no disc around it.
     final captionFits = showLabel && scale <= _captionCeiling;
-    final numeral = MediaQuery.of(context).copyWith(
-      textScaler: TextScaler.linear(math.min(scale, _captionCeiling)),
-    );
+    final numeral = MediaQuery.of(
+      context,
+    ).copyWith(textScaler: TextScaler.linear(math.min(scale, _captionCeiling)));
+
+    // `button` FOLLOWS the callback rather than being asserted beside it. A
+    // pin with nothing to open is a label, not a control: announcing it as a
+    // button would promise a screen reader an action that does not exist,
+    // which is exactly the defect the kit's button family was fixed for.
+    final pressable = onTap != null;
 
     return Semantics(
-      button: true,
+      button: pressable,
       excludeSemantics: true,
       label: '$agentName, stop $ordinal, ${stop.outletName}, $time',
       onTap: onTap,
@@ -453,9 +466,7 @@ class TrailStopPin extends StatelessWidget {
               DecoratedBox(
                 decoration: BoxDecoration(color: p.ground),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: TiqSpace.s1,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: TiqSpace.s1),
                   child: MediaQuery(
                     data: numeral,
                     child: Text(
@@ -528,7 +539,8 @@ class _VeldNote extends StatelessWidget {
       key: ValueKey<String>('trail-map-veld'),
       scope: EmptyScope.inPanel,
       headline: 'No map in the sun.',
-      body: 'A dark basemap read outdoors is a black rectangle. Every stop is '
+      body:
+          'A dark basemap read outdoors is a black rectangle. Every stop is '
           'listed below, in order, with the time it was confirmed.',
     );
   }
@@ -544,7 +556,8 @@ class _TilesOff extends StatelessWidget {
       key: ValueKey<String>('trail-map-offline'),
       scope: EmptyScope.inPanel,
       headline: 'The map will not load.',
-      body: 'The tiles are not arriving. Every stop is listed below, in '
+      body:
+          'The tiles are not arriving. Every stop is listed below, in '
           'order: nothing about the day is missing, only the picture of it.',
     );
   }

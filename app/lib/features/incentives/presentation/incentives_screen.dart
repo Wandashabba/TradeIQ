@@ -148,7 +148,8 @@ class IncentivesScreen extends ConsumerWidget {
                 key: ValueKey<String>('incentives-empty'),
                 scope: EmptyScope.inPanel,
                 headline: 'No schemes configured.',
-                body: 'Add one to start rewarding agents who clear a '
+                body:
+                    'Add one to start rewarding agents who clear a '
                     'threshold. Nothing pays out until there is a scheme.',
               )
             else
@@ -270,10 +271,7 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
             right: skin.space.gutter,
             bottom: TiqSpace.s5,
           ),
-          child: _Progress(
-            row: row,
-            agentsMeasured: widget.agentsMeasured,
-          ),
+          child: _Progress(row: row, agentsMeasured: widget.agentsMeasured),
         ),
         if (!widget.last)
           Padding(

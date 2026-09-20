@@ -19,8 +19,10 @@ import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
 
-FraudSignal _signal([String code = 'GPS_JUMP', String detail = 'Checked in 4,2 km from the pin']) =>
-    FraudSignal(code: code, detail: detail);
+FraudSignal _signal([
+  String code = 'GPS_JUMP',
+  String detail = 'Checked in 4,2 km from the pin',
+]) => FraudSignal(code: code, detail: detail);
 
 FlaggedVisit _visit({
   String visitId = 'v-1',
@@ -99,11 +101,7 @@ class _FakeFraud implements FraudRepository {
       FlaggedReviewFilter.decided => decided,
       FlaggedReviewFilter.all => <FlaggedVisit>[...open, ...decided],
     };
-    return FlaggedPage(
-      data: data,
-      nextCursor: nextCursor,
-      unscored: unscored,
-    );
+    return FlaggedPage(data: data, nextCursor: nextCursor, unscored: unscored);
   }
 
   @override
@@ -209,32 +207,31 @@ void main() {
       expect(find.byType(PersonRow), findsOneWidget);
     });
 
-    testWidgets('an unresolved agent says so in words and keeps the reference', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      await _pump(
-        tester,
-        open: <FlaggedVisit>[_visit(agentId: 'nobody')],
-        outlets: _outlets,
-        users: _roster,
-      );
+    testWidgets(
+      'an unresolved agent says so in words and keeps the reference',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await _pump(
+          tester,
+          open: <FlaggedVisit>[_visit(agentId: 'nobody')],
+          outlets: _outlets,
+          users: _roster,
+        );
 
-      // The title says the absence in words and keeps the shop beside it —
-      // never the shop's name alone, because the subject of the row is a
-      // person. It is a long title on a 360dp row so it middle-truncates,
-      // which is exactly why the whole of it goes to a screen reader.
-      expect(
-        find.bySemanticsLabel(
-          RegExp('Unknown agent, Kasi Corner Spaza'),
-        ),
-        findsOneWidget,
-      );
-      // And the visit reference drops to the mono identifier line, the one
-      // place a raw id is legitimate because it is then the only fact.
-      expect(find.text('v-1'), findsOneWidget);
-      handle.dispose();
-    });
+        // The title says the absence in words and keeps the shop beside it —
+        // never the shop's name alone, because the subject of the row is a
+        // person. It is a long title on a 360dp row so it middle-truncates,
+        // which is exactly why the whole of it goes to a screen reader.
+        expect(
+          find.bySemanticsLabel(RegExp('Unknown agent, Kasi Corner Spaza')),
+          findsOneWidget,
+        );
+        // And the visit reference drops to the mono identifier line, the one
+        // place a raw id is legitimate because it is then the only fact.
+        expect(find.text('v-1'), findsOneWidget);
+        handle.dispose();
+      },
+    );
 
     testWidgets('an unresolved outlet says so in words, never the id', (
       tester,
@@ -245,38 +242,36 @@ void main() {
         users: _roster,
       );
 
-      expect(
-        find.textContaining(FraudView.unnamedOutlet),
-        findsOneWidget,
-      );
+      expect(find.textContaining(FraudView.unnamedOutlet), findsOneWidget);
       expect(find.textContaining('o-gone'), findsNothing);
     });
 
-    testWidgets('the whole accusation reaches a screen reader as one sentence', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      await _pump(
-        tester,
-        open: <FlaggedVisit>[_visit()],
-        outlets: _outlets,
-        users: _roster,
-      );
+    testWidgets(
+      'the whole accusation reaches a screen reader as one sentence',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await _pump(
+          tester,
+          open: <FlaggedVisit>[_visit()],
+          outlets: _outlets,
+          users: _roster,
+        );
 
-      // Severity first, then who, then where, then the figure, then the
-      // evidence. A row is one utterance and everything under it is excluded,
-      // so anything not spelled here is silent.
-      expect(
-        find.bySemanticsLabel(
-          RegExp(
-            r'High risk.*Thandi Mokoena.*Kasi Corner Spaza.*Risk 82 of 100.*'
-            r'GPS_JUMP',
+        // Severity first, then who, then where, then the figure, then the
+        // evidence. A row is one utterance and everything under it is excluded,
+        // so anything not spelled here is silent.
+        expect(
+          find.bySemanticsLabel(
+            RegExp(
+              r'High risk.*Thandi Mokoena.*Kasi Corner Spaza.*Risk 82 of 100.*'
+              r'GPS_JUMP',
+            ),
           ),
-        ),
-        findsOneWidget,
-      );
-      handle.dispose();
-    });
+          findsOneWidget,
+        );
+        handle.dispose();
+      },
+    );
 
     testWidgets('both verbs keep their own nodes and can be activated', (
       tester,
@@ -391,9 +386,7 @@ void main() {
     ) async {
       await _pump(
         tester,
-        decided: <FlaggedVisit>[
-          _visit(verdict: _verdict(at: 82)),
-        ],
+        decided: <FlaggedVisit>[_visit(verdict: _verdict(at: 82))],
         outlets: _outlets,
         users: _roster,
       );
@@ -409,8 +402,10 @@ void main() {
       );
       // A rescore can move the stored score afterwards, so the number behind
       // the decision is recorded with it.
-      expect(find.textContaining('They were looking at risk 82.'),
-          findsOneWidget);
+      expect(
+        find.textContaining('They were looking at risk 82.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a ruling made against no score says so rather than an 0', (
@@ -462,10 +457,7 @@ void main() {
       expect(find.text('No ruling chosen yet'), findsOneWidget);
       // A control that pre-selected "cleared" would record a decision nobody
       // made every time somebody opened and closed the sheet.
-      expect(
-        find.textContaining('Choose a ruling first.'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Choose a ruling first.'), findsOneWidget);
     });
 
     testWidgets('every ruling carries its consequence', (tester) async {
@@ -500,10 +492,7 @@ void main() {
       // Nothing was sent, and the block says what is missing rather than
       // leaving a dead button.
       expect(repo.recorded, isEmpty);
-      expect(
-        find.textContaining('Say what evidence is missing'),
-        findsWidgets,
-      );
+      expect(find.textContaining('Say what evidence is missing'), findsWidgets);
     });
 
     testWidgets('a cleared ruling records without a note', (tester) async {
@@ -695,8 +684,10 @@ void main() {
       await _pump(tester, outlets: _outlets);
 
       expect(find.byKey(const ValueKey<String>('fraud-empty')), findsOneWidget);
-      expect(find.textContaining('Ruled visits move to Decided'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Ruled visits move to Decided'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('an error is sanitised and carries one retry', (tester) async {
@@ -720,6 +711,51 @@ void main() {
 
       expect(find.text('Thandi Mokoena'), findsOneWidget);
     });
+  });
+
+  // ── Every button a reader announces, a reader can press ───────────────
+  //
+  // The kit once shipped a whole button family that announced itself and did
+  // nothing when a screen reader activated it, and `SectionRuleAction` and
+  // `PaginationFooter.action` were still shipping it when this group started.
+  // This is that law on this screen, in every phase, so no local
+  // `Semantics(button: true, ..., excludeSemantics: true)` around a bare
+  // gesture detector can bring it back here.
+  group('every button a screen reader announces can be activated', () {
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(
+        t,
+        open: <FlaggedVisit>[_visit()],
+        unscored: 3,
+        nextCursor: 'c2',
+        outlets: _outlets,
+        users: _roster,
+      ),
+      'empty': (t) => _pump(t, outlets: _outlets),
+      'error': (t) =>
+          _pump(t, failure: StateError('SocketException: api.tradeiq.co.za')),
+      // Where the verdict control lives. Three rows and a commit, and the
+      // commit is disabled until a ruling is chosen — which the guard allows
+      // and an inert ENABLED button it does not.
+      'the ruling sheet': (t) async {
+        await _pump(
+          t,
+          open: <FlaggedVisit>[_visit()],
+          outlets: _outlets,
+          users: _roster,
+        );
+        await t.tap(find.byKey(const ValueKey<String>('fraud-rule-v-1')));
+        await t.pumpAndSettle();
+      },
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
   });
 
   group('the amber census, every phase in every skin', () {
@@ -857,10 +893,7 @@ void main() {
       );
 
       expect(find.byType(PersonRow), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(RegExp('Thandi Mokoena')),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
       expect(tester.takeException(), isNull);
       handle.dispose();
     });

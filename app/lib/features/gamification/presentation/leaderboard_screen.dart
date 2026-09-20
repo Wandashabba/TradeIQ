@@ -159,7 +159,8 @@ class LeaderboardScreen extends ConsumerWidget {
                 key: ValueKey<String>('leaderboard-empty'),
                 scope: EmptyScope.inPanel,
                 headline: 'Nobody on the board yet.',
-                body: 'Agents appear here once there is a field agent on this '
+                body:
+                    'Agents appear here once there is a field agent on this '
                     'client to measure.',
               ),
             ],
@@ -177,20 +178,14 @@ class LeaderboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: TiqSpace.s5),
             if (view.ranked.isNotEmpty)
-              _Rows(
-                entries: view.ranked,
-                keyPrefix: 'leaderboard',
-              ),
+              _Rows(entries: view.ranked, keyPrefix: 'leaderboard'),
             if (view.unranked.isNotEmpty) ...<Widget>[
               const SizedBox(height: TiqSpace.s7),
               SectionRule('Not ranked yet', count: view.unranked.length),
               const SizedBox(height: TiqSpace.s3),
               const _UnrankedNote(),
               const SizedBox(height: TiqSpace.s4),
-              _Rows(
-                entries: view.unranked,
-                keyPrefix: 'leaderboard-unranked',
-              ),
+              _Rows(entries: view.unranked, keyPrefix: 'leaderboard-unranked'),
             ],
           ],
         );

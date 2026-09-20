@@ -52,8 +52,9 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
     super.dispose();
   }
 
-  String? get _nameError =>
-      _attempted && _name.text.trim().isEmpty ? 'Give the scheme a name.' : null;
+  String? get _nameError => _attempted && _name.text.trim().isEmpty
+      ? 'Give the scheme a name.'
+      : null;
 
   double? get _thresholdValue => double.tryParse(
     // A comma is the decimal mark in Afrikaans, and a manager typing 4,5 on
@@ -94,9 +95,7 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
     return TorchSheet(
       title: 'Add a scheme',
       subtitle: 'It starts awarding as soon as it is saved.',
-      claims: const <TorchClaim>[
-        TorchClaim.primaryCommit(kSchemeFormClaimId),
-      ],
+      claims: const <TorchClaim>[TorchClaim.primaryCommit(kSchemeFormClaimId)],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -127,7 +126,8 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
               ChoiceOption<IncentiveMetric>(
                 value: IncentiveMetric.scorecard,
                 label: 'Average scorecard',
-                consequence: 'Pays when the agent\'s 0–100 mean clears the '
+                consequence:
+                    'Pays when the agent\'s 0–100 mean clears the '
                     'threshold.',
               ),
               ChoiceOption<IncentiveMetric>(

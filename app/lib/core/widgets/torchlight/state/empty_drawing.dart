@@ -66,8 +66,7 @@ class EmptyStateDrawing extends StatelessWidget {
       skin.density == TiqDensity.veld ? 48 : 64;
 
   /// 2px, 3px in Veld.
-  static double strokeFor(TiqSkin skin) =>
-      skin.depth.borderWidth >= 2 ? 3 : 2;
+  static double strokeFor(TiqSkin skin) => skin.depth.borderWidth >= 2 ? 3 : 2;
 
   @override
   Widget build(BuildContext context) {

@@ -22,7 +22,7 @@ abstract class TokenStore {
 
 class SecureTokenStore implements TokenStore {
   SecureTokenStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? appSecureStorage;
+    : _storage = storage ?? appSecureStorage;
 
   final FlutterSecureStorage _storage;
 

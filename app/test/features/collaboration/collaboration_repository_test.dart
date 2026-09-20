@@ -120,42 +120,48 @@ void main() {
     expect(message.attachments.map((a) => a.photoId), ['p1', 'p2']);
   });
 
-  test('a text-only sendMessage omits attachmentPhotoIds from the wire', () async {
-    final adapter = _CapturingAdapter(
-      '{"id":"m10","body":"hi","recipientId":"u2","attachments":[]}',
-      statusCode: 201,
-    );
-    final previous = dio.httpClientAdapter;
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
+  test(
+    'a text-only sendMessage omits attachmentPhotoIds from the wire',
+    () async {
+      final adapter = _CapturingAdapter(
+        '{"id":"m10","body":"hi","recipientId":"u2","attachments":[]}',
+        statusCode: 201,
+      );
+      final previous = dio.httpClientAdapter;
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
 
-    await DioCollaborationRepository().sendMessage('hi', recipientId: 'u2');
+      await DioCollaborationRepository().sendMessage('hi', recipientId: 'u2');
 
-    expect(adapter.captured!.data, {'body': 'hi', 'recipientId': 'u2'});
-  });
+      expect(adapter.captured!.data, {'body': 'hi', 'recipientId': 'u2'});
+    },
+  );
 
-  test('sendMessage sends clientMessageId, the idempotency key (#308)', () async {
-    final adapter = _CapturingAdapter(
-      '{"id":"m11","body":"hi","recipientId":null,"attachments":[],'
-      '"clientMessageId":"key-1"}',
-      statusCode: 201,
-    );
-    final previous = dio.httpClientAdapter;
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
+  test(
+    'sendMessage sends clientMessageId, the idempotency key (#308)',
+    () async {
+      final adapter = _CapturingAdapter(
+        '{"id":"m11","body":"hi","recipientId":null,"attachments":[],'
+        '"clientMessageId":"key-1"}',
+        statusCode: 201,
+      );
+      final previous = dio.httpClientAdapter;
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
 
-    await DioCollaborationRepository().sendMessage(
-      'hi',
-      attachmentPhotoIds: const ['p1'],
-      clientMessageId: 'key-1',
-    );
+      await DioCollaborationRepository().sendMessage(
+        'hi',
+        attachmentPhotoIds: const ['p1'],
+        clientMessageId: 'key-1',
+      );
 
-    expect(adapter.captured!.data, {
-      'body': 'hi',
-      'attachmentPhotoIds': ['p1'],
-      'clientMessageId': 'key-1',
-    });
-  });
+      expect(adapter.captured!.data, {
+        'body': 'hi',
+        'attachmentPhotoIds': ['p1'],
+        'clientMessageId': 'key-1',
+      });
+    },
+  );
 
   test('a replayed send (200) parses as the original message (#308)', () async {
     final adapter = _CapturingAdapter(
@@ -174,22 +180,27 @@ void main() {
     expect(message.id, 'm-original');
   });
 
-  test('sendMessage without a key omits clientMessageId from the wire', () async {
-    final adapter = _CapturingAdapter(
-      '{"id":"m12","body":"hi","recipientId":null,"attachments":[]}',
-      statusCode: 201,
-    );
-    final previous = dio.httpClientAdapter;
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
+  test(
+    'sendMessage without a key omits clientMessageId from the wire',
+    () async {
+      final adapter = _CapturingAdapter(
+        '{"id":"m12","body":"hi","recipientId":null,"attachments":[]}',
+        statusCode: 201,
+      );
+      final previous = dio.httpClientAdapter;
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
 
-    await DioCollaborationRepository().sendMessage('hi');
+      await DioCollaborationRepository().sendMessage('hi');
 
-    expect(
-      (adapter.captured!.data as Map<String, dynamic>).containsKey('clientMessageId'),
-      isFalse,
-    );
-  });
+      expect(
+        (adapter.captured!.data as Map<String, dynamic>).containsKey(
+          'clientMessageId',
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('Announcement.fromJson parses all fields', () {
     final announcement = Announcement.fromJson(const {
@@ -231,40 +242,46 @@ void main() {
     expect(announcement.id, 'a9');
   });
 
-  test('listAnnouncements GETs /announcements and parses the {data, nextCursor} envelope', () async {
-    final adapter = _CapturingAdapter(
-      '{"data": [{"id":"a1","title":"Q3 Kickoff","body":"New targets are live",'
-      '"createdAt":"2026-07-09T10:00:00.000Z"}], "nextCursor": null}',
-    );
-    final previous = dio.httpClientAdapter;
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
+  test(
+    'listAnnouncements GETs /announcements and parses the {data, nextCursor} envelope',
+    () async {
+      final adapter = _CapturingAdapter(
+        '{"data": [{"id":"a1","title":"Q3 Kickoff","body":"New targets are live",'
+        '"createdAt":"2026-07-09T10:00:00.000Z"}], "nextCursor": null}',
+      );
+      final previous = dio.httpClientAdapter;
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
 
-    final page = await DioCollaborationRepository().listAnnouncements();
+      final page = await DioCollaborationRepository().listAnnouncements();
 
-    expect(adapter.captured!.method, 'GET');
-    expect(adapter.captured!.path, '/announcements');
-    expect(page, isA<PaginatedResponse<Announcement>>());
-    expect(page.data.single.title, 'Q3 Kickoff');
-    expect(page.nextCursor, isNull);
-  });
+      expect(adapter.captured!.method, 'GET');
+      expect(adapter.captured!.path, '/announcements');
+      expect(page, isA<PaginatedResponse<Announcement>>());
+      expect(page.data.single.title, 'Q3 Kickoff');
+      expect(page.nextCursor, isNull);
+    },
+  );
 
-  test('listMessages GETs /messages and parses the {data, nextCursor} envelope', () async {
-    final adapter = _CapturingAdapter(
-      '{"data": [{"id":"m1","senderId":"s1","recipientId":null,'
-      '"body":"Hello team","createdAt":"2026-07-09T10:00:00.000Z"}], '
-      '"nextCursor": "cursor-1"}',
-    );
-    final previous = dio.httpClientAdapter;
-    dio.httpClientAdapter = adapter;
-    addTearDown(() => dio.httpClientAdapter = previous);
+  test(
+    'listMessages GETs /messages and parses the {data, nextCursor} envelope',
+    () async {
+      final adapter = _CapturingAdapter(
+        '{"data": [{"id":"m1","senderId":"s1","recipientId":null,'
+        '"body":"Hello team","createdAt":"2026-07-09T10:00:00.000Z"}], '
+        '"nextCursor": "cursor-1"}',
+      );
+      final previous = dio.httpClientAdapter;
+      dio.httpClientAdapter = adapter;
+      addTearDown(() => dio.httpClientAdapter = previous);
 
-    final page = await DioCollaborationRepository().listMessages();
+      final page = await DioCollaborationRepository().listMessages();
 
-    expect(adapter.captured!.method, 'GET');
-    expect(adapter.captured!.path, '/messages');
-    expect(page, isA<PaginatedResponse<Message>>());
-    expect(page.data.single.id, 'm1');
-    expect(page.nextCursor, 'cursor-1');
-  });
+      expect(adapter.captured!.method, 'GET');
+      expect(adapter.captured!.path, '/messages');
+      expect(page, isA<PaginatedResponse<Message>>());
+      expect(page.data.single.id, 'm1');
+      expect(page.nextCursor, 'cursor-1');
+    },
+  );
 }

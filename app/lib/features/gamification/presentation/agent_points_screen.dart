@@ -181,7 +181,8 @@ class AgentPointsScreen extends ConsumerWidget {
                 key: ValueKey<String>('points-empty'),
                 scope: EmptyScope.inPanel,
                 headline: 'No points yet.',
-                body: 'Entries appear as this agent submits visits, closes '
+                body:
+                    'Entries appear as this agent submits visits, closes '
                     'tasks and is scored.',
               )
             else
@@ -219,7 +220,8 @@ class _Standing extends StatelessWidget {
               unit: TiqUnit.worded('pts'),
               // A payout has no 0–100 scale, so it gets no meter. The average
               // beneath it does, and the difference is the point.
-              stateLine: 'The average scorecard, plus 5 a closed task and 2 a '
+              stateLine:
+                  'The average scorecard, plus 5 a closed task and 2 a '
                   'submitted visit.',
             ),
             StatTile(
@@ -232,10 +234,7 @@ class _Standing extends StatelessWidget {
               noDataReason: scored == 0
                   ? 'No scored visit in this window.'
                   : null,
-              sampling: FigureSampling(
-                kind: MetricKind.average,
-                n: scored,
-              ),
+              sampling: FigureSampling(kind: MetricKind.average, n: scored),
               meter: scored == 0
                   ? const MeterData(value: null)
                   : MeterData(value: entry.avgScorecard),
@@ -287,7 +286,8 @@ class _Ledger extends StatelessWidget {
             extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('points-footer'),
-              summary: 'Showing the '
+              summary:
+                  'Showing the '
                   '${numbers.format(entries.length)} newest entries. '
                   'There are more.',
             ),
@@ -304,11 +304,7 @@ class _Ledger extends StatelessWidget {
 /// that happened, not a judgement of it — a scorecard of 41 is not a crimson
 /// row, it is a number the agent can go and read.
 class PointsEntryRow extends StatelessWidget {
-  const PointsEntryRow({
-    super.key,
-    required this.entry,
-    this.last = false,
-  });
+  const PointsEntryRow({super.key, required this.entry, this.last = false});
 
   final PointsEntry entry;
   final bool last;
@@ -323,9 +319,7 @@ class PointsEntryRow extends StatelessWidget {
     // and it is not a signed payout.
     final isScorecard = entry.reason == 'scorecard' && entry.score != null;
     final value = isScorecard ? entry.score! : entry.points;
-    final unit = isScorecard
-        ? TiqUnit.none
-        : TiqUnit.worded('pts');
+    final unit = isScorecard ? TiqUnit.none : TiqUnit.worded('pts');
     final spoken = isScorecard
         ? 'scored ${numbers.format(entry.score!)}'
         : '${numbers.format(entry.points, signed: true)} points';

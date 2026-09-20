@@ -200,16 +200,13 @@ class AgentTrailScreen extends ConsumerWidget {
                     key: ValueKey<String>('agent-trail-empty'),
                     scope: EmptyScope.inPanel,
                     headline: 'No check-ins on this day.',
-                    body: 'A pin appears here when an agent confirms a '
+                    body:
+                        'A pin appears here when an agent confirms a '
                         'check-in. Pick another day to see one that has some.',
                   ),
                 ]
               : <Widget>[
-                  TrailMap(
-                    day: day,
-                    withStops: withStops,
-                    live: livePositions,
-                  ),
+                  TrailMap(day: day, withStops: withStops, live: livePositions),
                   const SizedBox(height: TiqSpace.s6),
                   const SectionRule('How to read it'),
                   const SizedBox(height: TiqSpace.s3),
@@ -225,7 +222,8 @@ class AgentTrailScreen extends ConsumerWidget {
                       child: const PaginationFooter(
                         key: ValueKey<String>('agent-trail-footer'),
                         summary: 'Showing the first 200 agents only.',
-                        narrowLine: 'A partial map that looks complete is '
+                        narrowLine:
+                            'A partial map that looks complete is '
                             'worse than no map: the rest of the day is not '
                             'here.',
                       ),
@@ -297,7 +295,8 @@ class _AgentTrail extends StatelessWidget {
     final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final stops = agent.stops;
-    final count = '${numbers.format(stops.length)} '
+    final count =
+        '${numbers.format(stops.length)} '
         '${stops.length == 1 ? 'stop' : 'stops'}';
 
     return TorchBleed(

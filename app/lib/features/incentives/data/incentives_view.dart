@@ -65,8 +65,9 @@ class IncentiveProgress {
   bool get earned => value != null && value! >= threshold;
 
   /// Null where the value is unknown: a fraction of nothing is not a fraction.
-  double? get remaining =>
-      value == null ? null : (threshold - value!).clamp(0, threshold).toDouble();
+  double? get remaining => value == null
+      ? null
+      : (threshold - value!).clamp(0, threshold).toDouble();
 }
 
 /// One scheme, with who is close to earning it.
@@ -127,7 +128,10 @@ final incentivesViewProvider = FutureProvider<IncentivesView>((ref) async {
 
   final board = ref
       .watch(leaderboardProvider)
-      .maybeWhen(data: (list) => list, orElse: () => const <LeaderboardEntry>[]);
+      .maybeWhen(
+        data: (list) => list,
+        orElse: () => const <LeaderboardEntry>[],
+      );
 
   return IncentivesView(
     agentsMeasured: board.length,
@@ -175,9 +179,5 @@ IncentiveSchemeRow _rowFor(
         ? byRemaining
         : a.name.toLowerCase().compareTo(b.name.toLowerCase());
   });
-  return IncentiveSchemeRow(
-    scheme: scheme,
-    metric: metric,
-    progress: progress,
-  );
+  return IncentiveSchemeRow(scheme: scheme, metric: metric, progress: progress);
 }

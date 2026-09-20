@@ -10,10 +10,10 @@ import '../../helpers/routed_app.dart';
 import 'contests_fakes.dart';
 
 Widget _app(FakeContestsRepository repo, {ThemeData? theme}) => routedApp(
-      const ContestStandingsScreen(contestId: 'c-active'),
-      theme: theme,
-      overrides: [contestsRepositoryProvider.overrideWithValue(repo)],
-    );
+  const ContestStandingsScreen(contestId: 'c-active'),
+  theme: theme,
+  overrides: [contestsRepositoryProvider.overrideWithValue(repo)],
+);
 
 final _repo = FakeContestsRepository(
   standingsById: const {

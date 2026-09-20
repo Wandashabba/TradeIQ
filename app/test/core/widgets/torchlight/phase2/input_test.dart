@@ -100,7 +100,11 @@ void main() {
         state: TroughState.finding,
       );
       expect(spec.fill, TroughSpec.findingWashNight);
-      expect(spec.fill!.a, 1.0, reason: 'A composited value is a declared one.');
+      expect(
+        spec.fill!.a,
+        1.0,
+        reason: 'A composited value is a declared one.',
+      );
       expect(spec.outline, TiqSkin.night().palette.bad);
       expect(spec.outlineWidth, 2);
     });
@@ -246,10 +250,7 @@ void main() {
         tester,
         skin: TiqSkin.night(density: TiqDensity.field),
         locale: const Locale('af'),
-        child: TorchNumericField(
-          label: 'Prys',
-          onChanged: (v) => captured = v,
-        ),
+        child: TorchNumericField(label: 'Prys', onChanged: (v) => captured = v),
       );
       await tester.enterText(find.byType(TextField), '1.5');
       await tester.pump();
@@ -708,21 +709,23 @@ void main() {
       expect(needs.top, greaterThan(confirmed.bottom - 1));
     });
 
-    testWidgets('a ruling that demands a note cannot be committed without one', (
-      tester,
-    ) async {
-      final committed = await pump(tester);
+    testWidgets(
+      'a ruling that demands a note cannot be committed without one',
+      (tester) async {
+        final committed = await pump(tester);
 
-      await tester.tap(find.text('Needs evidence'));
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('verdict-commit')),
-      );
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Needs evidence'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey<String>('verdict-commit')));
+        await tester.pumpAndSettle();
 
-      expect(committed, isEmpty);
-      expect(find.textContaining('Say what evidence is missing.'), findsWidgets);
-    });
+        expect(committed, isEmpty);
+        expect(
+          find.textContaining('Say what evidence is missing.'),
+          findsWidgets,
+        );
+      },
+    );
 
     testWidgets('the missing note is a finding on the ATTEMPT, not before', (
       tester,
@@ -748,9 +751,7 @@ void main() {
 
       await tester.tap(find.text('Cleared'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('verdict-commit')),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('verdict-commit')));
       await tester.pumpAndSettle();
 
       expect(committed.single.value, 'cleared');
@@ -767,9 +768,7 @@ void main() {
         '   ',
       );
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('verdict-commit')),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('verdict-commit')));
       await tester.pumpAndSettle();
 
       expect(committed.single.note, isNull);

@@ -66,16 +66,17 @@ const Map<String, String> _litCommitCases = <String, String>{
   'DecisionSheet': "the safe path — 'Carry on from 11:04'",
   'DecisionSheet.stale':
       "'Check in again' — a geofence fix from yesterday is not evidence of "
-          'being here now',
+      'being here now',
   'DecisionSheet.counting':
       'the safe path, still lit while its own dots run — the light says which '
-          'way out, and that does not change while a count resolves',
+      'way out, and that does not change while a count resolves',
   'SkipReasonPicker.threshold': "the commit — 'Change reason'",
   'SessionEndedSheet': "the way back in — 'Sign in to send them'",
 };
 
 /// How many lit objects a case may paint.
-int _budgetFor(String caseName) => _litCommitCases.containsKey(caseName) ? 1 : 0;
+int _budgetFor(String caseName) =>
+    _litCommitCases.containsKey(caseName) ? 1 : 0;
 
 void main() {
   group('no Phase 2 component paints a lit object, in any skin', () {

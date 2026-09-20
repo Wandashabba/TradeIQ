@@ -22,7 +22,8 @@ class TorchBleed extends SingleChildRenderObjectWidget {
   final double extra;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => RenderTorchBleed(extra);
+  RenderObject createRenderObject(BuildContext context) =>
+      RenderTorchBleed(extra);
 
   @override
   void updateRenderObject(BuildContext context, RenderTorchBleed renderObject) {

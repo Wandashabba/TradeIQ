@@ -267,21 +267,24 @@ class StatTileData {
       final meter = raw['meter'];
       final decimals = raw['decimals'];
       final places = decimals is int ? decimals : null;
-      out.add(StatTileData(
-        label: label,
-        value: value is num && value.isFinite ? value : null,
-        unit: unit is String ? unit : null,
-        delta: TileDelta.tryParse(raw['delta']),
-        comparedTo:
-            comparedTo is String && comparedTo.isNotEmpty ? comparedTo : null,
-        meter: meter is num && meter.isFinite
-            ? meter.toDouble().clamp(0, 100)
-            : null,
-        decimals: places,
-        sampleSize: _count(raw['sampleSize']),
-        baselineSampleSize: _count(raw['baselineSampleSize']),
-        provenance: FigureProvenance.from(data, tile: raw),
-      ));
+      out.add(
+        StatTileData(
+          label: label,
+          value: value is num && value.isFinite ? value : null,
+          unit: unit is String ? unit : null,
+          delta: TileDelta.tryParse(raw['delta']),
+          comparedTo: comparedTo is String && comparedTo.isNotEmpty
+              ? comparedTo
+              : null,
+          meter: meter is num && meter.isFinite
+              ? meter.toDouble().clamp(0, 100)
+              : null,
+          decimals: places,
+          sampleSize: _count(raw['sampleSize']),
+          baselineSampleSize: _count(raw['baselineSampleSize']),
+          provenance: FigureProvenance.from(data, tile: raw),
+        ),
+      );
     }
     return out;
   }
@@ -326,9 +329,9 @@ class RankedBarsData {
   /// The largest magnitude, which every bar is scaled against. Zero when there
   /// is nothing to scale.
   double get maxAbs => items.fold(
-        0,
-        (max, item) => item.value.abs() > max ? item.value.abs() : max,
-      );
+    0,
+    (max, item) => item.value.abs() > max ? item.value.abs() : max,
+  );
 
   /// The one bar the answer is about — **the server's choice** (#410).
   ///
@@ -376,11 +379,13 @@ class RankedBarsData {
             !value.isFinite) {
           continue;
         }
-        items.add(RankedBarItem(
-          label,
-          value.toDouble(),
-          sampleSize: _count(entry['sampleSize']),
-        ));
+        items.add(
+          RankedBarItem(
+            label,
+            value.toDouble(),
+            sampleSize: _count(entry['sampleSize']),
+          ),
+        );
       }
     }
     final decimals = data['decimals'];

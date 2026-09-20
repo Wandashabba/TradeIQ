@@ -154,11 +154,7 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
     try {
       await ref
           .read(reportsRepositoryProvider)
-          .createReport(
-            name: _name.text.trim(),
-            type: _type,
-            filters: filters,
-          );
+          .createReport(name: _name.text.trim(), type: _type, filters: filters);
       ref.invalidate(reportsPageProvider);
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
@@ -329,9 +325,7 @@ class _OutletPickerSheet extends ConsumerWidget {
               key: const ValueKey<String>('outlet-any'),
               density: SoftRowDensity.compact,
               title: 'All outlets',
-              onTap: () => Navigator.of(
-                context,
-              ).pop((id: null, name: null)),
+              onTap: () => Navigator.of(context).pop((id: null, name: null)),
               separator: list.isEmpty
                   ? SoftRowSeparator.none
                   : SoftRowSeparator.auto,

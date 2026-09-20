@@ -57,8 +57,14 @@ class MyContestsScreen extends ConsumerWidget {
           ],
         ),
         data: (list) {
-          final active = [for (final c in list) if (c.contest.isActive) c];
-          final ended = [for (final c in list) if (c.contest.isEnded) c];
+          final active = [
+            for (final c in list)
+              if (c.contest.isActive) c,
+          ];
+          final ended = [
+            for (final c in list)
+              if (c.contest.isEnded) c,
+          ];
           if (active.isEmpty && ended.isEmpty) {
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -147,15 +153,15 @@ class _ContestCard extends StatelessWidget {
     final counts = c.eventTypes.isEmpty
         ? l10n.contestEventAll
         : c.eventTypes
-            .map(
-              (type) => switch (type) {
-                'visit_submitted' => l10n.contestEventVisitSubmitted,
-                'task_closed' => l10n.contestEventTaskClosed,
-                'scorecard' => l10n.contestEventScorecard,
-                _ => type,
-              },
-            )
-            .join(' · ');
+              .map(
+                (type) => switch (type) {
+                  'visit_submitted' => l10n.contestEventVisitSubmitted,
+                  'task_closed' => l10n.contestEventTaskClosed,
+                  'scorecard' => l10n.contestEventScorecard,
+                  _ => type,
+                },
+              )
+              .join(' · ');
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -390,11 +396,7 @@ class _YourRank extends StatelessWidget {
 }
 
 class _StandingLine extends StatelessWidget {
-  const _StandingLine({
-    super.key,
-    required this.standing,
-    required this.isMe,
-  });
+  const _StandingLine({super.key, required this.standing, required this.isMe});
 
   final ContestStanding standing;
   final bool isMe;
@@ -420,7 +422,10 @@ class _StandingLine extends StatelessWidget {
         children: [
           SizedBox(
             width: 34,
-            child: Text('#${standing.rank}', style: figure.copyWith(color: muted)),
+            child: Text(
+              '#${standing.rank}',
+              style: figure.copyWith(color: muted),
+            ),
           ),
           Expanded(
             child: Row(

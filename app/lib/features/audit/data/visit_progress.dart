@@ -137,7 +137,9 @@ final class SectionDetail {
 
   const SectionDetail.risks(int items)
     : this._(
-        items == 0 ? _SectionDetailKind.noRisks : _SectionDetailKind.risksRaised,
+        items == 0
+            ? _SectionDetailKind.noRisks
+            : _SectionDetailKind.risksRaised,
         items: items,
       );
 
@@ -343,14 +345,11 @@ class TemplatePinFailures extends Notifier<Set<String>> {
   @override
   Set<String> build() => const <String>{};
 
-  void failed(String visitDraftId) =>
-      state = <String>{...state, visitDraftId};
+  void failed(String visitDraftId) => state = <String>{...state, visitDraftId};
 }
 
 final templatePinFailedProvider =
-    NotifierProvider<TemplatePinFailures, Set<String>>(
-      TemplatePinFailures.new,
-    );
+    NotifierProvider<TemplatePinFailures, Set<String>>(TemplatePinFailures.new);
 
 /// Reads the audit's progress straight out of the local outbox.
 ///
@@ -366,7 +365,10 @@ final visitProgressProvider =
       // Item counts are only meaningful against the SKU list; without it we can
       // still say done/not-started, just not "7 of 12".
       final skus = ref.watch(skusListProvider(key.outletId));
-      final skuCount = skus.maybeWhen(data: (list) => list.length, orElse: () => 0);
+      final skuCount = skus.maybeWhen(
+        data: (list) => list.length,
+        orElse: () => 0,
+      );
       // #389. A SKU list that FAILED is not a SKU list of length zero, and the
       // difference is the whole bug: with `orElse: 0` a part-counted stock
       // section fell through the `skuCount > 0` guard and reported *done*, so

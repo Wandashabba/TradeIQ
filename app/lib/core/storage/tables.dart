@@ -39,8 +39,7 @@ class PinnedVisitTemplates extends Table {
 class VisitDrafts extends Table {
   TextColumn get id => text()();
   TextColumn get outletId => text()();
-  TextColumn get status =>
-      text().withDefault(const Constant('in_progress'))();
+  TextColumn get status => text().withDefault(const Constant('in_progress'))();
   DateTimeColumn get checkinTs => dateTime()();
   RealColumn get checkinLat => real()();
   RealColumn get checkinLng => real()();
@@ -88,8 +87,7 @@ class SyncQueueItems extends Table {
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
   TextColumn get payloadJson => text()();
-  DateTimeColumn get queuedAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
 
   /// How many times we have tried to send this item, and why the last try

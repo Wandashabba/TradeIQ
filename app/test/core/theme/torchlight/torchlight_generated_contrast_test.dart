@@ -56,10 +56,7 @@ void main() {
           isVeld ? 9.0 : 4.5,
           reason: 'The applicable floor is the stricter of role and skin.',
         );
-        expect(
-          skin.floorFor(3.0, isText: false),
-          isVeld ? 15.0 : 3.0,
-        );
+        expect(skin.floorFor(3.0, isText: false), isVeld ? 15.0 : 3.0);
       });
     }
 
@@ -94,24 +91,21 @@ void main() {
       // A guard that cannot fail is not a guard. Move ink-3 onto the ground
       // it is supposed to sit on and the sweep has to notice.
       final broken = TiqSkin.night().copyWith(
-        palette: TiqSkin.night().palette.lerp(
-          TiqSkin.night().palette,
-          0,
-        ),
+        palette: TiqSkin.night().palette.lerp(TiqSkin.night().palette, 0),
       );
       final sabotaged = TiqSkin.night().copyWith(
         palette: _withInk3(TiqSkin.night().palette, const Color(0xFF12181F)),
       );
       expect(
-        TorchlightContrast.generatedFor(broken).every(
-          (p) => p.ratio >= p.role.floor,
-        ),
+        TorchlightContrast.generatedFor(
+          broken,
+        ).every((p) => p.ratio >= p.role.floor),
         isTrue,
       );
       expect(
-        TorchlightContrast.generatedFor(sabotaged).any(
-          (p) => p.ratio < p.role.floor,
-        ),
+        TorchlightContrast.generatedFor(
+          sabotaged,
+        ).any((p) => p.ratio < p.role.floor),
         isTrue,
         reason:
             'ink-3 moved to within a hair of the ground and the sweep did not '

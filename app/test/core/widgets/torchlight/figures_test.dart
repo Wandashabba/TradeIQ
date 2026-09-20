@@ -30,8 +30,9 @@ void main() {
       expect(Meter.trackHeight(TiqSkin.veld()), 8);
     });
 
-    testWidgets('a null value forces the empty state whatever was declared',
-        (tester) async {
+    testWidgets('a null value forces the empty state whatever was declared', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -42,48 +43,57 @@ void main() {
       // The painter is what carries the state; this asserts the widget did not
       // silently render a zero-length fill with a tick beside it.
       final paint = tester.widget<CustomPaint>(
-        find.descendant(of: find.byType(Meter), matching: find.byType(CustomPaint)),
+        find.descendant(
+          of: find.byType(Meter),
+          matching: find.byType(CustomPaint),
+        ),
       );
       expect((paint.painter! as MeterPainter).state, MeterState.missing);
       expect((paint.painter! as MeterPainter).fraction, isNull);
     });
 
-    testWidgets('a true zero renders no fill; the figure above carries it',
-        (tester) async {
+    testWidgets('a true zero renders no fill; the figure above carries it', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
           const SizedBox(width: 200, child: Meter(value: 0)),
         ),
       );
-      final painter = tester
-          .widget<CustomPaint>(
-            find.descendant(
-              of: find.byType(Meter),
-              matching: find.byType(CustomPaint),
-            ),
-          )
-          .painter! as MeterPainter;
+      final painter =
+          tester
+                  .widget<CustomPaint>(
+                    find.descendant(
+                      of: find.byType(Meter),
+                      matching: find.byType(CustomPaint),
+                    ),
+                  )
+                  .painter!
+              as MeterPainter;
       expect(painter.fraction, 0);
       expect(painter.state, MeterState.filled);
     });
 
-    testWidgets('no target means no tick — never one at 100 or the midpoint',
-        (tester) async {
+    testWidgets('no target means no tick — never one at 100 or the midpoint', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
           const SizedBox(width: 200, child: Meter(value: 61)),
         ),
       );
-      final painter = tester
-          .widget<CustomPaint>(
-            find.descendant(
-              of: find.byType(Meter),
-              matching: find.byType(CustomPaint),
-            ),
-          )
-          .painter! as MeterPainter;
+      final painter =
+          tester
+                  .widget<CustomPaint>(
+                    find.descendant(
+                      of: find.byType(Meter),
+                      matching: find.byType(CustomPaint),
+                    ),
+                  )
+                  .painter!
+              as MeterPainter;
       expect(painter.targetFraction, isNull);
     });
 
@@ -111,7 +121,10 @@ void main() {
     ];
 
     test('four is the maximum on a phone', () {
-      expect(() => StatCluster(tiles: tiles(5)), throwsA(isA<AssertionError>()));
+      expect(
+        () => StatCluster(tiles: tiles(5)),
+        throwsA(isA<AssertionError>()),
+      );
       expect(() => StatCluster(tiles: tiles(4)), returnsNormally);
     });
 
@@ -132,8 +145,9 @@ void main() {
       expect(tester.takeException(), isA<AssertionError>());
     });
 
-    testWidgets('the phone lays out one column of horizontal tiles',
-        (tester) async {
+    testWidgets('the phone lays out one column of horizontal tiles', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -147,7 +161,8 @@ void main() {
       }
       // Stacked, not side by side.
       final tops = <double>[
-        for (var i = 0; i < 3; i++) tester.getTopLeft(find.byType(StatTile).at(i)).dy,
+        for (var i = 0; i < 3; i++)
+          tester.getTopLeft(find.byType(StatTile).at(i)).dy,
       ];
       expect(tops[1], greaterThan(tops[0]));
       expect(tops[2], greaterThan(tops[1]));
@@ -183,8 +198,9 @@ void main() {
       expect(second - first, greaterThanOrEqualTo(StatCluster.gap));
     });
 
-    testWidgets('a wide cluster goes two-up and the rules follow',
-        (tester) async {
+    testWidgets('a wide cluster goes two-up and the rules follow', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -200,8 +216,9 @@ void main() {
       expect(second.dy, first.dy);
     });
 
-    testWidgets('an odd count leaves a cell empty, never a stretched tile',
-        (tester) async {
+    testWidgets('an odd count leaves a cell empty, never a stretched tile', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -209,7 +226,8 @@ void main() {
         ),
       );
       final widths = <double>[
-        for (var i = 0; i < 3; i++) tester.getSize(find.byType(StatTile).at(i)).width,
+        for (var i = 0; i < 3; i++)
+          tester.getSize(find.byType(StatTile).at(i)).width,
       ];
       expect(widths[2], closeTo(widths[0], 1));
     });
@@ -217,7 +235,10 @@ void main() {
 
   group('Eyebrow', () {
     test('the role is 11/700 at +4% tracking', () {
-      for (final density in <TiqDensity>[TiqDensity.console, TiqDensity.field]) {
+      for (final density in <TiqDensity>[
+        TiqDensity.console,
+        TiqDensity.field,
+      ]) {
         final token = TiqType.forDensity(density).eyebrow;
         expect(token.size, 11);
         expect(token.weight, FontWeight.w700);
@@ -234,23 +255,25 @@ void main() {
       expect(TiqType.veld.eyebrow.trackingPercent, 4);
     });
 
-    testWidgets('it uppercases for display and keeps the sentence for readers',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      await tester.pumpWidget(
-        skinned(TiqSkin.night(), const Eyebrow('On-shelf availability')),
-      );
-      expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
-      final node = tester.getSemantics(find.byType(Eyebrow));
-      expect(
-        node.label,
-        'On-shelf availability',
-        reason:
-            'toUpperCase() at the call site puts the uppercase in the data, '
-            'where a screen reader spells it out.',
-      );
-      handle.dispose();
-    });
+    testWidgets(
+      'it uppercases for display and keeps the sentence for readers',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await tester.pumpWidget(
+          skinned(TiqSkin.night(), const Eyebrow('On-shelf availability')),
+        );
+        expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
+        final node = tester.getSemantics(find.byType(Eyebrow));
+        expect(
+          node.label,
+          'On-shelf availability',
+          reason:
+              'toUpperCase() at the call site puts the uppercase in the data, '
+              'where a screen reader spells it out.',
+        );
+        handle.dispose();
+      },
+    );
 
     testWidgets('it wraps to two lines and no further', (tester) async {
       await tester.pumpWidget(
@@ -268,8 +291,9 @@ void main() {
   });
 
   group('Provisional and final', () {
-    testWidgets('a provisional figure keeps ink-1 and gains a dotted rule',
-        (tester) async {
+    testWidgets('a provisional figure keeps ink-1 and gains a dotted rule', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -291,8 +315,9 @@ void main() {
       expect(find.byType(FigureSlot), findsOneWidget);
     });
 
-    testWidgets('the reconciliation line says both numbers in one sentence',
-        (tester) async {
+    testWidgets('the reconciliation line says both numbers in one sentence', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -340,8 +365,9 @@ void main() {
       );
     });
 
-    testWidgets('the reconciliation delta is neutral, never good or bad',
-        (tester) async {
+    testWidgets('the reconciliation delta is neutral, never good or bad', (
+      tester,
+    ) async {
       final skin = TiqSkin.night();
       await tester.pumpWidget(
         skinned(
@@ -383,8 +409,9 @@ void main() {
       }
     });
 
-    testWidgets('provisional and confirmed are one shape at two states',
-        (tester) async {
+    testWidgets('provisional and confirmed are one shape at two states', (
+      tester,
+    ) async {
       for (final confirmed in <bool>[false, true]) {
         await tester.pumpWidget(
           skinned(TiqSkin.night(), ProvisionalMarker(confirmed: confirmed)),

@@ -62,7 +62,8 @@ Future<double?> meanLuma(Uint8List bytes) async {
       // Rec. 601 luma, which is what "how bright does this look" means to an
       // eye. sRGB values are left un-linearised on purpose: the threshold is
       // calibrated against the metered mid-grey, which is an encoded value.
-      sum += (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255;
+      sum +=
+          (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255;
       counted++;
     }
     if (counted == 0) return null;

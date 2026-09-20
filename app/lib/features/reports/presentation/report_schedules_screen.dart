@@ -115,8 +115,7 @@ class ReportSchedulesScreen extends ConsumerStatefulWidget {
       _ReportSchedulesScreenState();
 }
 
-class _ReportSchedulesScreenState
-    extends ConsumerState<ReportSchedulesScreen> {
+class _ReportSchedulesScreenState extends ConsumerState<ReportSchedulesScreen> {
   void _refresh() => ref.invalidate(reportSchedulesListProvider);
 
   @override

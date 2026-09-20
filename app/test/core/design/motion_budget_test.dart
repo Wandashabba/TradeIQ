@@ -161,8 +161,9 @@ void main() {
     test('the TODO names the ticket', () {
       // A TODO without a number is a wish. `flutter test` runs with the
       // package root as cwd.
-      final source =
-          File('lib/core/design/motion_budget.dart').readAsStringSync();
+      final source = File(
+        'lib/core/design/motion_budget.dart',
+      ).readAsStringSync();
       expect(source, contains('TODO(#407)'));
       expect(source, contains('powerSave: false'));
     });

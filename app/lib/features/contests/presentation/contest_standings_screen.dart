@@ -137,7 +137,8 @@ class _StandingsPanel extends StatelessWidget {
       child: rows.isEmpty
           ? const EmptyState(
               message: 'Nobody on the board',
-              hint: 'Active field agents in scope appear here, even before '
+              hint:
+                  'Active field agents in scope appear here, even before '
                   'they earn points.',
             )
           : Column(
