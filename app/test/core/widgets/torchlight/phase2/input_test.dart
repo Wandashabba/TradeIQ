@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -556,6 +557,95 @@ void main() {
         ),
       );
       expect(tester.takeException(), isAssertionError);
+    });
+  });
+
+  group('the picker', () {
+    /// Open the picker and hand back every semantics label in the sheet.
+    Future<List<String>> openAndRead(
+      WidgetTester tester, {
+      String? value,
+    }) async {
+      await pumpPhase2(
+        tester,
+        skin: TiqSkin.night(),
+        child: TorchPickerField<String>(
+          label: 'Territory',
+          value: value,
+          notChosenLine: 'No territory chosen yet',
+          onChanged: (_) {},
+          options: const <PickerOption<String>>[
+            PickerOption<String>(
+              value: 'hurlingham',
+              label: 'Hurlingham',
+              detail: 'Gauteng North',
+            ),
+            PickerOption<String>(
+              value: 'soweto',
+              label: 'Soweto',
+              detail: 'Gauteng South',
+            ),
+          ],
+        ),
+      );
+      await tester.tap(find.byType(TorchPickerField<String>));
+      await tester.pumpAndSettle();
+
+      SemanticsNode root = tester.getSemantics(find.byType(Navigator).first);
+      while (root.parent != null) {
+        root = root.parent!;
+      }
+      final labels = <String>[];
+      void walk(SemanticsNode node) {
+        final label = node.getSemanticsData().label;
+        if (label.isNotEmpty) labels.add(label);
+        node.visitChildren((child) {
+          walk(child);
+          return true;
+        });
+      }
+
+      walk(root);
+      return labels;
+    }
+
+    // THE FAILURE, WRITTEN DOWN: the tick marking the current choice is a
+    // `TiqMark`, which has no semantics node, inside a row with no actions —
+    // so the row dropped every descendant and spoke "Hurlingham, Gauteng
+    // North" whether or not it was the answer. This is the one control that
+    // replaced `DropdownButtonFormField` on nine screens: a manager reopening
+    // it to change a value had no way to hear which value was set, and on a
+    // locked edit sheet no way at all.
+    testWidgets('says which option is the one already set', (tester) async {
+      final handle = tester.ensureSemantics();
+      final labels = await openAndRead(tester, value: 'hurlingham');
+
+      final chosen = labels.where((l) => l.contains('Hurlingham')).single;
+      final other = labels.where((l) => l.contains('Soweto')).single;
+      expect(chosen, contains('Selected'));
+      expect(
+        other,
+        isNot(contains('Selected')),
+        reason: 'Only one of them is the answer.',
+      );
+      expect(
+        chosen,
+        isNot(other),
+        reason:
+            'Colour and a glyph were the only channels telling these two '
+            'rows apart.',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('says nothing of the sort when nothing is set', (tester) async {
+      final handle = tester.ensureSemantics();
+      final labels = await openAndRead(tester);
+      expect(labels.where((l) => l.contains('Selected')), isEmpty);
+      // The detail line is still spoken — the fix must not have replaced the
+      // row's words with one word.
+      expect(labels.where((l) => l.contains('Gauteng North')), isNotEmpty);
+      handle.dispose();
     });
   });
 

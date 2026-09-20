@@ -4381,6 +4381,9 @@ class AppLocalizationsAf extends AppLocalizations {
       'Agente wat nie kon inklok waar die pen sê die winkel is nie.';
 
   @override
+  String get pickerSelected => 'Gekies';
+
+  @override
   String get outletsPinReported => 'Pen aangemeld';
 
   @override

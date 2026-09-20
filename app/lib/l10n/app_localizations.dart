@@ -6788,6 +6788,12 @@ abstract class AppLocalizations {
   /// **'Agents who could not check in where the pin says the store is.'**
   String get outletsPinReportsNote;
 
+  /// Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get pickerSelected;
+
   /// Severity word on a row standing for an open pin report.
   ///
   /// In en, this message translates to:

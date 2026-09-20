@@ -141,6 +141,38 @@ void main() {
       expect(find.textContaining('No territories yet'), findsOneWidget);
     });
 
+    testWidgets('the sheet tells a reader which territory is already set', (
+      tester,
+    ) async {
+      // The kit test pins the word; this one pins that the word reaches a real
+      // screen through the real delegates, in the language the screen is in.
+      // A manager reopening the picker to change a value could otherwise only
+      // see which one was set — a tick, and nothing spoken.
+      final handle = tester.ensureSemantics();
+      await _pump(tester, locale: const Locale('af'));
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('territory-picker')));
+      await tester.pumpAndSettle();
+
+      final labels = semanticsNodes(
+        tester,
+      ).map((n) => n.getSemanticsData().label).toList();
+      expect(
+        labels.where((l) => l.contains('Gekies') && l.contains('Hurlingham')),
+        isNotEmpty,
+        reason: semanticsDump(tester),
+      );
+      expect(
+        labels.where((l) => l.contains('Gekies') && l.contains('Gauteng')),
+        isEmpty,
+      );
+      handle.dispose();
+    });
+
     testWidgets('a territory list that failed offers a retry', (tester) async {
       await _pump(
         tester,

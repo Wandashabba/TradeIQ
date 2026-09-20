@@ -4340,6 +4340,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Agents who could not check in where the pin says the store is.';
 
   @override
+  String get pickerSelected => 'Selected';
+
+  @override
   String get outletsPinReported => 'Pin reported';
 
   @override
