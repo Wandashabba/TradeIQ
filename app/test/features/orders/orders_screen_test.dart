@@ -298,6 +298,31 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    // The kit shipped a component family that announced itself and did
+    // nothing when a screen reader activated it, and `SectionRuleAction` and
+    // `PaginationFooter.action` were still shipping that way when this group
+    // was migrated. This is the guard, on this screen, per phase — so no
+    // local `Semantics(button: true, excludeSemantics: true)` around a bare
+    // GestureDetector can bring it back.
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(
+        t,
+        orders: const <OrderItem>[_submitted, _confirmed, _cancelled],
+      ),
+      'empty': (t) => _pump(t),
+      'error': (t) => _pump(t, listFailure: StateError('no route to host')),
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, every phase in every skin', () {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),

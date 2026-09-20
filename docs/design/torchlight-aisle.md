@@ -2345,6 +2345,12 @@ The repair is the same shape each time: **the words are one utterance, the
 verb is its own node.** `excludeSemantics` is correct over a block of text and
 wrong over anything a person acts on.
 
+The guard the territory group wrote per route now lives in one file,
+`test/features/a11y_guard.dart`, and runs on all nine of this group's screens
+per phase: every node that announces `button: true` and is not announced as
+disabled must carry `SemanticsAction.tap`. A law with two copies is a law that
+drifts, so both harnesses re-export the one implementation.
+
 ### 18.3 Unknown versus zero, four more times
 
 This group is where #396 bites hardest, because three of its four folders are

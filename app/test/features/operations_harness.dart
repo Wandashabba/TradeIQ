@@ -22,6 +22,9 @@ import 'package:tradeiq_app/features/territories/data/territories_repository.dar
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
+export 'a11y_guard.dart'
+    show expectEveryButtonActivatable, semanticsDump, semanticsNodes;
+
 /// EVERYTHING THE OPERATIONS SCREENS NEED TO STAND UP WITHOUT A SERVER.
 ///
 /// Stores, orders, beat plans and sales targets. The fakes override
