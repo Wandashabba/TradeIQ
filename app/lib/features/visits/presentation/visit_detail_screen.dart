@@ -834,7 +834,7 @@ class _FraudPanel extends StatelessWidget {
       subtitle: 'Risk ${detail.riskScore.toStringAsFixed(0)} of 100',
       trailing: LumenStatusPill(
         status: level.lumen,
-        label: band.word,
+        label: band.word(context.l10n),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

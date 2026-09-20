@@ -13,6 +13,7 @@ import 'package:tradeiq_app/features/gamification/data/gamification_repository.d
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_view.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -168,6 +169,20 @@ Future<_FakeIncentives> _pump(
     ],
   );
   return repo;
+}
+
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
 }
 
 void main() {
@@ -352,6 +367,147 @@ void main() {
         find.byKey(const ValueKey<String>('scheme-progress-a-2')),
         findsNothing,
       );
+    });
+  });
+
+  group('the denominator is who the metric measures', () {
+    testWidgets('a metric that can measure nobody counts nobody', (
+      tester,
+    ) async {
+      // A client whose scorecards have not run this window. Eleven agents are
+      // on the board and the scorecard metric can answer for none of them.
+      // "0 of 11 agents have earned it" is eleven people who failed; nobody
+      // was measured. That is the invented total this screen is written
+      // against.
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme(metric: 'scorecard', threshold: 80)],
+        board: <LeaderboardEntry>[
+          for (var i = 0; i < 11; i++)
+            _agent(agentId: 'a-$i', name: 'Agent $i', avg: 0, scored: 0),
+        ],
+      );
+
+      expect(find.textContaining('of 11'), findsNothing);
+      expect(find.textContaining('earned it.'), findsNothing);
+      expect(find.textContaining('Nobody is on the way'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('scheme-none-measured-s-1')),
+        findsOneWidget,
+      );
+      expect(find.byType(TorchProgressBar), findsNothing);
+      // The board answered, so this is not the no-board panel.
+      expect(
+        find.byKey(const ValueKey<String>('scheme-no-board-s-1')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an unmeasurable agent is not counted into the fraction', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme(metric: 'scorecard', threshold: 80)],
+        board: <LeaderboardEntry>[
+          _agent(agentId: 'a-1', name: 'Thandi Mokoena', avg: 91, scored: 5),
+          _agent(agentId: 'a-2', name: 'Busi Dlamini', avg: 64, scored: 4),
+          _agent(agentId: 'a-3', name: 'Sipho Ndlovu', avg: 0, scored: 0),
+          _agent(agentId: 'a-4', name: 'Lerato Khoza', avg: 0, scored: 0),
+        ],
+      );
+
+      expect(
+        find.textContaining('1 of 2 agents have earned it.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('of 4'), findsNothing);
+    });
+
+    testWidgets('the sheet does not count the rows it calls unmeasured', (
+      tester,
+    ) async {
+      // The contradiction at its plainest: four rows each saying "Not measured
+      // on this metric yet", and a footer counting all four.
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme(metric: 'scorecard', threshold: 80)],
+        board: <LeaderboardEntry>[
+          for (var i = 0; i < 4; i++)
+            _agent(agentId: 'a-$i', name: 'Agent $i', avg: 0, scored: 0),
+        ],
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('scheme-everyone-s-1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Not measured on this metric'), findsNWidgets(4));
+      expect(find.textContaining('of 4'), findsNothing);
+      expect(find.textContaining('earned it.'), findsNothing);
+      expect(
+        find.textContaining('has been measured on this metric'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the sheet counts the measurable ones, and only those', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme(metric: 'scorecard', threshold: 80)],
+        board: <LeaderboardEntry>[
+          _agent(agentId: 'a-1', name: 'Thandi Mokoena', avg: 91, scored: 5),
+          _agent(agentId: 'a-2', name: 'Busi Dlamini', avg: 64, scored: 4),
+          _agent(agentId: 'a-3', name: 'Sipho Ndlovu', avg: 0, scored: 0),
+        ],
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('scheme-everyone-s-1')),
+      );
+      await tester.pumpAndSettle();
+
+      // The sheet's own footer, and the list behind it, say the same thing.
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('scheme-progress-earned')),
+            )
+            .data,
+        '1 of 2 agents have earned it.',
+      );
+      expect(find.textContaining('of 3'), findsNothing);
+      // Every agent is still listed — the unmeasured one is stated, not
+      // dropped. Only the counting changed.
+      expect(find.text('Sipho Ndlovu'), findsOneWidget);
+    });
+
+    test('the row knows how many of its own figures exist', () {
+      IncentiveProgress p(String id, double? value) => IncentiveProgress(
+        agentId: id,
+        name: id,
+        value: value,
+        threshold: 80,
+      );
+      final none = IncentiveSchemeRow(
+        scheme: _scheme(metric: 'scorecard', threshold: 80),
+        metric: IncentiveMetric.scorecard,
+        progress: <IncentiveProgress>[p('a', null), p('b', null)],
+      );
+      expect(none.measuredCount, 0);
+      expect(none.nobodyMeasured, isTrue);
+
+      final some = IncentiveSchemeRow(
+        scheme: _scheme(metric: 'scorecard', threshold: 80),
+        metric: IncentiveMetric.scorecard,
+        progress: <IncentiveProgress>[p('a', 91), p('b', 40), p('c', null)],
+      );
+      expect(some.measuredCount, 2);
+      expect(some.nobodyMeasured, isFalse);
+      expect(some.earnedCount, 1);
     });
   });
 
@@ -779,6 +935,77 @@ void main() {
       );
       expect(bar.milestones.single.label, '250 pts at 20 visits');
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // PROBE E found "Incentives", "Schemes", "Add a scheme", "Awarding",
+  // "Delete this scheme" and the scheme sentence painted in English under
+  // Locale('af').
+  group('an Afrikaans manager opens the schemes', () {
+    testWidgets('no English is painted, and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme()],
+        board: <LeaderboardEntry>[
+          _agent(visits: 14),
+          _agent(agentId: 'a-2', name: 'Busi Dlamini', visits: 3),
+        ],
+        locale: const Locale('af'),
+        size: const Size(360, 1400),
+      );
+
+      for (final english in <String>[
+        'Incentives',
+        'Schemes',
+        'Add a scheme',
+        'Awarding',
+        'Delete this scheme',
+        'A scheme awards points',
+        'See everyone',
+        'Visits submitted',
+        'Closest:',
+        'agents have earned it',
+      ]) {
+        expect(paintedIgnoringCase(english), findsNothing, reason: english);
+      }
+
+      expect(paintedIgnoringCase(af.incentivesTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesSchemes), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesAddScheme), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesAwarding), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesDeleteScheme), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesSeeEveryone), findsWidgets);
+      // The metric's own name, which used to be a constructor argument on the
+      // enum and therefore could only ever be English.
+      expect(paintedIgnoringCase(af.incentiveMetricVisits), findsWidgets);
+    });
+
+    testWidgets('the scheme form asks for a threshold in Afrikaans', (
+      tester,
+    ) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        size: const Size(360, 1400),
+      );
+      await tester.tap(paintedIgnoringCase(af.incentivesAddScheme));
+      await tester.pumpAndSettle();
+
+      expect(paintedIgnoringCase(af.schemeFormTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormThreshold), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormReward), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormMetricNotAnswered), findsWidgets);
+      expect(paintedIgnoringCase('Threshold'), findsNothing);
+      expect(paintedIgnoringCase('Reward'), findsNothing);
+      expect(paintedIgnoringCase('No metric chosen yet'), findsNothing);
+
+      // A choice group's label reaches a reader and nobody else, so it is the
+      // easiest string in the app to leave in English and never notice.
+      final spoken = semanticsDump(tester);
+      expect(spoken, contains(af.schemeFormMetricLabel));
+      expect(spoken, isNot(contains('What it pays on')));
     });
   });
 }

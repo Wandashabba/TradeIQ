@@ -11,6 +11,7 @@ import '../../../core/design/tiq_number.dart';
 import '../../../core/geo/label_declutter.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/state.dart';
@@ -427,7 +428,12 @@ class TrailStopPin extends StatelessWidget {
     return Semantics(
       button: pressable,
       excludeSemantics: true,
-      label: '$agentName, stop $ordinal, ${stop.outletName}, $time',
+      label: context.l10n.trailPinLabel(
+        agentName,
+        '$ordinal',
+        stop.outletName,
+        time,
+      ),
       onTap: onTap,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -535,13 +541,12 @@ class _VeldNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const EmptyState(
-      key: ValueKey<String>('trail-map-veld'),
+    final l10n = context.l10n;
+    return EmptyState(
+      key: const ValueKey<String>('trail-map-veld'),
       scope: EmptyScope.inPanel,
-      headline: 'No map in the sun.',
-      body:
-          'A dark basemap read outdoors is a black rectangle. Every stop is '
-          'listed below, in order, with the time it was confirmed.',
+      headline: l10n.trailNoMapHeadline,
+      body: l10n.trailNoMapBody,
     );
   }
 }
@@ -552,13 +557,12 @@ class _TilesOff extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const EmptyState(
-      key: ValueKey<String>('trail-map-offline'),
+    final l10n = context.l10n;
+    return EmptyState(
+      key: const ValueKey<String>('trail-map-offline'),
       scope: EmptyScope.inPanel,
-      headline: 'The map will not load.',
-      body:
-          'The tiles are not arriving. Every stop is listed below, in '
-          'order: nothing about the day is missing, only the picture of it.',
+      headline: l10n.trailMapOfflineHeadline,
+      body: l10n.trailMapOfflineBody,
     );
   }
 }

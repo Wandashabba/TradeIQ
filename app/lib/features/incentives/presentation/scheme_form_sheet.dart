@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -52,8 +53,9 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
     super.dispose();
   }
 
-  String? get _nameError =>
-      _attempted && _name.text.trim().isEmpty ? 'Give the scheme a name.' : null;
+  String? get _nameError => _attempted && _name.text.trim().isEmpty
+      ? context.l10n.schemeFormNameError
+      : null;
 
   double? get _thresholdValue => double.tryParse(
     // A comma is the decimal mark in Afrikaans, and a manager typing 4,5 on
@@ -66,19 +68,16 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
   String? get _thresholdError {
     if (!_attempted) return null;
     final value = _thresholdValue;
-    if (value == null) return 'Say the figure an agent has to reach.';
-    if (value <= 0) {
-      return 'A threshold of nought is a scheme that pays out to everybody '
-          'the moment it is created.';
-    }
+    if (value == null) return context.l10n.schemeFormThresholdError;
+    if (value <= 0) return context.l10n.schemeFormThresholdZero;
     return null;
   }
 
   String? get _rewardError {
     if (!_attempted) return null;
     final value = _rewardValue;
-    if (value == null) return 'Say how many points it awards.';
-    if (value <= 0) return 'A reward of nought is not a reward.';
+    if (value == null) return context.l10n.schemeFormRewardError;
+    if (value <= 0) return context.l10n.schemeFormRewardZero;
     return null;
   }
 
@@ -90,10 +89,11 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     return TorchSheet(
-      title: 'Add a scheme',
-      subtitle: 'It starts awarding as soon as it is saved.',
+      title: l10n.schemeFormTitle,
+      subtitle: l10n.schemeFormSubtitle,
       claims: const <TorchClaim>[
         TorchClaim.primaryCommit(kSchemeFormClaimId),
       ],
@@ -103,9 +103,9 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
         children: <Widget>[
           TorchTextField(
             key: const ValueKey<String>('new-name'),
-            label: 'Name',
+            label: l10n.schemeFormName,
             controller: _name,
-            hint: 'What a manager will call it — "Twenty visits"',
+            hint: l10n.schemeFormNameHint,
             error: _nameError,
             enabled: !_busy,
             onChanged: (_) => setState(() {}),
@@ -116,29 +116,28 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
           // which is a different scheme from the one they meant.
           ChoiceRow<IncentiveMetric>(
             key: const ValueKey<String>('new-metric'),
-            label: 'What it pays on',
+            label: l10n.schemeFormMetricLabel,
             forceColumn: true,
-            notAnsweredLine: 'No metric chosen yet',
+            notAnsweredLine: l10n.schemeFormMetricNotAnswered,
             error: _attempted && _metric == null
-                ? 'Choose what the scheme pays on.'
+                ? l10n.schemeFormMetricError
                 : null,
             value: _metric,
-            options: const <ChoiceOption<IncentiveMetric>>[
+            options: <ChoiceOption<IncentiveMetric>>[
               ChoiceOption<IncentiveMetric>(
                 value: IncentiveMetric.scorecard,
-                label: 'Average scorecard',
-                consequence: 'Pays when the agent\'s 0–100 mean clears the '
-                    'threshold.',
+                label: IncentiveMetric.scorecard.label(l10n),
+                consequence: l10n.schemeFormScorecardConsequence,
               ),
               ChoiceOption<IncentiveMetric>(
                 value: IncentiveMetric.tasksClosed,
-                label: 'Tasks closed',
-                consequence: 'Pays on a count of closures.',
+                label: IncentiveMetric.tasksClosed.label(l10n),
+                consequence: l10n.schemeFormTasksConsequence,
               ),
               ChoiceOption<IncentiveMetric>(
                 value: IncentiveMetric.visits,
-                label: 'Visits submitted',
-                consequence: 'Pays on a count of submitted visits.',
+                label: IncentiveMetric.visits.label(l10n),
+                consequence: l10n.schemeFormVisitsConsequence,
               ),
             ],
             onChanged: _busy
@@ -148,12 +147,12 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
           const SizedBox(height: TiqSpace.s5),
           TorchNumericField(
             key: const ValueKey<String>('new-threshold'),
-            label: 'Threshold',
+            label: l10n.schemeFormThreshold,
             controller: _threshold,
             decimals: 1,
             help: _metric == null
-                ? 'What an agent has to reach.'
-                : 'What an agent has to reach, in ${_metric!.unitWord}.',
+                ? l10n.schemeFormThresholdHelp
+                : l10n.schemeFormThresholdHelpUnit(_metric!.unitWord(l10n)),
             error: _thresholdError,
             enabled: !_busy,
             onChanged: (_) => setState(() {}),
@@ -161,10 +160,10 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
           const SizedBox(height: TiqSpace.s5),
           TorchNumericField(
             key: const ValueKey<String>('new-reward-points'),
-            label: 'Reward',
+            label: l10n.schemeFormReward,
             controller: _reward,
-            unit: TiqUnit.worded('pts'),
-            help: 'What clearing it awards.',
+            unit: TiqUnit.worded(l10n.pointsUnitWord),
+            help: l10n.schemeFormRewardHelp,
             error: _rewardError,
             enabled: !_busy,
             onChanged: (_) => setState(() {}),
@@ -181,11 +180,9 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
           TorchPrimaryButton(
             key: const ValueKey<String>('create-scheme'),
             claimId: kSchemeFormClaimId,
-            label: 'Save this scheme',
+            label: l10n.schemeFormSave,
             busy: _busy,
-            blockedReason: _ready
-                ? null
-                : 'A scheme needs a name, a metric, a threshold and a reward.',
+            blockedReason: _ready ? null : l10n.schemeFormBlocked,
             onPressed: _busy || !_ready ? null : _create,
           ),
           const SizedBox(height: TiqSpace.s3),
@@ -193,7 +190,7 @@ class _SchemeFormSheetState extends ConsumerState<_SchemeFormSheet> {
             alignment: AlignmentDirectional.centerStart,
             child: TorchTertiaryButton(
               key: const ValueKey<String>('cancel-scheme'),
-              label: 'Not now',
+              label: l10n.schemeFormNotNow,
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
             ),
           ),

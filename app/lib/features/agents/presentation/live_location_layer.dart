@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/tiq_colors.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/widgets/agent_state_glyph.dart';
 import '../data/agent_locations_repository.dart';
 
@@ -48,48 +49,50 @@ String formatUpdatedAt(DateTime at) {
 
 /// Where the agent is or was last known to be, in words; empty if unknown.
 /// Names the source, so a morning check-in never reads as a live reading.
-String liveOutletPhrase(AgentLocation agent) {
+String liveOutletPhrase(AppLocalizations l10n, AgentLocation agent) {
   if (agent.state == LiveAgentState.atStore &&
       agent.currentOutletName != null) {
-    return 'at ${agent.currentOutletName}';
+    return l10n.liveAtOutlet(agent.currentOutletName!);
   }
   final last = agent.lastOutletName;
   if (last == null) return '';
   if (agent.state == LiveAgentState.nearStore && agent.lastOutletFromPing) {
-    return 'near $last';
+    return l10n.liveNearOutlet(last);
   }
-  return agent.lastOutletFromPing ? 'last near $last' : 'last check-in $last';
+  return agent.lastOutletFromPing
+      ? l10n.liveLastNear(last)
+      : l10n.liveLastCheckIn(last);
 }
 
 /// The state as a pin shows it: "Near Sandton Spar" when the store is known,
 /// otherwise the state's own label.
-String livePinStateText(AgentLocation agent) {
+String livePinStateText(AppLocalizations l10n, AgentLocation agent) {
   final near = agent.lastOutletName;
   if (agent.state == LiveAgentState.nearStore &&
       agent.lastOutletFromPing &&
       near != null) {
-    return 'Near $near';
+    return l10n.liveNear(near);
   }
-  return liveStateLabel(agent.state);
+  return liveStateLabel(l10n, agent.state);
 }
 
 /// The age column: how old the position is, or a dash when the agent declined
 /// and there is deliberately no position to age.
-String liveAgeText(AgentLocation agent) =>
+String liveAgeText(AppLocalizations l10n, AgentLocation agent) =>
     agent.state == LiveAgentState.notSharing
     ? '—'
-    : formatAgeSeconds(agent.ageSeconds);
+    : formatAgeSeconds(l10n, agent.ageSeconds);
 
 /// Age · state · name · place — the order a screen reader hears it in, too.
 /// Not sharing has no age to lead with, so it leads with the state.
-String liveAgentDescription(AgentLocation agent) {
-  final place = liveOutletPhrase(agent);
+String liveAgentDescription(AppLocalizations l10n, AgentLocation agent) {
+  final place = liveOutletPhrase(l10n, agent);
   return [
     if (agent.state != LiveAgentState.notSharing)
       agent.ageSeconds == null
-          ? 'never shared'
-          : '${formatAgeSeconds(agent.ageSeconds)} old',
-    liveStateLabel(agent.state),
+          ? l10n.liveNeverShared
+          : l10n.liveAgeOld(formatAgeSeconds(l10n, agent.ageSeconds)),
+    liveStateLabel(l10n, agent.state),
     agent.name,
     if (place.isNotEmpty) place,
   ].join(' · ');
@@ -140,9 +143,10 @@ class LiveAgentPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final description = liveAgentDescription(agent);
+    final l10n = context.l10n;
+    final description = liveAgentDescription(l10n, agent);
     return Semantics(
-      label: 'Live location: $description',
+      label: l10n.liveLocationOf(description),
       excludeSemantics: true,
       child: Tooltip(
         message: description,
@@ -172,7 +176,8 @@ class LiveAgentPin extends StatelessWidget {
                 borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
-                '${formatAgeSeconds(agent.ageSeconds)} · ${livePinStateText(agent)}',
+                '${formatAgeSeconds(l10n, agent.ageSeconds)} · '
+                '${livePinStateText(l10n, agent)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -198,6 +203,7 @@ class LiveStateLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final colors = context.colors;
     final textColor = onDark ? const Color(0xFFD9E6FF) : colors.ink2;
     return Wrap(
@@ -216,7 +222,7 @@ class LiveStateLegend extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                liveStateLabel(state),
+                liveStateLabel(l10n, state),
                 style: TextStyle(fontSize: 12, color: textColor),
               ),
             ],
@@ -237,6 +243,7 @@ class LiveLocationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final value = ref.watch(liveAgentLocationsProvider);
     final page = value.value;
     final colors = context.colors;
@@ -247,8 +254,8 @@ class LiveLocationsSection extends ConsumerWidget {
     if (page == null) {
       return Text(
         value.hasError
-            ? 'Live location could not load. Trying again shortly.'
-            : 'Live location: loading…',
+            ? l10n.liveLocationFailed
+            : l10n.liveLocationLoading,
         key: const ValueKey('live-locations-status'),
         style: small,
       );
@@ -265,7 +272,7 @@ class LiveLocationsSection extends ConsumerWidget {
           runSpacing: 2,
           children: [
             Text(
-              'Live location',
+              l10n.liveLocationHeading,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -273,18 +280,14 @@ class LiveLocationsSection extends ConsumerWidget {
               ),
             ),
             Text(
-              'Last updated ${formatUpdatedAt(page.serverTime)}',
+              l10n.liveLastUpdated(formatUpdatedAt(page.serverTime)),
               key: const ValueKey('live-last-updated'),
               style: small,
             ),
           ],
         ),
         const SizedBox(height: 2),
-        Text(
-          'Sent by the agent app only while it is open. Each row starts with '
-          'how old that position was at the last update.',
-          style: small,
-        ),
+        Text(l10n.liveLocationNote, style: small),
         const SizedBox(height: 6),
         const LiveStateLegend(),
         const SizedBox(height: 6),
@@ -292,7 +295,7 @@ class LiveLocationsSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              'Could not refresh. Showing the last update.',
+              l10n.liveCouldNotRefresh,
               key: const ValueKey('live-refresh-failed'),
               style: small,
             ),
@@ -301,7 +304,7 @@ class LiveLocationsSection extends ConsumerWidget {
         if (page.truncated)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text('Showing the first 200 agents.', style: small),
+            child: Text(l10n.liveFirst200, style: small),
           ),
       ],
     );
@@ -316,11 +319,12 @@ class LiveAgentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final colors = context.colors;
-    final place = liveOutletPhrase(agent);
+    final place = liveOutletPhrase(l10n, agent);
     return Semantics(
       key: ValueKey('live-row-${agent.agentId}'),
-      label: liveAgentDescription(agent),
+      label: liveAgentDescription(l10n, agent),
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
@@ -329,7 +333,7 @@ class LiveAgentRow extends StatelessWidget {
             SizedBox(
               width: 76,
               child: Text(
-                liveAgeText(agent),
+                liveAgeText(l10n, agent),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -347,7 +351,7 @@ class LiveAgentRow extends StatelessWidget {
               // Wide enough for the longest label, "Not sharing", on one line.
               width: 84,
               child: Text(
-                liveStateLabel(agent.state),
+                liveStateLabel(l10n, agent.state),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: colors.ink2),

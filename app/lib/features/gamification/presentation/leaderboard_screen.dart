@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_controller.dart';
 import '../../../core/design/figure_slot.dart';
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -88,6 +89,7 @@ class LeaderboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final board = ref.watch(leaderboardProvider);
     void refresh() => ref.invalidate(leaderboardProvider);
 
@@ -96,15 +98,12 @@ class LeaderboardScreen extends ConsumerWidget {
           phase: phase,
           active: ConsoleSlot.menu,
           header: TorchAppHeader(
-            title: 'Leaderboard',
-            facts: const <String>[
-              'Points: the average scorecard, plus 5 a closed task and 2 a '
-                  'submitted visit.',
-            ],
+            title: l10n.leaderboardTitle,
+            facts: <String>[l10n.leaderboardFact],
             trailing: TorchIconButton(
               key: const ValueKey<String>('leaderboard-refresh'),
               icon: Icons.refresh,
-              semanticLabel: 'Refresh the leaderboard',
+              semanticLabel: l10n.leaderboardRefresh,
               onPressed: refresh,
             ),
           ),
@@ -113,7 +112,7 @@ class LeaderboardScreen extends ConsumerWidget {
               alignment: AlignmentDirectional.centerStart,
               child: TorchTertiaryButton(
                 key: const ValueKey<String>('leaderboard-contests'),
-                label: 'Contests',
+                label: l10n.leaderboardContests,
                 icon: Icons.emoji_events_outlined,
                 onPressed: () => _openContests(context, ref),
               ),
@@ -128,7 +127,7 @@ class LeaderboardScreen extends ConsumerWidget {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'the leaderboard',
+            label: l10n.leaderboardSkeleton,
             child: const SkeletonRows(count: 5, rowHeight: 80),
           ),
         ],
@@ -142,7 +141,7 @@ class LeaderboardScreen extends ConsumerWidget {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('leaderboard-retry'),
-                label: 'Try again',
+                label: l10n.leaderboardRetry,
                 onPressed: refresh,
               ),
             ),
@@ -154,13 +153,12 @@ class LeaderboardScreen extends ConsumerWidget {
         if (view.isEmpty) {
           return frame(
             phase: 'empty',
-            children: const <Widget>[
+            children: <Widget>[
               EmptyState(
-                key: ValueKey<String>('leaderboard-empty'),
+                key: const ValueKey<String>('leaderboard-empty'),
                 scope: EmptyScope.inPanel,
-                headline: 'Nobody on the board yet.',
-                body: 'Agents appear here once there is a field agent on this '
-                    'client to measure.',
+                headline: l10n.leaderboardEmptyHeadline,
+                body: l10n.leaderboardEmptyBody,
               ),
             ],
           );
@@ -169,10 +167,10 @@ class LeaderboardScreen extends ConsumerWidget {
           phase: view.ranked.isEmpty ? 'nobody-measured' : 'loaded',
           children: <Widget>[
             SectionRule(
-              'Ranked',
+              l10n.leaderboardRanked,
               count: view.ranked.isEmpty ? null : view.ranked.length,
               emptyLine: view.ranked.isEmpty
-                  ? 'Nobody has a place in this window yet.'
+                  ? l10n.leaderboardRankedEmptyLine
                   : null,
             ),
             const SizedBox(height: TiqSpace.s5),
@@ -183,7 +181,10 @@ class LeaderboardScreen extends ConsumerWidget {
               ),
             if (view.unranked.isNotEmpty) ...<Widget>[
               const SizedBox(height: TiqSpace.s7),
-              SectionRule('Not ranked yet', count: view.unranked.length),
+              SectionRule(
+                l10n.leaderboardNotRanked,
+                count: view.unranked.length,
+              ),
               const SizedBox(height: TiqSpace.s3),
               const _UnrankedNote(),
               const SizedBox(height: TiqSpace.s4),
@@ -209,9 +210,7 @@ class _UnrankedNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     return Text(
-      'Nothing measured for these agents in this window — no submitted visit, '
-      'no closed task, no scorecard. They are not last; nobody has measured '
-      'them.',
+      context.l10n.leaderboardUnrankedNote,
       key: const ValueKey<String>('leaderboard-unranked-note'),
       style: skin.text.meta.style(color: skin.palette.ink3),
     );
@@ -253,6 +252,7 @@ class _AgentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final rank = entry.rank;
     final numbers = TiqNumber.of(context);
@@ -264,8 +264,8 @@ class _AgentRow extends StatelessWidget {
     if (rank == null) {
       return PersonRow(
         name: entry.label,
-        role: 'Field agent',
-        trailingWord: 'Not ranked yet',
+        role: l10n.roleFieldAgent,
+        trailingWord: l10n.leaderboardNotRanked,
         separator: separator,
         onTap: () => context.push('/leaderboard/${entry.agentId}'),
       );
@@ -274,7 +274,7 @@ class _AgentRow extends StatelessWidget {
     final points = numbers.format(entry.points, decimals: 0);
     return PersonRow(
       name: entry.label,
-      role: 'Field agent',
+      role: l10n.roleFieldAgent,
       separator: separator,
       // Rank above, payout beneath — both right-aligned, the payout in mono so
       // a column of them compares. Neither is a hue: position is the ranking
@@ -285,7 +285,7 @@ class _AgentRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            'Rank ${numbers.format(rank)}',
+            l10n.leaderboardRank(numbers.format(rank)),
             textAlign: TextAlign.end,
             style: skin.text.label
                 .copyWith(weight: FontWeight.w600)
@@ -296,7 +296,7 @@ class _AgentRow extends StatelessWidget {
             value: entry.points,
             role: skin.text.figureS,
             decimals: 0,
-            unit: TiqUnit.worded('pts'),
+            unit: TiqUnit.worded(l10n.pointsUnitWord),
             textAlign: TextAlign.end,
           ),
         ],
@@ -304,7 +304,7 @@ class _AgentRow extends StatelessWidget {
       // The row is one semantics node and it excludes everything beneath it,
       // so the two figures above are painted and never spoken unless they are
       // spelled here.
-      trailingLabel: 'Rank ${numbers.format(rank)}, $points points',
+      trailingLabel: l10n.leaderboardRowTrailing(numbers.format(rank), points),
       onTap: () => context.push('/leaderboard/${entry.agentId}'),
     );
   }

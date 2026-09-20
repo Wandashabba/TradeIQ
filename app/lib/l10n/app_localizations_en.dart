@@ -5401,4 +5401,860 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Set monthly SKU targets under Sales targets to track sell-in against them.';
+
+  @override
+  String get trailTitle => 'Agent trail';
+
+  @override
+  String get trailRefresh => 'Refresh this day';
+
+  @override
+  String get trailPickDay => 'Pick another day';
+
+  @override
+  String get trailSkeleton => 'this day';
+
+  @override
+  String get trailRetry => 'Try again';
+
+  @override
+  String get trailEmptyHeadline => 'No check-ins on this day.';
+
+  @override
+  String get trailEmptyBody =>
+      'A pin appears here when an agent confirms a check-in. Pick another day to see one that has some.';
+
+  @override
+  String trailAgentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents',
+      one: '1 agent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trailStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stops',
+      one: '1 stop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get trailHowToRead => 'How to read it';
+
+  @override
+  String get trailLegendPins =>
+      'Numbered pins are confirmed check-ins, in order, and the last one of each agent is filled. Dashed lines connect them — they are not a recorded route.';
+
+  @override
+  String trailLegendLive(String when) {
+    return 'Squares are live positions from the agent app, labelled with their age first. Last updated $when.';
+  }
+
+  @override
+  String get trailFooterSummary => 'Showing the first 200 agents only.';
+
+  @override
+  String get trailFooterNarrow =>
+      'A partial map that looks complete is worse than no map: the rest of the day is not here.';
+
+  @override
+  String get trailStillInShop => 'Still in this shop';
+
+  @override
+  String get trailLastStop => 'Last stop';
+
+  @override
+  String trailCheckedInAt(String time) {
+    return 'checked in at $time';
+  }
+
+  @override
+  String get trailNoMapHeadline => 'No map in the sun.';
+
+  @override
+  String get trailNoMapBody =>
+      'A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.';
+
+  @override
+  String get trailMapOfflineHeadline => 'The map will not load.';
+
+  @override
+  String get trailMapOfflineBody =>
+      'The tiles are not arriving. Every stop is listed below, in order: nothing about the day is missing, only the picture of it.';
+
+  @override
+  String liveLastNear(String when) {
+    return 'last near $when';
+  }
+
+  @override
+  String liveLastCheckIn(String when) {
+    return 'last check-in $when';
+  }
+
+  @override
+  String liveNear(String place) {
+    return 'Near $place';
+  }
+
+  @override
+  String get liveNeverShared => 'never shared';
+
+  @override
+  String liveLocationOf(String description) {
+    return 'Live location: $description';
+  }
+
+  @override
+  String get liveLocationFailed =>
+      'Live location could not load. Trying again shortly.';
+
+  @override
+  String get liveLocationLoading => 'Live location: loading…';
+
+  @override
+  String get liveLocationHeading => 'Live location';
+
+  @override
+  String liveLastUpdated(String when) {
+    return 'Last updated $when';
+  }
+
+  @override
+  String get liveLocationNote =>
+      'Sent by the agent app only while it is open. Each row starts with how old that position was at the last update.';
+
+  @override
+  String get liveCouldNotRefresh =>
+      'Could not refresh. Showing the last update.';
+
+  @override
+  String get liveFirst200 => 'Showing the first 200 agents.';
+
+  @override
+  String get fraudTitle => 'Fraud review';
+
+  @override
+  String get fraudFact =>
+      'Risk is scored 0–100 on submit. The signals are the evidence.';
+
+  @override
+  String get fraudRefresh => 'Refresh the review queue';
+
+  @override
+  String get fraudSkeleton => 'flagged visits';
+
+  @override
+  String get fraudRetry => 'Try again';
+
+  @override
+  String get fraudFilterRail => 'Which flagged visits';
+
+  @override
+  String get fraudFilterOpen => 'Open';
+
+  @override
+  String get fraudFilterDecided => 'Decided';
+
+  @override
+  String get fraudFilterAll => 'All';
+
+  @override
+  String get fraudSectionOpen => 'Open';
+
+  @override
+  String get fraudSectionDecided => 'Decided';
+
+  @override
+  String get fraudSectionAll => 'Every flagged visit';
+
+  @override
+  String get fraudEmptyLineOpen => 'Nothing waiting on a ruling.';
+
+  @override
+  String get fraudEmptyLineDecided => 'Nothing ruled on yet.';
+
+  @override
+  String get fraudEmptyLineAll => 'Nothing flagged.';
+
+  @override
+  String get fraudEmptyHeadlineOpen => 'Nothing waiting on you.';
+
+  @override
+  String get fraudEmptyHeadlineDecided => 'No rulings recorded yet.';
+
+  @override
+  String get fraudEmptyHeadlineAll => 'Nothing flagged.';
+
+  @override
+  String get fraudEmptyBodyOpen =>
+      'A visit appears here when the fraud engine scores one above the review threshold. Ruled visits move to Decided.';
+
+  @override
+  String get fraudEmptyBodyDecided =>
+      'A visit appears here once somebody records a ruling on it.';
+
+  @override
+  String get fraudEmptyBodyAll =>
+      'Visits appear here when the fraud engine scores one above the review threshold.';
+
+  @override
+  String fraudFooterShowing(String count) {
+    return 'Showing the $count riskiest.';
+  }
+
+  @override
+  String fraudUnscoredNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count submitted visits have not been scored yet and are not listed here.',
+      one: '1 submitted visit has not been scored yet and is not listed here.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get fraudUnknownAgent => 'Unknown agent';
+
+  @override
+  String get fraudUnnamedOutlet => 'Outlet name unavailable';
+
+  @override
+  String get fraudVisitIdentifier => 'Visit';
+
+  @override
+  String fraudRisk(String score) {
+    return 'Risk $score';
+  }
+
+  @override
+  String fraudRiskOf100(String score) {
+    return 'Risk $score of 100';
+  }
+
+  @override
+  String get fraudNotYetReviewed => 'Not yet reviewed';
+
+  @override
+  String get fraudVerdictCleared => 'Cleared';
+
+  @override
+  String get fraudVerdictConfirmed => 'Confirmed';
+
+  @override
+  String get fraudVerdictNeedsEvidence => 'Needs evidence';
+
+  @override
+  String get fraudBandHigh => 'High risk';
+
+  @override
+  String get fraudBandElevated => 'Elevated';
+
+  @override
+  String get fraudBandLow => 'Low risk';
+
+  @override
+  String get fraudRuleOnThisVisit => 'Rule on this visit';
+
+  @override
+  String get fraudSeeTheRuling => 'See the ruling';
+
+  @override
+  String get fraudSeeTheVisit => 'See the visit';
+
+  @override
+  String get fraudReviewerFallback => 'A reviewer';
+
+  @override
+  String fraudRuledIt(String who, String verdict) {
+    return '$who ruled it $verdict.';
+  }
+
+  @override
+  String get fraudVerdictClearedPast => 'cleared';
+
+  @override
+  String get fraudVerdictConfirmedPast => 'confirmed';
+
+  @override
+  String get fraudVerdictNeedsEvidencePast => 'as needing evidence';
+
+  @override
+  String get fraudSeenUnscored => 'The visit was unscored at the time.';
+
+  @override
+  String fraudSeenAtRisk(String score) {
+    return 'They were looking at risk $score.';
+  }
+
+  @override
+  String fraudSheetSubtitle(String outlet, String score, String band) {
+    return '$outlet · risk $score of 100 · $band';
+  }
+
+  @override
+  String get fraudWhatEngineFound => 'What the engine found';
+
+  @override
+  String get fraudNoSignalsHeadline => 'No signals recorded.';
+
+  @override
+  String get fraudNoSignalsBody =>
+      'The visit scored above the threshold but the rules that fired were not stored with it. Open the visit to judge it on its own record.';
+
+  @override
+  String get fraudYourRuling => 'Your ruling';
+
+  @override
+  String get fraudRecordThisRuling => 'Record this ruling';
+
+  @override
+  String get fraudNoteLabel => 'Note';
+
+  @override
+  String get fraudNoteHint => 'What you checked, and what you found';
+
+  @override
+  String get fraudNoteHelp =>
+      'Whoever reads this decision next sees only what you write here.';
+
+  @override
+  String get fraudNotChosenLine => 'No ruling chosen yet';
+
+  @override
+  String get fraudChooseFirst => 'Choose a ruling first.';
+
+  @override
+  String get fraudConsequenceCleared =>
+      'The visit stands and leaves the queue. The agent keeps its points.';
+
+  @override
+  String get fraudConsequenceConfirmed =>
+      'The work is recorded as faked. This is the one ruling that accuses a person.';
+
+  @override
+  String get fraudConsequenceNeedsEvidence =>
+      'Nobody can tell yet. It leaves the open queue and the note is what somebody works from.';
+
+  @override
+  String get fraudNeedsEvidenceNoteBecause =>
+      'Say what evidence is missing, so somebody can go and get it. \"Needs evidence\" with no note is a visit that was processed rather than reviewed.';
+
+  @override
+  String get fraudNotNow => 'Not now';
+
+  @override
+  String get fraudClose => 'Close';
+
+  @override
+  String get fraudRulingStands => 'The ruling that stands';
+
+  @override
+  String get fraudStandingUnscored =>
+      'The visit was unscored at the time, so there is no number behind this decision.';
+
+  @override
+  String fraudStandingAtRisk(String score) {
+    return 'They were looking at risk $score of 100. A rescore since then does not move the ruling.';
+  }
+
+  @override
+  String get fraudRuledOnce =>
+      'A visit is ruled once. Reopening it is a change to the record and is not done from here.';
+
+  @override
+  String get leaderboardTitle => 'Leaderboard';
+
+  @override
+  String get leaderboardFact =>
+      'Points: the average scorecard, plus 5 a closed task and 2 a submitted visit.';
+
+  @override
+  String get leaderboardRefresh => 'Refresh the leaderboard';
+
+  @override
+  String get leaderboardContests => 'Contests';
+
+  @override
+  String get leaderboardSkeleton => 'the leaderboard';
+
+  @override
+  String get leaderboardRetry => 'Try again';
+
+  @override
+  String get leaderboardEmptyHeadline => 'Nobody on the board yet.';
+
+  @override
+  String get leaderboardEmptyBody =>
+      'Agents appear here once there is a field agent on this client to measure.';
+
+  @override
+  String get leaderboardRanked => 'Ranked';
+
+  @override
+  String get leaderboardRankedEmptyLine =>
+      'Nobody has a place in this window yet.';
+
+  @override
+  String get leaderboardNotRanked => 'Not ranked yet';
+
+  @override
+  String get leaderboardUnrankedNote =>
+      'Nothing measured for these agents in this window — no submitted visit, no closed task, no scorecard. They are not last; nobody has measured them.';
+
+  @override
+  String leaderboardRank(String rank) {
+    return 'Rank $rank';
+  }
+
+  @override
+  String leaderboardRowTrailing(String rank, String points) {
+    return 'Rank $rank, $points points';
+  }
+
+  @override
+  String get pointsRefresh => 'Refresh this points history';
+
+  @override
+  String get pointsBackToLeaderboard => 'Back to the leaderboard';
+
+  @override
+  String get pointsTitle => 'Points history';
+
+  @override
+  String get pointsSkeleton => 'this points history';
+
+  @override
+  String get pointsRetry => 'Try again';
+
+  @override
+  String get pointsLedgerHeading => 'Ledger';
+
+  @override
+  String get pointsNothingRecorded => 'Nothing recorded yet.';
+
+  @override
+  String get pointsEmptyHeadline => 'No points yet.';
+
+  @override
+  String get pointsEmptyBody =>
+      'Entries appear as this agent submits visits, closes tasks and is scored.';
+
+  @override
+  String pointsTwoFigures(String name) {
+    return 'Two figures for $name.';
+  }
+
+  @override
+  String get pointsEarnedEyebrow => 'Points earned';
+
+  @override
+  String get pointsUnitWord => 'pts';
+
+  @override
+  String get pointsStateLine =>
+      'The average scorecard, plus 5 a closed task and 2 a submitted visit.';
+
+  @override
+  String get pointsPayoutAbsent =>
+      'Nothing recorded for this agent in this window.';
+
+  @override
+  String get pointsAverageEyebrow => 'Average scorecard';
+
+  @override
+  String get pointsNoScoredVisit => 'No scored visit in this window.';
+
+  @override
+  String pointsCounts(String visits, String tasks) {
+    return '$visits visits submitted · $tasks tasks closed';
+  }
+
+  @override
+  String pointsFooterSummary(String count) {
+    return 'Showing the $count newest entries. There are more.';
+  }
+
+  @override
+  String pointsScored(String score) {
+    return 'scored $score';
+  }
+
+  @override
+  String pointsSpokenPoints(String points) {
+    return '$points points';
+  }
+
+  @override
+  String get incentivesTitle => 'Incentives';
+
+  @override
+  String get incentivesFact =>
+      'A scheme awards points when an agent reaches its threshold on the chosen metric. Paused schemes stop awarding.';
+
+  @override
+  String get incentivesRefresh => 'Refresh the incentive schemes';
+
+  @override
+  String get incentivesSkeleton => 'incentive schemes';
+
+  @override
+  String get incentivesRetry => 'Try again';
+
+  @override
+  String incentivesAwardingFact(String awarding, String total) {
+    return '$awarding of $total awarding';
+  }
+
+  @override
+  String get incentivesSchemes => 'Schemes';
+
+  @override
+  String get incentivesNoneConfigured => 'None configured.';
+
+  @override
+  String get incentivesAddScheme => 'Add a scheme';
+
+  @override
+  String get incentivesEmptyHeadline => 'No schemes configured.';
+
+  @override
+  String get incentivesEmptyBody =>
+      'Add one to start rewarding agents who clear a threshold. Nothing pays out until there is a scheme.';
+
+  @override
+  String get incentivesAwarding => 'Awarding';
+
+  @override
+  String get incentivesPaused => 'Paused';
+
+  @override
+  String incentivesRuleWithUnit(
+    String state,
+    String metric,
+    String threshold,
+    String unit,
+    String reward,
+  ) {
+    return '$state · $metric · $threshold $unit · $reward';
+  }
+
+  @override
+  String incentivesRuleNoUnit(
+    String state,
+    String metric,
+    String threshold,
+    String reward,
+  ) {
+    return '$state · $metric · at least $threshold · $reward';
+  }
+
+  @override
+  String incentivesPauseScheme(String name) {
+    return 'Pause $name';
+  }
+
+  @override
+  String incentivesStartScheme(String name) {
+    return 'Start $name awarding';
+  }
+
+  @override
+  String get incentivesSeeEveryone => 'See everyone';
+
+  @override
+  String get incentivesDeleteScheme => 'Delete this scheme';
+
+  @override
+  String incentivesCouldNotStart(String name) {
+    return 'Could not start $name awarding.';
+  }
+
+  @override
+  String incentivesCouldNotPause(String name) {
+    return 'Could not pause $name.';
+  }
+
+  @override
+  String incentivesDeleteAction(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get incentivesDeleteStops => 'It stops awarding immediately.';
+
+  @override
+  String get incentivesDeleteKeeps =>
+      'Points already awarded stay on the agents who earned them.';
+
+  @override
+  String incentivesEarnedSoFar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents have earned it so far.',
+      one: '1 agent has earned it so far.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String incentivesCouldNotDelete(String name) {
+    return 'Could not delete $name. It is still awarding.';
+  }
+
+  @override
+  String incentivesUnknownMetric(String metric) {
+    return 'This client does not recognise the metric \"$metric\", so progress toward it cannot be shown here.';
+  }
+
+  @override
+  String get incentivesNoBoard =>
+      'No agent figures loaded, so progress toward this reward is not shown.';
+
+  @override
+  String incentivesNobodyMeasured(String metric) {
+    return 'Nobody has been measured on $metric in this window, so there is no progress toward this reward to show yet.';
+  }
+
+  @override
+  String get incentivesEverybodyEarned =>
+      'Everybody this metric can measure has earned it.';
+
+  @override
+  String incentivesClosest(String name) {
+    return 'Closest: $name';
+  }
+
+  @override
+  String incentivesFractionUnit(String value, String threshold, String unit) {
+    return '$value of $threshold $unit';
+  }
+
+  @override
+  String incentivesFraction(String value, String threshold) {
+    return '$value of $threshold';
+  }
+
+  @override
+  String incentivesRewardAt(String reward, String threshold, String unit) {
+    return '$reward at $threshold $unit';
+  }
+
+  @override
+  String incentivesRewardPoints(String points) {
+    return '$points pts';
+  }
+
+  @override
+  String incentivesEarnedOf(int count, String earned) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$earned of $count agents have earned it.',
+      one: '$earned of 1 agent has earned it.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get incentiveMetricScorecard => 'Average scorecard';
+
+  @override
+  String get incentiveMetricTasksClosed => 'Tasks closed';
+
+  @override
+  String get incentiveMetricVisits => 'Visits submitted';
+
+  @override
+  String get incentiveUnitPoints => 'points';
+
+  @override
+  String get incentiveUnitTasks => 'tasks';
+
+  @override
+  String get incentiveUnitVisits => 'visits';
+
+  @override
+  String get schemeFormTitle => 'Add a scheme';
+
+  @override
+  String get schemeFormSubtitle => 'It starts awarding as soon as it is saved.';
+
+  @override
+  String get schemeFormName => 'Name';
+
+  @override
+  String get schemeFormNameHint =>
+      'What a manager will call it — \"Twenty visits\"';
+
+  @override
+  String get schemeFormNameError => 'Give the scheme a name.';
+
+  @override
+  String get schemeFormMetricLabel => 'What it pays on';
+
+  @override
+  String get schemeFormMetricNotAnswered => 'No metric chosen yet';
+
+  @override
+  String get schemeFormMetricError => 'Choose what the scheme pays on.';
+
+  @override
+  String get schemeFormScorecardConsequence =>
+      'Pays when the agent\'s 0–100 mean clears the threshold.';
+
+  @override
+  String get schemeFormTasksConsequence => 'Pays on a count of closures.';
+
+  @override
+  String get schemeFormVisitsConsequence =>
+      'Pays on a count of submitted visits.';
+
+  @override
+  String get schemeFormThreshold => 'Threshold';
+
+  @override
+  String get schemeFormThresholdHelp => 'What an agent has to reach.';
+
+  @override
+  String schemeFormThresholdHelpUnit(String unit) {
+    return 'What an agent has to reach, in $unit.';
+  }
+
+  @override
+  String get schemeFormThresholdError =>
+      'Say the figure an agent has to reach.';
+
+  @override
+  String get schemeFormThresholdZero =>
+      'A threshold of nought is a scheme that pays out to everybody the moment it is created.';
+
+  @override
+  String get schemeFormReward => 'Reward';
+
+  @override
+  String get schemeFormRewardHelp => 'What clearing it awards.';
+
+  @override
+  String get schemeFormRewardError => 'Say how many points it awards.';
+
+  @override
+  String get schemeFormRewardZero => 'A reward of nought is not a reward.';
+
+  @override
+  String get schemeFormSave => 'Save this scheme';
+
+  @override
+  String get schemeFormBlocked =>
+      'A scheme needs a name, a metric, a threshold and a reward.';
+
+  @override
+  String get schemeFormNotNow => 'Not now';
+
+  @override
+  String get schemeProgressEveryone => 'Everyone';
+
+  @override
+  String schemeProgressSubtitle(String metric, String reward) {
+    return '$metric · $reward';
+  }
+
+  @override
+  String get schemeProgressEmptyHeadline => 'No agent figures loaded.';
+
+  @override
+  String get schemeProgressEmptyBody =>
+      'Progress toward this reward is read from the board, and the board has not answered.';
+
+  @override
+  String get schemeProgressUnmeasured => 'Not measured on this metric yet.';
+
+  @override
+  String get schemeProgressEarned => 'Earned';
+
+  @override
+  String get schemeProgressNobodyMeasured =>
+      'Nobody above has been measured on this metric in this window, so there is nothing to count yet.';
+
+  @override
+  String get schemeProgressClose => 'Close';
+
+  @override
+  String get liveStateAtStore => 'At store';
+
+  @override
+  String get liveStateNearStore => 'Near store';
+
+  @override
+  String get liveStateInTransit => 'In transit';
+
+  @override
+  String get liveStateStale => 'Stale';
+
+  @override
+  String get liveStateOffline => 'Offline';
+
+  @override
+  String get liveStateNotSharing => 'Not sharing';
+
+  @override
+  String liveAgeSeconds(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String liveAgeMinutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String liveAgeHours(String hours) {
+    return '$hours h';
+  }
+
+  @override
+  String liveAgeHoursMinutes(String hours, String minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String liveAgeDays(String days) {
+    return '$days d';
+  }
+
+  @override
+  String liveAtOutlet(String outlet) {
+    return 'at $outlet';
+  }
+
+  @override
+  String liveNearOutlet(String outlet) {
+    return 'near $outlet';
+  }
+
+  @override
+  String liveAgeOld(String age) {
+    return '$age old';
+  }
+
+  @override
+  String trailPinLabel(
+    String agent,
+    String ordinal,
+    String outlet,
+    String time,
+  ) {
+    return '$agent, stop $ordinal, $outlet, $time';
+  }
 }
