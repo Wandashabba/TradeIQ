@@ -9,7 +9,8 @@ import 'package:flutter/material.dart';
 /// series colour, and always pair one with an icon or a word so meaning never
 /// rides on colour alone.
 ///
-/// Mirrors `design/tokens.css`.
+/// Mirrors `design/archive/tokens.css` — the pre-Torchlight mockups, kept
+/// as a record. See `design/archive/README.md`.
 @Deprecated(
   'Torchlight Aisle collapsed the five colour sources into one TiqSkin. '
   'Use context.skin.palette — see docs/design/torchlight-aisle.md. This table '
