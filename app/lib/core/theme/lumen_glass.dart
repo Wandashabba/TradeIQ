@@ -152,9 +152,7 @@ class LumenGlass {
   static const sweep = Duration(milliseconds: 3600);
   static const sweepHero = Duration(milliseconds: 5000);
   static const spin = Duration(milliseconds: 4500);
-  static const rise = Duration(milliseconds: 500);
   static const progress = Duration(milliseconds: 450);
-  static const riseCurve = Cubic(0.22, 1, 0.36, 1);
 
   // ── Type ─────────────────────────────────────────────────────────────
   /// Every numeral in a data role, and every uppercase micro-label.
