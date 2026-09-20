@@ -228,6 +228,19 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    testWidgets('the pins and the rows both activate', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, outlets: _outlets);
+
+      // The pins are the case this guard exists for: each is a
+      // `Semantics(button: true, …, excludeSemantics: true)` around a
+      // GestureDetector, which is exactly the shape that shipped inert.
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {

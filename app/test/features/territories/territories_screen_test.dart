@@ -256,6 +256,28 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    // The kit shipped a component family that announced itself and did
+    // nothing when activated. This is that guard, on this route, per phase —
+    // a screen cannot reintroduce it with a local `Semantics(button: true,
+    // excludeSemantics: true)` around a bare GestureDetector.
+    for (final phase in const <String>['loaded', 'empty', 'error']) {
+      testWidgets(phase, (tester) async {
+        final handle = tester.ensureSemantics();
+        await _pump(
+          tester,
+          territories: phase == 'empty'
+              ? const <Territory>[]
+              : const <Territory>[north, west],
+          listFailure: phase == 'error' ? Exception('boom') : null,
+        );
+
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {

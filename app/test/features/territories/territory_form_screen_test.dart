@@ -169,6 +169,18 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    testWidgets('blocked and armed alike', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      expectEveryButtonActivatable(tester);
+
+      await _fill(tester);
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
       testWidgets('${skin.mode.name} · blocked', (tester) async {

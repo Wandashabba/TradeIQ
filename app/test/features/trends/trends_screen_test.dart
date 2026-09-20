@@ -449,6 +449,20 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    testWidgets('the filter rail, the toggles and the benchmark rows', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, report: _report());
+      expectEveryButtonActivatable(tester);
+
+      await _compare(tester);
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
       for (final phase in const <String>[

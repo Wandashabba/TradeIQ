@@ -266,6 +266,31 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    testWidgets('the evidence pane', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _openSheet(tester, users: _roster);
+
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+
+    testWidgets('the roster pane', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _openSheet(tester, users: _roster);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('territory-assign-ter-1')),
+      );
+      await tester.pumpAndSettle();
+
+      // Including the rows: PersonRow's onTap is a real Semantics.onTap, and
+      // a row a reader can focus and cannot activate is a row that is not
+      // there.
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
   group('the amber census, per pane × skin', () {
     for (final skin in torchSkins) {
       testWidgets('${skin.mode.name} · evidence pane is unlit', (tester) async {

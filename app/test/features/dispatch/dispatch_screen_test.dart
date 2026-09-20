@@ -314,6 +314,25 @@ void main() {
     });
   });
 
+  group('every button is operable by a screen reader', () {
+    testWidgets('the picker, the sheet and the ranked rows', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, outlets: _outlets, result: _ranked);
+      expectEveryButtonActivatable(tester);
+
+      await tester.tap(find.byKey(const ValueKey<String>('outlet-select')));
+      await tester.pumpAndSettle();
+      expectEveryButtonActivatable(tester);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('dispatch-outlet-o1')),
+      );
+      await tester.pumpAndSettle();
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
       for (final phase in const <String>['no-outlet', 'ranking', 'error']) {
