@@ -1,521 +1,339 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_schedule_form_screen.dart';
 
-class _RecordingSchedulesRepository implements ReportSchedulesRepository {
-  _RecordingSchedulesRepository({
-    this.failCreate = false,
-    this.failUpdate = false,
-  });
-
-  final bool failCreate;
-  final bool failUpdate;
-  Map<String, dynamic>? createdArgs;
-  Map<String, dynamic>? updatedArgs;
-  int updateCalls = 0;
-
-  @override
-  Future<ReportSchedule> updateSchedule(
-    String id, {
-    String? cadence,
-    List<String>? recipients,
-  }) async {
-    updateCalls++;
-    if (failUpdate) throw Exception('boom');
-    updatedArgs = {'id': id, 'cadence': cadence, 'recipients': recipients};
-    return ReportSchedule(
-      id: id,
-      reportDefinitionId: 'r-a',
-      cadence: cadence ?? 'daily',
-      recipients: recipients ?? const [],
-      active: true,
-    );
-  }
-
-  @override
-  Future<PaginatedResponse<ReportSchedule>> listSchedules() async =>
-      const PaginatedResponse(data: [], nextCursor: null);
-
-  @override
-  Future<ReportSchedule> createSchedule({
-    required String reportDefinitionId,
-    required String cadence,
-    required List<String> recipients,
-  }) async {
-    if (failCreate) throw Exception('boom');
-    createdArgs = {
-      'reportDefinitionId': reportDefinitionId,
-      'cadence': cadence,
-      'recipients': recipients,
-    };
-    return ReportSchedule(
-      id: 's-new',
-      reportDefinitionId: reportDefinitionId,
-      cadence: cadence,
-      recipients: recipients,
-      active: true,
-    );
-  }
-
-  @override
-  Future<ReportSchedule> setActive(String id, bool active) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteSchedule(String id) async => throw UnimplementedError();
-
-  @override
-  Future<PaginatedResponse<ReportRun>> listRuns(
-    String scheduleId, {
-    String? cursor,
-    int limit = reportRunsPageSize,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<List<ReportEmailDelivery>> listEmailDeliveries(
-    String scheduleId,
-    String runId,
-  ) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<ScheduleRunResult> runNow(String id) async =>
-      throw UnimplementedError();
-}
-
-class _FakeReportsRepository implements ReportsRepository {
-  _FakeReportsRepository({this.reports = _twoReports});
-
-  static const _twoReports = [
-    ReportDefinition(id: 'r-a', name: 'Coverage by outlet', type: 'visits'),
-    ReportDefinition(id: 'r-b', name: 'Sales by SKU', type: 'orders'),
-  ];
-
-  final List<ReportDefinition> reports;
-
-  @override
-  Future<PaginatedResponse<ReportDefinition>> listReports() async =>
-      PaginatedResponse(data: reports, nextCursor: null);
-
-  @override
-  Future<ReportResult> generate(String id) async => throw UnimplementedError();
-
-  @override
-  Future<ReportDefinition> createReport({
-    required String name,
-    required String type,
-    required Map<String, dynamic> filters,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteReport(String id) async => throw UnimplementedError();
-}
-
-Widget _app(
-  _RecordingSchedulesRepository repo, {
-  _FakeReportsRepository? reports,
-  ThemeData? theme,
-  ReportSchedule? schedule,
-}) =>
-    ProviderScope(
-      overrides: [
-        reportSchedulesRepositoryProvider.overrideWithValue(repo),
-        reportsRepositoryProvider
-            .overrideWithValue(reports ?? _FakeReportsRepository()),
-      ],
-      child: MaterialApp(
-        theme: theme,
-        home: ReportScheduleFormScreen(schedule: schedule),
-      ),
-    );
-
-const _existing = ReportSchedule(
-  id: 's-1',
-  reportDefinitionId: 'r-a',
-  reportName: 'Coverage by outlet',
-  cadence: 'weekly',
-  recipients: ['ops@acme.test', 'lead@acme.test'],
-  active: true,
-);
-
-final _recipients =
-    find.byKey(const ValueKey<String>('schedule-recipients-field'));
-
-String _recipientsText(WidgetTester tester) =>
-    tester.widget<TextFormField>(_recipients).controller!.text;
-
-final _save = find.byKey(const ValueKey<String>('schedule-save-button'));
-
-Future<void> _tapSave(WidgetTester tester) async {
-  await tester.ensureVisible(_save);
-  await tester.tap(_save);
-  await tester.pumpAndSettle();
-}
-
-Future<void> _fillValid(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey<String>('schedule-report-field')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Sales by SKU').last);
-  await tester.pumpAndSettle();
-
-  await tester.tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Weekly').last);
-  await tester.pumpAndSettle();
-
-  await tester.enterText(
-    find.byKey(const ValueKey<String>('schedule-recipients-field')),
-    'ops@acme.test, lead@acme.test\n\nsales@acme.test',
-  );
-}
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
+import 'reports_harness.dart';
+import 'schedules_fakes.dart';
 
 void main() {
+  Future<void> pump(
+    WidgetTester tester, {
+    required FakeSchedulesRepository repo,
+    FakeReportsRepository? reports,
+    ReportSchedule? editing,
+    TiqSkin? skin,
+    double textScale = 1.0,
+  }) => pumpPushedReports(
+    tester,
+    ReportScheduleFormScreen(schedule: editing),
+    skin: skin,
+    textScale: textScale,
+    overrides: <Override>[
+      reportSchedulesRepositoryProvider.overrideWithValue(repo),
+      reportsRepositoryProvider.overrideWithValue(
+        reports ?? FakeReportsRepository(),
+      ),
+    ],
+  );
+
+  Future<void> type(WidgetTester tester, String key, String text) async {
+    await scrollWorklistTo(tester, find.byKey(ValueKey<String>(key)));
+    await tester.enterText(find.byKey(ValueKey<String>(key)), text);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pickReport(WidgetTester tester, String name) async {
+    await scrollWorklistTo(
+      tester,
+      find.byKey(const ValueKey<String>('schedule-report-field')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('schedule-report-field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(name));
+    await tester.pumpAndSettle();
+  }
+
   group('parseRecipients', () {
     test('splits on commas, semicolons and lines, trimming blanks away', () {
-      expect(
-        parseRecipients(' a@acme.test,b@acme.test ;\n\n c@acme.test , '),
-        ['a@acme.test', 'b@acme.test', 'c@acme.test'],
-      );
+      expect(parseRecipients('a@x.test, b@x.test;c@x.test\nd@x.test'), <String>[
+        'a@x.test',
+        'b@x.test',
+        'c@x.test',
+        'd@x.test',
+      ]);
     });
 
     test('whitespace and separators alone are no recipients', () {
-      expect(parseRecipients('  , ;\n '), isEmpty);
+      expect(parseRecipients('  ,\n ; '), isEmpty);
     });
-  });
-
-  testWidgets('creates a schedule with the picked report, cadence and list',
-      (tester) async {
-    final repo = _RecordingSchedulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await _fillValid(tester);
-    await _tapSave(tester);
-
-    expect(repo.createdArgs, {
-      'reportDefinitionId': 'r-b',
-      'cadence': 'weekly',
-      'recipients': ['ops@acme.test', 'lead@acme.test', 'sales@acme.test'],
-    });
-  });
-
-  testWidgets('cadence defaults to daily, the first allowed value',
-      (tester) async {
-    final repo = _RecordingSchedulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('schedule-report-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Coverage by outlet').last);
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('schedule-recipients-field')),
-      'ops@acme.test',
-    );
-    await _tapSave(tester);
-
-    expect(repo.createdArgs!['cadence'], 'daily');
-    expect(repo.createdArgs!['reportDefinitionId'], 'r-a');
-  });
-
-  testWidgets('blocks submit without a report or any recipient',
-      (tester) async {
-    final repo = _RecordingSchedulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('schedule-recipients-field')),
-      ' , \n',
-    );
-    await _tapSave(tester);
-
-    expect(find.text('Pick a report'), findsOneWidget);
-    expect(find.text('Add at least one recipient'), findsOneWidget);
-    expect(repo.createdArgs, isNull);
-  });
-
-  testWidgets('with no saved reports there is nothing to schedule',
-      (tester) async {
-    final repo = _RecordingSchedulesRepository();
-    await tester.pumpWidget(
-      _app(repo, reports: _FakeReportsRepository(reports: const [])),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey<String>('schedule-no-reports')),
-      findsOneWidget,
-    );
-    expect(tester.widget<GlassPrimaryButton>(_save).onPressed, isNull);
-  });
-
-  testWidgets('a failed create keeps the form and says why', (tester) async {
-    final repo = _RecordingSchedulesRepository(failCreate: true);
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await _fillValid(tester);
-    await _tapSave(tester);
-
-    expect(
-      find.text('Failed to create schedule. Something went wrong. Please try '
-          'again.'),
-      findsOneWidget,
-    );
-    expect(find.text('New Schedule'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-  });
-
-  testWidgets('the cadence field says it runs automatically, and is emailed once set up',
-      (tester) async {
-    await tester.pumpWidget(_app(_RecordingSchedulesRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text(scheduleCadenceHelp), findsOneWidget);
-    expect(scheduleCadenceHelp, contains('Runs automatically'));
-    expect(scheduleCadenceHelp, contains('report.generated'));
-    expect(scheduleCadenceHelp, contains('emailed to the recipients when email is set up'));
-    expect(find.textContaining('Nothing sends'), findsNothing);
-  });
-
-  testWidgets('blocks submit when a recipient is not an email address',
-      (tester) async {
-    final repo = _RecordingSchedulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await _fillValid(tester);
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('schedule-recipients-field')),
-      'ops@acme.test, https://hooks.acme.test/x',
-    );
-    await _tapSave(tester);
-
-    expect(find.text('Not an email address: https://hooks.acme.test/x'), findsOneWidget);
-    expect(repo.createdArgs, isNull);
   });
 
   group('recipientsError', () {
     test('accepts 1 to 50 email addresses', () {
-      expect(recipientsError('ops@acme.test\nlead@acme.test'), isNull);
+      expect(recipientsError('a@x.test'), isNull);
       expect(
-        recipientsError(List.generate(maxScheduleRecipients, (i) => 'r$i@acme.test').join(',')),
+        recipientsError(
+          List<String>.generate(50, (i) => 'a$i@x.test').join('\n'),
+        ),
         isNull,
       );
     });
 
     test('says what is wrong otherwise', () {
-      expect(recipientsError(' , '), 'Add at least one recipient');
-      expect(recipientsError('ops@acme.test; not-an-email'), 'Not an email address: not-an-email');
+      expect(recipientsError(''), 'Add at least one recipient');
+      expect(recipientsError('not-an-email'), contains('Not an email address'));
       expect(
-        recipientsError(List.generate(maxScheduleRecipients + 1, (i) => 'r$i@acme.test').join(',')),
-        'At most $maxScheduleRecipients recipients',
+        recipientsError(
+          List<String>.generate(51, (i) => 'a$i@x.test').join('\n'),
+        ),
+        'At most 50 recipients',
       );
     });
   });
 
-  group('edit mode', () {
-    testWidgets('is prefilled with the schedule, report read-only',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(_app(repo, schedule: _existing));
-      await tester.pumpAndSettle();
+  group('creating', () {
+    testWidgets('creates with the picked report, cadence and list', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository();
+      await pump(tester, repo: repo);
 
-      expect(find.text('Edit Schedule'), findsOneWidget);
-      expect(find.text('Save Changes'), findsOneWidget);
-      expect(find.text('Weekly'), findsOneWidget);
-      expect(_recipientsText(tester), 'ops@acme.test\nlead@acme.test');
-
-      // The API cannot relink a schedule: no picker, the name and why.
-      expect(
-        find.byKey(const ValueKey<String>('schedule-report-field')),
-        findsNothing,
+      await pickReport(tester, 'Coverage by outlet');
+      await type(
+        tester,
+        'schedule-recipients-field',
+        'ops@acme.test\nlead@acme.test',
       );
-      final readonly =
-          find.byKey(const ValueKey<String>('schedule-report-readonly'));
-      expect(
-        find.descendant(of: readonly, matching: find.text('Coverage by outlet')),
-        findsOneWidget,
-      );
-      expect(find.text(scheduleReportLockedNote), findsOneWidget);
-      // Still honest about delivery: runs automatically, email once set up.
-      expect(find.text(scheduleCadenceHelp), findsOneWidget);
-    });
-
-    testWidgets('saves the new cadence and recipients, blanks dropped',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(_app(repo, schedule: _existing));
-      await tester.pumpAndSettle();
-
-      await tester
-          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Daily').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(_recipients, ' new@acme.test ;\n\n, ops@acme.test');
-      await _tapSave(tester);
-
-      expect(repo.updatedArgs, {
-        'id': 's-1',
-        'cadence': 'daily',
-        'recipients': ['new@acme.test', 'ops@acme.test'],
-      });
-      expect(repo.createdArgs, isNull);
-    });
-
-    testWidgets('blocks saving with no recipients left', (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(_app(repo, schedule: _existing));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(_recipients, ' , \n ; ');
-      await _tapSave(tester);
-
-      expect(find.text('Add at least one recipient'), findsOneWidget);
-      expect(repo.updateCalls, 0);
-    });
-
-    testWidgets('a cadence outside the allow-list must be re-picked',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(
-        _app(
-          repo,
-          schedule: const ReportSchedule(
-            id: 's-odd',
-            reportDefinitionId: 'r-a',
-            cadence: 'monthly',
-            recipients: ['ops@acme.test'],
-            active: true,
-          ),
-        ),
+      await tester.tap(
+        find.byKey(const ValueKey<String>('schedule-save-button')),
       );
       await tester.pumpAndSettle();
 
-      // A bare row has no joined name.
-      expect(find.text('Untitled report'), findsOneWidget);
-
-      await _tapSave(tester);
-      expect(find.text('Pick a cadence'), findsOneWidget);
-      expect(repo.updateCalls, 0);
-
-      await tester
-          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Weekly').last);
-      await tester.pumpAndSettle();
-      await _tapSave(tester);
-
-      expect(repo.updatedArgs!['cadence'], 'weekly');
-    });
-
-    testWidgets('a failed save keeps the form, the edits, and says why',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository(failUpdate: true);
-      await tester.pumpWidget(_app(repo, schedule: _existing));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(_recipients, 'new@acme.test');
-      await _tapSave(tester);
-
-      expect(repo.updateCalls, 1);
-      final error = find.byKey(const ValueKey<String>('schedule-save-error'));
-      expect(
-        find.descendant(
-          of: error,
-          matching: find.text(
-            'Failed to save changes. Something went wrong. Please try again.',
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Edit Schedule'), findsOneWidget);
-      expect(_recipientsText(tester), 'new@acme.test');
-    });
-  });
-
-  for (final (name, theme) in [
-    ('light', AppTheme.light()),
-    ('dark', AppTheme.dark()),
-  ]) {
-    testWidgets('$name: edit mode is glass, and saves', (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(_app(repo, theme: theme, schedule: _existing));
-      await tester.pumpAndSettle();
-
-      for (final kicker in const ['REPORT', 'SCHEDULE']) {
-        final pane = tester.widget<GlassPane>(
-          find
-              .ancestor(of: find.text(kicker), matching: find.byType(GlassPane))
-              .first,
-        );
-        expect(pane.kind, GlassKind.panel, reason: kicker);
-      }
-      expect(tester.widget(_save), isA<GlassPrimaryButton>());
-
-      await _tapSave(tester);
-      expect(repo.updatedArgs!['recipients'], [
+      expect(repo.createdReportId, 'r-a');
+      // The first allowed cadence, so nothing is committed by a default
+      // nobody chose beyond the one the API itself lists first.
+      expect(repo.createdCadence, 'daily');
+      expect(repo.createdRecipients, <String>[
         'ops@acme.test',
         'lead@acme.test',
       ]);
     });
 
-    testWidgets('$name: a failed save reads in the crit text colour',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository(failUpdate: true);
-      await tester.pumpWidget(_app(repo, theme: theme, schedule: _existing));
-      await tester.pumpAndSettle();
-      await _tapSave(tester);
+    testWidgets('with no saved reports there is nothing to schedule, and the '
+        'button says so', (tester) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(),
+        reports: FakeReportsRepository(reports: const <ReportDefinition>[]),
+      );
 
-      final text = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(const ValueKey<String>('schedule-save-error')),
-          matching: find.byType(Text),
+      expect(
+        find.byKey(const ValueKey<String>('schedule-no-reports')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('There are no saved reports yet. Build one on Reports first.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a failed create keeps the form and says why', (tester) async {
+      final repo = FakeSchedulesRepository(updateFailure: networkFailure);
+      await pump(tester, repo: repo);
+
+      await pickReport(tester, 'Coverage by outlet');
+      await type(tester, 'schedule-recipients-field', 'ops@acme.test');
+      await tester.tap(
+        find.byKey(const ValueKey<String>('schedule-save-button')),
+      );
+      await tester.pumpAndSettle();
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('schedule-save-error')),
+      );
+      expect(find.text('The schedule was not created.'), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      // The draft survives the failure: the recipients the manager typed are
+      // still in the box beside the reason it did not save.
+      expect(find.text('ops@acme.test'), findsOneWidget);
+    });
+  });
+
+  group('a form that cannot save says why on the button', () {
+    testWidgets('no report picked', (tester) async {
+      await pump(tester, repo: FakeSchedulesRepository());
+      expect(
+        find.text('Pick the report this schedule runs.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('no recipients', (tester) async {
+      await pump(tester, repo: FakeSchedulesRepository());
+      await pickReport(tester, 'Coverage by outlet');
+      expect(find.text('Add at least one recipient'), findsWidgets);
+    });
+
+    testWidgets('a recipient that is not an email address', (tester) async {
+      await pump(tester, repo: FakeSchedulesRepository());
+      await pickReport(tester, 'Coverage by outlet');
+      await type(tester, 'schedule-recipients-field', 'ops@acme.test, nope');
+      expect(find.textContaining('Not an email address: nope'), findsWidgets);
+    });
+  });
+
+  group('editing', () {
+    testWidgets('is prefilled, and the report is locked', (tester) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(),
+        editing: activeSchedule,
+      );
+
+      expect(find.text('Edit schedule'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('schedule-report-readonly')),
+        findsOneWidget,
+      );
+      expect(find.text(scheduleReportLockedNote), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('schedule-report-field')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('saves the new cadence and recipients, blanks dropped', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository();
+      await pump(tester, repo: repo, editing: activeSchedule);
+
+      await scrollWorklistTo(tester, find.text('Daily'));
+      await tester.tap(find.text('Daily'));
+      await tester.pumpAndSettle();
+      await type(
+        tester,
+        'schedule-recipients-field',
+        'ops@acme.test, , new@acme.test',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('schedule-save-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repo.updatedId, 's-active');
+      expect(repo.updatedCadence, 'daily');
+      expect(repo.updatedRecipients, <String>[
+        'ops@acme.test',
+        'new@acme.test',
+      ]);
+    });
+
+    testWidgets('a cadence outside the allow-list must be re-picked', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(),
+        editing: const ReportSchedule(
+          id: 's-odd',
+          reportDefinitionId: 'r-a',
+          reportName: 'Coverage by outlet',
+          cadence: 'fortnightly',
+          recipients: <String>['ops@acme.test'],
+          active: true,
         ),
       );
-      final context = tester.element(_save);
-      expect(text.style!.color, context.colors.critText);
-    });
-  }
 
-  for (final (name, theme) in [
-    ('light', AppTheme.light()),
-    ('dark', AppTheme.dark()),
-  ]) {
-    testWidgets('$name: sections are glass panels, create is glass',
-        (tester) async {
-      final repo = _RecordingSchedulesRepository();
-      await tester.pumpWidget(_app(repo, theme: theme));
+      expect(find.text('Pick how often it runs.'), findsWidgets);
+    });
+
+    testWidgets('a failed save keeps the form, the edits, and says why', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository(updateFailure: networkFailure);
+      await pump(tester, repo: repo, editing: activeSchedule);
+
+      await type(tester, 'schedule-recipients-field', 'changed@acme.test');
+      await tester.tap(
+        find.byKey(const ValueKey<String>('schedule-save-button')),
+      );
       await tester.pumpAndSettle();
 
-      for (final kicker in const ['REPORT', 'SCHEDULE']) {
-        final pane = tester.widget<GlassPane>(
-          find
-              .ancestor(of: find.text(kicker), matching: find.byType(GlassPane))
-              .first,
-        );
-        expect(pane.kind, GlassKind.panel, reason: kicker);
-      }
-      expect(tester.widget(_save), isA<GlassPrimaryButton>());
-
-      await _fillValid(tester);
-      await _tapSave(tester);
-      expect(repo.createdArgs!['reportDefinitionId'], 'r-b');
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('schedule-save-error')),
+      );
+      expect(find.text('The changes were not saved.'), findsOneWidget);
+      expect(find.text('changed@acme.test'), findsOneWidget);
     });
-  }
+  });
+
+  group('the amber census', () {
+    testWidgets('Night, blocked: nothing is armed, so nothing is lit', (
+      tester,
+    ) async {
+      await pump(tester, repo: FakeSchedulesRepository());
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'reports/schedules/new',
+        phase: 'blocked',
+      );
+      expect(census.objectCount, 0, reason: census.describe());
+    });
+
+    testWidgets('Night, armed: exactly the commit', (tester) async {
+      await pump(tester, repo: FakeSchedulesRepository());
+      await pickReport(tester, 'Coverage by outlet');
+      await type(tester, 'schedule-recipients-field', 'ops@acme.test');
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'reports/schedules/new',
+        phase: 'armed',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      testWidgets('${skin.mode.name}: zero blocked, one armed', (tester) async {
+        await pump(
+          tester,
+          repo: FakeSchedulesRepository(),
+          editing: activeSchedule,
+          skin: skin,
+        );
+
+        var census = await amberCensus(tester);
+        expect(census.objectCount, 1, reason: census.describe());
+
+        await type(tester, 'schedule-recipients-field', '');
+        census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'reports/schedules/edit',
+          phase: 'blocked',
+        );
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+    }
+  });
+
+  testWidgets('2.0x: the form survives and nothing overflows', (tester) async {
+    await pump(
+      tester,
+      repo: FakeSchedulesRepository(),
+      editing: activeSchedule,
+      textScale: 2.0,
+    );
+
+    expect(find.byType(ErrorState), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

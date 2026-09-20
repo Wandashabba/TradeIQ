@@ -604,7 +604,7 @@ class _RunDetail extends StatelessWidget {
           const SizedBox(height: TiqSpace.s3),
           _emailResults(note),
           const SizedBox(height: TiqSpace.s5),
-          const SectionRule('CSV'),
+          const SectionRule('The file'),
           const SizedBox(height: TiqSpace.s3),
           Text(
             run.csvDownloadUrl == null
