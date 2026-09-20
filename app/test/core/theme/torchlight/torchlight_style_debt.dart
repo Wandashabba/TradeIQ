@@ -24,7 +24,13 @@
 //   flutter test test/core/theme/torchlight/torchlight_lint_test.dart
 // and paste the map it prints.
 const Map<String, int> torchlightStyleDebt = <String, int>{
-  'agents/presentation/agent_trail_screen.dart': 20,
+  // STILL HERE ON PURPOSE. The live layer is a shared component: the trail
+  // map draws its squares and so does the dashboard's "Where are my agents"
+  // panel, which has not been migrated. Moving it now would restyle an
+  // unmigrated screen mid-flight and break its goldens for a change that is
+  // not about it — the same ordering GlassPane is being deleted under, where
+  // the component goes when its call sites are empty and not before. It
+  // belongs to whoever migrates the dashboard shell.
   'agents/presentation/live_location_layer.dart': 13,
   'assistant/presentation/artifact_filters.dart': 9,
   'assistant/presentation/artifact_screen.dart': 6,
@@ -69,4 +75,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 271;
+const int torchlightStyleDebtTotal = 251;

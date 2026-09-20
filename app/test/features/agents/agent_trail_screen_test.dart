@@ -1,860 +1,569 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:flutter/semantics.dart' show SemanticsAction;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_palette.dart';
-import 'package:tradeiq_app/core/widgets/basemap.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
+import 'package:tradeiq_app/features/agents/data/agent_locations_repository.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
-import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
+import 'package:tradeiq_app/features/agents/presentation/live_location_layer.dart'
+    show formatUpdatedAt;
+import 'package:tradeiq_app/features/agents/presentation/trail_map.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
 
-class _FakeAgentsRepository implements AgentsRepository {
-  _FakeAgentsRepository(this.agents, {this.truncated = false});
+AgentStop _stop(
+  String id,
+  String name,
+  double lat,
+  double lng,
+  int hour, {
+  bool inProgress = false,
+}) => AgentStop(
+  visitId: id,
+  outletId: 'o-$id',
+  outletName: name,
+  lat: lat,
+  lng: lng,
+  checkinTs: DateTime(2026, 7, 22, hour),
+  inProgress: inProgress,
+);
+
+AgentActivity _agent({
+  String agentId = 'a1',
+  String name = 'Thandi Mokoena',
+  List<AgentStop>? stops,
+  String? currentOutletName,
+}) => AgentActivity(
+  agentId: agentId,
+  name: name,
+  state: AgentState.inTransit,
+  currentOutletName: currentOutletName,
+  lastSeenAt: DateTime(2026, 7, 22, 11),
+  stops: stops ??
+      <AgentStop>[
+        _stop('v1', 'Sandton Spar', -26.10, 28.05, 8),
+        _stop('v2', 'Kasi Corner Spaza', -26.12, 28.07, 11),
+      ],
+);
+
+class _FakeAgents implements AgentsRepository {
+  _FakeAgents({
+    this.agents = const <AgentActivity>[],
+    this.truncated = false,
+    this.failure,
+    this.pending = false,
+  });
+
   final List<AgentActivity> agents;
   final bool truncated;
+  final Object? failure;
+  final bool pending;
 
   @override
   Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
-  }) async =>
-      AgentActivityPage(agents: agents, truncated: truncated);
+  }) async {
+    if (failure != null) throw failure!;
+    if (pending) return Completer<AgentActivityPage>().future;
+    return AgentActivityPage(agents: agents, truncated: truncated);
+  }
 }
 
-/// Returns different agents depending on the requested day, keyed by the
-/// `from` bound's day-of-month — just enough to prove the map re-centres
-/// when [agentTrailDayProvider] changes, without a full calendar model.
-class _DayDependentAgentsRepository implements AgentsRepository {
-  _DayDependentAgentsRepository(this.byDay);
-  final Map<int, List<AgentActivity>> byDay;
+final DateTime _serverTime = DateTime.utc(2026, 7, 22, 11, 30, 5);
+
+/// A live page with one agent who is currently moving. Parsed from the wire
+/// shape rather than constructed, so the fixture cannot drift from what the
+/// server actually sends.
+AgentLocationsPage _livePage({bool withAgent = true}) =>
+    AgentLocationsPage.fromJson(<String, dynamic>{
+      'serverTime': _serverTime.toIso8601String(),
+      'intervalSeconds': 120,
+      'staleAfterSeconds': 360,
+      'offlineAfterSeconds': 1800,
+      'maxAtStoreAccuracyM': 100,
+      'nextCursor': null,
+      'data': <dynamic>[
+        if (withAgent)
+          <String, dynamic>{
+            'agentId': 'a-transit',
+            'name': 'Busi Dlamini',
+            'state': 'in_transit',
+            'lastPing': <String, dynamic>{
+              'lat': -26.11,
+              'lng': 28.06,
+              'accuracyM': 20,
+              'recordedAt': '2026-07-22T11:29:00.000Z',
+            },
+            'ageSeconds': 65,
+          },
+      ],
+    });
+
+class _Locations implements AgentLocationsRepository {
+  _Locations(this.page);
+
+  final AgentLocationsPage page;
 
   @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      AgentActivityPage(agents: byDay[from.day] ?? const [], truncated: false);
+  Future<AgentLocationsPage> listLocations({String? territoryId}) async => page;
 }
 
-/// Returns different agents depending on the requested territory (same day
-/// throughout) — just enough to prove the map re-fits when the territory
-/// filter changes, without a full backend fake.
-class _TerritoryAwareAgentsRepository implements AgentsRepository {
-  _TerritoryAwareAgentsRepository(this.byTerritory);
-  final Map<String?, List<AgentActivity>> byTerritory;
+/// A phone tall enough that the trail list is on screen under the map band.
+///
+/// The census and the overflow cases keep the real 360x720 device; these are
+/// assertions about what the list SAYS, and scrolling past a live basemap to
+/// reach it tests flutter_map's gesture arena rather than the screen.
+const Size _tall = Size(360, 1400);
 
-  @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      AgentActivityPage(agents: byTerritory[territoryId] ?? const [], truncated: false);
-}
-
-class _ThrowingRepository implements AgentsRepository {
-  @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      throw Exception('boom');
-}
-
-AgentStop _stop(String id, String name, double lat, double lng, int hour) => AgentStop(
-      visitId: id,
-      outletId: 'o-$id',
-      outletName: name,
-      lat: lat,
-      lng: lng,
-      checkinTs: DateTime(2026, 7, 22, hour),
-      inProgress: false,
-    );
-
-final _thabo = AgentActivity(
-  agentId: 'a1',
-  name: 'thabo@example.com',
-  state: AgentState.inTransit,
-  currentOutletName: null,
-  lastSeenAt: DateTime(2026, 7, 22, 11),
-  stops: [
-    _stop('v1', 'Sandton Spar', -26.10, 28.05, 8),
-    _stop('v2', 'Rosebank Pick n Pay', -26.14, 28.04, 11),
+Future<void> _pump(
+  WidgetTester tester, {
+  List<AgentActivity> agents = const <AgentActivity>[],
+  bool truncated = false,
+  Object? failure,
+  bool pending = false,
+  AgentLocationsPage? live,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Size size = _tall,
+  Locale? locale,
+}) => pumpWorklist(
+  tester,
+  const AgentTrailScreen(),
+  skin: skin,
+  size: size,
+  textScale: textScale,
+  locale: locale,
+  path: '/agents/activity',
+  settle: !pending,
+  overrides: <Override>[
+    agentsRepositoryProvider.overrideWithValue(
+      _FakeAgents(
+        agents: agents,
+        truncated: truncated,
+        failure: failure,
+        pending: pending,
+      ),
+    ),
+    agentLocationsRepositoryProvider.overrideWithValue(
+      _Locations(live ?? _livePage(withAgent: false)),
+    ),
+    // The poll is a Timer, and a pending Timer fails the test that disposes
+    // the tree — presenting as a hang two tests later rather than as the
+    // poll's own fault.
+    liveLocationsPollIntervalProvider.overrideWithValue(null),
   ],
 );
 
 void main() {
-  // The pins' glow-breathing is the design's ONLY looping animation — and an
-  // infinite loop makes every `pumpAndSettle` below time out. Off for the
-  // suite by default; the two motion tests at the bottom flip it back on to
-  // prove the loop exists (normal motion) and stays off (reduced motion).
-  setUp(() => AgentTrailScreen.debugDisableGlowBreathing = true);
-  tearDown(() => AgentTrailScreen.debugDisableGlowBreathing = false);
+  setUp(() => TrailMap.debugFailureThreshold = 1 << 30);
+  tearDown(() => TrailMap.debugFailureThreshold = 6);
 
-  testWidgets('renders a marker per stop', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
+  group('the trail is a list as well as a map', () {
+    testWidgets('every stop is a row, in order, with its time', (tester) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
 
-    expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-stop-a1-0')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-stop-a1-1')), findsOneWidget);
-  });
-
-  testWidgets('tapping a stop opens that visit for review (#208)', (tester) async {
-    // Wide enough for the rail layout: at the 800x600 default the compact
-    // scaffold's floating bottom bar sits over the map, and over this pin.
-    tester.view.physicalSize = const Size(1400, 1000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(
-          initialLocation: '/agents/activity',
-          routes: [
-            GoRoute(
-              path: '/agents/activity',
-              builder: (context, state) => const AgentTrailScreen(),
-            ),
-            GoRoute(
-              path: '/visits/:id',
-              builder: (context, state) =>
-                  Text('visit detail ${state.pathParameters['id']}'),
-            ),
-          ],
-        ),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
-    // Aim at the numbered disc itself: the box centre can sit under the map's
-    // attribution strip, which is not the pin.
-    await tester.tap(find.descendant(
-      of: find.byKey(const ValueKey<String>('agent-stop-a1-1')),
-      matching: find.text('2'),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('visit detail v2'), findsOneWidget);
-  });
-
-  testWidgets('shows an empty state for a day with no stops', (tester) async {
-    final idle = AgentActivity(
-      agentId: 'a2',
-      name: 'sipho@example.com',
-      state: AgentState.idle,
-      stops: const [],
-    );
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([idle])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('No check-ins'), findsOneWidget);
-  });
-
-  // The dashes are load-bearing: a solid line would assert a route between two
-  // check-ins that we did not observe.
-  testWidgets('draws the trail as a dashed polyline', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final layer = tester.widget<PolylineLayer>(find.byType(PolylineLayer));
-    expect(layer.polylines, hasLength(1));
-    // `segments` is non-null only on StrokePattern.dashed — asserting on it
-    // actually proves the line is dashed. Comparing against
-    // `StrokePattern.solid()` would not: StrokePattern has no value equality,
-    // so that assertion passes even against a solid line.
-    expect(layer.polylines.first.pattern.segments, isNotNull);
-  });
-
-  // The Tide Guide world (premium-ui sub3): dark tiles, a navy tint wash, then
-  // the trail geometry ABOVE the tint so pins and lines keep full brightness,
-  // and the licence attribution on top of everything.
-  testWidgets('layers the navy tint between the tiles and the trail geometry', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-    expect(map.children, hasLength(6));
-    expect(map.children[0], isA<TiqTileLayer>());
-    expect(map.children[1], isA<TiqNavyTint>());
-    // Place names ride above the wash, below the trail geometry.
-    expect(map.children[2], isA<TiqBasemapLabels>());
-    expect(map.children[3], isA<PolylineLayer>());
-    expect(map.children[4], isA<MarkerLayer>());
-    expect(map.children[5], isA<TiqBasemapAttribution>());
-  });
-
-  testWidgets('draws the trail in luminous blue at .8 opacity', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final layer = tester.widget<PolylineLayer>(find.byType(PolylineLayer));
-    // 0xFF4D9BFF at .8 alpha (0.8 × 255 = 0xCC) — reads as light over the
-    // navy world without shouting over the pins.
-    expect(layer.polylines.first.color, const Color(0xCC4D9BFF));
-  });
-
-  // The label is new information the old map hid behind a hover tooltip:
-  // outlet name + check-in time, visible on the map itself.
-  testWidgets('each pin carries a luminous label with the outlet name and time', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Sandton Spar'), findsOneWidget);
-    expect(find.textContaining('Rosebank Pick n Pay'), findsOneWidget);
-    expect(find.textContaining('08:00'), findsOneWidget);
-    expect(find.textContaining('11:00'), findsOneWidget);
-
-    final label = tester.widget<Text>(find.textContaining('Sandton Spar'));
-    expect(label.style!.color, const Color(0xFFD9E6FF));
-    expect(label.style!.shadows, isNotEmpty,
-        reason: 'the dark text-shadow is what keeps the label legible over '
-            'unpredictable tile detail');
-    expect(label.maxLines, 2);
-    expect(label.overflow, TextOverflow.ellipsis);
-  });
-
-  // The halo is enhancement, the numbering is the honesty rule: the last stop
-  // may glow brightest, but the sequence must still read from the numerals
-  // alone (greyscale, colour-blind, screenshot-in-an-email).
-  testWidgets('only the last stop carries the brightest halo; numerals still carry the sequence', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    const halo = ValueKey<String>('agent-stop-last-halo');
-    expect(find.byKey(halo), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('agent-stop-a1-1')),
-        matching: find.byKey(halo),
-      ),
-      findsOneWidget,
-      reason: 'the LAST stop is the one that glows brightest',
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('agent-stop-a1-0')),
-        matching: find.byKey(halo),
-      ),
-      findsNothing,
-      reason: 'earlier stops must not claim the "where they ended up" glow',
-    );
-
-    // The numerals survive the restyle.
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
-  });
-
-  testWidgets('the legend sits on translucent dark chrome', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final legendText = find.textContaining('Numbered pins');
-    expect(tester.widget<Text>(legendText).style!.color, const Color(0xFF8FA5C6));
-    final container = tester.widget<Container>(
-      find.ancestor(of: legendText, matching: find.byType(Container)).first,
-    );
-    expect(container.color, const Color(0xCC050A16));
-  });
-
-  testWidgets('draws no polyline for an agent with a single stop', (tester) async {
-    final oneStop = AgentActivity(
-      agentId: 'a3',
-      name: 'nomsa@example.com',
-      state: AgentState.atStore,
-      currentOutletName: 'Sandton Spar',
-      stops: [_stop('v9', 'Sandton Spar', -26.10, 28.05, 9)],
-    );
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([oneStop])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final layer = tester.widget<PolylineLayer>(find.byType(PolylineLayer));
-    expect(layer.polylines, isEmpty);
-  });
-
-  testWidgets('says so when the server had more agents than it returned', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([_thabo], truncated: true),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('first 200'), findsOneWidget);
-  });
-
-  testWidgets('surfaces an error with a retry', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_ThrowingRepository()),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Retry'), findsOneWidget);
-  });
-
-  // Zero coverage before this: three agents on the same day previously drew
-  // three identical "1" pins in the same brand colour with nothing but a
-  // screen-reader-only label telling them apart (FIX 3).
-  testWidgets('renders a marker for each of two agents on the same day', (tester) async {
-    final nomsa = AgentActivity(
-      agentId: 'a4',
-      name: 'nomsa@example.com',
-      state: AgentState.inTransit,
-      stops: [
-        _stop('v10', 'Fourways Checkers', -26.02, 28.01, 9),
-        _stop('v11', 'Bryanston Woolworths', -26.05, 28.03, 12),
-      ],
-    );
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([_thabo, nomsa]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey<String>('agent-stop-a1-0')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-stop-a4-0')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-stop-a4-1')), findsOneWidget);
-  });
-
-  // "State is never colour alone" is the file's own claim (see the doc
-  // comment on _StopPin) — this is the test that actually holds it to that.
-  testWidgets('the last stop is styled differently from an earlier stop', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    BoxDecoration pinDecorationFor(String key) {
-      final marker = find.descendant(
-        of: find.byKey(ValueKey<String>(key)),
-        matching: find.byType(DecoratedBox),
-      );
-      return tester.widget<DecoratedBox>(marker.first).decoration
-          as BoxDecoration;
-    }
-
-    final first = pinDecorationFor('agent-stop-a1-0');
-    final last = pinDecorationFor('agent-stop-a1-1');
-
-    // Both discs are now radial-gradient glows; the last stop's is brighter.
-    final firstGradient = first.gradient! as RadialGradient;
-    final lastGradient = last.gradient! as RadialGradient;
-    expect(firstGradient.colors, isNot(equals(lastGradient.colors)));
-
-    // And the last stop's halo is stronger, not just differently coloured.
-    expect(
-      last.boxShadow!.first.color.a,
-      greaterThan(first.boxShadow!.first.color.a),
-    );
-  });
-
-  // Guards flutter_map's own one-shot `_initialCameraFitApplied` flag (see
-  // its widget.dart): the map must end up centred on each day's own data,
-  // and the FlutterMap driving it must be keyed per day so a future refactor
-  // that removes AsyncSection's loading interstitial (which today forces a
-  // fresh FlutterMap mount on every family-provider switch, independently of
-  // any key) doesn't silently reintroduce a stuck camera. Verified by
-  // temporarily deleting the day+coordinate key on `FlutterMap`: the camera
-  // assertion below still passed (the loading branch already remounts
-  // FlutterMap on every day change here), so the key assertion is what
-  // actually pins the fix — the camera check is real end-state coverage, not
-  // proof of the mechanism, and is kept because it doubles as the FIX-3
-  // scenario's map-shows-different-data guarantee.
-  testWidgets('the camera re-fits when the selected day changes', (tester) async {
-    final johannesburg = AgentActivity(
-      agentId: 'a1',
-      name: 'thabo@example.com',
-      state: AgentState.inTransit,
-      stops: [_stop('v1', 'Sandton Spar', -26.10, 28.05, 8)],
-    );
-    final capeTown = AgentActivity(
-      agentId: 'a5',
-      name: 'zola@example.com',
-      state: AgentState.inTransit,
-      stops: [_stop('v20', 'V&A Waterfront', -33.90, 18.42, 9)],
-    );
-
-    late final ProviderContainer container;
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(
-          _DayDependentAgentsRepository({
-            22: [johannesburg],
-            23: [capeTown],
-          }),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-    container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentTrailScreen)),
-    );
-    container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 22);
-    await tester.pumpAndSettle();
-
-    final cameraBefore =
-        MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
-    expect(cameraBefore.latitude, closeTo(-26.10, 0.5));
-    expect(
-      tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<(DateTime, String)>((DateTime(2026, 7, 22), '-26.1000,28.0500')),
-    );
-
-    container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 23);
-    await tester.pumpAndSettle();
-
-    final cameraAfter =
-        MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
-    expect(cameraAfter.latitude, closeTo(-33.90, 0.5));
-    expect(cameraAfter.latitude, isNot(closeTo(cameraBefore.latitude, 1)));
-    expect(
-      tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<(DateTime, String)>((DateTime(2026, 7, 23), '-33.9000,18.4200')),
-    );
-  });
-
-  // The pin disc is deliberately theme-independent (it has to read against
-  // map tiles, not the app's light/dark toggle) — and the numeral must be
-  // legible against the deep-blue field it actually sits on, in BOTH themes.
-  // The gradient's darkest colour (`colors.last`, the 0xFF1F7AE0 core) is the
-  // dominant field under the numeral: the light highlight is deliberately
-  // offset away from centre precisely so the numeral never sits on it (white
-  // on 0xFF7CC0FF would be ~1.9:1). History: a theme-dependent numeral on a
-  // theme-fixed disc once made every non-final stop a blank circle in dark
-  // mode — hence the both-themes loop.
-  testWidgets('the non-last numeral stays legible on its disc in both themes', (tester) async {
-    Future<void> pumpThemed(ThemeData theme) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-          ],
-          child: MaterialApp.router(
-            theme: theme,
-            routerConfig: GoRouter(
-              initialLocation: '/screen',
-              routes: [
-                GoRoute(path: '/screen', builder: (context, state) => const AgentTrailScreen()),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
-
-    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
-      await pumpThemed(theme);
-
-      final pinKey = find.byKey(const ValueKey<String>('agent-stop-a1-0'));
-      final decoration = tester
-          .widget<DecoratedBox>(
-            find.descendant(of: pinKey, matching: find.byType(DecoratedBox)).first,
-          )
-          .decoration as BoxDecoration;
-      // The core — the gradient's end colour — is the field the numeral
-      // actually sits on (the highlight is offset away from centre).
-      final discColor = decoration.gradient!.colors.last;
-      final numeralColor = tester
-          .widget<Text>(find.descendant(of: pinKey, matching: find.byType(Text)).first)
-          .style!
-          .color!;
-
-      // 3:1 is this codebase's own bar for graphical marks (ink4's doc
-      // comment, tiq_colors_test.dart) — a numeral is exactly that.
-      expect(
-        contrastRatio(discColor, numeralColor),
-        greaterThanOrEqualTo(3.0),
-        reason: 'disc $discColor vs numeral $numeralColor under ${theme.brightness}',
-      );
-    }
-  });
-
-  // Same one-shot-fit gap as the dashboard panel's territory-filter test:
-  // this screen's own provider (`agentActivityForDayProvider`) also watches
-  // `dashboardFilterProvider`, so switching territories without changing the
-  // date re-fetches a different set of pins on the SAME day — the day-only
-  // key would leave the camera pointed at the old territory.
-  testWidgets('re-fits the camera when a territory-filter change moves the pins, same day', (tester) async {
-    final jhb = [
-      AgentActivity(
-        agentId: 'a1',
-        name: 'thabo@example.com',
-        state: AgentState.inTransit,
-        stops: [_stop('v1', 'Sandton Spar', -26.10, 28.05, 8)],
-      ),
-    ];
-    final capeTown = [
-      AgentActivity(
-        agentId: 'a5',
-        name: 'zola@example.com',
-        state: AgentState.inTransit,
-        stops: [_stop('v20', 'V&A Waterfront', -33.90, 18.42, 9)],
-      ),
-    ];
-
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(
-          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final before = MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
-    expect(before.latitude, closeTo(-26.10, 0.5));
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentTrailScreen)),
-    );
-    container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 'cpt'),
-        );
-    await tester.pumpAndSettle();
-
-    final after = MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
-    expect(after.latitude, closeTo(-33.90, 0.5));
-    expect(after.latitude, isNot(closeTo(before.latitude, 1)));
-  });
-
-  // Unit-level guard for the `fitFor` fix, as far as a widget test can reach
-  // it: flutter_map's OWN fit machinery — `initialCameraFit`, and the
-  // `onMapReady`/`MapController.fitCamera` fix that came before this one —
-  // both turned out to depend on flutter_map's internal camera size, which
-  // a live debug overlay on the running web build showed was still zero at
-  // the moment `onMapReady` fired. This proves none of that machinery is
-  // wired up any more: no `mapController`, no `onMapReady`, no
-  // `initialCameraFit` — just a plain, pre-computed `initialCenter`/
-  // `initialZoom` flutter_map applies unconditionally. It does NOT prove
-  // the web bug is fixed; that mechanism has no timing left to race, which
-  // is a different (stronger) claim this suite can actually make, but the
-  // browser is still the real verification.
-  testWidgets('computes the camera itself via fitFor, not flutter_map\'s own fit machinery', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-    expect(map.options.initialCameraFit, isNull);
-    expect(map.options.onMapReady, isNull);
-    expect(map.mapController, isNull);
-    // A sane, JHB-scale value — not flutter_map's own built-in default
-    // (LatLng(50.5, 30.51), zoom 13) that would appear if nothing had wired
-    // a real centre/zoom into `initialCenter`/`initialZoom` at all.
-    expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
-    expect(map.options.initialZoom, inInclusiveRange(8, 16));
-  });
-
-  // The glow-breathing is the design's ONLY looping animation. Two claims to
-  // hold it to: it actually breathes when motion is allowed, and it is
-  // completely static — no running controller at all — under reduced motion.
-  testWidgets('the glow breathes when motion is allowed', (tester) async {
-    // Production path: the test-only kill-switch off.
-    AgentTrailScreen.debugDisableGlowBreathing = false;
-
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    // No pumpAndSettle anywhere in this test — the breathing loops forever by
-    // design, so settle would time out. Two plain pumps: build, then the
-    // repository future's completion.
-    await tester.pump();
-    await tester.pump();
-
-    double haloAlpha() {
-      final decoration = tester
-          .widget<DecoratedBox>(
-            find
-                .descendant(
-                  of: find.byKey(const ValueKey<String>('agent-stop-a1-0')),
-                  matching: find.byType(DecoratedBox),
-                )
-                .first,
-          )
-          .decoration as BoxDecoration;
-      return decoration.boxShadow!.first.color.a;
-    }
-
-    final before = haloAlpha();
-    // 600ms into a 2400ms reverse loop — far from any symmetric turnaround.
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(haloAlpha(), isNot(closeTo(before, 0.001)));
-    expect(tester.hasRunningAnimations, isTrue);
-  });
-
-  testWidgets('under reduced motion the glow is static — nothing loops', (tester) async {
-    // Production path again — reduceMotion alone must stop the loop.
-    AgentTrailScreen.debugDisableGlowBreathing = false;
-    tester.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(disableAnimations: true);
-    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-
-    await tester.pumpWidget(routedApp(
-      const AgentTrailScreen(),
-      overrides: [
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
-      ],
-    ));
-    // This is the assertion: with a looping controller alive, pumpAndSettle
-    // would time out.
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey<String>('agent-stop-a1-0')), findsOneWidget);
-    expect(tester.hasRunningAnimations, isFalse);
-  });
-
-  // 3:1 is this codebase's bar for graphical marks (see tiq_colors_test.dart).
-  // The numeral sits on the glow disc's deep core, so that pair is the one
-  // that has to clear it — asserted here as a plain unit test against the
-  // spec's literal colours, independent of any widget tree.
-  test('white numeral on the glow-disc core clears the 3:1 graphical-mark bar', () {
-    expect(
-      contrastRatio(const Color(0xFF1F7AE0), Colors.white),
-      greaterThanOrEqualTo(3.0),
-    );
-    // The last stop's brighter core must clear it too.
-    expect(
-      contrastRatio(const Color(0xFF3B93F5), Colors.white),
-      greaterThanOrEqualTo(3.0),
-    );
-  });
-
-  // #197: two stops at outlets ~20m apart drew their luminous labels over one
-  // another as garbled text. The repro from the ticket, as a widget test.
-  group('colliding labels (#197)', () {
-    // ~20m apart — the ticket's reported distance.
-    final coincident = AgentActivity(
-      agentId: 'a9',
-      name: 'lerato@example.com',
-      state: AgentState.inTransit,
-      lastSeenAt: DateTime(2026, 7, 22, 10),
-      stops: [
-        _stop('v1', '555 Media Tech', -26.1076, 28.0567, 9),
-        _stop('v2', 'Ncondo Chambers', -26.1076, 28.0569, 10),
-      ],
-    );
-
-    testWidgets('draws only one label when two stops nearly coincide', (
-      tester,
-    ) async {
-      await tester.pumpWidget(routedApp(
-        const AgentTrailScreen(),
-        overrides: [
-          agentsRepositoryProvider
-              .overrideWithValue(_FakeAgentsRepository([coincident])),
-        ],
-      ));
-      await tester.pumpAndSettle();
-
-      // Both pins survive — only the caption is suppressed, never the stop.
-      expect(find.byKey(const ValueKey<String>('agent-stop-a9-0')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('agent-stop-a9-1')), findsOneWidget);
-
-      // The last stop is where the agent is now — the question this screen
-      // exists to answer — so its label is the one that wins.
-      expect(find.textContaining('Ncondo Chambers'), findsOneWidget);
-      expect(find.textContaining('555 Media Tech'), findsNothing);
+      expect(find.textContaining('1. Sandton Spar'), findsOneWidget);
+      expect(find.text('08:00'), findsOneWidget);
+      expect(find.text('11:00'), findsOneWidget);
     });
 
-    testWidgets('keeps both labels when the stops are far apart', (
-      tester,
-    ) async {
-      // The guard against over-suppression: _thabo's two stops are ~4km
-      // apart, and both labels must survive. Without this, a declutterer that
-      // hid everything would pass the test above.
-      await tester.pumpWidget(routedApp(
-        const AgentTrailScreen(),
-        overrides: [
-          agentsRepositoryProvider
-              .overrideWithValue(_FakeAgentsRepository([_thabo])),
-        ],
-      ));
-      await tester.pumpAndSettle();
+    testWidgets('a row names the agent, never an agent id', (tester) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
 
-      expect(find.textContaining('Sandton Spar'), findsOneWidget);
-      expect(find.textContaining('Rosebank Pick n Pay'), findsOneWidget);
+      expect(find.text('Thandi Mokoena'), findsOneWidget);
+      expect(find.textContaining('a1'), findsNothing);
     });
-  });
 
-  // Lumen Glass: the chrome around the map becomes glass on the lit ground,
-  // and the trail takes the Lumen accent — but the basemap is still the dark
-  // world, and every honesty rule above (dashes, numerals, a brighter last
-  // stop) holds unchanged.
-  group('Lumen Glass (light)', () {
-    Future<void> pumpLight(
-      WidgetTester tester,
-      List<AgentActivity> agents,
-    ) async {
-      await tester.pumpWidget(routedApp(
-        const AgentTrailScreen(),
-        theme: AppTheme.light(),
-        overrides: [
-          agentsRepositoryProvider
-              .overrideWithValue(_FakeAgentsRepository(agents)),
-        ],
-      ));
-      await tester.pumpAndSettle();
-    }
+    testWidgets('the stop count is spoken, not only painted', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
 
-    testWidgets('the legend is a glass pane, not navy chrome', (tester) async {
-      await pumpLight(tester, [_thabo]);
-
-      final legend = find.textContaining('Numbered pins');
       expect(
-        find.ancestor(of: legend, matching: find.byType(GlassPane)),
+        find.bySemanticsLabel(
+          RegExp('Thandi Mokoena.*Field agent.*2 stops'),
+        ),
         findsOneWidget,
       );
-      expect(tester.widget<Text>(legend).style!.color,
-          LumenPalette.light.inkMuted);
+      handle.dispose();
+    });
+
+    testWidgets('the last stop says so in words, not in a glow', (
+      tester,
+    ) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      expect(find.text('Last stop'), findsOneWidget);
+    });
+
+    testWidgets('an unfinished visit is not read as a finished one', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          _agent(
+            stops: <AgentStop>[
+              _stop('v1', 'Sandton Spar', -26.10, 28.05, 8, inProgress: true),
+            ],
+          ),
+        ],
+      );
+
+      expect(find.text('Still in this shop'), findsOneWidget);
+    });
+
+    testWidgets('a stop opens its visit, by thumb and by reader', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      // The pin on the map carries the same outlet, so the finder is scoped
+      // to the row — both are buttons, and both open the same visit.
+      final node = tester.getSemantics(
+        find.descendant(
+          of: find.byType(SoftRow),
+          matching: find.bySemanticsLabel(RegExp('1. Sandton Spar')),
+        ),
+      );
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+      await tester.tap(find.textContaining('1. Sandton Spar'));
+      await tester.pumpAndSettle();
+      expect(find.text('stub:/visits/v1'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('an agent with no stops is not given an empty trail', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          _agent(),
+          _agent(agentId: 'a2', name: 'Busi Dlamini', stops: <AgentStop>[]),
+        ],
+      );
+
+      expect(find.text('Busi Dlamini'), findsNothing);
+    });
+  });
+
+  group('the map', () {
+    testWidgets('renders on a phone with room for it', (tester) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+      expect(find.byType(FlutterMap), findsOneWidget);
+    });
+
+    testWidgets('does not render in Veld, and says why', (tester) async {
+      // Maps do not render in the outdoor skin (unify §4). A dark basemap read
+      // in direct sun at 40% backlight is a black rectangle.
+      await _pump(
+        tester,
+        skin: TiqSkin.veld(),
+        agents: <AgentActivity>[_agent()],
+      );
+
+      expect(find.byType(FlutterMap), findsNothing);
       expect(
-        find.byWidgetPredicate(
-          (w) => w is Container && w.color == const Color(0xCC050A16),
+        find.byKey(const ValueKey<String>('trail-map-veld')),
+        findsOneWidget,
+      );
+      // And the day is still a screen, not an absence.
+      expect(find.textContaining('1. Sandton Spar'), findsOneWidget);
+    });
+
+    testWidgets('does not render on a phone with no room, without a note', (
+      tester,
+    ) async {
+      // Below 200dp of budget the band does not render at all: 96dp of
+      // basemap at street zoom is four buildings and no orientation.
+      await _pump(
+        tester,
+        size: const Size(360, 560),
+        agents: <AgentActivity>[_agent()],
+      );
+
+      expect(trailMapHeight(tester.element(find.byType(AgentTrailScreen))), 0);
+      expect(find.byType(FlutterMap), findsNothing);
+    });
+
+    testWidgets('gives up on tiles that never arrive, and says so', (
+      tester,
+    ) async {
+      TrailMap.debugFailureThreshold = 0;
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      expect(
+        find.byKey(const ValueKey<String>('trail-map-offline')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('1. Sandton Spar'), findsOneWidget);
+    });
+
+    testWidgets('the pins cast nothing and breathe nothing', (tester) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      // The paint budget: Night casts ZERO shadows, and the pins this
+      // replaced cast two each — plus a RadialGradient each — on a map that
+      // draws up to two hundred of them. Scoped to the pins: the console
+      // shell's own letterbox falloff is a declared LinearGradient in one
+      // draw call and is not what this is about.
+      final pins = find.descendant(
+        of: find.byType(TrailStopPin),
+        matching: find.byType(DecoratedBox),
+      );
+      expect(pins, findsWidgets);
+      for (final element in pins.evaluate()) {
+        final decoration = (element.widget as DecoratedBox).decoration;
+        if (decoration is BoxDecoration) {
+          expect(
+            decoration.boxShadow ?? const <BoxShadow>[],
+            isEmpty,
+            reason: 'Night casts no shadow. $decoration',
+          );
+          expect(decoration.gradient, isNull, reason: '$decoration');
+        }
+      }
+      // And nothing on this route is animating: the glow this replaced was
+      // the design's only infinite loop, and it ran once per pin.
+      expect(tester.binding.transientCallbackCount, 0);
+    });
+
+    testWidgets('a caption is dropped at 2.0x, never shrunk into a tile', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        textScale: 2.0,
+        agents: <AgentActivity>[_agent()],
+      );
+
+      // A marker's box is a fixed 128x72 of ground and type that grows inside
+      // one spills over the tiles. Every outlet and time is in the list
+      // beneath at full scale, which is where a reader who needs 2.0x text is
+      // actually served.
+      expect(
+        find.descendant(
+          of: find.byType(TrailStopPin),
+          matching: find.textContaining('Sandton Spar'),
         ),
         findsNothing,
       );
+      expect(find.byType(TrailStopPin), findsWidgets);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('keeps the basemap layering; the trail is the accent, dashed',
-        (tester) async {
-      await pumpLight(tester, [_thabo]);
-
-      final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-      expect(map.children[0], isA<TiqTileLayer>());
-      expect(map.children[1], isA<TiqNavyTint>());
-      final line = tester
-          .widget<PolylineLayer>(find.byType(PolylineLayer))
-          .polylines
-          .first;
-      expect(line.color, const Color(0xE6B5ABFC));
-      expect(line.pattern.segments, isNotNull);
-    });
-
-    testWidgets('pins take the accent; the last is still the brightest',
-        (tester) async {
-      await pumpLight(tester, [_thabo]);
-
-      BoxDecoration pin(String key) => tester
-          .widget<DecoratedBox>(find
-              .descendant(
-                of: find.byKey(ValueKey<String>(key)),
-                matching: find.byType(DecoratedBox),
-              )
-              .first)
-          .decoration as BoxDecoration;
-      final first = pin('agent-stop-a1-0');
-      final last = pin('agent-stop-a1-1');
-
-      expect(first.gradient!.colors.last, const Color(0xFF5D5294));
-      expect(first.gradient!.colors, isNot(equals(last.gradient!.colors)));
-      expect(
-        last.boxShadow!.first.color.a,
-        greaterThan(first.boxShadow!.first.color.a),
-      );
-      // The white numeral clears the graphical-mark bar on both cores.
-      for (final core in [first, last].map((d) => d.gradient!.colors.last)) {
-        expect(contrastRatio(core, Colors.white), greaterThanOrEqualTo(3.0));
-      }
-      expect(find.text('1'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
-    });
-
-    testWidgets('an empty day says so on a glass pane', (tester) async {
-      await pumpLight(tester, [
-        AgentActivity(
-          agentId: 'a2',
-          name: 'sipho@example.com',
-          state: AgentState.idle,
-          stops: const [],
-        ),
-      ]);
+    testWidgets('a pin is a button a reader can name and activate', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
 
       expect(
-        find.ancestor(
-          of: find.text('No check-ins on this day.'),
-          matching: find.byType(GlassPane),
+        find.bySemanticsLabel(
+          RegExp('Thandi Mokoena, stop 1, Sandton Spar, 08:00'),
         ),
         findsOneWidget,
       );
+      handle.dispose();
+    });
+  });
+
+  group('the states', () {
+    testWidgets('loading is a skeleton', (tester) async {
+      await _pump(tester, pending: true);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.byType(Skeleton), findsOneWidget);
+    });
+
+    testWidgets('a day with no check-ins says so and offers another', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      expect(
+        find.byKey(const ValueKey<String>('agent-trail-empty')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('agent-trail-date')),
+        findsOneWidget,
+      );
+      expect(find.byType(FlutterMap), findsNothing);
+    });
+
+    testWidgets('an error is sanitised and carries one retry', (tester) async {
+      await _pump(
+        tester,
+        failure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('agent-trail-retry')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a truncated page owns up to being truncated', (tester) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[_agent()],
+        truncated: true,
+      );
+
+      // A partial map that looks complete is worse than no map.
+      expect(
+        find.textContaining('Showing the first 200 agents only.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the live layer (#153 T1)', () {
+    testWidgets('today carries the live layer and says when it was true', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[_agent()],
+        live: _livePage(),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('trail-live-legend')),
+        findsOneWidget,
+      );
+      // Ages are the server's measurement, so the time they are true AT is on
+      // screen — an age with no "as at" is an age against the wrong clock.
+      expect(
+        find.textContaining('Last updated ${formatUpdatedAt(_serverTime)}'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('live-agent-pin-a-transit')),
+        findsOneWidget,
+      );
+      // And the confirmed check-ins are still there beside them.
+      expect(
+        find.byKey(const ValueKey<String>('agent-stop-a1-0')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('live positions render before anybody has checked in', (
+      tester,
+    ) async {
+      await _pump(tester, live: _livePage());
+
+      // A day with no check-ins and a moving agent is not an empty day.
+      expect(
+        find.byKey(const ValueKey<String>('agent-trail-empty')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('live-agent-pin-a-transit')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the legend says what the marks mean', () {
+    testWidgets('the dashes are not claimed to be a route', (tester) async {
+      await _pump(tester, agents: <AgentActivity>[_agent()]);
+
+      expect(
+        find.textContaining('they are not a recorded route'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    // A record of where somebody has been has no commit action and no chart
+    // focus, so the route nominates nothing. Amber also leaves the map
+    // entirely (§3.2) — on eleven stops it would be claimed eleven times.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          size: const Size(360, 720),
+          agents: <AgentActivity>[
+            _agent(),
+            _agent(agentId: 'a2', name: 'Busi Dlamini'),
+          ],
+          truncated: true,
+        ),
+        'empty': (t) =>
+            _pump(t, skin: skin, size: const Size(360, 720)),
+        'loading': (t) async {
+          await _pump(
+            t,
+            skin: skin,
+            size: const Size(360, 720),
+            pending: true,
+          );
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          size: const Size(360, 720),
+          failure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'agent-trail',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+    }
+  });
+
+  group('2.0x text and Afrikaans', () {
+    testWidgets('nothing overflows at 2.0x', (tester) async {
+      await _pump(
+        tester,
+        size: const Size(360, 720),
+        textScale: 2.0,
+        agents: <AgentActivity>[_agent()],
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('nothing overflows at 320dp in Afrikaans', (tester) async {
+      await _pump(
+        tester,
+        size: const Size(320, 640),
+        locale: const Locale('af'),
+        agents: <AgentActivity>[_agent()],
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 }

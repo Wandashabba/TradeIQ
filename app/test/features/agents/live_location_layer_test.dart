@@ -5,7 +5,6 @@ import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_state_glyph.dart';
 import 'package:tradeiq_app/features/agents/data/agent_locations_repository.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
-import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
 import 'package:tradeiq_app/features/agents/presentation/live_location_layer.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -406,42 +405,8 @@ void main() {
     });
   }
 
-  testWidgets('today’s trail map carries the live layer and says when it was updated', (tester) async {
-    AgentTrailScreen.debugDisableGlowBreathing = true;
-    addTearDown(() => AgentTrailScreen.debugDisableGlowBreathing = false);
-
-    await tester.pumpWidget(
-      routedApp(
-        const AgentTrailScreen(),
-        overrides: [
-          agentsRepositoryProvider.overrideWithValue(_FakeActivity([_checkedIn])),
-          agentLocationsRepositoryProvider.overrideWithValue(_FakeLocations(page)),
-          liveLocationsPollIntervalProvider.overrideWithValue(null),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('trail-live-legend')), findsOneWidget);
-    expect(find.textContaining('Last updated ${formatUpdatedAt(_serverTime)}'), findsOneWidget);
-    expect(find.byKey(const ValueKey('live-agent-pin-a-transit')), findsOneWidget);
-    // The T0 trail stays.
-    expect(find.byKey(const ValueKey('agent-stop-a-store-0')), findsOneWidget);
-  });
-
-  testWidgets('the trail map shows live positions even before anyone checks in', (tester) async {
-    await tester.pumpWidget(
-      routedApp(
-        const AgentTrailScreen(),
-        overrides: [
-          agentsRepositoryProvider.overrideWithValue(_FakeActivity(const [])),
-          agentLocationsRepositoryProvider.overrideWithValue(_FakeLocations(page)),
-          liveLocationsPollIntervalProvider.overrideWithValue(null),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('No check-ins on this day.'), findsNothing);
-    expect(find.byKey(const ValueKey('live-agent-pin-a-store')), findsOneWidget);
-  });
+  // The two trail-map cases that used to live here moved to
+  // `agent_trail_screen_test.dart` with the screen itself: the trail is a
+  // Torchlight route now and its harness is the worklist one, while this file
+  // stays about the live layer that the console dashboard also draws.
 }
