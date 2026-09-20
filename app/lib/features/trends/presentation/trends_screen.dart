@@ -1,87 +1,129 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show showDateRangePicker, DateTimeRange;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/period_label.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/charts.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/figure/chart/chart.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/trends_repository.dart';
 
+/// TRENDS — three series over time, or every territory against the client.
+///
+/// ```text
+///   Trends                                          [ ⟳ ]
+///   Server-side buckets — weeks start Monday, UTC.
+///   (Over time)(Compare territories) | (Daily)(Weekly) | (Custom range)
+///   ── Scorecard trend ───────────────── (Chart)(Table)
+///   ── Gauteng North  ─  ─  Client average ─────────────
+///   ┌──────────────────────────────────────────────────┐
+///   │                            ╭──────               │
+///   │      ╭─────╮ ╭──          ╭╯                     │
+///   │─ ─ ─╯─ ─ ─ ╰╯─ ─ ─ ─ ─ ─ ─╯─ ─ ─ ─ ─ Target 70   │
+///   └──────────────────────────────────────────────────┘
+///   W26                                            W38
+///   [ nav pill ]
+/// ```
+///
+/// ## The chart is never the only way to read a value
+///
+/// Every panel carries a **table twin** behind a two-chip toggle, and it is
+/// not a debug view: it is what a screen reader gets, what a printer gets, and
+/// what **Veld** gets, because Veld draws no charts at all (unify §4). The
+/// twin carries the unabbreviated period — the axis says `W26` because it has
+/// 40dp; the table says `2026-W26` because a manager quoting a week into a
+/// spreadsheet needs the year.
+///
+/// ## An empty window is a designed state
+///
+/// `/trends/*` omits an empty bucket rather than sending a zero, so a window
+/// with nothing in it comes back as an empty list — not a flat line at zero,
+/// which is what a chart that filled the gap would draw. The panel says so in
+/// words and draws no plot.
+///
+/// ## The amber, counted
+///
+/// A tab root reached from the Menu, so the nav's active tab is slot 1 and the
+/// content has one grant left. **Every phase declines it.** The chart-focus
+/// rung is real and the comparison view is the one place in this product where
+/// the ladder would grant it — but three charts on one route is three focus
+/// objects asking, the budget is counted per route rather than per viewport,
+/// and a grant that released on scroll is a grant that blinks. The subject
+/// series is carried by weight, by a solid stroke against a dashed one and by
+/// the legend's word instead. Day and Veld: zero, on every phase.
 class TrendsScreen extends ConsumerWidget {
   const TrendsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final view = ref.watch(trendsViewProvider);
-    return ManagerScaffold(
-      title: 'Trends',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Server-side buckets — weeks start Monday, UTC.',
-            style: TextStyle(fontSize: 12, color: context.colors.ink3),
-          ),
-          const SizedBox(height: 12),
-          const _TrendFilters(),
-          const SizedBox(height: 12),
-          if (view == TrendsView.compareTerritories)
-            const _TerritoryBenchmarkPanel(key: ValueKey('trend-benchmark'))
-          else ...[
-            _TrendPanel(
-              key: const ValueKey('trend-scorecards'),
-              heading: 'Scorecard trend',
-              subtitle: 'Weighted execution score',
-              provider: scorecardsTrendProvider,
-            ),
-            const SizedBox(height: 12),
-            _TrendPanel(
-              key: const ValueKey('trend-availability'),
-              heading: 'Availability trend',
-              subtitle: 'On-shelf availability',
-              provider: availabilityTrendProvider,
-              suffix: '%',
-            ),
-            const SizedBox(height: 12),
-            _TrendPanel(
-              key: const ValueKey('trend-perfect-store'),
-              heading: 'Perfect store trend',
-              subtitle: 'Outlets passing every gate',
-              provider: perfectStoreTrendProvider,
-              suffix: '%',
-            ),
-          ],
-        ],
+    final gutter = context.skin.space.gutter;
+
+    return ConsoleFrame(
+      phase: view == TrendsView.compareTerritories ? 'compare' : 'over-time',
+      active: ConsoleSlot.menu,
+      header: TorchAppHeader(
+        title: l10n.trendsTitle,
+        facts: <String>[l10n.trendsFact],
       ),
+      children: <Widget>[
+        TorchBleed(extra: gutter * 2, child: const _TrendFilters()),
+        SizedBox(height: context.skin.space.blockGap),
+        if (view == TrendsView.compareTerritories)
+          const _TerritoryBenchmarkPanel(key: ValueKey<String>('trend-benchmark'))
+        else ...<Widget>[
+          _TrendPanel(
+            key: const ValueKey<String>('trend-scorecards'),
+            heading: l10n.trendScorecards,
+            seriesName: l10n.trendScorecardsSeries,
+            provider: scorecardsTrendProvider,
+          ),
+          SizedBox(height: context.skin.space.blockGap),
+          _TrendPanel(
+            key: const ValueKey<String>('trend-availability'),
+            heading: l10n.trendAvailability,
+            seriesName: l10n.trendAvailabilitySeries,
+            provider: availabilityTrendProvider,
+            unit: TiqUnit.percent,
+          ),
+          SizedBox(height: context.skin.space.blockGap),
+          _TrendPanel(
+            key: const ValueKey<String>('trend-perfect-store'),
+            heading: l10n.trendPerfectStore,
+            seriesName: l10n.trendPerfectStoreSeries,
+            provider: perfectStoreTrendProvider,
+            unit: TiqUnit.percent,
+          ),
+        ],
+      ],
     );
   }
 }
 
-/// A chart and its table-view twin.
-///
-/// The toggle is not decoration: a chart that is the *only* way to read a value
-/// fails anyone using a screen reader, printing it, or checking an exact figure.
-/// The table is the WCAG-clean equivalent of the same data.
+/// One series, as a chart or as its table twin.
 class _TrendPanel extends ConsumerStatefulWidget {
   const _TrendPanel({
     super.key,
     required this.heading,
-    required this.subtitle,
+    required this.seriesName,
     required this.provider,
-    this.suffix = '',
+    this.unit = TiqUnit.none,
   });
 
   final String heading;
-  final String subtitle;
+  final String seriesName;
   final FutureProvider<List<TrendPoint>> provider;
-  final String suffix;
+  final TiqUnit unit;
 
   @override
   ConsumerState<_TrendPanel> createState() => _TrendPanelState();
@@ -92,40 +134,94 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return PanelCard(
-      title: widget.heading,
-      subtitle: widget.subtitle,
-      trailing: _ViewToggle(
-        asTable: _asTable,
-        onChanged: (v) => setState(() => _asTable = v),
-      ),
-      child: AsyncSection<List<TrendPoint>>(
-        value: ref.watch(widget.provider),
-        label: widget.heading.toLowerCase(),
-        onRetry: () => ref.invalidate(widget.provider),
-        builder: (points) {
-          if (points.isEmpty) {
-            return const EmptyState(
-              message: 'No data in range',
-              hint: 'Trends fill in as visits are submitted and scored.',
+    final l10n = context.l10n;
+    final async = ref.watch(widget.provider);
+    // Veld draws no chart, so the toggle would be a control with one working
+    // position. The table is simply what Veld shows.
+    final veld = context.skin.mode == SkinMode.veld;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(widget.heading),
+        const SizedBox(height: TiqSpace.s3),
+        if (!veld) ...<Widget>[
+          _ViewToggle(
+            asTable: _asTable,
+            onChanged: (v) => setState(() => _asTable = v),
+          ),
+          const SizedBox(height: TiqSpace.s4),
+        ],
+        async.when(
+          loading: () => Skeleton(
+            label: widget.heading,
+            slowLine: l10n.torchStillFetching,
+            child: SkeletonShell(height: veld ? 120 : trendChartHeight(context)),
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: widget.heading,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: ValueKey<String>('${widget.heading}-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(widget.provider),
+              ),
+            ),
+          ),
+          data: (points) {
+            if (points.isEmpty) {
+              // Not "every bucket scored 0" — the server omits an empty
+              // bucket, so nothing in this window was measured at all.
+              return EmptyState(
+                scope: EmptyScope.inPanel,
+                headline: l10n.trendsEmptyHeadline,
+                body: l10n.trendsEmptyBody,
+              );
+            }
+            final series = ChartSeries(
+              name: widget.seriesName,
+              readings: <ChartReading>[
+                for (final p in points)
+                  ChartReading(
+                    label: formatPeriodLabel(p.period),
+                    longLabel: p.period,
+                    value: p.value,
+                    sampleSize: p.count,
+                  ),
+              ],
             );
-          }
-          return _asTable
-              ? _TrendTable(points: points, suffix: widget.suffix)
-              : ColumnChart(
-                  points: [
-                    for (final p in points)
-                      (label: formatPeriodLabel(p.period), value: p.value),
-                  ],
-                  valueSuffix: widget.suffix,
-                  seriesName: widget.heading,
-                );
-        },
-      ),
+            final table = TableTwin(
+              series: <ChartSeries>[series],
+              unit: widget.unit,
+              periodHeading: l10n.trendsPeriod,
+              notMeasuredWord: l10n.trendsNotMeasured,
+              semanticsLabel: widget.heading,
+            );
+            if (veld || _asTable) return table;
+            return TrendChart(
+              series: <ChartSeries>[series],
+              unit: widget.unit,
+              decimals: 1,
+              semanticsLabel: l10n.trendsChartHint(
+                widget.heading,
+                points.length,
+              ),
+              notMeasuredWord: l10n.trendsNotMeasured,
+              scrubHint: l10n.trendsScrubHint,
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
+/// Chart or table. Two filter chips, which is the one selected vocabulary in
+/// this system: lifted fill, a 1px ink-1 border, a tick and weight 700 —
+/// three channels, and never amber on any screen in any skin.
 class _ViewToggle extends StatelessWidget {
   const _ViewToggle({required this.asTable, required this.onChanged});
 
@@ -134,105 +230,41 @@ class _ViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Segments(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      fontSize: 11.5,
-      segments: [
-        for (final (label, isTable) in const [('Chart', false), ('Table', true)])
-          (
-            key: ValueKey('view-${label.toLowerCase()}'),
-            label: label,
-            selected: isTable == asTable,
-            onTap: () => onChanged(isTable),
+    final l10n = context.l10n;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TorchFilterRail(
+        semanticsLabel: l10n.trendsViewAs,
+        chips: <Widget>[
+          TorchFilterChip(
+            key: const ValueKey<String>('view-chart'),
+            label: l10n.trendsAsChart,
+            selected: !asTable,
+            onSelected: () => onChanged(false),
           ),
-      ],
+          TorchFilterChip(
+            key: const ValueKey<String>('view-table'),
+            label: l10n.trendsAsTable,
+            selected: asTable,
+            onSelected: () => onChanged(true),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _TrendTable extends StatelessWidget {
-  const _TrendTable({required this.points, required this.suffix});
-
-  final List<TrendPoint> points;
-  final String suffix;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: [
-              Expanded(child: SectionLabel('Period')),
-              SectionLabel('Value'),
-            ],
-          ),
-        ),
-        for (final p in points)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            decoration: BoxDecoration(
-              // Glass rules are the pane's own rim, not a grey hairline.
-              border: Border(
-                top: BorderSide(
-                  color: colors.glass ? context.lumen.panelRim : colors.line,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    p.period,
-                    style: TextStyle(fontSize: 12.5, color: colors.ink2),
-                  ),
-                ),
-                Text(
-                  '${_trim(p.value)}$suffix',
-                  style: _figure(context, size: 12.5),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Drops a trailing `.0` so figures read `92` rather than `92.0`.
-String _trim(double v) {
-  final s = v.toStringAsFixed(1);
-  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
-}
-
-/// A data figure: JetBrains Mono in glass, tabular figures in the flat theme.
-TextStyle _figure(BuildContext context, {double size = 14, Color? color}) {
-  final colors = context.colors;
-  final ink = color ?? colors.ink1;
-  return colors.glass
-      ? LumenGlass.figure(size: size, color: ink)
-      : TextStyle(
-          fontSize: size,
-          fontWeight: FontWeight.w600,
-          color: ink,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        );
-}
-
-/// One filter row scoping every chart below it — view, interval and window.
+/// One filter rail scoping every chart below it — view, bucket and window.
 ///
-/// A per-panel range control would let two charts silently disagree about which
-/// slice of time they show, which is worse than no control at all. The
-/// territory comparison reads through the same row for the same reason.
+/// A per-panel range control would let two charts silently disagree about
+/// which slice of time they show, which is worse than no control at all. The
+/// territory comparison reads the same rail for the same reason.
 class _TrendFilters extends ConsumerWidget {
   const _TrendFilters();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final query = ref.watch(trendQueryProvider);
     final view = ref.watch(trendsViewProvider);
 
@@ -244,6 +276,9 @@ class _TrendFilters extends ConsumerWidget {
         context: context,
         firstDate: DateTime(2020),
         lastDate: DateTime(2035),
+        initialDateRange: query.from != null && query.to != null
+            ? DateTimeRange(start: query.from!, end: query.to!)
+            : null,
       );
       if (range != null) {
         update(
@@ -256,190 +291,59 @@ class _TrendFilters extends ConsumerWidget {
       }
     }
 
-    const segmentPadding = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
-
-    return FilterRow(
-      children: [
-        const SectionLabel('View'),
-        _Segments(
-          padding: segmentPadding,
-          fontSize: 12,
-          segments: [
-            for (final (label, option) in const [
-              ('Over time', TrendsView.overTime),
-              ('Compare territories', TrendsView.compareTerritories),
-            ])
-              (
-                key: ValueKey('trends-view-${option.name}'),
-                label: label,
-                selected: option == view,
-                onTap: () => ref.read(trendsViewProvider.notifier).set(option),
+    return TorchFilterRail(
+      semanticsLabel: l10n.trendsFilters,
+      chips: <Widget>[
+        for (final (label, option) in <(String, TrendsView)>[
+          (l10n.trendsOverTime, TrendsView.overTime),
+          (l10n.trendsCompare, TrendsView.compareTerritories),
+        ])
+          TorchFilterChip(
+            key: ValueKey<String>('trends-view-${option.name}'),
+            label: label,
+            selected: option == view,
+            onSelected: () => ref.read(trendsViewProvider.notifier).set(option),
+          ),
+        for (final interval in TrendInterval.values)
+          TorchFilterChip(
+            key: ValueKey<String>('interval-${interval.name}'),
+            label: interval == TrendInterval.day
+                ? l10n.trendsDaily
+                : l10n.trendsWeekly,
+            selected: interval == query.interval,
+            onSelected: () => update(
+              TrendQuery(
+                interval: interval,
+                from: query.from,
+                to: query.to,
               ),
-          ],
-        ),
-        const SizedBox(width: 4),
-        const SectionLabel('Bucket'),
-        _Segments(
-          padding: segmentPadding,
-          fontSize: 12,
-          segments: [
-            for (final interval in TrendInterval.values)
-              (
-                key: ValueKey('interval-${interval.name}'),
-                label: interval == TrendInterval.day ? 'Daily' : 'Weekly',
-                selected: interval == query.interval,
-                onTap: () => update(
-                  TrendQuery(
-                    interval: interval,
-                    from: query.from,
-                    to: query.to,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(width: 4),
-        const SectionLabel('Window'),
-        OutlinedButton.icon(
-          key: const ValueKey('trend-daterange'),
-          icon: const Icon(Icons.date_range, size: 14),
+            ),
+          ),
+        TorchFilterChip(
+          key: const ValueKey<String>('trend-daterange'),
           // Null is not "all time" — it is the server's own default lookback.
-          // Say that, rather than implying a range we never asked for.
-          label: Text(query.isRanged ? 'Custom range' : 'Server default'),
-          onPressed: pickRange,
+          // Say that, rather than implying a range nobody asked for.
+          label: query.isRanged
+              ? l10n.trendsCustomRange
+              : l10n.trendsServerDefault,
+          selected: query.isRanged,
+          onSelected: pickRange,
         ),
         if (query.isRanged)
-          TextButton(
-            key: const ValueKey('trend-clear'),
-            onPressed: () => update(TrendQuery(interval: query.interval)),
-            child: const Text('Clear'),
+          TorchFilterChip(
+            key: const ValueKey<String>('trend-clear'),
+            label: l10n.trendsClearRange,
+            selected: false,
+            onSelected: () => update(TrendQuery(interval: query.interval)),
           ),
       ],
     );
   }
 }
 
-typedef _Segment = ({
-  Key key,
-  String label,
-  bool selected,
-  VoidCallback onTap,
-});
-
-/// The segmented control every switch on this screen shares.
-///
-/// Glass: a bar track with the selected segment lifted onto a bright pill — the
-/// dashboard filter bar's idiom. Both states share one [padding] (a pane's rim
-/// paints over its edge, it adds no size), so a tap never shifts the row.
-/// Flat: a bordered row with the selected segment on the raised surface.
-class _Segments extends StatelessWidget {
-  const _Segments({
-    required this.segments,
-    required this.padding,
-    required this.fontSize,
-  });
-
-  final List<_Segment> segments;
-  final EdgeInsets padding;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    if (!colors.glass) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: colors.lineStrong),
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (i, s) in segments.indexed)
-              Semantics(
-                button: true,
-                selected: s.selected,
-                child: InkWell(
-                  key: s.key,
-                  onTap: s.onTap,
-                  child: Container(
-                    padding: padding,
-                    decoration: BoxDecoration(
-                      color:
-                          s.selected ? colors.surface3 : Colors.transparent,
-                      border: Border(
-                        right: BorderSide(
-                          color: i == segments.length - 1
-                              ? Colors.transparent
-                              : colors.lineStrong,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      s.label,
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w600,
-                        color: s.selected ? colors.ink1 : colors.ink2,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-
-    const inner = LumenGlass.radiusControl - 3;
-    // Ink when selected, the muted ink otherwise — both clear 4.5:1 on the bar.
-    Widget label(_Segment s) => Text(
-      s.label,
-      style: TextStyle(
-        fontSize: fontSize,
-        fontWeight: FontWeight.w600,
-        color: s.selected ? context.lumen.ink : context.lumen.inkMuted,
-      ),
-    );
-
-    return GlassPane(
-      kind: GlassKind.bar,
-      radius: LumenGlass.radiusControl,
-      blur: false,
-      shadow: false,
-      specular: false,
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in segments)
-            Semantics(
-              button: true,
-              selected: s.selected,
-              child: InkWell(
-                key: s.key,
-                onTap: s.onTap,
-                borderRadius: BorderRadius.circular(inner),
-                child: s.selected
-                    ? GlassPane(
-                        kind: GlassKind.pill,
-                        radius: inner,
-                        padding: padding,
-                        child: label(s),
-                      )
-                    : Padding(padding: padding, child: label(s)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 // ═══════════════════════════════════════════════════════════════════════
-// Compare territories (#123) — every territory of the client against the
-// client's own average. Cross-client benchmarks are deliberately absent.
+// Compare territories — every territory of the client against the client's
+// own average. Cross-client benchmarks are deliberately absent.
 // ═══════════════════════════════════════════════════════════════════════
 
 class _TerritoryBenchmarkPanel extends ConsumerStatefulWidget {
@@ -457,325 +361,427 @@ class _TerritoryBenchmarkPanelState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final metric = ref.watch(benchmarkMetricProvider);
-    return PanelCard(
-      title: 'Compare territories',
-      subtitle: "Each territory's average for the window against the client "
-          'average',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: _Segments(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                fontSize: 11.5,
-                segments: [
-                  for (final option in BenchmarkMetric.values)
-                    (
-                      key: ValueKey('benchmark-metric-${option.name}'),
-                      label: option.label,
-                      selected: option == metric,
-                      onTap: () => ref
-                          .read(benchmarkMetricProvider.notifier)
-                          .set(option),
-                    ),
-                ],
+    final gutter = context.skin.space.gutter;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.trendsCompare),
+        const SizedBox(height: TiqSpace.s3),
+        TorchBleed(
+          extra: gutter * 2,
+          child: TorchFilterRail(
+            semanticsLabel: l10n.trendsMetric,
+            chips: <Widget>[
+              for (final option in BenchmarkMetric.values)
+                TorchFilterChip(
+                  key: ValueKey<String>('benchmark-metric-${option.name}'),
+                  label: _metricLabel(l10n, option),
+                  selected: option == metric,
+                  onSelected: () =>
+                      ref.read(benchmarkMetricProvider.notifier).set(option),
+                ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.skin.space.blockGap),
+        ref
+            .watch(territoryBenchmarkProvider)
+            .when(
+              loading: () => Skeleton(
+                label: l10n.trendsCompare,
+                slowLine: l10n.torchStillFetching,
+                child: const SkeletonRows(count: 3, rowHeight: 80),
               ),
+              error: (error, _) => TorchErrorRegion(
+                name: 'territory comparison',
+                child: ErrorState(
+                  message: TorchErrorMessage.sanitise(error),
+                  action: TorchSecondaryButton(
+                    key: const ValueKey<String>('benchmark-retry'),
+                    label: l10n.torchTryAgain,
+                    onPressed: () =>
+                        ref.invalidate(territoryBenchmarkProvider),
+                  ),
+                ),
+              ),
+              data: _body,
             ),
-          ),
-          const SizedBox(height: 14),
-          AsyncSection<TerritoryBenchmarkReport>(
-            value: ref.watch(territoryBenchmarkProvider),
-            label: 'territory comparison',
-            onRetry: () => ref.invalidate(territoryBenchmarkProvider),
-            builder: _body,
-          ),
-        ],
-      ),
+      ],
     );
   }
 
   Widget _body(TerritoryBenchmarkReport report) {
+    final l10n = context.l10n;
     if (report.territories.isEmpty) {
-      return const EmptyState(
-        message: 'No territories set up',
-        hint: 'Add territories to compare them against the client average.',
+      return EmptyState(
+        scope: EmptyScope.inPanel,
+        headline: l10n.trendsNoTerritoriesHeadline,
+        body: l10n.trendsNoTerritoriesBody,
       );
     }
     final clientAverage = report.client.average;
     if (clientAverage == null) {
       // Not "every territory scored 0" — nothing was measured at all.
-      return const EmptyState(
-        message: 'No data in range',
-        hint: 'The comparison fills in as visits are submitted and scored.',
+      return EmptyState(
+        scope: EmptyScope.inPanel,
+        headline: l10n.trendsEmptyHeadline,
+        body: l10n.trendsCompareEmptyBody,
       );
     }
     final selected = report.territories.firstWhere(
       (t) => t.territoryId == _selectedId,
       orElse: () => report.territories.first,
     );
+    final gutter = context.skin.space.gutter;
+    final unit = report.isPercent ? TiqUnit.percent : TiqUnit.none;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        _ClientAverageHeader(report: report, clientAverage: clientAverage),
-        const SizedBox(height: 10),
-        for (final territory in report.territories)
-          _TerritoryBenchmarkRow(
-            territory: territory,
-            report: report,
-            clientAverage: clientAverage,
-            selected: territory.territoryId == selected.territoryId,
-            onTap: () => setState(() => _selectedId = territory.territoryId),
+      children: <Widget>[
+        _ClientAverage(report: report, average: clientAverage, unit: unit),
+        SizedBox(height: context.skin.space.blockGap),
+        TorchBleed(
+          extra: gutter * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (var i = 0; i < report.territories.length; i++)
+                _BenchmarkRow(
+                  key: ValueKey<String>(
+                    'benchmark-row-${report.territories[i].territoryId}',
+                  ),
+                  territory: report.territories[i],
+                  report: report,
+                  clientAverage: clientAverage,
+                  unit: unit,
+                  selected:
+                      report.territories[i].territoryId ==
+                      selected.territoryId,
+                  last: i == report.territories.length - 1,
+                  onTap: () => setState(
+                    () => _selectedId = report.territories[i].territoryId,
+                  ),
+                ),
+            ],
           ),
-        const SizedBox(height: 16),
-        _TerritoryChart(territory: selected, report: report),
+        ),
+        SizedBox(height: context.skin.space.blockGap),
+        _BenchmarkChart(territory: selected, report: report, unit: unit),
       ],
     );
   }
 }
 
-class _ClientAverageHeader extends StatelessWidget {
-  const _ClientAverageHeader({
+/// The client's own line, as a figure with the sentence that qualifies it.
+class _ClientAverage extends StatelessWidget {
+  const _ClientAverage({
     required this.report,
-    required this.clientAverage,
+    required this.average,
+    required this.unit,
   });
 
   final TerritoryBenchmarkReport report;
-  final double clientAverage;
+  final double average;
+  final TiqUnit unit;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final note = TextStyle(fontSize: 11.5, color: colors.ink2);
+    final l10n = context.l10n;
     final target = report.target;
     final unassigned = report.unassignedCount;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            const SectionLabel('Client average'),
-            Text(
-              '${_trim(clientAverage)}${report.suffix}',
-              key: const ValueKey('benchmark-client-average'),
-              style: _figure(context, size: 16),
-            ),
-            if (target != null)
-              Text(
-                '· ${report.targetLabel ?? 'Target'} '
-                '${_trim(target)}${report.suffix}',
-                key: const ValueKey('benchmark-target'),
-                style: note,
-              ),
-          ],
+
+    return StatCluster(
+      semanticsLabel: l10n.trendsClientAverage,
+      tiles: <StatTile>[
+        StatTile(
+          key: const ValueKey<String>('benchmark-client-average'),
+          eyebrow: l10n.trendsClientAverage,
+          value: average,
+          unit: unit,
+          decimals: 1,
+          meter: target == null
+              ? null
+              : MeterData(value: average, maximum: 100, target: target),
+          stateLine: unassigned > 0
+              ? l10n.trendsUnassignedNote(
+                  _samples(l10n, report.metric, unassigned),
+                )
+              : null,
         ),
-        const SizedBox(height: 4),
-        Text(
-          'The tick on each bar marks the client average.'
-          '${unassigned > 0 ? ' The average also includes '
-              '${report.metric.samples(unassigned)} from outlets outside '
-              'any territory.' : ''}',
-          style: note,
-        ),
+        // The configured standard is a tile of its own rather than a
+        // parenthesis: it is a different fact about a different thing, and a
+        // territory is read against both.
+        if (target != null)
+          StatTile(
+            key: const ValueKey<String>('benchmark-target'),
+            eyebrow: report.targetLabel ?? l10n.trendsTarget,
+            value: target,
+            unit: unit,
+            decimals: 1,
+          ),
       ],
     );
   }
 }
 
-class _TerritoryBenchmarkRow extends StatelessWidget {
-  const _TerritoryBenchmarkRow({
+/// One territory against the client line.
+class _BenchmarkRow extends StatelessWidget {
+  const _BenchmarkRow({
+    super.key,
     required this.territory,
     required this.report,
     required this.clientAverage,
+    required this.unit,
     required this.selected,
+    required this.last,
     required this.onTap,
   });
 
   final TerritoryBenchmark territory;
   final TerritoryBenchmarkReport report;
   final double clientAverage;
+  final TiqUnit unit;
   final bool selected;
+  final bool last;
   final VoidCallback onTap;
-
-  static const _gutter = 24.0;
-
-  /// Above is on standard for this comparison; below is a watch, not a breach —
-  /// sitting under your own average is not failing a configured threshold.
-  static LumenStatus statusOf(BenchmarkPosition? position) =>
-      switch (position) {
-        BenchmarkPosition.above => LumenStatus.good,
-        BenchmarkPosition.below => LumenStatus.warn,
-        BenchmarkPosition.level || null => LumenStatus.none,
-      };
-
-  static String wordOf(BenchmarkPosition? position) => switch (position) {
-        BenchmarkPosition.above => 'Above average',
-        BenchmarkPosition.below => 'Below average',
-        BenchmarkPosition.level => 'At average',
-        null => 'No data',
-      };
-
-  String _note() {
-    final average = territory.average;
-    if (average == null) return 'Nothing measured in this window';
-    final samples = report.metric.samples(territory.count);
-    final delta = territory.deltaFromClient;
-    return switch (territory.position) {
-      BenchmarkPosition.above when delta != null =>
-        '${_trim(delta.abs())} pts above the client average · $samples',
-      BenchmarkPosition.below when delta != null =>
-        '${_trim(delta.abs())} pts below the client average · $samples',
-      _ => 'Level with the client average · $samples',
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final status = statusOf(territory.position);
+    final l10n = context.l10n;
+    final skin = context.skin;
     final average = territory.average;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: InkWell(
-          key: ValueKey('benchmark-row-${territory.territoryId}'),
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              // Selection is an outline, not a fill, so every word in the row
-              // keeps the panel as its ground. The chart heading names the
-              // selected territory too.
-              border: Border.all(
-                color: selected ? colors.lineStrong : Colors.transparent,
+    final word = _positionWord(l10n, territory.position);
+    final rank = territory.rank;
+
+    return SoftRow(
+      density: SoftRowDensity.tall,
+      title: territory.territoryName,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: _note(context),
+      // Selection is a word in the row plus the chart's own heading beneath —
+      // never a fill, which would make a list of fifteen rows a list of
+      // fifteen fills with one different.
+      leading: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // A rank is never invented: the server ranks, and a territory it
+          // could not rank shows the em dash and says why in the note.
+          FigureSlot(
+            value: rank,
+            role: skin.text.figureS,
+            unit: TiqUnit.none,
+            state: rank == null ? FigureState.missing : FigureState.measured,
+            semanticsLabel: rank == null ? l10n.trendsUnranked : null,
+          ),
+        ],
+      ),
+      meta: average == null
+          ? null
+          : Meter(
+              value: average,
+              maximum: 100,
+              target: clientAverage,
+              semanticsValue: l10n.trendsMeterHint(
+                territory.territoryName,
+                average.round(),
+                clientAverage.round(),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    SizedBox(
-                      width: _gutter,
-                      child: Text(
-                        territory.rank == null ? '–' : '${territory.rank}',
-                        style: _figure(context, size: 12, color: colors.ink2),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        territory.territoryName,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: colors.ink1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    LumenStatusPill(
-                      status: status,
-                      label: wordOf(territory.position),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      average == null ? '—' : '${_trim(average)}${report.suffix}',
-                      key: ValueKey('benchmark-average-${territory.territoryId}'),
-                      style: _figure(context),
-                    ),
-                  ],
-                ),
-                // No bar without a value: an empty track would read as a zero.
-                if (average != null) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(left: _gutter),
-                    child: BenchmarkBar(
-                      value: average,
-                      target: clientAverage,
-                      status: status,
-                      height: 8,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 5),
-                Padding(
-                  padding: const EdgeInsets.only(left: _gutter),
-                  child: Text(
-                    _note(),
-                    style: TextStyle(fontSize: 11, color: colors.ink2),
-                  ),
-                ),
-              ],
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (selected)
+            Text(
+              l10n.trendsShowing,
+              textAlign: TextAlign.end,
+              style: skin.text.label.style(color: skin.palette.ink1),
             ),
+          FigureSlot(
+            key: ValueKey<String>(
+              'benchmark-average-${territory.territoryId}',
+            ),
+            value: average,
+            role: skin.text.figureS,
+            unit: average == null ? TiqUnit.none : unit,
+            decimals: 1,
+            state: average == null
+                ? FigureState.missing
+                : FigureState.measured,
+            textAlign: TextAlign.end,
+            semanticsLabel: average == null ? l10n.trendsNotMeasured : null,
           ),
-        ),
+          Text(
+            word,
+            textAlign: TextAlign.end,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
       ),
+      onTap: onTap,
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        territory.territoryName,
+        if (rank != null) l10n.trendsRank(rank),
+        word,
+        _note(context),
+        if (selected) l10n.trendsShowing,
+      ].join('. '),
+    );
+  }
+
+  String _note(BuildContext context) {
+    final l10n = context.l10n;
+    final average = territory.average;
+    if (average == null) return l10n.trendsNothingMeasuredHere;
+    final samples = _samples(l10n, report.metric, territory.count);
+    final delta = territory.deltaFromClient;
+    return switch (territory.position) {
+      BenchmarkPosition.above when delta != null =>
+        l10n.trendsAboveBy(_trim(delta.abs()), samples),
+      BenchmarkPosition.below when delta != null =>
+        l10n.trendsBelowBy(_trim(delta.abs()), samples),
+      _ => l10n.trendsLevelWith(samples),
+    };
+  }
+}
+
+/// The selected territory's series against the client line.
+///
+/// The two runs are aligned on the **union** of their periods, with a null
+/// wherever one of them has no bucket. The old chart aligned by position and
+/// cut the client line to the territory's own length, which put a territory's
+/// week 38 alongside the client's week 37 the moment the territory lost a week
+/// — a comparison against the wrong week, drawn as if it were the right one.
+class _BenchmarkChart extends StatelessWidget {
+  const _BenchmarkChart({
+    required this.territory,
+    required this.report,
+    required this.unit,
+  });
+
+  final TerritoryBenchmark territory;
+  final TerritoryBenchmarkReport report;
+  final TiqUnit unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final periods = <String>{
+      for (final p in territory.points) p.period,
+      for (final p in report.client.points) p.period,
+    }.toList()..sort();
+
+    if (periods.isEmpty) {
+      return EmptyState(
+        scope: EmptyScope.inPanel,
+        headline: l10n.trendsEmptyHeadline,
+        body: l10n.trendsCompareEmptyBody,
+      );
+    }
+
+    double? valueAt(List<TrendPoint> points, String period) {
+      for (final p in points) {
+        if (p.period == period) return p.value;
+      }
+      return null;
+    }
+
+    List<ChartReading> readings(List<TrendPoint> points) => <ChartReading>[
+      for (final period in periods)
+        ChartReading(
+          label: formatPeriodLabel(period),
+          longLabel: period,
+          value: valueAt(points, period),
+        ),
+    ];
+
+    final subject = ChartSeries(
+      name: territory.territoryName,
+      readings: readings(territory.points),
+    );
+    final comparison = ChartSeries(
+      name: l10n.trendsClientAverage,
+      role: ChartSeriesRole.comparison,
+      readings: readings(report.client.points),
+    );
+    final gaps = subject.gaps;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.trendsAgainstClient(territory.territoryName)),
+        const SizedBox(height: TiqSpace.s4),
+        if (context.skin.mode == SkinMode.veld)
+          TableTwin(
+            series: <ChartSeries>[subject, comparison],
+            unit: unit,
+            periodHeading: l10n.trendsPeriod,
+            notMeasuredWord: l10n.trendsNotMeasured,
+            semanticsLabel: territory.territoryName,
+          )
+        else
+          TrendChart(
+            key: const ValueKey<String>('benchmark-chart'),
+            series: <ChartSeries>[subject, comparison],
+            unit: unit,
+            decimals: 1,
+            threshold: report.target == null
+                ? null
+                : ChartThreshold(
+                    value: report.target!,
+                    label: report.targetLabel ?? l10n.trendsTarget,
+                  ),
+            semanticsLabel: l10n.trendsChartHint(
+              territory.territoryName,
+              periods.length,
+            ),
+            notMeasuredWord: l10n.trendsNotMeasured,
+            gapNote: gaps == 0 ? null : l10n.trendsGapNote(gaps),
+            scrubHint: l10n.trendsScrubHint,
+            veldReplacement: null,
+          ),
+      ],
     );
   }
 }
 
-/// The selected territory's series over the client line.
+String _metricLabel(AppLocalizations l10n, BenchmarkMetric metric) =>
+    switch (metric) {
+      BenchmarkMetric.scorecards => l10n.trendsMetricScore,
+      BenchmarkMetric.perfectStore => l10n.trendsMetricPerfectStore,
+      BenchmarkMetric.availability => l10n.trendsMetricAvailability,
+      BenchmarkMetric.shareOfShelf => l10n.trendsMetricShareOfShelf,
+    };
+
+String _positionWord(AppLocalizations l10n, BenchmarkPosition? position) =>
+    switch (position) {
+      BenchmarkPosition.above => l10n.trendsAboveAverage,
+      BenchmarkPosition.below => l10n.trendsBelowAverage,
+      BenchmarkPosition.level => l10n.trendsAtAverage,
+      null => l10n.trendsNotMeasured,
+    };
+
+String _samples(AppLocalizations l10n, BenchmarkMetric metric, int count) =>
+    switch (metric) {
+      BenchmarkMetric.scorecards ||
+      BenchmarkMetric.perfectStore => l10n.trendsSamplesScorecards(count),
+      BenchmarkMetric.availability => l10n.trendsSamplesStockLines(count),
+      BenchmarkMetric.shareOfShelf => l10n.trendsSamplesFacings(count),
+    };
+
+/// Drops a trailing `.0` so a delta reads `4` rather than `4.0`.
 ///
-/// [LineChart] aligns its comparison by position, so the client line is cut to
-/// exactly the buckets the territory has — a territory with a gap week is then
-/// compared bucket-for-bucket, never against a neighbouring week.
-class _TerritoryChart extends StatelessWidget {
-  const _TerritoryChart({required this.territory, required this.report});
-
-  final TerritoryBenchmark territory;
-  final TerritoryBenchmarkReport report;
-
-  @override
-  Widget build(BuildContext context) {
-    final periods = {for (final p in territory.points) p.period};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '${territory.territoryName} against the client average',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: context.colors.ink1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        LineChart(
-          key: const ValueKey('benchmark-chart'),
-          height: 180,
-          points: [
-            for (final p in territory.points)
-              (label: formatPeriodLabel(p.period), value: p.value),
-          ],
-          comparison: [
-            for (final p in report.client.points)
-              if (periods.contains(p.period))
-                (label: formatPeriodLabel(p.period), value: p.value),
-          ],
-          seriesName: territory.territoryName,
-          comparisonName: 'Client average',
-          valueSuffix: report.suffix,
-          target: report.target,
-        ),
-      ],
-    );
-  }
+/// It is a **sentence** fragment, not a figure in a data role — the figures on
+/// this screen all go through `FigureSlot`, and this is the number inside
+/// "4 points above the client average".
+String _trim(double v) {
+  final s = v.toStringAsFixed(1);
+  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
 }

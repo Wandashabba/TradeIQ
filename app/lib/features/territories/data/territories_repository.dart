@@ -30,9 +30,9 @@ class TerritoryCoverage {
     required this.outletCount,
     required this.agentCount,
     this.outlets = const [],
-    this.outletsVisited = 0,
-    this.outletsTotal = 0,
-    this.coverageRate = 0,
+    this.outletsVisited,
+    this.outletsTotal,
+    this.coverageRate,
   });
   final int outletCount;
   final int agentCount;
@@ -40,9 +40,30 @@ class TerritoryCoverage {
   /// The outlets themselves, each tagged with whether it was visited — the
   /// data the territory map screen renders as pins.
   final List<Outlet> outlets;
-  final int outletsVisited;
-  final int outletsTotal;
-  final double coverageRate;
+
+  /// Null when the server sent no coverage block at all. **Never defaulted to
+  /// zero**: a territory whose coverage the server did not compute has not
+  /// been measured, and "0 of 0 visited" is a verdict nobody reached.
+  final int? outletsVisited;
+  final int? outletsTotal;
+
+  /// The percentage of this territory's outlets visited in the window, or
+  /// null when there is nothing to take a percentage of.
+  ///
+  /// The wire sends `0` for an empty territory — `outletsTotal > 0 ? … : 0` in
+  /// `territories.service.ts` — and a nought there is an invented total, not a
+  /// measurement. A territory with no outlets in it is 0% covered in exactly
+  /// the sense that an empty shelf is 0% full: the question does not have an
+  /// answer yet. [coverageMeasured] is the predicate, so the two callers
+  /// cannot disagree about it.
+  final double? coverageRate;
+
+  /// Whether [coverageRate] is a figure rather than a placeholder.
+  bool get coverageMeasured =>
+      coverageRate != null && (outletsTotal ?? 0) > 0;
+
+  /// The rate when it was measured, and null when it was not.
+  double? get measuredCoverageRate => coverageMeasured ? coverageRate : null;
 
   factory TerritoryCoverage.fromJson(Map<String, dynamic> json) {
     final coverage = json['coverage'] as Map<String, dynamic>?;
@@ -53,9 +74,9 @@ class TerritoryCoverage {
               ?.map((o) => Outlet.fromJson(o as Map<String, dynamic>))
               .toList() ??
           const [],
-      outletsVisited: coverage?['outletsVisited'] as int? ?? 0,
-      outletsTotal: coverage?['outletsTotal'] as int? ?? 0,
-      coverageRate: (coverage?['coverageRate'] as num?)?.toDouble() ?? 0,
+      outletsVisited: (coverage?['outletsVisited'] as num?)?.toInt(),
+      outletsTotal: (coverage?['outletsTotal'] as num?)?.toInt(),
+      coverageRate: (coverage?['coverageRate'] as num?)?.toDouble(),
     );
   }
 }

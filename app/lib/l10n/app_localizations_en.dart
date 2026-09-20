@@ -3599,4 +3599,508 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meContestsDetail => 'See where you stand';
+
+  @override
+  String get torchTryAgain => 'Try again';
+
+  @override
+  String get torchStillFetching => 'Still fetching · this is slower than usual';
+
+  @override
+  String get roleFieldAgent => 'Field agent';
+
+  @override
+  String get territoriesTitle => 'Territories';
+
+  @override
+  String get territoriesFact =>
+      'A territory groups outlets and the agents who work them.';
+
+  @override
+  String get territoriesRefresh => 'Refresh the territories list';
+
+  @override
+  String get territoriesSectionAll => 'All territories';
+
+  @override
+  String get territoriesNew => 'New territory';
+
+  @override
+  String get territoriesEmptyHeadline => 'No territories yet';
+
+  @override
+  String get territoriesEmptyBody =>
+      'A territory groups outlets and the agents who work them. Create one and outlets can be assigned to it.';
+
+  @override
+  String territoryOutlets(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count outlets',
+      one: '1 outlet',
+      zero: 'No outlets',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String territoryAgents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents',
+      one: '1 agent',
+      zero: 'No agents',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get territoryCoveredWord => 'Covered';
+
+  @override
+  String territoryCoveredPercent(int percent) {
+    return '$percent% covered';
+  }
+
+  @override
+  String get territoryCoverageLoading => 'Loading coverage';
+
+  @override
+  String get territoryCoverageFailed => 'Coverage did not load';
+
+  @override
+  String get territoryCoverageNoOutlets => 'No outlets to cover yet';
+
+  @override
+  String get territoryUnassigned => 'Unassigned';
+
+  @override
+  String get territoryUnassignedLine => 'Nobody works this territory yet.';
+
+  @override
+  String get territoryCoverageCluster => 'Coverage for this territory';
+
+  @override
+  String get territoryOutletsWord => 'Outlets';
+
+  @override
+  String get territoryAgentsWord => 'Agents';
+
+  @override
+  String territoryVisitedOf(int total, int visited) {
+    return '$visited of $total visited in this window';
+  }
+
+  @override
+  String territoryVisitedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count visited',
+      one: '1 visited',
+      zero: 'None visited',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get territoryOpenMap => 'Open the map';
+
+  @override
+  String get territoryAssign => 'Assign an agent';
+
+  @override
+  String territoryAssignTitle(String territory) {
+    return 'Assign to $territory';
+  }
+
+  @override
+  String get territoryAssignSubtitle =>
+      'Pick a field agent to work this territory.';
+
+  @override
+  String get territoryFieldAgents => 'Field agents';
+
+  @override
+  String get territoryAgentPicked => 'Picked';
+
+  @override
+  String get territoryAgentInactive => 'No longer active';
+
+  @override
+  String get territoryAssignBlocked => 'Pick a field agent first.';
+
+  @override
+  String get territoryAssignBack => 'Back to coverage';
+
+  @override
+  String territoryAssignDone(String territory) {
+    return 'Assigned to $territory.';
+  }
+
+  @override
+  String get territoryAssignFailed =>
+      'That agent was not assigned. Nothing changed.';
+
+  @override
+  String get territoryNoAgentsHeadline => 'No field agents yet';
+
+  @override
+  String get territoryNoAgentsBody =>
+      'Add a field agent under Users, then assign them here.';
+
+  @override
+  String get territoryNewTitle => 'New territory';
+
+  @override
+  String get territoryNewFact =>
+      'A code is what the back office quotes. It must be unique for this client.';
+
+  @override
+  String get territoryBackToList => 'Back to territories';
+
+  @override
+  String get territoryNameLabel => 'Name';
+
+  @override
+  String get territoryNameHelp =>
+      'What people call this patch — Gauteng North.';
+
+  @override
+  String get territoryCodeLabel => 'Code';
+
+  @override
+  String get territoryCodeHelp =>
+      'The short code outlets are filed under — GP-N.';
+
+  @override
+  String get territoryRegionLabel => 'Region';
+
+  @override
+  String get territoryRegionHelp => 'Optional. The wider area this sits in.';
+
+  @override
+  String get territoryFieldRequired => 'This is required.';
+
+  @override
+  String get territoryCreate => 'Create territory';
+
+  @override
+  String get territoryCreateBlocked => 'A name and a code are both required.';
+
+  @override
+  String territoryCreated(String territory) {
+    return '$territory created.';
+  }
+
+  @override
+  String get territoryMapTitle => 'Territory map';
+
+  @override
+  String get territoryMapEmptyHeadline => 'No outlets in this territory';
+
+  @override
+  String get territoryMapEmptyBody =>
+      'Outlets are filed under a territory by its code. Give an outlet this territory\'s code and it appears here.';
+
+  @override
+  String territoryTilesOffBody(String territory) {
+    return 'The map did not load, so $territory is listed below instead. Every store and its state is there.';
+  }
+
+  @override
+  String get territoryOutletVisited => 'Visited';
+
+  @override
+  String get territoryOutletNotVisited => 'Not visited yet';
+
+  @override
+  String get territoryOutletVisitedLine =>
+      'A visit landed here inside the coverage window.';
+
+  @override
+  String get territoryOutletNotVisitedLine =>
+      'No visit has landed here inside the coverage window.';
+
+  @override
+  String get territoryOutletPosition => 'Pinned at';
+
+  @override
+  String get territoryNotFoundHeadline => 'We could not find that territory';
+
+  @override
+  String get territoryNotFoundBody =>
+      'It may have been deleted, or the link may belong to another client.';
+
+  @override
+  String get dispatchTitle => 'Dispatch';
+
+  @override
+  String get dispatchFact =>
+      'Agents are ranked in-territory first, then by distance from their last known location.';
+
+  @override
+  String get dispatchOutletSection => 'The outlet';
+
+  @override
+  String get dispatchChooseOutlet => 'Choose an outlet';
+
+  @override
+  String get dispatchChooseOutletHint =>
+      'Ranking needs a destination to measure distance from.';
+
+  @override
+  String dispatchChangeOutlet(String outlet) {
+    return 'Outlet: $outlet. Choose a different one.';
+  }
+
+  @override
+  String get dispatchNoOutletHeadline => 'Pick an outlet to rank agents';
+
+  @override
+  String get dispatchNoOutletBody =>
+      'Nobody can be ranked until there is somewhere to rank them against.';
+
+  @override
+  String get dispatchNoOutletsHeadline => 'No outlets yet';
+
+  @override
+  String get dispatchNoOutletsBody => 'Add an outlet and it can be dispatched.';
+
+  @override
+  String get dispatchCandidatesSection => 'Candidates';
+
+  @override
+  String get dispatchNoCandidatesHeadline => 'No agent can be ranked';
+
+  @override
+  String get dispatchNoCandidatesBody =>
+      'Ranking needs agents assigned to a territory, or a last known location — neither is recorded yet.';
+
+  @override
+  String get dispatchInTerritory => 'In territory';
+
+  @override
+  String get dispatchOutsideTerritory => 'Outside territory';
+
+  @override
+  String get dispatchRecommended => 'Recommended';
+
+  @override
+  String get dispatchMetresUnit => 'metres away';
+
+  @override
+  String get dispatchNoLocation => 'No last-known location';
+
+  @override
+  String get dispatchNoLocationShort => 'not placed';
+
+  @override
+  String get trendsTitle => 'Trends';
+
+  @override
+  String get trendsFact => 'Server-side buckets — weeks start Monday, UTC.';
+
+  @override
+  String get trendsFilters => 'Filters';
+
+  @override
+  String get trendsOverTime => 'Over time';
+
+  @override
+  String get trendsCompare => 'Compare territories';
+
+  @override
+  String get trendsDaily => 'Daily';
+
+  @override
+  String get trendsWeekly => 'Weekly';
+
+  @override
+  String get trendsServerDefault => 'Server default';
+
+  @override
+  String get trendsCustomRange => 'Custom range';
+
+  @override
+  String get trendsClearRange => 'Clear the range';
+
+  @override
+  String get trendsViewAs => 'Show as';
+
+  @override
+  String get trendsAsChart => 'Chart';
+
+  @override
+  String get trendsAsTable => 'Table';
+
+  @override
+  String get trendsPeriod => 'Period';
+
+  @override
+  String get trendsNotMeasured => 'Not measured';
+
+  @override
+  String get trendsScrubHint => 'Drag across the chart to read one bucket.';
+
+  @override
+  String trendsChartHint(String name, int count) {
+    return '$name, $count buckets. The exact figures are in the table view.';
+  }
+
+  @override
+  String trendsGapNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count buckets not measured',
+      one: '1 bucket not measured',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get trendsEmptyHeadline => 'No data in range';
+
+  @override
+  String get trendsEmptyBody =>
+      'Trends fill in as visits are submitted and scored.';
+
+  @override
+  String get trendScorecards => 'Scorecard trend';
+
+  @override
+  String get trendScorecardsSeries => 'Weighted execution score';
+
+  @override
+  String get trendAvailability => 'Availability trend';
+
+  @override
+  String get trendAvailabilitySeries => 'On-shelf availability';
+
+  @override
+  String get trendPerfectStore => 'Perfect store trend';
+
+  @override
+  String get trendPerfectStoreSeries => 'Outlets passing every gate';
+
+  @override
+  String get trendsMetric => 'Metric';
+
+  @override
+  String get trendsMetricScore => 'Score';
+
+  @override
+  String get trendsMetricPerfectStore => 'Perfect store';
+
+  @override
+  String get trendsMetricAvailability => 'Availability';
+
+  @override
+  String get trendsMetricShareOfShelf => 'Share of shelf';
+
+  @override
+  String get trendsClientAverage => 'Client average';
+
+  @override
+  String get trendsTarget => 'Target';
+
+  @override
+  String trendsUnassignedNote(String samples) {
+    return 'Also includes $samples from outlets outside every territory.';
+  }
+
+  @override
+  String get trendsNoTerritoriesHeadline => 'No territories set up';
+
+  @override
+  String get trendsNoTerritoriesBody =>
+      'Add territories and each one can be read against the client average.';
+
+  @override
+  String get trendsCompareEmptyBody =>
+      'The comparison fills in as visits are submitted and scored.';
+
+  @override
+  String get trendsAboveAverage => 'Above average';
+
+  @override
+  String get trendsBelowAverage => 'Below average';
+
+  @override
+  String get trendsAtAverage => 'At average';
+
+  @override
+  String trendsAboveBy(String points, String samples) {
+    return '$points points above the client average · $samples';
+  }
+
+  @override
+  String trendsBelowBy(String points, String samples) {
+    return '$points points below the client average · $samples';
+  }
+
+  @override
+  String trendsLevelWith(String samples) {
+    return 'Level with the client average · $samples';
+  }
+
+  @override
+  String get trendsNothingMeasuredHere => 'Nothing measured in this window';
+
+  @override
+  String trendsRank(int rank) {
+    return 'Ranked $rank';
+  }
+
+  @override
+  String get trendsUnranked => 'Not ranked';
+
+  @override
+  String get trendsShowing => 'Showing';
+
+  @override
+  String trendsAgainstClient(String territory) {
+    return '$territory against the client average';
+  }
+
+  @override
+  String trendsMeterHint(String territory, int value, int average) {
+    return '$territory: $value, client average $average';
+  }
+
+  @override
+  String trendsSamplesScorecards(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scorecards',
+      one: '1 scorecard',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trendsSamplesStockLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stock lines',
+      one: '1 stock line',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trendsSamplesFacings(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count visits with facings',
+      one: '1 visit with facings',
+    );
+    return '$_temp0';
+  }
 }

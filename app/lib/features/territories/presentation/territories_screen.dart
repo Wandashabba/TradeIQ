@@ -1,321 +1,306 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
-import '../../users/data/users_repository.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/territories_repository.dart';
-import 'territory_form_screen.dart';
-import 'territory_map_screen.dart';
+import '../data/territories_view.dart';
+import 'territory_detail_sheet.dart';
 
-/// Coverage for one territory. Kept per-id and cached by Riverpod so a row
-/// that rebuilds does not re-fetch.
-final _coverageProvider =
-    FutureProvider.family<TerritoryCoverage, String>((ref, id) {
-  return ref.read(territoriesRepositoryProvider).getCoverage(id);
-});
-
+/// TERRITORIES — the ground, divided, and who is walking it.
+///
+/// ```text
+///   Territories                                   [ ☾ ]
+///   A territory groups outlets and the agents who work them.
+///   ── All territories  14 ──────────────── New territory
+///   Gauteng North                                    67%
+///   GP-N · Gauteng · 3 outlets · 2 agents
+///   Western Cape                                      —
+///   WC · 0 outlets · no agents · Unassigned
+///   …
+///   [ nav pill ]
+/// ```
+///
+/// ## The one amber, counted
+///
+/// A tab root reached from the Menu, so the nav's active tab is slot 1 and the
+/// content has one grant left. **It declines it**, on every phase: nothing on
+/// a list of places is armed. `New territory` is the section rule's action
+/// slot — a tertiary verb beside the count — rather than a lit circle, because
+/// the ladder's rung 4 is for the role's *standing* action and a manager
+/// reaches this screen to read it far more often than to add to it.
+///
+/// On Day and Veld the ladder has one rung, the primary commit block, and this
+/// route has none: **zero**.
+///
+/// ## Coverage is three absences, not one zero
+///
+/// `GET /territories/:id/coverage` answers per territory, so each row carries
+/// its own request and its own state. Three of the four states have no figure
+/// and each says something different:
+///
+/// * **loading** — a skeleton line where the figure goes;
+/// * **failed** — an em dash and "Coverage did not load", with no per-row
+///   Retry (fifteen rows is fifteen error regions and the kit allows one);
+/// * **no outlets** — an em dash and "No outlets to cover yet". The wire sends
+///   `coverageRate: 0` here (`outletsTotal > 0 ? … : 0` in the service) and a
+///   nought over an empty denominator is a verdict nobody reached.
+///
+/// Only the fourth prints a percentage, and a **measured 0%** prints `0%` and
+/// keeps its place.
 class TerritoriesScreen extends ConsumerWidget {
   const TerritoriesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final territories = ref.watch(territoriesListProvider);
     final role = ref.watch(sessionControllerProvider).value?.role;
     // Creating territories and assigning agents are manager/admin actions.
     final canManage = role == 'manager' || role == 'admin';
 
-    return ManagerScaffold(
-      title: 'Territories',
-      floatingActionButton: canManage
-          ? FloatingActionButton(
-              key: const ValueKey<String>('territory-create-fab'),
-              tooltip: 'New territory',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (context) => const TerritoryFormScreen(),
-                ),
-              ),
-              child: const Icon(Icons.add),
-            )
-          : null,
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'A territory groups outlets and the agents who work them. '
-            'Open a row for its full coverage.',
-            style: TextStyle(fontSize: 12, color: context.colors.ink3),
+    Widget frame({required String phase, required List<Widget> children}) {
+      return ConsoleFrame(
+        phase: phase,
+        active: ConsoleSlot.menu,
+        header: TorchAppHeader(
+          title: l10n.territoriesTitle,
+          facts: <String>[l10n.territoriesFact],
+          // The header allows exactly one trailing control, and on a console
+          // worklist the one worth having is the refetch — the same choice
+          // Alerts made, for the same reason.
+          trailing: TorchIconButton(
+            key: const ValueKey<String>('territories-refresh'),
+            icon: Icons.refresh,
+            semanticLabel: l10n.territoriesRefresh,
+            onPressed: () => ref.invalidate(territoriesListProvider),
           ),
-          const SizedBox(height: 12),
-          AsyncSection<List<Territory>>(
-            value: territories,
-            label: 'territories',
-            onRetry: () => ref.invalidate(territoriesListProvider),
-            builder: (list) => PanelCard(
-              title: '${list.length} '
-                  '${list.length == 1 ? 'territory' : 'territories'}',
-              subtitle: 'Outlet and agent counts, plus coverage rate',
-              padded: false,
-              child: list.isEmpty
-                  ? const EmptyState(
-                      message: 'No territories yet',
-                      hint: 'Create one to group outlets and assign agents.',
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final t in list)
-                          _TerritoryRow(territory: t, canManage: canManage),
-                      ],
-                    ),
+        ),
+        children: children,
+      );
+    }
+
+    return territories.when(
+      loading: () => frame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
+            label: l10n.territoriesTitle,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonRows(count: 4, rowHeight: 80),
+          ),
+        ],
+      ),
+      error: (error, stack) => frame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'territories',
+            child: ErrorState(
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('territories-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(territoriesListProvider),
+              ),
             ),
           ),
         ],
       ),
+      data: (list) {
+        if (list.isEmpty) {
+          return frame(
+            phase: 'empty',
+            children: <Widget>[
+              EmptyState(
+                drawing: EmptyDrawing.pin,
+                headline: l10n.territoriesEmptyHeadline,
+                body: l10n.territoriesEmptyBody,
+                action: canManage
+                    ? TorchSecondaryButton(
+                        key: const ValueKey<String>('territory-create'),
+                        label: l10n.territoriesNew,
+                        onPressed: () => context.push('/territories/new'),
+                      )
+                    : null,
+              ),
+            ],
+          );
+        }
+
+        final gutter = context.skin.space.gutter;
+        return frame(
+          phase: 'loaded',
+          children: <Widget>[
+            SectionRule(
+              l10n.territoriesSectionAll,
+              count: list.length,
+              action: canManage
+                  ? SectionRuleAction(
+                      l10n.territoriesNew,
+                      key: const ValueKey<String>('territory-create'),
+                      onTap: () => context.push('/territories/new'),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: TiqSpace.s5),
+            TorchBleed(
+              extra: gutter * 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (var i = 0; i < list.length; i++)
+                    _TerritoryRowView(
+                      key: ValueKey<String>('territory-${list[i].id}'),
+                      territory: list[i],
+                      canManage: canManage,
+                      last: i == list.length - 1,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _TerritoryRow extends ConsumerWidget {
-  const _TerritoryRow({required this.territory, required this.canManage});
+/// One territory, as a row.
+///
+/// The row is the whole target: a thumb aims at the place, not at a 40dp verb
+/// beside it. Tapping opens the detail sheet, which is where the coverage
+/// breakdown, the map and the assignment live — the old screen put those in an
+/// `AlertDialog` and two `RowAction` buttons, and the dialog is deleted.
+class _TerritoryRowView extends ConsumerWidget {
+  const _TerritoryRowView({
+    super.key,
+    required this.territory,
+    required this.canManage,
+    required this.last,
+  });
 
   final Territory territory;
   final bool canManage;
-
-  Future<void> _showCoverage(BuildContext context, WidgetRef ref) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(territory.name),
-        content: FutureBuilder<TerritoryCoverage>(
-          key: ValueKey<String>('coverage-${territory.id}'),
-          future:
-              ref.read(territoriesRepositoryProvider).getCoverage(territory.id),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const SizedBox(
-                height: 48,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return Text('Failed to load coverage: ${snapshot.error}');
-            }
-            final coverage = snapshot.data!;
-            if (context.colors.glass) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _FigureLine('Outlets', '${coverage.outletCount}'),
-                  _FigureLine('Agents', '${coverage.agentCount}'),
-                  _FigureLine('Coverage', '${coverage.coverageRate.round()}%'),
-                ],
-              );
-            }
-            return Text(
-              'Outlets: ${coverage.outletCount}   Agents: ${coverage.agentCount}\n'
-              'Coverage: ${coverage.coverageRate.round()}%',
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _assignAgent(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => _AssignAgentDialog(territory: territory),
-    );
-  }
+  final bool last;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coverage = ref.watch(_coverageProvider(territory.id));
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final row = TerritoryRow.from(
+      territory,
+      ref.watch(territoryCoverageProvider(territory.id)),
+    );
 
-    // A territory nobody is assigned to is the one state worth flagging; the
-    // rest is just a count, so it stays neutral.
-    final (level, status) = switch (coverage) {
-      AsyncData(:final value) when value.agentCount == 0 => (
-          StatusLevel.warning,
-          'Unassigned',
-        ),
-      AsyncData() => (StatusLevel.good, 'Assigned'),
-      _ => (StatusLevel.neutral, null),
+    final meta = <String>[
+      territory.code,
+      if (territory.region != null) territory.region!,
+    ].join(' · ');
+
+    final counts = switch (row.state) {
+      TerritoryCoverageState.loading => l10n.territoryCoverageLoading,
+      TerritoryCoverageState.failed => l10n.territoryCoverageFailed,
+      _ => <String>[
+        l10n.territoryOutlets(row.coverage!.outletCount),
+        l10n.territoryAgents(row.coverage!.agentCount),
+      ].join(' · '),
     };
 
-    final figures = switch (coverage) {
-      AsyncData(:final value) =>
-        '${value.outletCount} outlets · ${value.agentCount} agents · '
-            '${value.coverageRate.round()}% covered',
-      AsyncError() => 'Coverage unavailable',
-      _ => 'Loading coverage…',
-    };
-    final region = territory.region;
-
-    return WorklistRow(
-      key: ValueKey<String>('territory-${territory.id}'),
+    return SoftRow(
+      density: SoftRowDensity.tall,
       title: territory.name,
-      // The code is what the back office quotes; the figures beside it are the
-      // plain counts the coverage endpoint returns.
-      meta: Row(
-        children: [
-          CodeToken(territory.code),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              region == null ? figures : '$region · $figures',
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: counts,
+      meta: Text(
+        meta,
+        style: skin.text.monoIdent.style(color: skin.palette.ink3),
       ),
-      level: level,
-      statusLabel: status,
-      onTap: () => _showCoverage(context, ref),
-      actions: [
-        RowAction(
-          key: ValueKey<String>('territory-map-${territory.id}'),
-          label: 'Map',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => TerritoryMapScreen(territory: territory),
-            ),
-          ),
-        ),
-        if (canManage)
-          RowAction(
-            key: ValueKey<String>('territory-assign-${territory.id}'),
-            label: 'Assign',
-            onPressed: () => _assignAgent(context),
-          ),
-      ],
+      trailing: _CoverageFigure(row: row),
+      onTap: () => showTerritoryDetailSheet(
+        context,
+        territory: territory,
+        canManage: canManage,
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        territory.name,
+        meta,
+        counts,
+        _coverageSentence(context, row),
+        if (row.unassigned ?? false) l10n.territoryUnassigned,
+      ].join('. '),
     );
   }
 }
 
-/// Dialog that assigns a selected field agent to [territory].
-class _AssignAgentDialog extends ConsumerStatefulWidget {
-  const _AssignAgentDialog({required this.territory});
-
-  final Territory territory;
-
-  @override
-  ConsumerState<_AssignAgentDialog> createState() => _AssignAgentDialogState();
+String _coverageSentence(BuildContext context, TerritoryRow row) {
+  final l10n = context.l10n;
+  return switch (row.state) {
+    TerritoryCoverageState.loading => l10n.territoryCoverageLoading,
+    TerritoryCoverageState.failed => l10n.territoryCoverageFailed,
+    TerritoryCoverageState.noOutlets => l10n.territoryCoverageNoOutlets,
+    TerritoryCoverageState.measured => l10n.territoryCoveredPercent(
+      row.coverageRate!.round(),
+    ),
+  };
 }
 
-class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
-  String? _agentId;
-  bool _submitting = false;
+/// The figure at the trailing edge, in whichever of its four states it is in.
+class _CoverageFigure extends StatelessWidget {
+  const _CoverageFigure({required this.row});
 
-  Future<void> _assign() async {
-    if (_agentId == null) return;
-    setState(() => _submitting = true);
-    try {
-      await ref
-          .read(territoriesRepositoryProvider)
-          .assignAgent(widget.territory.id, _agentId!);
-      if (mounted) {
-        // The row's coverage figure is now stale — drop it so it refetches.
-        ref.invalidate(_coverageProvider(widget.territory.id));
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Agent assigned.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to assign agent: $e')),
-        );
-      }
+  final TerritoryRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+
+    if (row.state == TerritoryCoverageState.loading) {
+      // A skeleton line the width of "100%" — never a nought standing in for
+      // a figure that has not arrived.
+      return SizedBox(
+        width: 48,
+        child: SkeletonLine(role: skin.text.figureS, widthFactor: 1),
+      );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final agents = ref.watch(usersListProvider);
-    return AlertDialog(
-      title: Text('Assign to ${widget.territory.name}'),
-      content: agents.when(
-        loading: () => const SizedBox(
-          height: 48,
-          child: Center(child: CircularProgressIndicator()),
+    final measured = row.state == TerritoryCoverageState.measured;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        FigureSlot(
+          value: measured ? row.coverageRate!.round() : null,
+          role: skin.text.figureS,
+          // "— %" is a unit measuring nothing.
+          unit: measured ? TiqUnit.percent : TiqUnit.none,
+          state: measured ? FigureState.measured : FigureState.missing,
+          textAlign: TextAlign.end,
+          semanticsLabel: measured ? null : _coverageSentence(context, row),
         ),
-        error: (err, _) => Text('Failed to load agents: $err'),
-        data: (list) {
-          final fieldAgents =
-              list.where((u) => u.role == 'field_agent').toList();
-          if (fieldAgents.isEmpty) {
-            return const Text('No field agents available.');
-          }
-          return DropdownButtonFormField<String>(
-            key: const ValueKey<String>('assign-agent-field'),
-            initialValue: _agentId,
-            decoration: const InputDecoration(labelText: 'Field agent'),
-            items: [
-              for (final u in fieldAgents)
-                DropdownMenuItem(value: u.id, child: Text(u.label)),
-            ],
-            onChanged: (v) => setState(() => _agentId = v),
-          );
-        },
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const ValueKey<String>('assign-agent-confirm'),
-          onPressed: (_agentId == null || _submitting) ? null : _assign,
-          child: const Text('Assign'),
+        Text(
+          measured
+              ? l10n.territoryCoveredWord
+              : row.state == TerritoryCoverageState.failed
+              ? l10n.territoryCoverageFailed
+              : l10n.territoryCoverageNoOutlets,
+          textAlign: TextAlign.end,
+          style: skin.text.meta.style(color: skin.palette.ink3),
         ),
       ],
-    );
-  }
-}
-
-/// One count in the glass coverage dialog: the words left, the figure right.
-class _FigureLine extends StatelessWidget {
-  const _FigureLine(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final lumen = context.lumen;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: lumen.inkMuted),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(value, style: LumenGlass.figure(color: lumen.ink)),
-        ],
-      ),
     );
   }
 }
