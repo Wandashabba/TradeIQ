@@ -565,20 +565,29 @@ class _MessageRow extends StatelessWidget {
                 style: skin.text.monoIdent.style(color: skin.palette.ink3),
               ),
             ),
-          if (images.isNotEmpty) ...<Widget>[
-            const SizedBox(height: TiqSpace.s3),
-            Wrap(
+        ],
+      ),
+      // The thumbs are buttons, so they live in the row's `actions` slot and
+      // NOT in `meta`. A `SoftRow` with no actions and no trailing control
+      // wraps itself in `excludeSemantics: true`, which does not make the
+      // thumb inert — it deletes its node outright, so a reader hears "2
+      // photos" and has nothing to open. `actions` is the declared home for a
+      // row's own verbs precisely because it keeps its children's nodes
+      // beneath the row's (soft_row.dart §5).
+      actions: images.isEmpty
+          ? null
+          : Wrap(
               key: ValueKey<String>('message-attachments-${message.id}'),
               spacing: TiqSpace.s2,
               runSpacing: TiqSpace.s2,
               children: <Widget>[
-                for (final a in images)
-                  MessageAttachmentThumb(photoId: a.photoId),
+                for (final (index, a) in images.indexed)
+                  MessageAttachmentThumb(
+                    photoId: a.photoId,
+                    label: 'Photo ${index + 1} of ${images.length}',
+                  ),
               ],
             ),
-          ],
-        ],
-      ),
       // The id is still reachable for a bug report, and reachable is where it
       // belongs — not printed across the row where a name should be.
       onLongPress: () async {

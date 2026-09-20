@@ -24,10 +24,15 @@ class MessageAttachmentThumb extends ConsumerWidget {
     super.key,
     required this.photoId,
     this.size = 56,
+    this.label = 'Photo attachment',
   });
 
   final String photoId;
   final double size;
+
+  /// What the reader hears. Two thumbs on one message announce themselves as
+  /// "Photo 1 of 2" and "Photo 2 of 2" rather than twice as the same thing.
+  final String label;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +66,7 @@ class MessageAttachmentThumb extends ConsumerWidget {
     // excluding semantics node paints, hit-tests and is announced nowhere —
     // the kit-wide bug that left every button unpressable to a reader.
     return Semantics(
-      label: 'Photo attachment',
+      label: label,
       image: true,
       button: true,
       onTap: () => showMessageAttachmentSheet(context, photoId),
