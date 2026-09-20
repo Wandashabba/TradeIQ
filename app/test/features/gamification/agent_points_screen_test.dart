@@ -244,10 +244,7 @@ void main() {
       expect(average.meter, isNotNull);
       // And the payout says what it is made of, so 94 beside 85 is never read
       // as a fraction.
-      expect(
-        find.textContaining('plus 5 a closed task'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('plus 5 a closed task'), findsOneWidget);
     });
   });
 
@@ -370,6 +367,32 @@ void main() {
     });
   });
 
+  // ── Every button a reader announces, a reader can press ───────────────
+  //
+  // The kit once shipped a whole button family that announced itself and did
+  // nothing when a screen reader activated it, and `SectionRuleAction` and
+  // `PaginationFooter.action` were still shipping it when this group started.
+  // This is that law on this screen, in every phase, so no local
+  // `Semantics(button: true, ..., excludeSemantics: true)` around a bare
+  // gesture detector can bring it back here.
+  group('every button a screen reader announces can be activated', () {
+    final phases = <String, Future<void> Function(WidgetTester)>{
+      'loaded': (t) => _pump(t),
+      'empty': (t) => _pump(t, history: _history(entries: const [])),
+      'error': (t) =>
+          _pump(t, failure: StateError('SocketException: api.tradeiq.co.za')),
+      'no-standing': (t) => _pump(t, boardFails: true),
+    };
+    for (final phase in phases.entries) {
+      testWidgets(phase.key, (tester) async {
+        final handle = tester.ensureSemantics();
+        await phase.value(tester);
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+  });
+
   group('the amber census, every phase in every skin', () {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
@@ -379,8 +402,11 @@ void main() {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(t, skin: skin),
-        'empty': (t) =>
-            _pump(t, skin: skin, history: _history(entries: const [])),
+        'empty': (t) => _pump(
+          t,
+          skin: skin,
+          history: _history(entries: const []),
+        ),
         'loading': (t) async {
           await _pump(t, skin: skin, pending: true);
           await t.pump(const Duration(milliseconds: 700));
