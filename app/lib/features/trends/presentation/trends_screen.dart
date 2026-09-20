@@ -90,6 +90,8 @@ class TrendsScreen extends ConsumerWidget {
             heading: l10n.trendScorecards,
             seriesName: l10n.trendScorecardsSeries,
             provider: scorecardsTrendProvider,
+            // A mean of weighted scores, so n >= 3 — not a rate.
+            kind: MetricKind.average,
           ),
           SizedBox(height: context.skin.space.blockGap),
           _TrendPanel(
@@ -98,6 +100,7 @@ class TrendsScreen extends ConsumerWidget {
             seriesName: l10n.trendAvailabilitySeries,
             provider: availabilityTrendProvider,
             unit: TiqUnit.percent,
+            kind: MetricKind.rate,
           ),
           SizedBox(height: context.skin.space.blockGap),
           _TrendPanel(
@@ -106,6 +109,7 @@ class TrendsScreen extends ConsumerWidget {
             seriesName: l10n.trendPerfectStoreSeries,
             provider: perfectStoreTrendProvider,
             unit: TiqUnit.percent,
+            kind: MetricKind.rate,
           ),
         ],
       ],
@@ -120,6 +124,7 @@ class _TrendPanel extends ConsumerStatefulWidget {
     required this.heading,
     required this.seriesName,
     required this.provider,
+    required this.kind,
     this.unit = TiqUnit.none,
   });
 
@@ -127,6 +132,12 @@ class _TrendPanel extends ConsumerStatefulWidget {
   final String seriesName;
   final FutureProvider<List<TrendPoint>> provider;
   final TiqUnit unit;
+
+  /// What kind of quantity this series is, for the sample threshold. A bucket
+  /// with too few rows behind it is drawn at ink-2 rather than at full
+  /// commitment — unify line 271, and the reason `ChartReading.sampleSize`
+  /// exists at all.
+  final MetricKind kind;
 
   @override
   ConsumerState<_TrendPanel> createState() => _TrendPanelState();
@@ -194,7 +205,7 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
                     label: formatPeriodLabel(p.period),
                     longLabel: p.period,
                     value: p.value,
-                    sampleSize: p.count,
+                    sampleSize: _sampleN(p.count),
                   ),
               ],
             );
@@ -203,6 +214,8 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
               unit: widget.unit,
               periodHeading: l10n.trendsPeriod,
               notMeasuredWord: l10n.trendsNotMeasured,
+              sampleKind: widget.kind,
+              lowSampleWord: l10n.trendsSmallSample,
               semanticsLabel: widget.heading,
             );
             if (veld || _asTable) return table;
@@ -215,6 +228,9 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
                 points.length,
               ),
               notMeasuredWord: l10n.trendsNotMeasured,
+              dashedWord: l10n.trendsDashed,
+              sampleKind: widget.kind,
+              lowSampleWord: l10n.trendsSmallSample,
               scrubHint: l10n.trendsScrubHint,
             );
           },
@@ -360,6 +376,13 @@ class _TerritoryBenchmarkPanelState
   /// The territory drawn in the chart. Null means the top-ranked one.
   String? _selectedId;
 
+  /// Chart or table. This pane has the same toggle the over-time panels have,
+  /// and it is not a nicety: the plot's only other way in is a horizontal
+  /// drag-scrub, which a screen reader cannot perform and a printed page does
+  /// not carry — and `trendsChartHint` sends the reader to "the table view",
+  /// which has to exist.
+  bool _asTable = false;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -470,7 +493,13 @@ class _TerritoryBenchmarkPanelState
           ),
         ),
         SizedBox(height: context.skin.space.blockGap),
-        _BenchmarkChart(territory: selected, report: report, unit: unit),
+        _BenchmarkChart(
+          territory: selected,
+          report: report,
+          unit: unit,
+          asTable: _asTable,
+          onViewChanged: (v) => setState(() => _asTable = v),
+        ),
       ],
     );
   }
@@ -493,6 +522,11 @@ class _ClientAverage extends StatelessWidget {
     final l10n = context.l10n;
     final target = report.target;
     final unassigned = report.unassignedCount;
+    final n = _sampleN(report.client.count);
+    // The client line is computed from `client.count` rows, and a client line
+    // off two scorecards is not a line anybody should be ranked against. The
+    // tile steps to ink-2, outlines the meter fill and drops the delta.
+    final sampling = FigureSampling(kind: _metricKind(report.metric), n: n);
 
     return StatCluster(
       semanticsLabel: l10n.trendsClientAverage,
@@ -502,6 +536,11 @@ class _ClientAverage extends StatelessWidget {
           eyebrow: l10n.trendsClientAverage,
           value: average,
           unit: unit,
+          sampling: sampling,
+          // The kit's own default is `from $n`, which is English. The count
+          // is already in this screen's vocabulary — "2 scorecards" — so the
+          // screen hands it over rather than letting the kit invent one.
+          sampleNote: n == null ? null : _samples(l10n, report.metric, n),
           meter: target == null
               ? null
               : MeterData(value: average, maximum: 100, target: target),
@@ -547,12 +586,29 @@ class _BenchmarkRow extends StatelessWidget {
   final bool last;
   final VoidCallback onTap;
 
+  /// What this territory's own figure was computed from. `count` is the wire's
+  /// row count — scorecards, stock lines, visits with facings — and a count
+  /// below the metric's threshold is the whole reason this getter exists.
+  FigureSampling get _sampling => FigureSampling(
+    kind: _metricKind(report.metric),
+    n: _sampleN(territory.count),
+  );
+
+  /// A real figure computed off too few rows. Not the same as no figure: the
+  /// number is arithmetically true and epistemically worthless, so it is drawn
+  /// at ink-2 with the fill outlined and **the verdict taken off it**.
+  bool get _thin => territory.average != null && _sampling.isLowSample;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
     final average = territory.average;
-    final word = _positionWord(l10n, territory.position);
+    // "Above average" is a delta wearing a word. A delta never stands beside
+    // a figure this thin, so neither does the word.
+    final word = _thin
+        ? l10n.trendsSmallSample
+        : _positionWord(l10n, territory.position);
     final rank = territory.rank;
 
     return SoftRow(
@@ -574,10 +630,13 @@ class _BenchmarkRow extends StatelessWidget {
       ),
       meta: average == null
           ? null
+          // Outline against fill, not a paler fill: a shape distinction is the
+          // one that survives greyscale, sun and deuteranopia.
           : Meter(
               value: average,
               maximum: 100,
               target: clientAverage,
+              state: _thin ? MeterState.lowSample : MeterState.filled,
               semanticsValue: l10n.trendsMeterHint(
                 territory.territoryName,
                 average.round(),
@@ -599,9 +658,21 @@ class _BenchmarkRow extends StatelessWidget {
             value: average,
             role: skin.text.figureS,
             unit: average == null ? TiqUnit.none : unit,
-            state: average == null ? FigureState.missing : FigureState.measured,
+            state: average == null
+                ? FigureState.missing
+                : _thin
+                ? FigureState.lowSample
+                : FigureState.measured,
             textAlign: TextAlign.end,
-            semanticsLabel: average == null ? l10n.trendsNotMeasured : null,
+            // The figure AND its qualification in one utterance. A reader who
+            // hears "92 percent" and only then, a beat later, "small sample"
+            // has already acted on the first half.
+            semanticsLabel: average == null
+                ? l10n.trendsNotMeasured
+                : _thin
+                ? '${TiqNumber.of(context).format(average, unit: unit)}, '
+                      '${l10n.trendsSmallSample}'
+                : null,
           ),
           Text(
             word,
@@ -627,6 +698,11 @@ class _BenchmarkRow extends StatelessWidget {
     final average = territory.average;
     if (average == null) return l10n.trendsNothingMeasuredHere;
     final samples = _samples(l10n, report.metric, territory.count);
+    // unify line 271: low sample removes the delta. "37 points above the
+    // client average" off two stock lines is a hard verdict computed from two
+    // observations, drawn exactly like one computed from two hundred, and it
+    // is the kind of number an agent gets reassigned over.
+    if (_thin) return l10n.trendsTooFewToCompare(samples);
     final delta = territory.deltaFromClient;
     // Through TiqNumber even inside a sentence. `toStringAsFixed` writes the C
     // locale's decimal point, so "4,5 punte" would read "4.5 punte" on an
@@ -658,11 +734,18 @@ class _BenchmarkChart extends StatelessWidget {
     required this.territory,
     required this.report,
     required this.unit,
+    required this.asTable,
+    required this.onViewChanged,
   });
 
   final TerritoryBenchmark territory;
   final TerritoryBenchmarkReport report;
   final TiqUnit unit;
+
+  /// Whether the reader asked for the table. Veld ignores it and shows the
+  /// table regardless, because Veld draws no plot at all.
+  final bool asTable;
+  final ValueChanged<bool> onViewChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -680,21 +763,22 @@ class _BenchmarkChart extends StatelessWidget {
       );
     }
 
-    double? valueAt(List<TrendPoint> points, String period) {
-      for (final p in points) {
-        if (p.period == period) return p.value;
-      }
-      return null;
+    // Looked up BY PERIOD, never by position: a territory that lost a week
+    // must get a hole, not a shifted line.
+    List<ChartReading> readings(List<TrendPoint> points) {
+      final byPeriod = <String, TrendPoint>{
+        for (final p in points) p.period: p,
+      };
+      return <ChartReading>[
+        for (final period in periods)
+          ChartReading(
+            label: formatPeriodLabel(period),
+            longLabel: period,
+            value: byPeriod[period]?.value,
+            sampleSize: _sampleN(byPeriod[period]?.count ?? 0),
+          ),
+      ];
     }
-
-    List<ChartReading> readings(List<TrendPoint> points) => <ChartReading>[
-      for (final period in periods)
-        ChartReading(
-          label: formatPeriodLabel(period),
-          longLabel: period,
-          value: valueAt(points, period),
-        ),
-    ];
 
     final subject = ChartSeries(
       name: territory.territoryName,
@@ -706,19 +790,32 @@ class _BenchmarkChart extends StatelessWidget {
       readings: readings(report.client.points),
     );
     final gaps = subject.gaps;
+    final veld = context.skin.mode == SkinMode.veld;
+    final kind = _metricKind(report.metric);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         SectionRule(l10n.trendsAgainstClient(territory.territoryName)),
-        const SizedBox(height: TiqSpace.s4),
-        if (context.skin.mode == SkinMode.veld)
+        // Veld draws no plot, so the toggle would be a control with one
+        // working position — the same reasoning as the over-time panels.
+        if (veld)
+          const SizedBox(height: TiqSpace.s4)
+        else ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          _ViewToggle(asTable: asTable, onChanged: onViewChanged),
+          const SizedBox(height: TiqSpace.s4),
+        ],
+        if (veld || asTable)
           TableTwin(
+            key: const ValueKey<String>('benchmark-table'),
             series: <ChartSeries>[subject, comparison],
             unit: unit,
             periodHeading: l10n.trendsPeriod,
             notMeasuredWord: l10n.trendsNotMeasured,
+            sampleKind: kind,
+            lowSampleWord: l10n.trendsSmallSample,
             semanticsLabel: territory.territoryName,
           )
         else
@@ -738,6 +835,9 @@ class _BenchmarkChart extends StatelessWidget {
               periods.length,
             ),
             notMeasuredWord: l10n.trendsNotMeasured,
+            dashedWord: l10n.trendsDashed,
+            sampleKind: kind,
+            lowSampleWord: l10n.trendsSmallSample,
             gapNote: gaps == 0 ? null : l10n.trendsGapNote(gaps),
             scrubHint: l10n.trendsScrubHint,
           ),
@@ -745,6 +845,30 @@ class _BenchmarkChart extends StatelessWidget {
     );
   }
 }
+
+/// What kind of quantity a benchmark metric is, for the sample threshold.
+///
+/// The scorecard benchmark is a **mean of weighted scores** — the server sends
+/// it with `unit: 'score'` — so it takes the average threshold of 3. The other
+/// three come back as `unit: 'percent'` and are rates, which is the most
+/// sample-sensitive thing this product shows: 100% off one stock line is
+/// arithmetically true and epistemically worthless.
+MetricKind _metricKind(BenchmarkMetric metric) => switch (metric) {
+  BenchmarkMetric.scorecards => MetricKind.average,
+  BenchmarkMetric.perfectStore ||
+  BenchmarkMetric.availability ||
+  BenchmarkMetric.shareOfShelf => MetricKind.rate,
+};
+
+/// The wire's row count as a sample size, or null.
+///
+/// `count` defaults to 0 when the field is absent, and the two cases are not
+/// the same thing: the server omits an empty bucket rather than sending one,
+/// so a point that exists always measured something and a 0 here means
+/// "nobody sent a count". Passing that 0 on as `n` would mark **every** figure
+/// low-sample the day the field is dropped — the low-sample rule failing in
+/// the direction that looks like diligence.
+int? _sampleN(int count) => count <= 0 ? null : count;
 
 String _metricLabel(AppLocalizations l10n, BenchmarkMetric metric) =>
     switch (metric) {

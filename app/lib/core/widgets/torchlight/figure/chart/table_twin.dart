@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../../design/figure_slot.dart';
 import '../../../../design/tiq_number.dart';
 import '../../../../theme/torchlight/tiq_skin.dart';
+import '../sample_threshold.dart';
 import 'chart_series.dart';
 
 /// THE NUMBERS BEHIND THE VISUAL. Canonical component 56.
@@ -31,6 +32,8 @@ class TableTwin extends StatelessWidget {
     required this.periodHeading,
     required this.notMeasuredWord,
     this.decimals,
+    this.sampleKind,
+    this.lowSampleWord,
     this.semanticsLabel,
   });
 
@@ -46,10 +49,25 @@ class TableTwin extends StatelessWidget {
   /// The words that stand in for a null figure, localised: "Not measured".
   final String notMeasuredWord;
 
+  /// What kind of quantity these readings are. Non-null makes the twin read
+  /// [ChartReading.sampleSize]: a bucket with too few rows behind it prints at
+  /// ink-2 rather than at full commitment. Null is today's behaviour — a
+  /// caller that does not know the metric's kind does not get to guess one.
+  final MetricKind? sampleKind;
+
+  /// The words a thin bucket is captioned and announced with — "Small
+  /// sample", "Klein steekproef". Required alongside [sampleKind].
+  final String? lowSampleWord;
+
   final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
+    assert(
+      sampleKind == null || lowSampleWord != null,
+      'TableTwin: a twin that steps a thin bucket down needs the words for '
+      'it. Ink-2 is not a channel a screen reader has.',
+    );
     final skin = context.skin;
     final subject = series.first;
     final rows = subject.readings;
@@ -109,9 +127,17 @@ class TableTwin extends StatelessWidget {
                         value: i < s.readings.length
                             ? s.readings[i].value
                             : null,
+                        lowSample:
+                            sampleKind != null &&
+                            i < s.readings.length &&
+                            TiqSample.isLow(
+                              sampleKind!,
+                              s.readings[i].sampleSize,
+                            ),
                         unit: unit,
                         decimals: decimals,
                         notMeasuredWord: notMeasuredWord,
+                        lowSampleWord: lowSampleWord,
                       ),
                     ),
                 ],
@@ -126,15 +152,19 @@ class TableTwin extends StatelessWidget {
 class _Cell extends StatelessWidget {
   const _Cell({
     required this.value,
+    required this.lowSample,
     required this.unit,
     required this.decimals,
     required this.notMeasuredWord,
+    required this.lowSampleWord,
   });
 
   final double? value;
+  final bool lowSample;
   final TiqUnit unit;
   final int? decimals;
   final String notMeasuredWord;
+  final String? lowSampleWord;
 
   @override
   Widget build(BuildContext context) {
@@ -164,12 +194,39 @@ class _Cell extends StatelessWidget {
         ],
       );
     }
-    return FigureSlot(
-      value: value,
-      role: skin.text.figureS,
-      unit: unit,
-      decimals: decimals,
-      textAlign: TextAlign.end,
+    if (!lowSample) {
+      return FigureSlot(
+        value: value,
+        role: skin.text.figureS,
+        unit: unit,
+        decimals: decimals,
+        textAlign: TextAlign.end,
+      );
+    }
+    // The figure AND the words, for the same reason the null cell carries
+    // both: ink-2 against ink-1 is a contrast step a reader in sunlight, in
+    // greyscale or on a screen reader does not get.
+    final word = lowSampleWord ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        FigureSlot(
+          value: value,
+          role: skin.text.figureS,
+          unit: unit,
+          decimals: decimals,
+          state: FigureState.lowSample,
+          textAlign: TextAlign.end,
+          semanticsLabel:
+              '${TiqNumber.of(context).format(value, unit: unit, decimals: decimals)}, $word',
+        ),
+        Text(
+          word,
+          textAlign: TextAlign.end,
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+      ],
     );
   }
 }
