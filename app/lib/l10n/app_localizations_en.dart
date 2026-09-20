@@ -4340,6 +4340,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Agents who could not check in where the pin says the store is.';
 
   @override
+  String get pickerSelected => 'Selected';
+
+  @override
   String get outletsPinReported => 'Pin reported';
 
   @override
@@ -4398,11 +4401,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outletFieldLatitudeHelp =>
-      'Between -90 and 90. Johannesburg is about -26,2.';
+      'Between -90 and 90. Johannesburg is about -26.2.';
 
   @override
   String get outletFieldLongitudeHelp =>
-      'Between -180 and 180. Johannesburg is about 28,0.';
+      'Between -180 and 180. Johannesburg is about 28.0.';
 
   @override
   String get outletFieldStatus => 'Status';
@@ -4425,7 +4428,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outletCoordinateNotANumber =>
-      'Enter a number, for example -26,2041';
+      'Enter a number, for example -26.2041';
 
   @override
   String get outletLatitudeOutOfRange => 'A latitude is between -90 and 90';
@@ -4544,6 +4547,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String outletPhotoReceived(String when) {
     return 'Received $when';
+  }
+
+  @override
+  String outletDisputePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count storefront photographs attached',
+      one: '1 storefront photograph attached',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -4700,6 +4714,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String ordersRowSubtitle(String status, String lines) {
     return '$status · $lines';
   }
+
+  @override
+  String get ordersStoreListLoading => 'Store list still loading';
+
+  @override
+  String get ordersStoreListUnavailable => 'Store list did not load';
 
   @override
   String get ordersUnknownStore => 'Store not on this list';
@@ -4901,6 +4921,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add stores to the plan to give the agent a route.';
 
   @override
+  String get beatPlanStopUnknownStore => 'Store not on this list';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Store list still loading';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Store list did not load';
+
+  @override
   String beatPlanStopLabel(String sequence) {
     return 'Stop $sequence';
   }
@@ -5080,6 +5109,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'No target is set at this level, so there is nothing to attain.';
 
   @override
+  String get salesLevelZeroTarget =>
+      'Every target at this level is 0 units, so there is nothing to attain.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'The share of target was not worked out for this level.';
+
+  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5101,6 +5138,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'No target';
+
+  @override
+  String get salesZeroTarget => 'Target of 0 units';
 
   @override
   String salesNoTargetsHeadline(String month) {

@@ -75,6 +75,30 @@ const SalesAttainmentReport _noTargets = SalesAttainmentReport(
   ],
 );
 
+/// A TARGET OF NOUGHT UNITS, which is not the absence of a target.
+///
+/// The API accepts it (`targetUnits < 0` is all it refuses), this screen's own
+/// sheet creates it — a manager delisting a SKU sets it to 0 — and the server
+/// then answers `attainmentPct: null`, because the share of nothing is not a
+/// number. Every #396 fixture used `targetUnits: null` instead, which is why
+/// the panel could assert its way to a red box in debug and a bare em dash in
+/// release without a test noticing.
+const SalesAttainmentReport _zeroUnitTarget = SalesAttainmentReport(
+  month: '2026-09',
+  timeZone: 'Africa/Johannesburg',
+  skus: <SkuAttainment>[
+    SkuAttainment(
+      skuId: 'chips',
+      skuName: 'Chips 125g',
+      category: 'Snacks',
+      targetId: 't-chips',
+      targetUnits: 0,
+      actualUnits: 4,
+    ),
+  ],
+  client: AttainmentLevel(targets: 1, targetUnits: 0, actualUnits: 4),
+);
+
 const SalesAttainmentReport _noSkus = SalesAttainmentReport(
   month: '2026-09',
   timeZone: 'Africa/Johannesburg',
@@ -325,6 +349,117 @@ void main() {
       // 75% is behind, and behind is crimson plus the word.
       expect(row.severity, SoftRowSeverity.critical);
       expect(row.severityLabel, 'Behind');
+    });
+  });
+
+  group('a target of nought units is not the absence of one', () {
+    testWidgets('the panel renders at all, with the reason in words', (
+      tester,
+    ) async {
+      // THE FAILURE, WRITTEN DOWN: "measured" was read off `targets > 0` while
+      // the figure came from `attainmentPct`, which the server nulls whenever
+      // `targetUnits <= 0`. StatTile was handed a null with no sentence — its
+      // own assert in debug, and in release an em dash standing on its own,
+      // which is the very law this screen was rewritten to keep.
+      await _pump(tester, repo: _FakeSalesTargets(report: _zeroUnitTarget));
+      expect(tester.takeException(), isNull);
+
+      final account = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('attainment-level-Account-wide')),
+      );
+      expect(account.value, isNull);
+      expect(
+        account.noDataReason,
+        'Every target at this level is 0 units, so there is nothing to '
+        'attain.',
+      );
+      // Not a miss: nothing was asked for, so nothing was missed.
+      expect(account.severity, isNull);
+      expect(account.stateLine, isNull);
+      // The counts still stand — they are how the delisted SKU is found.
+      expect(account.subordinates, contains('1 target'));
+    });
+
+    testWidgets('the SKU row does not say both things at once', (tester) async {
+      await _pump(tester, repo: _FakeSalesTargets(report: _zeroUnitTarget));
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+      // The row printed "target 0 units" over "No target" — a target that is
+      // set and not set, in one breath and in one spoken label.
+      expect(row.subtitle, contains('target 0 units'));
+      expect(row.semanticsLabel, contains('target 0 units'));
+      expect(row.semanticsLabel, contains('Target of 0 units'));
+      expect(row.semanticsLabel, isNot(contains('. No target')));
+      expect(find.text('No target'), findsNothing);
+      expect(find.text('Target of 0 units'), findsOneWidget);
+      // Still no severity: there is nothing to be behind on.
+      expect(row.severity, SoftRowSeverity.none);
+      expect(row.severityLabel, isNull);
+    });
+
+    testWidgets('an absent target still reads as an absence', (tester) async {
+      // The other half of the pair, so the new word cannot swallow the old
+      // one: `targetUnits: null` is still "No target".
+      await _pump(tester, repo: _FakeSalesTargets(report: _noTargets));
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+      expect(row.subtitle, contains('no target set'));
+      expect(row.semanticsLabel, contains('No target'));
+      expect(find.text('Target of 0 units'), findsNothing);
+    });
+
+    testWidgets('the dashboard panel survives it too', (tester) async {
+      await pumpOperations(
+        tester,
+        const SalesAttainmentPanel(),
+        overrides: <Override>[
+          salesTargetsRepositoryProvider.overrideWithValue(
+            _FakeSalesTargets(report: _zeroUnitTarget),
+          ),
+        ],
+      );
+      expect(tester.takeException(), isNull);
+      // The zero-unit level says why; the two empty levels beside it keep
+      // their own, different reason.
+      expect(
+        find.text(
+          'Every target at this level is 0 units, so there is nothing to '
+          'attain.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'No target is set at this level, so there is nothing to '
+          'attain.',
+        ),
+        findsNWidgets(2),
+      );
+    });
+
+    testWidgets('Afrikaans says it in Afrikaans', (tester) async {
+      await _pump(
+        tester,
+        repo: _FakeSalesTargets(report: _zeroUnitTarget),
+        locale: const Locale('af'),
+      );
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+      expect(find.text('Teiken van 0 eenhede'), findsOneWidget);
+      expect(find.text('Target of 0 units'), findsNothing);
     });
   });
 

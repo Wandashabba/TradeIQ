@@ -501,14 +501,23 @@ class _StopsState extends ConsumerState<_Stops> {
     final skin = context.skin;
     final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
     final stops = widget.detail.stops;
-    final outlets = ref.watch(outletsListProvider).value;
+    // The branch is on the `AsyncValue`, not on `.value`: null is both "still
+    // walking the pages of GET /outlets" and "that request failed", and a
+    // fallback that reads the sequence back gave a row titled "Stop 1" over a
+    // subtitle reading "Stop 1" — the duplicated row title §1.15 lists as a
+    // defect this system removed.
+    final outlets = ref.watch(outletsListProvider);
 
     String nameFor(BeatPlanStop stop) =>
-        outlets
+        outlets.value
             ?.where((o) => o.id == stop.outletId)
             .map((o) => o.name)
             .firstOrNull ??
-        l10n.beatPlanStopLabel(TiqNumber.of(context).format(stop.sequence));
+        (outlets.isLoading
+            ? l10n.beatPlanStopStoreLoading
+            : outlets.hasError
+            ? l10n.beatPlanStopStoreUnavailable
+            : l10n.beatPlanStopUnknownStore);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

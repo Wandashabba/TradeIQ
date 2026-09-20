@@ -4381,6 +4381,9 @@ class AppLocalizationsAf extends AppLocalizations {
       'Agente wat nie kon inklok waar die pen sê die winkel is nie.';
 
   @override
+  String get pickerSelected => 'Gekies';
+
+  @override
   String get outletsPinReported => 'Pen aangemeld';
 
   @override
@@ -4592,6 +4595,17 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String outletDisputePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkelfront-fotos aangeheg',
+      one: '1 winkelfront-foto aangeheg',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outletPhotoAlt => 'Winkelfront-foto uit hierdie pen-verslag';
 
   @override
@@ -4746,6 +4760,12 @@ class AppLocalizationsAf extends AppLocalizations {
   String ordersRowSubtitle(String status, String lines) {
     return '$status · $lines';
   }
+
+  @override
+  String get ordersStoreListLoading => 'Winkellys laai nog';
+
+  @override
+  String get ordersStoreListUnavailable => 'Winkellys kon nie laai nie';
 
   @override
   String get ordersUnknownStore => 'Winkel nie op hierdie lys nie';
@@ -4953,6 +4973,15 @@ class AppLocalizationsAf extends AppLocalizations {
       'Voeg winkels by die plan om die agent ’n roete te gee.';
 
   @override
+  String get beatPlanStopUnknownStore => 'Winkel nie op hierdie lys nie';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Winkellys laai nog';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Winkellys kon nie laai nie';
+
+  @override
   String beatPlanStopLabel(String sequence) {
     return 'Stop $sequence';
   }
@@ -5132,6 +5161,14 @@ class AppLocalizationsAf extends AppLocalizations {
       'Geen teiken is op hierdie vlak gestel nie, so daar is niks om te behaal nie.';
 
   @override
+  String get salesLevelZeroTarget =>
+      'Elke teiken op hierdie vlak is 0 eenhede, so daar is niks om te behaal nie.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'Die persentasie van teiken is nie vir hierdie vlak uitgewerk nie.';
+
+  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5153,6 +5190,9 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'Geen teiken';
+
+  @override
+  String get salesZeroTarget => 'Teiken van 0 eenhede';
 
   @override
   String salesNoTargetsHeadline(String month) {

@@ -101,6 +101,11 @@ Future<FakeBeatPlansRepository> _pumpDetail(
   BeatPlanDetail? detail,
   Object? detailFailure,
   Object? markFailure,
+
+  /// The STORE list's own unhappy phases — a stop is titled with its store's
+  /// name, and that list has a loading state and a failure state of its own.
+  Object? outletsFailure,
+  bool outletsPending = false,
   TiqSkin? skin,
   double textScale = 1.0,
   Locale? locale,
@@ -116,10 +121,15 @@ Future<FakeBeatPlansRepository> _pumpDetail(
     skin: skin,
     textScale: textScale,
     locale: locale,
+    settle: !outletsPending,
     overrides: <Override>[
       beatPlansRepositoryProvider.overrideWithValue(repo),
       outletsRepositoryProvider.overrideWithValue(
-        FakeOpsOutletsRepository(outlets: _outlets),
+        FakeOpsOutletsRepository(
+          outlets: _outlets,
+          listFailure: outletsFailure,
+          listPending: outletsPending,
+        ),
       ),
     ],
   );
@@ -281,6 +291,66 @@ void main() {
       await _pumpDetail(tester);
       expect(find.text('Kasi Corner Spaza'), findsOneWidget);
       expect(find.text('Shoprite Klipspruit Mall'), findsOneWidget);
+    });
+
+    testWidgets('a stop with no name does not repeat its own subtitle', (
+      tester,
+    ) async {
+      // THE FAILURE, WRITTEN DOWN: the fallback title was the stop's own
+      // sequence, and the subtitle is that same sequence — a row reading
+      // "Stop 1" over "Stop 1", which is the duplicated row title unify §1.15
+      // lists as a defect this system removed. And it was reached by reading
+      // `.value` off the outlets `AsyncValue`, which is null while the list is
+      // still being walked as well as when the walk failed.
+      await _pumpDetail(tester, outletsPending: true);
+      await tester.pump(const Duration(milliseconds: 700));
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('stop-s1')),
+      );
+      expect(row.title, 'Store list still loading');
+      expect(row.subtitle, 'Stop 1');
+      expect(row.title, isNot(row.subtitle));
+    });
+
+    testWidgets('a store list that failed says that on every stop', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        outletsFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('stop-s1')),
+      );
+      expect(row.title, 'Store list did not load');
+      expect(row.subtitle, 'Stop 1');
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
+
+    testWidgets('a stop whose store is genuinely absent says so', (
+      tester,
+    ) async {
+      await _pumpDetail(
+        tester,
+        detail: _detail(
+          stops: const <BeatPlanStop>[
+            BeatPlanStop(
+              id: 's1',
+              outletId: 'gone',
+              sequence: 1,
+              visited: false,
+            ),
+          ],
+        ),
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('stop-s1')),
+      );
+      expect(row.title, 'Store not on this list');
+      expect(row.subtitle, 'Stop 1');
     });
 
     testWidgets('ticking a stop records markStopVisited', (tester) async {

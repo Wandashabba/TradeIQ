@@ -170,8 +170,18 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
     final name = need('name', _nameCtrl);
     final code = need('code', _codeCtrl);
     final channel = need('channel', _channelCtrl);
-    final lat = validateCoordinate(l10n, _latCtrl.text, latitude: true);
-    final lng = validateCoordinate(l10n, _lngCtrl.text, latitude: false);
+    final lat = validateCoordinate(
+      context,
+      l10n,
+      _latCtrl.text,
+      latitude: true,
+    );
+    final lng = validateCoordinate(
+      context,
+      l10n,
+      _lngCtrl.text,
+      latitude: false,
+    );
     if (lat != null) errors['lat'] = lat;
     if (lng != null) errors['lng'] = lng;
     if (_territoryCode == null) {
@@ -204,8 +214,8 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
       _codeCtrl.text.trim().isNotEmpty &&
       _channelCtrl.text.trim().isNotEmpty &&
       _territoryCode != null &&
-      double.tryParse(_latCtrl.text.trim()) != null &&
-      double.tryParse(_lngCtrl.text.trim()) != null;
+      parseCoordinate(context, _latCtrl.text) != null &&
+      parseCoordinate(context, _lngCtrl.text) != null;
 
   Future<void> _submit() async {
     final l10n = context.l10n;
@@ -225,8 +235,8 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
             // found — so a store can be created with the right coordinates
             // even when the phone never got a fix, which is the whole point of
             // the fields being editable.
-            lat: double.parse(values['lat']!),
-            lng: double.parse(values['lng']!),
+            lat: parseCoordinate(context, values['lat'])!,
+            lng: parseCoordinate(context, values['lng'])!,
             territoryId: _territoryCode!,
           );
       ref.invalidate(outletsListProvider);

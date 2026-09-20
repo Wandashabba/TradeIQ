@@ -5710,6 +5710,10 @@
   "@outletsPinReportsNote": {
     "description": "Sentence under the open pin reports section rule."
   },
+  "pickerSelected": "Selected",
+  "@pickerSelected": {
+    "description": "Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet."
+  },
   "outletsPinReported": "Pin reported",
   "@outletsPinReported": {
     "description": "Severity word on a row standing for an open pin report."
@@ -5783,11 +5787,11 @@
   "@outletFieldLongitude": {
     "description": "Label of the longitude field."
   },
-  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26,2.",
+  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26.2.",
   "@outletFieldLatitudeHelp": {
     "description": "Help line under the latitude field."
   },
-  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28,0.",
+  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28.0.",
   "@outletFieldLongitudeHelp": {
     "description": "Help line under the longitude field."
   },
@@ -5815,7 +5819,7 @@
   "@outletRequired": {
     "description": "Validation message for an empty required field on the outlet forms."
   },
-  "outletCoordinateNotANumber": "Enter a number, for example -26,2041",
+  "outletCoordinateNotANumber": "Enter a number, for example -26.2041",
   "@outletCoordinateNotANumber": {
     "description": "Validation message when a coordinate field holds something that is not a number."
   },
@@ -5993,6 +5997,15 @@
     "placeholders": {
       "when": {
         "type": "String"
+      }
+    }
+  },
+  "outletDisputePhotoCount": "{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}",
+  "@outletDisputePhotoCount": {
+    "description": "Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },
@@ -6219,6 +6232,14 @@
         "type": "String"
       }
     }
+  },
+  "ordersStoreListLoading": "Store list still loading",
+  "@ordersStoreListLoading": {
+    "description": "Title of an order row while the store list is still being fetched. Not \"Store not on this list\": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart."
+  },
+  "ordersStoreListUnavailable": "Store list did not load",
+  "@ordersStoreListUnavailable": {
+    "description": "Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store."
   },
   "ordersUnknownStore": "Store not on this list",
   "@ordersUnknownStore": {
@@ -6500,6 +6521,18 @@
   "@beatPlanStopsEmptyBody": {
     "description": "Body of the no-stops empty state."
   },
+  "beatPlanStopUnknownStore": "Store not on this list",
+  "@beatPlanStopUnknownStore": {
+    "description": "Title of a beat plan stop whose store is genuinely absent from the loaded store list."
+  },
+  "beatPlanStopStoreLoading": "Store list still loading",
+  "@beatPlanStopStoreLoading": {
+    "description": "Title of a beat plan stop while the store list is still being fetched."
+  },
+  "beatPlanStopStoreUnavailable": "Store list did not load",
+  "@beatPlanStopStoreUnavailable": {
+    "description": "Title of a beat plan stop when the store list failed to load."
+  },
   "beatPlanStopLabel": "Stop {sequence}",
   "@beatPlanStopLabel": {
     "description": "Title of a beat plan stop row when the store's name is not known.",
@@ -6738,6 +6771,14 @@
   "@salesLevelNoTargets": {
     "description": "Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained."
   },
+  "salesLevelZeroTarget": "Every target at this level is 0 units, so there is nothing to attain.",
+  "@salesLevelZeroTarget": {
+    "description": "Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number."
+  },
+  "salesLevelAttainmentUnknown": "The share of target was not worked out for this level.",
+  "@salesLevelAttainmentUnknown": {
+    "description": "Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total."
+  },
   "salesLevelSubordinates": "{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}",
   "@salesLevelSubordinates": {
     "description": "The units and the target count beneath an attainment figure.",
@@ -6768,6 +6809,10 @@
   "salesNoTarget": "No target",
   "@salesNoTarget": {
     "description": "Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero."
+  },
+  "salesZeroTarget": "Target of 0 units",
+  "@salesZeroTarget": {
+    "description": "Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed \"target 0 units\" and \"No target\" in the same breath said both at once."
   },
   "salesNoTargetsHeadline": "No targets for {month}.",
   "@salesNoTargetsHeadline": {
