@@ -3625,4 +3625,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contestNobodyRanked => 'Nobody has earned points yet.';
+
+  @override
+  String get wordOn => 'On';
+
+  @override
+  String get wordOff => 'Off';
+
+  @override
+  String get notificationsBackToMe => 'Back to Me';
+
+  @override
+  String get notificationsBackToToday => 'Back to Today';
+
+  @override
+  String get notificationsHeading => 'What reaches this phone';
 }

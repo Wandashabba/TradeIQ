@@ -917,5 +917,10 @@
   "contestRankEyebrow": "Jou posisie",
   "contestPointsEyebrow": "Jou punte",
   "contestRankOutOf": "{total, plural, =1{uit 1 agent} other{uit {total} agente}}",
-  "contestNobodyRanked": "Niemand het nog punte verdien nie."
+  "contestNobodyRanked": "Niemand het nog punte verdien nie.",
+  "wordOn": "Aan",
+  "wordOff": "Af",
+  "notificationsBackToMe": "Terug na Ek",
+  "notificationsBackToToday": "Terug na Vandag",
+  "notificationsHeading": "Wat hierdie foon bereik"
 }

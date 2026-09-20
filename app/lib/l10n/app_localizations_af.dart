@@ -3661,4 +3661,19 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get contestNobodyRanked => 'Niemand het nog punte verdien nie.';
+
+  @override
+  String get wordOn => 'Aan';
+
+  @override
+  String get wordOff => 'Af';
+
+  @override
+  String get notificationsBackToMe => 'Terug na Ek';
+
+  @override
+  String get notificationsBackToToday => 'Terug na Vandag';
+
+  @override
+  String get notificationsHeading => 'Wat hierdie foon bereik';
 }

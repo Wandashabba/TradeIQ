@@ -5611,6 +5611,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nobody has earned points yet.'**
   String get contestNobodyRanked;
+
+  /// The state word beside a toggle that is switched on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get wordOn;
+
+  /// The state word beside a toggle that is switched off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get wordOff;
+
+  /// Screen-reader label for the back control on the agent’s notification settings when there is a screen to return to.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Me'**
+  String get notificationsBackToMe;
+
+  /// Screen-reader label for the back control on the agent’s notification settings reached by a deep link.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Today'**
+  String get notificationsBackToToday;
+
+  /// Section marker above the notification toggles.
+  ///
+  /// In en, this message translates to:
+  /// **'What reaches this phone'**
+  String get notificationsHeading;
 }
 
 class _AppLocalizationsDelegate

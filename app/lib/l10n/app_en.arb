@@ -4774,5 +4774,25 @@
   "contestNobodyRanked": "Nobody has earned points yet.",
   "@contestNobodyRanked": {
     "description": "Shown under the Standings rule when a contest has no ranked agents."
+  },
+  "wordOn": "On",
+  "@wordOn": {
+    "description": "The state word beside a toggle that is switched on."
+  },
+  "wordOff": "Off",
+  "@wordOff": {
+    "description": "The state word beside a toggle that is switched off."
+  },
+  "notificationsBackToMe": "Back to Me",
+  "@notificationsBackToMe": {
+    "description": "Screen-reader label for the back control on the agent’s notification settings when there is a screen to return to."
+  },
+  "notificationsBackToToday": "Back to Today",
+  "@notificationsBackToToday": {
+    "description": "Screen-reader label for the back control on the agent’s notification settings reached by a deep link."
+  },
+  "notificationsHeading": "What reaches this phone",
+  "@notificationsHeading": {
+    "description": "Section marker above the notification toggles."
   }
 }
