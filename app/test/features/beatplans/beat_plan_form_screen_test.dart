@@ -1,308 +1,338 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beat_plan_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 
-class _RecordingBeatPlansRepository implements BeatPlansRepository {
-  Map<String, dynamic>? createdArgs;
+import '../../core/design/amber_golden.dart';
+import '../operations_harness.dart';
 
-  @override
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async =>
-      const PaginatedResponse(data: [], nextCursor: null);
+const List<AppUser> _users = <AppUser>[
+  AppUser(
+    id: 'a1',
+    email: 'agent-one@x.com',
+    role: 'field_agent',
+    active: true,
+    displayName: 'Aisha Patel',
+  ),
+  // An agent with no display name falls back to the address.
+  AppUser(
+    id: 'a2',
+    email: 'agent-two@x.com',
+    role: 'field_agent',
+    active: true,
+  ),
+  AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
+];
 
-  @override
-  Future<BeatPlanDetail> getBeatPlan(String id) async =>
-      throw UnimplementedError();
+const List<Territory> _territories = <Territory>[
+  Territory(id: 't1', name: 'Gauteng North', code: 'gauteng-north'),
+];
 
-  @override
-  Future<void> markStopVisited(
-    String planId,
-    String stopId,
-    bool visited,
-  ) async {}
+final List<Outlet> _outlets = <Outlet>[
+  opsOutlet('o1', 'Shop One', code: 'S1'),
+  opsOutlet('o2', 'Shop Two', code: 'S2'),
+];
 
-  @override
-  Future<BeatPlan> createBeatPlan({
-    required String agentId,
-    required String name,
-    required String scheduledDate,
-    required List<String> outletIds,
-    String? territoryId,
-  }) async {
-    createdArgs = {
-      'agentId': agentId,
-      'name': name,
-      'scheduledDate': scheduledDate,
-      'outletIds': outletIds,
-      'territoryId': territoryId,
-    };
-    return BeatPlan(
-      id: 'bp1',
-      name: name,
-      status: 'planned',
-      scheduledDate: scheduledDate,
-    );
-  }
-}
-
-class _FakeUsersRepository implements UsersRepository {
-  @override
-  Future<PaginatedResponse<AppUser>> listUsers() async =>
-      const PaginatedResponse(
-        data: [
-          AppUser(
-            id: 'a1',
-            email: 'agent-one@x.com',
-            role: 'field_agent',
-            active: true,
-            displayName: 'Aisha Patel',
-          ),
-          AppUser(
-            id: 'a2',
-            email: 'agent-two@x.com',
-            role: 'field_agent',
-            active: true,
-          ),
-          AppUser(
-            id: 'm1',
-            email: 'manager@x.com',
-            role: 'manager',
-            active: true,
-          ),
-        ],
-        nextCursor: null,
-      );
-
-  @override
-  Future<AppUser> createUser({
-    required String email,
-    required String password,
-    required String role,
-    String? displayName,
-  }) async => throw UnimplementedError();
-
-  @override
-  Future<AppUser> setActive(String id, bool active) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<AppUser> updateDisplayName(String id, String? displayName) async =>
-      throw UnimplementedError();
-}
-
-class _FakeTerritoriesRepository implements TerritoriesRepository {
-  @override
-  Future<PaginatedResponse<Territory>> listTerritories() async =>
-      const PaginatedResponse(
-        data: [Territory(id: 't1', name: 'Gauteng North', code: 'GN')],
-        nextCursor: null,
-      );
-
-  @override
-  Future<TerritoryCoverage> getCoverage(String id) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Territory> createTerritory({
-    required String name,
-    required String code,
-    String? region,
-  }) async => throw UnimplementedError();
-
-  @override
-  Future<void> assignAgent(String territoryId, String userId) async =>
-      throw UnimplementedError();
-}
-
-class _FakeOutletsRepository implements OutletsRepository {
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-    data: [
-      Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-      Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
+Future<FakeBeatPlansRepository> _pump(
+  WidgetTester tester, {
+  List<AppUser> users = _users,
+  List<Outlet> outlets = const <Outlet>[],
+  Object? createFailure,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+}) async {
+  final repo = FakeBeatPlansRepository(createFailure: createFailure);
+  await pumpOperations(
+    tester,
+    const BeatPlanFormScreen(),
+    skin: skin,
+    textScale: textScale,
+    locale: locale,
+    users: users,
+    overrides: <Override>[
+      beatPlansRepositoryProvider.overrideWithValue(repo),
+      territoriesRepositoryProvider.overrideWithValue(
+        FakeTerritoriesRepository(territories: _territories),
+      ),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOpsOutletsRepository(outlets: outlets.isEmpty ? _outlets : outlets),
+      ),
     ],
-    nextCursor: null,
   );
-
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) async => throw UnimplementedError();
+  return repo;
 }
 
-Widget _app(_RecordingBeatPlansRepository repo, {ThemeData? theme}) =>
-    ProviderScope(
-      overrides: [
-        beatPlansRepositoryProvider.overrideWithValue(repo),
-        usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
-        territoriesRepositoryProvider.overrideWithValue(
-          _FakeTerritoriesRepository(),
-        ),
-        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-      ],
-      child: MaterialApp(theme: theme, home: const BeatPlanFormScreen()),
-    );
+/// Name the plan, pick today, and pick the agent — everything but the stops.
+Future<void> _fillDay(WidgetTester tester) async {
+  await scrollOpsTo(
+    tester,
+    find.byKey(const ValueKey<String>('beatplan-name-field')),
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('beatplan-name-field')),
+    'North Route',
+  );
+  await tester.pumpAndSettle();
 
-/// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) =>
-    tester.widget<GlassPane>(
-      find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
+  await scrollOpsTo(
+    tester,
+    find.byKey(const ValueKey<String>('beatplan-date-pick')),
+  );
+  await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('OK'));
+  await tester.pumpAndSettle();
+
+  await pickOption(
+    tester,
+    const ValueKey<String>('beatplan-agent-field'),
+    'Aisha Patel',
+  );
+}
+
+Future<void> _addStop(WidgetTester tester, String outletId) async {
+  final row = find.byKey(ValueKey<String>('stop-available-$outletId'));
+  await scrollOpsTo(tester, row);
+  await tester.tap(row);
+  await tester.pumpAndSettle();
+}
+
+TorchPrimaryButton _submit(WidgetTester tester) =>
+    tester.widget<TorchPrimaryButton>(
+      find.byKey(const ValueKey<String>('beatplan-save-button')),
     );
 
 void main() {
-  testWidgets('lists only field agents in the agent dropdown', (tester) async {
-    await tester.pumpWidget(_app(_RecordingBeatPlansRepository()));
-    await tester.pumpAndSettle();
+  group('who works the day', () {
+    testWidgets('only field agents are offered, by name where there is one', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('beatplan-agent-field')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('beatplan-agent-field')),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('beatplan-agent-field')),
-    );
-    await tester.pumpAndSettle();
-
-    // A named agent is offered by name; an unnamed one falls back to email.
-    expect(find.text('Aisha Patel'), findsWidgets);
-    expect(find.text('agent-one@x.com'), findsNothing);
-    expect(find.text('agent-two@x.com'), findsWidgets);
-    // The manager must not be offered as a beat-plan assignee.
-    expect(find.text('manager@x.com'), findsNothing);
+      expect(find.text('Aisha Patel'), findsWidgets);
+      // A named agent is offered by name; an unnamed one falls back to email.
+      expect(find.text('agent-two@x.com'), findsWidgets);
+      // The manager must not be offered as a beat-plan assignee.
+      expect(find.text('manager@x.com'), findsNothing);
+    });
   });
 
-  testWidgets('builds and submits an ordered beat plan', (tester) async {
-    final repo = _RecordingBeatPlansRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('the stops keep their order', () {
+    testWidgets('builds and submits an ordered plan', (tester) async {
+      final repo = await _pump(tester);
+      await _fillDay(tester);
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('beatplan-name-field')),
-      'North Route',
-    );
+      // o2 first, then o1, to prove order is preserved.
+      await _addStop(tester, 'o2');
+      await _addStop(tester, 'o1');
 
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('beatplan-agent-field')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aisha Patel').last);
-    await tester.pumpAndSettle();
+      expect(repo.createCount, 1);
+      expect(repo.createdName, 'North Route');
+      expect(repo.createdAgentId, 'a1');
+      expect(repo.createdOutletIds, <String>['o2', 'o1']);
+    });
 
-    // Add both outlets: o2 first, then o1, to prove order is preserved.
-    // The form is taller than the test viewport, so scroll each control into
-    // view before interacting with it.
-    final o2 = find.byKey(const ValueKey<String>('stop-available-o2'));
-    await tester.ensureVisible(o2);
-    await tester.tap(o2);
-    await tester.pump();
-    final o1 = find.byKey(const ValueKey<String>('stop-available-o1'));
-    await tester.ensureVisible(o1);
-    await tester.tap(o1);
-    await tester.pump();
+    testWidgets('a stop can be moved earlier, and the request follows', (
+      tester,
+    ) async {
+      final repo = await _pump(tester);
+      await _fillDay(tester);
+      await _addStop(tester, 'o2');
+      await _addStop(tester, 'o1');
 
-    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
+      final up = find.byKey(const ValueKey<String>('stop-up-o1'));
+      await scrollOpsTo(tester, up);
+      await tester.tap(up);
+      await tester.pumpAndSettle();
 
-    expect(repo.createdArgs, isNotNull);
-    expect(repo.createdArgs!['name'], 'North Route');
-    expect(repo.createdArgs!['agentId'], 'a1');
-    expect(repo.createdArgs!['outletIds'], ['o2', 'o1']);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repo.createdOutletIds, <String>['o1', 'o2']);
+    });
+
+    testWidgets('a stop can be taken off again', (tester) async {
+      await _pump(tester);
+      await _fillDay(tester);
+      await _addStop(tester, 'o2');
+
+      final remove = find.byKey(const ValueKey<String>('stop-remove-o2'));
+      await scrollOpsTo(tester, remove);
+      await tester.tap(remove);
+      await tester.pumpAndSettle();
+
+      // Back in the pool, and the commit is disarmed again.
+      expect(
+        find.byKey(const ValueKey<String>('stop-available-o2')),
+        findsOneWidget,
+      );
+      expect(_submit(tester).onPressed, isNull);
+    });
+
+    testWidgets('every reorder control names the store it acts on', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _fillDay(tester);
+      await _addStop(tester, 'o2');
+      await _addStop(tester, 'o1');
+
+      final handle = tester.ensureSemantics();
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('stop-up-o1')),
+      );
+      // The old screen shipped three IconButtons with tooltips and no
+      // labels: a reader heard "button" three times per stop.
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey<String>('stop-up-o1')))
+            .label,
+        contains('Move Shop One earlier'),
+      );
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey<String>('stop-remove-o1')))
+            .label,
+        contains('Take Shop One off the plan'),
+      );
+      handle.dispose();
+    });
   });
 
-  testWidgets('blocks submit when no agent is selected', (tester) async {
-    final repo = _RecordingBeatPlansRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('the commit', () {
+    testWidgets('is disarmed until the plan is complete, and says why', (
+      tester,
+    ) async {
+      final repo = await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('beatplan-name-field')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('beatplan-name-field')),
+        'No Agent',
+      );
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('beatplan-name-field')),
-      'No Agent',
-    );
-    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
+      final button = _submit(tester);
+      expect(button.onPressed, isNull);
+      expect(
+        button.blockedReason,
+        'Name the plan, pick a date and an agent, and add at least one stop '
+        'first.',
+      );
+      expect(repo.createCount, 0);
+    });
 
-    expect(find.textContaining('Select a field agent'), findsOneWidget);
-    expect(repo.createdArgs, isNull);
+    testWidgets('a failure says nothing was saved', (tester) async {
+      await _pump(
+        tester,
+        createFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      await _fillDay(tester);
+      await _addStop(tester, 'o1');
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('beatplan-save-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('That plan was not created. Nothing was saved.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      await settleOpsToasts(tester);
+    });
   });
 
-  testWidgets('light: plan and stops are glass panels, stops are tiles', (
-    tester,
-  ) async {
-    final repo = _RecordingBeatPlansRepository();
-    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
-    await tester.pumpAndSettle();
+  group('the wire format', () {
+    test('a date is sent zero-padded, as a calendar date', () {
+      expect(BeatPlanFormScreen.wireDate(DateTime(2026, 7, 4)), '2026-07-04');
+      expect(BeatPlanFormScreen.wireDate(DateTime(2026, 11, 30)), '2026-11-30');
+    });
+  });
 
-    expect(_paneAround(tester, find.text('PLAN')).kind, GlassKind.panel);
-    expect(
-      _paneAround(tester, find.text('STOPS (IN ORDER)')).kind,
-      GlassKind.panel,
-    );
-    expect(find.text('0 stops'), findsOneWidget);
+  group('Afrikaans and 2.0x', () {
+    testWidgets('Afrikaans has no English left on it', (tester) async {
+      await _pump(tester, locale: const Locale('af'));
+      expect(find.text('Nuwe besoekplan'), findsWidgets);
+      expect(find.text('Die dag'), findsOneWidget);
+      expect(find.text('Plannaam'), findsOneWidget);
+      expect(find.text('The day'), findsNothing);
+    });
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('beatplan-name-field')),
-      'North Route',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('beatplan-agent-field')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aisha Patel').last);
-    await tester.pumpAndSettle();
+    testWidgets('2.0x does not overflow', (tester) async {
+      await _pump(tester, textScale: 2.0);
+      expect(tester.takeException(), isNull);
+    });
+  });
 
-    for (final id in ['o2', 'o1']) {
-      final available = find.byKey(ValueKey<String>('stop-available-$id'));
-      expect(_paneAround(tester, available).kind, GlassKind.tile);
-      await tester.ensureVisible(available);
-      await tester.tap(available);
-      await tester.pump();
+  group('the amber census, every phase in every skin', () {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      testWidgets('${skin.mode.name}, nothing filled in: 0', (tester) async {
+        await _pump(tester, skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'beat-plan-form',
+          phase: 'form',
+        );
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+
+      testWidgets('${skin.mode.name}, complete: 1', (tester) async {
+        await _pump(tester, skin: skin);
+        await _fillDay(tester);
+        await _addStop(tester, 'o1');
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'beat-plan-form',
+          phase: 'ready',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
     }
-
-    // The sequence rides in a status tile, a count in mono.
-    final first = find.byKey(const ValueKey<String>('stop-selected-o2'));
-    expect(_paneAround(tester, first).kind, GlassKind.tile);
-    expect(
-      tester
-          .widget<StatusTile>(
-            find.descendant(of: first, matching: find.byType(StatusTile)),
-          )
-          .glyph,
-      '1',
-    );
-    expect(find.text('2 stops'), findsOneWidget);
-
-    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
-    expect(tester.widget(save), isA<GlassPrimaryButton>());
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-
-    expect(repo.createdArgs!['outletIds'], ['o2', 'o1']);
   });
 }

@@ -52,6 +52,15 @@ class BeatPlanFormScreen extends ConsumerWidget {
   /// "Create the plan". Rung 1, and the only claim this route makes.
   static const String submitClaimId = 'beat-plan-submit';
 
+  /// The wire's format for `scheduledDate`: a calendar date, zero-padded.
+  ///
+  /// Not `DateFormat`: this is a machine format the server parses, and it
+  /// must not follow the reader's locale the way every date on screen does.
+  static String wireDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const ConsoleTorchlightRoute(child: _BeatPlanForm());
@@ -89,12 +98,6 @@ class _BeatPlanFormState extends ConsumerState<_BeatPlanForm> {
       ..dispose();
     super.dispose();
   }
-
-  /// The wire's format: a calendar date, zero-padded.
-  static String wireDate(DateTime date) =>
-      '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
 
   Future<void> _pickDate() async {
     // The one Material control left on a Torchlight route. The kit has no
@@ -140,7 +143,7 @@ class _BeatPlanFormState extends ConsumerState<_BeatPlanForm> {
           .createBeatPlan(
             agentId: _agentId!,
             name: _nameCtrl.text.trim(),
-            scheduledDate: wireDate(_scheduledDate!),
+            scheduledDate: BeatPlanFormScreen.wireDate(_scheduledDate!),
             outletIds: List<String>.of(_stopIds),
             territoryId: _territoryId,
           );

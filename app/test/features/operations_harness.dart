@@ -511,6 +511,11 @@ Future<void> pumpOperations(
   double textScale = 1.0,
   Locale? locale,
   List<Override> overrides = const <Override>[],
+
+  /// The roster, as GET /users answers it. A named parameter rather than an
+  /// override, because riverpod refuses the same provider twice in one scope
+  /// and every operations screen that names a person needs this one.
+  List<AppUser> users = const <AppUser>[],
   String path = '/screen',
   bool settle = true,
 }) async {
@@ -532,7 +537,9 @@ Future<void> pumpOperations(
         color: resolved.palette.ground,
         child: ProviderScope(
           overrides: <Override>[
-            usersRepositoryProvider.overrideWithValue(FakeOpsUsersRepository()),
+            usersRepositoryProvider.overrideWithValue(
+              FakeOpsUsersRepository(users),
+            ),
             photosRepositoryProvider.overrideWithValue(
               FakeOpsPhotosRepository(bytes: opsPngBytes),
             ),
