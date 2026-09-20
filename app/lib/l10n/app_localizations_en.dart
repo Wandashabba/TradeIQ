@@ -5080,6 +5080,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'No target is set at this level, so there is nothing to attain.';
 
   @override
+  String get salesLevelZeroTarget =>
+      'Every target at this level is 0 units, so there is nothing to attain.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'The share of target was not worked out for this level.';
+
+  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5101,6 +5109,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'No target';
+
+  @override
+  String get salesZeroTarget => 'Target of 0 units';
 
   @override
   String salesNoTargetsHeadline(String month) {

@@ -8006,6 +8006,18 @@ abstract class AppLocalizations {
   /// **'No target is set at this level, so there is nothing to attain.'**
   String get salesLevelNoTargets;
 
+  /// Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Every target at this level is 0 units, so there is nothing to attain.'**
+  String get salesLevelZeroTarget;
+
+  /// Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total.
+  ///
+  /// In en, this message translates to:
+  /// **'The share of target was not worked out for this level.'**
+  String get salesLevelAttainmentUnknown;
+
   /// The units and the target count beneath an attainment figure.
   ///
   /// In en, this message translates to:
@@ -8035,6 +8047,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No target'**
   String get salesNoTarget;
+
+  /// Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed "target 0 units" and "No target" in the same breath said both at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Target of 0 units'**
+  String get salesZeroTarget;
 
   /// Inline empty state when the month has no targets at all.
   ///

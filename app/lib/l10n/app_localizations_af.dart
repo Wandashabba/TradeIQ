@@ -5132,6 +5132,14 @@ class AppLocalizationsAf extends AppLocalizations {
       'Geen teiken is op hierdie vlak gestel nie, so daar is niks om te behaal nie.';
 
   @override
+  String get salesLevelZeroTarget =>
+      'Elke teiken op hierdie vlak is 0 eenhede, so daar is niks om te behaal nie.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'Die persentasie van teiken is nie vir hierdie vlak uitgewerk nie.';
+
+  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5153,6 +5161,9 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'Geen teiken';
+
+  @override
+  String get salesZeroTarget => 'Teiken van 0 eenhede';
 
   @override
   String salesNoTargetsHeadline(String month) {

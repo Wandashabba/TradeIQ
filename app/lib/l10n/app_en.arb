@@ -6738,6 +6738,14 @@
   "@salesLevelNoTargets": {
     "description": "Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained."
   },
+  "salesLevelZeroTarget": "Every target at this level is 0 units, so there is nothing to attain.",
+  "@salesLevelZeroTarget": {
+    "description": "Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number."
+  },
+  "salesLevelAttainmentUnknown": "The share of target was not worked out for this level.",
+  "@salesLevelAttainmentUnknown": {
+    "description": "Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total."
+  },
   "salesLevelSubordinates": "{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}",
   "@salesLevelSubordinates": {
     "description": "The units and the target count beneath an attainment figure.",
@@ -6768,6 +6776,10 @@
   "salesNoTarget": "No target",
   "@salesNoTarget": {
     "description": "Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero."
+  },
+  "salesZeroTarget": "Target of 0 units",
+  "@salesZeroTarget": {
+    "description": "Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed \"target 0 units\" and \"No target\" in the same breath said both at once."
   },
   "salesNoTargetsHeadline": "No targets for {month}.",
   "@salesNoTargetsHeadline": {
