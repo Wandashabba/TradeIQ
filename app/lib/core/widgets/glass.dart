@@ -726,28 +726,3 @@ class AmbientSpin extends StatelessWidget {
         : Transform.rotate(angle: t * 2 * math.pi, child: child),
   );
 }
-
-/// The one-shot entrance the score card makes: up 14px and in, once.
-class GlassRise extends StatelessWidget {
-  const GlassRise({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (reduceMotion(context)) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: LumenGlass.rise,
-      curve: LumenGlass.riseCurve,
-      builder: (context, t, child) => Opacity(
-        opacity: t.clamp(0, 1),
-        child: Transform.translate(
-          offset: Offset(0, 14 * (1 - t)),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
-}

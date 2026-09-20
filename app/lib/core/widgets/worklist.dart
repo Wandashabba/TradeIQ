@@ -150,84 +150,6 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// One cell of the triage strip: a state and how many are in it.
-typedef TriageCount = ({String label, int count, StatusLevel level});
-
-/// The counts-by-state strip that heads a worklist — read before the list.
-class TriageStrip extends StatelessWidget {
-  const TriageStrip({super.key, required this.counts, this.trailing});
-
-  final List<TriageCount> counts;
-
-  /// An optional non-count cell, e.g. "Median time to ack · 4.2 hours".
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final cells = <Widget>[
-      for (final c in counts)
-        _TriageCell(
-          key: ValueKey('triage-${c.label.toLowerCase()}'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StatusChip(label: c.label, level: c.level),
-              const SizedBox(height: 3),
-              Text(
-                '${c.count}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.4,
-                  color: c.count == 0 ? colors.ink3 : c.level.colorOf(colors),
-                ),
-              ),
-            ],
-          ),
-        ),
-      if (trailing != null) _TriageCell(child: trailing!),
-    ];
-
-    return PanelCard(
-      padded: false,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < cells.length; i++)
-              Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: i == cells.length - 1
-                            ? Colors.transparent
-                            : colors.line,
-                      ),
-                    ),
-                  ),
-                  child: cells[i],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TriageCell extends StatelessWidget {
-  const _TriageCell({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) =>
-      Padding(padding: const EdgeInsets.fromLTRB(14, 11, 14, 11), child: child);
-}
-
 /// The shared card shell for a worklist row: the panel-language chrome plus
 /// the coloured left edge, single-sourced so the concentric clip and the
 /// decoration exist in exactly ONE place.
@@ -634,46 +556,6 @@ class RowAction extends StatelessWidget {
           ),
         ),
         child: Text(label),
-      ),
-    );
-  }
-}
-
-/// The one filter row that scopes everything beneath it. Never put a filter
-/// inside a panel — a per-panel filter is a lie waiting to happen, because two
-/// panels can then disagree about what slice you are looking at.
-class FilterRow extends StatelessWidget {
-  const FilterRow({super.key, required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      return GlassPane(
-        radius: LumenGlass.radiusControl,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        child: Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          runSpacing: 6,
-          children: children,
-        ),
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 10,
-        runSpacing: 6,
-        children: children,
       ),
     );
   }
