@@ -2448,3 +2448,42 @@ and error, not only the happy one.
 * **A map on the outlet create form.** #386 gives it **editable lat/lng**, and
   that is preserved exactly; a picker map would be a second way to set the
   same pair and a second thing to keep honest about accuracy.
+
+### 18.10 Five repairs after the check
+
+A checker went back over the merged group and found five defects. All five
+were real, and each is worth recording because each is a shape that will
+recur.
+
+* **A screen that tells you what to type must accept it.** The coordinate
+  fields' help line and refusal both printed a **comma** decimal — the mark an
+  Afrikaans keyboard offers — while `double.tryParse` behind them knew one
+  notation. The pre-migration field had an `inputFormatters` filter that made
+  the comma untypeable; the filter went with the field and nothing replaced
+  it, so the screen went from *impossible to type* to *typed and rejected*,
+  with the refusal quoting the manager's own comma back at her. Read a typed
+  figure with **`TiqNumber.parse`**, which already knows both notations, and
+  keep the copy, the example and the parser agreeing per locale. A capability
+  that only a test can see has left the building.
+* **"Measured" is the figure being there, not a row being there.** The
+  attainment panel read measured off `targets > 0` while the number came from
+  `attainmentPct`, which the server nulls for a target of nought units — a
+  target the API accepts and this screen's own sheet creates. `StatTile` got a
+  null with no sentence: its assert in debug, a bare em dash in release. And a
+  **target of zero is not the absence of a target**: the row said "target 0
+  units" and "No target" in one breath. #396 has a third case, and it needs
+  its own words.
+* **`SoftRow.meta` is inside the excluded label.** Evidence put there is
+  painted and announced nowhere as soon as the row carries verbs — including
+  the sentence saying *why* a verb beside it is dead. A row whose meta carries
+  words a reader needs takes an explicit `semanticsLabel`; the guard that
+  catches unpressable buttons cannot catch missing words.
+* **A mark is not a channel on its own.** `TiqMark` has no semantics node, so
+  the tick on the picker's selected option was silence to a reader and colour
+  to everyone else. Selection says **`Selected`** in the row's own label,
+  first, the way severity does.
+* **Branch on the `AsyncValue`, never on `.value`.** `.value` is null while a
+  list loads *and* when it failed, so "Store not on this list" was stated as
+  fact about every order in the account on a slow link or a 502. Loading says
+  loading, a failure says the list did not load, and the honest claim is kept
+  for the case that is genuinely loaded and genuinely absent.

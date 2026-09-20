@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../l10n/l10n.dart';
 import '../../../design/tiq_number.dart' show emDash;
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../mark/tiq_mark.dart';
@@ -273,6 +274,23 @@ class _OptionRow<T> extends StatelessWidget {
       // Selection is a mark plus a fill plus a weight everywhere in this
       // system; in a list of rows the mark is what a row has room for, and the
       // row's own semantics label carries the word.
+      //
+      // It has to carry it **by name**. `TiqMark` has no semantics node of its
+      // own, the row has no `actions` and no `trailingIsControl`, so the row
+      // drops every descendant node and speaks its title and detail only: the
+      // tick was the single channel, which is both silence to a reader and
+      // colour-as-the-only-signal. A manager reopening the territory picker
+      // could not tell which territory was already set without leaving the
+      // sheet to read the trough — and on a locked edit sheet, not at all.
+      //
+      // The word goes first, as severity does on every other row: a listener
+      // walking nine options should not have to hold each name in mind until
+      // its last syllable.
+      semanticsLabel: <String?>[
+        if (selected) context.l10n.pickerSelected,
+        option.label,
+        option.detail,
+      ].whereType<String>().where((s) => s.isNotEmpty).join('. '),
       trailing: selected
           ? TiqMark(
               shape: MarkShape.sectionTickDisc,

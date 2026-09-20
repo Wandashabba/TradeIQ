@@ -6788,6 +6788,12 @@ abstract class AppLocalizations {
   /// **'Agents who could not check in where the pin says the store is.'**
   String get outletsPinReportsNote;
 
+  /// Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get pickerSelected;
+
   /// Severity word on a row standing for an open pin report.
   ///
   /// In en, this message translates to:
@@ -6881,13 +6887,13 @@ abstract class AppLocalizations {
   /// Help line under the latitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -90 and 90. Johannesburg is about -26,2.'**
+  /// **'Between -90 and 90. Johannesburg is about -26.2.'**
   String get outletFieldLatitudeHelp;
 
   /// Help line under the longitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -180 and 180. Johannesburg is about 28,0.'**
+  /// **'Between -180 and 180. Johannesburg is about 28.0.'**
   String get outletFieldLongitudeHelp;
 
   /// Label of the outlet status choice row.
@@ -6929,7 +6935,7 @@ abstract class AppLocalizations {
   /// Validation message when a coordinate field holds something that is not a number.
   ///
   /// In en, this message translates to:
-  /// **'Enter a number, for example -26,2041'**
+  /// **'Enter a number, for example -26.2041'**
   String get outletCoordinateNotANumber;
 
   /// Validation message when a latitude is off the globe.
@@ -7123,6 +7129,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Received {when}'**
   String outletPhotoReceived(String when);
+
+  /// Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}'**
+  String outletDisputePhotoCount(int count);
 
   /// Semantic label of a pin-report photograph.
   ///
@@ -7369,6 +7381,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{status} · {lines}'**
   String ordersRowSubtitle(String status, String lines);
+
+  /// Title of an order row while the store list is still being fetched. Not "Store not on this list": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get ordersStoreListLoading;
+
+  /// Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get ordersStoreListUnavailable;
 
   /// Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title.
   ///
@@ -7724,6 +7748,24 @@ abstract class AppLocalizations {
   /// **'Add stores to the plan to give the agent a route.'**
   String get beatPlanStopsEmptyBody;
 
+  /// Title of a beat plan stop whose store is genuinely absent from the loaded store list.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get beatPlanStopUnknownStore;
+
+  /// Title of a beat plan stop while the store list is still being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get beatPlanStopStoreLoading;
+
+  /// Title of a beat plan stop when the store list failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get beatPlanStopStoreUnavailable;
+
   /// Title of a beat plan stop row when the store's name is not known.
   ///
   /// In en, this message translates to:
@@ -8006,6 +8048,18 @@ abstract class AppLocalizations {
   /// **'No target is set at this level, so there is nothing to attain.'**
   String get salesLevelNoTargets;
 
+  /// Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Every target at this level is 0 units, so there is nothing to attain.'**
+  String get salesLevelZeroTarget;
+
+  /// Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total.
+  ///
+  /// In en, this message translates to:
+  /// **'The share of target was not worked out for this level.'**
+  String get salesLevelAttainmentUnknown;
+
   /// The units and the target count beneath an attainment figure.
   ///
   /// In en, this message translates to:
@@ -8035,6 +8089,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No target'**
   String get salesNoTarget;
+
+  /// Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed "target 0 units" and "No target" in the same breath said both at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Target of 0 units'**
+  String get salesZeroTarget;
 
   /// Inline empty state when the month has no targets at all.
   ///

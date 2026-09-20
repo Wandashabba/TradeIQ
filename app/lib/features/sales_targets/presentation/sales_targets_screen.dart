@@ -489,6 +489,18 @@ class _AttainmentRow extends StatelessWidget {
             numbers.format(targetUnits!),
           );
 
+    // …and a target of zero is not the absence of one. The row used to print
+    // "target 0 units" and then say "No target" underneath it, in the same
+    // breath and to the same screen reader, because the word was chosen off a
+    // null attainment. A nought-unit target is a target that asks for
+    // nothing: it is named as that, and it still carries no severity, because
+    // nothing is what it is being missed by.
+    final word =
+        band ??
+        (targetUnits != null && targetUnits! <= 0
+            ? l10n.salesZeroTarget
+            : l10n.salesNoTarget);
+
     return SoftRow(
       key: rowKey,
       density: SoftRowDensity.tall,
@@ -519,19 +531,12 @@ class _AttainmentRow extends StatelessWidget {
             ? 0
             : 1,
         // A missing figure is announced as the reason, never as "em dash".
-        semanticsLabel: attainmentPct == null ? l10n.salesNoTarget : null,
+        semanticsLabel: attainmentPct == null ? word : null,
       ),
-      meta: Text(
-        band ?? l10n.salesNoTarget,
-        style: skin.text.meta.style(color: skin.palette.ink3),
-      ),
+      meta: Text(word, style: skin.text.meta.style(color: skin.palette.ink3)),
       actions: Wrap(spacing: TiqSpace.s4, children: actions),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel: <String>[
-        title,
-        figures,
-        band ?? l10n.salesNoTarget,
-      ].join('. '),
+      semanticsLabel: <String>[title, figures, word].join('. '),
     );
   }
 }

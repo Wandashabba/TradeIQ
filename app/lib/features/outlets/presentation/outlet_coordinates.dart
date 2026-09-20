@@ -10,19 +10,47 @@ const TextInputType coordinateKeyboard = TextInputType.numberWithOptions(
   decimal: true,
 );
 
+/// Read back a typed coordinate **in the reader's own notation**.
+///
+/// An Afrikaans keyboard offers a comma where an English one offers a full
+/// stop, and `-26,20410` is the very string this screen's help line and its
+/// own refusal message print. Before this it went through `double.tryParse`,
+/// which knows one notation: the screen told a manager what to type, she
+/// typed it, and "Add the store" stayed dark while the refusal repeated the
+/// comma back at her. The old field carried a digits-and-dot input filter, so
+/// the comma was untypeable rather than rejected; the filter went when the
+/// field did, and nothing took over the job.
+///
+/// [TiqNumber.parse] is the kit's answer and it already knows both: it drops
+/// the locale's group separator and reads either decimal mark. The U+2212
+/// minus is folded to ASCII first, because that is the minus [formatPosition]
+/// prints two lines further up the same screen and therefore the one a
+/// manager copies.
+///
+/// Empty is null — an untyped box is not a zero — and so is anything that is
+/// not a number.
+double? parseCoordinate(BuildContext context, String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return null;
+  return TiqNumber.of(
+    context,
+  ).parse(text.replaceAll(minusSign, '-'))?.toDouble();
+}
+
 /// A typed coordinate, or the reason it is not one.
 ///
 /// Shared by the create form and the repair screen so the two cannot drift: a
 /// latitude refused on one screen and accepted on the other is how an outlet
 /// ends up off the globe.
 String? validateCoordinate(
+  BuildContext context,
   AppLocalizations l10n,
   String? value, {
   required bool latitude,
 }) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return l10n.outletRequired;
-  final parsed = double.tryParse(text);
+  final parsed = parseCoordinate(context, text);
   if (parsed == null) return l10n.outletCoordinateNotANumber;
   final bound = latitude ? 90.0 : 180.0;
   if (parsed < -bound || parsed > bound) {

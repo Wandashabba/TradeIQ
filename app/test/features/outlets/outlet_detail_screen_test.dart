@@ -620,6 +620,65 @@ void main() {
     });
   });
 
+  group('the notation the screen itself asks for', () {
+    // The same code path as the create form's, and the same failure: the help
+    // line under the field says "omtrent -26,2" and the refusal offers
+    // "-26,2041", while the parser read one notation only. A manager on an
+    // Afrikaans handset could not correct a wrong pin at all — the capability
+    // this whole screen exists for.
+    testWidgets('a comma decimal reaches the wire as a repaired pin', (
+      tester,
+    ) async {
+      final admin = await _pump(
+        tester,
+        detail: _detail(),
+        locale: const Locale('af'),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lat')),
+        '-26,26780',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lng')),
+        '27,85860',
+      );
+      await tester.pumpAndSettle();
+
+      final save = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('save-outlet')),
+      );
+      expect(save.blockedReason, isNull);
+      expect(save.onPressed, isNotNull);
+
+      await _tapAt(tester, find.byKey(const ValueKey<String>('save-outlet')));
+
+      expect(admin.updatedLat, closeTo(_shopLat, 1e-9));
+      expect(admin.updatedLng, closeTo(_shopLng, 1e-9));
+      expect(admin.updatedFromAttemptId, isNull);
+      await settleOpsToasts(tester);
+    });
+
+    testWidgets('an off-globe comma latitude is still refused', (tester) async {
+      // The forgiving parser must not become a permissive one: "91,5" is
+      // ninety-one and a half degrees north, and there is no such place.
+      final admin = await _pump(
+        tester,
+        detail: _detail(),
+        locale: const Locale('af'),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('outlet-lat')),
+        '91,5',
+      );
+      await _tapAt(tester, find.byKey(const ValueKey<String>('save-outlet')));
+
+      expect(admin.updateCount, 0);
+      expect(find.text('’n Breedtegraad is tussen -90 en 90'), findsOneWidget);
+    });
+  });
+
   group('Afrikaans and 2.0x', () {
     testWidgets('Afrikaans has no English left on it', (tester) async {
       await _pump(
@@ -646,6 +705,103 @@ void main() {
         textScale: 2.0,
       );
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the evidence is spoken, not only painted', () {
+    /// The label of the node the row with [key] owns.
+    String spoken(WidgetTester tester, String key) {
+      final node = tester.getSemantics(
+        find
+            .descendant(
+              of: find.byKey(ValueKey<String>(key)),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      return node.label;
+    }
+
+    // THE FAILURE, WRITTEN DOWN: every word of a pin report lived in
+    // `SoftRow.meta`, and `meta` sits inside the label the row excludes as
+    // soon as the row carries verbs. Painted on screen: where the agent
+    // stood, how far that is from the pin, whether the fix can be trusted,
+    // whether anyone else has ever been there, the agent's own note, the
+    // status. Spoken: "Nomsa Dlamini. Tue 15 Sep · 10:30", and two buttons.
+    // `expectEveryButtonActivatable` cannot see this — the buttons are fine
+    // and only the words are gone.
+    testWidgets('a pin report says the distance, the fix and the note', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        detail: _detail(
+          attempts: <CheckInAttemptEvidence>[_attempt(accuracyM: 9)],
+          disputes: <PinDispute>[
+            _dispute(accuracyM: 9, agentIsOnlyVisitor: true),
+          ],
+        ),
+      );
+      await _reveal(tester, find.byKey(const ValueKey<String>('dispute-d1')));
+
+      final label = spoken(tester, 'dispute-d1');
+      expect(label, contains('Nomsa Dlamini'));
+      expect(label, contains('8.4 km'), reason: 'how far from the pin');
+      expect(label, contains('Accurate to about 9 m'), reason: 'the fix');
+      expect(
+        label,
+        contains('I am standing at the till.'),
+        reason: "the agent's own words",
+      );
+      expect(
+        label,
+        contains('No other agent'),
+        reason: 'the sole-visitor caution',
+      );
+      expect(label, contains('storefront photograph'));
+      expect(label, contains('Open'), reason: 'the status');
+      handle.dispose();
+    });
+
+    testWidgets('a dead "Use their position" says why in the row label', (
+      tester,
+    ) async {
+      // The reason the verb is dead is in `meta` and nowhere else, so without
+      // this a reader hears a disabled button and no explanation anywhere on
+      // the screen.
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        detail: _detail(
+          attempts: <CheckInAttemptEvidence>[_attempt(isMocked: true)],
+          disputes: <PinDispute>[_dispute(isMocked: true)],
+        ),
+      );
+      await _reveal(tester, find.byKey(const ValueKey<String>('dispute-d1')));
+
+      expect(_button(tester, 'adopt-d1').onPressed, isNull);
+      expect(spoken(tester, 'dispute-d1'), contains('mock location'));
+      handle.dispose();
+    });
+
+    testWidgets('the reports banner speaks what saving does about them', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, detail: _detail(disputes: <PinDispute>[_dispute()]));
+      await _reveal(
+        tester,
+        find.byKey(const ValueKey<String>('outlet-disputes-banner')),
+      );
+
+      final label = spoken(tester, 'outlet-disputes-banner');
+      expect(label, contains('reported'));
+      // The body line — what saving does about a reported pin — was painted
+      // and announced nowhere.
+      expect(label.length, greaterThan(40));
+      expect(label, contains('Correcting the pin closes the report'));
+      handle.dispose();
     });
   });
 

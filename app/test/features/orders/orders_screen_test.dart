@@ -49,6 +49,13 @@ Future<FakeOrdersRepository> _pump(
   List<OrderItem> orders = const <OrderItem>[],
   Object? listFailure,
   bool listPending = false,
+
+  /// The STORE list's own two unhappy phases. An order row is titled with the
+  /// store's name, and `.value` is null while that list is being walked and
+  /// null again when the walk failed — two states the screen used to report
+  /// as a third, "Store not on this list".
+  Object? outletsFailure,
+  bool outletsPending = false,
   String role = 'manager',
   TiqSkin? skin,
   double textScale = 1.0,
@@ -65,11 +72,15 @@ Future<FakeOrdersRepository> _pump(
     skin: skin,
     textScale: textScale,
     locale: locale,
-    settle: !listPending,
+    settle: !listPending && !outletsPending,
     overrides: <Override>[
       ordersRepositoryProvider.overrideWithValue(repo),
       outletsRepositoryProvider.overrideWithValue(
-        FakeOpsOutletsRepository(outlets: _outlets),
+        FakeOpsOutletsRepository(
+          outlets: _outlets,
+          listFailure: outletsFailure,
+          listPending: outletsPending,
+        ),
       ),
       sessionControllerProvider.overrideWith(() => _Session(role)),
     ],
@@ -153,6 +164,61 @@ void main() {
       // Twice: once on the row and once in the value figure, which is a sum
       // of the one order there is.
       expect(find.text('R 149.50'), findsWidgets);
+    });
+  });
+
+  group('a store list that has not arrived is not a missing store', () {
+    // THE FAILURE, WRITTEN DOWN: the row read `.value` off the outlets
+    // `AsyncValue`, and `.value` is null both while the list is being walked —
+    // every page of GET /outlets, up to fifty of them — and when that walk
+    // failed. Every order in the account was then titled "Store not on this
+    // list": an unknown stated as a measured fact, and every row wearing the
+    // same title. The old screen was uglier and never claimed anything untrue.
+    testWidgets('while the store list is loading the row says so', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        orders: const <OrderItem>[_submitted, _confirmed],
+        outletsPending: true,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('order-ord-aaaaaaaa1')),
+      );
+      expect(row.title, 'Store list still loading');
+      expect(row.title, isNot('Store not on this list'));
+      expect(row.semanticsLabel, contains('Store list still loading'));
+      // The two rows stay apart: the ids are in the meta line.
+      expect(find.textContaining('ord-aaaaaaaa1'), findsOneWidget);
+      expect(find.textContaining('ord-bbbbbbbb2'), findsOneWidget);
+    });
+
+    testWidgets('a store list that failed says that, not that the store is '
+        'missing', (tester) async {
+      await _pump(
+        tester,
+        orders: const <OrderItem>[_submitted],
+        outletsFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('order-ord-aaaaaaaa1')),
+      );
+      expect(row.title, 'Store list did not load');
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
+
+    testWidgets('a loaded list with the store genuinely absent still says so', (
+      tester,
+    ) async {
+      // The claim the screen IS allowed to make, kept honest.
+      await _pump(tester, orders: const <OrderItem>[_cancelled]);
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('order-ord-cccccccc3')),
+      );
+      expect(row.title, 'Store not on this list');
     });
   });
 
