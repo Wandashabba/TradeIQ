@@ -5414,4 +5414,213 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
+
+  @override
+  String get templatesTitle => 'Ouditsjablone';
+
+  @override
+  String get templatesFact =>
+      '’n Sjabloon is die vorm wat ’n agent by ’n besoek invul.';
+
+  @override
+  String get templatesRefresh => 'Herlaai die sjablone';
+
+  @override
+  String get templatesSkeleton => 'sjablone';
+
+  @override
+  String get templatesSection => 'Sjablone';
+
+  @override
+  String get templatesEmptyHeadline => 'Nog geen sjablone nie.';
+
+  @override
+  String get templatesEmptyBody =>
+      'Sjablone wat aan hierdie kliënt gepubliseer word, verskyn hier.';
+
+  @override
+  String get templatesInAuditsSection => 'In veldoudits gebruik';
+
+  @override
+  String get templatesInAuditsChecking =>
+      'Kontroleer tans watter sjabloon in gebruik is…';
+
+  @override
+  String get templatesInAuditsFailed =>
+      'Kon nie die sjabloon wat in oudits gebruik word, laai nie.';
+
+  @override
+  String get templatesInAuditsNone =>
+      'Geen sjabloon word in oudits gebruik nie.';
+
+  @override
+  String templatesInAuditsNamed(String name, int version) {
+    return '“$name” (v$version)';
+  }
+
+  @override
+  String get templatesInAuditsSubtitle =>
+      'Kliëntvrae, ná die standaard ouditafdelings';
+
+  @override
+  String get templatesInAuditsMeta =>
+      'Agente beantwoord die vrae by elke besoek, as ’n ekstra afdeling ná die standaardoudit. Verpligte vrae moet beantwoord wees voordat ’n besoek ingedien kan word. Dit verander nie die perfekte-winkel-telling nie.';
+
+  @override
+  String get templatesStopUsing => 'Hou op gebruik';
+
+  @override
+  String get templatesStopping => 'Hou tans op…';
+
+  @override
+  String templatesInAuditsSemantics(String headline) {
+    return 'In veldoudits gebruik. $headline';
+  }
+
+  @override
+  String get templatesCleared =>
+      'Geen sjabloon word nou in oudits gebruik nie.';
+
+  @override
+  String templatesNowInAudits(String name) {
+    return '“$name” word nou in oudits gebruik.';
+  }
+
+  @override
+  String templatesChangeFailed(String reason) {
+    return 'Die ouditsjabloon is nie verander nie. $reason';
+  }
+
+  @override
+  String get templateWordInAudits => 'In oudits';
+
+  @override
+  String get templateWordActive => 'Aktief';
+
+  @override
+  String get templateWordPaused => 'Onderbreek';
+
+  @override
+  String templateVersionShort(int version) {
+    return 'v$version';
+  }
+
+  @override
+  String templateVersionAndIndustry(int version, String industry) {
+    return 'v$version · $industry';
+  }
+
+  @override
+  String templateVersionSpoken(int version) {
+    return 'weergawe $version';
+  }
+
+  @override
+  String get templateUseInAudits => 'Gebruik in oudits';
+
+  @override
+  String get templateSwitching => 'Skakel tans oor…';
+
+  @override
+  String get templateOpensPreview => 'Open ’n voorskou van sy vorm';
+
+  @override
+  String get templatePreviewTitle => 'Sjabloonvoorskou';
+
+  @override
+  String get templatePreviewBack => 'Terug na Ouditsjablone';
+
+  @override
+  String get templatePreviewSkeleton => 'die sjabloon';
+
+  @override
+  String get templatePreviewFact => 'Voorskou — niks word gestoor nie';
+
+  @override
+  String templatePreviewSection(int index, int count) {
+    return 'Afdeling $index van $count';
+  }
+
+  @override
+  String get templatePreviewNext => 'Volgende afdeling';
+
+  @override
+  String get templatePreviewFinish => 'Voltooi voorskou';
+
+  @override
+  String get templatePreviewBackSection => 'Terug een afdeling';
+
+  @override
+  String templatePreviewBlockedOne(String label) {
+    return '“$label” het nog ’n antwoord nodig.';
+  }
+
+  @override
+  String templatePreviewBlockedMany(int count) {
+    return '$count verpligte vrae in hierdie afdeling het nog antwoorde nodig.';
+  }
+
+  @override
+  String get templatePreviewDoneTitle => 'Voorskou voltooi';
+
+  @override
+  String templatePreviewDoneBody(int answered, int total) {
+    return 'Jy het $answered van $total sigbare vrae beantwoord. Niks is gestoor nie — ’n voorskou skryf geen antwoorde nie, en om hulle teen ’n besoek te stoor kom saam met die ouditvloed-integrasie.';
+  }
+
+  @override
+  String get templateFormNoSectionsHeadline =>
+      'Hierdie sjabloon het nog geen vormafdelings nie.';
+
+  @override
+  String get templateFormNoSectionsBody =>
+      'Publiseer ’n afdeling daarheen en die voorskou sal daardeur stap.';
+
+  @override
+  String get templateFormSectionEmpty =>
+      'Nog niks om in hierdie afdeling te beantwoord nie.';
+
+  @override
+  String get templateFormScoreEyebrow => 'Tellingvoorskou';
+
+  @override
+  String templateFormScoreOutOf(String maximum) {
+    return 'Uit $maximum vir die hele sjabloon.';
+  }
+
+  @override
+  String get templateFieldRequired =>
+      'Verpligtend voordat ’n besoek ingedien kan word.';
+
+  @override
+  String get templateFieldNotAnsweredLine => 'Nog nie beantwoord nie.';
+
+  @override
+  String get templateFieldNotAnswered => 'Nog nie beantwoord nie';
+
+  @override
+  String get templateFieldYes => 'Ja';
+
+  @override
+  String get templateFieldNo => 'Nee';
+
+  @override
+  String get templateFieldClear => 'Vee hierdie antwoord uit';
+
+  @override
+  String templateFieldChoiceSemantics(String label, String answer) {
+    return '$label. $answer. Open die lys antwoorde.';
+  }
+
+  @override
+  String get templateFieldPhotoSubtitle => 'Kan nog nie beantwoord word nie';
+
+  @override
+  String get templateFieldPhotoMeta =>
+      'Fotovaslegging kom saam met die ouditvloed-integrasie. Hierdie vraag blokkeer nie ’n indiening nie.';
+
+  @override
+  String templateFieldPhotoSemantics(String label) {
+    return '$label. Kan nog nie beantwoord word nie. Fotovaslegging kom saam met die ouditvloed-integrasie.';
+  }
 }

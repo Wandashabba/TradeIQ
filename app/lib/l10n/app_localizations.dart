@@ -8447,6 +8447,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set monthly SKU targets under Sales targets to track sell-in against them.'**
   String get salesPanelEmptyBody;
+
+  /// Screen title: the client's own audit templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit templates'**
+  String get templatesTitle;
+
+  /// Header fact under the Audit templates title.
+  ///
+  /// In en, this message translates to:
+  /// **'A template is the form an agent fills in on a visit.'**
+  String get templatesFact;
+
+  /// Semantic label of the header's refresh button. Names what it does, never just 'Refresh'.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the templates'**
+  String get templatesRefresh;
+
+  /// What the skeleton says it is loading, inside 'Still fetching the …'.
+  ///
+  /// In en, this message translates to:
+  /// **'templates'**
+  String get templatesSkeleton;
+
+  /// Section rule above the list of templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates'**
+  String get templatesSection;
+
+  /// In-panel empty state: this client has no templates at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates yet.'**
+  String get templatesEmptyHeadline;
+
+  /// Body of the templates empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates published to this client appear here.'**
+  String get templatesEmptyBody;
+
+  /// Section rule above the block naming which template agents answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in field audits'**
+  String get templatesInAuditsSection;
+
+  /// Headline while the selected-template request is still in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking which template is in use…'**
+  String get templatesInAuditsChecking;
+
+  /// Headline when the selected-template request failed. No row then claims to be in use.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the template used in audits.'**
+  String get templatesInAuditsFailed;
+
+  /// Headline when the client has chosen no template for audits.
+  ///
+  /// In en, this message translates to:
+  /// **'No template is used in audits.'**
+  String get templatesInAuditsNone;
+
+  /// Headline naming the template in use and its version.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” (v{version})'**
+  String templatesInAuditsNamed(String name, int version);
+
+  /// Subtitle of the in-audits block: where these questions sit in a visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions, after the standard audit sections'**
+  String get templatesInAuditsSubtitle;
+
+  /// The standing explanation under the in-audits block.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents answer its questions on every visit, as an extra section after the standard audit. Required questions must be answered before a visit can be submitted. It does not change the perfect store score.'**
+  String get templatesInAuditsMeta;
+
+  /// Verb that clears the template used in audits.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop using'**
+  String get templatesStopUsing;
+
+  /// The Stop using verb while the change is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping…'**
+  String get templatesStopping;
+
+  /// Spoken sentence of the in-audits block.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in field audits. {headline}'**
+  String templatesInAuditsSemantics(String headline);
+
+  /// Toast after clearing the template used in audits.
+  ///
+  /// In en, this message translates to:
+  /// **'No template is used in audits now.'**
+  String get templatesCleared;
+
+  /// Toast after choosing a template for audits.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is now used in audits.'**
+  String templatesNowInAudits(String name);
+
+  /// Failure toast. The reason is the sanitised server message.
+  ///
+  /// In en, this message translates to:
+  /// **'The audit template was not changed. {reason}'**
+  String templatesChangeFailed(String reason);
+
+  /// Row word: this template is the one agents answer.
+  ///
+  /// In en, this message translates to:
+  /// **'In audits'**
+  String get templateWordInAudits;
+
+  /// Row word: the template is published and can be put in front of agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get templateWordActive;
+
+  /// Row word: the template is done, not broken — it simply cannot be selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get templateWordPaused;
+
+  /// A template's version, as a row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version}'**
+  String templateVersionShort(int version);
+
+  /// A template's version and the industry it was written for.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} · {industry}'**
+  String templateVersionAndIndustry(int version, String industry);
+
+  /// A template's version, spoken rather than abbreviated.
+  ///
+  /// In en, this message translates to:
+  /// **'version {version}'**
+  String templateVersionSpoken(int version);
+
+  /// Row verb that puts this template in front of agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Use in audits'**
+  String get templateUseInAudits;
+
+  /// The Use in audits verb while the change is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching…'**
+  String get templateSwitching;
+
+  /// What tapping a template row does, spoken at the end of the row's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens a preview of its form'**
+  String get templateOpensPreview;
+
+  /// Title of the manager's walk through a template's form, while it loads or fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Template preview'**
+  String get templatePreviewTitle;
+
+  /// The way out of the template preview, naming where it lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Audit templates'**
+  String get templatePreviewBack;
+
+  /// What the skeleton and the error region say they are for, inside 'Still fetching the …'.
+  ///
+  /// In en, this message translates to:
+  /// **'the template'**
+  String get templatePreviewSkeleton;
+
+  /// Header fact: a preview writes no answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview — nothing is saved'**
+  String get templatePreviewFact;
+
+  /// Where the manager is in the walk.
+  ///
+  /// In en, this message translates to:
+  /// **'Section {index} of {count}'**
+  String templatePreviewSection(int index, int count);
+
+  /// The commit that moves the walk on.
+  ///
+  /// In en, this message translates to:
+  /// **'Next section'**
+  String get templatePreviewNext;
+
+  /// The commit on the last section.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish preview'**
+  String get templatePreviewFinish;
+
+  /// The secondary that moves the walk back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back a section'**
+  String get templatePreviewBackSection;
+
+  /// Why the commit is blocked: one required question is unanswered.
+  ///
+  /// In en, this message translates to:
+  /// **'“{label}” still needs an answer.'**
+  String templatePreviewBlockedOne(String label);
+
+  /// Why the commit is blocked: several required questions are unanswered.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} required questions in this section still need answers.'**
+  String templatePreviewBlockedMany(int count);
+
+  /// Title of the sheet that ends the preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview complete'**
+  String get templatePreviewDoneTitle;
+
+  /// The honest end of the preview: what was answered, and that none of it was kept.
+  ///
+  /// In en, this message translates to:
+  /// **'You answered {answered} of {total} visible questions. Nothing was saved — a preview writes no answers, and saving them against a visit arrives with the audit-flow integration.'**
+  String templatePreviewDoneBody(int answered, int total);
+
+  /// In-panel empty state: the template parsed, and holds nothing to walk.
+  ///
+  /// In en, this message translates to:
+  /// **'This template has no form sections yet.'**
+  String get templateFormNoSectionsHeadline;
+
+  /// Body of the no-sections empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish a section to it and the preview will walk through it.'**
+  String get templateFormNoSectionsBody;
+
+  /// Section rule's empty line: this section has no visible questions.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to answer in this section yet.'**
+  String get templateFormSectionEmpty;
+
+  /// Eyebrow of the running score tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Score preview'**
+  String get templateFormScoreEyebrow;
+
+  /// State line under the score: the maximum the preview can actually reach.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of {maximum} for the whole template.'**
+  String templateFormScoreOutOf(String maximum);
+
+  /// Help line under a question that blocks the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Required before a visit can be submitted.'**
+  String get templateFieldRequired;
+
+  /// A choice row's own state line when nothing is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered yet.'**
+  String get templateFieldNotAnsweredLine;
+
+  /// Subtitle of a choice question nobody has answered. Without the full stop: it is a row's subtitle, not a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered yet'**
+  String get templateFieldNotAnswered;
+
+  /// The true option of a yes/no question.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get templateFieldYes;
+
+  /// The false option of a yes/no question.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get templateFieldNo;
+
+  /// Verb that returns an answered yes/no question to unanswered — a different fact from 'no'.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this answer'**
+  String get templateFieldClear;
+
+  /// Spoken sentence of a choice question that opens a picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}. {answer}. Opens the list of answers.'**
+  String templateFieldChoiceSemantics(String label, String answer);
+
+  /// Subtitle of a photo question: capture inside a template is not wired yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be answered yet'**
+  String get templateFieldPhotoSubtitle;
+
+  /// Why a photo question cannot be answered, and that it is not a gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo capture arrives with the audit-flow integration. This question does not block a submit.'**
+  String get templateFieldPhotoMeta;
+
+  /// Spoken sentence of a photo question.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}. Cannot be answered yet. Photo capture arrives with the audit-flow integration.'**
+  String templateFieldPhotoSemantics(String label);
 }
 
 class _AppLocalizationsDelegate

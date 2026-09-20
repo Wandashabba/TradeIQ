@@ -8,6 +8,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../domain/template_schema.dart';
 
 /// THE WALK THROUGH A TEMPLATE — where it is, and what has been answered.
@@ -115,12 +116,13 @@ class DynamicTemplateForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     if (!walk.hasSections) {
-      return const EmptyState(
-        key: ValueKey<String>('template-no-sections'),
+      return EmptyState(
+        key: const ValueKey<String>('template-no-sections'),
         scope: EmptyScope.inPanel,
-        headline: 'This template has no form sections yet.',
-        body: 'Publish a section to it and the preview will walk through it.',
+        headline: l10n.templateFormNoSectionsHeadline,
+        body: l10n.templateFormNoSectionsBody,
       );
     }
 
@@ -135,20 +137,21 @@ class DynamicTemplateForm extends StatelessWidget {
         SectionRule(
           walk.section.title,
           count: fields.isEmpty ? null : fields.length,
-          emptyLine: fields.isEmpty
-              ? 'Nothing to answer in this section yet.'
-              : null,
+          emptyLine: fields.isEmpty ? l10n.templateFormSectionEmpty : null,
         ),
         const SizedBox(height: TiqSpace.s3),
         Text(
-          'Section ${walk.sectionIndex + 1} of ${walk.sectionCount}',
+          l10n.templatePreviewSection(
+            walk.sectionIndex + 1,
+            walk.sectionCount,
+          ),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
         if (maxScore > 0) ...<Widget>[
           const SizedBox(height: TiqSpace.s5),
           StatTile(
             key: const ValueKey<String>('template-score-preview'),
-            eyebrow: 'Score preview',
+            eyebrow: l10n.templateFormScoreEyebrow,
             value: walk.schema.scoreFor(walk.answers),
             decimals: 1,
             meter: MeterData(
@@ -160,7 +163,7 @@ class DynamicTemplateForm extends StatelessWidget {
             // single question is answered, and a manager reads a
             // not-yet-measured figure as a measured zero.
             provisional: answered < askable,
-            stateLine: 'Out of ${_trimmed(maxScore)} for the whole template.',
+            stateLine: l10n.templateFormScoreOutOf(_trimmed(maxScore)),
           ),
         ],
         SizedBox(height: skin.space.blockGap),
@@ -186,11 +189,10 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final value = walk.answers[field.id];
     final key = ValueKey<String>('field-${field.id}');
-    final help = field.blocksSubmit
-        ? 'Required before a visit can be submitted.'
-        : null;
+    final help = field.blocksSubmit ? l10n.templateFieldRequired : null;
 
     switch (field.type) {
       case TemplateFieldType.boolean:
@@ -203,16 +205,16 @@ class _Field extends StatelessWidget {
             key: key,
             label: field.label,
             value: value is bool ? value : null,
-            notAnsweredLine: 'Not answered yet.',
-            options: const <ChoiceOption<bool>>[
-              ChoiceOption<bool>(value: true, label: 'Yes'),
-              ChoiceOption<bool>(value: false, label: 'No'),
+            notAnsweredLine: l10n.templateFieldNotAnsweredLine,
+            options: <ChoiceOption<bool>>[
+              ChoiceOption<bool>(value: true, label: l10n.templateFieldYes),
+              ChoiceOption<bool>(value: false, label: l10n.templateFieldNo),
             ],
             onChanged: (v) => walk.set(field.id, v),
             clear: value is bool
                 ? TorchTertiaryButton(
                     key: ValueKey<String>('field-clear-${field.id}'),
-                    label: 'Clear this answer',
+                    label: l10n.templateFieldClear,
                     onPressed: () => walk.set(field.id, null),
                   )
                 : null,
@@ -232,7 +234,7 @@ class _Field extends StatelessWidget {
               key: key,
               label: field.label,
               value: selected,
-              notAnsweredLine: 'Not answered yet.',
+              notAnsweredLine: l10n.templateFieldNotAnsweredLine,
               options: <ChoiceOption<String>>[
                 for (final option in field.options)
                   ChoiceOption<String>(value: option, label: option),
@@ -248,7 +250,7 @@ class _Field extends StatelessWidget {
           title: field.label,
           // An answer the options no longer offer (the template changed) reads
           // as unanswered rather than as a value nobody can pick again.
-          subtitle: selected ?? 'Not answered yet',
+          subtitle: selected ?? l10n.templateFieldNotAnswered,
           meta: help == null
               ? null
               : Text(
@@ -264,9 +266,10 @@ class _Field extends StatelessWidget {
             );
             if (picked != null) walk.set(field.id, picked);
           },
-          semanticsLabel:
-              '${field.label}. ${selected ?? 'Not answered yet'}. '
-              'Opens the list of answers.',
+          semanticsLabel: l10n.templateFieldChoiceSemantics(
+            field.label,
+            selected ?? l10n.templateFieldNotAnswered,
+          ),
         );
 
       case TemplateFieldType.number:
@@ -299,20 +302,17 @@ class _Field extends StatelessWidget {
           form: SoftRowForm.standalone,
           density: SoftRowDensity.tall,
           title: field.label,
-          subtitle: 'Cannot be answered yet',
+          subtitle: l10n.templateFieldPhotoSubtitle,
           leading: TiqMark(
             shape: MarkShape.sectionBarredRing,
             color: skin.palette.ink3,
             size: MarkScale.glyph(context, 16),
           ),
           meta: Text(
-            'Photo capture arrives with the audit-flow integration. This '
-            'question does not block a submit.',
+            l10n.templateFieldPhotoMeta,
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
-          semanticsLabel:
-              '${field.label}. Cannot be answered yet. Photo capture arrives '
-              'with the audit-flow integration.',
+          semanticsLabel: l10n.templateFieldPhotoSemantics(field.label),
         );
     }
   }

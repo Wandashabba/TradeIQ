@@ -5361,4 +5361,210 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Set monthly SKU targets under Sales targets to track sell-in against them.';
+
+  @override
+  String get templatesTitle => 'Audit templates';
+
+  @override
+  String get templatesFact =>
+      'A template is the form an agent fills in on a visit.';
+
+  @override
+  String get templatesRefresh => 'Refresh the templates';
+
+  @override
+  String get templatesSkeleton => 'templates';
+
+  @override
+  String get templatesSection => 'Templates';
+
+  @override
+  String get templatesEmptyHeadline => 'No templates yet.';
+
+  @override
+  String get templatesEmptyBody =>
+      'Templates published to this client appear here.';
+
+  @override
+  String get templatesInAuditsSection => 'Used in field audits';
+
+  @override
+  String get templatesInAuditsChecking => 'Checking which template is in use…';
+
+  @override
+  String get templatesInAuditsFailed =>
+      'Could not load the template used in audits.';
+
+  @override
+  String get templatesInAuditsNone => 'No template is used in audits.';
+
+  @override
+  String templatesInAuditsNamed(String name, int version) {
+    return '“$name” (v$version)';
+  }
+
+  @override
+  String get templatesInAuditsSubtitle =>
+      'Client questions, after the standard audit sections';
+
+  @override
+  String get templatesInAuditsMeta =>
+      'Agents answer its questions on every visit, as an extra section after the standard audit. Required questions must be answered before a visit can be submitted. It does not change the perfect store score.';
+
+  @override
+  String get templatesStopUsing => 'Stop using';
+
+  @override
+  String get templatesStopping => 'Stopping…';
+
+  @override
+  String templatesInAuditsSemantics(String headline) {
+    return 'Used in field audits. $headline';
+  }
+
+  @override
+  String get templatesCleared => 'No template is used in audits now.';
+
+  @override
+  String templatesNowInAudits(String name) {
+    return '“$name” is now used in audits.';
+  }
+
+  @override
+  String templatesChangeFailed(String reason) {
+    return 'The audit template was not changed. $reason';
+  }
+
+  @override
+  String get templateWordInAudits => 'In audits';
+
+  @override
+  String get templateWordActive => 'Active';
+
+  @override
+  String get templateWordPaused => 'Paused';
+
+  @override
+  String templateVersionShort(int version) {
+    return 'v$version';
+  }
+
+  @override
+  String templateVersionAndIndustry(int version, String industry) {
+    return 'v$version · $industry';
+  }
+
+  @override
+  String templateVersionSpoken(int version) {
+    return 'version $version';
+  }
+
+  @override
+  String get templateUseInAudits => 'Use in audits';
+
+  @override
+  String get templateSwitching => 'Switching…';
+
+  @override
+  String get templateOpensPreview => 'Opens a preview of its form';
+
+  @override
+  String get templatePreviewTitle => 'Template preview';
+
+  @override
+  String get templatePreviewBack => 'Back to Audit templates';
+
+  @override
+  String get templatePreviewSkeleton => 'the template';
+
+  @override
+  String get templatePreviewFact => 'Preview — nothing is saved';
+
+  @override
+  String templatePreviewSection(int index, int count) {
+    return 'Section $index of $count';
+  }
+
+  @override
+  String get templatePreviewNext => 'Next section';
+
+  @override
+  String get templatePreviewFinish => 'Finish preview';
+
+  @override
+  String get templatePreviewBackSection => 'Back a section';
+
+  @override
+  String templatePreviewBlockedOne(String label) {
+    return '“$label” still needs an answer.';
+  }
+
+  @override
+  String templatePreviewBlockedMany(int count) {
+    return '$count required questions in this section still need answers.';
+  }
+
+  @override
+  String get templatePreviewDoneTitle => 'Preview complete';
+
+  @override
+  String templatePreviewDoneBody(int answered, int total) {
+    return 'You answered $answered of $total visible questions. Nothing was saved — a preview writes no answers, and saving them against a visit arrives with the audit-flow integration.';
+  }
+
+  @override
+  String get templateFormNoSectionsHeadline =>
+      'This template has no form sections yet.';
+
+  @override
+  String get templateFormNoSectionsBody =>
+      'Publish a section to it and the preview will walk through it.';
+
+  @override
+  String get templateFormSectionEmpty =>
+      'Nothing to answer in this section yet.';
+
+  @override
+  String get templateFormScoreEyebrow => 'Score preview';
+
+  @override
+  String templateFormScoreOutOf(String maximum) {
+    return 'Out of $maximum for the whole template.';
+  }
+
+  @override
+  String get templateFieldRequired =>
+      'Required before a visit can be submitted.';
+
+  @override
+  String get templateFieldNotAnsweredLine => 'Not answered yet.';
+
+  @override
+  String get templateFieldNotAnswered => 'Not answered yet';
+
+  @override
+  String get templateFieldYes => 'Yes';
+
+  @override
+  String get templateFieldNo => 'No';
+
+  @override
+  String get templateFieldClear => 'Clear this answer';
+
+  @override
+  String templateFieldChoiceSemantics(String label, String answer) {
+    return '$label. $answer. Opens the list of answers.';
+  }
+
+  @override
+  String get templateFieldPhotoSubtitle => 'Cannot be answered yet';
+
+  @override
+  String get templateFieldPhotoMeta =>
+      'Photo capture arrives with the audit-flow integration. This question does not block a submit.';
+
+  @override
+  String templateFieldPhotoSemantics(String label) {
+    return '$label. Cannot be answered yet. Photo capture arrives with the audit-flow integration.';
+  }
 }

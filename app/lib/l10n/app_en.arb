@@ -7149,5 +7149,314 @@
   "salesPanelEmptyBody": "Set monthly SKU targets under Sales targets to track sell-in against them.",
   "@salesPanelEmptyBody": {
     "description": "Body of the dashboard panel's empty state."
+  },
+  "templatesTitle": "Audit templates",
+  "@templatesTitle": {
+    "description": "Screen title: the client's own audit templates."
+  },
+  "templatesFact": "A template is the form an agent fills in on a visit.",
+  "@templatesFact": {
+    "description": "Header fact under the Audit templates title."
+  },
+  "templatesRefresh": "Refresh the templates",
+  "@templatesRefresh": {
+    "description": "Semantic label of the header's refresh button. Names what it does, never just 'Refresh'."
+  },
+  "templatesSkeleton": "templates",
+  "@templatesSkeleton": {
+    "description": "What the skeleton says it is loading, inside 'Still fetching the …'."
+  },
+  "templatesSection": "Templates",
+  "@templatesSection": {
+    "description": "Section rule above the list of templates."
+  },
+  "templatesEmptyHeadline": "No templates yet.",
+  "@templatesEmptyHeadline": {
+    "description": "In-panel empty state: this client has no templates at all."
+  },
+  "templatesEmptyBody": "Templates published to this client appear here.",
+  "@templatesEmptyBody": {
+    "description": "Body of the templates empty state."
+  },
+  "templatesInAuditsSection": "Used in field audits",
+  "@templatesInAuditsSection": {
+    "description": "Section rule above the block naming which template agents answer."
+  },
+  "templatesInAuditsChecking": "Checking which template is in use…",
+  "@templatesInAuditsChecking": {
+    "description": "Headline while the selected-template request is still in flight."
+  },
+  "templatesInAuditsFailed": "Could not load the template used in audits.",
+  "@templatesInAuditsFailed": {
+    "description": "Headline when the selected-template request failed. No row then claims to be in use."
+  },
+  "templatesInAuditsNone": "No template is used in audits.",
+  "@templatesInAuditsNone": {
+    "description": "Headline when the client has chosen no template for audits."
+  },
+  "templatesInAuditsNamed": "“{name}” (v{version})",
+  "@templatesInAuditsNamed": {
+    "description": "Headline naming the template in use and its version.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "templatesInAuditsSubtitle": "Client questions, after the standard audit sections",
+  "@templatesInAuditsSubtitle": {
+    "description": "Subtitle of the in-audits block: where these questions sit in a visit."
+  },
+  "templatesInAuditsMeta": "Agents answer its questions on every visit, as an extra section after the standard audit. Required questions must be answered before a visit can be submitted. It does not change the perfect store score.",
+  "@templatesInAuditsMeta": {
+    "description": "The standing explanation under the in-audits block."
+  },
+  "templatesStopUsing": "Stop using",
+  "@templatesStopUsing": {
+    "description": "Verb that clears the template used in audits."
+  },
+  "templatesStopping": "Stopping…",
+  "@templatesStopping": {
+    "description": "The Stop using verb while the change is in flight."
+  },
+  "templatesInAuditsSemantics": "Used in field audits. {headline}",
+  "@templatesInAuditsSemantics": {
+    "description": "Spoken sentence of the in-audits block.",
+    "placeholders": {
+      "headline": {
+        "type": "String"
+      }
+    }
+  },
+  "templatesCleared": "No template is used in audits now.",
+  "@templatesCleared": {
+    "description": "Toast after clearing the template used in audits."
+  },
+  "templatesNowInAudits": "“{name}” is now used in audits.",
+  "@templatesNowInAudits": {
+    "description": "Toast after choosing a template for audits.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "templatesChangeFailed": "The audit template was not changed. {reason}",
+  "@templatesChangeFailed": {
+    "description": "Failure toast. The reason is the sanitised server message.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "templateWordInAudits": "In audits",
+  "@templateWordInAudits": {
+    "description": "Row word: this template is the one agents answer."
+  },
+  "templateWordActive": "Active",
+  "@templateWordActive": {
+    "description": "Row word: the template is published and can be put in front of agents."
+  },
+  "templateWordPaused": "Paused",
+  "@templateWordPaused": {
+    "description": "Row word: the template is done, not broken — it simply cannot be selected."
+  },
+  "templateVersionShort": "v{version}",
+  "@templateVersionShort": {
+    "description": "A template's version, as a row subtitle.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "templateVersionAndIndustry": "v{version} · {industry}",
+  "@templateVersionAndIndustry": {
+    "description": "A template's version and the industry it was written for.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "industry": {
+        "type": "String"
+      }
+    }
+  },
+  "templateVersionSpoken": "version {version}",
+  "@templateVersionSpoken": {
+    "description": "A template's version, spoken rather than abbreviated.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "templateUseInAudits": "Use in audits",
+  "@templateUseInAudits": {
+    "description": "Row verb that puts this template in front of agents."
+  },
+  "templateSwitching": "Switching…",
+  "@templateSwitching": {
+    "description": "The Use in audits verb while the change is in flight."
+  },
+  "templateOpensPreview": "Opens a preview of its form",
+  "@templateOpensPreview": {
+    "description": "What tapping a template row does, spoken at the end of the row's sentence."
+  },
+  "templatePreviewTitle": "Template preview",
+  "@templatePreviewTitle": {
+    "description": "Title of the manager's walk through a template's form, while it loads or fails."
+  },
+  "templatePreviewBack": "Back to Audit templates",
+  "@templatePreviewBack": {
+    "description": "The way out of the template preview, naming where it lands."
+  },
+  "templatePreviewSkeleton": "the template",
+  "@templatePreviewSkeleton": {
+    "description": "What the skeleton and the error region say they are for, inside 'Still fetching the …'."
+  },
+  "templatePreviewFact": "Preview — nothing is saved",
+  "@templatePreviewFact": {
+    "description": "Header fact: a preview writes no answers."
+  },
+  "templatePreviewSection": "Section {index} of {count}",
+  "@templatePreviewSection": {
+    "description": "Where the manager is in the walk.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "templatePreviewNext": "Next section",
+  "@templatePreviewNext": {
+    "description": "The commit that moves the walk on."
+  },
+  "templatePreviewFinish": "Finish preview",
+  "@templatePreviewFinish": {
+    "description": "The commit on the last section."
+  },
+  "templatePreviewBackSection": "Back a section",
+  "@templatePreviewBackSection": {
+    "description": "The secondary that moves the walk back."
+  },
+  "templatePreviewBlockedOne": "“{label}” still needs an answer.",
+  "@templatePreviewBlockedOne": {
+    "description": "Why the commit is blocked: one required question is unanswered.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "templatePreviewBlockedMany": "{count} required questions in this section still need answers.",
+  "@templatePreviewBlockedMany": {
+    "description": "Why the commit is blocked: several required questions are unanswered.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "templatePreviewDoneTitle": "Preview complete",
+  "@templatePreviewDoneTitle": {
+    "description": "Title of the sheet that ends the preview."
+  },
+  "templatePreviewDoneBody": "You answered {answered} of {total} visible questions. Nothing was saved — a preview writes no answers, and saving them against a visit arrives with the audit-flow integration.",
+  "@templatePreviewDoneBody": {
+    "description": "The honest end of the preview: what was answered, and that none of it was kept.",
+    "placeholders": {
+      "answered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "templateFormNoSectionsHeadline": "This template has no form sections yet.",
+  "@templateFormNoSectionsHeadline": {
+    "description": "In-panel empty state: the template parsed, and holds nothing to walk."
+  },
+  "templateFormNoSectionsBody": "Publish a section to it and the preview will walk through it.",
+  "@templateFormNoSectionsBody": {
+    "description": "Body of the no-sections empty state."
+  },
+  "templateFormSectionEmpty": "Nothing to answer in this section yet.",
+  "@templateFormSectionEmpty": {
+    "description": "Section rule's empty line: this section has no visible questions."
+  },
+  "templateFormScoreEyebrow": "Score preview",
+  "@templateFormScoreEyebrow": {
+    "description": "Eyebrow of the running score tile."
+  },
+  "templateFormScoreOutOf": "Out of {maximum} for the whole template.",
+  "@templateFormScoreOutOf": {
+    "description": "State line under the score: the maximum the preview can actually reach.",
+    "placeholders": {
+      "maximum": {
+        "type": "String"
+      }
+    }
+  },
+  "templateFieldRequired": "Required before a visit can be submitted.",
+  "@templateFieldRequired": {
+    "description": "Help line under a question that blocks the submit gate."
+  },
+  "templateFieldNotAnsweredLine": "Not answered yet.",
+  "@templateFieldNotAnsweredLine": {
+    "description": "A choice row's own state line when nothing is selected."
+  },
+  "templateFieldNotAnswered": "Not answered yet",
+  "@templateFieldNotAnswered": {
+    "description": "Subtitle of a choice question nobody has answered. Without the full stop: it is a row's subtitle, not a sentence."
+  },
+  "templateFieldYes": "Yes",
+  "@templateFieldYes": {
+    "description": "The true option of a yes/no question."
+  },
+  "templateFieldNo": "No",
+  "@templateFieldNo": {
+    "description": "The false option of a yes/no question."
+  },
+  "templateFieldClear": "Clear this answer",
+  "@templateFieldClear": {
+    "description": "Verb that returns an answered yes/no question to unanswered — a different fact from 'no'."
+  },
+  "templateFieldChoiceSemantics": "{label}. {answer}. Opens the list of answers.",
+  "@templateFieldChoiceSemantics": {
+    "description": "Spoken sentence of a choice question that opens a picker sheet.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "answer": {
+        "type": "String"
+      }
+    }
+  },
+  "templateFieldPhotoSubtitle": "Cannot be answered yet",
+  "@templateFieldPhotoSubtitle": {
+    "description": "Subtitle of a photo question: capture inside a template is not wired yet."
+  },
+  "templateFieldPhotoMeta": "Photo capture arrives with the audit-flow integration. This question does not block a submit.",
+  "@templateFieldPhotoMeta": {
+    "description": "Why a photo question cannot be answered, and that it is not a gate."
+  },
+  "templateFieldPhotoSemantics": "{label}. Cannot be answered yet. Photo capture arrives with the audit-flow integration.",
+  "@templateFieldPhotoSemantics": {
+    "description": "Spoken sentence of a photo question.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   }
 }

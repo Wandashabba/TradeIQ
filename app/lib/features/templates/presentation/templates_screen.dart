@@ -12,6 +12,7 @@ import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/templates_repository.dart';
 
 /// AUDIT TEMPLATES — the client's own questions, and which set field agents
@@ -60,8 +61,8 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
       showTorchToast(
         context,
         message: now == null
-            ? 'No template is used in audits now.'
-            : '“${now.template.name}” is now used in audits.',
+            ? context.l10n.templatesCleared
+            : context.l10n.templatesNowInAudits(now.template.name),
         kind: ToastKind.success,
       );
     } catch (error) {
@@ -69,27 +70,26 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
       setState(() => _selecting = null);
       showTorchToast(
         context,
-        message:
-            'The audit template was not changed. '
-            '${TorchErrorMessage.sanitise(error).body}',
+        message: context.l10n.templatesChangeFailed(
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
     }
   }
 
   Widget _frame({required String phase, required List<Widget> children}) {
+    final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Audit templates',
-        facts: const <String>[
-          'A template is the form an agent fills in on a visit.',
-        ],
+        title: l10n.templatesTitle,
+        facts: <String>[l10n.templatesFact],
         trailing: TorchIconButton(
           key: const ValueKey<String>('templates-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the templates',
+          semanticLabel: l10n.templatesRefresh,
           onPressed: _refresh,
         ),
       ),
@@ -99,6 +99,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final templates = ref.watch(templatesListProvider);
     final selected = ref.watch(selectedTemplateProvider);
     // While the selection loads (or if it fails) no row claims to be in use.
@@ -110,7 +111,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'templates',
+            label: l10n.templatesSkeleton,
             child: const SkeletonRows(count: 3, rowHeight: 80),
           ),
         ],
@@ -124,7 +125,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('templates-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: _refresh,
               ),
             ),
@@ -141,14 +142,17 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
           ),
           SizedBox(height: context.skin.space.blockGap),
 
-          SectionRule('Templates', count: list.isEmpty ? null : list.length),
+          SectionRule(
+            l10n.templatesSection,
+            count: list.isEmpty ? null : list.length,
+          ),
           const SizedBox(height: TiqSpace.s5),
 
           if (list.isEmpty)
-            const EmptyState(
+            EmptyState(
               scope: EmptyScope.inPanel,
-              headline: 'No templates yet.',
-              body: 'Templates published to this client appear here.',
+              headline: l10n.templatesEmptyHeadline,
+              body: l10n.templatesEmptyBody,
             )
           else
             TorchBleed(
@@ -189,29 +193,33 @@ class _InAudits extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final current = selected.value;
     final String headline;
     if (selected.isLoading && current == null) {
-      headline = 'Checking which template is in use…';
+      headline = l10n.templatesInAuditsChecking;
     } else if (selected.hasError && current == null) {
-      headline = 'Could not load the template used in audits.';
+      headline = l10n.templatesInAuditsFailed;
     } else if (current == null) {
-      headline = 'No template is used in audits.';
+      headline = l10n.templatesInAuditsNone;
     } else {
-      headline = '“${current.template.name}” (v${current.template.version})';
+      headline = l10n.templatesInAuditsNamed(
+        current.template.name,
+        current.template.version,
+      );
     }
 
     return Column(
       key: const ValueKey<String>('templates-in-audits'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SectionRule('Used in field audits'),
+        SectionRule(l10n.templatesInAuditsSection),
         const SizedBox(height: TiqSpace.s5),
         SoftRow(
           form: SoftRowForm.standalone,
           density: SoftRowDensity.tall,
           title: headline,
-          subtitle: 'Client questions, after the standard audit sections',
+          subtitle: l10n.templatesInAuditsSubtitle,
           leading: TiqMark(
             shape: current == null
                 ? MarkShape.sectionRing
@@ -220,20 +228,19 @@ class _InAudits extends StatelessWidget {
             size: MarkScale.glyph(context, 16),
           ),
           meta: Text(
-            'Agents answer its questions on every visit, as an extra section '
-            'after the standard audit. Required questions must be answered '
-            'before a visit can be submitted. It does not change the perfect '
-            'store score.',
+            l10n.templatesInAuditsMeta,
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
           actions: current == null
               ? null
               : TorchTertiaryButton(
                   key: const ValueKey<String>('templates-stop-using'),
-                  label: busy ? 'Stopping…' : 'Stop using',
+                  label: busy
+                      ? l10n.templatesStopping
+                      : l10n.templatesStopUsing,
                   onPressed: busy ? null : onClear,
                 ),
-          semanticsLabel: 'Used in field audits. $headline',
+          semanticsLabel: l10n.templatesInAuditsSemantics(headline),
         ),
       ],
     );
@@ -259,17 +266,22 @@ class _TemplateRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final t = template;
     final industry = t.industry;
     // A paused template is done, not broken — the word carries the difference,
     // never the colour and never a fill step.
-    final word = inAudits ? 'In audits' : (t.active ? 'Active' : 'Paused');
+    final word = inAudits
+        ? l10n.templateWordInAudits
+        : (t.active ? l10n.templateWordActive : l10n.templateWordPaused);
 
     return SoftRow(
       key: ValueKey<String>('template-row-${t.id}'),
       density: SoftRowDensity.tall,
       title: t.name,
-      subtitle: industry == null ? 'v${t.version}' : 'v${t.version} · $industry',
+      subtitle: industry == null
+          ? l10n.templateVersionShort(t.version)
+          : l10n.templateVersionAndIndustry(t.version, industry),
       leading: TiqMark(
         shape: inAudits
             ? MarkShape.sectionTickDisc
@@ -299,7 +311,7 @@ class _TemplateRow extends StatelessWidget {
       actions: t.active && !inAudits
           ? TorchTertiaryButton(
               key: ValueKey<String>('template-use-${t.id}'),
-              label: busy ? 'Switching…' : 'Use in audits',
+              label: busy ? l10n.templateSwitching : l10n.templateUseInAudits,
               onPressed: busy ? null : onUseInAudits,
             )
           : null,
@@ -308,10 +320,10 @@ class _TemplateRow extends StatelessWidget {
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         t.name,
-        'version ${t.version}',
+        l10n.templateVersionSpoken(t.version),
         ?industry,
         word,
-        'Opens a preview of its form',
+        l10n.templateOpensPreview,
       ].join('. '),
     );
   }
