@@ -4798,6 +4798,10 @@
   "@navExecutionOverview": {
     "description": "Nav destination: the KPI overview."
   },
+  "navHome": "Home",
+  "@navHome": {
+    "description": "The floating bottom bar's first slot — the manager's home (/dashboard). Short on purpose: the rail and the menu sheet call the same route 'The Floor', but five slots share a phone's width on one line."
+  },
   "navTasks": "Tasks",
   "@navTasks": {
     "description": "Nav destination: the task worklist."
@@ -5600,5 +5604,1501 @@
         "type": "int"
       }
     }
+  },
+  "outletsTitle": "Stores",
+  "@outletsTitle": {
+    "description": "Title of the manager's outlet list route."
+  },
+  "outletsSubtitle": "A store without coordinates cannot be geofenced.",
+  "@outletsSubtitle": {
+    "description": "Header fact on the outlet list: why the coordinate state is the row's status."
+  },
+  "outletsRefresh": "Reload the store list",
+  "@outletsRefresh": {
+    "description": "Semantic label of the refresh icon button in the outlet list header."
+  },
+  "outletsCreateStore": "Add a store",
+  "@outletsCreateStore": {
+    "description": "Label of the nav circle that opens the create-store form from the outlet list."
+  },
+  "outletsSectionHeading": "Stores",
+  "@outletsSectionHeading": {
+    "description": "Section rule above the list of outlets."
+  },
+  "outletsNoLocation": "No location",
+  "@outletsNoLocation": {
+    "description": "Severity word on an outlet row whose coordinates are unset. Reads in greyscale beside the crimson bar."
+  },
+  "outletsNoCoordinates": "No coordinates on file",
+  "@outletsNoCoordinates": {
+    "description": "Subtitle of an outlet row that has no usable coordinates."
+  },
+  "outletsPlaced": "Placed",
+  "@outletsPlaced": {
+    "description": "Word for an outlet that does have usable coordinates."
+  },
+  "outletsEmptyHeadline": "No stores yet.",
+  "@outletsEmptyHeadline": {
+    "description": "Whole-screen empty state on the outlet list."
+  },
+  "outletsEmptyBody": "Add a store to put it on a beat plan.",
+  "@outletsEmptyBody": {
+    "description": "Body of the outlet list's empty state."
+  },
+  "outletsLoadErrorHeadline": "The store list did not load.",
+  "@outletsLoadErrorHeadline": {
+    "description": "Headline of the outlet list's error state."
+  },
+  "outletsRetry": "Try again",
+  "@outletsRetry": {
+    "description": "Retry action on the outlet list's error state."
+  },
+  "outletsPinReportsHeading": "Open pin reports",
+  "@outletsPinReportsHeading": {
+    "description": "Section rule above the outlets whose pin an agent has reported as wrong."
+  },
+  "outletsPinReportsNote": "Agents who could not check in where the pin says the store is.",
+  "@outletsPinReportsNote": {
+    "description": "Sentence under the open pin reports section rule."
+  },
+  "outletsPinReported": "Pin reported",
+  "@outletsPinReported": {
+    "description": "Severity word on a row standing for an open pin report."
+  },
+  "outletsPinReportStood": "{agent} stood {distance} away",
+  "@outletsPinReportStood": {
+    "description": "Subtitle of an open pin report row: who reported it and how far they were from the pin.",
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDetailTitle": "Store",
+  "@outletDetailTitle": {
+    "description": "Title of the outlet detail route, where a wrong pin is corrected."
+  },
+  "outletDetailBack": "Back to stores",
+  "@outletDetailBack": {
+    "description": "Semantic label of the outlet detail back button. Names the destination, never 'Back'."
+  },
+  "outletDetailLoadErrorHeadline": "This store did not load.",
+  "@outletDetailLoadErrorHeadline": {
+    "description": "Headline of the outlet detail error state."
+  },
+  "outletDetailDisputesHeadline": "{count, plural, =1{One agent reported this pin as wrong} other{{count} agents reported this pin as wrong}}",
+  "@outletDetailDisputesHeadline": {
+    "description": "Headline of the open-reports banner at the top of the outlet detail screen.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outletDetailDisputesBody": "Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.",
+  "@outletDetailDisputesBody": {
+    "description": "Body of the open-reports banner on outlet detail."
+  },
+  "outletDetailFormHeading": "This store",
+  "@outletDetailFormHeading": {
+    "description": "Section rule above the outlet's editable fields."
+  },
+  "outletFieldName": "Store name",
+  "@outletFieldName": {
+    "description": "Label of the outlet name field."
+  },
+  "outletFieldCode": "Store code",
+  "@outletFieldCode": {
+    "description": "Label of the outlet code field."
+  },
+  "outletFieldChannel": "Channel type",
+  "@outletFieldChannel": {
+    "description": "Label of the outlet channel-type field."
+  },
+  "outletFieldChannelHelp": "For example: supermarket, spaza, forecourt.",
+  "@outletFieldChannelHelp": {
+    "description": "Help line under the channel-type field."
+  },
+  "outletFieldTerritory": "Territory",
+  "@outletFieldTerritory": {
+    "description": "Label of the territory picker."
+  },
+  "outletFieldLatitude": "Latitude",
+  "@outletFieldLatitude": {
+    "description": "Label of the latitude field."
+  },
+  "outletFieldLongitude": "Longitude",
+  "@outletFieldLongitude": {
+    "description": "Label of the longitude field."
+  },
+  "outletFieldLatitudeHelp": "Between -90 and 90. Johannesburg is about -26,2.",
+  "@outletFieldLatitudeHelp": {
+    "description": "Help line under the latitude field."
+  },
+  "outletFieldLongitudeHelp": "Between -180 and 180. Johannesburg is about 28,0.",
+  "@outletFieldLongitudeHelp": {
+    "description": "Help line under the longitude field."
+  },
+  "outletFieldStatus": "Status",
+  "@outletFieldStatus": {
+    "description": "Label of the outlet status choice row."
+  },
+  "outletStatusActive": "Active",
+  "@outletStatusActive": {
+    "description": "Outlet status option: the store is trading and gets planned."
+  },
+  "outletStatusClosed": "Closed",
+  "@outletStatusClosed": {
+    "description": "Outlet status option: the store is kept out of planning."
+  },
+  "outletStatusClosedConsequence": "Kept out of planning. Check-in still works — an agent at the door must be able to work.",
+  "@outletStatusClosedConsequence": {
+    "description": "Consequence line under the Closed status option."
+  },
+  "outletStatusActiveConsequence": "Planned as usual.",
+  "@outletStatusActiveConsequence": {
+    "description": "Consequence line under the Active status option."
+  },
+  "outletRequired": "Required",
+  "@outletRequired": {
+    "description": "Validation message for an empty required field on the outlet forms."
+  },
+  "outletCoordinateNotANumber": "Enter a number, for example -26,2041",
+  "@outletCoordinateNotANumber": {
+    "description": "Validation message when a coordinate field holds something that is not a number."
+  },
+  "outletLatitudeOutOfRange": "A latitude is between -90 and 90",
+  "@outletLatitudeOutOfRange": {
+    "description": "Validation message when a latitude is off the globe."
+  },
+  "outletLongitudeOutOfRange": "A longitude is between -180 and 180",
+  "@outletLongitudeOutOfRange": {
+    "description": "Validation message when a longitude is off the globe."
+  },
+  "outletSave": "Save",
+  "@outletSave": {
+    "description": "Commit button on the outlet detail screen."
+  },
+  "outletSaveBlocked": "Fill in the store's name and both coordinates first.",
+  "@outletSaveBlocked": {
+    "description": "Blocked reason under the outlet detail save button while the form is incomplete."
+  },
+  "outletSaved": "Store updated.",
+  "@outletSaved": {
+    "description": "Toast after the outlet detail save succeeds."
+  },
+  "outletSaveFailed": "That store was not saved. It is unchanged.",
+  "@outletSaveFailed": {
+    "description": "Toast after the outlet detail save fails. Says what is still true rather than printing the error."
+  },
+  "outletUsingAttempt": "Using an agent's recorded position. The server reads the coordinates from that check-in itself.",
+  "@outletUsingAttempt": {
+    "description": "Line under the coordinate fields while an agent's recorded position has been adopted."
+  },
+  "outletAttemptsHeading": "Rejected check-ins",
+  "@outletAttemptsHeading": {
+    "description": "Section rule above the failed check-in evidence on outlet detail."
+  },
+  "outletAttemptsNote": "Where agents actually were when this store turned them away.",
+  "@outletAttemptsNote": {
+    "description": "Sentence under the rejected check-ins section rule."
+  },
+  "outletAttemptsEmptyHeadline": "No rejected check-ins.",
+  "@outletAttemptsEmptyHeadline": {
+    "description": "Inline empty state for the rejected check-in evidence."
+  },
+  "outletAttemptsEmptyBody": "Nobody has been turned away by this pin.",
+  "@outletAttemptsEmptyBody": {
+    "description": "Body of the rejected check-ins empty state."
+  },
+  "outletAttemptSubtitle": "{distance} away · {agent}",
+  "@outletAttemptSubtitle": {
+    "description": "Subtitle of a rejected check-in row.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "outletUseThisPosition": "Use this position",
+  "@outletUseThisPosition": {
+    "description": "Action on a rejected check-in row that adopts its coordinates as the store's pin."
+  },
+  "outletUseTheirPosition": "Use their position",
+  "@outletUseTheirPosition": {
+    "description": "Action on a pin report that adopts the reporting agent's own position."
+  },
+  "outletFixMocked": "The device reported this position as a mock location. It cannot become this store's pin.",
+  "@outletFixMocked": {
+    "description": "Fix-quality sentence for a position the platform flagged as mocked."
+  },
+  "outletFixUnknown": "The device did not report how accurate this position was.",
+  "@outletFixUnknown": {
+    "description": "Fix-quality sentence when accuracy was not recorded."
+  },
+  "outletFixCoarse": "Accurate to about {metres} m — too coarse to set a pin with.",
+  "@outletFixCoarse": {
+    "description": "Fix-quality sentence for a position too imprecise to adopt.",
+    "placeholders": {
+      "metres": {
+        "type": "String"
+      }
+    }
+  },
+  "outletFixGood": "Accurate to about {metres} m.",
+  "@outletFixGood": {
+    "description": "Fix-quality sentence for a usable position.",
+    "placeholders": {
+      "metres": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputesHeading": "Pin reports",
+  "@outletDisputesHeading": {
+    "description": "Section rule above the pin reports on outlet detail."
+  },
+  "outletDisputeStood": "Stood at {position} — {distance} from the pin, which then read {pin}.",
+  "@outletDisputeStood": {
+    "description": "The geometry of one pin report, in one sentence.",
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      },
+      "pin": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeSoleVisitor": "No other agent has ever visited this store, so nobody else's check-ins can disagree with a pin moved here.",
+  "@outletDisputeSoleVisitor": {
+    "description": "Caution shown when the reporting agent is the outlet's only visitor. Not a refusal."
+  },
+  "outletDisputeOpen": "Open",
+  "@outletDisputeOpen": {
+    "description": "State word on a pin report nobody has answered yet."
+  },
+  "outletDisputeAnswering": "Answering this report on save.",
+  "@outletDisputeAnswering": {
+    "description": "State line on the pin report the next save will answer."
+  },
+  "outletDisputeAnswer": "Answer this report",
+  "@outletDisputeAnswer": {
+    "description": "Action that marks a pin report as the one the next save answers."
+  },
+  "outletDisputeApplied": "Applied by {who}",
+  "@outletDisputeApplied": {
+    "description": "Resolution line on a pin report that was accepted.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeRejected": "Rejected by {who}",
+  "@outletDisputeRejected": {
+    "description": "Resolution line on a pin report that was turned down.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "outletDisputeResolvedByManager": "a manager",
+  "@outletDisputeResolvedByManager": {
+    "description": "Stand-in for the resolving person's name when the wire did not send one."
+  },
+  "outletPhotoCamera": "Taken with the camera",
+  "@outletPhotoCamera": {
+    "description": "Provenance of a pin-report photograph captured in the app."
+  },
+  "outletPhotoGallery": "Chosen from the gallery",
+  "@outletPhotoGallery": {
+    "description": "Provenance of a pin-report photograph picked from the device's library."
+  },
+  "outletPhotoUnknownSource": "Source not recorded",
+  "@outletPhotoUnknownSource": {
+    "description": "Provenance of an older pin-report photograph that carries no source."
+  },
+  "outletPhotoPhoneSaid": "Phone said {when}",
+  "@outletPhotoPhoneSaid": {
+    "description": "The device's own timestamp on a pin-report photograph.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "outletPhotoReceived": "Received {when}",
+  "@outletPhotoReceived": {
+    "description": "When the server took delivery of a pin-report photograph.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "outletPhotoAlt": "Storefront photograph from this pin report",
+  "@outletPhotoAlt": {
+    "description": "Semantic label of a pin-report photograph."
+  },
+  "outletPhotoMissing": "That photograph did not load.",
+  "@outletPhotoMissing": {
+    "description": "Shown in place of a pin-report photograph whose bytes could not be fetched."
+  },
+  "outletChangesHeading": "Change history",
+  "@outletChangesHeading": {
+    "description": "Section rule above the outlet's change ledger."
+  },
+  "outletChangePinMoved": "Pin moved from {before} to {after}",
+  "@outletChangePinMoved": {
+    "description": "Change ledger line for a coordinate move.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangePinFromAgent": "from an agent's recorded position",
+  "@outletChangePinFromAgent": {
+    "description": "Appended to a pin-move ledger line when the new coordinates came from a check-in."
+  },
+  "outletChangeRenamed": "Renamed from \"{before}\" to \"{after}\"",
+  "@outletChangeRenamed": {
+    "description": "Change ledger line for a rename.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangeStatus": "Status {before} to {after}",
+  "@outletChangeStatus": {
+    "description": "Change ledger line for a status change.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "outletChangeOther": "Changed",
+  "@outletChangeOther": {
+    "description": "Change ledger line when the recorded change is none of the known kinds."
+  },
+  "outletChangeUnknownCoordinate": "not recorded",
+  "@outletChangeUnknownCoordinate": {
+    "description": "Stand-in inside a pin-move ledger line when a before or after coordinate is missing."
+  },
+  "createOutletTitle": "Add a store",
+  "@createOutletTitle": {
+    "description": "Title of the create-store route."
+  },
+  "createOutletBack": "Back to stores",
+  "@createOutletBack": {
+    "description": "Semantic label of the create-store back button."
+  },
+  "createOutletSubmit": "Add the store",
+  "@createOutletSubmit": {
+    "description": "Commit button on the create-store form."
+  },
+  "createOutletBlocked": "Fill in the name, code, channel, territory and both coordinates first.",
+  "@createOutletBlocked": {
+    "description": "Blocked reason under the create-store commit button."
+  },
+  "createOutletFailed": "That store was not created. Nothing was saved.",
+  "@createOutletFailed": {
+    "description": "Toast after the create-store request fails."
+  },
+  "createOutletLocationHeading": "Where this store is",
+  "@createOutletLocationHeading": {
+    "description": "Section rule above the location block on the create-store form."
+  },
+  "createOutletLocating": "Finding where this phone is…",
+  "@createOutletLocating": {
+    "description": "Line shown while the device position is being fetched, to seed the coordinate fields."
+  },
+  "createOutletLocationDenied": "This phone will not say where it is. Type the store's coordinates instead.",
+  "@createOutletLocationDenied": {
+    "description": "Shown when location permission was refused on the create-store form."
+  },
+  "createOutletLocationFailed": "This phone could not find where it is. Type the store's coordinates instead.",
+  "@createOutletLocationFailed": {
+    "description": "Shown when the device position lookup failed on the create-store form."
+  },
+  "createOutletLocationFound": "Seeded from this phone. Type over it if you are not standing in the store.",
+  "@createOutletLocationFound": {
+    "description": "Shown when the device position seeded the coordinate fields."
+  },
+  "createOutletUseThisPhone": "Use this phone's position",
+  "@createOutletUseThisPhone": {
+    "description": "Action that re-seeds the coordinate fields from the device."
+  },
+  "createOutletTerritoriesLoading": "Loading territories…",
+  "@createOutletTerritoriesLoading": {
+    "description": "Placeholder while the territory list is being fetched."
+  },
+  "createOutletTerritoriesFailed": "The territory list did not load.",
+  "@createOutletTerritoriesFailed": {
+    "description": "Shown when the territory list could not be fetched on the create-store form."
+  },
+  "createOutletTerritoriesRetry": "Try again",
+  "@createOutletTerritoriesRetry": {
+    "description": "Retry action beside the failed territory list."
+  },
+  "createOutletNoTerritories": "No territories yet — create one under Territories first.",
+  "@createOutletNoTerritories": {
+    "description": "Shown when the account has no territories, so no store can be filed."
+  },
+  "createOutletTerritoryNotChosen": "Choose a territory",
+  "@createOutletTerritoryNotChosen": {
+    "description": "Validation message when the territory picker has no selection."
+  },
+  "ordersTitle": "Orders",
+  "@ordersTitle": {
+    "description": "Title of the orders worklist route."
+  },
+  "ordersSubtitle": "Captured in the field. A submitted order is waiting on a decision.",
+  "@ordersSubtitle": {
+    "description": "Header fact on the orders worklist."
+  },
+  "ordersRefresh": "Reload the order list",
+  "@ordersRefresh": {
+    "description": "Semantic label of the refresh icon button in the orders header."
+  },
+  "ordersSectionHeading": "Orders",
+  "@ordersSectionHeading": {
+    "description": "Section rule above the order rows."
+  },
+  "ordersNewOrder": "New order",
+  "@ordersNewOrder": {
+    "description": "Action that opens the order capture form."
+  },
+  "ordersAwaitingEyebrow": "Awaiting a decision",
+  "@ordersAwaitingEyebrow": {
+    "description": "Eyebrow of the lead figure counting submitted orders."
+  },
+  "ordersAwaitingSubordinates": "{confirmed} confirmed · {cancelled} cancelled",
+  "@ordersAwaitingSubordinates": {
+    "description": "The two counts that are not the lead figure, beneath it.",
+    "placeholders": {
+      "confirmed": {
+        "type": "String"
+      },
+      "cancelled": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersValueEyebrow": "Value of these orders",
+  "@ordersValueEyebrow": {
+    "description": "Eyebrow of the summed order value. It names the scope — these orders, not every order — because the list is one page."
+  },
+  "ordersValuePartial": "Summed over the {shown} orders loaded, not the whole history.",
+  "@ordersValuePartial": {
+    "description": "State line under the order value when the list was cut. A partial sum that calls itself a total is an invented figure.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersCountPartial": "At least this many: counted over the {shown} orders loaded.",
+  "@ordersCountPartial": {
+    "description": "State line under a count taken over a cut page.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersStatusSubmitted": "Submitted",
+  "@ordersStatusSubmitted": {
+    "description": "Order status word: captured and waiting on a decision."
+  },
+  "ordersStatusConfirmed": "Confirmed",
+  "@ordersStatusConfirmed": {
+    "description": "Order status word: accepted."
+  },
+  "ordersStatusCancelled": "Cancelled",
+  "@ordersStatusCancelled": {
+    "description": "Order status word: turned down."
+  },
+  "ordersStatusOther": "Status {status}",
+  "@ordersStatusOther": {
+    "description": "Fallback for an order status the app does not know. The wire's own word is shown rather than guessed at.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersLineCount": "{count, plural, =1{1 line} other{{count} lines}}",
+  "@ordersLineCount": {
+    "description": "How many line items an order carries.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ordersRowSubtitle": "{status} · {lines}",
+  "@ordersRowSubtitle": {
+    "description": "An order row's second line: its status and how many lines it has.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "lines": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersUnknownStore": "Store not on this list",
+  "@ordersUnknownStore": {
+    "description": "Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title."
+  },
+  "ordersEmptyHeadline": "No orders yet.",
+  "@ordersEmptyHeadline": {
+    "description": "Whole-screen empty state on the orders worklist."
+  },
+  "ordersEmptyBody": "Orders appear here as agents capture them on a visit.",
+  "@ordersEmptyBody": {
+    "description": "Body of the orders empty state."
+  },
+  "ordersLoadErrorHeadline": "The order list did not load.",
+  "@ordersLoadErrorHeadline": {
+    "description": "Headline of the orders error state."
+  },
+  "ordersRetry": "Try again",
+  "@ordersRetry": {
+    "description": "Retry action on the orders error state."
+  },
+  "ordersFooterMore": "Showing the first {shown}. There are more.",
+  "@ordersFooterMore": {
+    "description": "Pagination footer when the server did not count the whole list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersFooterOf": "Showing the {shown} newest of {total} orders.",
+  "@ordersFooterOf": {
+    "description": "Pagination footer when the server counted the whole list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersFooterScope": "The figures above are of these {shown}.",
+  "@ordersFooterScope": {
+    "description": "Second footer line: the honest scope of every figure above the list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "orderFormTitle": "New order",
+  "@orderFormTitle": {
+    "description": "Title of the order capture form."
+  },
+  "orderFormBack": "Back to orders",
+  "@orderFormBack": {
+    "description": "Semantic label of the order form's back button."
+  },
+  "orderFormStoreHeading": "Which store",
+  "@orderFormStoreHeading": {
+    "description": "Section rule above the store picker on the order form."
+  },
+  "orderFormStore": "Store",
+  "@orderFormStore": {
+    "description": "Label of the store picker on the order form."
+  },
+  "orderFormStoreNotChosen": "Not chosen yet. A store decides what can be ordered.",
+  "@orderFormStoreNotChosen": {
+    "description": "Line under the store picker while nothing is chosen."
+  },
+  "orderFormStoresFailed": "The store list did not load.",
+  "@orderFormStoresFailed": {
+    "description": "Shown when the outlet list could not be fetched on the order form."
+  },
+  "orderFormLinesHeading": "Line items",
+  "@orderFormLinesHeading": {
+    "description": "Section rule above the SKU list on the order form."
+  },
+  "orderFormPickStoreFirst": "Choose a store to see what it stocks.",
+  "@orderFormPickStoreFirst": {
+    "description": "Inline empty state in place of the SKU list before a store is chosen."
+  },
+  "orderFormSkusFailed": "That store's products did not load.",
+  "@orderFormSkusFailed": {
+    "description": "Shown when the SKU list could not be fetched."
+  },
+  "orderFormNoSkusHeadline": "Nothing is stocked here.",
+  "@orderFormNoSkusHeadline": {
+    "description": "Inline empty state when a store has no SKUs."
+  },
+  "orderFormNoSkusBody": "This store has no products on its list, so there is nothing to order.",
+  "@orderFormNoSkusBody": {
+    "description": "Body of the no-SKUs empty state."
+  },
+  "orderFormTotal": "Order total",
+  "@orderFormTotal": {
+    "description": "Label of the running order total."
+  },
+  "orderFormSubmit": "Create the order",
+  "@orderFormSubmit": {
+    "description": "Commit button on the order form."
+  },
+  "orderFormBlocked": "Choose a store and set a quantity on at least one line first.",
+  "@orderFormBlocked": {
+    "description": "Blocked reason under the order form's commit button."
+  },
+  "orderFormFailed": "That order was not created. Nothing was sent.",
+  "@orderFormFailed": {
+    "description": "Toast after the order create request fails."
+  },
+  "orderFormQuantity": "Quantity",
+  "@orderFormQuantity": {
+    "description": "Label of a SKU's quantity stepper on the order form."
+  },
+  "orderFormOneFewer": "One fewer",
+  "@orderFormOneFewer": {
+    "description": "Semantic label of the quantity stepper's minus key."
+  },
+  "orderFormOneMore": "One more",
+  "@orderFormOneMore": {
+    "description": "Semantic label of the quantity stepper's plus key."
+  },
+  "orderFormTypeQuantity": "Type a quantity",
+  "@orderFormTypeQuantity": {
+    "description": "Semantic label of the quantity trough, which opens a number sheet."
+  },
+  "orderFormTypeQuantityFirst": "Type a quantity first.",
+  "@orderFormTypeQuantityFirst": {
+    "description": "Blocked reason on the number sheet's Set button while nothing has been typed."
+  },
+  "orderFormNotOrdered": "Not on this order",
+  "@orderFormNotOrdered": {
+    "description": "What a SKU with no quantity says. Nothing ordered is a state, not a zero."
+  },
+  "orderFormNoneOrdered": "None of this one",
+  "@orderFormNoneOrdered": {
+    "description": "Word for a line explicitly set to nought."
+  },
+  "orderFormNoneOrderedLine": "A line at nought is not sent.",
+  "@orderFormNoneOrderedLine": {
+    "description": "Consequence line under a quantity of nought."
+  },
+  "orderFormCancel": "Cancel",
+  "@orderFormCancel": {
+    "description": "Cancel action on the quantity number sheet."
+  },
+  "orderFormSet": "Set",
+  "@orderFormSet": {
+    "description": "Commit action on the quantity number sheet."
+  },
+  "beatPlansTitle": "Beat plans",
+  "@beatPlansTitle": {
+    "description": "Title of the beat plans route."
+  },
+  "beatPlansSubtitle": "A plan is a day of store stops, in visit order.",
+  "@beatPlansSubtitle": {
+    "description": "Header fact on the beat plans route."
+  },
+  "beatPlansRefresh": "Reload the beat plans",
+  "@beatPlansRefresh": {
+    "description": "Semantic label of the refresh icon button on the beat plans route."
+  },
+  "beatPlansSectionHeading": "Plans",
+  "@beatPlansSectionHeading": {
+    "description": "Section rule above the beat plan rows."
+  },
+  "beatPlansNewPlan": "New plan",
+  "@beatPlansNewPlan": {
+    "description": "Action that opens the beat plan builder."
+  },
+  "beatPlansEmptyHeadline": "No beat plans.",
+  "@beatPlansEmptyHeadline": {
+    "description": "Whole-screen empty state on the beat plans route."
+  },
+  "beatPlansEmptyBody": "A plan is a day of store stops in visit order. Build one to give an agent a route.",
+  "@beatPlansEmptyBody": {
+    "description": "Body of the beat plans empty state."
+  },
+  "beatPlansLoadErrorHeadline": "The beat plans did not load.",
+  "@beatPlansLoadErrorHeadline": {
+    "description": "Headline of the beat plans error state."
+  },
+  "beatPlansRetry": "Try again",
+  "@beatPlansRetry": {
+    "description": "Retry action on the beat plans error state."
+  },
+  "beatPlansFooterMore": "Showing the first {shown}. There are more.",
+  "@beatPlansFooterMore": {
+    "description": "Pagination footer on the beat plans route when the server did not count.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlansFooterOf": "Showing {shown} of {total} plans.",
+  "@beatPlansFooterOf": {
+    "description": "Pagination footer on the beat plans route when the server counted.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStatusScheduled": "Scheduled",
+  "@beatPlanStatusScheduled": {
+    "description": "Beat plan status word: planned, not started."
+  },
+  "beatPlanStatusInProgress": "In progress",
+  "@beatPlanStatusInProgress": {
+    "description": "Beat plan status word: being worked now."
+  },
+  "beatPlanStatusCompleted": "Completed",
+  "@beatPlanStatusCompleted": {
+    "description": "Beat plan status word: every stop worked."
+  },
+  "beatPlanStatusMissed": "Missed",
+  "@beatPlanStatusMissed": {
+    "description": "Beat plan status word: the day passed unworked."
+  },
+  "beatPlanStatusCancelled": "Cancelled",
+  "@beatPlanStatusCancelled": {
+    "description": "Beat plan status word: called off."
+  },
+  "beatPlanStatusOther": "Status {status}",
+  "@beatPlanStatusOther": {
+    "description": "Fallback for a beat plan status the app does not know.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanDetailTitle": "Beat plan",
+  "@beatPlanDetailTitle": {
+    "description": "Title of the beat plan detail route."
+  },
+  "beatPlanDetailBack": "Back to beat plans",
+  "@beatPlanDetailBack": {
+    "description": "Semantic label of the beat plan detail back button."
+  },
+  "beatPlanDetailLoadErrorHeadline": "This beat plan did not load.",
+  "@beatPlanDetailLoadErrorHeadline": {
+    "description": "Headline of the beat plan detail error state."
+  },
+  "beatPlanAdherenceEyebrow": "Stops worked",
+  "@beatPlanAdherenceEyebrow": {
+    "description": "Eyebrow of the adherence figure on a beat plan."
+  },
+  "beatPlanAdherenceOf": "{visited} of {total} stops",
+  "@beatPlanAdherenceOf": {
+    "description": "The adherence figure in words, beneath the percentage.",
+    "placeholders": {
+      "visited": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanAdherenceNoStops": "This plan has no stops, so there is nothing to work.",
+  "@beatPlanAdherenceNoStops": {
+    "description": "Reason shown in place of an adherence percentage for a plan with no stops. A plan with no stops is not nought per cent adherent."
+  },
+  "beatPlanStopsHeading": "Stops",
+  "@beatPlanStopsHeading": {
+    "description": "Section rule above a beat plan's stops."
+  },
+  "beatPlanStopsEmptyHeadline": "No stops on this plan.",
+  "@beatPlanStopsEmptyHeadline": {
+    "description": "Inline empty state for a beat plan with no stops."
+  },
+  "beatPlanStopsEmptyBody": "Add stores to the plan to give the agent a route.",
+  "@beatPlanStopsEmptyBody": {
+    "description": "Body of the no-stops empty state."
+  },
+  "beatPlanStopLabel": "Stop {sequence}",
+  "@beatPlanStopLabel": {
+    "description": "Title of a beat plan stop row when the store's name is not known.",
+    "placeholders": {
+      "sequence": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStopVisited": "Worked",
+  "@beatPlanStopVisited": {
+    "description": "State word on a stop that has been visited."
+  },
+  "beatPlanStopNotVisited": "Not yet",
+  "@beatPlanStopNotVisited": {
+    "description": "State word on a stop that has not been visited."
+  },
+  "beatPlanStopToggle": "Mark {stop} as worked",
+  "@beatPlanStopToggle": {
+    "description": "Semantic label of a stop's visited checkbox.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStopFailed": "That stop was not changed. It is as it was.",
+  "@beatPlanStopFailed": {
+    "description": "Toast after marking a stop visited fails."
+  },
+  "beatPlanFormTitle": "New beat plan",
+  "@beatPlanFormTitle": {
+    "description": "Title of the beat plan builder."
+  },
+  "beatPlanFormBack": "Back to beat plans",
+  "@beatPlanFormBack": {
+    "description": "Semantic label of the beat plan builder's back button."
+  },
+  "beatPlanFormPlanHeading": "The day",
+  "@beatPlanFormPlanHeading": {
+    "description": "Section rule above the beat plan's own fields."
+  },
+  "beatPlanFormName": "Plan name",
+  "@beatPlanFormName": {
+    "description": "Label of the beat plan name field."
+  },
+  "beatPlanFormNameHelp": "What the agent will see at the top of their day.",
+  "@beatPlanFormNameHelp": {
+    "description": "Help line under the beat plan name field."
+  },
+  "beatPlanFormDate": "Scheduled date",
+  "@beatPlanFormDate": {
+    "description": "Label of the beat plan date picker."
+  },
+  "beatPlanFormDateNotChosen": "Not chosen yet.",
+  "@beatPlanFormDateNotChosen": {
+    "description": "Line under the date picker while no date is chosen."
+  },
+  "beatPlanFormPickDate": "Pick a date",
+  "@beatPlanFormPickDate": {
+    "description": "Action that opens the date picker."
+  },
+  "beatPlanFormChangeDate": "Change the date",
+  "@beatPlanFormChangeDate": {
+    "description": "Action that reopens the date picker once a date is chosen."
+  },
+  "beatPlanFormAgent": "Field agent",
+  "@beatPlanFormAgent": {
+    "description": "Label of the agent picker on the beat plan builder."
+  },
+  "beatPlanFormAgentNotChosen": "Not chosen yet. A plan belongs to one agent.",
+  "@beatPlanFormAgentNotChosen": {
+    "description": "Line under the agent picker while nothing is chosen."
+  },
+  "beatPlanFormAgentsFailed": "The agent list did not load.",
+  "@beatPlanFormAgentsFailed": {
+    "description": "Shown when the user list could not be fetched on the beat plan builder."
+  },
+  "beatPlanFormNoAgents": "No field agents on this account yet.",
+  "@beatPlanFormNoAgents": {
+    "description": "Shown when the account has no field agents to assign a plan to."
+  },
+  "beatPlanFormTerritory": "Territory",
+  "@beatPlanFormTerritory": {
+    "description": "Label of the optional territory picker on the beat plan builder."
+  },
+  "beatPlanFormTerritoryOptional": "Optional. It narrows reporting, not the stops.",
+  "@beatPlanFormTerritoryOptional": {
+    "description": "Help line under the optional territory picker."
+  },
+  "beatPlanFormTerritoryNone": "No territory",
+  "@beatPlanFormTerritoryNone": {
+    "description": "The option that clears the optional territory."
+  },
+  "beatPlanFormStopsHeading": "Stops, in order",
+  "@beatPlanFormStopsHeading": {
+    "description": "Section rule above the chosen stops on the beat plan builder."
+  },
+  "beatPlanFormStopsEmpty": "No stops yet. Add stores from the list below.",
+  "@beatPlanFormStopsEmpty": {
+    "description": "Inline empty state for the chosen stops."
+  },
+  "beatPlanFormAvailableHeading": "Stores to add",
+  "@beatPlanFormAvailableHeading": {
+    "description": "Section rule above the pool of stores not yet on the plan."
+  },
+  "beatPlanFormAvailableEmpty": "Every store is already on this plan.",
+  "@beatPlanFormAvailableEmpty": {
+    "description": "Inline empty state for the pool of available stores."
+  },
+  "beatPlanFormStoresFailed": "The store list did not load.",
+  "@beatPlanFormStoresFailed": {
+    "description": "Shown when the outlet list could not be fetched on the beat plan builder."
+  },
+  "beatPlanFormAddStop": "Add {store} to the plan",
+  "@beatPlanFormAddStop": {
+    "description": "Semantic label of the button that adds a store to the plan.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormRemoveStop": "Take {store} off the plan",
+  "@beatPlanFormRemoveStop": {
+    "description": "Semantic label of the button that removes a stop.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormMoveUp": "Move {store} earlier",
+  "@beatPlanFormMoveUp": {
+    "description": "Semantic label of the button that moves a stop up the order.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormMoveDown": "Move {store} later",
+  "@beatPlanFormMoveDown": {
+    "description": "Semantic label of the button that moves a stop down the order.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormStopCount": "{count, plural, =0{No stops} =1{1 stop} other{{count} stops}}",
+  "@beatPlanFormStopCount": {
+    "description": "How many stops are on the plan being built.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beatPlanFormSubmit": "Create the plan",
+  "@beatPlanFormSubmit": {
+    "description": "Commit button on the beat plan builder."
+  },
+  "beatPlanFormBlocked": "Name the plan, pick a date and an agent, and add at least one stop first.",
+  "@beatPlanFormBlocked": {
+    "description": "Blocked reason under the beat plan builder's commit button."
+  },
+  "beatPlanFormFailed": "That plan was not created. Nothing was saved.",
+  "@beatPlanFormFailed": {
+    "description": "Toast after the beat plan create request fails."
+  },
+  "salesTargetsTitle": "Sales targets",
+  "@salesTargetsTitle": {
+    "description": "Title of the sales targets route."
+  },
+  "salesTargetsSubtitle": "Units ordered through TradeIQ, not what shoppers bought.",
+  "@salesTargetsSubtitle": {
+    "description": "Header fact on the sales targets route. It says what the metric is before any figure is read."
+  },
+  "salesSellIn": "Sell-in (orders)",
+  "@salesSellIn": {
+    "description": "The metric's name: units ordered through TradeIQ. Used wherever the server did not send its own label."
+  },
+  "salesTargetsHelp": "Set one target per SKU for the whole account, a territory, or a single store.",
+  "@salesTargetsHelp": {
+    "description": "Second header fact on the sales targets route."
+  },
+  "salesTargetsUpload": "Upload a CSV of targets",
+  "@salesTargetsUpload": {
+    "description": "Semantic label of the CSV import icon button."
+  },
+  "salesMonthPrevious": "The month before {month}",
+  "@salesMonthPrevious": {
+    "description": "Semantic label of the previous-month button.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesMonthNext": "The month after {month}",
+  "@salesMonthNext": {
+    "description": "Semantic label of the next-month button.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTimeZone": "Local days in {zone}",
+  "@salesTimeZone": {
+    "description": "Says which time zone the month's days were counted in.",
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "salesLevelsHeading": "Against target",
+  "@salesLevelsHeading": {
+    "description": "Section rule above the three attainment levels."
+  },
+  "salesLevelAccount": "Account-wide",
+  "@salesLevelAccount": {
+    "description": "The attainment level covering every store on the account."
+  },
+  "salesLevelTerritories": "Territories",
+  "@salesLevelTerritories": {
+    "description": "The attainment level covering territory-scoped targets."
+  },
+  "salesLevelOutlets": "Stores",
+  "@salesLevelOutlets": {
+    "description": "The attainment level covering store-scoped targets."
+  },
+  "salesLevelNoTargets": "No target is set at this level, so there is nothing to attain.",
+  "@salesLevelNoTargets": {
+    "description": "Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained."
+  },
+  "salesLevelSubordinates": "{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}",
+  "@salesLevelSubordinates": {
+    "description": "The units and the target count beneath an attainment figure.",
+    "placeholders": {
+      "actual": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "int"
+      }
+    }
+  },
+  "salesBandOnTarget": "On target",
+  "@salesBandOnTarget": {
+    "description": "Attainment band word at or above 100 per cent."
+  },
+  "salesBandClose": "Close",
+  "@salesBandClose": {
+    "description": "Attainment band word from 80 to 99 per cent."
+  },
+  "salesBandBehind": "Behind",
+  "@salesBandBehind": {
+    "description": "Attainment band word below 80 per cent."
+  },
+  "salesNoTarget": "No target",
+  "@salesNoTarget": {
+    "description": "Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero."
+  },
+  "salesNoTargetsHeadline": "No targets for {month}.",
+  "@salesNoTargetsHeadline": {
+    "description": "Inline empty state when the month has no targets at all.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesNoTargetsBody": "Set a target on a SKU below, or upload a CSV of targets.",
+  "@salesNoTargetsBody": {
+    "description": "Body of the no-targets empty state."
+  },
+  "salesSkusHeading": "SKUs",
+  "@salesSkusHeading": {
+    "description": "Section rule above the per-SKU rows."
+  },
+  "salesSkusTruncated": "Showing the first {shown}.",
+  "@salesSkusTruncated": {
+    "description": "Pagination footer when the server cut the SKU list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "salesSkusEmptyHeadline": "No SKUs on this account.",
+  "@salesSkusEmptyHeadline": {
+    "description": "Inline empty state when the account has no products."
+  },
+  "salesSkusEmptyBody": "Targets are set per SKU, so there is nothing to set one on yet.",
+  "@salesSkusEmptyBody": {
+    "description": "Body of the no-SKUs empty state."
+  },
+  "salesRowFigures": "{metric} {actual} · target {target} units",
+  "@salesRowFigures": {
+    "description": "A SKU row's figures: what was ordered, against the target.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "actual": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "salesRowNoTargetFigures": "{metric} {actual} · no target set",
+  "@salesRowNoTargetFigures": {
+    "description": "A SKU row's figures when no target exists. It says so in words rather than printing a nought.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "actual": {
+        "type": "String"
+      }
+    }
+  },
+  "salesScopeTerritory": "Territory",
+  "@salesScopeTerritory": {
+    "description": "Scope word for a territory-scoped target."
+  },
+  "salesScopeOutlet": "Store",
+  "@salesScopeOutlet": {
+    "description": "Scope word for a store-scoped target."
+  },
+  "salesScopeAccount": "Whole account",
+  "@salesScopeAccount": {
+    "description": "Scope word for an account-wide target."
+  },
+  "salesScopeUnknown": "Scope not on this list",
+  "@salesScopeUnknown": {
+    "description": "Shown when a scoped target names a territory or store the report did not resolve."
+  },
+  "salesScopedRowTitle": "{sku} · {scope}",
+  "@salesScopedRowTitle": {
+    "description": "Title of a scoped target's row.",
+    "placeholders": {
+      "sku": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "salesSetTarget": "Set a target",
+  "@salesSetTarget": {
+    "description": "Action that opens the target sheet for a SKU with no target."
+  },
+  "salesEditTarget": "Edit the target",
+  "@salesEditTarget": {
+    "description": "Action that opens the target sheet for an existing target."
+  },
+  "salesRemoveTarget": "Remove the target",
+  "@salesRemoveTarget": {
+    "description": "Action that deletes a target."
+  },
+  "salesRemoveFailed": "That target was not removed. It is still set.",
+  "@salesRemoveFailed": {
+    "description": "Toast after a target delete fails."
+  },
+  "salesTargetSheetSet": "Set a sales target",
+  "@salesTargetSheetSet": {
+    "description": "Title of the sheet that creates a target."
+  },
+  "salesTargetSheetEdit": "Edit a sales target",
+  "@salesTargetSheetEdit": {
+    "description": "Title of the sheet that edits a target."
+  },
+  "salesTargetSheetSubtitle": "Units of {metric} for {month}.",
+  "@salesTargetSheetSubtitle": {
+    "description": "Subtitle of the target sheet: the metric and the month it applies to.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTargetSku": "SKU",
+  "@salesTargetSku": {
+    "description": "Label of the SKU picker in the target sheet."
+  },
+  "salesTargetSkuNotChosen": "Not chosen yet. A target belongs to one SKU.",
+  "@salesTargetSkuNotChosen": {
+    "description": "Line under the SKU picker while nothing is chosen."
+  },
+  "salesTargetSkuLocked": "A target is identified by its SKU, so an edit cannot move it.",
+  "@salesTargetSkuLocked": {
+    "description": "Reason shown under the locked SKU picker when editing."
+  },
+  "salesTargetScope": "Applies to",
+  "@salesTargetScope": {
+    "description": "Label of the scope choice in the target sheet."
+  },
+  "salesTargetScopeLocked": "A target is identified by its scope, so an edit cannot move it.",
+  "@salesTargetScopeLocked": {
+    "description": "Reason shown under the locked scope choice when editing."
+  },
+  "salesTargetScopeAccountConsequence": "Every store on the account counts towards it.",
+  "@salesTargetScopeAccountConsequence": {
+    "description": "Consequence line under the account-wide scope option."
+  },
+  "salesTargetScopeTerritoryConsequence": "Only stores in the chosen territory count.",
+  "@salesTargetScopeTerritoryConsequence": {
+    "description": "Consequence line under the territory scope option."
+  },
+  "salesTargetScopeOutletConsequence": "Only the chosen store counts.",
+  "@salesTargetScopeOutletConsequence": {
+    "description": "Consequence line under the store scope option."
+  },
+  "salesTargetTerritoryNotChosen": "Not chosen yet. A territory target needs one.",
+  "@salesTargetTerritoryNotChosen": {
+    "description": "Line under the territory picker in the target sheet while nothing is chosen."
+  },
+  "salesTargetOutletNotChosen": "Not chosen yet. A store target needs one.",
+  "@salesTargetOutletNotChosen": {
+    "description": "Line under the store picker in the target sheet while nothing is chosen."
+  },
+  "salesTargetUnits": "Target units",
+  "@salesTargetUnits": {
+    "description": "Label of the target units field in the target sheet."
+  },
+  "salesTargetUnitsHelp": "A whole number of units, for the month.",
+  "@salesTargetUnitsHelp": {
+    "description": "Help line under the target units field."
+  },
+  "salesTargetUnitsMissing": "Enter a whole number of units.",
+  "@salesTargetUnitsMissing": {
+    "description": "Validation message when the target units field is empty or not a whole number."
+  },
+  "salesTargetSave": "Save the target",
+  "@salesTargetSave": {
+    "description": "Commit button in the target sheet."
+  },
+  "salesTargetBlocked": "Choose a SKU and a scope, and enter a whole number of units.",
+  "@salesTargetBlocked": {
+    "description": "Blocked reason under the target sheet's commit button."
+  },
+  "salesTargetCancel": "Cancel",
+  "@salesTargetCancel": {
+    "description": "Cancel action in the target sheet."
+  },
+  "salesTargetsLoadErrorHeadline": "The targets did not load.",
+  "@salesTargetsLoadErrorHeadline": {
+    "description": "Headline of the sales targets error state."
+  },
+  "salesTargetsRetry": "Try again",
+  "@salesTargetsRetry": {
+    "description": "Retry action on the sales targets error state."
+  },
+  "salesImportTitle": "Upload sales targets",
+  "@salesImportTitle": {
+    "description": "Title of the CSV import sheet."
+  },
+  "salesImportSubtitle": "Preview what a file would do, then apply the rows that are good.",
+  "@salesImportSubtitle": {
+    "description": "Subtitle of the CSV import sheet."
+  },
+  "salesImportFormat": "It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.",
+  "@salesImportFormat": {
+    "description": "What the CSV file must contain."
+  },
+  "salesImportChooseFile": "Choose a CSV file",
+  "@salesImportChooseFile": {
+    "description": "Action that opens the platform file chooser."
+  },
+  "salesImportChooseAnother": "Choose another file",
+  "@salesImportChooseAnother": {
+    "description": "Action that replaces the chosen file."
+  },
+  "salesImportRemoveFile": "Remove the file",
+  "@salesImportRemoveFile": {
+    "description": "Action that clears the chosen file and brings the paste box back."
+  },
+  "salesImportPasteLabel": "Or paste a CSV",
+  "@salesImportPasteLabel": {
+    "description": "Label of the CSV paste box."
+  },
+  "salesImportPasteHint": "month,sku,targetUnits,territory,outlet",
+  "@salesImportPasteHint": {
+    "description": "Placeholder inside the CSV paste box: the header row it wants."
+  },
+  "salesImportFileHeld": "Preview to see what this file would do. Remove it to paste a CSV instead.",
+  "@salesImportFileHeld": {
+    "description": "Shown in place of the paste box while a file is held."
+  },
+  "salesImportFileUnreadable": "That file could not be read.",
+  "@salesImportFileUnreadable": {
+    "description": "Shown when the chooser returned a file the console cannot take and gave no reason of its own."
+  },
+  "salesImportPreview": "Preview",
+  "@salesImportPreview": {
+    "description": "Action that runs the dry-run import."
+  },
+  "salesImportApply": "Apply",
+  "@salesImportApply": {
+    "description": "Commit action before a preview has been run."
+  },
+  "salesImportApplyRows": "{count, plural, =1{Apply 1 row} other{Apply {count} rows}}",
+  "@salesImportApplyRows": {
+    "description": "Commit action once a preview says how many rows are good.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "salesImportBlockedPreview": "Preview the file first. What gets written is always what was shown.",
+  "@salesImportBlockedPreview": {
+    "description": "Blocked reason on Apply before a preview has been run, or after the CSV changed."
+  },
+  "salesImportBlockedNoRows": "No row in this file can be written.",
+  "@salesImportBlockedNoRows": {
+    "description": "Blocked reason on Apply when the preview found nothing valid."
+  },
+  "salesImportReadyEyebrow": "Rows ready to write",
+  "@salesImportReadyEyebrow": {
+    "description": "Eyebrow of the dry run's valid-row count."
+  },
+  "salesImportErrorsEyebrow": "Rows with errors",
+  "@salesImportErrorsEyebrow": {
+    "description": "Eyebrow of the dry run's invalid-row count."
+  },
+  "salesImportWouldDo": "Would create {created} and update {updated}.",
+  "@salesImportWouldDo": {
+    "description": "What the dry run says the file would do.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportErrorsHeading": "What is wrong",
+  "@salesImportErrorsHeading": {
+    "description": "Section rule above the dry run's row errors."
+  },
+  "salesImportRowError": "Row {row}: {message}",
+  "@salesImportRowError": {
+    "description": "One row error from the dry run.",
+    "placeholders": {
+      "row": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportRowErrorColumn": "Row {row} · {column}: {message}",
+  "@salesImportRowErrorColumn": {
+    "description": "One row error from the dry run, naming the column.",
+    "placeholders": {
+      "row": {
+        "type": "String"
+      },
+      "column": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportMoreErrors": "…and {count} more.",
+  "@salesImportMoreErrors": {
+    "description": "Shown when the dry run found more errors than the sheet lists.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportNothingWrong": "Every row in this file can be written.",
+  "@salesImportNothingWrong": {
+    "description": "Shown when a dry run found no errors at all."
+  },
+  "salesImportApplied": "{created} created, {updated} updated.",
+  "@salesImportApplied": {
+    "description": "Toast after an import is applied.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportAppliedSkipped": "{created} created, {updated} updated, {skipped} rows skipped.",
+  "@salesImportAppliedSkipped": {
+    "description": "Toast after an import is applied with some rows refused.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
+  "salesPanelTitle": "Sell-in vs target",
+  "@salesPanelTitle": {
+    "description": "Title of the dashboard's sales attainment panel."
+  },
+  "salesPanelSubtitle": "{metric} · {month} — not consumer sales",
+  "@salesPanelSubtitle": {
+    "description": "Subtitle of the dashboard's sales attainment panel.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesPanelThisMonth": "this month",
+  "@salesPanelThisMonth": {
+    "description": "Stand-in for the month in the dashboard panel's subtitle before the server has said which month it answered for."
+  },
+  "salesPanelLink": "Targets",
+  "@salesPanelLink": {
+    "description": "Action on the dashboard panel that opens the sales targets route."
+  },
+  "salesPanelEmptyBody": "Set monthly SKU targets under Sales targets to track sell-in against them.",
+  "@salesPanelEmptyBody": {
+    "description": "Body of the dashboard panel's empty state."
   }
 }

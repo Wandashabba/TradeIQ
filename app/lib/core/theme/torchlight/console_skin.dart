@@ -75,6 +75,28 @@ class ConsoleTorchlightRoute extends ConsumerWidget {
   }
 }
 
+/// The skin cycle at the leading end of a console thumb zone — every console
+/// screen that is not a tab root.
+///
+/// The header's single trailing slot is taken by a route's own action on a
+/// form (or is simply absent), and unify §1.2 puts the cycle in the thumb zone
+/// everywhere else. Never a screen without it: the one control that gets a
+/// person out of a skin they cannot read belongs on every screen they can
+/// reach.
+class ConsoleSkinCycle extends ConsumerWidget {
+  const ConsoleSkinCycle({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = consoleSkinModeOf(context, ref);
+    return TorchSkinCycle(
+      mode: mode,
+      semanticLabel: skinCycleLabel(context.l10n, mode),
+      onChanged: (next) => ref.read(consoleSkinProvider.notifier).set(next),
+    );
+  }
+}
+
 /// The skin cycle in a console header's single trailing slot.
 ///
 /// A function rather than a widget because [TorchAppHeader.trailing] is typed

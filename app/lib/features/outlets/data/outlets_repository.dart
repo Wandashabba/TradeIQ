@@ -35,15 +35,15 @@ class Outlet {
   final bool visited;
 
   factory Outlet.fromJson(Map<String, dynamic> json) => Outlet(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        code: json['code'] as String,
-        lat: (json['lat'] as num).toDouble(),
-        lng: (json['lng'] as num).toDouble(),
-        channelType: json['channelType'] as String? ?? '',
-        status: json['status'] as String? ?? 'active',
-        visited: json['visited'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    code: json['code'] as String,
+    lat: (json['lat'] as num).toDouble(),
+    lng: (json['lng'] as num).toDouble(),
+    channelType: json['channelType'] as String? ?? '',
+    status: json['status'] as String? ?? 'active',
+    visited: json['visited'] as bool? ?? false,
+  );
 }
 
 /// A rejected check-in — an agent who stood somewhere and was told they were
@@ -95,7 +95,8 @@ class CheckInAttemptEvidence {
   /// an unknown one still can, because an older handset that reports nothing
   /// must not lock a manager out of fixing a pin. Mirrors the server's rule
   /// (outlets.service), which is the one that actually decides.
-  bool get isAdoptable => isMocked != true && (accuracyM == null || accuracyM! <= 100);
+  bool get isAdoptable =>
+      isMocked != true && (accuracyM == null || accuracyM! <= 100);
 }
 
 /// An agent's explicit "the pin is wrong" claim (#386).
@@ -169,32 +170,32 @@ class PinDispute {
   bool get isOpen => status == 'open';
 
   factory PinDispute.fromJson(Map<String, dynamic> json) => PinDispute(
-        id: json['id'] as String,
-        outletId: json['outletId'] as String,
-        outletName: json['outletName'] as String? ?? '',
-        outletCode: json['outletCode'] as String? ?? '',
-        visitId: json['visitId'] as String,
-        agentLabel: json['agentLabel'] as String? ?? '',
-        lat: (json['lat'] as num).toDouble(),
-        lng: (json['lng'] as num).toDouble(),
-        distanceM: (json['distanceM'] as num).toDouble(),
-        outletLat: (json['outletLat'] as num).toDouble(),
-        outletLng: (json['outletLng'] as num).toDouble(),
-        note: json['note'] as String?,
-        status: json['status'] as String? ?? 'open',
-        resolvedByLabel: json['resolvedByLabel'] as String?,
-        resolvedAt: json['resolvedAt'] == null
-            ? null
-            : DateTime.parse(json['resolvedAt'] as String),
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        accuracyM: (json['accuracyM'] as num?)?.toDouble(),
-        isMocked: json['isMocked'] as bool?,
-        agentIsOnlyVisitor: json['agentIsOnlyVisitor'] as bool? ?? false,
-        photos: [
-          for (final p in (json['photos'] as List<dynamic>? ?? const []))
-            PinDisputePhoto.fromJson(p as Map<String, dynamic>),
-        ],
-      );
+    id: json['id'] as String,
+    outletId: json['outletId'] as String,
+    outletName: json['outletName'] as String? ?? '',
+    outletCode: json['outletCode'] as String? ?? '',
+    visitId: json['visitId'] as String,
+    agentLabel: json['agentLabel'] as String? ?? '',
+    lat: (json['lat'] as num).toDouble(),
+    lng: (json['lng'] as num).toDouble(),
+    distanceM: (json['distanceM'] as num).toDouble(),
+    outletLat: (json['outletLat'] as num).toDouble(),
+    outletLng: (json['outletLng'] as num).toDouble(),
+    note: json['note'] as String?,
+    status: json['status'] as String? ?? 'open',
+    resolvedByLabel: json['resolvedByLabel'] as String?,
+    resolvedAt: json['resolvedAt'] == null
+        ? null
+        : DateTime.parse(json['resolvedAt'] as String),
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    accuracyM: (json['accuracyM'] as num?)?.toDouble(),
+    isMocked: json['isMocked'] as bool?,
+    agentIsOnlyVisitor: json['agentIsOnlyVisitor'] as bool? ?? false,
+    photos: [
+      for (final p in (json['photos'] as List<dynamic>? ?? const []))
+        PinDisputePhoto.fromJson(p as Map<String, dynamic>),
+    ],
+  );
 }
 
 /// One storefront photo offered as evidence for a wrong-pin claim (#386).
@@ -222,7 +223,8 @@ class PinDisputePhoto {
 
   bool get fromCamera => source == 'camera';
 
-  factory PinDisputePhoto.fromJson(Map<String, dynamic> json) => PinDisputePhoto(
+  factory PinDisputePhoto.fromJson(Map<String, dynamic> json) =>
+      PinDisputePhoto(
         id: json['id'] as String,
         timestamp: DateTime.parse(json['timestamp'] as String),
         receivedAt: DateTime.parse(
@@ -261,17 +263,19 @@ class OutletChange {
   final DateTime createdAt;
 
   factory OutletChange.fromJson(Map<String, dynamic> json) => OutletChange(
-        id: json['id'] as String,
-        userLabel: json['userLabel'] as String? ?? '',
-        before: Map<String, dynamic>.from(
-            json['before'] as Map? ?? const <String, dynamic>{}),
-        after: Map<String, dynamic>.from(
-            json['after'] as Map? ?? const <String, dynamic>{}),
-        pinSource: json['pinSource'] as String?,
-        fromAgentId: json['fromAgentId'] as String?,
-        fromAttemptId: json['fromAttemptId'] as String?,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-      );
+    id: json['id'] as String,
+    userLabel: json['userLabel'] as String? ?? '',
+    before: Map<String, dynamic>.from(
+      json['before'] as Map? ?? const <String, dynamic>{},
+    ),
+    after: Map<String, dynamic>.from(
+      json['after'] as Map? ?? const <String, dynamic>{},
+    ),
+    pinSource: json['pinSource'] as String?,
+    fromAgentId: json['fromAgentId'] as String?,
+    fromAttemptId: json['fromAttemptId'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 }
 
 /// GET /outlets/:id — the pin plus everything a manager needs to judge it.
@@ -289,20 +293,20 @@ class OutletDetail {
   final List<OutletChange> changes;
 
   factory OutletDetail.fromJson(Map<String, dynamic> json) => OutletDetail(
-        outlet: Outlet.fromJson(json['outlet'] as Map<String, dynamic>),
-        failedAttempts: [
-          for (final a in (json['failedAttempts'] as List<dynamic>? ?? const []))
-            CheckInAttemptEvidence.fromJson(a as Map<String, dynamic>),
-        ],
-        disputes: [
-          for (final d in (json['disputes'] as List<dynamic>? ?? const []))
-            PinDispute.fromJson(d as Map<String, dynamic>),
-        ],
-        changes: [
-          for (final c in (json['changes'] as List<dynamic>? ?? const []))
-            OutletChange.fromJson(c as Map<String, dynamic>),
-        ],
-      );
+    outlet: Outlet.fromJson(json['outlet'] as Map<String, dynamic>),
+    failedAttempts: [
+      for (final a in (json['failedAttempts'] as List<dynamic>? ?? const []))
+        CheckInAttemptEvidence.fromJson(a as Map<String, dynamic>),
+    ],
+    disputes: [
+      for (final d in (json['disputes'] as List<dynamic>? ?? const []))
+        PinDispute.fromJson(d as Map<String, dynamic>),
+    ],
+    changes: [
+      for (final c in (json['changes'] as List<dynamic>? ?? const []))
+        OutletChange.fromJson(c as Map<String, dynamic>),
+    ],
+  );
 }
 
 abstract class OutletsRepository {
@@ -417,14 +421,17 @@ class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
     required double lng,
     required String territoryId,
   }) async {
-    final response = await dio.post('/outlets', data: {
-      'name': name,
-      'code': code,
-      'channelType': channelType,
-      'lat': lat,
-      'lng': lng,
-      'territoryId': territoryId,
-    });
+    final response = await dio.post(
+      '/outlets',
+      data: {
+        'name': name,
+        'code': code,
+        'channelType': channelType,
+        'lat': lat,
+        'lng': lng,
+        'territoryId': territoryId,
+      },
+    );
     return Outlet.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -448,15 +455,18 @@ class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
     // The backend rejects unknown fields, so only the ones actually being
     // changed are sent — an explicit null would be an unknown-shaped value,
     // not "leave it alone".
-    final response = await dio.patch('/outlets/$id', data: {
-      'name': ?name,
-      'lat': ?lat,
-      'lng': ?lng,
-      'status': ?status,
-      'fromAttemptId': ?fromAttemptId,
-      'disputeId': ?disputeId,
-      'resolutionNote': ?resolutionNote,
-    });
+    final response = await dio.patch(
+      '/outlets/$id',
+      data: {
+        'name': ?name,
+        'lat': ?lat,
+        'lng': ?lng,
+        'status': ?status,
+        'fromAttemptId': ?fromAttemptId,
+        'disputeId': ?disputeId,
+        'resolutionNote': ?resolutionNote,
+      },
+    );
     return Outlet.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -483,21 +493,26 @@ class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
   }
 }
 
-final outletsRepositoryProvider = Provider<OutletsRepository>((ref) => DioOutletsRepository());
+final outletsRepositoryProvider = Provider<OutletsRepository>(
+  (ref) => DioOutletsRepository(),
+);
 
-final outletAdminRepositoryProvider =
-    Provider<OutletAdminRepository>((ref) => DioOutletsRepository());
+final outletAdminRepositoryProvider = Provider<OutletAdminRepository>(
+  (ref) => DioOutletsRepository(),
+);
 
 /// One outlet's detail, by id (#386). `autoDispose` and family: a manager
 /// opens one store, fixes it, and leaves — keeping every store they have ever
 /// looked at in memory serves nobody.
-final outletDetailProvider =
-    FutureProvider.autoDispose.family<OutletDetail, String>((ref, id) {
-  return ref.read(outletAdminRepositoryProvider).getOutlet(id);
-});
+final outletDetailProvider = FutureProvider.autoDispose
+    .family<OutletDetail, String>((ref, id) {
+      return ref.read(outletAdminRepositoryProvider).getOutlet(id);
+    });
 
 /// The open "the pin is wrong" queue (#386).
-final openPinDisputesProvider = FutureProvider.autoDispose<List<PinDispute>>((ref) async {
+final openPinDisputesProvider = FutureProvider.autoDispose<List<PinDispute>>((
+  ref,
+) async {
   final page = await ref.read(outletAdminRepositoryProvider).listPinDisputes();
   return page.data;
 });
@@ -540,7 +555,9 @@ Future<List<Outlet>> fetchAllOutlets(
     // whose `skip: 1` re-yields the same page would otherwise spin here
     // forever, accumulating rows until the app dies.
     if (next == cursor) {
-      throw StateError('Outlet paging stalled: the server repeated cursor "$next".');
+      throw StateError(
+        'Outlet paging stalled: the server repeated cursor "$next".',
+      );
     }
     cursor = next;
   }

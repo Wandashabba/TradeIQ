@@ -1,291 +1,352 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/order_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
-class _RecordingOrdersRepository implements OrdersRepository {
-  String? outletId;
-  List<OrderLine>? lines;
+import '../../core/design/amber_golden.dart';
+import '../operations_harness.dart';
 
-  @override
-  Future<PaginatedResponse<OrderItem>> listOrders({
-    String? status,
-    String? outletId,
-  }) async =>
-      const PaginatedResponse(data: [], nextCursor: null);
+const List<Sku> _skus = <Sku>[
+  Sku(
+    id: 'sku1',
+    name: 'Cola 500ml',
+    category: 'beverage',
+    minFacingsStandard: 4,
+    rrp: 10,
+    daysOutOfStock: 0,
+    velocityAvg: 0,
+    // The promo-discounted rate the agent is actually charged (#99), not the
+    // shelf price.
+    effectivePrice: 8,
+  ),
+  Sku(
+    id: 'sku2',
+    name: 'Chips 100g',
+    category: 'snack',
+    minFacingsStandard: 2,
+    rrp: 5,
+    daysOutOfStock: 0,
+    velocityAvg: 0,
+    effectivePrice: 4,
+  ),
+];
 
-  @override
-  Future<void> createOrder({
-    required String outletId,
-    required List<OrderLine> lines,
-  }) async {
-    this.outletId = outletId;
-    this.lines = lines;
+final List<Outlet> _outlets = <Outlet>[
+  opsOutlet('ou1', 'Shop One', code: 'S1'),
+  opsOutlet('ou2', 'Shop Two', code: 'S2'),
+];
+
+Future<FakeOrdersRepository> _pump(
+  WidgetTester tester, {
+  List<Sku> skus = _skus,
+  Object? skusFailure,
+  Object? createFailure,
+  Object? outletsFailure,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+}) async {
+  final orders = FakeOrdersRepository(createFailure: createFailure);
+  await pumpOperations(
+    tester,
+    const OrderFormScreen(),
+    skin: skin,
+    textScale: textScale,
+    locale: locale,
+    overrides: <Override>[
+      ordersRepositoryProvider.overrideWithValue(orders),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOpsOutletsRepository(
+          outlets: _outlets,
+          listFailure: outletsFailure,
+        ),
+      ),
+      skusRepositoryProvider.overrideWithValue(
+        FakeSkusRepository(skus: skus, failure: skusFailure),
+      ),
+    ],
+  );
+  return orders;
+}
+
+/// The stepper's keys, by the label the reader hears.
+Finder _stepper(String skuId) => find.byKey(ValueKey<String>('sku-qty-$skuId'));
+
+Finder _step(String skuId, String label) => find.descendant(
+  of: _stepper(skuId),
+  matching: find.byWidgetPredicate(
+    (w) => w is Semantics && w.properties.label == label,
+  ),
+);
+
+Future<void> _bump(WidgetTester tester, String skuId, int times) async {
+  for (var i = 0; i < times; i++) {
+    await scrollOpsTo(tester, _step(skuId, 'One more'));
+    await tester.tap(_step(skuId, 'One more'));
+    await tester.pump();
   }
+  await tester.pumpAndSettle();
 }
 
-class _FakeOutletsRepository implements OutletsRepository {
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-        data: [
-          Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-          Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
-        ],
-        nextCursor: null,
-      );
+Future<void> _pickStore(WidgetTester tester, String name) =>
+    pickOption(tester, const ValueKey<String>('order-outlet-field'), name);
 
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) async =>
-      throw UnimplementedError();
-}
-
-class _FakeSkusRepository implements SkusRepository {
-  @override
-  Future<PaginatedResponse<Sku>> listSkus({
-    required String outletId,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-        data: [
-          Sku(
-            id: 'sku1',
-            name: 'Cola 500ml',
-            category: 'beverage',
-            minFacingsStandard: 4,
-            rrp: 10.00,
-            daysOutOfStock: 0,
-            velocityAvg: 0,
-            effectivePrice: 8.00,
-          ),
-          Sku(
-            id: 'sku2',
-            name: 'Chips 100g',
-            category: 'snack',
-            minFacingsStandard: 2,
-            rrp: 5.00,
-            daysOutOfStock: 0,
-            velocityAvg: 0,
-            effectivePrice: 4.00,
-          ),
-        ],
-        nextCursor: null,
-      );
-}
-
-Widget _app(_RecordingOrdersRepository repo, {ThemeData? theme}) => ProviderScope(
-      overrides: [
-        ordersRepositoryProvider.overrideWithValue(repo),
-        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-      ],
-      child: MaterialApp(theme: theme, home: const OrderFormScreen()),
-    );
-
-/// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
-      find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
+TorchPrimaryButton _submit(WidgetTester tester) =>
+    tester.widget<TorchPrimaryButton>(
+      find.byKey(const ValueKey<String>('order-save-button')),
     );
 
 void main() {
-  testWidgets('shows a placeholder instead of SKUs until an outlet is picked',
-      (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('the store comes first', () {
+    testWidgets('until a store is picked there is nothing to order', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-    // SKUs are outlet-scoped (#112) — there is nothing to show yet.
-    expect(
-      find.text('Select an outlet to see available SKUs.'),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsNothing);
+      // SKUs are store-scoped (#112) — there is nothing to show yet.
+      expect(
+        find.text('Choose a store to see what it stocks.'),
+        findsOneWidget,
+      );
+      expect(_stepper('sku1'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
+      await _pickStore(tester, 'Shop One');
 
-    // Once an outlet is picked, the placeholder is gone and SKUs appear.
-    expect(
-      find.text('Select an outlet to see available SKUs.'),
-      findsNothing,
-    );
-    expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsOneWidget);
+      expect(find.text('Choose a store to see what it stocks.'), findsNothing);
+      await scrollOpsTo(tester, _stepper('sku1'));
+      expect(_stepper('sku1'), findsOneWidget);
 
-    // The per-line price shown to the agent must be the discounted
-    // effectivePrice (8.00), not the plain rrp (10.00) — the agent's mental
-    // math for the running total should match what they're actually charged.
-    expect(find.text('R 8.00'), findsOneWidget);
-    expect(find.text('R 10.00'), findsNothing);
+      // The per-line price shown to the agent must be the discounted
+      // effectivePrice, not the plain rrp — the agent's mental arithmetic for
+      // the running total should match what they are actually charged.
+      expect(find.text('R 8.00'), findsOneWidget);
+      expect(find.text('R 10.00'), findsNothing);
+    });
+
+    testWidgets('switching stores clears the quantities', (tester) async {
+      await _pump(tester);
+      await _pickStore(tester, 'Shop One');
+      await _bump(tester, 'sku1', 2);
+
+      await scrollOpsBackTo(
+        tester,
+        find.byKey(const ValueKey<String>('order-outlet-field')),
+      );
+      await _pickStore(tester, 'Shop Two');
+
+      // A quantity belongs to a shelf in one shop. Carrying it over would
+      // order twelve of something the other store does not stock (#112).
+      await scrollOpsTo(tester, _stepper('sku1'));
+      expect(
+        tester.widget<CountStepper>(_stepper('sku1')).value,
+        isNull,
+        reason:
+            'Not zero: a SKU nobody has touched is NOT on the order, which is '
+            'a different thing from a line set to nought.',
+      );
+    });
+
+    testWidgets('a store list that failed offers a retry', (tester) async {
+      await _pump(
+        tester,
+        outletsFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      expect(find.text('The store list did not load.'), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
   });
 
-  testWidgets('captures outlet + line quantities and submits', (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('the lines', () {
+    testWidgets('captures the store and the quantities, and submits', (
+      tester,
+    ) async {
+      final orders = await _pump(tester);
+      await _pickStore(tester, 'Shop One');
+      await _bump(tester, 'sku1', 2);
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('order-total')),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('order-total')),
+          // 2 x effectivePrice (8.00), not rrp (10.00): the order form prices
+          // lines at the promo-discounted rate (#99).
+          matching: find.text('R 16.00'),
+        ),
+        findsOneWidget,
+      );
 
-    // 2x Cola.
-    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
-    await tester.ensureVisible(inc1);
-    await tester.tap(inc1);
-    await tester.pump();
-    await tester.tap(inc1);
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey<String>('order-save-button')));
+      await tester.pumpAndSettle();
 
-    expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
-      // 2 x effectivePrice (8.00), not rrp (10.00) — the order form prices
-      // lines at the promo-discounted rate (#99).
-      'Total: R 16.00',
-    );
+      expect(orders.createdOutletId, 'ou1');
+      expect(orders.createdLines, isNotNull);
+      expect(orders.createdLines!.length, 1);
+      expect(orders.createdLines!.first.skuId, 'sku1');
+      expect(orders.createdLines!.first.quantity, 2);
+      expect(orders.createdLines!.first.unitPrice, 8);
+    });
 
-    final save = find.byKey(const ValueKey<String>('order-save-button'));
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
+    testWidgets('a line explicitly set to nought is not sent', (tester) async {
+      final orders = await _pump(tester);
+      await _pickStore(tester, 'Shop One');
+      await _bump(tester, 'sku1', 2);
 
-    expect(repo.outletId, 'ou1');
-    expect(repo.lines, isNotNull);
-    expect(repo.lines!.length, 1);
-    expect(repo.lines!.first.skuId, 'sku1');
-    expect(repo.lines!.first.quantity, 2);
-    expect(repo.lines!.first.unitPrice, 8);
+      // Down to nought: a decision, not an absence. The stepper says so, and
+      // the request leaves it out either way.
+      for (var i = 0; i < 2; i++) {
+        await scrollOpsTo(tester, _step('sku1', 'One fewer'));
+        await tester.tap(_step('sku1', 'One fewer'));
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<CountStepper>(_stepper('sku1')).value, 0);
+      // Nothing above nought anywhere, so the commit is disarmed.
+      expect(_submit(tester).onPressed, isNull);
+      expect(orders.createCount, 0);
+    });
+
+    testWidgets('no lines keeps the commit disarmed, and says why', (
+      tester,
+    ) async {
+      final orders = await _pump(tester);
+      await _pickStore(tester, 'Shop One');
+
+      final button = _submit(tester);
+      expect(button.onPressed, isNull);
+      expect(
+        button.blockedReason,
+        'Choose a store and set a quantity on at least one line first.',
+      );
+      expect(orders.createCount, 0);
+    });
+
+    testWidgets('a store with nothing stocked says so', (tester) async {
+      await _pump(tester, skus: const <Sku>[]);
+      await _pickStore(tester, 'Shop One');
+      expect(find.text('Nothing is stocked here.'), findsOneWidget);
+      expect(_submit(tester).onPressed, isNull);
+    });
+
+    testWidgets("a store's products that failed to load offer a retry", (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        skusFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      await _pickStore(tester, 'Shop One');
+      expect(find.text("That store's products did not load."), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
   });
 
-  testWidgets('switching outlets clears previously entered quantities',
-      (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('failure', () {
+    testWidgets('says nothing was sent, and does not print the exception', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        createFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      await _pickStore(tester, 'Shop One');
+      await _bump(tester, 'sku1', 1);
+      await tester.tap(find.byKey(const ValueKey<String>('order-save-button')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
-
-    // 2x Cola at Shop One.
-    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
-    await tester.ensureVisible(inc1);
-    await tester.tap(inc1);
-    await tester.pump();
-    await tester.tap(inc1);
-    await tester.pump();
-
-    expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
-      'Total: R 16.00',
-    );
-
-    // Switching to a different outlet must not silently carry the quantity
-    // over — the agent never entered anything for this outlet (#112: SKUs are
-    // now outlet-scoped, so a leftover _qty is no longer guaranteed to be
-    // harmless).
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop Two').last);
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('sku-qty-sku1'))).data,
-      '0',
-    );
-    expect(
-      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
-      'Total: R 0.00',
-    );
+      expect(
+        find.text('That order was not created. Nothing was sent.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      await settleOpsToasts(tester);
+    });
   });
 
-  testWidgets('blocks submit with no line items', (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
+  group('Afrikaans and 2.0x', () {
+    testWidgets('Afrikaans has no English left on it', (tester) async {
+      await _pump(tester, locale: const Locale('af'));
+      expect(find.text('Nuwe bestelling'), findsWidgets);
+      expect(find.text('Watter winkel'), findsOneWidget);
+      expect(find.text('Skep die bestelling'), findsOneWidget);
+      expect(find.text('Which store'), findsNothing);
+    });
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
-
-    final save = find.byKey(const ValueKey<String>('order-save-button'));
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Add at least one line item'), findsOneWidget);
-    expect(repo.lines, isNull);
+    testWidgets('2.0x does not overflow', (tester) async {
+      await _pump(tester, textScale: 2.0);
+      await _pickStore(tester, 'Shop One');
+      expect(tester.takeException(), isNull);
+    });
   });
 
-  testWidgets('light: glass panels, tile lines with a pill stepper, glass create',
-      (tester) async {
-    final repo = _RecordingOrdersRepository();
-    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
-    await tester.pumpAndSettle();
+  group('every button is operable by a screen reader', () {
+    // The kit shipped a component family that announced itself and did
+    // nothing when a screen reader activated it, and `SectionRuleAction` and
+    // `PaginationFooter.action` were still shipping that way when this group
+    // was migrated. This is the guard, on this screen, per phase — so no
+    // local `Semantics(button: true, excludeSemantics: true)` around a bare
+    // GestureDetector can bring it back.
+    testWidgets('the empty form', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
 
-    // The outlet and the lines are each their own panel under a kicker.
-    expect(_paneAround(tester, find.text('OUTLET')).kind, GlassKind.panel);
-    expect(_paneAround(tester, find.text('LINE ITEMS')).kind, GlassKind.panel);
+    testWidgets('with the SKUs refused', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, skusFailure: StateError('no route to host'));
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
 
-    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Shop One').last);
-    await tester.pumpAndSettle();
+  group('the amber census, every phase in every skin', () {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      testWidgets('${skin.mode.name}, nothing chosen: 0', (tester) async {
+        await _pump(tester, skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'order-form',
+          phase: 'form',
+        );
+        expect(census.objectCount, 0, reason: census.describe());
+      });
 
-    // Each SKU line is a no-blur tile; its quantity sits in a glass pill.
-    final row = find.byKey(const ValueKey<String>('sku-row-sku1'));
-    final tile = tester.widget<GlassPane>(
-      find.descendant(of: row, matching: find.byType(GlassPane)).first,
-    );
-    expect(tile.kind, GlassKind.tile);
-    expect(tile.blur, isFalse);
-    final qty = find.byKey(const ValueKey<String>('sku-qty-sku1'));
-    expect(_paneAround(tester, qty).kind, GlassKind.pill);
-    expect(find.text('R 8.00'), findsOneWidget);
-
-    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
-    await tester.ensureVisible(inc1);
-    await tester.tap(inc1);
-    await tester.pump();
-    await tester.tap(inc1);
-    await tester.pump();
-
-    expect(tester.widget<Text>(qty).data, '2');
-    // The total is a mono figure, the money alone under its kicker.
-    final total = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('order-total')),
-    );
-    expect(total.data, 'R 16.00');
-    expect(total.style?.fontFamily, 'JetBrains Mono');
-
-    final save = find.byKey(const ValueKey<String>('order-save-button'));
-    expect(tester.widget(save), isA<GlassPrimaryButton>());
-    expect(find.byType(FilledButton), findsNothing);
-    await tester.ensureVisible(save);
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-
-    expect(repo.outletId, 'ou1');
-    expect(repo.lines!.single.quantity, 2);
+      testWidgets('${skin.mode.name}, a line set: 1', (tester) async {
+        await _pump(tester, skin: skin);
+        await _pickStore(tester, 'Shop One');
+        await _bump(tester, 'sku1', 1);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'order-form',
+          phase: 'ready',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'One object: the commit. The nav is not on this route, so Night '
+              'spends its second grant on nothing.\n${census.describe()}',
+        );
+      });
+    }
   });
 }

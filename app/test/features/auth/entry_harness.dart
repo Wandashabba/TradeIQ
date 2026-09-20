@@ -30,8 +30,11 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 ///    count is a function of the layout.
 
 /// Night first, then Day, Veld last — the order the design says to build them.
-List<SkinMode> get entrySkinModes =>
-    <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld];
+List<SkinMode> get entrySkinModes => <SkinMode>[
+  SkinMode.night,
+  SkinMode.day,
+  SkinMode.veld,
+];
 
 /// Pins [entrySkinProvider] to one mode, through the real controller.
 class PinnedEntrySkin extends EntrySkinController {

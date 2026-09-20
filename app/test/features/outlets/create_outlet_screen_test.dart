@@ -1,240 +1,380 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:tradeiq_app/core/location/geolocator_gateway.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/create_outlet_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../operations_harness.dart';
 
-class _FixedGateway implements GeolocatorGateway {
-  @override
-  Future<LocationPermission> checkPermission() async =>
-      LocationPermission.whileInUse;
+const List<Territory> _territories = <Territory>[
+  // The name a manager knows, and the code the column actually stores.
+  Territory(id: 't1', name: 'Hurlingham', code: '2773u'),
+  Territory(id: 't2', name: 'Gauteng North', code: 'gauteng-north'),
+];
 
-  @override
-  Future<LocationPermission> requestPermission() async =>
-      LocationPermission.whileInUse;
-
-  @override
-  Future<bool> isLocationServiceEnabled() async => true;
-
-  @override
-  Future<Position> getCurrentPosition() async => Position(
-        latitude: -26.089,
-        longitude: 28.023,
-        timestamp: DateTime.utc(2026, 7, 20),
-        accuracy: 5,
-        altitude: 0,
-        altitudeAccuracy: 0,
-        heading: 0,
-        headingAccuracy: 0,
-        speed: 0,
-        speedAccuracy: 0,
-      );
+Future<FakeOpsOutletsRepository> _pump(
+  WidgetTester tester, {
+  List<Territory> territories = _territories,
+  Object? territoriesFailure,
+  Object? createFailure,
+  LocationPermission permission = LocationPermission.whileInUse,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+}) async {
+  final outlets = FakeOpsOutletsRepository(createFailure: createFailure);
+  await pumpOperations(
+    tester,
+    const CreateOutletScreen(),
+    skin: skin,
+    textScale: textScale,
+    locale: locale,
+    overrides: <Override>[
+      outletsRepositoryProvider.overrideWithValue(outlets),
+      territoriesRepositoryProvider.overrideWithValue(
+        FakeTerritoriesRepository(
+          territories: territories,
+          failure: territoriesFailure,
+        ),
+      ),
+      locationServiceProvider.overrideWithValue(
+        fakeLocationService(permission: permission),
+      ),
+    ],
+  );
+  return outlets;
 }
 
-/// Records what the screen actually sent, which is the whole question here.
-class _RecordingOutletsRepository implements OutletsRepository {
-  String? sentTerritoryId;
-
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(data: [], nextCursor: null);
-
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) async {
-    sentTerritoryId = territoryId;
-    return Outlet(id: 'o1', name: name, code: code, lat: lat, lng: lng);
-  }
+/// Fill in everything the server needs except the territory.
+Future<void> _fillStore(WidgetTester tester) async {
+  await scrollOpsTo(
+    tester,
+    find.byKey(const ValueKey<String>('create-outlet-name')),
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('create-outlet-name')),
+    'Hurlingham Market',
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('create-outlet-code')),
+    'HM-001',
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('create-outlet-channel')),
+    'supermarket',
+  );
+  await tester.pumpAndSettle();
 }
 
-class _FakeTerritoriesRepository implements TerritoriesRepository {
-  _FakeTerritoriesRepository(this.territories);
-
-  final List<Territory> territories;
-
-  @override
-  Future<PaginatedResponse<Territory>> listTerritories() async =>
-      PaginatedResponse(data: territories, nextCursor: null);
-
-  @override
-  Future<TerritoryCoverage> getCoverage(String id) async =>
-      const TerritoryCoverage(outletCount: 0, agentCount: 0);
-
-  @override
-  Future<Territory> createTerritory({
-    required String name,
-    required String code,
-    String? region,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> assignAgent(String territoryId, String userId) async =>
-      throw UnimplementedError();
-}
+TorchPrimaryButton _submit(WidgetTester tester) =>
+    tester.widget<TorchPrimaryButton>(
+      find.byKey(const ValueKey<String>('create-outlet-submit')),
+    );
 
 void main() {
-  // Deliberately unlike each other: a screen that submitted the name would
-  // still look right if name and code matched.
-  final territories = [
-    const Territory(id: 't1', name: 'Hurlingham', code: '2773u'),
-    const Territory(id: 't2', name: 'Gauteng North', code: 'gauteng-north'),
-  ];
+  group('the territory', () {
+    testWidgets('is chosen from a list, not typed', (tester) async {
+      await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('territory-picker')),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('territory-picker')),
+        findsOneWidget,
+      );
+      // The old free-text field is gone — it is what let a name be filed as a
+      // code — and so is the Material dropdown that replaced it.
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    });
 
-  Future<_RecordingOutletsRepository> pump(
-    WidgetTester tester, {
-    List<Territory>? available,
-    ThemeData? theme,
-  }) async {
-    final outlets = _RecordingOutletsRepository();
-    await tester.pumpWidget(
-      routedApp(
-        const CreateOutletScreen(),
-        theme: theme,
-        overrides: [
-          outletsRepositoryProvider.overrideWithValue(outlets),
-          territoriesRepositoryProvider.overrideWithValue(
-            _FakeTerritoriesRepository(available ?? territories),
-          ),
-          locationServiceProvider.overrideWithValue(
-            LocationService(gateway: _FixedGateway()),
-          ),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-    return outlets;
-  }
+    testWidgets('submits the CODE, not the name shown', (tester) async {
+      final outlets = await _pump(tester);
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
 
-  testWidgets('territory is chosen from a list, not typed', (tester) async {
-    await pump(tester);
+      // The regression this exists for: a real outlet was filed under
+      // 'Hurlingham' — the territory's name — while the column wanted
+      // '2773u', so it matched no territory and vanished from every scoped
+      // view.
+      expect(outlets.createdTerritoryId, '2773u');
+      expect(outlets.createdName, 'Hurlingham Market');
+    });
 
-    expect(find.byKey(const ValueKey('territory-picker')), findsOneWidget);
-    // The old free-text field is gone — it is what let a name be filed as a code.
-    expect(find.widgetWithText(TextFormField, 'Territory ID'), findsNothing);
+    testWidgets('nothing chosen keeps the commit disarmed, and says why', (
+      tester,
+    ) async {
+      final outlets = await _pump(tester);
+      await _fillStore(tester);
+
+      final button = _submit(tester);
+      expect(button.onPressed, isNull);
+      expect(button.blockedReason, isNotNull);
+      expect(outlets.createCount, 0);
+    });
+
+    testWidgets('says what to do when no territory exists yet', (tester) async {
+      await _pump(tester, territories: const <Territory>[]);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('territory-picker')),
+      );
+      // An empty picker reads as broken; this names the missing prerequisite.
+      await tester.tap(find.byKey(const ValueKey<String>('territory-picker')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('No territories yet'), findsOneWidget);
+    });
+
+    testWidgets('a territory list that failed offers a retry', (tester) async {
+      await _pump(
+        tester,
+        territoriesFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('territories-retry')),
+      );
+      expect(find.text('The territory list did not load.'), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
   });
 
-  testWidgets('submits the territory CODE, not the name shown', (tester) async {
-    final outlets = await pump(tester);
+  group('the pin (#386)', () {
+    testWidgets('the coordinate fields are editable, and seeded', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Name'),
-      'Hurlingham Market',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Code'),
-      'HM-001',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Channel Type (e.g. supermarket)'),
-      'supermarket',
-    );
+      // Editable is the whole point: a manager onboarding forty stores from
+      // the depot must be able to type where each shop actually is.
+      final lat = tester.widget<TorchTextField>(
+        find.byKey(const ValueKey<String>('create-outlet-lat')),
+      );
+      expect(lat.readOnly, isFalse);
+      expect(lat.controller!.text, '-26.089');
+      expect(
+        find.text(
+          'Seeded from this phone. Type over it if you are not standing in '
+          'the store.',
+        ),
+        findsOneWidget,
+      );
+    });
 
-    await tester.tap(find.byKey(const ValueKey('territory-picker')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Hurlingham').last);
-    await tester.pumpAndSettle();
+    testWidgets('typed coordinates are what reaches the wire', (tester) async {
+      final outlets = await _pump(tester);
 
-    // The form grew editable lat/lng fields (#386), so the button can sit
-    // below the fold at the test viewport's height.
-    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Create Store'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Create Store'));
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lat')),
+        '-26.2678',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lng')),
+        '27.8586',
+      );
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
 
-    // The regression this exists for: a real outlet was filed under
-    // 'Hurlingham' — the territory's name — while the column wanted '2773u',
-    // so it matched no territory and vanished from every scoped view.
-    expect(outlets.sentTerritoryId, '2773u');
+      expect(outlets.createdLat, -26.2678);
+      expect(outlets.createdLng, 27.8586);
+    });
+
+    testWidgets('a refused fix still lets a store be created', (tester) async {
+      final outlets = await _pump(
+        tester,
+        permission: LocationPermission.denied,
+      );
+
+      expect(
+        find.textContaining('This phone will not say where it is'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lat')),
+        '-26.2678',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lng')),
+        '27.8586',
+      );
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(outlets.createCount, 1);
+      expect(outlets.createdLat, -26.2678);
+    });
+
+    testWidgets('an off-globe latitude keeps the commit disarmed', (
+      tester,
+    ) async {
+      final outlets = await _pump(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('create-outlet-lat')),
+        'x',
+      );
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      expect(_submit(tester).onPressed, isNull);
+      expect(outlets.createCount, 0);
+    });
   });
 
-  testWidgets('will not submit without a territory chosen', (tester) async {
-    final outlets = await pump(tester);
+  group('failure', () {
+    testWidgets('says nothing was saved, and does not print the exception', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        createFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+      await _fillStore(tester);
+      await pickOption(
+        tester,
+        const ValueKey<String>('territory-picker'),
+        'Hurlingham',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('create-outlet-submit')),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Name'),
-      'No Territory',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Code'),
-      'NT-001',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Channel Type (e.g. supermarket)'),
-      'supermarket',
-    );
-
-    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Create Store'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Create Store'));
-    await tester.pumpAndSettle();
-
-    expect(outlets.sentTerritoryId, isNull);
+      expect(
+        find.text('That store was not created. Nothing was saved.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      await settleOpsToasts(tester);
+    });
   });
 
-  testWidgets('says what to do when no territory exists yet', (tester) async {
-    await pump(tester, available: const []);
+  group('Afrikaans and 2.0x', () {
+    testWidgets('Afrikaans has no English left on it', (tester) async {
+      await _pump(tester, locale: const Locale('af'));
+      expect(find.text('Voeg ’n winkel by'), findsWidgets);
+      expect(find.text('Waar hierdie winkel is'), findsOneWidget);
+      expect(find.text('Breedtegraad'), findsOneWidget);
+      expect(find.text('Latitude'), findsNothing);
+    });
 
-    // An empty dropdown reads as broken; this names the missing prerequisite.
-    expect(find.textContaining('No territories yet'), findsOneWidget);
+    testWidgets('2.0x does not overflow', (tester) async {
+      await _pump(tester, textScale: 2.0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Afrikaans at 1.4x does not overflow either', (tester) async {
+      await _pump(tester, textScale: 1.4, locale: const Locale('af'));
+      expect(tester.takeException(), isNull);
+    });
   });
 
-  testWidgets('light: location and store are glass panels, create is glass', (
-    tester,
-  ) async {
-    final outlets = await pump(tester, theme: AppTheme.light());
+  group('every button is operable by a screen reader', () {
+    // The kit shipped a component family that announced itself and did
+    // nothing when a screen reader activated it, and `SectionRuleAction` and
+    // `PaginationFooter.action` were still shipping that way when this group
+    // was migrated. This is the guard, on this screen, per phase — so no
+    // local `Semantics(button: true, excludeSemantics: true)` around a bare
+    // GestureDetector can bring it back.
+    testWidgets('the empty form', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
 
-    GlassPane paneAround(Finder f) => tester.widget<GlassPane>(
-          find.ancestor(of: f, matching: find.byType(GlassPane)).first,
+    testWidgets('with the territories refused', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, territoriesFailure: StateError('no route to host'));
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// Not a tab root: the thumb zone carries the one commit and nothing else
+    /// on this form is a light. It is armed only when every required value is
+    /// present, so an empty form paints nothing at all.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      testWidgets('${skin.mode.name}, form (nothing armed): 0', (tester) async {
+        await _pump(tester, skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'create-outlet',
+          phase: 'form',
         );
-    expect(paneAround(find.text('LOCATION')).kind, GlassKind.panel);
-    expect(paneAround(find.text('STORE')).kind, GlassKind.panel);
-    // The fix is a mono figure, and there is no Material Card left.
-    final fix = tester.widget<Text>(find.text('-26.08900, 28.02300'));
-    expect(fix.style?.fontFamily, 'JetBrains Mono');
-    expect(find.byType(Card), findsNothing);
+        expect(
+          census.objectCount,
+          0,
+          reason:
+              'A commit that would be refused is not the expected next move, '
+              'so nothing is lit.\n${census.describe()}',
+        );
+      });
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Name'),
-      'Hurlingham Market',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Store Code'),
-      'HM-001',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Channel Type (e.g. supermarket)'),
-      'supermarket',
-    );
-    await tester.tap(find.byKey(const ValueKey('territory-picker')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Hurlingham').last);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FilledButton), findsNothing);
-    final create = find.widgetWithText(GlassPrimaryButton, 'Create Store');
-    await tester.ensureVisible(create);
-    await tester.tap(create);
-    await tester.pumpAndSettle();
-
-    expect(outlets.sentTerritoryId, '2773u');
+      testWidgets('${skin.mode.name}, form (complete): 1', (tester) async {
+        await _pump(tester, skin: skin);
+        await _fillStore(tester);
+        await pickOption(
+          tester,
+          const ValueKey<String>('territory-picker'),
+          'Hurlingham',
+        );
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'create-outlet',
+          phase: 'form-complete',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'One object: the primary commit block. The nav is not on this '
+              'route at all.\n${census.describe()}',
+        );
+      });
+    }
   });
 }

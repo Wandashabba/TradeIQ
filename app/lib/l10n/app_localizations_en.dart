@@ -3640,6 +3640,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navExecutionOverview => 'Execution overview';
 
   @override
+  String get navHome => 'Home';
+
+  @override
   String get navTasks => 'Tasks';
 
   @override
@@ -4250,4 +4253,1071 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get outletsTitle => 'Stores';
+
+  @override
+  String get outletsSubtitle =>
+      'A store without coordinates cannot be geofenced.';
+
+  @override
+  String get outletsRefresh => 'Reload the store list';
+
+  @override
+  String get outletsCreateStore => 'Add a store';
+
+  @override
+  String get outletsSectionHeading => 'Stores';
+
+  @override
+  String get outletsNoLocation => 'No location';
+
+  @override
+  String get outletsNoCoordinates => 'No coordinates on file';
+
+  @override
+  String get outletsPlaced => 'Placed';
+
+  @override
+  String get outletsEmptyHeadline => 'No stores yet.';
+
+  @override
+  String get outletsEmptyBody => 'Add a store to put it on a beat plan.';
+
+  @override
+  String get outletsLoadErrorHeadline => 'The store list did not load.';
+
+  @override
+  String get outletsRetry => 'Try again';
+
+  @override
+  String get outletsPinReportsHeading => 'Open pin reports';
+
+  @override
+  String get outletsPinReportsNote =>
+      'Agents who could not check in where the pin says the store is.';
+
+  @override
+  String get outletsPinReported => 'Pin reported';
+
+  @override
+  String outletsPinReportStood(String agent, String distance) {
+    return '$agent stood $distance away';
+  }
+
+  @override
+  String get outletDetailTitle => 'Store';
+
+  @override
+  String get outletDetailBack => 'Back to stores';
+
+  @override
+  String get outletDetailLoadErrorHeadline => 'This store did not load.';
+
+  @override
+  String outletDetailDisputesHeadline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents reported this pin as wrong',
+      one: 'One agent reported this pin as wrong',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outletDetailDisputesBody =>
+      'Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.';
+
+  @override
+  String get outletDetailFormHeading => 'This store';
+
+  @override
+  String get outletFieldName => 'Store name';
+
+  @override
+  String get outletFieldCode => 'Store code';
+
+  @override
+  String get outletFieldChannel => 'Channel type';
+
+  @override
+  String get outletFieldChannelHelp =>
+      'For example: supermarket, spaza, forecourt.';
+
+  @override
+  String get outletFieldTerritory => 'Territory';
+
+  @override
+  String get outletFieldLatitude => 'Latitude';
+
+  @override
+  String get outletFieldLongitude => 'Longitude';
+
+  @override
+  String get outletFieldLatitudeHelp =>
+      'Between -90 and 90. Johannesburg is about -26,2.';
+
+  @override
+  String get outletFieldLongitudeHelp =>
+      'Between -180 and 180. Johannesburg is about 28,0.';
+
+  @override
+  String get outletFieldStatus => 'Status';
+
+  @override
+  String get outletStatusActive => 'Active';
+
+  @override
+  String get outletStatusClosed => 'Closed';
+
+  @override
+  String get outletStatusClosedConsequence =>
+      'Kept out of planning. Check-in still works — an agent at the door must be able to work.';
+
+  @override
+  String get outletStatusActiveConsequence => 'Planned as usual.';
+
+  @override
+  String get outletRequired => 'Required';
+
+  @override
+  String get outletCoordinateNotANumber =>
+      'Enter a number, for example -26,2041';
+
+  @override
+  String get outletLatitudeOutOfRange => 'A latitude is between -90 and 90';
+
+  @override
+  String get outletLongitudeOutOfRange => 'A longitude is between -180 and 180';
+
+  @override
+  String get outletSave => 'Save';
+
+  @override
+  String get outletSaveBlocked =>
+      'Fill in the store\'s name and both coordinates first.';
+
+  @override
+  String get outletSaved => 'Store updated.';
+
+  @override
+  String get outletSaveFailed => 'That store was not saved. It is unchanged.';
+
+  @override
+  String get outletUsingAttempt =>
+      'Using an agent\'s recorded position. The server reads the coordinates from that check-in itself.';
+
+  @override
+  String get outletAttemptsHeading => 'Rejected check-ins';
+
+  @override
+  String get outletAttemptsNote =>
+      'Where agents actually were when this store turned them away.';
+
+  @override
+  String get outletAttemptsEmptyHeadline => 'No rejected check-ins.';
+
+  @override
+  String get outletAttemptsEmptyBody =>
+      'Nobody has been turned away by this pin.';
+
+  @override
+  String outletAttemptSubtitle(String distance, String agent) {
+    return '$distance away · $agent';
+  }
+
+  @override
+  String get outletUseThisPosition => 'Use this position';
+
+  @override
+  String get outletUseTheirPosition => 'Use their position';
+
+  @override
+  String get outletFixMocked =>
+      'The device reported this position as a mock location. It cannot become this store\'s pin.';
+
+  @override
+  String get outletFixUnknown =>
+      'The device did not report how accurate this position was.';
+
+  @override
+  String outletFixCoarse(String metres) {
+    return 'Accurate to about $metres m — too coarse to set a pin with.';
+  }
+
+  @override
+  String outletFixGood(String metres) {
+    return 'Accurate to about $metres m.';
+  }
+
+  @override
+  String get outletDisputesHeading => 'Pin reports';
+
+  @override
+  String outletDisputeStood(String position, String distance, String pin) {
+    return 'Stood at $position — $distance from the pin, which then read $pin.';
+  }
+
+  @override
+  String get outletDisputeSoleVisitor =>
+      'No other agent has ever visited this store, so nobody else\'s check-ins can disagree with a pin moved here.';
+
+  @override
+  String get outletDisputeOpen => 'Open';
+
+  @override
+  String get outletDisputeAnswering => 'Answering this report on save.';
+
+  @override
+  String get outletDisputeAnswer => 'Answer this report';
+
+  @override
+  String outletDisputeApplied(String who) {
+    return 'Applied by $who';
+  }
+
+  @override
+  String outletDisputeRejected(String who) {
+    return 'Rejected by $who';
+  }
+
+  @override
+  String get outletDisputeResolvedByManager => 'a manager';
+
+  @override
+  String get outletPhotoCamera => 'Taken with the camera';
+
+  @override
+  String get outletPhotoGallery => 'Chosen from the gallery';
+
+  @override
+  String get outletPhotoUnknownSource => 'Source not recorded';
+
+  @override
+  String outletPhotoPhoneSaid(String when) {
+    return 'Phone said $when';
+  }
+
+  @override
+  String outletPhotoReceived(String when) {
+    return 'Received $when';
+  }
+
+  @override
+  String get outletPhotoAlt => 'Storefront photograph from this pin report';
+
+  @override
+  String get outletPhotoMissing => 'That photograph did not load.';
+
+  @override
+  String get outletChangesHeading => 'Change history';
+
+  @override
+  String outletChangePinMoved(String before, String after) {
+    return 'Pin moved from $before to $after';
+  }
+
+  @override
+  String get outletChangePinFromAgent => 'from an agent\'s recorded position';
+
+  @override
+  String outletChangeRenamed(String before, String after) {
+    return 'Renamed from \"$before\" to \"$after\"';
+  }
+
+  @override
+  String outletChangeStatus(String before, String after) {
+    return 'Status $before to $after';
+  }
+
+  @override
+  String get outletChangeOther => 'Changed';
+
+  @override
+  String get outletChangeUnknownCoordinate => 'not recorded';
+
+  @override
+  String get createOutletTitle => 'Add a store';
+
+  @override
+  String get createOutletBack => 'Back to stores';
+
+  @override
+  String get createOutletSubmit => 'Add the store';
+
+  @override
+  String get createOutletBlocked =>
+      'Fill in the name, code, channel, territory and both coordinates first.';
+
+  @override
+  String get createOutletFailed =>
+      'That store was not created. Nothing was saved.';
+
+  @override
+  String get createOutletLocationHeading => 'Where this store is';
+
+  @override
+  String get createOutletLocating => 'Finding where this phone is…';
+
+  @override
+  String get createOutletLocationDenied =>
+      'This phone will not say where it is. Type the store\'s coordinates instead.';
+
+  @override
+  String get createOutletLocationFailed =>
+      'This phone could not find where it is. Type the store\'s coordinates instead.';
+
+  @override
+  String get createOutletLocationFound =>
+      'Seeded from this phone. Type over it if you are not standing in the store.';
+
+  @override
+  String get createOutletUseThisPhone => 'Use this phone\'s position';
+
+  @override
+  String get createOutletTerritoriesLoading => 'Loading territories…';
+
+  @override
+  String get createOutletTerritoriesFailed =>
+      'The territory list did not load.';
+
+  @override
+  String get createOutletTerritoriesRetry => 'Try again';
+
+  @override
+  String get createOutletNoTerritories =>
+      'No territories yet — create one under Territories first.';
+
+  @override
+  String get createOutletTerritoryNotChosen => 'Choose a territory';
+
+  @override
+  String get ordersTitle => 'Orders';
+
+  @override
+  String get ordersSubtitle =>
+      'Captured in the field. A submitted order is waiting on a decision.';
+
+  @override
+  String get ordersRefresh => 'Reload the order list';
+
+  @override
+  String get ordersSectionHeading => 'Orders';
+
+  @override
+  String get ordersNewOrder => 'New order';
+
+  @override
+  String get ordersAwaitingEyebrow => 'Awaiting a decision';
+
+  @override
+  String ordersAwaitingSubordinates(String confirmed, String cancelled) {
+    return '$confirmed confirmed · $cancelled cancelled';
+  }
+
+  @override
+  String get ordersValueEyebrow => 'Value of these orders';
+
+  @override
+  String ordersValuePartial(String shown) {
+    return 'Summed over the $shown orders loaded, not the whole history.';
+  }
+
+  @override
+  String ordersCountPartial(String shown) {
+    return 'At least this many: counted over the $shown orders loaded.';
+  }
+
+  @override
+  String get ordersStatusSubmitted => 'Submitted';
+
+  @override
+  String get ordersStatusConfirmed => 'Confirmed';
+
+  @override
+  String get ordersStatusCancelled => 'Cancelled';
+
+  @override
+  String ordersStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String ordersLineCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines',
+      one: '1 line',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ordersRowSubtitle(String status, String lines) {
+    return '$status · $lines';
+  }
+
+  @override
+  String get ordersUnknownStore => 'Store not on this list';
+
+  @override
+  String get ordersEmptyHeadline => 'No orders yet.';
+
+  @override
+  String get ordersEmptyBody =>
+      'Orders appear here as agents capture them on a visit.';
+
+  @override
+  String get ordersLoadErrorHeadline => 'The order list did not load.';
+
+  @override
+  String get ordersRetry => 'Try again';
+
+  @override
+  String ordersFooterMore(String shown) {
+    return 'Showing the first $shown. There are more.';
+  }
+
+  @override
+  String ordersFooterOf(String shown, String total) {
+    return 'Showing the $shown newest of $total orders.';
+  }
+
+  @override
+  String ordersFooterScope(String shown) {
+    return 'The figures above are of these $shown.';
+  }
+
+  @override
+  String get orderFormTitle => 'New order';
+
+  @override
+  String get orderFormBack => 'Back to orders';
+
+  @override
+  String get orderFormStoreHeading => 'Which store';
+
+  @override
+  String get orderFormStore => 'Store';
+
+  @override
+  String get orderFormStoreNotChosen =>
+      'Not chosen yet. A store decides what can be ordered.';
+
+  @override
+  String get orderFormStoresFailed => 'The store list did not load.';
+
+  @override
+  String get orderFormLinesHeading => 'Line items';
+
+  @override
+  String get orderFormPickStoreFirst => 'Choose a store to see what it stocks.';
+
+  @override
+  String get orderFormSkusFailed => 'That store\'s products did not load.';
+
+  @override
+  String get orderFormNoSkusHeadline => 'Nothing is stocked here.';
+
+  @override
+  String get orderFormNoSkusBody =>
+      'This store has no products on its list, so there is nothing to order.';
+
+  @override
+  String get orderFormTotal => 'Order total';
+
+  @override
+  String get orderFormSubmit => 'Create the order';
+
+  @override
+  String get orderFormBlocked =>
+      'Choose a store and set a quantity on at least one line first.';
+
+  @override
+  String get orderFormFailed => 'That order was not created. Nothing was sent.';
+
+  @override
+  String get orderFormQuantity => 'Quantity';
+
+  @override
+  String get orderFormOneFewer => 'One fewer';
+
+  @override
+  String get orderFormOneMore => 'One more';
+
+  @override
+  String get orderFormTypeQuantity => 'Type a quantity';
+
+  @override
+  String get orderFormTypeQuantityFirst => 'Type a quantity first.';
+
+  @override
+  String get orderFormNotOrdered => 'Not on this order';
+
+  @override
+  String get orderFormNoneOrdered => 'None of this one';
+
+  @override
+  String get orderFormNoneOrderedLine => 'A line at nought is not sent.';
+
+  @override
+  String get orderFormCancel => 'Cancel';
+
+  @override
+  String get orderFormSet => 'Set';
+
+  @override
+  String get beatPlansTitle => 'Beat plans';
+
+  @override
+  String get beatPlansSubtitle =>
+      'A plan is a day of store stops, in visit order.';
+
+  @override
+  String get beatPlansRefresh => 'Reload the beat plans';
+
+  @override
+  String get beatPlansSectionHeading => 'Plans';
+
+  @override
+  String get beatPlansNewPlan => 'New plan';
+
+  @override
+  String get beatPlansEmptyHeadline => 'No beat plans.';
+
+  @override
+  String get beatPlansEmptyBody =>
+      'A plan is a day of store stops in visit order. Build one to give an agent a route.';
+
+  @override
+  String get beatPlansLoadErrorHeadline => 'The beat plans did not load.';
+
+  @override
+  String get beatPlansRetry => 'Try again';
+
+  @override
+  String beatPlansFooterMore(String shown) {
+    return 'Showing the first $shown. There are more.';
+  }
+
+  @override
+  String beatPlansFooterOf(String shown, String total) {
+    return 'Showing $shown of $total plans.';
+  }
+
+  @override
+  String get beatPlanStatusScheduled => 'Scheduled';
+
+  @override
+  String get beatPlanStatusInProgress => 'In progress';
+
+  @override
+  String get beatPlanStatusCompleted => 'Completed';
+
+  @override
+  String get beatPlanStatusMissed => 'Missed';
+
+  @override
+  String get beatPlanStatusCancelled => 'Cancelled';
+
+  @override
+  String beatPlanStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String get beatPlanDetailTitle => 'Beat plan';
+
+  @override
+  String get beatPlanDetailBack => 'Back to beat plans';
+
+  @override
+  String get beatPlanDetailLoadErrorHeadline => 'This beat plan did not load.';
+
+  @override
+  String get beatPlanAdherenceEyebrow => 'Stops worked';
+
+  @override
+  String beatPlanAdherenceOf(String visited, String total) {
+    return '$visited of $total stops';
+  }
+
+  @override
+  String get beatPlanAdherenceNoStops =>
+      'This plan has no stops, so there is nothing to work.';
+
+  @override
+  String get beatPlanStopsHeading => 'Stops';
+
+  @override
+  String get beatPlanStopsEmptyHeadline => 'No stops on this plan.';
+
+  @override
+  String get beatPlanStopsEmptyBody =>
+      'Add stores to the plan to give the agent a route.';
+
+  @override
+  String beatPlanStopLabel(String sequence) {
+    return 'Stop $sequence';
+  }
+
+  @override
+  String get beatPlanStopVisited => 'Worked';
+
+  @override
+  String get beatPlanStopNotVisited => 'Not yet';
+
+  @override
+  String beatPlanStopToggle(String stop) {
+    return 'Mark $stop as worked';
+  }
+
+  @override
+  String get beatPlanStopFailed =>
+      'That stop was not changed. It is as it was.';
+
+  @override
+  String get beatPlanFormTitle => 'New beat plan';
+
+  @override
+  String get beatPlanFormBack => 'Back to beat plans';
+
+  @override
+  String get beatPlanFormPlanHeading => 'The day';
+
+  @override
+  String get beatPlanFormName => 'Plan name';
+
+  @override
+  String get beatPlanFormNameHelp =>
+      'What the agent will see at the top of their day.';
+
+  @override
+  String get beatPlanFormDate => 'Scheduled date';
+
+  @override
+  String get beatPlanFormDateNotChosen => 'Not chosen yet.';
+
+  @override
+  String get beatPlanFormPickDate => 'Pick a date';
+
+  @override
+  String get beatPlanFormChangeDate => 'Change the date';
+
+  @override
+  String get beatPlanFormAgent => 'Field agent';
+
+  @override
+  String get beatPlanFormAgentNotChosen =>
+      'Not chosen yet. A plan belongs to one agent.';
+
+  @override
+  String get beatPlanFormAgentsFailed => 'The agent list did not load.';
+
+  @override
+  String get beatPlanFormNoAgents => 'No field agents on this account yet.';
+
+  @override
+  String get beatPlanFormTerritory => 'Territory';
+
+  @override
+  String get beatPlanFormTerritoryOptional =>
+      'Optional. It narrows reporting, not the stops.';
+
+  @override
+  String get beatPlanFormTerritoryNone => 'No territory';
+
+  @override
+  String get beatPlanFormStopsHeading => 'Stops, in order';
+
+  @override
+  String get beatPlanFormStopsEmpty =>
+      'No stops yet. Add stores from the list below.';
+
+  @override
+  String get beatPlanFormAvailableHeading => 'Stores to add';
+
+  @override
+  String get beatPlanFormAvailableEmpty =>
+      'Every store is already on this plan.';
+
+  @override
+  String get beatPlanFormStoresFailed => 'The store list did not load.';
+
+  @override
+  String beatPlanFormAddStop(String store) {
+    return 'Add $store to the plan';
+  }
+
+  @override
+  String beatPlanFormRemoveStop(String store) {
+    return 'Take $store off the plan';
+  }
+
+  @override
+  String beatPlanFormMoveUp(String store) {
+    return 'Move $store earlier';
+  }
+
+  @override
+  String beatPlanFormMoveDown(String store) {
+    return 'Move $store later';
+  }
+
+  @override
+  String beatPlanFormStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stops',
+      one: '1 stop',
+      zero: 'No stops',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get beatPlanFormSubmit => 'Create the plan';
+
+  @override
+  String get beatPlanFormBlocked =>
+      'Name the plan, pick a date and an agent, and add at least one stop first.';
+
+  @override
+  String get beatPlanFormFailed =>
+      'That plan was not created. Nothing was saved.';
+
+  @override
+  String get salesTargetsTitle => 'Sales targets';
+
+  @override
+  String get salesTargetsSubtitle =>
+      'Units ordered through TradeIQ, not what shoppers bought.';
+
+  @override
+  String get salesSellIn => 'Sell-in (orders)';
+
+  @override
+  String get salesTargetsHelp =>
+      'Set one target per SKU for the whole account, a territory, or a single store.';
+
+  @override
+  String get salesTargetsUpload => 'Upload a CSV of targets';
+
+  @override
+  String salesMonthPrevious(String month) {
+    return 'The month before $month';
+  }
+
+  @override
+  String salesMonthNext(String month) {
+    return 'The month after $month';
+  }
+
+  @override
+  String salesTimeZone(String zone) {
+    return 'Local days in $zone';
+  }
+
+  @override
+  String get salesLevelsHeading => 'Against target';
+
+  @override
+  String get salesLevelAccount => 'Account-wide';
+
+  @override
+  String get salesLevelTerritories => 'Territories';
+
+  @override
+  String get salesLevelOutlets => 'Stores';
+
+  @override
+  String get salesLevelNoTargets =>
+      'No target is set at this level, so there is nothing to attain.';
+
+  @override
+  String salesLevelSubordinates(String actual, String target, int targets) {
+    String _temp0 = intl.Intl.pluralLogic(
+      targets,
+      locale: localeName,
+      other: '$targets targets',
+      one: '1 target',
+    );
+    return '$actual of $target units · $_temp0';
+  }
+
+  @override
+  String get salesBandOnTarget => 'On target';
+
+  @override
+  String get salesBandClose => 'Close';
+
+  @override
+  String get salesBandBehind => 'Behind';
+
+  @override
+  String get salesNoTarget => 'No target';
+
+  @override
+  String salesNoTargetsHeadline(String month) {
+    return 'No targets for $month.';
+  }
+
+  @override
+  String get salesNoTargetsBody =>
+      'Set a target on a SKU below, or upload a CSV of targets.';
+
+  @override
+  String get salesSkusHeading => 'SKUs';
+
+  @override
+  String salesSkusTruncated(String shown) {
+    return 'Showing the first $shown.';
+  }
+
+  @override
+  String get salesSkusEmptyHeadline => 'No SKUs on this account.';
+
+  @override
+  String get salesSkusEmptyBody =>
+      'Targets are set per SKU, so there is nothing to set one on yet.';
+
+  @override
+  String salesRowFigures(String metric, String actual, String target) {
+    return '$metric $actual · target $target units';
+  }
+
+  @override
+  String salesRowNoTargetFigures(String metric, String actual) {
+    return '$metric $actual · no target set';
+  }
+
+  @override
+  String get salesScopeTerritory => 'Territory';
+
+  @override
+  String get salesScopeOutlet => 'Store';
+
+  @override
+  String get salesScopeAccount => 'Whole account';
+
+  @override
+  String get salesScopeUnknown => 'Scope not on this list';
+
+  @override
+  String salesScopedRowTitle(String sku, String scope) {
+    return '$sku · $scope';
+  }
+
+  @override
+  String get salesSetTarget => 'Set a target';
+
+  @override
+  String get salesEditTarget => 'Edit the target';
+
+  @override
+  String get salesRemoveTarget => 'Remove the target';
+
+  @override
+  String get salesRemoveFailed =>
+      'That target was not removed. It is still set.';
+
+  @override
+  String get salesTargetSheetSet => 'Set a sales target';
+
+  @override
+  String get salesTargetSheetEdit => 'Edit a sales target';
+
+  @override
+  String salesTargetSheetSubtitle(String metric, String month) {
+    return 'Units of $metric for $month.';
+  }
+
+  @override
+  String get salesTargetSku => 'SKU';
+
+  @override
+  String get salesTargetSkuNotChosen =>
+      'Not chosen yet. A target belongs to one SKU.';
+
+  @override
+  String get salesTargetSkuLocked =>
+      'A target is identified by its SKU, so an edit cannot move it.';
+
+  @override
+  String get salesTargetScope => 'Applies to';
+
+  @override
+  String get salesTargetScopeLocked =>
+      'A target is identified by its scope, so an edit cannot move it.';
+
+  @override
+  String get salesTargetScopeAccountConsequence =>
+      'Every store on the account counts towards it.';
+
+  @override
+  String get salesTargetScopeTerritoryConsequence =>
+      'Only stores in the chosen territory count.';
+
+  @override
+  String get salesTargetScopeOutletConsequence =>
+      'Only the chosen store counts.';
+
+  @override
+  String get salesTargetTerritoryNotChosen =>
+      'Not chosen yet. A territory target needs one.';
+
+  @override
+  String get salesTargetOutletNotChosen =>
+      'Not chosen yet. A store target needs one.';
+
+  @override
+  String get salesTargetUnits => 'Target units';
+
+  @override
+  String get salesTargetUnitsHelp => 'A whole number of units, for the month.';
+
+  @override
+  String get salesTargetUnitsMissing => 'Enter a whole number of units.';
+
+  @override
+  String get salesTargetSave => 'Save the target';
+
+  @override
+  String get salesTargetBlocked =>
+      'Choose a SKU and a scope, and enter a whole number of units.';
+
+  @override
+  String get salesTargetCancel => 'Cancel';
+
+  @override
+  String get salesTargetsLoadErrorHeadline => 'The targets did not load.';
+
+  @override
+  String get salesTargetsRetry => 'Try again';
+
+  @override
+  String get salesImportTitle => 'Upload sales targets';
+
+  @override
+  String get salesImportSubtitle =>
+      'Preview what a file would do, then apply the rows that are good.';
+
+  @override
+  String get salesImportFormat =>
+      'It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.';
+
+  @override
+  String get salesImportChooseFile => 'Choose a CSV file';
+
+  @override
+  String get salesImportChooseAnother => 'Choose another file';
+
+  @override
+  String get salesImportRemoveFile => 'Remove the file';
+
+  @override
+  String get salesImportPasteLabel => 'Or paste a CSV';
+
+  @override
+  String get salesImportPasteHint => 'month,sku,targetUnits,territory,outlet';
+
+  @override
+  String get salesImportFileHeld =>
+      'Preview to see what this file would do. Remove it to paste a CSV instead.';
+
+  @override
+  String get salesImportFileUnreadable => 'That file could not be read.';
+
+  @override
+  String get salesImportPreview => 'Preview';
+
+  @override
+  String get salesImportApply => 'Apply';
+
+  @override
+  String salesImportApplyRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apply $count rows',
+      one: 'Apply 1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salesImportBlockedPreview =>
+      'Preview the file first. What gets written is always what was shown.';
+
+  @override
+  String get salesImportBlockedNoRows => 'No row in this file can be written.';
+
+  @override
+  String get salesImportReadyEyebrow => 'Rows ready to write';
+
+  @override
+  String get salesImportErrorsEyebrow => 'Rows with errors';
+
+  @override
+  String salesImportWouldDo(String created, String updated) {
+    return 'Would create $created and update $updated.';
+  }
+
+  @override
+  String get salesImportErrorsHeading => 'What is wrong';
+
+  @override
+  String salesImportRowError(String row, String message) {
+    return 'Row $row: $message';
+  }
+
+  @override
+  String salesImportRowErrorColumn(String row, String column, String message) {
+    return 'Row $row · $column: $message';
+  }
+
+  @override
+  String salesImportMoreErrors(String count) {
+    return '…and $count more.';
+  }
+
+  @override
+  String get salesImportNothingWrong =>
+      'Every row in this file can be written.';
+
+  @override
+  String salesImportApplied(String created, String updated) {
+    return '$created created, $updated updated.';
+  }
+
+  @override
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  ) {
+    return '$created created, $updated updated, $skipped rows skipped.';
+  }
+
+  @override
+  String get salesPanelTitle => 'Sell-in vs target';
+
+  @override
+  String salesPanelSubtitle(String metric, String month) {
+    return '$metric · $month — not consumer sales';
+  }
+
+  @override
+  String get salesPanelThisMonth => 'this month';
+
+  @override
+  String get salesPanelLink => 'Targets';
+
+  @override
+  String get salesPanelEmptyBody =>
+      'Set monthly SKU targets under Sales targets to track sell-in against them.';
 }

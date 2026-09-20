@@ -5654,6 +5654,12 @@ abstract class AppLocalizations {
   /// **'Execution overview'**
   String get navExecutionOverview;
 
+  /// The floating bottom bar's first slot — the manager's home (/dashboard). Short on purpose: the rail and the menu sheet call the same route 'The Floor', but five slots share a phone's width on one line.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
   /// Nav destination: the task worklist.
   ///
   /// In en, this message translates to:
@@ -6631,6 +6637,1750 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 visit with facings} other{{count} visits with facings}}'**
   String trendsSamplesFacings(int count);
+
+  /// Title of the manager's outlet list route.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get outletsTitle;
+
+  /// Header fact on the outlet list: why the coordinate state is the row's status.
+  ///
+  /// In en, this message translates to:
+  /// **'A store without coordinates cannot be geofenced.'**
+  String get outletsSubtitle;
+
+  /// Semantic label of the refresh icon button in the outlet list header.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the store list'**
+  String get outletsRefresh;
+
+  /// Label of the nav circle that opens the create-store form from the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store'**
+  String get outletsCreateStore;
+
+  /// Section rule above the list of outlets.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get outletsSectionHeading;
+
+  /// Severity word on an outlet row whose coordinates are unset. Reads in greyscale beside the crimson bar.
+  ///
+  /// In en, this message translates to:
+  /// **'No location'**
+  String get outletsNoLocation;
+
+  /// Subtitle of an outlet row that has no usable coordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'No coordinates on file'**
+  String get outletsNoCoordinates;
+
+  /// Word for an outlet that does have usable coordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'Placed'**
+  String get outletsPlaced;
+
+  /// Whole-screen empty state on the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores yet.'**
+  String get outletsEmptyHeadline;
+
+  /// Body of the outlet list's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store to put it on a beat plan.'**
+  String get outletsEmptyBody;
+
+  /// Headline of the outlet list's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get outletsLoadErrorHeadline;
+
+  /// Retry action on the outlet list's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get outletsRetry;
+
+  /// Section rule above the outlets whose pin an agent has reported as wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Open pin reports'**
+  String get outletsPinReportsHeading;
+
+  /// Sentence under the open pin reports section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents who could not check in where the pin says the store is.'**
+  String get outletsPinReportsNote;
+
+  /// Severity word on a row standing for an open pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported'**
+  String get outletsPinReported;
+
+  /// Subtitle of an open pin report row: who reported it and how far they were from the pin.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} stood {distance} away'**
+  String outletsPinReportStood(String agent, String distance);
+
+  /// Title of the outlet detail route, where a wrong pin is corrected.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get outletDetailTitle;
+
+  /// Semantic label of the outlet detail back button. Names the destination, never 'Back'.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to stores'**
+  String get outletDetailBack;
+
+  /// Headline of the outlet detail error state.
+  ///
+  /// In en, this message translates to:
+  /// **'This store did not load.'**
+  String get outletDetailLoadErrorHeadline;
+
+  /// Headline of the open-reports banner at the top of the outlet detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One agent reported this pin as wrong} other{{count} agents reported this pin as wrong}}'**
+  String outletDetailDisputesHeadline(int count);
+
+  /// Body of the open-reports banner on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Each of these checked in anyway, flagged, and the visit is on the review queue. Correcting the pin closes the report; saving without moving it records that you looked and the pin stands.'**
+  String get outletDetailDisputesBody;
+
+  /// Section rule above the outlet's editable fields.
+  ///
+  /// In en, this message translates to:
+  /// **'This store'**
+  String get outletDetailFormHeading;
+
+  /// Label of the outlet name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Store name'**
+  String get outletFieldName;
+
+  /// Label of the outlet code field.
+  ///
+  /// In en, this message translates to:
+  /// **'Store code'**
+  String get outletFieldCode;
+
+  /// Label of the outlet channel-type field.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel type'**
+  String get outletFieldChannel;
+
+  /// Help line under the channel-type field.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: supermarket, spaza, forecourt.'**
+  String get outletFieldChannelHelp;
+
+  /// Label of the territory picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get outletFieldTerritory;
+
+  /// Label of the latitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get outletFieldLatitude;
+
+  /// Label of the longitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get outletFieldLongitude;
+
+  /// Help line under the latitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Between -90 and 90. Johannesburg is about -26,2.'**
+  String get outletFieldLatitudeHelp;
+
+  /// Help line under the longitude field.
+  ///
+  /// In en, this message translates to:
+  /// **'Between -180 and 180. Johannesburg is about 28,0.'**
+  String get outletFieldLongitudeHelp;
+
+  /// Label of the outlet status choice row.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get outletFieldStatus;
+
+  /// Outlet status option: the store is trading and gets planned.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get outletStatusActive;
+
+  /// Outlet status option: the store is kept out of planning.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get outletStatusClosed;
+
+  /// Consequence line under the Closed status option.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept out of planning. Check-in still works — an agent at the door must be able to work.'**
+  String get outletStatusClosedConsequence;
+
+  /// Consequence line under the Active status option.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned as usual.'**
+  String get outletStatusActiveConsequence;
+
+  /// Validation message for an empty required field on the outlet forms.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get outletRequired;
+
+  /// Validation message when a coordinate field holds something that is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number, for example -26,2041'**
+  String get outletCoordinateNotANumber;
+
+  /// Validation message when a latitude is off the globe.
+  ///
+  /// In en, this message translates to:
+  /// **'A latitude is between -90 and 90'**
+  String get outletLatitudeOutOfRange;
+
+  /// Validation message when a longitude is off the globe.
+  ///
+  /// In en, this message translates to:
+  /// **'A longitude is between -180 and 180'**
+  String get outletLongitudeOutOfRange;
+
+  /// Commit button on the outlet detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get outletSave;
+
+  /// Blocked reason under the outlet detail save button while the form is incomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the store\'s name and both coordinates first.'**
+  String get outletSaveBlocked;
+
+  /// Toast after the outlet detail save succeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Store updated.'**
+  String get outletSaved;
+
+  /// Toast after the outlet detail save fails. Says what is still true rather than printing the error.
+  ///
+  /// In en, this message translates to:
+  /// **'That store was not saved. It is unchanged.'**
+  String get outletSaveFailed;
+
+  /// Line under the coordinate fields while an agent's recorded position has been adopted.
+  ///
+  /// In en, this message translates to:
+  /// **'Using an agent\'s recorded position. The server reads the coordinates from that check-in itself.'**
+  String get outletUsingAttempt;
+
+  /// Section rule above the failed check-in evidence on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected check-ins'**
+  String get outletAttemptsHeading;
+
+  /// Sentence under the rejected check-ins section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Where agents actually were when this store turned them away.'**
+  String get outletAttemptsNote;
+
+  /// Inline empty state for the rejected check-in evidence.
+  ///
+  /// In en, this message translates to:
+  /// **'No rejected check-ins.'**
+  String get outletAttemptsEmptyHeadline;
+
+  /// Body of the rejected check-ins empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has been turned away by this pin.'**
+  String get outletAttemptsEmptyBody;
+
+  /// Subtitle of a rejected check-in row.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} away · {agent}'**
+  String outletAttemptSubtitle(String distance, String agent);
+
+  /// Action on a rejected check-in row that adopts its coordinates as the store's pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this position'**
+  String get outletUseThisPosition;
+
+  /// Action on a pin report that adopts the reporting agent's own position.
+  ///
+  /// In en, this message translates to:
+  /// **'Use their position'**
+  String get outletUseTheirPosition;
+
+  /// Fix-quality sentence for a position the platform flagged as mocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The device reported this position as a mock location. It cannot become this store\'s pin.'**
+  String get outletFixMocked;
+
+  /// Fix-quality sentence when accuracy was not recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'The device did not report how accurate this position was.'**
+  String get outletFixUnknown;
+
+  /// Fix-quality sentence for a position too imprecise to adopt.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate to about {metres} m — too coarse to set a pin with.'**
+  String outletFixCoarse(String metres);
+
+  /// Fix-quality sentence for a usable position.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate to about {metres} m.'**
+  String outletFixGood(String metres);
+
+  /// Section rule above the pin reports on outlet detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reports'**
+  String get outletDisputesHeading;
+
+  /// The geometry of one pin report, in one sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Stood at {position} — {distance} from the pin, which then read {pin}.'**
+  String outletDisputeStood(String position, String distance, String pin);
+
+  /// Caution shown when the reporting agent is the outlet's only visitor. Not a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'No other agent has ever visited this store, so nobody else\'s check-ins can disagree with a pin moved here.'**
+  String get outletDisputeSoleVisitor;
+
+  /// State word on a pin report nobody has answered yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get outletDisputeOpen;
+
+  /// State line on the pin report the next save will answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Answering this report on save.'**
+  String get outletDisputeAnswering;
+
+  /// Action that marks a pin report as the one the next save answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer this report'**
+  String get outletDisputeAnswer;
+
+  /// Resolution line on a pin report that was accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied by {who}'**
+  String outletDisputeApplied(String who);
+
+  /// Resolution line on a pin report that was turned down.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected by {who}'**
+  String outletDisputeRejected(String who);
+
+  /// Stand-in for the resolving person's name when the wire did not send one.
+  ///
+  /// In en, this message translates to:
+  /// **'a manager'**
+  String get outletDisputeResolvedByManager;
+
+  /// Provenance of a pin-report photograph captured in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken with the camera'**
+  String get outletPhotoCamera;
+
+  /// Provenance of a pin-report photograph picked from the device's library.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen from the gallery'**
+  String get outletPhotoGallery;
+
+  /// Provenance of an older pin-report photograph that carries no source.
+  ///
+  /// In en, this message translates to:
+  /// **'Source not recorded'**
+  String get outletPhotoUnknownSource;
+
+  /// The device's own timestamp on a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone said {when}'**
+  String outletPhotoPhoneSaid(String when);
+
+  /// When the server took delivery of a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Received {when}'**
+  String outletPhotoReceived(String when);
+
+  /// Semantic label of a pin-report photograph.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront photograph from this pin report'**
+  String get outletPhotoAlt;
+
+  /// Shown in place of a pin-report photograph whose bytes could not be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'That photograph did not load.'**
+  String get outletPhotoMissing;
+
+  /// Section rule above the outlet's change ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Change history'**
+  String get outletChangesHeading;
+
+  /// Change ledger line for a coordinate move.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin moved from {before} to {after}'**
+  String outletChangePinMoved(String before, String after);
+
+  /// Appended to a pin-move ledger line when the new coordinates came from a check-in.
+  ///
+  /// In en, this message translates to:
+  /// **'from an agent\'s recorded position'**
+  String get outletChangePinFromAgent;
+
+  /// Change ledger line for a rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed from \"{before}\" to \"{after}\"'**
+  String outletChangeRenamed(String before, String after);
+
+  /// Change ledger line for a status change.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {before} to {after}'**
+  String outletChangeStatus(String before, String after);
+
+  /// Change ledger line when the recorded change is none of the known kinds.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed'**
+  String get outletChangeOther;
+
+  /// Stand-in inside a pin-move ledger line when a before or after coordinate is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'not recorded'**
+  String get outletChangeUnknownCoordinate;
+
+  /// Title of the create-store route.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a store'**
+  String get createOutletTitle;
+
+  /// Semantic label of the create-store back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to stores'**
+  String get createOutletBack;
+
+  /// Commit button on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the store'**
+  String get createOutletSubmit;
+
+  /// Blocked reason under the create-store commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the name, code, channel, territory and both coordinates first.'**
+  String get createOutletBlocked;
+
+  /// Toast after the create-store request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That store was not created. Nothing was saved.'**
+  String get createOutletFailed;
+
+  /// Section rule above the location block on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'Where this store is'**
+  String get createOutletLocationHeading;
+
+  /// Line shown while the device position is being fetched, to seed the coordinate fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding where this phone is…'**
+  String get createOutletLocating;
+
+  /// Shown when location permission was refused on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone will not say where it is. Type the store\'s coordinates instead.'**
+  String get createOutletLocationDenied;
+
+  /// Shown when the device position lookup failed on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone could not find where it is. Type the store\'s coordinates instead.'**
+  String get createOutletLocationFailed;
+
+  /// Shown when the device position seeded the coordinate fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Seeded from this phone. Type over it if you are not standing in the store.'**
+  String get createOutletLocationFound;
+
+  /// Action that re-seeds the coordinate fields from the device.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this phone\'s position'**
+  String get createOutletUseThisPhone;
+
+  /// Placeholder while the territory list is being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading territories…'**
+  String get createOutletTerritoriesLoading;
+
+  /// Shown when the territory list could not be fetched on the create-store form.
+  ///
+  /// In en, this message translates to:
+  /// **'The territory list did not load.'**
+  String get createOutletTerritoriesFailed;
+
+  /// Retry action beside the failed territory list.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get createOutletTerritoriesRetry;
+
+  /// Shown when the account has no territories, so no store can be filed.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories yet — create one under Territories first.'**
+  String get createOutletNoTerritories;
+
+  /// Validation message when the territory picker has no selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a territory'**
+  String get createOutletTerritoryNotChosen;
+
+  /// Title of the orders worklist route.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get ordersTitle;
+
+  /// Header fact on the orders worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured in the field. A submitted order is waiting on a decision.'**
+  String get ordersSubtitle;
+
+  /// Semantic label of the refresh icon button in the orders header.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the order list'**
+  String get ordersRefresh;
+
+  /// Section rule above the order rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get ordersSectionHeading;
+
+  /// Action that opens the order capture form.
+  ///
+  /// In en, this message translates to:
+  /// **'New order'**
+  String get ordersNewOrder;
+
+  /// Eyebrow of the lead figure counting submitted orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting a decision'**
+  String get ordersAwaitingEyebrow;
+
+  /// The two counts that are not the lead figure, beneath it.
+  ///
+  /// In en, this message translates to:
+  /// **'{confirmed} confirmed · {cancelled} cancelled'**
+  String ordersAwaitingSubordinates(String confirmed, String cancelled);
+
+  /// Eyebrow of the summed order value. It names the scope — these orders, not every order — because the list is one page.
+  ///
+  /// In en, this message translates to:
+  /// **'Value of these orders'**
+  String get ordersValueEyebrow;
+
+  /// State line under the order value when the list was cut. A partial sum that calls itself a total is an invented figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Summed over the {shown} orders loaded, not the whole history.'**
+  String ordersValuePartial(String shown);
+
+  /// State line under a count taken over a cut page.
+  ///
+  /// In en, this message translates to:
+  /// **'At least this many: counted over the {shown} orders loaded.'**
+  String ordersCountPartial(String shown);
+
+  /// Order status word: captured and waiting on a decision.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get ordersStatusSubmitted;
+
+  /// Order status word: accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get ordersStatusConfirmed;
+
+  /// Order status word: turned down.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get ordersStatusCancelled;
+
+  /// Fallback for an order status the app does not know. The wire's own word is shown rather than guessed at.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {status}'**
+  String ordersStatusOther(String status);
+
+  /// How many line items an order carries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 line} other{{count} lines}}'**
+  String ordersLineCount(int count);
+
+  /// An order row's second line: its status and how many lines it has.
+  ///
+  /// In en, this message translates to:
+  /// **'{status} · {lines}'**
+  String ordersRowSubtitle(String status, String lines);
+
+  /// Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get ordersUnknownStore;
+
+  /// Whole-screen empty state on the orders worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders yet.'**
+  String get ordersEmptyHeadline;
+
+  /// Body of the orders empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders appear here as agents capture them on a visit.'**
+  String get ordersEmptyBody;
+
+  /// Headline of the orders error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The order list did not load.'**
+  String get ordersLoadErrorHeadline;
+
+  /// Retry action on the orders error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get ordersRetry;
+
+  /// Pagination footer when the server did not count the whole list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}. There are more.'**
+  String ordersFooterMore(String shown);
+
+  /// Pagination footer when the server counted the whole list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} newest of {total} orders.'**
+  String ordersFooterOf(String shown, String total);
+
+  /// Second footer line: the honest scope of every figure above the list.
+  ///
+  /// In en, this message translates to:
+  /// **'The figures above are of these {shown}.'**
+  String ordersFooterScope(String shown);
+
+  /// Title of the order capture form.
+  ///
+  /// In en, this message translates to:
+  /// **'New order'**
+  String get orderFormTitle;
+
+  /// Semantic label of the order form's back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to orders'**
+  String get orderFormBack;
+
+  /// Section rule above the store picker on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Which store'**
+  String get orderFormStoreHeading;
+
+  /// Label of the store picker on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get orderFormStore;
+
+  /// Line under the store picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A store decides what can be ordered.'**
+  String get orderFormStoreNotChosen;
+
+  /// Shown when the outlet list could not be fetched on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get orderFormStoresFailed;
+
+  /// Section rule above the SKU list on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Line items'**
+  String get orderFormLinesHeading;
+
+  /// Inline empty state in place of the SKU list before a store is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a store to see what it stocks.'**
+  String get orderFormPickStoreFirst;
+
+  /// Shown when the SKU list could not be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'That store\'s products did not load.'**
+  String get orderFormSkusFailed;
+
+  /// Inline empty state when a store has no SKUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is stocked here.'**
+  String get orderFormNoSkusHeadline;
+
+  /// Body of the no-SKUs empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'This store has no products on its list, so there is nothing to order.'**
+  String get orderFormNoSkusBody;
+
+  /// Label of the running order total.
+  ///
+  /// In en, this message translates to:
+  /// **'Order total'**
+  String get orderFormTotal;
+
+  /// Commit button on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Create the order'**
+  String get orderFormSubmit;
+
+  /// Blocked reason under the order form's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a store and set a quantity on at least one line first.'**
+  String get orderFormBlocked;
+
+  /// Toast after the order create request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That order was not created. Nothing was sent.'**
+  String get orderFormFailed;
+
+  /// Label of a SKU's quantity stepper on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get orderFormQuantity;
+
+  /// Semantic label of the quantity stepper's minus key.
+  ///
+  /// In en, this message translates to:
+  /// **'One fewer'**
+  String get orderFormOneFewer;
+
+  /// Semantic label of the quantity stepper's plus key.
+  ///
+  /// In en, this message translates to:
+  /// **'One more'**
+  String get orderFormOneMore;
+
+  /// Semantic label of the quantity trough, which opens a number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a quantity'**
+  String get orderFormTypeQuantity;
+
+  /// Blocked reason on the number sheet's Set button while nothing has been typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a quantity first.'**
+  String get orderFormTypeQuantityFirst;
+
+  /// What a SKU with no quantity says. Nothing ordered is a state, not a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Not on this order'**
+  String get orderFormNotOrdered;
+
+  /// Word for a line explicitly set to nought.
+  ///
+  /// In en, this message translates to:
+  /// **'None of this one'**
+  String get orderFormNoneOrdered;
+
+  /// Consequence line under a quantity of nought.
+  ///
+  /// In en, this message translates to:
+  /// **'A line at nought is not sent.'**
+  String get orderFormNoneOrderedLine;
+
+  /// Cancel action on the quantity number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get orderFormCancel;
+
+  /// Commit action on the quantity number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get orderFormSet;
+
+  /// Title of the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plans'**
+  String get beatPlansTitle;
+
+  /// Header fact on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'A plan is a day of store stops, in visit order.'**
+  String get beatPlansSubtitle;
+
+  /// Semantic label of the refresh icon button on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the beat plans'**
+  String get beatPlansRefresh;
+
+  /// Section rule above the beat plan rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Plans'**
+  String get beatPlansSectionHeading;
+
+  /// Action that opens the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get beatPlansNewPlan;
+
+  /// Whole-screen empty state on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'No beat plans.'**
+  String get beatPlansEmptyHeadline;
+
+  /// Body of the beat plans empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'A plan is a day of store stops in visit order. Build one to give an agent a route.'**
+  String get beatPlansEmptyBody;
+
+  /// Headline of the beat plans error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The beat plans did not load.'**
+  String get beatPlansLoadErrorHeadline;
+
+  /// Retry action on the beat plans error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get beatPlansRetry;
+
+  /// Pagination footer on the beat plans route when the server did not count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}. There are more.'**
+  String beatPlansFooterMore(String shown);
+
+  /// Pagination footer on the beat plans route when the server counted.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} plans.'**
+  String beatPlansFooterOf(String shown, String total);
+
+  /// Beat plan status word: planned, not started.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get beatPlanStatusScheduled;
+
+  /// Beat plan status word: being worked now.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get beatPlanStatusInProgress;
+
+  /// Beat plan status word: every stop worked.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get beatPlanStatusCompleted;
+
+  /// Beat plan status word: the day passed unworked.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get beatPlanStatusMissed;
+
+  /// Beat plan status word: called off.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get beatPlanStatusCancelled;
+
+  /// Fallback for a beat plan status the app does not know.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {status}'**
+  String beatPlanStatusOther(String status);
+
+  /// Title of the beat plan detail route.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plan'**
+  String get beatPlanDetailTitle;
+
+  /// Semantic label of the beat plan detail back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to beat plans'**
+  String get beatPlanDetailBack;
+
+  /// Headline of the beat plan detail error state.
+  ///
+  /// In en, this message translates to:
+  /// **'This beat plan did not load.'**
+  String get beatPlanDetailLoadErrorHeadline;
+
+  /// Eyebrow of the adherence figure on a beat plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops worked'**
+  String get beatPlanAdherenceEyebrow;
+
+  /// The adherence figure in words, beneath the percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'{visited} of {total} stops'**
+  String beatPlanAdherenceOf(String visited, String total);
+
+  /// Reason shown in place of an adherence percentage for a plan with no stops. A plan with no stops is not nought per cent adherent.
+  ///
+  /// In en, this message translates to:
+  /// **'This plan has no stops, so there is nothing to work.'**
+  String get beatPlanAdherenceNoStops;
+
+  /// Section rule above a beat plan's stops.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops'**
+  String get beatPlanStopsHeading;
+
+  /// Inline empty state for a beat plan with no stops.
+  ///
+  /// In en, this message translates to:
+  /// **'No stops on this plan.'**
+  String get beatPlanStopsEmptyHeadline;
+
+  /// Body of the no-stops empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add stores to the plan to give the agent a route.'**
+  String get beatPlanStopsEmptyBody;
+
+  /// Title of a beat plan stop row when the store's name is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop {sequence}'**
+  String beatPlanStopLabel(String sequence);
+
+  /// State word on a stop that has been visited.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked'**
+  String get beatPlanStopVisited;
+
+  /// State word on a stop that has not been visited.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get beatPlanStopNotVisited;
+
+  /// Semantic label of a stop's visited checkbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark {stop} as worked'**
+  String beatPlanStopToggle(String stop);
+
+  /// Toast after marking a stop visited fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That stop was not changed. It is as it was.'**
+  String get beatPlanStopFailed;
+
+  /// Title of the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'New beat plan'**
+  String get beatPlanFormTitle;
+
+  /// Semantic label of the beat plan builder's back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to beat plans'**
+  String get beatPlanFormBack;
+
+  /// Section rule above the beat plan's own fields.
+  ///
+  /// In en, this message translates to:
+  /// **'The day'**
+  String get beatPlanFormPlanHeading;
+
+  /// Label of the beat plan name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan name'**
+  String get beatPlanFormName;
+
+  /// Help line under the beat plan name field.
+  ///
+  /// In en, this message translates to:
+  /// **'What the agent will see at the top of their day.'**
+  String get beatPlanFormNameHelp;
+
+  /// Label of the beat plan date picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled date'**
+  String get beatPlanFormDate;
+
+  /// Line under the date picker while no date is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet.'**
+  String get beatPlanFormDateNotChosen;
+
+  /// Action that opens the date picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get beatPlanFormPickDate;
+
+  /// Action that reopens the date picker once a date is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the date'**
+  String get beatPlanFormChangeDate;
+
+  /// Label of the agent picker on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Field agent'**
+  String get beatPlanFormAgent;
+
+  /// Line under the agent picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A plan belongs to one agent.'**
+  String get beatPlanFormAgentNotChosen;
+
+  /// Shown when the user list could not be fetched on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent list did not load.'**
+  String get beatPlanFormAgentsFailed;
+
+  /// Shown when the account has no field agents to assign a plan to.
+  ///
+  /// In en, this message translates to:
+  /// **'No field agents on this account yet.'**
+  String get beatPlanFormNoAgents;
+
+  /// Label of the optional territory picker on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get beatPlanFormTerritory;
+
+  /// Help line under the optional territory picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. It narrows reporting, not the stops.'**
+  String get beatPlanFormTerritoryOptional;
+
+  /// The option that clears the optional territory.
+  ///
+  /// In en, this message translates to:
+  /// **'No territory'**
+  String get beatPlanFormTerritoryNone;
+
+  /// Section rule above the chosen stops on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops, in order'**
+  String get beatPlanFormStopsHeading;
+
+  /// Inline empty state for the chosen stops.
+  ///
+  /// In en, this message translates to:
+  /// **'No stops yet. Add stores from the list below.'**
+  String get beatPlanFormStopsEmpty;
+
+  /// Section rule above the pool of stores not yet on the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores to add'**
+  String get beatPlanFormAvailableHeading;
+
+  /// Inline empty state for the pool of available stores.
+  ///
+  /// In en, this message translates to:
+  /// **'Every store is already on this plan.'**
+  String get beatPlanFormAvailableEmpty;
+
+  /// Shown when the outlet list could not be fetched on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get beatPlanFormStoresFailed;
+
+  /// Semantic label of the button that adds a store to the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {store} to the plan'**
+  String beatPlanFormAddStop(String store);
+
+  /// Semantic label of the button that removes a stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Take {store} off the plan'**
+  String beatPlanFormRemoveStop(String store);
+
+  /// Semantic label of the button that moves a stop up the order.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {store} earlier'**
+  String beatPlanFormMoveUp(String store);
+
+  /// Semantic label of the button that moves a stop down the order.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {store} later'**
+  String beatPlanFormMoveDown(String store);
+
+  /// How many stops are on the plan being built.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No stops} =1{1 stop} other{{count} stops}}'**
+  String beatPlanFormStopCount(int count);
+
+  /// Commit button on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Create the plan'**
+  String get beatPlanFormSubmit;
+
+  /// Blocked reason under the beat plan builder's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Name the plan, pick a date and an agent, and add at least one stop first.'**
+  String get beatPlanFormBlocked;
+
+  /// Toast after the beat plan create request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That plan was not created. Nothing was saved.'**
+  String get beatPlanFormFailed;
+
+  /// Title of the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales targets'**
+  String get salesTargetsTitle;
+
+  /// Header fact on the sales targets route. It says what the metric is before any figure is read.
+  ///
+  /// In en, this message translates to:
+  /// **'Units ordered through TradeIQ, not what shoppers bought.'**
+  String get salesTargetsSubtitle;
+
+  /// The metric's name: units ordered through TradeIQ. Used wherever the server did not send its own label.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell-in (orders)'**
+  String get salesSellIn;
+
+  /// Second header fact on the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Set one target per SKU for the whole account, a territory, or a single store.'**
+  String get salesTargetsHelp;
+
+  /// Semantic label of the CSV import icon button.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload a CSV of targets'**
+  String get salesTargetsUpload;
+
+  /// Semantic label of the previous-month button.
+  ///
+  /// In en, this message translates to:
+  /// **'The month before {month}'**
+  String salesMonthPrevious(String month);
+
+  /// Semantic label of the next-month button.
+  ///
+  /// In en, this message translates to:
+  /// **'The month after {month}'**
+  String salesMonthNext(String month);
+
+  /// Says which time zone the month's days were counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'Local days in {zone}'**
+  String salesTimeZone(String zone);
+
+  /// Section rule above the three attainment levels.
+  ///
+  /// In en, this message translates to:
+  /// **'Against target'**
+  String get salesLevelsHeading;
+
+  /// The attainment level covering every store on the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account-wide'**
+  String get salesLevelAccount;
+
+  /// The attainment level covering territory-scoped targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories'**
+  String get salesLevelTerritories;
+
+  /// The attainment level covering store-scoped targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get salesLevelOutlets;
+
+  /// Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained.
+  ///
+  /// In en, this message translates to:
+  /// **'No target is set at this level, so there is nothing to attain.'**
+  String get salesLevelNoTargets;
+
+  /// The units and the target count beneath an attainment figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}'**
+  String salesLevelSubordinates(String actual, String target, int targets);
+
+  /// Attainment band word at or above 100 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'On target'**
+  String get salesBandOnTarget;
+
+  /// Attainment band word from 80 to 99 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get salesBandClose;
+
+  /// Attainment band word below 80 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'Behind'**
+  String get salesBandBehind;
+
+  /// Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero.
+  ///
+  /// In en, this message translates to:
+  /// **'No target'**
+  String get salesNoTarget;
+
+  /// Inline empty state when the month has no targets at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No targets for {month}.'**
+  String salesNoTargetsHeadline(String month);
+
+  /// Body of the no-targets empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target on a SKU below, or upload a CSV of targets.'**
+  String get salesNoTargetsBody;
+
+  /// Section rule above the per-SKU rows.
+  ///
+  /// In en, this message translates to:
+  /// **'SKUs'**
+  String get salesSkusHeading;
+
+  /// Pagination footer when the server cut the SKU list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}.'**
+  String salesSkusTruncated(String shown);
+
+  /// Inline empty state when the account has no products.
+  ///
+  /// In en, this message translates to:
+  /// **'No SKUs on this account.'**
+  String get salesSkusEmptyHeadline;
+
+  /// Body of the no-SKUs empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Targets are set per SKU, so there is nothing to set one on yet.'**
+  String get salesSkusEmptyBody;
+
+  /// A SKU row's figures: what was ordered, against the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} {actual} · target {target} units'**
+  String salesRowFigures(String metric, String actual, String target);
+
+  /// A SKU row's figures when no target exists. It says so in words rather than printing a nought.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} {actual} · no target set'**
+  String salesRowNoTargetFigures(String metric, String actual);
+
+  /// Scope word for a territory-scoped target.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get salesScopeTerritory;
+
+  /// Scope word for a store-scoped target.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get salesScopeOutlet;
+
+  /// Scope word for an account-wide target.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole account'**
+  String get salesScopeAccount;
+
+  /// Shown when a scoped target names a territory or store the report did not resolve.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope not on this list'**
+  String get salesScopeUnknown;
+
+  /// Title of a scoped target's row.
+  ///
+  /// In en, this message translates to:
+  /// **'{sku} · {scope}'**
+  String salesScopedRowTitle(String sku, String scope);
+
+  /// Action that opens the target sheet for a SKU with no target.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target'**
+  String get salesSetTarget;
+
+  /// Action that opens the target sheet for an existing target.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the target'**
+  String get salesEditTarget;
+
+  /// Action that deletes a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the target'**
+  String get salesRemoveTarget;
+
+  /// Toast after a target delete fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That target was not removed. It is still set.'**
+  String get salesRemoveFailed;
+
+  /// Title of the sheet that creates a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a sales target'**
+  String get salesTargetSheetSet;
+
+  /// Title of the sheet that edits a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit a sales target'**
+  String get salesTargetSheetEdit;
+
+  /// Subtitle of the target sheet: the metric and the month it applies to.
+  ///
+  /// In en, this message translates to:
+  /// **'Units of {metric} for {month}.'**
+  String salesTargetSheetSubtitle(String metric, String month);
+
+  /// Label of the SKU picker in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'SKU'**
+  String get salesTargetSku;
+
+  /// Line under the SKU picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A target belongs to one SKU.'**
+  String get salesTargetSkuNotChosen;
+
+  /// Reason shown under the locked SKU picker when editing.
+  ///
+  /// In en, this message translates to:
+  /// **'A target is identified by its SKU, so an edit cannot move it.'**
+  String get salesTargetSkuLocked;
+
+  /// Label of the scope choice in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to'**
+  String get salesTargetScope;
+
+  /// Reason shown under the locked scope choice when editing.
+  ///
+  /// In en, this message translates to:
+  /// **'A target is identified by its scope, so an edit cannot move it.'**
+  String get salesTargetScopeLocked;
+
+  /// Consequence line under the account-wide scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Every store on the account counts towards it.'**
+  String get salesTargetScopeAccountConsequence;
+
+  /// Consequence line under the territory scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Only stores in the chosen territory count.'**
+  String get salesTargetScopeTerritoryConsequence;
+
+  /// Consequence line under the store scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the chosen store counts.'**
+  String get salesTargetScopeOutletConsequence;
+
+  /// Line under the territory picker in the target sheet while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A territory target needs one.'**
+  String get salesTargetTerritoryNotChosen;
+
+  /// Line under the store picker in the target sheet while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A store target needs one.'**
+  String get salesTargetOutletNotChosen;
+
+  /// Label of the target units field in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Target units'**
+  String get salesTargetUnits;
+
+  /// Help line under the target units field.
+  ///
+  /// In en, this message translates to:
+  /// **'A whole number of units, for the month.'**
+  String get salesTargetUnitsHelp;
+
+  /// Validation message when the target units field is empty or not a whole number.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number of units.'**
+  String get salesTargetUnitsMissing;
+
+  /// Commit button in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the target'**
+  String get salesTargetSave;
+
+  /// Blocked reason under the target sheet's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a SKU and a scope, and enter a whole number of units.'**
+  String get salesTargetBlocked;
+
+  /// Cancel action in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get salesTargetCancel;
+
+  /// Headline of the sales targets error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The targets did not load.'**
+  String get salesTargetsLoadErrorHeadline;
+
+  /// Retry action on the sales targets error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get salesTargetsRetry;
+
+  /// Title of the CSV import sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload sales targets'**
+  String get salesImportTitle;
+
+  /// Subtitle of the CSV import sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview what a file would do, then apply the rows that are good.'**
+  String get salesImportSubtitle;
+
+  /// What the CSV file must contain.
+  ///
+  /// In en, this message translates to:
+  /// **'It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.'**
+  String get salesImportFormat;
+
+  /// Action that opens the platform file chooser.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a CSV file'**
+  String get salesImportChooseFile;
+
+  /// Action that replaces the chosen file.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another file'**
+  String get salesImportChooseAnother;
+
+  /// Action that clears the chosen file and brings the paste box back.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the file'**
+  String get salesImportRemoveFile;
+
+  /// Label of the CSV paste box.
+  ///
+  /// In en, this message translates to:
+  /// **'Or paste a CSV'**
+  String get salesImportPasteLabel;
+
+  /// Placeholder inside the CSV paste box: the header row it wants.
+  ///
+  /// In en, this message translates to:
+  /// **'month,sku,targetUnits,territory,outlet'**
+  String get salesImportPasteHint;
+
+  /// Shown in place of the paste box while a file is held.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview to see what this file would do. Remove it to paste a CSV instead.'**
+  String get salesImportFileHeld;
+
+  /// Shown when the chooser returned a file the console cannot take and gave no reason of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read.'**
+  String get salesImportFileUnreadable;
+
+  /// Action that runs the dry-run import.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get salesImportPreview;
+
+  /// Commit action before a preview has been run.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get salesImportApply;
+
+  /// Commit action once a preview says how many rows are good.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Apply 1 row} other{Apply {count} rows}}'**
+  String salesImportApplyRows(int count);
+
+  /// Blocked reason on Apply before a preview has been run, or after the CSV changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview the file first. What gets written is always what was shown.'**
+  String get salesImportBlockedPreview;
+
+  /// Blocked reason on Apply when the preview found nothing valid.
+  ///
+  /// In en, this message translates to:
+  /// **'No row in this file can be written.'**
+  String get salesImportBlockedNoRows;
+
+  /// Eyebrow of the dry run's valid-row count.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows ready to write'**
+  String get salesImportReadyEyebrow;
+
+  /// Eyebrow of the dry run's invalid-row count.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows with errors'**
+  String get salesImportErrorsEyebrow;
+
+  /// What the dry run says the file would do.
+  ///
+  /// In en, this message translates to:
+  /// **'Would create {created} and update {updated}.'**
+  String salesImportWouldDo(String created, String updated);
+
+  /// Section rule above the dry run's row errors.
+  ///
+  /// In en, this message translates to:
+  /// **'What is wrong'**
+  String get salesImportErrorsHeading;
+
+  /// One row error from the dry run.
+  ///
+  /// In en, this message translates to:
+  /// **'Row {row}: {message}'**
+  String salesImportRowError(String row, String message);
+
+  /// One row error from the dry run, naming the column.
+  ///
+  /// In en, this message translates to:
+  /// **'Row {row} · {column}: {message}'**
+  String salesImportRowErrorColumn(String row, String column, String message);
+
+  /// Shown when the dry run found more errors than the sheet lists.
+  ///
+  /// In en, this message translates to:
+  /// **'…and {count} more.'**
+  String salesImportMoreErrors(String count);
+
+  /// Shown when a dry run found no errors at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Every row in this file can be written.'**
+  String get salesImportNothingWrong;
+
+  /// Toast after an import is applied.
+  ///
+  /// In en, this message translates to:
+  /// **'{created} created, {updated} updated.'**
+  String salesImportApplied(String created, String updated);
+
+  /// Toast after an import is applied with some rows refused.
+  ///
+  /// In en, this message translates to:
+  /// **'{created} created, {updated} updated, {skipped} rows skipped.'**
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  );
+
+  /// Title of the dashboard's sales attainment panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell-in vs target'**
+  String get salesPanelTitle;
+
+  /// Subtitle of the dashboard's sales attainment panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} · {month} — not consumer sales'**
+  String salesPanelSubtitle(String metric, String month);
+
+  /// Stand-in for the month in the dashboard panel's subtitle before the server has said which month it answered for.
+  ///
+  /// In en, this message translates to:
+  /// **'this month'**
+  String get salesPanelThisMonth;
+
+  /// Action on the dashboard panel that opens the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Targets'**
+  String get salesPanelLink;
+
+  /// Body of the dashboard panel's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Set monthly SKU targets under Sales targets to track sell-in against them.'**
+  String get salesPanelEmptyBody;
 }
 
 class _AppLocalizationsDelegate

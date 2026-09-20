@@ -23,6 +23,7 @@ import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
+import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
@@ -431,7 +432,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // /orders is a shared route: the field agent is NOT bounced back to /audit.
-    expect(find.text('Orders'), findsOneWidget);
+    // The screen itself, not a word: on Torchlight the header title and the
+    // list's section rule both read "Orders", and a text match cannot tell a
+    // rendered route from a nav label anyway.
+    expect(find.byType(OrdersScreen), findsOneWidget);
     expect(find.text('Select an Outlet'), findsNothing);
   });
 

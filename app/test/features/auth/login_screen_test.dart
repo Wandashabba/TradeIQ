@@ -56,8 +56,7 @@ class _FailingAuthRepository implements AuthRepository {
   final Object error;
 
   @override
-  Future<AuthResult> login(String email, String password) async =>
-      throw error;
+  Future<AuthResult> login(String email, String password) async => throw error;
 }
 
 DioException _status(int code) {
@@ -132,9 +131,7 @@ void main() {
       expect(find.text('Email is required'), findsOneWidget);
     });
 
-    testWidgets('an email with no password names the password', (
-      tester,
-    ) async {
+    testWidgets('an email with no password names the password', (tester) async {
       await _pump(tester);
       await scrollEntryTo(tester, _key('login-email'));
       await tester.enterText(_key('login-email'), 'manager@tradeiq.com');
@@ -183,8 +180,14 @@ void main() {
       // such user" from "wrong password" — the whole reason this screen has
       // one message.
       expect(state.message.body, 'Invalid credentials');
-      for (final tell in <String>['no such', 'not found', 'does not exist',
-          'unknown', 'disabled', 'locked']) {
+      for (final tell in <String>[
+        'no such',
+        'not found',
+        'does not exist',
+        'unknown',
+        'disabled',
+        'locked',
+      ]) {
         expect(
           find.textContaining(tell, skipOffstage: false),
           findsNothing,
@@ -526,14 +529,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Afrikaans at 2.0× fits too, and is Afrikaans', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        textScale: 2.0,
-        locale: const Locale('af'),
-      );
+    testWidgets('Afrikaans at 2.0× fits too, and is Afrikaans', (tester) async {
+      await _pump(tester, textScale: 2.0, locale: const Locale('af'));
       expect(tester.takeException(), isNull);
       expect(find.text('Teken in'), findsWidgets);
       expect(find.text('Sign in'), findsNothing);

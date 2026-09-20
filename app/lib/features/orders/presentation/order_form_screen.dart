@@ -1,37 +1,96 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/network/human_error.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../audit/data/skus_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/orders_repository.dart';
 
-/// In-store order capture: pick an outlet, set quantities per SKU (unit price
-/// defaults to the SKU's RRP), and submit. Posts to `POST /orders`.
-class OrderFormScreen extends ConsumerStatefulWidget {
+/// IN-STORE ORDER CAPTURE — pick a store, set quantities, submit.
+///
+/// ```text
+///   ← Orders
+///   New order
+///   ── Which store ────────────────────────────
+///   Store
+///   ┌──────────────────────────────────┐
+///   │ Kasi Corner Spaza              › │
+///   └──────────────────────────────────┘
+///   ── Line items  12 ─────────────────────────
+///   ▏ Coca-Cola 2L                    R 24,99
+///   ▏ [   3   ] [ − ][ + ]
+///   Order total                       R 149,50
+///   [ ☾ ]  [       Create the order        ]
+/// ```
+///
+/// ## A quantity is a count, so it is the count stepper
+///
+/// The old line was a 30dp text label between two 18dp icon buttons — under
+/// the tap-target floor, unreadable at 2.0×, and with no way to type 48
+/// without pressing plus forty-eight times. Unify §1.8's stepper is a value
+/// trough with an adjacent ± pair and a number sheet behind a tap on the
+/// trough.
+///
+/// **Nought is not nothing.** A SKU with no quantity is *not on this order*; a
+/// SKU explicitly set to nought is a line the agent decided about, and it is
+/// still not sent — the stepper says both in words, and the submit builds its
+/// lines from quantities above nought exactly as it always did.
+///
+/// ## The amber, counted
+///
+/// Not a tab root: the thumb zone carries the one commit. Night's two content
+/// grants go to **one** object, "Create the order", and only when there is a
+/// store and at least one line — a primary that is lit and refuses is a
+/// primary nobody trusts. Day and Veld light the same block.
+class OrderFormScreen extends ConsumerWidget {
   const OrderFormScreen({super.key});
 
+  /// "Create the order". Rung 1, and the only claim this route makes.
+  static const String submitClaimId = 'order-form-submit';
+
   @override
-  ConsumerState<OrderFormScreen> createState() => _OrderFormScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const ConsoleTorchlightRoute(child: _OrderForm());
+  }
 }
 
-class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
+class _OrderForm extends ConsumerStatefulWidget {
+  const _OrderForm();
+
+  @override
+  ConsumerState<_OrderForm> createState() => _OrderFormState();
+}
+
+class _OrderFormState extends ConsumerState<_OrderForm> {
   String? _outletId;
-  final Map<String, int> _qty = <String, int>{};
+
+  /// Quantities by SKU id. **A SKU absent from this map is not on the order**;
+  /// a SKU mapped to 0 is one somebody looked at and set to nought. Both are
+  /// left out of the request, and the two are different states on screen.
+  final Map<String, int> _quantity = <String, int>{};
+
   bool _submitting = false;
 
-  void _bump(String skuId, int delta) {
+  void _setQuantity(String skuId, int? value) {
     setState(() {
-      final next = (_qty[skuId] ?? 0) + delta;
-      if (next <= 0) {
-        _qty.remove(skuId);
+      if (value == null) {
+        _quantity.remove(skuId);
       } else {
-        _qty[skuId] = next;
+        _quantity[skuId] = value;
       }
     });
   }
@@ -39,349 +98,298 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
   double _total(List<Sku> skus) {
     var total = 0.0;
     for (final sku in skus) {
-      total += (_qty[sku.id] ?? 0) * sku.effectivePrice;
+      total += (_quantity[sku.id] ?? 0) * sku.effectivePrice;
     }
     return total;
   }
 
+  List<OrderLine> _lines(List<Sku> skus) => <OrderLine>[
+    for (final sku in skus)
+      if ((_quantity[sku.id] ?? 0) > 0)
+        OrderLine(
+          skuId: sku.id,
+          quantity: _quantity[sku.id]!,
+          unitPrice: sku.effectivePrice,
+        ),
+  ];
+
   Future<void> _submit(List<Sku> skus) async {
-    if (_outletId == null) {
-      _snack('Select an outlet.');
-      return;
-    }
-    final lines = <OrderLine>[
-      for (final sku in skus)
-        if ((_qty[sku.id] ?? 0) > 0)
-          OrderLine(skuId: sku.id, quantity: _qty[sku.id]!, unitPrice: sku.effectivePrice),
-    ];
-    if (lines.isEmpty) {
-      _snack('Add at least one line item.');
-      return;
-    }
+    final l10n = context.l10n;
+    final lines = _lines(skus);
+    if (_outletId == null || lines.isEmpty) return;
 
     setState(() => _submitting = true);
+    final bool created;
     try {
       await ref
           .read(ordersRepositoryProvider)
           .createOrder(outletId: _outletId!, lines: lines);
-      ref.invalidate(ordersListProvider);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      _snack('Failed to create order: $e');
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      ref.invalidate(ordersPageProvider);
+      created = true;
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      showTorchToast(
+        context,
+        message: l10n.orderFormFailed,
+        kind: ToastKind.failure,
+      );
+      return;
     }
-  }
-
-  void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    setState(() => _submitting = false);
+    // Leaving is not inside the try: a router with nothing to pop must not be
+    // reported as a failed order.
+    if (created && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final outlets = ref.watch(outletsListProvider);
-    // SKUs are outlet-scoped now (#112) — there is nothing meaningful to show
-    // until an outlet is picked, so the list is only watched once one is.
     final outletId = _outletId;
+    // SKUs are store-scoped (#112) — there is nothing meaningful to show until
+    // a store is picked, so the list is only watched once one is.
     final skus = outletId == null
         ? null
         : ref.watch(skusListProvider(outletId));
 
-    final outletField = outlets.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (err, _) => Text('Failed to load outlets: $err'),
-      data: (list) => DropdownButtonFormField<String>(
-        key: const ValueKey<String>('order-outlet-field'),
-        initialValue: _outletId,
-        decoration: const InputDecoration(
-            labelText: 'Outlet', border: OutlineInputBorder()),
-        items: [
-          for (final o in list)
-            DropdownMenuItem(value: o.id, child: Text(o.name)),
-        ],
-        onChanged: (v) => setState(() {
-          _outletId = v;
-          _qty.clear();
-        }),
-      ),
-    );
+    final loaded = switch (skus) {
+      AsyncData<List<Sku>>(:final value) => value,
+      _ => null,
+    };
+    final ready =
+        _outletId != null && loaded != null && _lines(loaded).isNotEmpty;
 
-    return GlassPageScaffold(
-      title: const Text('New Order'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: context.colors.glass
-            ? _glassForm(outletField, skus)
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  outletField,
-                  const SizedBox(height: 20),
-                  const Text('Line items',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  if (skus == null)
-                    const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('Select an outlet to see available SKUs.'),
-                    )
-                  else
-                    skus.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                      error: (err, _) => Text('Failed to load SKUs: $err'),
-                      data: (list) => Column(
-                        children: [
-                          for (final sku in list)
-                            ListTile(
-                              key: ValueKey<String>('sku-row-${sku.id}'),
-                              dense: true,
-                              title: Text(sku.name),
-                              subtitle: Text('R ${sku.effectivePrice.toStringAsFixed(2)}'),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    key: ValueKey<String>('sku-dec-${sku.id}'),
-                                    icon: const Icon(Icons.remove),
-                                    onPressed: (_qty[sku.id] ?? 0) > 0
-                                        ? () => _bump(sku.id, -1)
-                                        : null,
-                                  ),
-                                  Text(
-                                    '${_qty[sku.id] ?? 0}',
-                                    key: ValueKey<String>('sku-qty-${sku.id}'),
-                                  ),
-                                  IconButton(
-                                    key: ValueKey<String>('sku-inc-${sku.id}'),
-                                    icon: const Icon(Icons.add),
-                                    onPressed: () => _bump(sku.id, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          const Divider(),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              'Total: R ${_total(list).toStringAsFixed(2)}',
-                              key: const ValueKey<String>('order-total'),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          FilledButton(
-                            key: const ValueKey<String>('order-save-button'),
-                            onPressed: _submitting ? null : () => _submit(list),
-                            child: _submitting
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Create Order'),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+    return TorchScope(
+      skin: skin,
+      phase: _submitting ? 'submitting' : (ready ? 'ready' : 'form'),
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        TorchPrimaryButton.claim(OrderFormScreen.submitClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: l10n.orderFormTitle,
+          back: TorchIconButton(
+            icon: Icons.arrow_back,
+            semanticLabel: l10n.orderFormBack,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+        skinCycle: const ConsoleSkinCycle(),
+        primary: TorchPrimaryButton(
+          key: const ValueKey<String>('order-save-button'),
+          label: l10n.orderFormSubmit,
+          claimId: OrderFormScreen.submitClaimId,
+          busy: _submitting,
+          blockedReason: ready ? null : l10n.orderFormBlocked,
+          onPressed: ready && !_submitting ? () => _submit(loaded) : null,
+        ),
+        children: <Widget>[
+          SectionRule(l10n.orderFormStoreHeading),
+          const SizedBox(height: TiqSpace.s4),
+          outlets.when(
+            loading: () => Skeleton(
+              label: l10n.orderFormStore,
+              child: const SkeletonShell(height: 72, outlined: true),
+            ),
+            error: (error, stack) => ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.orderFormStoresFailed,
+                body: humanErrorMessage(error, l10n),
+                offersRetry: true,
               ),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('order-outlets-retry'),
+                label: l10n.ordersRetry,
+                onPressed: () => ref.invalidate(outletsListProvider),
+              ),
+            ),
+            data: (list) => TorchPickerField<String>(
+              key: const ValueKey<String>('order-outlet-field'),
+              label: l10n.orderFormStore,
+              value: _outletId,
+              options: <PickerOption<String>>[
+                for (final outlet in list)
+                  PickerOption<String>(
+                    value: outlet.id,
+                    label: outlet.name,
+                    identifier: outlet.code,
+                  ),
+              ],
+              notChosenLine: l10n.orderFormStoreNotChosen,
+              onChanged: (id) => setState(() {
+                _outletId = id;
+                // A quantity belongs to a shelf in one shop. Carrying it into
+                // another store would order twelve of something that store
+                // does not stock.
+                _quantity.clear();
+              }),
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s7),
+
+          SectionRule(
+            l10n.orderFormLinesHeading,
+            count: loaded == null || loaded.isEmpty ? null : loaded.length,
+          ),
+          const SizedBox(height: TiqSpace.s4),
+          if (skus == null)
+            EmptyState(
+              scope: EmptyScope.inPanel,
+              headline: l10n.orderFormPickStoreFirst,
+            )
+          else
+            skus.when(
+              loading: () => Skeleton(
+                label: l10n.orderFormLinesHeading,
+                child: const SkeletonRows(count: 4, rowHeight: 96),
+              ),
+              error: (error, stack) => ErrorState(
+                scope: ErrorScope.inline,
+                message: TorchErrorMessage(
+                  kind: TorchErrorKind.unknown,
+                  headline: l10n.orderFormSkusFailed,
+                  body: humanErrorMessage(error, l10n),
+                  offersRetry: true,
+                ),
+                action: TorchSecondaryButton(
+                  key: const ValueKey<String>('order-skus-retry'),
+                  label: l10n.ordersRetry,
+                  onPressed: () => ref.invalidate(skusListProvider(outletId!)),
+                ),
+              ),
+              data: (list) => list.isEmpty
+                  ? EmptyState(
+                      scope: EmptyScope.inPanel,
+                      headline: l10n.orderFormNoSkusHeadline,
+                      body: l10n.orderFormNoSkusBody,
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (final sku in list) ...<Widget>[
+                          _SkuLine(
+                            key: ValueKey<String>('sku-row-${sku.id}'),
+                            sku: sku,
+                            quantity: _quantity[sku.id],
+                            onChanged: (value) => _setQuantity(sku.id, value),
+                          ),
+                          const SizedBox(height: TiqSpace.s6),
+                        ],
+                        const SizedBox(height: TiqSpace.s2),
+                        _OrderTotal(value: _total(list)),
+                      ],
+                    ),
+            ),
+        ],
       ),
     );
   }
+}
 
-  /// Glass: the outlet and the lines each get a panel, every line is a tile
-  /// with a pill stepper, and the order total is a figure at the panel's foot
-  /// — so the number the agent reads back to the store owner is the loudest
-  /// thing on the page after the action.
-  Widget _glassForm(Widget outletField, AsyncValue<List<Sku>>? skus) {
-    final lumen = context.lumen;
-    final list = switch (skus) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
+/// One SKU: its name, its unit price, and the count stepper that puts it on
+/// the order.
+class _SkuLine extends StatelessWidget {
+  const _SkuLine({
+    super.key,
+    required this.sku,
+    required this.quantity,
+    required this.onChanged,
+  });
+
+  final Sku sku;
+  final int? quantity;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _GlassSection(label: 'Outlet', children: [outletField]),
-        const SizedBox(height: 14),
-        _GlassSection(
-          label: 'Line items',
-          children: [
-            if (skus == null)
-              Text(
-                'Select an outlet to see available SKUs.',
-                style: TextStyle(fontSize: 13, color: lumen.inkMuted),
-              )
-            else
-              skus.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (err, _) => Text('Failed to load SKUs: $err'),
-                data: (list) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final sku in list)
-                      _GlassSkuRow(
-                        key: ValueKey<String>('sku-row-${sku.id}'),
-                        sku: sku,
-                        qty: _qty[sku.id] ?? 0,
-                        onBump: (delta) => _bump(sku.id, delta),
-                      ),
-                    const SizedBox(height: 4),
-                    Divider(height: 1, color: lumen.white(0xB3)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Kicker('Order total'),
-                        const Spacer(),
-                        Text(
-                          'R ${_total(list).toStringAsFixed(2)}',
-                          key: const ValueKey<String>('order-total'),
-                          style: LumenGlass.figure(size: 20, color: lumen.ink),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        if (list != null) ...[
-          const SizedBox(height: 18),
-          GlassPrimaryButton(
-            key: const ValueKey<String>('order-save-button'),
-            label: 'Create Order',
-            busy: _submitting,
-            onPressed: () => _submit(list),
+      children: <Widget>[
+        TorchBleed(
+          extra: gutter.left * 2,
+          child: SoftRow(
+            density: SoftRowDensity.compact,
+            title: sku.name,
+            trailing: FigureSlot(
+              value: sku.effectivePrice,
+              role: skin.text.figureS,
+              unit: TiqUnit.currency,
+              decimals: 2,
+            ),
+            separator: SoftRowSeparator.none,
           ),
-        ],
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        CountStepper(
+          key: ValueKey<String>('sku-qty-${sku.id}'),
+          label: l10n.orderFormQuantity,
+          value: quantity,
+          onChanged: onChanged,
+          // Nought on an order is a decision, not a finding: nobody raises a
+          // task because an agent ordered none of something.
+          zeroIsFinding: false,
+          findingWord: l10n.orderFormNoneOrdered,
+          findingLine: l10n.orderFormNoneOrderedLine,
+          notCountedLine: l10n.orderFormNotOrdered,
+          decreaseLabel: l10n.orderFormOneFewer,
+          increaseLabel: l10n.orderFormOneMore,
+          typeLabel: l10n.orderFormTypeQuantity,
+          sheetTitle: sku.name,
+          setBlockedReason: l10n.orderFormTypeQuantityFirst,
+          cancelLabel: l10n.orderFormCancel,
+          setLabel: l10n.orderFormSet,
+        ),
       ],
     );
   }
 }
 
-/// A glass panel with its kicker — one group of the form.
-class _GlassSection extends StatelessWidget {
-  const _GlassSection({required this.label, required this.children});
+/// The number the agent reads back to the shop owner.
+class _OrderTotal extends StatelessWidget {
+  const _OrderTotal({required this.value});
 
-  final String label;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [Kicker(label), const SizedBox(height: 12), ...children],
-      ),
-    );
-  }
-}
-
-/// One SKU line in glass: name and unit price, then the quantity as a pill
-/// stepper. A no-blur tile — it repeats down the list.
-class _GlassSkuRow extends StatelessWidget {
-  const _GlassSkuRow({
-    super.key,
-    required this.sku,
-    required this.qty,
-    required this.onBump,
-  });
-
-  final Sku sku;
-  final int qty;
-  final ValueChanged<int> onBump;
+  final double value;
 
   @override
   Widget build(BuildContext context) {
-    final lumen = context.lumen;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: GlassPane(
-        kind: GlassKind.tile,
-        blur: false,
-        shadow: false,
-        radius: LumenGlass.radiusControl,
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    sku.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: lumen.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'R ${sku.effectivePrice.toStringAsFixed(2)}',
-                    style: LumenGlass.figure(
-                      size: 12,
-                      color: lumen.inkMuted,
-                      weight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            GlassPane(
-              kind: GlassKind.pill,
-              shadow: false,
-              radius: 12,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    key: ValueKey<String>('sku-dec-${sku.id}'),
-                    icon: const Icon(Icons.remove, size: 18),
-                    color: lumen.accentInk,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: qty > 0 ? () => onBump(-1) : null,
-                  ),
-                  SizedBox(
-                    width: 30,
-                    child: Text(
-                      '$qty',
-                      key: ValueKey<String>('sku-qty-${sku.id}'),
-                      textAlign: TextAlign.center,
-                      style: LumenGlass.figure(
-                        size: 15,
-                        color: qty > 0 ? lumen.ink : lumen.inkMuted,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: ValueKey<String>('sku-inc-${sku.id}'),
-                    icon: const Icon(Icons.add, size: 18),
-                    color: lumen.accentInk,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => onBump(1),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    return Row(
+      key: const ValueKey<String>('order-total'),
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            l10n.orderFormTotal,
+            style: skin.text.label.style(color: skin.palette.ink2),
+          ),
         ),
-      ),
+        const SizedBox(width: TiqSpace.s3),
+        FigureSlot(
+          value: value,
+          role: skin.text.figureM,
+          unit: TiqUnit.currency,
+          decimals: 2,
+          semanticsLabel:
+              '${l10n.orderFormTotal}. '
+              '${TiqNumber.of(context).format(value, unit: TiqUnit.currency, decimals: 2)}',
+        ),
+      ],
     );
   }
 }
