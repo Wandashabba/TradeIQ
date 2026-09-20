@@ -6038,12 +6038,6 @@ abstract class AppLocalizations {
   /// **'Recommended'**
   String get dispatchRecommended;
 
-  /// The unit under a distance figure.
-  ///
-  /// In en, this message translates to:
-  /// **'metres away'**
-  String get dispatchMetresUnit;
-
   /// How far the server last saw this agent from the outlet.
   ///
   /// In en, this message translates to:
@@ -6055,12 +6049,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No last-known location'**
   String get dispatchNoLocation;
-
-  /// The short form under the em dash where a distance would be.
-  ///
-  /// In en, this message translates to:
-  /// **'not placed'**
-  String get dispatchNoLocationShort;
 
   /// Screen title: the manager's trend charts.
   ///

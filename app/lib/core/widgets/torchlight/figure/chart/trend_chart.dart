@@ -401,15 +401,19 @@ class TrendChartPainter extends CustomPainter {
     var path = Path();
     var open = false;
     var drawn = 0;
+    // The anchor for the one-point case. A local, not a field: two series are
+    // stroked in one paint and painter state that outlives a call is state two
+    // callers can disagree about.
+    Offset? anchor;
     for (var i = 0; i < readings.length && i < count; i++) {
       final value = readings[i].value;
       if (value == null) {
         if (open && drawn > 1) _stroke(canvas, path, paint, dashed);
         // A single point with gaps either side gets a dot, because a path of
         // one point strokes nothing and a measured week must not vanish.
-        if (open && drawn == 1) {
+        if (open && drawn == 1 && anchor != null) {
           canvas.drawCircle(
-            _lastPoint!,
+            anchor,
             paint.strokeWidth,
             Paint()..color = paint.color,
           );
@@ -426,21 +430,19 @@ class TrendChartPainter extends CustomPainter {
       } else {
         path.lineTo(point.dx, point.dy);
       }
-      _lastPoint = point;
+      anchor = point;
       drawn++;
     }
     if (open && drawn > 1) {
       _stroke(canvas, path, paint, dashed);
-    } else if (open && drawn == 1) {
+    } else if (open && drawn == 1 && anchor != null) {
       canvas.drawCircle(
-        _lastPoint!,
+        anchor,
         paint.strokeWidth,
         Paint()..color = paint.color,
       );
     }
   }
-
-  Offset? _lastPoint;
 
   void _stroke(Canvas canvas, Path path, Paint paint, bool dashed) {
     canvas.drawPath(dashed ? _dash(path, 6, 4) : path, paint);

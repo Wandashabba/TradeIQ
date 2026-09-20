@@ -5101,10 +5101,6 @@
   "@dispatchRecommended": {
     "description": "The server's own pick. Never a rank this screen computed."
   },
-  "dispatchMetresUnit": "metres away",
-  "@dispatchMetresUnit": {
-    "description": "The unit under a distance figure."
-  },
   "dispatchMetresAway": "{metres} m away",
   "@dispatchMetresAway": {
     "description": "How far the server last saw this agent from the outlet.",
@@ -5117,10 +5113,6 @@
   "dispatchNoLocation": "No last-known location",
   "@dispatchNoLocation": {
     "description": "The server cannot place this agent. Never a zero — an agent with no fix must not look like one on the doorstep."
-  },
-  "dispatchNoLocationShort": "not placed",
-  "@dispatchNoLocationShort": {
-    "description": "The short form under the em dash where a distance would be."
   },
   "trendsTitle": "Trends",
   "@trendsTitle": {

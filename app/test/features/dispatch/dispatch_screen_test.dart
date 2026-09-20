@@ -197,11 +197,12 @@ void main() {
         const ValueKey<String>('candidate-far@example.com'),
       );
       expect(
-        find.descendant(of: unplaced, matching: find.text('—')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: unplaced, matching: find.text('not placed')),
+        find.descendant(
+          of: unplaced,
+          matching: find.text(
+            'Field agent · Outside territory · No last-known location',
+          ),
+        ),
         findsOneWidget,
       );
       // Never a zero, which would read as standing on the doorstep.
@@ -209,8 +210,13 @@ void main() {
         find.descendant(of: unplaced, matching: find.text('0')),
         findsNothing,
       );
+      expect(
+        find.descendant(of: unplaced, matching: find.text('0 m away')),
+        findsNothing,
+      );
       // A screen reader gets the sentence, because the row's own label
-      // carries it — a plain `trailing` is inside the excluded node.
+      // carries it — a plain `trailing` is inside the excluded node, so a
+      // figure dropped there would be painted and announced to nobody.
       expect(
         find.bySemanticsLabel(
           'far@example.com, Field agent, Outside territory · '
@@ -220,21 +226,35 @@ void main() {
       );
     });
 
-    testWidgets('a placed agent gets a figure and its unit', (tester) async {
+    testWidgets('a placed agent gets a distance, in the spoken line', (
+      tester,
+    ) async {
       await _pump(tester, outlets: _outlets, result: _ranked);
       await _pickCornerShop(tester);
 
-      expect(find.text('120'), findsOneWidget);
-      expect(find.text('metres away'), findsOneWidget);
+      expect(
+        find.text('Field agent · In territory · 120 m away'),
+        findsOneWidget,
+      );
     });
   });
 
   group('a rank is never invented', () {
-    testWidgets("the server's own pick carries the word", (tester) async {
+    testWidgets("the server's own pick carries the word, and it is spoken", (
+      tester,
+    ) async {
       await _pump(tester, outlets: _outlets, result: _ranked);
       await _pickCornerShop(tester);
 
       expect(find.text('Recommended'), findsOneWidget);
+      // `trailingWord` is the one trailing a row announces. A Text dropped in
+      // the trailing WIDGET slot would be painted and spoken to nobody.
+      expect(
+        find.bySemanticsLabel(
+          'Sipho Ndlovu, Field agent, In territory · 120 m away, Recommended',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a result with no recommendation marks nobody', (tester) async {
@@ -350,7 +370,6 @@ void main() {
 
       expect(find.text('Versending'), findsWidgets);
       expect(find.text('Aanbeveel'), findsOneWidget);
-      expect(find.text('nie geplaas nie'), findsOneWidget);
       expect(find.text('Veldagent · Binne gebied · 120 m weg'), findsOneWidget);
       expect(find.text('Recommended'), findsNothing);
       expect(find.text('Dispatch'), findsNothing);

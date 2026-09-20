@@ -3889,18 +3889,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dispatchRecommended => 'Recommended';
 
   @override
-  String get dispatchMetresUnit => 'metres away';
-
-  @override
   String dispatchMetresAway(int metres) {
     return '$metres m away';
   }
 
   @override
   String get dispatchNoLocation => 'No last-known location';
-
-  @override
-  String get dispatchNoLocationShort => 'not placed';
 
   @override
   String get trendsTitle => 'Trends';

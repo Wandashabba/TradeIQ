@@ -6,7 +6,6 @@ import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
-import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
@@ -286,7 +285,6 @@ class _CandidateRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final skin = context.skin;
     final placed = candidate.distanceM != null;
     final territoryWord = candidate.inTerritory
         ? l10n.dispatchInTerritory
@@ -304,40 +302,18 @@ class _CandidateRow extends StatelessWidget {
       // The name when there is one, otherwise the address people mail.
       name: candidate.label,
       role: l10n.roleFieldAgent,
+      // Both facts go in the REASON LINE, because that line is inside the
+      // row's own semantics label and a trailing WIDGET is not. A FigureSlot
+      // dropped in the trailing slot would paint the distance and announce it
+      // to nobody — which is exactly how "No last-known location" would go
+      // missing for the reader who most needs it. `trailingWord` is the one
+      // trailing the row does announce, and the recommendation is the word
+      // worth spending it on.
       outlet: '$territoryWord · $placement',
-      // Both facts, stacked, and never `trailingWord` — that slot takes one
-      // word and this row has two things to say: whether the SERVER picked
-      // this agent, and how far away the server last saw them.
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (recommended)
-            Text(
-              // The server's word, not a rank this screen computed. Where the
-              // server names nobody, no row carries one and the order is the
-              // whole statement.
-              l10n.dispatchRecommended,
-              textAlign: TextAlign.end,
-              style: skin.text.label.style(color: skin.palette.ink1),
-            ),
-          FigureSlot(
-            value: placed ? candidate.distanceM!.round() : null,
-            role: skin.text.figureS,
-            // A metre suffix on nothing is a unit measuring nothing, so an
-            // unplaced agent gets the em dash bare and the sentence beneath.
-            unit: TiqUnit.none,
-            state: placed ? FigureState.measured : FigureState.missing,
-            textAlign: TextAlign.end,
-            semanticsLabel: placed ? null : l10n.dispatchNoLocation,
-          ),
-          Text(
-            placed ? l10n.dispatchMetresUnit : l10n.dispatchNoLocationShort,
-            textAlign: TextAlign.end,
-            style: skin.text.meta.style(color: skin.palette.ink3),
-          ),
-        ],
-      ),
+      // The server's own pick, never a rank this screen computed. Where the
+      // server names nobody, no row carries one and the order is the whole
+      // statement.
+      trailingWord: recommended ? l10n.dispatchRecommended : null,
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
     );
   }

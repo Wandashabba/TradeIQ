@@ -562,19 +562,14 @@ class _BenchmarkRow extends StatelessWidget {
       // Selection is a word in the row plus the chart's own heading beneath —
       // never a fill, which would make a list of fifteen rows a list of
       // fifteen fills with one different.
-      leading: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // A rank is never invented: the server ranks, and a territory it
-          // could not rank shows the em dash and says why in the note.
-          FigureSlot(
-            value: rank,
-            role: skin.text.figureS,
-            unit: TiqUnit.none,
-            state: rank == null ? FigureState.missing : FigureState.measured,
-            semanticsLabel: rank == null ? l10n.trendsUnranked : null,
-          ),
-        ],
+      // A rank is never invented: the server ranks, and a territory it could
+      // not rank shows the em dash and says why in the note.
+      leading: FigureSlot(
+        value: rank,
+        role: skin.text.figureS,
+        unit: TiqUnit.none,
+        state: rank == null ? FigureState.missing : FigureState.measured,
+        semanticsLabel: rank == null ? l10n.trendsUnranked : null,
       ),
       meta: average == null
           ? null
@@ -740,7 +735,6 @@ class _BenchmarkChart extends StatelessWidget {
             notMeasuredWord: l10n.trendsNotMeasured,
             gapNote: gaps == 0 ? null : l10n.trendsGapNote(gaps),
             scrubHint: l10n.trendsScrubHint,
-            veldReplacement: null,
           ),
       ],
     );
