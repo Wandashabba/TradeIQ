@@ -724,9 +724,10 @@ class _TodayMessage extends StatelessWidget {
           header: true,
           child: Text(
             headline,
-            style: displayFor(context, headline).style(
-              color: skin.palette.ink1,
-            ),
+            style: displayFor(
+              context,
+              headline,
+            ).style(color: skin.palette.ink1),
           ),
         ),
         const SizedBox(height: TiqSpace.s3),
@@ -758,8 +759,7 @@ class _TodayMessage extends StatelessWidget {
 /// because only whole-screen states use it.
 TiqTypeToken displayFor(BuildContext context, String headline) {
   final skin = context.skin;
-  final width =
-      MediaQuery.sizeOf(context).width - skin.space.gutter * 2;
+  final width = MediaQuery.sizeOf(context).width - skin.space.gutter * 2;
   final scaler = MediaQuery.textScalerOf(context);
   for (final role in <TiqTypeToken>[
     skin.text.display,

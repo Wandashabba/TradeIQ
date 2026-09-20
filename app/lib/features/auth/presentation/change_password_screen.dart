@@ -7,6 +7,7 @@ import '../../../core/auth/password_repository.dart';
 import '../../../core/auth/password_rule.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/input.dart';
@@ -161,6 +162,7 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
         title: l10n.changePasswordTitle,
         back: back,
         primaryArmed: true,
+        skinCycle: const AgentSkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('change-done'),
           label: l10n.changeDone,
@@ -192,6 +194,7 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
       title: l10n.changePasswordTitle,
       back: back,
       primaryArmed: armed,
+      skinCycle: const AgentSkinCycle(),
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('change-submit'),
         label: l10n.changePasswordTitle,

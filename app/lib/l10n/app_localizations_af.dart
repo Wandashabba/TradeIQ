@@ -3717,6 +3717,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get navExecutionOverview => 'Uitvoeringsoorsig';
 
   @override
+  String get navHome => 'Tuis';
+
+  @override
   String get navTasks => 'Take';
 
   @override
@@ -4320,4 +4323,1084 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get outletsTitle => 'Winkels';
+
+  @override
+  String get outletsSubtitle =>
+      '’n Winkel sonder koördinate kan nie omhein word nie.';
+
+  @override
+  String get outletsRefresh => 'Herlaai die winkellys';
+
+  @override
+  String get outletsCreateStore => 'Voeg ’n winkel by';
+
+  @override
+  String get outletsSectionHeading => 'Winkels';
+
+  @override
+  String get outletsNoLocation => 'Geen ligging';
+
+  @override
+  String get outletsNoCoordinates => 'Geen koördinate op rekord nie';
+
+  @override
+  String get outletsPlaced => 'Geplaas';
+
+  @override
+  String get outletsEmptyHeadline => 'Nog geen winkels nie.';
+
+  @override
+  String get outletsEmptyBody =>
+      'Voeg ’n winkel by om dit op ’n besoekplan te sit.';
+
+  @override
+  String get outletsLoadErrorHeadline => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String get outletsRetry => 'Probeer weer';
+
+  @override
+  String get outletsPinReportsHeading => 'Oop pen-verslae';
+
+  @override
+  String get outletsPinReportsNote =>
+      'Agente wat nie kon inklok waar die pen sê die winkel is nie.';
+
+  @override
+  String get outletsPinReported => 'Pen aangemeld';
+
+  @override
+  String outletsPinReportStood(String agent, String distance) {
+    return '$agent het $distance daarvandaan gestaan';
+  }
+
+  @override
+  String get outletDetailTitle => 'Winkel';
+
+  @override
+  String get outletDetailBack => 'Terug na winkels';
+
+  @override
+  String get outletDetailLoadErrorHeadline =>
+      'Hierdie winkel het nie gelaai nie.';
+
+  @override
+  String outletDetailDisputesHeadline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agente het hierdie pen as verkeerd aangemeld',
+      one: 'Een agent het hierdie pen as verkeerd aangemeld',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outletDetailDisputesBody =>
+      'Elkeen van hulle het in elk geval ingeklok, is gemerk, en die besoek is op die hersieningslys. Om die pen reg te stel sluit die verslag; om te stoor sonder om dit te skuif teken aan dat jy gekyk het en die pen bly staan.';
+
+  @override
+  String get outletDetailFormHeading => 'Hierdie winkel';
+
+  @override
+  String get outletFieldName => 'Winkelnaam';
+
+  @override
+  String get outletFieldCode => 'Winkelkode';
+
+  @override
+  String get outletFieldChannel => 'Kanaaltipe';
+
+  @override
+  String get outletFieldChannelHelp =>
+      'Byvoorbeeld: supermark, spaza, vulstasiewinkel.';
+
+  @override
+  String get outletFieldTerritory => 'Gebied';
+
+  @override
+  String get outletFieldLatitude => 'Breedtegraad';
+
+  @override
+  String get outletFieldLongitude => 'Lengtegraad';
+
+  @override
+  String get outletFieldLatitudeHelp =>
+      'Tussen -90 en 90. Johannesburg is omtrent -26,2.';
+
+  @override
+  String get outletFieldLongitudeHelp =>
+      'Tussen -180 en 180. Johannesburg is omtrent 28,0.';
+
+  @override
+  String get outletFieldStatus => 'Status';
+
+  @override
+  String get outletStatusActive => 'Aktief';
+
+  @override
+  String get outletStatusClosed => 'Gesluit';
+
+  @override
+  String get outletStatusClosedConsequence =>
+      'Word uit beplanning gehou. Inklok werk steeds — ’n agent by die deur moet kan werk.';
+
+  @override
+  String get outletStatusActiveConsequence => 'Word soos gewoonlik beplan.';
+
+  @override
+  String get outletRequired => 'Verpligtend';
+
+  @override
+  String get outletCoordinateNotANumber =>
+      'Tik ’n getal in, byvoorbeeld -26,2041';
+
+  @override
+  String get outletLatitudeOutOfRange => '’n Breedtegraad is tussen -90 en 90';
+
+  @override
+  String get outletLongitudeOutOfRange =>
+      '’n Lengtegraad is tussen -180 en 180';
+
+  @override
+  String get outletSave => 'Stoor';
+
+  @override
+  String get outletSaveBlocked =>
+      'Vul eers die winkel se naam en albei koördinate in.';
+
+  @override
+  String get outletSaved => 'Winkel bygewerk.';
+
+  @override
+  String get outletSaveFailed =>
+      'Daardie winkel is nie gestoor nie. Dit is onveranderd.';
+
+  @override
+  String get outletUsingAttempt =>
+      'Gebruik ’n agent se aangetekende posisie. Die bediener lees die koördinate uit daardie inklok self.';
+
+  @override
+  String get outletAttemptsHeading => 'Afgekeurde inklokke';
+
+  @override
+  String get outletAttemptsNote =>
+      'Waar agente werklik was toe hierdie winkel hulle weggewys het.';
+
+  @override
+  String get outletAttemptsEmptyHeadline => 'Geen afgekeurde inklokke nie.';
+
+  @override
+  String get outletAttemptsEmptyBody =>
+      'Niemand is deur hierdie pen weggewys nie.';
+
+  @override
+  String outletAttemptSubtitle(String distance, String agent) {
+    return '$distance daarvandaan · $agent';
+  }
+
+  @override
+  String get outletUseThisPosition => 'Gebruik hierdie posisie';
+
+  @override
+  String get outletUseTheirPosition => 'Gebruik hul posisie';
+
+  @override
+  String get outletFixMocked =>
+      'Die toestel het hierdie posisie as ’n vals ligging aangemeld. Dit kan nie hierdie winkel se pen word nie.';
+
+  @override
+  String get outletFixUnknown =>
+      'Die toestel het nie gesê hoe akkuraat hierdie posisie was nie.';
+
+  @override
+  String outletFixCoarse(String metres) {
+    return 'Akkuraat tot ongeveer $metres m — te grof om ’n pen mee te stel.';
+  }
+
+  @override
+  String outletFixGood(String metres) {
+    return 'Akkuraat tot ongeveer $metres m.';
+  }
+
+  @override
+  String get outletDisputesHeading => 'Pen-verslae';
+
+  @override
+  String outletDisputeStood(String position, String distance, String pin) {
+    return 'Het by $position gestaan — $distance van die pen af, wat toe $pin gelees het.';
+  }
+
+  @override
+  String get outletDisputeSoleVisitor =>
+      'Geen ander agent het hierdie winkel al besoek nie, so niemand anders se inklokke kan met ’n pen wat hierheen geskuif is verskil nie.';
+
+  @override
+  String get outletDisputeOpen => 'Oop';
+
+  @override
+  String get outletDisputeAnswering =>
+      'Antwoord hierdie verslag wanneer jy stoor.';
+
+  @override
+  String get outletDisputeAnswer => 'Antwoord hierdie verslag';
+
+  @override
+  String outletDisputeApplied(String who) {
+    return 'Toegepas deur $who';
+  }
+
+  @override
+  String outletDisputeRejected(String who) {
+    return 'Verwerp deur $who';
+  }
+
+  @override
+  String get outletDisputeResolvedByManager => '’n bestuurder';
+
+  @override
+  String get outletPhotoCamera => 'Met die kamera geneem';
+
+  @override
+  String get outletPhotoGallery => 'Uit die galery gekies';
+
+  @override
+  String get outletPhotoUnknownSource => 'Bron nie aangeteken nie';
+
+  @override
+  String outletPhotoPhoneSaid(String when) {
+    return 'Foon het $when gesê';
+  }
+
+  @override
+  String outletPhotoReceived(String when) {
+    return 'Ontvang $when';
+  }
+
+  @override
+  String get outletPhotoAlt => 'Winkelfront-foto uit hierdie pen-verslag';
+
+  @override
+  String get outletPhotoMissing => 'Daardie foto het nie gelaai nie.';
+
+  @override
+  String get outletChangesHeading => 'Veranderingsgeskiedenis';
+
+  @override
+  String outletChangePinMoved(String before, String after) {
+    return 'Pen geskuif van $before na $after';
+  }
+
+  @override
+  String get outletChangePinFromAgent =>
+      'vanaf ’n agent se aangetekende posisie';
+
+  @override
+  String outletChangeRenamed(String before, String after) {
+    return 'Hernoem van “$before” na “$after”';
+  }
+
+  @override
+  String outletChangeStatus(String before, String after) {
+    return 'Status $before na $after';
+  }
+
+  @override
+  String get outletChangeOther => 'Verander';
+
+  @override
+  String get outletChangeUnknownCoordinate => 'nie aangeteken nie';
+
+  @override
+  String get createOutletTitle => 'Voeg ’n winkel by';
+
+  @override
+  String get createOutletBack => 'Terug na winkels';
+
+  @override
+  String get createOutletSubmit => 'Voeg die winkel by';
+
+  @override
+  String get createOutletBlocked =>
+      'Vul eers die naam, kode, kanaal, gebied en albei koördinate in.';
+
+  @override
+  String get createOutletFailed =>
+      'Daardie winkel is nie geskep nie. Niks is gestoor nie.';
+
+  @override
+  String get createOutletLocationHeading => 'Waar hierdie winkel is';
+
+  @override
+  String get createOutletLocating => 'Soek waar hierdie foon is…';
+
+  @override
+  String get createOutletLocationDenied =>
+      'Hierdie foon wil nie sê waar dit is nie. Tik eerder die winkel se koördinate in.';
+
+  @override
+  String get createOutletLocationFailed =>
+      'Hierdie foon kon nie vind waar dit is nie. Tik eerder die winkel se koördinate in.';
+
+  @override
+  String get createOutletLocationFound =>
+      'Vanaf hierdie foon ingevul. Tik daaroor as jy nie in die winkel staan nie.';
+
+  @override
+  String get createOutletUseThisPhone => 'Gebruik hierdie foon se posisie';
+
+  @override
+  String get createOutletTerritoriesLoading => 'Laai gebiede…';
+
+  @override
+  String get createOutletTerritoriesFailed =>
+      'Die gebiedelys het nie gelaai nie.';
+
+  @override
+  String get createOutletTerritoriesRetry => 'Probeer weer';
+
+  @override
+  String get createOutletNoTerritories =>
+      'Nog geen gebiede nie — skep eers een onder Gebiede.';
+
+  @override
+  String get createOutletTerritoryNotChosen => 'Kies ’n gebied';
+
+  @override
+  String get ordersTitle => 'Bestellings';
+
+  @override
+  String get ordersSubtitle =>
+      'In die veld vasgelê. ’n Ingedienede bestelling wag op ’n besluit.';
+
+  @override
+  String get ordersRefresh => 'Herlaai die bestellingslys';
+
+  @override
+  String get ordersSectionHeading => 'Bestellings';
+
+  @override
+  String get ordersNewOrder => 'Nuwe bestelling';
+
+  @override
+  String get ordersAwaitingEyebrow => 'Wag op ’n besluit';
+
+  @override
+  String ordersAwaitingSubordinates(String confirmed, String cancelled) {
+    return '$confirmed bevestig · $cancelled gekanselleer';
+  }
+
+  @override
+  String get ordersValueEyebrow => 'Waarde van hierdie bestellings';
+
+  @override
+  String ordersValuePartial(String shown) {
+    return 'Opgetel oor die $shown bestellings wat gelaai is, nie die hele geskiedenis nie.';
+  }
+
+  @override
+  String ordersCountPartial(String shown) {
+    return 'Ten minste soveel: getel oor die $shown bestellings wat gelaai is.';
+  }
+
+  @override
+  String get ordersStatusSubmitted => 'Ingedien';
+
+  @override
+  String get ordersStatusConfirmed => 'Bevestig';
+
+  @override
+  String get ordersStatusCancelled => 'Gekanselleer';
+
+  @override
+  String ordersStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String ordersLineCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reëls',
+      one: '1 reël',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ordersRowSubtitle(String status, String lines) {
+    return '$status · $lines';
+  }
+
+  @override
+  String get ordersUnknownStore => 'Winkel nie op hierdie lys nie';
+
+  @override
+  String get ordersEmptyHeadline => 'Nog geen bestellings nie.';
+
+  @override
+  String get ordersEmptyBody =>
+      'Bestellings verskyn hier soos agente dit tydens ’n besoek vaslê.';
+
+  @override
+  String get ordersLoadErrorHeadline =>
+      'Die bestellingslys het nie gelaai nie.';
+
+  @override
+  String get ordersRetry => 'Probeer weer';
+
+  @override
+  String ordersFooterMore(String shown) {
+    return 'Wys die eerste $shown. Daar is meer.';
+  }
+
+  @override
+  String ordersFooterOf(String shown, String total) {
+    return 'Wys die $shown nuutstes van $total bestellings.';
+  }
+
+  @override
+  String ordersFooterScope(String shown) {
+    return 'Die syfers hierbo is van hierdie $shown.';
+  }
+
+  @override
+  String get orderFormTitle => 'Nuwe bestelling';
+
+  @override
+  String get orderFormBack => 'Terug na bestellings';
+
+  @override
+  String get orderFormStoreHeading => 'Watter winkel';
+
+  @override
+  String get orderFormStore => 'Winkel';
+
+  @override
+  String get orderFormStoreNotChosen =>
+      'Nog nie gekies nie. ’n Winkel bepaal wat bestel kan word.';
+
+  @override
+  String get orderFormStoresFailed => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String get orderFormLinesHeading => 'Bestellingsreëls';
+
+  @override
+  String get orderFormPickStoreFirst =>
+      'Kies ’n winkel om te sien wat dit aanhou.';
+
+  @override
+  String get orderFormSkusFailed =>
+      'Daardie winkel se produkte het nie gelaai nie.';
+
+  @override
+  String get orderFormNoSkusHeadline => 'Niks word hier aangehou nie.';
+
+  @override
+  String get orderFormNoSkusBody =>
+      'Hierdie winkel het geen produkte op sy lys nie, so daar is niks om te bestel nie.';
+
+  @override
+  String get orderFormTotal => 'Bestellingstotaal';
+
+  @override
+  String get orderFormSubmit => 'Skep die bestelling';
+
+  @override
+  String get orderFormBlocked =>
+      'Kies eers ’n winkel en stel ’n hoeveelheid op ten minste een reël.';
+
+  @override
+  String get orderFormFailed =>
+      'Daardie bestelling is nie geskep nie. Niks is gestuur nie.';
+
+  @override
+  String get orderFormQuantity => 'Hoeveelheid';
+
+  @override
+  String get orderFormOneFewer => 'Een minder';
+
+  @override
+  String get orderFormOneMore => 'Een meer';
+
+  @override
+  String get orderFormTypeQuantity => 'Tik ’n hoeveelheid';
+
+  @override
+  String get orderFormTypeQuantityFirst => 'Tik eers ’n hoeveelheid in.';
+
+  @override
+  String get orderFormNotOrdered => 'Nie op hierdie bestelling nie';
+
+  @override
+  String get orderFormNoneOrdered => 'Niks hiervan nie';
+
+  @override
+  String get orderFormNoneOrderedLine => '’n Reël op nul word nie gestuur nie.';
+
+  @override
+  String get orderFormCancel => 'Kanselleer';
+
+  @override
+  String get orderFormSet => 'Stel';
+
+  @override
+  String get beatPlansTitle => 'Besoekplanne';
+
+  @override
+  String get beatPlansSubtitle =>
+      '’n Plan is ’n dag se winkelstoppe, in besoekvolgorde.';
+
+  @override
+  String get beatPlansRefresh => 'Herlaai die besoekplanne';
+
+  @override
+  String get beatPlansSectionHeading => 'Planne';
+
+  @override
+  String get beatPlansNewPlan => 'Nuwe plan';
+
+  @override
+  String get beatPlansEmptyHeadline => 'Geen besoekplanne nie.';
+
+  @override
+  String get beatPlansEmptyBody =>
+      '’n Plan is ’n dag se winkelstoppe in besoekvolgorde. Bou een om ’n agent ’n roete te gee.';
+
+  @override
+  String get beatPlansLoadErrorHeadline =>
+      'Die besoekplanne het nie gelaai nie.';
+
+  @override
+  String get beatPlansRetry => 'Probeer weer';
+
+  @override
+  String beatPlansFooterMore(String shown) {
+    return 'Wys die eerste $shown. Daar is meer.';
+  }
+
+  @override
+  String beatPlansFooterOf(String shown, String total) {
+    return 'Wys $shown van $total planne.';
+  }
+
+  @override
+  String get beatPlanStatusScheduled => 'Geskeduleer';
+
+  @override
+  String get beatPlanStatusInProgress => 'Aan die gang';
+
+  @override
+  String get beatPlanStatusCompleted => 'Voltooi';
+
+  @override
+  String get beatPlanStatusMissed => 'Gemis';
+
+  @override
+  String get beatPlanStatusCancelled => 'Gekanselleer';
+
+  @override
+  String beatPlanStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String get beatPlanDetailTitle => 'Besoekplan';
+
+  @override
+  String get beatPlanDetailBack => 'Terug na besoekplanne';
+
+  @override
+  String get beatPlanDetailLoadErrorHeadline =>
+      'Hierdie besoekplan het nie gelaai nie.';
+
+  @override
+  String get beatPlanAdherenceEyebrow => 'Stoppe gewerk';
+
+  @override
+  String beatPlanAdherenceOf(String visited, String total) {
+    return '$visited van $total stoppe';
+  }
+
+  @override
+  String get beatPlanAdherenceNoStops =>
+      'Hierdie plan het geen stoppe nie, so daar is niks om te werk nie.';
+
+  @override
+  String get beatPlanStopsHeading => 'Stoppe';
+
+  @override
+  String get beatPlanStopsEmptyHeadline => 'Geen stoppe op hierdie plan nie.';
+
+  @override
+  String get beatPlanStopsEmptyBody =>
+      'Voeg winkels by die plan om die agent ’n roete te gee.';
+
+  @override
+  String beatPlanStopLabel(String sequence) {
+    return 'Stop $sequence';
+  }
+
+  @override
+  String get beatPlanStopVisited => 'Gewerk';
+
+  @override
+  String get beatPlanStopNotVisited => 'Nog nie';
+
+  @override
+  String beatPlanStopToggle(String stop) {
+    return 'Merk $stop as gewerk';
+  }
+
+  @override
+  String get beatPlanStopFailed =>
+      'Daardie stop is nie verander nie. Dit is soos dit was.';
+
+  @override
+  String get beatPlanFormTitle => 'Nuwe besoekplan';
+
+  @override
+  String get beatPlanFormBack => 'Terug na besoekplanne';
+
+  @override
+  String get beatPlanFormPlanHeading => 'Die dag';
+
+  @override
+  String get beatPlanFormName => 'Plannaam';
+
+  @override
+  String get beatPlanFormNameHelp => 'Wat die agent bo-aan hul dag sal sien.';
+
+  @override
+  String get beatPlanFormDate => 'Geskeduleerde datum';
+
+  @override
+  String get beatPlanFormDateNotChosen => 'Nog nie gekies nie.';
+
+  @override
+  String get beatPlanFormPickDate => 'Kies ’n datum';
+
+  @override
+  String get beatPlanFormChangeDate => 'Verander die datum';
+
+  @override
+  String get beatPlanFormAgent => 'Veldagent';
+
+  @override
+  String get beatPlanFormAgentNotChosen =>
+      'Nog nie gekies nie. ’n Plan behoort aan een agent.';
+
+  @override
+  String get beatPlanFormAgentsFailed => 'Die agentelys het nie gelaai nie.';
+
+  @override
+  String get beatPlanFormNoAgents =>
+      'Nog geen veldagente op hierdie rekening nie.';
+
+  @override
+  String get beatPlanFormTerritory => 'Gebied';
+
+  @override
+  String get beatPlanFormTerritoryOptional =>
+      'Opsioneel. Dit vernou verslagdoening, nie die stoppe nie.';
+
+  @override
+  String get beatPlanFormTerritoryNone => 'Geen gebied';
+
+  @override
+  String get beatPlanFormStopsHeading => 'Stoppe, in volgorde';
+
+  @override
+  String get beatPlanFormStopsEmpty =>
+      'Nog geen stoppe nie. Voeg winkels uit die lys hieronder by.';
+
+  @override
+  String get beatPlanFormAvailableHeading => 'Winkels om by te voeg';
+
+  @override
+  String get beatPlanFormAvailableEmpty =>
+      'Elke winkel is reeds op hierdie plan.';
+
+  @override
+  String get beatPlanFormStoresFailed => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String beatPlanFormAddStop(String store) {
+    return 'Voeg $store by die plan';
+  }
+
+  @override
+  String beatPlanFormRemoveStop(String store) {
+    return 'Haal $store van die plan af';
+  }
+
+  @override
+  String beatPlanFormMoveUp(String store) {
+    return 'Skuif $store vroeër';
+  }
+
+  @override
+  String beatPlanFormMoveDown(String store) {
+    return 'Skuif $store later';
+  }
+
+  @override
+  String beatPlanFormStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stoppe',
+      one: '1 stop',
+      zero: 'Geen stoppe',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get beatPlanFormSubmit => 'Skep die plan';
+
+  @override
+  String get beatPlanFormBlocked =>
+      'Benoem die plan, kies ’n datum en ’n agent, en voeg eers ten minste een stop by.';
+
+  @override
+  String get beatPlanFormFailed =>
+      'Daardie plan is nie geskep nie. Niks is gestoor nie.';
+
+  @override
+  String get salesTargetsTitle => 'Verkoopsteikens';
+
+  @override
+  String get salesTargetsSubtitle =>
+      'Eenhede wat deur TradeIQ bestel is, nie wat kopers gekoop het nie.';
+
+  @override
+  String get salesSellIn => 'Inverkope (bestellings)';
+
+  @override
+  String get salesTargetsHelp =>
+      'Stel een teiken per SKU vir die hele rekening, ’n gebied, of ’n enkele winkel.';
+
+  @override
+  String get salesTargetsUpload => 'Laai ’n CSV van teikens op';
+
+  @override
+  String salesMonthPrevious(String month) {
+    return 'Die maand voor $month';
+  }
+
+  @override
+  String salesMonthNext(String month) {
+    return 'Die maand na $month';
+  }
+
+  @override
+  String salesTimeZone(String zone) {
+    return 'Plaaslike dae in $zone';
+  }
+
+  @override
+  String get salesLevelsHeading => 'Teenoor teiken';
+
+  @override
+  String get salesLevelAccount => 'Rekeningwyd';
+
+  @override
+  String get salesLevelTerritories => 'Gebiede';
+
+  @override
+  String get salesLevelOutlets => 'Winkels';
+
+  @override
+  String get salesLevelNoTargets =>
+      'Geen teiken is op hierdie vlak gestel nie, so daar is niks om te behaal nie.';
+
+  @override
+  String salesLevelSubordinates(String actual, String target, int targets) {
+    String _temp0 = intl.Intl.pluralLogic(
+      targets,
+      locale: localeName,
+      other: '$targets teikens',
+      one: '1 teiken',
+    );
+    return '$actual van $target eenhede · $_temp0';
+  }
+
+  @override
+  String get salesBandOnTarget => 'Op teiken';
+
+  @override
+  String get salesBandClose => 'Naby';
+
+  @override
+  String get salesBandBehind => 'Agter';
+
+  @override
+  String get salesNoTarget => 'Geen teiken';
+
+  @override
+  String salesNoTargetsHeadline(String month) {
+    return 'Geen teikens vir $month nie.';
+  }
+
+  @override
+  String get salesNoTargetsBody =>
+      'Stel ’n teiken op ’n SKU hieronder, of laai ’n CSV van teikens op.';
+
+  @override
+  String get salesSkusHeading => 'SKU’s';
+
+  @override
+  String salesSkusTruncated(String shown) {
+    return 'Wys die eerste $shown.';
+  }
+
+  @override
+  String get salesSkusEmptyHeadline => 'Geen SKU’s op hierdie rekening nie.';
+
+  @override
+  String get salesSkusEmptyBody =>
+      'Teikens word per SKU gestel, so daar is nog niks om een op te stel nie.';
+
+  @override
+  String salesRowFigures(String metric, String actual, String target) {
+    return '$metric $actual · teiken $target eenhede';
+  }
+
+  @override
+  String salesRowNoTargetFigures(String metric, String actual) {
+    return '$metric $actual · geen teiken gestel nie';
+  }
+
+  @override
+  String get salesScopeTerritory => 'Gebied';
+
+  @override
+  String get salesScopeOutlet => 'Winkel';
+
+  @override
+  String get salesScopeAccount => 'Hele rekening';
+
+  @override
+  String get salesScopeUnknown => 'Omvang nie op hierdie lys nie';
+
+  @override
+  String salesScopedRowTitle(String sku, String scope) {
+    return '$sku · $scope';
+  }
+
+  @override
+  String get salesSetTarget => 'Stel ’n teiken';
+
+  @override
+  String get salesEditTarget => 'Wysig die teiken';
+
+  @override
+  String get salesRemoveTarget => 'Verwyder die teiken';
+
+  @override
+  String get salesRemoveFailed =>
+      'Daardie teiken is nie verwyder nie. Dit is steeds gestel.';
+
+  @override
+  String get salesTargetSheetSet => 'Stel ’n verkoopsteiken';
+
+  @override
+  String get salesTargetSheetEdit => 'Wysig ’n verkoopsteiken';
+
+  @override
+  String salesTargetSheetSubtitle(String metric, String month) {
+    return 'Eenhede van $metric vir $month.';
+  }
+
+  @override
+  String get salesTargetSku => 'SKU';
+
+  @override
+  String get salesTargetSkuNotChosen =>
+      'Nog nie gekies nie. ’n Teiken behoort aan een SKU.';
+
+  @override
+  String get salesTargetSkuLocked =>
+      '’n Teiken word deur sy SKU geïdentifiseer, so ’n wysiging kan dit nie skuif nie.';
+
+  @override
+  String get salesTargetScope => 'Geld vir';
+
+  @override
+  String get salesTargetScopeLocked =>
+      '’n Teiken word deur sy omvang geïdentifiseer, so ’n wysiging kan dit nie skuif nie.';
+
+  @override
+  String get salesTargetScopeAccountConsequence =>
+      'Elke winkel op die rekening tel daartoe by.';
+
+  @override
+  String get salesTargetScopeTerritoryConsequence =>
+      'Net winkels in die gekose gebied tel.';
+
+  @override
+  String get salesTargetScopeOutletConsequence => 'Net die gekose winkel tel.';
+
+  @override
+  String get salesTargetTerritoryNotChosen =>
+      'Nog nie gekies nie. ’n Gebiedsteiken benodig een.';
+
+  @override
+  String get salesTargetOutletNotChosen =>
+      'Nog nie gekies nie. ’n Winkelteiken benodig een.';
+
+  @override
+  String get salesTargetUnits => 'Teikeneenhede';
+
+  @override
+  String get salesTargetUnitsHelp => '’n Heelgetal eenhede, vir die maand.';
+
+  @override
+  String get salesTargetUnitsMissing => 'Tik ’n heelgetal eenhede in.';
+
+  @override
+  String get salesTargetSave => 'Stoor die teiken';
+
+  @override
+  String get salesTargetBlocked =>
+      'Kies ’n SKU en ’n omvang, en tik ’n heelgetal eenhede in.';
+
+  @override
+  String get salesTargetCancel => 'Kanselleer';
+
+  @override
+  String get salesTargetsLoadErrorHeadline => 'Die teikens het nie gelaai nie.';
+
+  @override
+  String get salesTargetsRetry => 'Probeer weer';
+
+  @override
+  String get salesImportTitle => 'Laai verkoopsteikens op';
+
+  @override
+  String get salesImportSubtitle =>
+      'Sien vooraf wat ’n lêer sou doen, en pas dan die goeie reëls toe.';
+
+  @override
+  String get salesImportFormat =>
+      'Dit benodig ’n opskrifreël: month (YYYY-MM), sku (id of naam), targetUnits, en opsioneel territory of outlet (id of kode). Bestaande teikens vir dieselfde SKU, maand en omvang word vervang.';
+
+  @override
+  String get salesImportChooseFile => 'Kies ’n CSV-lêer';
+
+  @override
+  String get salesImportChooseAnother => 'Kies ’n ander lêer';
+
+  @override
+  String get salesImportRemoveFile => 'Verwyder die lêer';
+
+  @override
+  String get salesImportPasteLabel => 'Of plak ’n CSV';
+
+  @override
+  String get salesImportPasteHint => 'month,sku,targetUnits,territory,outlet';
+
+  @override
+  String get salesImportFileHeld =>
+      'Sien vooraf wat hierdie lêer sou doen. Verwyder dit om eerder ’n CSV te plak.';
+
+  @override
+  String get salesImportFileUnreadable =>
+      'Daardie lêer kon nie gelees word nie.';
+
+  @override
+  String get salesImportPreview => 'Sien vooraf';
+
+  @override
+  String get salesImportApply => 'Pas toe';
+
+  @override
+  String salesImportApplyRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Pas $count reëls toe',
+      one: 'Pas 1 reël toe',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salesImportBlockedPreview =>
+      'Sien eers die lêer vooraf. Wat geskryf word is altyd wat gewys is.';
+
+  @override
+  String get salesImportBlockedNoRows =>
+      'Geen reël in hierdie lêer kan geskryf word nie.';
+
+  @override
+  String get salesImportReadyEyebrow => 'Reëls gereed om te skryf';
+
+  @override
+  String get salesImportErrorsEyebrow => 'Reëls met foute';
+
+  @override
+  String salesImportWouldDo(String created, String updated) {
+    return 'Sou $created skep en $updated bywerk.';
+  }
+
+  @override
+  String get salesImportErrorsHeading => 'Wat verkeerd is';
+
+  @override
+  String salesImportRowError(String row, String message) {
+    return 'Reël $row: $message';
+  }
+
+  @override
+  String salesImportRowErrorColumn(String row, String column, String message) {
+    return 'Reël $row · $column: $message';
+  }
+
+  @override
+  String salesImportMoreErrors(String count) {
+    return '…en nog $count.';
+  }
+
+  @override
+  String get salesImportNothingWrong =>
+      'Elke reël in hierdie lêer kan geskryf word.';
+
+  @override
+  String salesImportApplied(String created, String updated) {
+    return '$created geskep, $updated bygewerk.';
+  }
+
+  @override
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  ) {
+    return '$created geskep, $updated bygewerk, $skipped reëls oorgeslaan.';
+  }
+
+  @override
+  String get salesPanelTitle => 'Inverkope teenoor teiken';
+
+  @override
+  String salesPanelSubtitle(String metric, String month) {
+    return '$metric · $month — nie verbruikersverkope nie';
+  }
+
+  @override
+  String get salesPanelThisMonth => 'hierdie maand';
+
+  @override
+  String get salesPanelLink => 'Teikens';
+
+  @override
+  String get salesPanelEmptyBody =>
+      'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
 }

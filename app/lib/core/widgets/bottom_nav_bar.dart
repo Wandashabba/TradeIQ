@@ -8,10 +8,31 @@ import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show reduceMotion;
 import 'torchlight/menu_sheet.dart';
 import '../theme/lumen_palette.dart';
+import '../../l10n/l10n.dart';
 
 /// One slot on the floating bar. `route == null` means the Menu slot, which
 /// opens the sheet instead of navigating.
+///
+/// [label] is the English name and the key [_slotLabel] switches on, never
+/// the string that reaches the screen — same arrangement as
+/// `NavDestination.labelIn`, and for the same reason: a `const` record cannot
+/// hold a lookup against localisations that do not exist until there is a
+/// `BuildContext`.
 typedef _Slot = ({String? route, String label, IconData icon});
+
+/// The slot's name in [l10n]'s language.
+///
+/// The bar keeps "Home" where the rail and the menu sheet say "The Floor":
+/// five slots share a phone's width at 10.5px on one line, and the long name
+/// is the menu's job, where there is room to read it.
+String _slotLabel(AppLocalizations l10n, _Slot slot) => switch (slot.route) {
+  '/dashboard' => l10n.navHome,
+  '/tasks' => l10n.navTasks,
+  '/alerts' => l10n.navAlerts,
+  '/agents/activity' => l10n.navMap,
+  null => l10n.menuTitle,
+  _ => slot.label,
+};
 
 /// The "what needs me now" loop plus the everything-else Menu — fixed by
 /// design (spec: set A). The full destination list lives in the Menu sheet.
@@ -176,6 +197,7 @@ class _SlotButton extends StatelessWidget {
     // ground it can float over — bottom_nav_bar_test.dart measures the pair.
     final color = active ? colors.navActiveInk : colors.navInactiveInk;
     final route = slot.route;
+    final label = _slotLabel(context.l10n, slot);
     return InkWell(
       key: ValueKey('bottom-nav-${route ?? 'menu'}'),
       borderRadius: BorderRadius.circular(glass ? LumenGlass.radiusButton : 21),
@@ -192,7 +214,7 @@ class _SlotButton extends StatelessWidget {
           Icon(slot.icon, size: glass ? 18 : 20, color: color),
           SizedBox(height: glass ? 3 : 2),
           Text(
-            glass ? slot.label.toUpperCase() : slot.label,
+            glass ? label.toUpperCase() : label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: glass

@@ -11,7 +11,10 @@
 // files already clean whose rows had never been regenerated out. A ledger
 // that takes credit for somebody else's work is a ledger nobody can read the
 // ratchet off. Later migrations have taken it further; the map below and the
-// total at the foot are what count.
+// total at the foot are what count. Operations — outlets, orders, beat plans
+// and sales targets — took all eight of its files off the map (36), so the
+// group has no row here at all, which is the only score a finished migration
+// should have.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -29,22 +32,14 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/presentation/artifact_filters.dart': 9,
   'assistant/presentation/artifact_screen.dart': 6,
   'assistant/view_specs/expanded_views.dart': 6,
-  'beatplans/presentation/beat_plan_form_screen.dart': 5,
-  'beatplans/presentation/beatplans_screen.dart': 2,
   'dashboard/presentation/dashboard_shell_screen.dart': 32,
   'fraud/presentation/fraud_screen.dart': 4,
   'gamification/presentation/agent_points_screen.dart': 2,
   'gamification/presentation/leaderboard_screen.dart': 2,
   'incentives/presentation/incentives_screen.dart': 2,
-  'orders/presentation/order_form_screen.dart': 5,
-  'orders/presentation/orders_screen.dart': 2,
-  'outlets/presentation/create_outlet_screen.dart': 7,
-  'outlets/presentation/outlets_list_screen.dart': 1,
-  'sales_targets/presentation/sales_attainment_panel.dart': 3,
-  'sales_targets/presentation/sales_targets_screen.dart': 11,
   'visits/presentation/visit_detail_screen.dart': 17,
 };
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 149;
+const int torchlightStyleDebtTotal = 113;

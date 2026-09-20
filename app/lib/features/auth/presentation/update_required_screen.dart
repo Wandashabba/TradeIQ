@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/app_version.dart';
-import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../l10n/l10n.dart';
@@ -25,7 +25,7 @@ class UpdateRequiredScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const TorchlightRoute(child: _UpdateRequired());
+      const EntryTorchlightRoute(child: _UpdateRequired());
 }
 
 class _UpdateRequired extends StatelessWidget {
@@ -42,6 +42,7 @@ class _UpdateRequired extends StatelessWidget {
           phase: 'update-required',
           title: l10n.updateTitle,
           primaryArmed: true,
+          skinCycle: const EntrySkinCycle(),
           primary: TorchPrimaryButton(
             key: const ValueKey<String>('update-try-again'),
             label: l10n.updateTryAgain,
