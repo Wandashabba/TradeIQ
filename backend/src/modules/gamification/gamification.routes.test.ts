@@ -272,13 +272,18 @@ describe('gamification routes', () => {
     // Agent A has nothing in window. #124: the task closed on 07-06 is dated on
     // the ledger, so it no longer counts here — the computed board counted
     // closures for all time whatever the window (see gamification.parity.test.ts).
+    //
+    // And #398: nothing measured is not second place. A window an agent did no
+    // work in is a window the board cannot rank them in, so the place is null
+    // and the row still appears — the client says "not ranked in this window"
+    // rather than printing a number that reads as a verdict.
     expect(res.body[1]).toMatchObject({
       agentId: agentAId,
       visitsSubmitted: 0,
       avgScorecard: 0,
       tasksClosed: 0,
       points: 0,
-      rank: 2,
+      rank: null,
     });
   });
 
@@ -378,10 +383,14 @@ describe('gamification routes', () => {
     expect(agent.body.rank).toBeLessThanOrEqual(board.body.length);
     expect(manager.body.rank).toBeNull();
     expect(manager.body.rank).not.toBe(board.body.length + 1);
-    // And every row of the board itself still carries a place.
-    expect(
-      board.body.every((row: { rank: unknown }) => typeof row.rank === 'number' && row.rank >= 1),
-    ).toBe(true);
+    // And every MEASURED row of the board itself still carries a place, in an
+    // unbroken run from 1 — an unranked row (#398) must not leave a hole in
+    // anyone else's place.
+    const places = board.body
+      .filter((row: { rank: unknown }) => row.rank !== null)
+      .map((row: { rank: number }) => row.rank);
+    expect(places).toEqual(places.map((_: number, index: number) => index + 1));
+    expect(places.length).toBeGreaterThan(0);
   });
 
   describe('GET /gamification/agents/:agentId/points', () => {

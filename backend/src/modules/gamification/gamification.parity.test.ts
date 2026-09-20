@@ -14,11 +14,16 @@ import { backfillPointsLedger } from './pointsLedgerBackfill';
  * `legacyComputeLeaderboard` is that implementation, frozen verbatim (bar the
  * name) as the reference. Do not "fix" it — it is the spec being matched.
  *
- * One intended difference, pinned by its own test: the legacy board counted
- * task closures for the agent's lifetime whatever the window, because Task has
- * no closure timestamp. Ledger entries are dated, so a windowed board now counts
- * only closures in the window. Unwindowed boards, and windows containing every
- * closure, are identical.
+ * Two intended differences, each pinned by its own test:
+ *
+ * 1. the legacy board counted task closures for the agent's lifetime whatever
+ *    the window, because Task has no closure timestamp. Ledger entries are
+ *    dated, so a windowed board now counts only closures in the window.
+ *    Unwindowed boards, and windows containing every closure, are identical.
+ * 2. the legacy board gave every row `index + 1`, so an agent with nothing
+ *    measured was told they came last (#398). `rerank` below is that one
+ *    difference expressed as a function, so the rest of the comparison stays
+ *    exact rather than being loosened to `toMatchObject`.
  */
 async function legacyComputeLeaderboard(
   clientId: string,
@@ -86,6 +91,24 @@ async function legacyComputeLeaderboard(
   });
   rows.sort((a, b) => b.points - a.points || a.email.localeCompare(b.email));
   return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+/**
+ * The legacy board's rows, re-placed under the rule the ledger board now uses
+ * (#398): a row with nothing measured in the window has no place at all.
+ *
+ * "Nothing measured" is read off the legacy row's own figures rather than off
+ * the ledger, so this stays a statement about the reference implementation:
+ * no submitted visit, no closure and no scorecard is an agent the board has
+ * not looked at. The ordering is untouched — unmeasured rows already sort to
+ * the bottom on zero points — so only the `rank` field moves.
+ */
+function rerank(rows: LeaderboardEntry[]): LeaderboardEntry[] {
+  let place = 0;
+  return rows.map((row) => {
+    const measured = row.visitsSubmitted > 0 || row.tasksClosed > 0 || row.avgScorecard !== 0;
+    return { ...row, rank: measured ? ++place : null };
+  });
 }
 
 const tenants: string[] = [];
@@ -217,7 +240,7 @@ describe('ledger leaderboard parity with the computed board (#124)', () => {
     const legacy = await legacyComputeLeaderboard(clientId);
     const ledger = await computeLeaderboard(clientId);
 
-    expect(ledger).toEqual(legacy);
+    expect(ledger).toEqual(rerank(legacy));
     // Guard against a vacuous pass: the fixture exercises what it claims to.
     expect(legacy.map((r) => [r.email, r.points])).toEqual([
       ['par-b@example.test', 89.33],
@@ -236,7 +259,7 @@ describe('ledger leaderboard parity with the computed board (#124)', () => {
   ])('equals the computed board for %s', async (_label, from, to) => {
     const opts = { from: new Date(from), ...(to ? { to: new Date(to) } : {}) };
     expect(await computeLeaderboard(clientId, opts)).toEqual(
-      await legacyComputeLeaderboard(clientId, opts),
+      rerank(await legacyComputeLeaderboard(clientId, opts)),
     );
   });
 
@@ -259,7 +282,29 @@ describe('ledger leaderboard parity with the computed board (#124)', () => {
       .sort((x, y) => y.points - x.points || x.email.localeCompare(y.email))
       .map((row, index) => ({ ...row, rank: index + 1 }));
 
-    expect(await computeLeaderboard(clientId, opts)).toEqual(expected);
+    expect(await computeLeaderboard(clientId, opts)).toEqual(rerank(expected));
+  });
+
+  it('intended difference: an agent with nothing measured is unranked, not last (#398)', async () => {
+    const legacy = await legacyComputeLeaderboard(clientId);
+    const ledger = await computeLeaderboard(clientId);
+
+    // par-e has no visit, no closure and no scorecard. The legacy board gave
+    // them a place computed from the length of a list they had not competed
+    // in; the ledger board gives them none.
+    const legacyE = legacy.find((r) => r.email === 'par-e@example.test');
+    const ledgerE = ledger.find((r) => r.email === 'par-e@example.test');
+    expect(legacyE!.rank).toBe(5);
+    expect(ledgerE!.rank).toBeNull();
+
+    // They are still on the board — an absence is stated, never hidden — and
+    // they sort below every agent who has been measured.
+    expect(ledger).toHaveLength(5);
+    expect(ledger[ledger.length - 1]!.email).toBe('par-e@example.test');
+
+    // And the four measured agents keep an unbroken 1..4: dropping a row's
+    // place must not leave a hole in everybody else's.
+    expect(ledger.filter((r) => r.rank !== null).map((r) => r.rank)).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -296,7 +341,7 @@ describe('ledger written by the live hooks matches the computed board (#124)', (
     await updateTask(yTask.id, { status: 'closed' });
 
     const legacy = await legacyComputeLeaderboard(t.clientId);
-    expect(await computeLeaderboard(t.clientId)).toEqual(legacy);
+    expect(await computeLeaderboard(t.clientId)).toEqual(rerank(legacy));
     expect(legacy.map((r) => [r.email, r.visitsSubmitted, r.tasksClosed])).toEqual(
       expect.arrayContaining([
         ['live-x@example.test', 2, 1],
