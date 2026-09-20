@@ -5,6 +5,7 @@ import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/console_page.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/templates_repository.dart';
 import '../domain/template_schema.dart';
 import 'dynamic_template_form.dart';
@@ -67,20 +68,18 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
   void _leave() => Navigator.of(context).pop();
 
   Future<void> _finish(TemplateWalk walk) async {
+    final l10n = context.l10n;
     final answered = walk.schema.answeredCount(walk.answers);
     final total = walk.schema.questionCount(walk.answers);
     await showTorchSheet<void>(
       context,
       builder: (sheetContext) => TorchSheet(
         key: const ValueKey<String>('template-preview-done'),
-        title: 'Preview complete',
-        subtitle:
-            'You answered $answered of $total visible questions. Nothing was '
-            'saved — a preview writes no answers, and saving them against a '
-            'visit arrives with the audit-flow integration.',
+        title: l10n.templatePreviewDoneTitle,
+        subtitle: l10n.templatePreviewDoneBody(answered, total),
         child: TorchSecondaryButton(
           key: const ValueKey<String>('template-preview-close'),
-          label: 'Back to Audit templates',
+          label: l10n.templatePreviewBack,
           onPressed: () {
             Navigator.of(sheetContext).pop();
             _leave();
@@ -92,33 +91,34 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final detail = ref.watch(templateDetailProvider(widget.templateId));
-    final back = ConsolePage.backTo('Back to Audit templates', _leave);
+    final back = ConsolePage.backTo(l10n.templatePreviewBack, _leave);
 
     return detail.when(
       loading: () => ConsolePage(
         phase: 'loading',
-        title: 'Template preview',
+        title: l10n.templatePreviewTitle,
         back: back,
         children: <Widget>[
           Skeleton(
-            label: 'the template',
+            label: l10n.templatePreviewSkeleton,
             child: const SkeletonRows(count: 4, rowHeight: 80),
           ),
         ],
       ),
       error: (error, stack) => ConsolePage(
         phase: 'error',
-        title: 'Template preview',
+        title: l10n.templatePreviewTitle,
         back: back,
         children: <Widget>[
           TorchErrorRegion(
-            name: 'the template',
+            name: l10n.templatePreviewSkeleton,
             child: ErrorState(
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('template-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: () =>
                     ref.invalidate(templateDetailProvider(widget.templateId)),
               ),
@@ -131,6 +131,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
   }
 
   Widget _loaded(AuditTemplateDetail detail, TorchIconButton back) {
+    final l10n = context.l10n;
     final walk = _walkFor(detail.schema);
     final missing = walk.hasSections
         ? walk.missingHere
@@ -138,9 +139,8 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
     final blocked = missing.isEmpty
         ? null
         : missing.length == 1
-        ? '“${missing.first.label}” still needs an answer.'
-        : '${missing.length} required questions in this section still need '
-              'answers.';
+        ? l10n.templatePreviewBlockedOne(missing.first.label)
+        : l10n.templatePreviewBlockedMany(missing.length);
     final armed = walk.hasSections && blocked == null;
 
     return ConsolePage(
@@ -149,10 +149,13 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
           : 'no-sections',
       title: detail.template.name,
       facts: <String>[
-        'v${detail.template.version}',
-        'Preview — nothing is saved',
+        l10n.templateVersionShort(detail.template.version),
+        l10n.templatePreviewFact,
         if (walk.hasSections)
-          'Section ${walk.sectionIndex + 1} of ${walk.sectionCount}',
+          l10n.templatePreviewSection(
+            walk.sectionIndex + 1,
+            walk.sectionCount,
+          ),
       ],
       back: back,
       primaryArmed: armed,
@@ -165,7 +168,9 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
               // then Finish inside the window swallowed the second press and
               // the preview simply would not end.
               key: ValueKey<String>('form-next-${walk.sectionIndex}'),
-              label: walk.isLast ? 'Finish preview' : 'Next section',
+              label: walk.isLast
+                  ? l10n.templatePreviewFinish
+                  : l10n.templatePreviewNext,
               claimId: ConsolePage.primaryClaimId,
               blockedReason: blocked,
               onPressed: armed
@@ -182,7 +187,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
       secondary: walk.hasSections && !walk.isFirst
           ? TorchSecondaryButton(
               key: const ValueKey<String>('form-back'),
-              label: 'Back a section',
+              label: l10n.templatePreviewBackSection,
               onPressed: walk.back,
             )
           : null,

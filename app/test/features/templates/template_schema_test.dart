@@ -125,6 +125,46 @@ void main() {
       expect(schema.maxScore, 17);
     });
 
+    // THE FAILURE, WRITTEN OUT: a manager previews a template that scores a
+    // photo question, answers every question the preview can accept, reaches
+    // "Finish preview" — and the meter still sits short of the stated
+    // maximum. They raise a ticket against a template that is correct.
+    //
+    // `scoring` is parsed as a flat id→weight map with no type filter, so a
+    // weighted photo field is legal JSON; `scoreFor` hard-codes photo to earn
+    // nothing until capture lands. The maximum has to be the REACHABLE one.
+    test('maxScore claims only what the preview can reach', () {
+      final withPhoto = TemplateSchema.parse(const {
+        'sections': [
+          {
+            'id': 's1',
+            'fields': [
+              {'id': 'onShelf', 'type': 'boolean'},
+              {'id': 'shot', 'type': 'photo'},
+            ],
+          },
+        ],
+        'scoring': {'onShelf': 10, 'shot': 6},
+      });
+
+      // The photo's weight is parsed — it is a legal template — and simply
+      // cannot be earned.
+      expect(withPhoto.sections.single.fields[1].weight, 6);
+      expect(withPhoto.scoreFor(const {'onShelf': true, 'shot': 'p-1'}), 10);
+
+      expect(
+        withPhoto.maxScore,
+        10,
+        reason:
+            'Every answerable question answered must be able to reach the '
+            'maximum the tile states.',
+      );
+      expect(
+        withPhoto.scoreFor(const {'onShelf': true, 'shot': 'p-1'}),
+        withPhoto.maxScore,
+      );
+    });
+
     test('a conditional field is hidden until its trigger answer matches', () {
       final facing = schema.sections.single.fields[1];
       expect(facing.isVisible(const {}), isFalse);

@@ -21,6 +21,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../audit/data/photos_repository.dart';
 import '../../users/data/users_repository.dart';
 import '../data/collaboration_repository.dart';
@@ -175,10 +176,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     } catch (_) {
       // Denied camera permission lands here. Say so rather than doing nothing.
       if (mounted) {
-        setState(
-          () => _composerError =
-              'Could not add a photo. Check camera and photo permissions.',
-        );
+        setState(() => _composerError = context.l10n.composerPhotoFailed);
       }
     }
   }
@@ -191,6 +189,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Future<void> _send() async {
+    final l10n = context.l10n;
     final body = _body.text.trim();
     if (_sending || (body.isEmpty && _pending.isEmpty)) return;
     setState(() {
@@ -212,9 +211,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         if (!mounted) return;
         setState(() {
           _sending = false;
-          _composerError =
-              'A photo failed to upload, so nothing was sent. '
-              '${TorchErrorMessage.sanitise(e).body} Your draft is kept.';
+          _composerError = l10n.composerUploadFailed(
+            TorchErrorMessage.sanitise(e).body,
+          );
         });
         return;
       }
@@ -234,9 +233,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _composerError =
-            'Message not sent. ${TorchErrorMessage.sanitise(e).body} '
-            'Your draft is kept.';
+        _composerError = l10n.composerSendFailed(
+          TorchErrorMessage.sanitise(e).body,
+        );
       });
       return;
     }
@@ -254,6 +253,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Future<void> _compose() async {
+    final l10n = context.l10n;
     final draft = await showTorchSheet<({String title, String body})>(
       context,
       builder: (_) => const _AnnouncementSheet(),
@@ -267,16 +267,16 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       ref.invalidate(announcementsListProvider);
       showTorchToast(
         context,
-        message: 'Posted to everyone on this client.',
+        message: l10n.announcementPosted,
         kind: ToastKind.success,
       );
     } catch (error) {
       if (!mounted) return;
       showTorchToast(
         context,
-        message:
-            'That announcement was not posted. '
-            '${TorchErrorMessage.sanitise(error).body}',
+        message: l10n.announcementPostFailed(
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
     }
@@ -289,6 +289,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final role = ref.watch(sessionControllerProvider).value?.role;
     // POST /announcements is requireRole('manager', 'admin') — the compose
     // affordance follows the endpoint exactly, so nobody is offered a button
@@ -312,12 +313,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           TorchPrimaryButton.claim(messageSendClaimId),
       ],
       header: TorchAppHeader(
-        title: 'Messages',
-        facts: const <String>['Everything the team can see.'],
+        title: l10n.messagesTitle,
+        facts: <String>[l10n.messagesFact],
         trailing: TorchIconButton(
           key: const ValueKey<String>('messages-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the team channel',
+          semanticLabel: l10n.messagesRefresh,
           onPressed: _refresh,
         ),
       ),
@@ -338,11 +339,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         TorchBleed(
           extra: gutter * 2,
           child: TorchFilterRail(
-            semanticsLabel: 'Which feed',
+            semanticsLabel: l10n.messagesWhichFeed,
             chips: <Widget>[
               TorchFilterChip(
                 key: const ValueKey<String>('tab-messages'),
-                label: 'Messages',
+                label: l10n.messagesTitle,
                 count: messages.value?.length,
                 countLoading: messages.isLoading,
                 selected: !onAnnouncements,
@@ -350,7 +351,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               ),
               TorchFilterChip(
                 key: const ValueKey<String>('tab-announcements'),
-                label: 'Announcements',
+                label: l10n.messagesFeedAnnouncements,
                 count: announcements.value?.length,
                 countLoading: announcements.isLoading,
                 selected: onAnnouncements,
@@ -367,7 +368,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             alignment: AlignmentDirectional.centerStart,
             child: TorchSecondaryButton(
               key: const ValueKey<String>('announcement-create'),
-              label: 'New announcement',
+              label: l10n.announcementNew,
               onPressed: _compose,
             ),
           ),
@@ -377,18 +378,22 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         ...switch (feed) {
           AsyncLoading<Object?>() => <Widget>[
             Skeleton(
-              label: onAnnouncements ? 'announcements' : 'messages',
+              label: onAnnouncements
+                  ? l10n.announcementsSkeleton
+                  : l10n.messagesSkeleton,
               child: const SkeletonRows(count: 4, rowHeight: 80),
             ),
           ],
           AsyncError<Object?>(:final error) => <Widget>[
             TorchErrorRegion(
-              name: onAnnouncements ? 'announcements' : 'messages',
+              name: onAnnouncements
+                  ? l10n.announcementsSkeleton
+                  : l10n.messagesSkeleton,
               child: ErrorState(
                 message: TorchErrorMessage.sanitise(error),
                 action: TorchSecondaryButton(
                   key: const ValueKey<String>('messages-retry'),
-                  label: 'Try again',
+                  label: l10n.torchTryAgain,
                   onPressed: _refresh,
                 ),
               ),
@@ -413,15 +418,19 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   };
 
   List<Widget> _messages(List<Message> messages, double gutter) {
+    final l10n = context.l10n;
     final directory = ref.watch(userDirectoryProvider);
     return <Widget>[
-      SectionRule('Messages', count: messages.isEmpty ? null : messages.length),
+      SectionRule(
+        l10n.messagesTitle,
+        count: messages.isEmpty ? null : messages.length,
+      ),
       const SizedBox(height: TiqSpace.s5),
       if (messages.isEmpty)
-        const EmptyState(
+        EmptyState(
           scope: EmptyScope.inPanel,
-          headline: 'No messages yet.',
-          body: 'Anything you send below reaches the whole team.',
+          headline: l10n.messagesEmptyHeadline,
+          body: l10n.messagesEmptyBody,
         )
       else
         TorchBleed(
@@ -447,20 +456,21 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     required bool canAnnounce,
     required double gutter,
   }) {
+    final l10n = context.l10n;
     return <Widget>[
       SectionRule(
-        'Announcements',
+        l10n.messagesFeedAnnouncements,
         count: announcements.isEmpty ? null : announcements.length,
       ),
       const SizedBox(height: TiqSpace.s5),
       if (announcements.isEmpty)
         EmptyState(
           scope: EmptyScope.inPanel,
-          headline: 'No announcements yet.',
+          headline: l10n.announcementsEmptyHeadline,
           // The guidance names a next action only if you are allowed to do it.
           body: canAnnounce
-              ? 'Post one and every user on this client sees it.'
-              : 'Your managers post here when something affects everyone.',
+              ? l10n.announcementsEmptyBodyCanPost
+              : l10n.announcementsEmptyBodyReadOnly,
         )
       else
         TorchBleed(
@@ -510,13 +520,14 @@ class _MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final images = message.attachments;
     // An image can be the whole message; the row still needs a headline.
     final title = message.body.trim().isNotEmpty
         ? message.body
         : images.length == 1
-        ? 'Photo'
-        : '${images.length} photos';
+        ? l10n.messagePhotoOne
+        : l10n.messagePhotoMany(images.length);
 
     final direct = message.recipientId != null;
     final sender = nameOf(directory, message.senderId);
@@ -526,17 +537,19 @@ class _MessageRow extends StatelessWidget {
     // the identifier face, with the words that say why it is there.
     final unknowns = <String>[
       if (message.senderId != null && sender == null)
-        'Sender not on the roster: ${message.senderId}',
+        l10n.messageSenderNotOnRoster(message.senderId!),
       if (direct && recipient == null)
-        'Recipient not on the roster: ${message.recipientId}',
+        l10n.messageRecipientNotOnRoster(message.recipientId!),
     ];
 
     final who = <String>[
-      if (sender != null) 'From $sender',
+      if (sender != null) l10n.messageFrom(sender),
       if (direct)
-        recipient != null ? 'To $recipient' : 'Direct message'
+        recipient != null
+            ? l10n.messageTo(recipient)
+            : l10n.messageDirectUnknownRecipient
       else
-        'To the whole team',
+        l10n.messageToTeam,
     ].join(' · ');
 
     return SoftRow(
@@ -554,7 +567,7 @@ class _MessageRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            direct ? 'Direct' : 'Broadcast',
+            direct ? l10n.messageDirect : l10n.messageBroadcast,
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
           for (final line in unknowns)
@@ -565,20 +578,29 @@ class _MessageRow extends StatelessWidget {
                 style: skin.text.monoIdent.style(color: skin.palette.ink3),
               ),
             ),
-          if (images.isNotEmpty) ...<Widget>[
-            const SizedBox(height: TiqSpace.s3),
-            Wrap(
+        ],
+      ),
+      // The thumbs are buttons, so they live in the row's `actions` slot and
+      // NOT in `meta`. A `SoftRow` with no actions and no trailing control
+      // wraps itself in `excludeSemantics: true`, which does not make the
+      // thumb inert — it deletes its node outright, so a reader hears "2
+      // photos" and has nothing to open. `actions` is the declared home for a
+      // row's own verbs precisely because it keeps its children's nodes
+      // beneath the row's (soft_row.dart §5).
+      actions: images.isEmpty
+          ? null
+          : Wrap(
               key: ValueKey<String>('message-attachments-${message.id}'),
               spacing: TiqSpace.s2,
               runSpacing: TiqSpace.s2,
               children: <Widget>[
-                for (final a in images)
-                  MessageAttachmentThumb(photoId: a.photoId),
+                for (final (index, a) in images.indexed)
+                  MessageAttachmentThumb(
+                    photoId: a.photoId,
+                    label: l10n.messagePhotoOfCount(index + 1, images.length),
+                  ),
               ],
             ),
-          ],
-        ],
-      ),
       // The id is still reachable for a bug report, and reachable is where it
       // belongs — not printed across the row where a name should be.
       onLongPress: () async {
@@ -586,7 +608,7 @@ class _MessageRow extends StatelessWidget {
         if (context.mounted) {
           showTorchToast(
             context,
-            message: 'Message id copied.',
+            message: l10n.messageIdCopied,
             kind: ToastKind.neutral,
           );
         }
@@ -595,11 +617,10 @@ class _MessageRow extends StatelessWidget {
       semanticsLabel: <String>[
         title,
         if (who.isNotEmpty) who,
-        direct ? 'Direct' : 'Broadcast',
-        if (images.isNotEmpty)
-          '${images.length} ${images.length == 1 ? 'photo' : 'photos'}',
+        direct ? l10n.messageDirect : l10n.messageBroadcast,
+        if (images.isNotEmpty) l10n.messagePhotoCount(images.length),
         ...unknowns,
-        'Long press to copy the message id',
+        l10n.messageLongPressForId,
       ].join('. '),
     );
   }
@@ -618,12 +639,13 @@ class _AnnouncementRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     return SoftRow(
       key: ValueKey<String>('announcement-row-${announcement.id}'),
       density: SoftRowDensity.tall,
       // The title is the headline; the body is what it actually says.
       title: announcement.title,
-      subtitle: 'Broadcast to the whole client',
+      subtitle: l10n.announcementSubtitle,
       leading: TiqMark(
         shape: MarkShape.onTargetCircle,
         color: skin.palette.ink2,
@@ -634,9 +656,10 @@ class _AnnouncementRow extends StatelessWidget {
         style: skin.text.body.style(color: skin.palette.ink2),
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel:
-          '${announcement.title}. ${announcement.body}. Broadcast to the '
-          'whole client.',
+      semanticsLabel: l10n.announcementSemantics(
+        announcement.title,
+        announcement.body,
+      ),
     );
   }
 }
@@ -647,9 +670,10 @@ class _AttachSourceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return TorchSheet(
-      title: 'Add a photo',
-      subtitle: 'It is uploaded when the message is sent, not before.',
+      title: l10n.attachSheetTitle,
+      subtitle: l10n.attachSheetSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -657,13 +681,13 @@ class _AttachSourceSheet extends StatelessWidget {
           SoftRow(
             key: const ValueKey<String>('attach-camera'),
             density: SoftRowDensity.standard,
-            title: 'Take a photo',
+            title: l10n.attachCamera,
             onTap: () => Navigator.of(context).pop(PhotoSource.camera),
           ),
           SoftRow(
             key: const ValueKey<String>('attach-gallery'),
             density: SoftRowDensity.standard,
-            title: 'Choose from the library',
+            title: l10n.attachGallery,
             onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
             separator: SoftRowSeparator.none,
           ),
@@ -704,20 +728,22 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
   }
 
   String? get _blocked {
-    if (_title.text.trim().isEmpty) return 'Give the announcement a headline.';
-    if (_body.text.trim().isEmpty) return 'Say what it is about.';
+    final l10n = context.l10n;
+    if (_title.text.trim().isEmpty) return l10n.announcementSheetBlockedTitle;
+    if (_body.text.trim().isEmpty) return l10n.announcementSheetBlockedBody;
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final blocked = _blocked;
 
     return TorchSheet(
       key: const ValueKey<String>('announcement-sheet'),
-      title: 'New announcement',
-      subtitle: 'Every user on this client sees it.',
+      title: l10n.announcementNew,
+      subtitle: l10n.announcementSheetSubtitle,
       claims: <TorchClaim>[
         if (blocked == null) TorchPrimaryButton.claim('post-announcement'),
       ],
@@ -727,13 +753,13 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
         children: <Widget>[
           TorchTextField(
             key: const ValueKey<String>('announcement-title'),
-            label: 'Headline',
+            label: l10n.announcementSheetHeadline,
             controller: _title,
           ),
           const SizedBox(height: TiqSpace.s5),
           TorchTextField(
             key: const ValueKey<String>('announcement-body'),
-            label: 'What it says',
+            label: l10n.announcementSheetBody,
             controller: _body,
             minLines: 3,
             maximumLines: 6,
@@ -741,7 +767,7 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
           SizedBox(height: skin.space.blockGap),
           TorchPrimaryButton(
             key: const ValueKey<String>('post-announcement'),
-            label: 'Post this announcement',
+            label: l10n.announcementSheetCommit,
             claimId: 'post-announcement',
             blockedReason: blocked,
             onPressed: blocked != null
@@ -754,7 +780,7 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
           const SizedBox(height: TiqSpace.s2),
           TorchSecondaryButton(
             key: const ValueKey<String>('cancel-announcement'),
-            label: 'Cancel',
+            label: l10n.announcementSheetCancel,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -793,6 +819,7 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final canAttach = !sending && pending.length < maxMessageAttachments;
     final failure = error;
 
@@ -826,7 +853,7 @@ class _Composer extends StatelessWidget {
             scope: ErrorScope.inline,
             message: TorchErrorMessage(
               kind: TorchErrorKind.rejected,
-              headline: 'Not sent.',
+              headline: l10n.composerNotSent,
               body: failure,
               offersRetry: false,
             ),
@@ -835,7 +862,7 @@ class _Composer extends StatelessWidget {
         ],
         TorchTextField(
           key: const ValueKey<String>('message-body'),
-          label: 'Message the team',
+          label: l10n.composerLabel,
           controller: controller,
           enabled: !sending,
           minLines: 1,
@@ -851,17 +878,19 @@ class _Composer extends StatelessWidget {
               key: const ValueKey<String>('attach-photo'),
               icon: Icons.add_a_photo_outlined,
               semanticLabel: canAttach
-                  ? 'Add a photo to this message'
-                  : 'Up to $maxMessageAttachments photos per message',
+                  ? l10n.composerAddPhoto
+                  : l10n.composerPhotoCap(maxMessageAttachments),
               onPressed: canAttach ? onAttach : null,
             ),
             const SizedBox(width: TiqSpace.s3),
             Expanded(
               child: Text(
                 pending.isEmpty
-                    ? 'Up to $maxMessageAttachments photos.'
-                    : '${pending.length} of $maxMessageAttachments photos '
-                          'attached.',
+                    ? l10n.composerPhotoCapLine(maxMessageAttachments)
+                    : l10n.composerPhotosAttached(
+                        pending.length,
+                        maxMessageAttachments,
+                      ),
                 style: skin.text.meta.style(color: skin.palette.ink3),
               ),
             ),
@@ -870,14 +899,14 @@ class _Composer extends StatelessWidget {
               width: 148,
               child: TorchPrimaryButton(
                 key: const ValueKey<String>('send-message'),
-                label: sending ? 'Sending…' : 'Send',
+                label: sending ? l10n.composerSending : l10n.composerSend,
                 claimId: messageSendClaimId,
                 busy: sending,
                 blockedReason: armed
                     ? null
                     : sending
-                    ? 'Sending…'
-                    : 'Write something, or add a photo.',
+                    ? l10n.composerSending
+                    : l10n.composerBlockedEmpty,
                 onPressed: armed ? onSend : null,
               ),
             ),
@@ -906,6 +935,7 @@ class _PendingThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final radius = BorderRadius.circular(skin.radii.chip);
     final bytes = attachment.bytes;
     final broken = DecoratedBox(
@@ -926,7 +956,7 @@ class _PendingThumb extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Semantics(
-          label: 'Photo ${index + 1} ready to send',
+          label: l10n.pendingPhotoReady(index + 1),
           image: true,
           child: ClipRRect(
             borderRadius: radius,
@@ -946,7 +976,7 @@ class _PendingThumb extends StatelessWidget {
         TorchIconButton(
           key: ValueKey<String>('pending-attachment-remove-$index'),
           icon: Icons.close,
-          semanticLabel: 'Take photo ${index + 1} out of this message',
+          semanticLabel: l10n.pendingPhotoRemove(index + 1),
           onPressed: onRemove,
         ),
       ],

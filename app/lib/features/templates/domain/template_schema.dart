@@ -154,9 +154,20 @@ class TemplateSchema {
     return out;
   }
 
-  /// Sum of every weighted field, answered or not.
+  /// The **reachable** maximum: the sum of every weighted field the preview
+  /// can actually earn, answered or not.
+  ///
+  /// Photo fields are excluded because [scoreFor] hard-codes them to earn
+  /// nothing — capture lands with the audit-flow integration. A `scoring` map
+  /// is parsed as a flat id→weight map with no type filter, so a weighted
+  /// photo question is legal JSON; counting its weight here would state a
+  /// maximum the preview can never reach, and a manager who answers every
+  /// answerable question and still sees the meter short concludes the
+  /// template's scoring is broken. Claim the reachable number, not the
+  /// aspirational one.
   double get maxScore => sections
       .expand((s) => s.fields)
+      .where((f) => f.type != TemplateFieldType.photo)
       .fold(0.0, (sum, f) => sum + (f.weight ?? 0));
 
   /// Live score preview: a weighted field earns its weight once answered

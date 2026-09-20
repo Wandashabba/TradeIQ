@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/report_schedules_repository.dart';
 import 'report_run_history_screen.dart';
 import 'report_schedule_form_screen.dart';
@@ -22,17 +24,20 @@ import 'report_schedule_form_screen.dart';
 /// active schedules fire on their cadence and go to the client's webhooks
 /// subscribed to `report.generated`, and are emailed to the recipients once
 /// the server has email (SMTP) set up.
-const scheduleDeliveryNote =
-    'Active schedules run automatically on their cadence and are sent to '
-    'your webhooks subscribed to $reportGeneratedEvent. Recipients are '
-    'emailed when email is set up on the server.';
-
 /// What a successful Run now is reported as, from what the API says happened:
 /// how many rows, how many webhooks a delivery was queued for (or that none
 /// listens), and what the email channel did.
-String runNowMessage(ScheduleRunResult result) {
+///
+/// [format] is [TiqNumber.format]: the row count here is the same figure the
+/// Reports list and the run history print, and all three have to group it the
+/// same way or a manager cross-checking them cannot tell they match.
+String runNowMessage(
+  ScheduleRunResult result,
+  String Function(num) format,
+  AppLocalizations l10n,
+) {
   final parts = <String>[
-    'Generated ${result.rowCount} ${result.rowCount == 1 ? 'row' : 'rows'}.',
+    l10n.runNowGeneratedRows(format(result.rowCount), result.rowCount),
   ];
 
   // Counted from the webhook outcome: `deliveredTo` also lists the email
@@ -44,24 +49,23 @@ String runNowMessage(ScheduleRunResult result) {
       ? webhook.targets.length
       : 0;
   if (queued > 0) {
-    parts.add('Queued for $queued ${queued == 1 ? 'webhook' : 'webhooks'}.');
+    parts.add(l10n.runNowQueuedWebhooks(queued));
   } else if (webhook?.status == 'failed') {
-    parts.add('Webhook delivery failed.');
+    parts.add(l10n.runNowWebhookFailed);
   } else {
-    parts.add('Not sent: no webhook is subscribed to $reportGeneratedEvent.');
+    parts.add(l10n.runNowNoSubscriber);
   }
 
   final email = result.outcomeFor('email');
   switch (email?.status) {
     case 'queued':
-      final n = email!.targets.length;
-      parts.add('Emailing $n ${n == 1 ? 'recipient' : 'recipients'}.');
+      parts.add(l10n.runNowEmailing(email!.targets.length));
     case 'not_configured':
-      parts.add('Email is not set up on the server.');
+      parts.add(l10n.runNowEmailNotConfigured);
     case 'no_subscribers':
-      parts.add('Not emailed: no valid email recipients.');
+      parts.add(l10n.runNowEmailNoSubscribers);
     case 'failed':
-      parts.add('Email delivery failed.');
+      parts.add(l10n.runNowEmailFailed);
   }
   return parts.join(' ');
 }
@@ -76,15 +80,17 @@ String reportStamp(DateTime at) {
 }
 
 /// "Last run 2026-09-14 10:05" in local time, or "Never run".
-String lastRunLabel(DateTime? at) =>
-    at == null ? 'Never run' : 'Last run ${reportStamp(at)}';
+String lastRunLabel(DateTime? at, AppLocalizations l10n) =>
+    at == null ? l10n.scheduleNeverRun : l10n.scheduleLastRun(reportStamp(at));
 
 /// "Next run 2026-09-15 09:00" in local time. A paused schedule has no next
 /// run and says so rather than showing a stale time.
-String nextRunLabel(ReportSchedule schedule) {
-  if (!schedule.active) return 'Paused, no next run';
+String nextRunLabel(ReportSchedule schedule, AppLocalizations l10n) {
+  if (!schedule.active) return l10n.schedulePausedNoNextRun;
   final at = schedule.nextRunAt;
-  return at == null ? 'Next run not scheduled' : 'Next run ${reportStamp(at)}';
+  return at == null
+      ? l10n.scheduleNextRunNone
+      : l10n.scheduleNextRun(reportStamp(at));
 }
 
 /// REPORT SCHEDULES — which saved reports run on their own, when, and to whom.
@@ -121,6 +127,7 @@ class _ReportSchedulesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final schedules = ref.watch(reportSchedulesListProvider);
 
     return schedules.when(
@@ -128,7 +135,7 @@ class _ReportSchedulesScreenState
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'report schedules',
+            label: l10n.schedulesSkeleton,
             child: const SkeletonRows(count: 3, rowHeight: 80),
           ),
         ],
@@ -137,12 +144,12 @@ class _ReportSchedulesScreenState
         phase: 'error',
         children: <Widget>[
           TorchErrorRegion(
-            name: 'report schedules',
+            name: l10n.schedulesSkeleton,
             child: ErrorState(
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('schedules-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: _refresh,
               ),
             ),
@@ -154,18 +161,17 @@ class _ReportSchedulesScreenState
   }
 
   Widget _frame({required String phase, required List<Widget> children}) {
+    final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Report schedules',
-        facts: const <String>[
-          'A schedule runs its report server-side and delivers the result.',
-        ],
+        title: l10n.schedulesTitle,
+        facts: <String>[l10n.schedulesFact],
         trailing: TorchIconButton(
           key: const ValueKey<String>('schedules-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the schedules',
+          semanticLabel: l10n.schedulesRefresh,
           onPressed: _refresh,
         ),
       ),
@@ -180,6 +186,7 @@ class _ReportSchedulesScreenState
   );
 
   Widget _loaded(List<ReportSchedule> schedules) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
     final active = <ReportSchedule>[
       for (final s in schedules)
@@ -197,13 +204,13 @@ class _ReportSchedulesScreenState
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
             key: const ValueKey<String>('schedules-back-to-reports'),
-            label: 'Back to reports',
+            label: l10n.schedulesBackToReports,
             onPressed: () => context.go('/reports'),
           ),
         ),
         const SizedBox(height: TiqSpace.s5),
         Text(
-          scheduleDeliveryNote,
+          l10n.schedulesDeliveryNote,
           key: const ValueKey<String>('schedule-delivery-note'),
           style: context.skin.text.meta.style(color: context.skin.palette.ink3),
         ),
@@ -212,23 +219,33 @@ class _ReportSchedulesScreenState
         if (schedules.isEmpty)
           EmptyState(
             scope: EmptyScope.inPanel,
-            headline: 'No schedules.',
-            body: 'A report runs on demand until you schedule it.',
+            headline: l10n.schedulesEmptyHeadline,
+            body: l10n.schedulesEmptyBody,
             action: TorchSecondaryButton(
               key: const ValueKey<String>('schedule-create-empty'),
-              label: 'New schedule',
+              label: l10n.schedulesNew,
               onPressed: _create,
             ),
           )
         else ...<Widget>[
-          _group('Active', active, gutter),
-          _group('Off', off, gutter),
+          _group(
+            l10n.schedulesGroupActive,
+            l10n.schedulesGroupActiveEmpty,
+            active,
+            gutter,
+          ),
+          _group(
+            l10n.schedulesGroupOff,
+            l10n.schedulesGroupOffEmpty,
+            off,
+            gutter,
+          ),
           const SizedBox(height: TiqSpace.s6),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TorchSecondaryButton(
               key: const ValueKey<String>('schedule-create'),
-              label: 'New schedule',
+              label: l10n.schedulesNew,
               onPressed: _create,
             ),
           ),
@@ -237,7 +254,12 @@ class _ReportSchedulesScreenState
     );
   }
 
-  Widget _group(String name, List<ReportSchedule> rows, double gutter) {
+  Widget _group(
+    String name,
+    String emptyLine,
+    List<ReportSchedule> rows,
+    double gutter,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -246,11 +268,7 @@ class _ReportSchedulesScreenState
         SectionRule(
           name,
           count: rows.isEmpty ? null : rows.length,
-          emptyLine: rows.isEmpty
-              ? name == 'Active'
-                    ? 'Nothing is running on its own.'
-                    : 'Nothing is paused.'
-              : null,
+          emptyLine: rows.isEmpty ? emptyLine : null,
         ),
         const SizedBox(height: TiqSpace.s5),
         if (rows.isNotEmpty)
@@ -298,7 +316,8 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   /// reading.
   bool _showRecipients = false;
 
-  String get _name => widget.schedule.reportName ?? 'Untitled report';
+  String get _name =>
+      widget.schedule.reportName ?? context.l10n.scheduleUntitledReport;
 
   bool get _active => _optimisticActive ?? widget.schedule.active;
 
@@ -318,7 +337,10 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
       if (!mounted) return;
       showTorchToast(
         context,
-        message: '$failure ${TorchErrorMessage.sanitise(error).body}',
+        message: context.l10n.scheduleFailureToast(
+          failure,
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
       rethrow;
@@ -332,6 +354,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   }
 
   Future<void> _setActive(bool active) async {
+    final l10n = context.l10n;
     setState(() => _optimisticActive = active);
     try {
       await _perform(() async {
@@ -341,7 +364,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
         // Pausing clears the next run and resuming sets a new one.
         _refreshList();
         return null;
-      }, failure: 'Could not ${active ? 'resume' : 'pause'} the schedule.');
+      }, failure: active ? l10n.scheduleResumeFailed : l10n.schedulePauseFailed);
     } catch (_) {
       // Honesty: the change did NOT happen, so the switch goes back.
       if (mounted) setState(() => _optimisticActive = null);
@@ -349,6 +372,11 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   }
 
   Future<void> _runNow() async {
+    // Read the locale's formatter before the round trip: the message is
+    // composed after an await, and a figure still has to group the reader's
+    // way.
+    final format = TiqNumber.of(context).format;
+    final l10n = context.l10n;
     try {
       await _perform(() async {
         final result = await ref
@@ -356,8 +384,8 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
             .runNow(widget.schedule.id);
         // The run stamps lastRunAt; reload so the row shows it.
         _refreshList();
-        return runNowMessage(result);
-      }, failure: 'Run failed.');
+        return runNowMessage(result, format, l10n);
+      }, failure: l10n.scheduleRunFailed);
     } catch (_) {
       // Reported by _perform; the row simply stays as it was.
     }
@@ -383,18 +411,20 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
 
   Future<void> _delete() async {
     if (_busy) return;
+    final l10n = context.l10n;
+    final name = _name;
     final confirmed = await showTorchSheet<bool>(
       context,
       builder: (_) => ConfirmSheet(
         key: const ValueKey<String>('schedule-delete-sheet'),
-        action: 'Delete this schedule?',
+        action: l10n.scheduleDeleteAction,
         consequences: <String>[
-          '$_name stops running on its own.',
-          'The saved report itself is kept.',
-          'Runs already delivered are not withdrawn.',
+          l10n.scheduleDeleteConsequenceStops(name),
+          l10n.scheduleDeleteConsequenceReportKept,
+          l10n.scheduleDeleteConsequenceRuns,
         ],
-        commitLabel: 'Delete this schedule',
-        cancelLabel: 'Keep it',
+        commitLabel: l10n.scheduleDeleteCommit,
+        cancelLabel: l10n.scheduleDeleteCancel,
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -405,7 +435,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
             .deleteSchedule(widget.schedule.id);
         _refreshList();
         return null;
-      }, failure: 'Could not delete the schedule.');
+      }, failure: l10n.scheduleDeleteFailed);
     } catch (_) {
       // Reported by _perform.
     }
@@ -414,6 +444,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final s = widget.schedule;
     final noRecipients = s.recipients.isEmpty;
     final meta = skin.text.meta.style(color: skin.palette.ink3);
@@ -422,12 +453,12 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
       key: ValueKey<String>('schedule-row-${s.id}'),
       density: SoftRowDensity.tall,
       title: _name,
-      subtitle: cadenceLabel(s.cadence),
+      subtitle: cadenceLabel(s.cadence, l10n),
       // A schedule with nobody to deliver to is almost certainly a mistake.
       // Outlined crimson plus the silhouette plus the word — never the colour
       // on its own.
       severity: noRecipients ? SoftRowSeverity.watch : SoftRowSeverity.none,
-      severityLabel: noRecipients ? 'No recipients' : null,
+      severityLabel: noRecipients ? l10n.scheduleNoRecipients : null,
       leading: TiqMark(
         shape: _active ? MarkShape.onTargetCircle : MarkShape.heldSquare,
         color: _active ? skin.palette.good : skin.palette.ink2,
@@ -440,22 +471,21 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
           // Times are machine-read as much as human-read, so they wear the
           // identifier face and line up down the column.
           Text(
-            nextRunLabel(_active ? s : _paused(s)),
+            nextRunLabel(_active ? s : _paused(s), l10n),
             key: ValueKey<String>('schedule-next-run-${s.id}'),
             style: skin.text.monoIdent.style(color: skin.palette.ink3),
           ),
           const SizedBox(height: TiqSpace.s1),
           Text(
-            lastRunLabel(s.lastRunAt),
+            lastRunLabel(s.lastRunAt, l10n),
             key: ValueKey<String>('schedule-last-run-${s.id}'),
             style: skin.text.monoIdent.style(color: skin.palette.ink3),
           ),
           const SizedBox(height: TiqSpace.s1),
           Text(
             noRecipients
-                ? 'No recipients — this schedule delivers to nobody by email.'
-                : '${s.recipients.length} '
-                      '${s.recipients.length == 1 ? 'recipient' : 'recipients'}',
+                ? l10n.scheduleNoRecipientsLine
+                : l10n.scheduleRecipientCount(s.recipients.length),
             key: ValueKey<String>('schedule-recipients-${s.id}'),
             style: meta,
           ),
@@ -478,39 +508,41 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
             width: double.infinity,
             child: TorchToggle(
               key: ValueKey<String>('toggle-${s.id}'),
-              label: 'Runs on its own',
+              label: l10n.scheduleRunsOnItsOwn,
               value: _active,
-              onWord: 'On',
-              offWord: 'Off',
+              onWord: l10n.scheduleOn,
+              offWord: l10n.scheduleOff,
               onChanged: _busy ? null : _setActive,
-              disabledReason: _busy ? 'Waiting for the server.' : null,
+              disabledReason: _busy ? l10n.scheduleWaitingForServer : null,
             ),
           ),
           if (s.recipients.isNotEmpty)
             TorchTertiaryButton(
               key: ValueKey<String>('recipients-${s.id}'),
-              label: _showRecipients ? 'Hide recipients' : 'Show recipients',
+              label: _showRecipients
+                  ? l10n.scheduleHideRecipients
+                  : l10n.scheduleShowRecipients,
               onPressed: () =>
                   setState(() => _showRecipients = !_showRecipients),
             ),
           TorchTertiaryButton(
             key: ValueKey<String>('run-${s.id}'),
-            label: 'Run now',
+            label: l10n.scheduleRunNow,
             onPressed: _busy ? null : _runNow,
           ),
           TorchTertiaryButton(
             key: ValueKey<String>('history-${s.id}'),
-            label: 'History',
+            label: l10n.scheduleHistory,
             onPressed: _busy ? null : _history,
           ),
           TorchTertiaryButton(
             key: ValueKey<String>('edit-${s.id}'),
-            label: 'Edit',
+            label: l10n.scheduleEdit,
             onPressed: _busy ? null : _edit,
           ),
           TorchTertiaryButton(
             key: ValueKey<String>('delete-${s.id}'),
-            label: 'Delete',
+            label: l10n.scheduleDelete,
             onPressed: _busy ? null : _delete,
           ),
         ],
@@ -518,14 +550,19 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
       separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         _name,
-        cadenceLabel(s.cadence),
-        nextRunLabel(_active ? s : _paused(s)),
-        lastRunLabel(s.lastRunAt),
+        cadenceLabel(s.cadence, l10n),
+        nextRunLabel(_active ? s : _paused(s), l10n),
+        lastRunLabel(s.lastRunAt, l10n),
         if (noRecipients)
-          'No recipients'
+          l10n.scheduleNoRecipients
         else
-          '${s.recipients.length} recipients',
-        _active ? 'Running on its own' : 'Off',
+          l10n.scheduleRecipientCount(s.recipients.length),
+        // "Show recipients" paints the addresses inside the row's excluded
+        // text column. Without them here the control flips its own word to
+        // "Hide recipients" and reveals nothing a reader can hear — the one
+        // fact it exists to disclose.
+        if (_showRecipients) ...s.recipients,
+        _active ? l10n.scheduleRunningOnItsOwn : l10n.scheduleOff,
       ].join('. '),
     );
   }

@@ -2,12 +2,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_run_history_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
+// `worklist_harness` re-exports the unpressable-button law; a second
+// import of `a11y_guard` is the same law twice.
 import '../worklist_harness.dart';
 import 'reports_harness.dart';
 import 'schedules_fakes.dart';
@@ -97,6 +101,18 @@ final _notSent = ReportRun(
   ],
 );
 
+/// A run big enough for the group separator to show: 1284 is `1,284` in
+/// English and `1\u00A0284` in Afrikaans.
+final _big = ReportRun(
+  id: 'run-big',
+  trigger: 'manual',
+  status: ReportRunStatus.delivered,
+  generatedAt: DateTime(2026, 9, 11, 7, 0),
+  rowCount: 1284,
+  webhook: const RunWebhookSummary(status: 'queued', delivered: 1),
+  email: const RunEmailSummary(status: 'queued', sent: 1),
+);
+
 const _partialEmails = <ReportEmailDelivery>[
   ReportEmailDelivery(
     id: 'e1',
@@ -119,11 +135,13 @@ void main() {
     required FakeSchedulesRepository repo,
     TiqSkin? skin,
     double textScale = 1.0,
+    Locale? locale,
   }) => pumpPushedReports(
     tester,
     ReportRunHistoryScreen(schedule: activeSchedule),
     skin: skin,
     textScale: textScale,
+    locale: locale,
     overrides: <Override>[
       reportSchedulesRepositoryProvider.overrideWithValue(repo),
     ],
@@ -139,7 +157,7 @@ void main() {
   group('words', () {
     test('every status has its own word, silhouette and level', () {
       final words = <String>{
-        for (final s in ReportRunStatus.values) runStatusWord(s),
+        for (final s in ReportRunStatus.values) runStatusWord(s, englishLocalizations),
       };
       final marks = <Object>{
         for (final s in ReportRunStatus.values) runStatusMark(s),
@@ -148,21 +166,21 @@ void main() {
       // Colour is never the only signal, so no two statuses may share a
       // silhouette either.
       expect(marks, hasLength(ReportRunStatus.values.length));
-      expect(runStatusWord(ReportRunStatus.partial), 'Partly delivered');
-      expect(runStatusWord(ReportRunStatus.notSent), 'Not sent');
+      expect(runStatusWord(ReportRunStatus.partial, englishLocalizations), 'Partly delivered');
+      expect(runStatusWord(ReportRunStatus.notSent, englishLocalizations), 'Not sent');
     });
 
     test('the summary line counts each channel and omits zeros', () {
       expect(
-        runDeliverySummaryLabel(_delivered),
+        runDeliverySummaryLabel(_delivered, englishLocalizations),
         'Webhooks: 1 delivered · Email: 2 sent',
       );
       expect(
-        runDeliverySummaryLabel(_partial),
+        runDeliverySummaryLabel(_partial, englishLocalizations),
         'Webhooks: 1 failed · Email: 1 sent, 1 failed',
       );
       expect(
-        runDeliverySummaryLabel(_notSent),
+        runDeliverySummaryLabel(_notSent, englishLocalizations),
         'Webhooks: none subscribed · Email: not set up (2 not emailed)',
       );
       expect(
@@ -176,6 +194,7 @@ void main() {
             webhook: const RunWebhookSummary(status: 'queued'),
             email: const RunEmailSummary(status: 'queued', pending: 3),
           ),
+          englishLocalizations,
         ),
         'Webhooks: queued · Email: 3 pending',
       );
@@ -188,6 +207,7 @@ void main() {
             generatedAt: DateTime(2026),
             rowCount: 0,
           ),
+          englishLocalizations,
         ),
         'No delivery recorded',
       );
@@ -195,10 +215,28 @@ void main() {
 
     test('times: a scheduled run shows its due time, Run now only generated', () {
       expect(
-        runTimesLabel(_delivered),
+        runTimesLabel(_delivered, englishLocalizations),
         'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
       );
-      expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
+      expect(runTimesLabel(_partial, englishLocalizations), 'Generated 2026-09-13 15:30');
+    });
+
+    // A row count is a figure, and a figure goes through the reader's own
+    // grouping. Raw interpolation made the run history the one screen in the
+    // app that printed `1284` where the Reports list printed `1 284`.
+    group('a row count is a figure', () {
+      test('it groups the way the reader does', () {
+        expect(rowCountLabel(1284, TiqNumber.en.format, englishLocalizations), '1,284 rows');
+        expect(
+          rowCountLabel(1284, TiqNumber.af.format, englishLocalizations),
+          '1\u00A0284 rows',
+        );
+      });
+
+      test('one is still one, and a measured zero is still 0', () {
+        expect(rowCountLabel(1, TiqNumber.en.format, englishLocalizations), '1 row');
+        expect(rowCountLabel(0, TiqNumber.en.format, englishLocalizations), '0 rows');
+      });
     });
 
     group('the footer counts honestly', () {
@@ -208,6 +246,7 @@ void main() {
             shown: 20,
             total: 74,
             format: (n) => '$n',
+            l10n: englishLocalizations,
           ),
           'Showing the 20 most recent of 74.',
         );
@@ -218,9 +257,33 @@ void main() {
           shown: 20,
           total: null,
           format: (n) => '$n',
+          l10n: englishLocalizations,
         );
         expect(summary, 'Showing the 20 most recent. There are more.');
         expect(summary, isNot(contains('of')));
+      });
+
+      // `total` was formatted and `shown` was interpolated raw, so one
+      // sentence carried the same kind of figure two ways.
+      test('both figures in it are formatted, not only the total', () {
+        expect(
+          runHistoryFooterSummary(
+            shown: 1284,
+            total: 9000,
+            format: TiqNumber.af.format,
+            l10n: englishLocalizations,
+          ),
+          'Showing the 1\u00A0284 most recent of 9\u00A0000.',
+        );
+        expect(
+          runHistoryFooterSummary(
+            shown: 1284,
+            total: null,
+            format: TiqNumber.af.format,
+            l10n: englishLocalizations,
+          ),
+          'Showing the 1\u00A0284 most recent. There are more.',
+        );
       });
     });
   });
@@ -249,6 +312,58 @@ void main() {
           .data,
       'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
     );
+  });
+
+  // THE FAILURE, WRITTEN OUT: a blind manager auditing why a scheduled report
+  // never reached its recipients hears "Partly delivered" and the counts, and
+  // never hears WHICH channel gave up.
+  //
+  // `_RunRow` passes `actions:`, so SoftRow excludes its whole text column and
+  // announces only the explicit `semanticsLabel`. The reason is painted inside
+  // that column, so leaving it off the label deletes the one line on the
+  // screen that diagnoses the failure — while `_DeliveryRow` in the same file
+  // already appends its own `?error`.
+  testWidgets('a failed run says WHY to a reader, not only on screen', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_partial]));
+
+    // Painted.
+    expect(
+      find.byKey(const ValueKey<String>('run-reason-run-partial')),
+      findsOneWidget,
+    );
+
+    // And announced.
+    final labels = <String>[
+      for (final node in semanticsNodes(tester)) node.getSemanticsData().label,
+    ];
+    expect(
+      labels.where((l) => l.contains('Partly delivered')).single,
+      contains('1 webhook delivery gave up after retries'),
+      reason:
+          'The reason is the only line that diagnoses the failure.'
+          '\n\n${semanticsDump(tester)}',
+    );
+    handle.dispose();
+  });
+
+  // The same figure, two screens of one feature, one grouping. Raw
+  // interpolation here made the run history the only place in the app that
+  // ignored an Afrikaans reader's group separator.
+  testWidgets('a row count is grouped the reader\'s way', (tester) async {
+    await pump(
+      tester,
+      repo: FakeSchedulesRepository(runs: <ReportRun>[_big]),
+      locale: const Locale('af'),
+    );
+
+    // The Afrikaans word AND the Afrikaans grouping: U+00A0, not a comma and
+    // not a bare 1284.
+    expect(find.textContaining('1\u00A0284 rye'), findsOneWidget);
+    expect(find.textContaining('1284'), findsNothing);
+    expect(find.textContaining('1,284'), findsNothing);
   });
 
   testWidgets('a run with no rows says 0, and 0 is not an error', (
@@ -328,7 +443,7 @@ void main() {
         tester,
         find.byKey(const ValueKey<String>('run-csv-note-run-partial')),
       );
-      expect(find.text(noCsvLinkNote), findsOneWidget);
+      expect(find.text(englishLocalizations.runNoCsvLinkNote), findsOneWidget);
     });
   });
 

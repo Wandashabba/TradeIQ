@@ -4381,9 +4381,6 @@ class AppLocalizationsAf extends AppLocalizations {
       'Agente wat nie kon inklok waar die pen sê die winkel is nie.';
 
   @override
-  String get pickerSelected => 'Gekies';
-
-  @override
   String get outletsPinReported => 'Pen aangemeld';
 
   @override
@@ -4595,17 +4592,6 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String outletDisputePhotoCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count winkelfront-fotos aangeheg',
-      one: '1 winkelfront-foto aangeheg',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get outletPhotoAlt => 'Winkelfront-foto uit hierdie pen-verslag';
 
   @override
@@ -4760,12 +4746,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String ordersRowSubtitle(String status, String lines) {
     return '$status · $lines';
   }
-
-  @override
-  String get ordersStoreListLoading => 'Winkellys laai nog';
-
-  @override
-  String get ordersStoreListUnavailable => 'Winkellys kon nie laai nie';
 
   @override
   String get ordersUnknownStore => 'Winkel nie op hierdie lys nie';
@@ -4973,15 +4953,6 @@ class AppLocalizationsAf extends AppLocalizations {
       'Voeg winkels by die plan om die agent ’n roete te gee.';
 
   @override
-  String get beatPlanStopUnknownStore => 'Winkel nie op hierdie lys nie';
-
-  @override
-  String get beatPlanStopStoreLoading => 'Winkellys laai nog';
-
-  @override
-  String get beatPlanStopStoreUnavailable => 'Winkellys kon nie laai nie';
-
-  @override
   String beatPlanStopLabel(String sequence) {
     return 'Stop $sequence';
   }
@@ -5161,14 +5132,6 @@ class AppLocalizationsAf extends AppLocalizations {
       'Geen teiken is op hierdie vlak gestel nie, so daar is niks om te behaal nie.';
 
   @override
-  String get salesLevelZeroTarget =>
-      'Elke teiken op hierdie vlak is 0 eenhede, so daar is niks om te behaal nie.';
-
-  @override
-  String get salesLevelAttainmentUnknown =>
-      'Die persentasie van teiken is nie vir hierdie vlak uitgewerk nie.';
-
-  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5190,9 +5153,6 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'Geen teiken';
-
-  @override
-  String get salesZeroTarget => 'Teiken van 0 eenhede';
 
   @override
   String salesNoTargetsHeadline(String month) {
@@ -5454,6 +5414,1632 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
+
+  @override
+  String get templatesTitle => 'Ouditsjablone';
+
+  @override
+  String get templatesFact =>
+      '’n Sjabloon is die vorm wat ’n agent by ’n besoek invul.';
+
+  @override
+  String get templatesRefresh => 'Herlaai die sjablone';
+
+  @override
+  String get templatesSkeleton => 'sjablone';
+
+  @override
+  String get templatesSection => 'Sjablone';
+
+  @override
+  String get templatesEmptyHeadline => 'Nog geen sjablone nie.';
+
+  @override
+  String get templatesEmptyBody =>
+      'Sjablone wat aan hierdie kliënt gepubliseer word, verskyn hier.';
+
+  @override
+  String get templatesInAuditsSection => 'In veldoudits gebruik';
+
+  @override
+  String get templatesInAuditsChecking =>
+      'Kontroleer tans watter sjabloon in gebruik is…';
+
+  @override
+  String get templatesInAuditsFailed =>
+      'Kon nie die sjabloon wat in oudits gebruik word, laai nie.';
+
+  @override
+  String get templatesInAuditsNone =>
+      'Geen sjabloon word in oudits gebruik nie.';
+
+  @override
+  String templatesInAuditsNamed(String name, int version) {
+    return '“$name” (v$version)';
+  }
+
+  @override
+  String get templatesInAuditsSubtitle =>
+      'Kliëntvrae, ná die standaard ouditafdelings';
+
+  @override
+  String get templatesInAuditsMeta =>
+      'Agente beantwoord die vrae by elke besoek, as ’n ekstra afdeling ná die standaardoudit. Verpligte vrae moet beantwoord wees voordat ’n besoek ingedien kan word. Dit verander nie die perfekte-winkel-telling nie.';
+
+  @override
+  String get templatesStopUsing => 'Hou op gebruik';
+
+  @override
+  String get templatesStopping => 'Hou tans op…';
+
+  @override
+  String templatesInAuditsSemantics(String headline) {
+    return 'In veldoudits gebruik. $headline';
+  }
+
+  @override
+  String get templatesCleared =>
+      'Geen sjabloon word nou in oudits gebruik nie.';
+
+  @override
+  String templatesNowInAudits(String name) {
+    return '“$name” word nou in oudits gebruik.';
+  }
+
+  @override
+  String templatesChangeFailed(String reason) {
+    return 'Die ouditsjabloon is nie verander nie. $reason';
+  }
+
+  @override
+  String get templateWordInAudits => 'In oudits';
+
+  @override
+  String get templateWordActive => 'Aktief';
+
+  @override
+  String get templateWordPaused => 'Onderbreek';
+
+  @override
+  String templateVersionShort(int version) {
+    return 'v$version';
+  }
+
+  @override
+  String templateVersionAndIndustry(int version, String industry) {
+    return 'v$version · $industry';
+  }
+
+  @override
+  String templateVersionSpoken(int version) {
+    return 'weergawe $version';
+  }
+
+  @override
+  String get templateUseInAudits => 'Gebruik in oudits';
+
+  @override
+  String get templateSwitching => 'Skakel tans oor…';
+
+  @override
+  String get templateOpensPreview => 'Open ’n voorskou van sy vorm';
+
+  @override
+  String get templatePreviewTitle => 'Sjabloonvoorskou';
+
+  @override
+  String get templatePreviewBack => 'Terug na Ouditsjablone';
+
+  @override
+  String get templatePreviewSkeleton => 'die sjabloon';
+
+  @override
+  String get templatePreviewFact => 'Voorskou — niks word gestoor nie';
+
+  @override
+  String templatePreviewSection(int index, int count) {
+    return 'Afdeling $index van $count';
+  }
+
+  @override
+  String get templatePreviewNext => 'Volgende afdeling';
+
+  @override
+  String get templatePreviewFinish => 'Voltooi voorskou';
+
+  @override
+  String get templatePreviewBackSection => 'Terug een afdeling';
+
+  @override
+  String templatePreviewBlockedOne(String label) {
+    return '“$label” het nog ’n antwoord nodig.';
+  }
+
+  @override
+  String templatePreviewBlockedMany(int count) {
+    return '$count verpligte vrae in hierdie afdeling het nog antwoorde nodig.';
+  }
+
+  @override
+  String get templatePreviewDoneTitle => 'Voorskou voltooi';
+
+  @override
+  String templatePreviewDoneBody(int answered, int total) {
+    return 'Jy het $answered van $total sigbare vrae beantwoord. Niks is gestoor nie — ’n voorskou skryf geen antwoorde nie, en om hulle teen ’n besoek te stoor kom saam met die ouditvloed-integrasie.';
+  }
+
+  @override
+  String get templateFormNoSectionsHeadline =>
+      'Hierdie sjabloon het nog geen vormafdelings nie.';
+
+  @override
+  String get templateFormNoSectionsBody =>
+      'Publiseer ’n afdeling daarheen en die voorskou sal daardeur stap.';
+
+  @override
+  String get templateFormSectionEmpty =>
+      'Nog niks om in hierdie afdeling te beantwoord nie.';
+
+  @override
+  String get templateFormScoreEyebrow => 'Tellingvoorskou';
+
+  @override
+  String templateFormScoreOutOf(String maximum) {
+    return 'Uit $maximum vir die hele sjabloon.';
+  }
+
+  @override
+  String get templateFieldRequired =>
+      'Verpligtend voordat ’n besoek ingedien kan word.';
+
+  @override
+  String get templateFieldNotAnsweredLine => 'Nog nie beantwoord nie.';
+
+  @override
+  String get templateFieldNotAnswered => 'Nog nie beantwoord nie';
+
+  @override
+  String get templateFieldYes => 'Ja';
+
+  @override
+  String get templateFieldNo => 'Nee';
+
+  @override
+  String get templateFieldClear => 'Vee hierdie antwoord uit';
+
+  @override
+  String templateFieldChoiceSemantics(String label, String answer) {
+    return '$label. $answer. Open die lys antwoorde.';
+  }
+
+  @override
+  String get templateFieldPhotoSubtitle => 'Kan nog nie beantwoord word nie';
+
+  @override
+  String get templateFieldPhotoMeta =>
+      'Fotovaslegging kom saam met die ouditvloed-integrasie. Hierdie vraag blokkeer nie ’n indiening nie.';
+
+  @override
+  String templateFieldPhotoSemantics(String label) {
+    return '$label. Kan nog nie beantwoord word nie. Fotovaslegging kom saam met die ouditvloed-integrasie.';
+  }
+
+  @override
+  String get reportsTitle => 'Verslae';
+
+  @override
+  String get reportsFact => 'Definisies loop op aanvraag teen lewendige data.';
+
+  @override
+  String get reportsRefresh => 'Herlaai die gestoorde verslae';
+
+  @override
+  String get reportsSkeleton => 'verslae';
+
+  @override
+  String get reportsSection => 'Verslae';
+
+  @override
+  String get reportsSchedules => 'Skedules';
+
+  @override
+  String get reportsEmptyHeadline => 'Geen gestoorde verslae nie.';
+
+  @override
+  String get reportsEmptyBody =>
+      'Bou een, loop dit dan om te sien hoeveel rye dit teruggee.';
+
+  @override
+  String get reportsNew => 'Nuwe verslag';
+
+  @override
+  String reportsFooterMore(String shown) {
+    return 'Wys die eerste $shown. Daar is meer.';
+  }
+
+  @override
+  String reportsFooterOf(String shown, String total) {
+    return 'Wys die eerste $shown van $total.';
+  }
+
+  @override
+  String get reportRun => 'Loop';
+
+  @override
+  String get reportRunning => 'Loop tans…';
+
+  @override
+  String get reportDelete => 'Skrap';
+
+  @override
+  String get reportWordRunning => 'Loop';
+
+  @override
+  String get reportWordReady => 'Gereed';
+
+  @override
+  String get reportWordFailed => 'Kon nie loop nie';
+
+  @override
+  String get reportWordZeroRows => '0 rye — die navraag het niks gepas nie';
+
+  @override
+  String get reportWordGenerated => 'Gegenereer';
+
+  @override
+  String reportRowsAndFile(String rows, String filename) {
+    return '$rows rye · $filename';
+  }
+
+  @override
+  String reportRowsSpoken(String rows) {
+    return '$rows rye';
+  }
+
+  @override
+  String reportDownloaded(String filename) {
+    return '$filename afgelaai.';
+  }
+
+  @override
+  String reportSavedTo(String filename, String location) {
+    return '$filename gestoor na $location.';
+  }
+
+  @override
+  String reportDeleteAction(String name) {
+    return 'Skrap $name?';
+  }
+
+  @override
+  String get reportDeleteConsequenceEveryone =>
+      'Die definisie word vir almal by hierdie kliënt verwyder.';
+
+  @override
+  String get reportDeleteConsequenceSchedules =>
+      'Enige skedule wat dit loop, hou op loop.';
+
+  @override
+  String get reportDeleteConsequenceFiles =>
+      'Lêers wat reeds afgelaai is, word nie geraak nie.';
+
+  @override
+  String get reportDeleteCommit => 'Skrap hierdie verslag';
+
+  @override
+  String get reportDeleteCancel => 'Hou dit';
+
+  @override
+  String reportDeleteFailed(String reason) {
+    return 'Daardie verslag is nie geskrap nie. $reason';
+  }
+
+  @override
+  String get reportTypeVisits => 'Besoeke';
+
+  @override
+  String get reportTypeScorecards => 'Puntekaarte';
+
+  @override
+  String get reportTypeTasks => 'Take';
+
+  @override
+  String get reportTypeOrders => 'Bestellings';
+
+  @override
+  String get reportTypeVisitsConsequence => 'Een ry per ingediende besoek.';
+
+  @override
+  String get reportTypeScorecardsConsequence =>
+      'Een ry per besoek met ’n telling.';
+
+  @override
+  String get reportTypeTasksConsequence => 'Een ry per taak wat geopper is.';
+
+  @override
+  String get reportTypeOrdersConsequence =>
+      'Een ry per bestelling wat in die winkel vasgelê is.';
+
+  @override
+  String get reportTypeOtherConsequence => 'Een ry per rekord.';
+
+  @override
+  String get reportFilterDateFormat =>
+      'Gebruik die vorm 2026-09-20, of laat dit leeg vir enige datum.';
+
+  @override
+  String get reportFormTitle => 'Nuwe verslag';
+
+  @override
+  String get reportFormFact => 'Dit loop op aanvraag teen lewendige data.';
+
+  @override
+  String get reportFormBack => 'Terug na Verslae';
+
+  @override
+  String get reportFormCommit => 'Skep hierdie verslag';
+
+  @override
+  String get reportFormSaving => 'Stoor tans…';
+
+  @override
+  String get reportFormBlockedName => 'Gee die verslag eers ’n naam.';
+
+  @override
+  String get reportFormBlockedFrom =>
+      'Die Vanaf-datum is nie ’n datum nie. Gebruik die vorm 2026-09-20.';
+
+  @override
+  String get reportFormBlockedTo =>
+      'Die Tot-datum is nie ’n datum nie. Gebruik die vorm 2026-09-20.';
+
+  @override
+  String get reportFormBlockedOrder => 'Die Tot-datum is voor die Vanaf-datum.';
+
+  @override
+  String get reportFormSectionReport => 'Verslag';
+
+  @override
+  String get reportFormSectionNarrowed => 'Vernou tot';
+
+  @override
+  String get reportFormName => 'Naam';
+
+  @override
+  String get reportFormNameHint => 'Winkeldekking, September';
+
+  @override
+  String get reportFormNameHelp => 'Waarna ’n bestuurder in die lys sal soek.';
+
+  @override
+  String get reportFormType => 'Wat dit bevraag';
+
+  @override
+  String get reportFormTypeNotAnswered => 'Kies waaroor die verslag gaan.';
+
+  @override
+  String get reportFormFrom => 'Vanaf';
+
+  @override
+  String get reportFormTo => 'Tot';
+
+  @override
+  String get reportFormDateHelp => 'Laat leeg vir enige datum.';
+
+  @override
+  String get reportFormOutlet => 'Winkel';
+
+  @override
+  String get reportFormAllOutlets => 'Alle winkels';
+
+  @override
+  String reportFormOutletSemantics(String outlet) {
+    return 'Winkel. $outlet. Kies ’n winkel.';
+  }
+
+  @override
+  String get reportFormFailed => 'Die verslag is nie geskep nie.';
+
+  @override
+  String get reportOutletSheetSubtitle =>
+      'Die verslag word vernou tot die een wat jy kies.';
+
+  @override
+  String get reportOutletSheetSkeleton => 'winkels';
+
+  @override
+  String get reportOutletSheetEmptyHeadline =>
+      'Nog geen winkels by hierdie kliënt nie.';
+
+  @override
+  String get reportOutletSheetEmptyBody =>
+      'Die verslag sal elke winkel dek wat later bygevoeg word.';
+
+  @override
+  String get cadenceDaily => 'Daagliks';
+
+  @override
+  String get cadenceWeekly => 'Weekliks';
+
+  @override
+  String get schedulesTitle => 'Verslagskedules';
+
+  @override
+  String get schedulesFact =>
+      '’n Skedule loop sy verslag bedienerkant en lewer die resultaat af.';
+
+  @override
+  String get schedulesRefresh => 'Herlaai die skedules';
+
+  @override
+  String get schedulesSkeleton => 'verslagskedules';
+
+  @override
+  String get schedulesDeliveryNote =>
+      'Aktiewe skedules loop outomaties op hul ritme en word gestuur na jou webhake wat op report.generated ingeteken is. Ontvangers word ge-e-pos sodra e-pos op die bediener opgestel is.';
+
+  @override
+  String get schedulesBackToReports => 'Terug na verslae';
+
+  @override
+  String get schedulesEmptyHeadline => 'Geen skedules nie.';
+
+  @override
+  String get schedulesEmptyBody =>
+      '’n Verslag loop op aanvraag totdat jy dit skeduleer.';
+
+  @override
+  String get schedulesNew => 'Nuwe skedule';
+
+  @override
+  String get schedulesGroupActive => 'Aktief';
+
+  @override
+  String get schedulesGroupOff => 'Af';
+
+  @override
+  String get schedulesGroupActiveEmpty => 'Niks loop op sy eie nie.';
+
+  @override
+  String get schedulesGroupOffEmpty => 'Niks is onderbreek nie.';
+
+  @override
+  String get scheduleUntitledReport => 'Naamlose verslag';
+
+  @override
+  String get scheduleNeverRun => 'Nooit geloop nie';
+
+  @override
+  String scheduleLastRun(String stamp) {
+    return 'Laas geloop $stamp';
+  }
+
+  @override
+  String scheduleNextRun(String stamp) {
+    return 'Volgende loop $stamp';
+  }
+
+  @override
+  String get scheduleNextRunNone => 'Volgende loop nie geskeduleer nie';
+
+  @override
+  String get schedulePausedNoNextRun => 'Onderbreek, geen volgende loop nie';
+
+  @override
+  String get scheduleNoRecipients => 'Geen ontvangers nie';
+
+  @override
+  String get scheduleNoRecipientsLine =>
+      'Geen ontvangers nie — hierdie skedule lewer aan niemand per e-pos af nie.';
+
+  @override
+  String scheduleRecipientCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ontvangers',
+      one: '1 ontvanger',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scheduleRunsOnItsOwn => 'Loop op sy eie';
+
+  @override
+  String get scheduleOn => 'Aan';
+
+  @override
+  String get scheduleOff => 'Af';
+
+  @override
+  String get scheduleWaitingForServer => 'Wag vir die bediener.';
+
+  @override
+  String get scheduleRunningOnItsOwn => 'Loop op sy eie';
+
+  @override
+  String get scheduleShowRecipients => 'Wys ontvangers';
+
+  @override
+  String get scheduleHideRecipients => 'Versteek ontvangers';
+
+  @override
+  String get scheduleRunNow => 'Loop nou';
+
+  @override
+  String get scheduleHistory => 'Geskiedenis';
+
+  @override
+  String get scheduleEdit => 'Wysig';
+
+  @override
+  String get scheduleDelete => 'Skrap';
+
+  @override
+  String get scheduleDeleteAction => 'Skrap hierdie skedule?';
+
+  @override
+  String scheduleDeleteConsequenceStops(String name) {
+    return '$name hou op om op sy eie te loop.';
+  }
+
+  @override
+  String get scheduleDeleteConsequenceReportKept =>
+      'Die gestoorde verslag self word behou.';
+
+  @override
+  String get scheduleDeleteConsequenceRuns =>
+      'Lopies wat reeds afgelewer is, word nie teruggetrek nie.';
+
+  @override
+  String get scheduleDeleteCommit => 'Skrap hierdie skedule';
+
+  @override
+  String get scheduleDeleteCancel => 'Hou dit';
+
+  @override
+  String get scheduleDeleteFailed => 'Kon nie die skedule skrap nie.';
+
+  @override
+  String get scheduleResumeFailed => 'Kon nie die skedule hervat nie.';
+
+  @override
+  String get schedulePauseFailed => 'Kon nie die skedule onderbreek nie.';
+
+  @override
+  String get scheduleRunFailed => 'Lopie het misluk.';
+
+  @override
+  String scheduleFailureToast(String lead, String reason) {
+    return '$lead $reason';
+  }
+
+  @override
+  String runNowGeneratedRows(String rowsText, int rows) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rows,
+      locale: localeName,
+      other: 'rye',
+      one: 'ry',
+    );
+    return '$rowsText $_temp0 gegenereer.';
+  }
+
+  @override
+  String runNowQueuedWebhooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count webhake',
+      one: '1 webhaak',
+    );
+    return 'In tou vir $_temp0.';
+  }
+
+  @override
+  String get runNowWebhookFailed => 'Webhaak-aflewering het misluk.';
+
+  @override
+  String get runNowNoSubscriber =>
+      'Nie gestuur nie: geen webhaak is op report.generated ingeteken nie.';
+
+  @override
+  String runNowEmailing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ontvangers',
+      one: '1 ontvanger',
+    );
+    return 'Stuur e-pos aan $_temp0.';
+  }
+
+  @override
+  String get runNowEmailNotConfigured =>
+      'E-pos is nie op die bediener opgestel nie.';
+
+  @override
+  String get runNowEmailNoSubscribers =>
+      'Nie ge-e-pos nie: geen geldige e-posontvangers nie.';
+
+  @override
+  String get runNowEmailFailed => 'E-posaflewering het misluk.';
+
+  @override
+  String get runStatusDelivering => 'Lewer tans af';
+
+  @override
+  String get runStatusDelivered => 'Afgelewer';
+
+  @override
+  String get runStatusPartial => 'Gedeeltelik afgelewer';
+
+  @override
+  String get runStatusFailed => 'Misluk';
+
+  @override
+  String get runStatusNotSent => 'Nie gestuur nie';
+
+  @override
+  String get runStatusUnknown => 'Onbekend';
+
+  @override
+  String get runTitleScheduled => 'Geskeduleerde lopie';
+
+  @override
+  String get runTitleManual => 'Loop nou';
+
+  @override
+  String runGeneratedAt(String stamp) {
+    return 'Gegenereer $stamp';
+  }
+
+  @override
+  String runDueAndGenerated(String due, String generated) {
+    return 'Verwag $due · $generated';
+  }
+
+  @override
+  String runRowCount(String rowsText, int rows) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rows,
+      locale: localeName,
+      other: 'rye',
+      one: 'ry',
+    );
+    return '$rowsText $_temp0';
+  }
+
+  @override
+  String runHistoryFooterMore(String shown) {
+    return 'Wys die $shown mees onlangse. Daar is meer.';
+  }
+
+  @override
+  String runHistoryFooterOf(String shown, String total) {
+    return 'Wys die $shown mees onlangse van $total.';
+  }
+
+  @override
+  String runCountDelivered(int count) {
+    return '$count afgelewer';
+  }
+
+  @override
+  String runCountPending(int count) {
+    return '$count hangend';
+  }
+
+  @override
+  String runCountFailed(int count) {
+    return '$count misluk';
+  }
+
+  @override
+  String runCountSent(int count) {
+    return '$count gestuur';
+  }
+
+  @override
+  String get runCountsQueued => 'in tou';
+
+  @override
+  String runWebhooksLine(String counts) {
+    return 'Webhake: $counts';
+  }
+
+  @override
+  String get runWebhooksNoneSubscribed => 'Webhake: niemand ingeteken nie';
+
+  @override
+  String get runWebhooksFailedLine => 'Webhake: misluk';
+
+  @override
+  String runEmailLine(String counts) {
+    return 'E-pos: $counts';
+  }
+
+  @override
+  String runEmailNotSetUpLine(int count) {
+    return 'E-pos: nie opgestel nie ($count nie ge-e-pos nie)';
+  }
+
+  @override
+  String get runEmailNoRecipientsLine => 'E-pos: geen geldige ontvangers nie';
+
+  @override
+  String get runEmailFailedLine => 'E-pos: misluk';
+
+  @override
+  String get runNoDeliveryRecorded => 'Geen aflewering aangeteken nie';
+
+  @override
+  String get deliveryWordQueued => 'In tou';
+
+  @override
+  String get deliveryWordDelivered => 'Afgelewer';
+
+  @override
+  String get deliveryWordSent => 'Gestuur';
+
+  @override
+  String get deliveryWordRetrying => 'Probeer weer';
+
+  @override
+  String get deliveryWordGaveUp => 'Opgegee';
+
+  @override
+  String get deliveryWordEmailFailed => 'Misluk';
+
+  @override
+  String deliveryAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pogings',
+      one: '1 poging',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String deliveryHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get deliveryNotSentYet => 'Nog nie gestuur nie';
+
+  @override
+  String get deliveryNoResponse => 'Geen antwoord nie';
+
+  @override
+  String get runNoCsvLinkNote =>
+      'Geen aflaaiskakel nie. Skakels vereis dat ondertekende skakels op die bediener opgestel is, en hou op werk 7 dae ná die lopie.';
+
+  @override
+  String get runHistoryTitle => 'Lopiegeskiedenis';
+
+  @override
+  String get runHistoryBack => 'Terug na Verslagskedules';
+
+  @override
+  String get runHistorySkeleton => 'verslaglopies';
+
+  @override
+  String get runHistoryRefresh => 'Herlaai';
+
+  @override
+  String get runHistorySection => 'Lopies';
+
+  @override
+  String get runHistoryEmptyHeadline => 'Nog geen lopies nie.';
+
+  @override
+  String get runHistoryEmptyBody =>
+      '’n Lopie verskyn elke keer as die skedule afgaan of jy Loop nou gebruik.';
+
+  @override
+  String get runHistoryLoadMore => 'Laai meer';
+
+  @override
+  String get runShowDetails => 'Wys lopiebesonderhede';
+
+  @override
+  String get runHideDetails => 'Versteek lopiebesonderhede';
+
+  @override
+  String get runDownloadCsv => 'Laai CSV af';
+
+  @override
+  String runRowSubtitle(String rows, String delivery) {
+    return '$rows · $delivery';
+  }
+
+  @override
+  String get runDetailSectionWebhooks => 'Webhake';
+
+  @override
+  String get runDetailSectionEmail => 'E-pos';
+
+  @override
+  String get runDetailSectionFile => 'Die lêer';
+
+  @override
+  String get runSignedLink => 'Ondertekende aflaaiskakel.';
+
+  @override
+  String runSignedLinkUntil(String stamp) {
+    return 'Ondertekende aflaaiskakel, werk tot $stamp.';
+  }
+
+  @override
+  String get runWebhookNoSubscriber =>
+      'Nie gestuur nie: geen webhaak is op report.generated ingeteken nie.';
+
+  @override
+  String get runWebhookDeliveryFailed => 'Webhaak-aflewering het misluk.';
+
+  @override
+  String runWebhookDeliveryFailedWhy(String detail) {
+    return 'Webhaak-aflewering het misluk: $detail';
+  }
+
+  @override
+  String get runWebhookTargetsDeleted =>
+      'Die webhake waarheen hierdie lopie gestuur is, is intussen geskrap.';
+
+  @override
+  String get runWebhookNoneRecorded =>
+      'Geen webhaak-aflewering is aangeteken nie.';
+
+  @override
+  String runEmailNotConfiguredDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ontvangers',
+      one: '1 ontvanger',
+    );
+    return 'Nie ge-e-pos aan $_temp0 nie: e-pos is nie op die bediener opgestel nie.';
+  }
+
+  @override
+  String get runEmailNoRecipientsDetail =>
+      'Nie ge-e-pos nie: geen geldige e-posontvangers nie.';
+
+  @override
+  String get runEmailDeliveryFailed => 'E-posaflewering het misluk.';
+
+  @override
+  String runEmailDeliveryFailedWhy(String detail) {
+    return 'E-posaflewering het misluk: $detail';
+  }
+
+  @override
+  String get runEmailNoneRecorded => 'Geen e-posaflewering is aangeteken nie.';
+
+  @override
+  String get runEmailSkeleton => 'e-posafleweringe';
+
+  @override
+  String get runEmailNoneQueued =>
+      'Geen e-posse is vir hierdie lopie in die tou geplaas nie.';
+
+  @override
+  String get csvLinkSheetSubtitle =>
+      'Open hierdie skakel in ’n blaaier om die verslag af te laai. Enigiemand met die skakel kan dit aflaai.';
+
+  @override
+  String csvLinkSheetSubtitleUntil(String stamp) {
+    return 'Open hierdie skakel in ’n blaaier om die verslag af te laai. Enigiemand met die skakel kan dit tot $stamp aflaai.';
+  }
+
+  @override
+  String get csvLinkCopy => 'Kopieer die skakel';
+
+  @override
+  String get scheduleFormTitleNew => 'Nuwe skedule';
+
+  @override
+  String get scheduleFormTitleEdit => 'Wysig skedule';
+
+  @override
+  String get scheduleFormFact =>
+      'Dit loop bedienerkant en lewer die resultaat af.';
+
+  @override
+  String get scheduleFormBack => 'Terug na Verslagskedules';
+
+  @override
+  String get scheduleFormCommitNew => 'Skep hierdie skedule';
+
+  @override
+  String get scheduleFormCommitEdit => 'Stoor hierdie veranderinge';
+
+  @override
+  String get scheduleFormSaving => 'Stoor tans…';
+
+  @override
+  String get scheduleFormBlockedLoading => 'Laai die gestoorde verslae.';
+
+  @override
+  String get scheduleFormBlockedReportsFailed =>
+      'Die gestoorde verslae kon nie gelaai word nie, so daar is nog niks om te skeduleer nie.';
+
+  @override
+  String get scheduleFormBlockedNoReports =>
+      'Daar is nog geen gestoorde verslae nie. Bou eers een op Verslae.';
+
+  @override
+  String get scheduleFormBlockedNoReport =>
+      'Kies die verslag wat hierdie skedule loop.';
+
+  @override
+  String get scheduleFormBlockedNoCadence => 'Kies hoe gereeld dit loop.';
+
+  @override
+  String get scheduleFormSectionReport => 'Verslag';
+
+  @override
+  String get scheduleFormSectionSchedule => 'Skedule';
+
+  @override
+  String get scheduleFormReportLocked => 'Gesluit';
+
+  @override
+  String get scheduleFormReportLockedNote =>
+      'Die verslag op ’n skedule kan nie verander word nie. Skep ’n nuwe skedule om ’n ander verslag te skeduleer.';
+
+  @override
+  String scheduleFormReportLockedSemantics(String name, String note) {
+    return '$name. Gesluit. $note';
+  }
+
+  @override
+  String get scheduleFormReportsSkeleton => 'gestoorde verslae';
+
+  @override
+  String get scheduleFormNoReportsHeadline => 'Nog geen gestoorde verslae nie.';
+
+  @override
+  String get scheduleFormNoReportsBody =>
+      'Bou een op die Verslae-skerm en skeduleer dit dan.';
+
+  @override
+  String get scheduleFormReportNotPicked => 'Nog nie gekies nie';
+
+  @override
+  String scheduleFormReportSemantics(String report) {
+    return 'Verslag. $report. Kies die verslag wat hierdie skedule loop.';
+  }
+
+  @override
+  String get scheduleFormCadence => 'Hoe gereeld';
+
+  @override
+  String get scheduleFormCadenceDailyConsequence => 'Elke dag, 06:00 UTC.';
+
+  @override
+  String get scheduleFormCadenceWeeklyConsequence => 'Elke Maandag, 06:00 UTC.';
+
+  @override
+  String get scheduleFormCadenceHelp =>
+      'Loop outomaties op hierdie ritme (UTC), word gestuur na webhake wat op report.generated ingeteken is, en word aan die ontvangers ge-e-pos sodra e-pos op die bediener opgestel is.';
+
+  @override
+  String get scheduleFormRecipients => 'Ontvangers';
+
+  @override
+  String get scheduleFormRecipientsHelp =>
+      'E-posadresse, een per reël of deur kommas geskei.';
+
+  @override
+  String get scheduleFormRecipientsEmpty => 'Voeg ten minste een ontvanger by';
+
+  @override
+  String scheduleFormRecipientsInvalid(String entry) {
+    return 'Nie ’n e-posadres nie: $entry';
+  }
+
+  @override
+  String scheduleFormRecipientsTooMany(int max) {
+    return 'Hoogstens $max ontvangers';
+  }
+
+  @override
+  String get scheduleFormFailedNew => 'Die skedule is nie geskep nie.';
+
+  @override
+  String get scheduleFormFailedEdit => 'Die veranderinge is nie gestoor nie.';
+
+  @override
+  String scheduleFormFailedBody(String headline, String reason) {
+    return '$headline $reason';
+  }
+
+  @override
+  String get scheduleReportSheetSubtitle =>
+      'Die skedule loop hierdie definisie op sy ritme.';
+
+  @override
+  String get relativeJustNow => 'nou net';
+
+  @override
+  String get relativeUnderAMinute => 'binne ’n minuut';
+
+  @override
+  String relativeMinutesAgo(int minutes) {
+    return '${minutes}m gelede';
+  }
+
+  @override
+  String relativeHoursAgo(int hours) {
+    return '${hours}u gelede';
+  }
+
+  @override
+  String relativeDaysAgo(int days) {
+    return '${days}d gelede';
+  }
+
+  @override
+  String relativeInMinutes(int minutes) {
+    return 'oor ${minutes}m';
+  }
+
+  @override
+  String relativeInHours(int hours) {
+    return 'oor ${hours}u';
+  }
+
+  @override
+  String relativeInDays(int days) {
+    return 'oor ${days}d';
+  }
+
+  @override
+  String get webhookHealthHealthy => 'Gesond';
+
+  @override
+  String get webhookHealthFailing => 'Faal';
+
+  @override
+  String get webhookHealthUnhealthy => 'Ongesond';
+
+  @override
+  String get webhookDeliveryQueued => 'In tou';
+
+  @override
+  String get webhookDeliveryDelivered => 'Afgelewer';
+
+  @override
+  String get webhookDeliveryRetrying => 'Probeer weer';
+
+  @override
+  String get webhookDeliveryGaveUp => 'Opgegee';
+
+  @override
+  String get webhooksTitle => 'Webhake';
+
+  @override
+  String get webhooksFactPost =>
+      'Elke eindpunt ontvang ’n POST wanneer sy gebeurtenis afgaan.';
+
+  @override
+  String get webhooksFactRetries =>
+      'Mislukte afleweringe word vir ongeveer agt uur herprobeer.';
+
+  @override
+  String get webhooksRefresh => 'Herlaai die eindpunte';
+
+  @override
+  String get webhooksSkeleton => 'webhake';
+
+  @override
+  String get webhooksSection => 'Eindpunte';
+
+  @override
+  String webhooksUnhealthyNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count eindpunte ontvang nie. ’n Aflewering daarheen het ná elke herprobeer opgegee.',
+      one:
+          '1 eindpunt ontvang nie. ’n Aflewering daarheen het ná elke herprobeer opgegee.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhooksEmptyHeadline => 'Geen eindpunte geregistreer nie.';
+
+  @override
+  String get webhooksEmptyBody =>
+      'Voeg een by om gebeurtenisse na ’n eksterne stelsel aan te stuur.';
+
+  @override
+  String get webhookAdd => 'Voeg ’n eindpunt by';
+
+  @override
+  String get webhookNoDeliveriesYet => 'Nog geen afleweringe nie';
+
+  @override
+  String webhookLastDelivery(String when) {
+    return 'Laaste aflewering $when';
+  }
+
+  @override
+  String get webhookSigned =>
+      'Onderteken — afleweringe dra ’n HMAC-handtekening.';
+
+  @override
+  String get webhookNotSigned =>
+      'Nie onderteken nie — afleweringe dra geen handtekening nie.';
+
+  @override
+  String get webhookSignedShort => 'Onderteken';
+
+  @override
+  String get webhookNotSignedShort => 'Nie onderteken nie';
+
+  @override
+  String get webhookReceivingEvents => 'Ontvang gebeurtenisse';
+
+  @override
+  String get webhookOn => 'Aan';
+
+  @override
+  String get webhookOff => 'Af';
+
+  @override
+  String get webhookWaitingForServer => 'Wag vir die bediener.';
+
+  @override
+  String get webhookReceiving => 'Ontvang';
+
+  @override
+  String get webhookPaused => 'Onderbreek';
+
+  @override
+  String get webhookShowDeliveries => 'Wys afleweringe';
+
+  @override
+  String get webhookHideDeliveries => 'Versteek afleweringe';
+
+  @override
+  String get webhookDelete => 'Skrap';
+
+  @override
+  String webhookResumeFailed(String reason) {
+    return 'Daardie eindpunt is nie hervat nie. $reason';
+  }
+
+  @override
+  String webhookPauseFailed(String reason) {
+    return 'Daardie eindpunt is nie onderbreek nie. $reason';
+  }
+
+  @override
+  String get webhookDeleteAction => 'Skrap hierdie eindpunt?';
+
+  @override
+  String get webhookDeleteConsequenceStops =>
+      'Dit hou onmiddellik op om gebeurtenisse te ontvang.';
+
+  @override
+  String get webhookDeleteConsequenceHistory =>
+      'Sy afleweringsgeskiedenis word saam daarmee verwyder.';
+
+  @override
+  String get webhookDeleteConsequenceDelivered =>
+      'Niks wat reeds afgelewer is, word teruggetrek nie.';
+
+  @override
+  String get webhookDeleteCommit => 'Skrap hierdie eindpunt';
+
+  @override
+  String get webhookDeleteCancel => 'Hou dit';
+
+  @override
+  String webhookDeleteFailed(String reason) {
+    return 'Daardie eindpunt is nie geskrap nie. $reason';
+  }
+
+  @override
+  String get webhookDeliveriesSection => 'Onlangse afleweringe';
+
+  @override
+  String get webhookDeliveriesSkeleton => 'afleweringe';
+
+  @override
+  String get webhookDeliveriesEmptyHeadline => 'Nog geen afleweringe nie.';
+
+  @override
+  String get webhookDeliveriesEmptyBody =>
+      'Een verskyn elke keer as die gebeurtenis afgaan.';
+
+  @override
+  String webhookDeliveredWhen(String when) {
+    return 'Afgelewer $when';
+  }
+
+  @override
+  String webhookNextRetryWhen(String when) {
+    return 'Volgende herprobeer $when';
+  }
+
+  @override
+  String get webhookNoMoreRetries => 'Geen verdere herprobeer nie';
+
+  @override
+  String webhookCreatedWhen(String when) {
+    return 'Geskep $when';
+  }
+
+  @override
+  String webhookHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get webhookNotSentYet => 'Nog nie gestuur nie';
+
+  @override
+  String get webhookNoResponse => 'Geen antwoord nie';
+
+  @override
+  String webhookAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pogings',
+      one: '1 poging',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhookRedeliver => 'Lewer weer af';
+
+  @override
+  String get webhookQueueing => 'Plaas tans in tou…';
+
+  @override
+  String get webhookRedeliveryQueued => 'Heraflewering in die tou geplaas.';
+
+  @override
+  String webhookRedeliverFailed(String reason) {
+    return 'Daardie aflewering is nie weer in die tou geplaas nie. $reason';
+  }
+
+  @override
+  String get webhookCreateSubtitle =>
+      'Dit ontvang ’n POST elke keer as sy gebeurtenis afgaan.';
+
+  @override
+  String get webhookCreateAddress => 'Adres';
+
+  @override
+  String get webhookCreateAddressHelp =>
+      '’n Openbare http- of https-adres wat die bediener kan bereik.';
+
+  @override
+  String get webhookCreateNotAUrl => 'Dit is nie ’n webadres nie.';
+
+  @override
+  String get webhookCreateWrongScheme =>
+      'Die adres moet met http:// of https:// begin.';
+
+  @override
+  String get webhookCreateBlockedUrl => 'Gee die eindpunt ’n webadres.';
+
+  @override
+  String get webhookCreateBlockedEvent =>
+      'Kies die gebeurtenis waarna dit luister.';
+
+  @override
+  String get webhookCreateEvent => 'Gebeurtenis';
+
+  @override
+  String get webhookCreateSecret => 'Ondertekeningsgeheim (opsioneel)';
+
+  @override
+  String get webhookCreateSecretHelp =>
+      'Afleweringe word daarmee onderteken. Dit word op die bediener gestoor en nooit weer gewys nie — hou jou eie kopie.';
+
+  @override
+  String get webhookCreateFailed => 'Die eindpunt is nie bygevoeg nie.';
+
+  @override
+  String get webhookCreateCommit => 'Voeg hierdie eindpunt by';
+
+  @override
+  String get webhookCreateAdding => 'Voeg tans by…';
+
+  @override
+  String get webhookCreateCancel => 'Kanselleer';
+
+  @override
+  String get messagesTitle => 'Boodskappe';
+
+  @override
+  String get messagesFact => 'Alles wat die span kan sien.';
+
+  @override
+  String get messagesRefresh => 'Herlaai die spankanaal';
+
+  @override
+  String get messagesWhichFeed => 'Watter voer';
+
+  @override
+  String get messagesFeedAnnouncements => 'Aankondigings';
+
+  @override
+  String get messagesSkeleton => 'boodskappe';
+
+  @override
+  String get announcementsSkeleton => 'aankondigings';
+
+  @override
+  String get messagesEmptyHeadline => 'Nog geen boodskappe nie.';
+
+  @override
+  String get messagesEmptyBody =>
+      'Enigiets wat jy hieronder stuur, bereik die hele span.';
+
+  @override
+  String get announcementsEmptyHeadline => 'Nog geen aankondigings nie.';
+
+  @override
+  String get announcementsEmptyBodyCanPost =>
+      'Plaas een en elke gebruiker by hierdie kliënt sien dit.';
+
+  @override
+  String get announcementsEmptyBodyReadOnly =>
+      'Jou bestuurders plaas hier wanneer iets almal raak.';
+
+  @override
+  String get announcementNew => 'Nuwe aankondiging';
+
+  @override
+  String get announcementPosted => 'Aan almal by hierdie kliënt geplaas.';
+
+  @override
+  String announcementPostFailed(String reason) {
+    return 'Daardie aankondiging is nie geplaas nie. $reason';
+  }
+
+  @override
+  String get messagePhotoOne => 'Foto';
+
+  @override
+  String messagePhotoMany(int count) {
+    return '$count foto’s';
+  }
+
+  @override
+  String get messageDirect => 'Direk';
+
+  @override
+  String get messageBroadcast => 'Uitsending';
+
+  @override
+  String messageFrom(String name) {
+    return 'Van $name';
+  }
+
+  @override
+  String messageTo(String name) {
+    return 'Aan $name';
+  }
+
+  @override
+  String get messageToTeam => 'Aan die hele span';
+
+  @override
+  String get messageDirectUnknownRecipient => 'Direkte boodskap';
+
+  @override
+  String messageSenderNotOnRoster(String id) {
+    return 'Sender nie op die rooster nie: $id';
+  }
+
+  @override
+  String messageRecipientNotOnRoster(String id) {
+    return 'Ontvanger nie op die rooster nie: $id';
+  }
+
+  @override
+  String messagePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count foto’s',
+      one: '1 foto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String messagePhotoOfCount(int index, int count) {
+    return 'Foto $index van $count';
+  }
+
+  @override
+  String get messageLongPressForId => 'Hou lank om die boodskap-id te kopieer';
+
+  @override
+  String get messageIdCopied => 'Boodskap-id gekopieer.';
+
+  @override
+  String get announcementSubtitle => 'Uitgesaai aan die hele kliënt';
+
+  @override
+  String announcementSemantics(String title, String body) {
+    return '$title. $body. Uitgesaai aan die hele kliënt.';
+  }
+
+  @override
+  String get attachSheetTitle => 'Voeg ’n foto by';
+
+  @override
+  String get attachSheetSubtitle =>
+      'Dit word opgelaai wanneer die boodskap gestuur word, nie voor nie.';
+
+  @override
+  String get attachCamera => 'Neem ’n foto';
+
+  @override
+  String get attachGallery => 'Kies uit die biblioteek';
+
+  @override
+  String get announcementSheetSubtitle =>
+      'Elke gebruiker by hierdie kliënt sien dit.';
+
+  @override
+  String get announcementSheetHeadline => 'Opskrif';
+
+  @override
+  String get announcementSheetBody => 'Wat dit sê';
+
+  @override
+  String get announcementSheetBlockedTitle =>
+      'Gee die aankondiging ’n opskrif.';
+
+  @override
+  String get announcementSheetBlockedBody => 'Sê waaroor dit gaan.';
+
+  @override
+  String get announcementSheetCommit => 'Plaas hierdie aankondiging';
+
+  @override
+  String get announcementSheetCancel => 'Kanselleer';
+
+  @override
+  String get composerLabel => 'Stuur die span ’n boodskap';
+
+  @override
+  String get composerNotSent => 'Nie gestuur nie.';
+
+  @override
+  String get composerSend => 'Stuur';
+
+  @override
+  String get composerSending => 'Stuur tans…';
+
+  @override
+  String get composerBlockedEmpty => 'Skryf iets, of voeg ’n foto by.';
+
+  @override
+  String get composerAddPhoto => 'Voeg ’n foto by hierdie boodskap';
+
+  @override
+  String composerPhotoCap(int max) {
+    return 'Hoogstens $max foto’s per boodskap';
+  }
+
+  @override
+  String composerPhotoCapLine(int max) {
+    return 'Hoogstens $max foto’s.';
+  }
+
+  @override
+  String composerPhotosAttached(int count, int max) {
+    return '$count van $max foto’s aangeheg.';
+  }
+
+  @override
+  String get composerPhotoFailed =>
+      'Kon nie ’n foto byvoeg nie. Kontroleer kamera- en fototoestemmings.';
+
+  @override
+  String composerUploadFailed(String reason) {
+    return '’n Foto kon nie oplaai nie, so niks is gestuur nie. $reason Jou konsep word behou.';
+  }
+
+  @override
+  String composerSendFailed(String reason) {
+    return 'Boodskap nie gestuur nie. $reason Jou konsep word behou.';
+  }
+
+  @override
+  String pendingPhotoReady(int index) {
+    return 'Foto $index gereed om te stuur';
+  }
+
+  @override
+  String pendingPhotoRemove(int index) {
+    return 'Haal foto $index uit hierdie boodskap';
+  }
+
+  @override
+  String get attachmentSheetTitle => 'Foto';
+
+  @override
+  String get attachmentSheetSkeleton => 'die foto';
+
+  @override
+  String get attachmentSheetClose => 'Maak toe';
+
+  @override
+  String get attachmentUndecodableHeadline =>
+      'Hierdie foto kon nie vertoon word nie.';
+
+  @override
+  String get attachmentUndecodableBody =>
+      'Die lêer het aangekom, maar dit is nie ’n beeld wat hierdie toestel kan dekodeer nie.';
+
+  @override
+  String get figureSmallSample => 'klein steekproef';
+
+  @override
+  String get figureNotScored => 'geen telling nie';
+
+  @override
+  String get figureProvisional => 'Voorlopig';
+
+  @override
+  String get pickerSelected => 'Gekies';
+
+  @override
+  String outletDisputePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkelfront-fotos aangeheg',
+      one: '1 winkelfront-foto aangeheg',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ordersStoreListLoading => 'Winkellys laai nog';
+
+  @override
+  String get ordersStoreListUnavailable => 'Winkellys kon nie laai nie';
+
+  @override
+  String get beatPlanStopUnknownStore => 'Winkel nie op hierdie lys nie';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Winkellys laai nog';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Winkellys kon nie laai nie';
+
+  @override
+  String get salesLevelZeroTarget =>
+      'Elke teiken op hierdie vlak is 0 eenhede, so daar is niks om te behaal nie.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'Die persentasie van teiken is nie vir hierdie vlak uitgewerk nie.';
+
+  @override
+  String get salesZeroTarget => 'Teiken van 0 eenhede';
 
   @override
   String get trailTitle => 'Agentspoor';

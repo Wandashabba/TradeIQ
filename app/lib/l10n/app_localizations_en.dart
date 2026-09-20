@@ -4340,9 +4340,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Agents who could not check in where the pin says the store is.';
 
   @override
-  String get pickerSelected => 'Selected';
-
-  @override
   String get outletsPinReported => 'Pin reported';
 
   @override
@@ -4550,17 +4547,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String outletDisputePhotoCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count storefront photographs attached',
-      one: '1 storefront photograph attached',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get outletPhotoAlt => 'Storefront photograph from this pin report';
 
   @override
@@ -4714,12 +4700,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String ordersRowSubtitle(String status, String lines) {
     return '$status · $lines';
   }
-
-  @override
-  String get ordersStoreListLoading => 'Store list still loading';
-
-  @override
-  String get ordersStoreListUnavailable => 'Store list did not load';
 
   @override
   String get ordersUnknownStore => 'Store not on this list';
@@ -4921,15 +4901,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add stores to the plan to give the agent a route.';
 
   @override
-  String get beatPlanStopUnknownStore => 'Store not on this list';
-
-  @override
-  String get beatPlanStopStoreLoading => 'Store list still loading';
-
-  @override
-  String get beatPlanStopStoreUnavailable => 'Store list did not load';
-
-  @override
   String beatPlanStopLabel(String sequence) {
     return 'Stop $sequence';
   }
@@ -5109,14 +5080,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'No target is set at this level, so there is nothing to attain.';
 
   @override
-  String get salesLevelZeroTarget =>
-      'Every target at this level is 0 units, so there is nothing to attain.';
-
-  @override
-  String get salesLevelAttainmentUnknown =>
-      'The share of target was not worked out for this level.';
-
-  @override
   String salesLevelSubordinates(String actual, String target, int targets) {
     String _temp0 = intl.Intl.pluralLogic(
       targets,
@@ -5138,9 +5101,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get salesNoTarget => 'No target';
-
-  @override
-  String get salesZeroTarget => 'Target of 0 units';
 
   @override
   String salesNoTargetsHeadline(String month) {
@@ -5401,6 +5361,1619 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Set monthly SKU targets under Sales targets to track sell-in against them.';
+
+  @override
+  String get templatesTitle => 'Audit templates';
+
+  @override
+  String get templatesFact =>
+      'A template is the form an agent fills in on a visit.';
+
+  @override
+  String get templatesRefresh => 'Refresh the templates';
+
+  @override
+  String get templatesSkeleton => 'templates';
+
+  @override
+  String get templatesSection => 'Templates';
+
+  @override
+  String get templatesEmptyHeadline => 'No templates yet.';
+
+  @override
+  String get templatesEmptyBody =>
+      'Templates published to this client appear here.';
+
+  @override
+  String get templatesInAuditsSection => 'Used in field audits';
+
+  @override
+  String get templatesInAuditsChecking => 'Checking which template is in use…';
+
+  @override
+  String get templatesInAuditsFailed =>
+      'Could not load the template used in audits.';
+
+  @override
+  String get templatesInAuditsNone => 'No template is used in audits.';
+
+  @override
+  String templatesInAuditsNamed(String name, int version) {
+    return '“$name” (v$version)';
+  }
+
+  @override
+  String get templatesInAuditsSubtitle =>
+      'Client questions, after the standard audit sections';
+
+  @override
+  String get templatesInAuditsMeta =>
+      'Agents answer its questions on every visit, as an extra section after the standard audit. Required questions must be answered before a visit can be submitted. It does not change the perfect store score.';
+
+  @override
+  String get templatesStopUsing => 'Stop using';
+
+  @override
+  String get templatesStopping => 'Stopping…';
+
+  @override
+  String templatesInAuditsSemantics(String headline) {
+    return 'Used in field audits. $headline';
+  }
+
+  @override
+  String get templatesCleared => 'No template is used in audits now.';
+
+  @override
+  String templatesNowInAudits(String name) {
+    return '“$name” is now used in audits.';
+  }
+
+  @override
+  String templatesChangeFailed(String reason) {
+    return 'The audit template was not changed. $reason';
+  }
+
+  @override
+  String get templateWordInAudits => 'In audits';
+
+  @override
+  String get templateWordActive => 'Active';
+
+  @override
+  String get templateWordPaused => 'Paused';
+
+  @override
+  String templateVersionShort(int version) {
+    return 'v$version';
+  }
+
+  @override
+  String templateVersionAndIndustry(int version, String industry) {
+    return 'v$version · $industry';
+  }
+
+  @override
+  String templateVersionSpoken(int version) {
+    return 'version $version';
+  }
+
+  @override
+  String get templateUseInAudits => 'Use in audits';
+
+  @override
+  String get templateSwitching => 'Switching…';
+
+  @override
+  String get templateOpensPreview => 'Opens a preview of its form';
+
+  @override
+  String get templatePreviewTitle => 'Template preview';
+
+  @override
+  String get templatePreviewBack => 'Back to Audit templates';
+
+  @override
+  String get templatePreviewSkeleton => 'the template';
+
+  @override
+  String get templatePreviewFact => 'Preview — nothing is saved';
+
+  @override
+  String templatePreviewSection(int index, int count) {
+    return 'Section $index of $count';
+  }
+
+  @override
+  String get templatePreviewNext => 'Next section';
+
+  @override
+  String get templatePreviewFinish => 'Finish preview';
+
+  @override
+  String get templatePreviewBackSection => 'Back a section';
+
+  @override
+  String templatePreviewBlockedOne(String label) {
+    return '“$label” still needs an answer.';
+  }
+
+  @override
+  String templatePreviewBlockedMany(int count) {
+    return '$count required questions in this section still need answers.';
+  }
+
+  @override
+  String get templatePreviewDoneTitle => 'Preview complete';
+
+  @override
+  String templatePreviewDoneBody(int answered, int total) {
+    return 'You answered $answered of $total visible questions. Nothing was saved — a preview writes no answers, and saving them against a visit arrives with the audit-flow integration.';
+  }
+
+  @override
+  String get templateFormNoSectionsHeadline =>
+      'This template has no form sections yet.';
+
+  @override
+  String get templateFormNoSectionsBody =>
+      'Publish a section to it and the preview will walk through it.';
+
+  @override
+  String get templateFormSectionEmpty =>
+      'Nothing to answer in this section yet.';
+
+  @override
+  String get templateFormScoreEyebrow => 'Score preview';
+
+  @override
+  String templateFormScoreOutOf(String maximum) {
+    return 'Out of $maximum for the whole template.';
+  }
+
+  @override
+  String get templateFieldRequired =>
+      'Required before a visit can be submitted.';
+
+  @override
+  String get templateFieldNotAnsweredLine => 'Not answered yet.';
+
+  @override
+  String get templateFieldNotAnswered => 'Not answered yet';
+
+  @override
+  String get templateFieldYes => 'Yes';
+
+  @override
+  String get templateFieldNo => 'No';
+
+  @override
+  String get templateFieldClear => 'Clear this answer';
+
+  @override
+  String templateFieldChoiceSemantics(String label, String answer) {
+    return '$label. $answer. Opens the list of answers.';
+  }
+
+  @override
+  String get templateFieldPhotoSubtitle => 'Cannot be answered yet';
+
+  @override
+  String get templateFieldPhotoMeta =>
+      'Photo capture arrives with the audit-flow integration. This question does not block a submit.';
+
+  @override
+  String templateFieldPhotoSemantics(String label) {
+    return '$label. Cannot be answered yet. Photo capture arrives with the audit-flow integration.';
+  }
+
+  @override
+  String get reportsTitle => 'Reports';
+
+  @override
+  String get reportsFact => 'Definitions run on demand against live data.';
+
+  @override
+  String get reportsRefresh => 'Refresh the saved reports';
+
+  @override
+  String get reportsSkeleton => 'reports';
+
+  @override
+  String get reportsSection => 'Reports';
+
+  @override
+  String get reportsSchedules => 'Schedules';
+
+  @override
+  String get reportsEmptyHeadline => 'No saved reports.';
+
+  @override
+  String get reportsEmptyBody =>
+      'Build one, then run it to see how many rows it returns.';
+
+  @override
+  String get reportsNew => 'New report';
+
+  @override
+  String reportsFooterMore(String shown) {
+    return 'Showing the first $shown. There are more.';
+  }
+
+  @override
+  String reportsFooterOf(String shown, String total) {
+    return 'Showing the first $shown of $total.';
+  }
+
+  @override
+  String get reportRun => 'Run';
+
+  @override
+  String get reportRunning => 'Running…';
+
+  @override
+  String get reportDelete => 'Delete';
+
+  @override
+  String get reportWordRunning => 'Running';
+
+  @override
+  String get reportWordReady => 'Ready';
+
+  @override
+  String get reportWordFailed => 'Could not run';
+
+  @override
+  String get reportWordZeroRows => '0 rows — the query matched nothing';
+
+  @override
+  String get reportWordGenerated => 'Generated';
+
+  @override
+  String reportRowsAndFile(String rows, String filename) {
+    return '$rows rows · $filename';
+  }
+
+  @override
+  String reportRowsSpoken(String rows) {
+    return '$rows rows';
+  }
+
+  @override
+  String reportDownloaded(String filename) {
+    return 'Downloaded $filename.';
+  }
+
+  @override
+  String reportSavedTo(String filename, String location) {
+    return 'Saved $filename to $location.';
+  }
+
+  @override
+  String reportDeleteAction(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get reportDeleteConsequenceEveryone =>
+      'The definition is removed for everyone on this client.';
+
+  @override
+  String get reportDeleteConsequenceSchedules =>
+      'Any schedule that runs it stops running.';
+
+  @override
+  String get reportDeleteConsequenceFiles =>
+      'Files already downloaded are not affected.';
+
+  @override
+  String get reportDeleteCommit => 'Delete this report';
+
+  @override
+  String get reportDeleteCancel => 'Keep it';
+
+  @override
+  String reportDeleteFailed(String reason) {
+    return 'That report was not deleted. $reason';
+  }
+
+  @override
+  String get reportTypeVisits => 'Visits';
+
+  @override
+  String get reportTypeScorecards => 'Scorecards';
+
+  @override
+  String get reportTypeTasks => 'Tasks';
+
+  @override
+  String get reportTypeOrders => 'Orders';
+
+  @override
+  String get reportTypeVisitsConsequence => 'One row per submitted visit.';
+
+  @override
+  String get reportTypeScorecardsConsequence => 'One row per scored visit.';
+
+  @override
+  String get reportTypeTasksConsequence => 'One row per task raised.';
+
+  @override
+  String get reportTypeOrdersConsequence =>
+      'One row per order captured in store.';
+
+  @override
+  String get reportTypeOtherConsequence => 'One row per record.';
+
+  @override
+  String get reportFilterDateFormat =>
+      'Use the form 2026-09-20, or leave it blank for any date.';
+
+  @override
+  String get reportFormTitle => 'New report';
+
+  @override
+  String get reportFormFact => 'It runs on demand against live data.';
+
+  @override
+  String get reportFormBack => 'Back to Reports';
+
+  @override
+  String get reportFormCommit => 'Create this report';
+
+  @override
+  String get reportFormSaving => 'Saving…';
+
+  @override
+  String get reportFormBlockedName => 'Give the report a name first.';
+
+  @override
+  String get reportFormBlockedFrom =>
+      'The From date is not a date. Use the form 2026-09-20.';
+
+  @override
+  String get reportFormBlockedTo =>
+      'The To date is not a date. Use the form 2026-09-20.';
+
+  @override
+  String get reportFormBlockedOrder => 'The To date is before the From date.';
+
+  @override
+  String get reportFormSectionReport => 'Report';
+
+  @override
+  String get reportFormSectionNarrowed => 'Narrowed to';
+
+  @override
+  String get reportFormName => 'Name';
+
+  @override
+  String get reportFormNameHint => 'Outlet coverage, September';
+
+  @override
+  String get reportFormNameHelp => 'What a manager will look for in the list.';
+
+  @override
+  String get reportFormType => 'What it queries';
+
+  @override
+  String get reportFormTypeNotAnswered => 'Pick what the report is about.';
+
+  @override
+  String get reportFormFrom => 'From';
+
+  @override
+  String get reportFormTo => 'To';
+
+  @override
+  String get reportFormDateHelp => 'Leave blank for any date.';
+
+  @override
+  String get reportFormOutlet => 'Outlet';
+
+  @override
+  String get reportFormAllOutlets => 'All outlets';
+
+  @override
+  String reportFormOutletSemantics(String outlet) {
+    return 'Outlet. $outlet. Choose an outlet.';
+  }
+
+  @override
+  String get reportFormFailed => 'The report was not created.';
+
+  @override
+  String get reportOutletSheetSubtitle =>
+      'The report is narrowed to the one you pick.';
+
+  @override
+  String get reportOutletSheetSkeleton => 'outlets';
+
+  @override
+  String get reportOutletSheetEmptyHeadline => 'No outlets on this client yet.';
+
+  @override
+  String get reportOutletSheetEmptyBody =>
+      'The report will cover every outlet added later.';
+
+  @override
+  String get cadenceDaily => 'Daily';
+
+  @override
+  String get cadenceWeekly => 'Weekly';
+
+  @override
+  String get schedulesTitle => 'Report schedules';
+
+  @override
+  String get schedulesFact =>
+      'A schedule runs its report server-side and delivers the result.';
+
+  @override
+  String get schedulesRefresh => 'Refresh the schedules';
+
+  @override
+  String get schedulesSkeleton => 'report schedules';
+
+  @override
+  String get schedulesDeliveryNote =>
+      'Active schedules run automatically on their cadence and are sent to your webhooks subscribed to report.generated. Recipients are emailed when email is set up on the server.';
+
+  @override
+  String get schedulesBackToReports => 'Back to reports';
+
+  @override
+  String get schedulesEmptyHeadline => 'No schedules.';
+
+  @override
+  String get schedulesEmptyBody =>
+      'A report runs on demand until you schedule it.';
+
+  @override
+  String get schedulesNew => 'New schedule';
+
+  @override
+  String get schedulesGroupActive => 'Active';
+
+  @override
+  String get schedulesGroupOff => 'Off';
+
+  @override
+  String get schedulesGroupActiveEmpty => 'Nothing is running on its own.';
+
+  @override
+  String get schedulesGroupOffEmpty => 'Nothing is paused.';
+
+  @override
+  String get scheduleUntitledReport => 'Untitled report';
+
+  @override
+  String get scheduleNeverRun => 'Never run';
+
+  @override
+  String scheduleLastRun(String stamp) {
+    return 'Last run $stamp';
+  }
+
+  @override
+  String scheduleNextRun(String stamp) {
+    return 'Next run $stamp';
+  }
+
+  @override
+  String get scheduleNextRunNone => 'Next run not scheduled';
+
+  @override
+  String get schedulePausedNoNextRun => 'Paused, no next run';
+
+  @override
+  String get scheduleNoRecipients => 'No recipients';
+
+  @override
+  String get scheduleNoRecipientsLine =>
+      'No recipients — this schedule delivers to nobody by email.';
+
+  @override
+  String scheduleRecipientCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recipients',
+      one: '1 recipient',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scheduleRunsOnItsOwn => 'Runs on its own';
+
+  @override
+  String get scheduleOn => 'On';
+
+  @override
+  String get scheduleOff => 'Off';
+
+  @override
+  String get scheduleWaitingForServer => 'Waiting for the server.';
+
+  @override
+  String get scheduleRunningOnItsOwn => 'Running on its own';
+
+  @override
+  String get scheduleShowRecipients => 'Show recipients';
+
+  @override
+  String get scheduleHideRecipients => 'Hide recipients';
+
+  @override
+  String get scheduleRunNow => 'Run now';
+
+  @override
+  String get scheduleHistory => 'History';
+
+  @override
+  String get scheduleEdit => 'Edit';
+
+  @override
+  String get scheduleDelete => 'Delete';
+
+  @override
+  String get scheduleDeleteAction => 'Delete this schedule?';
+
+  @override
+  String scheduleDeleteConsequenceStops(String name) {
+    return '$name stops running on its own.';
+  }
+
+  @override
+  String get scheduleDeleteConsequenceReportKept =>
+      'The saved report itself is kept.';
+
+  @override
+  String get scheduleDeleteConsequenceRuns =>
+      'Runs already delivered are not withdrawn.';
+
+  @override
+  String get scheduleDeleteCommit => 'Delete this schedule';
+
+  @override
+  String get scheduleDeleteCancel => 'Keep it';
+
+  @override
+  String get scheduleDeleteFailed => 'Could not delete the schedule.';
+
+  @override
+  String get scheduleResumeFailed => 'Could not resume the schedule.';
+
+  @override
+  String get schedulePauseFailed => 'Could not pause the schedule.';
+
+  @override
+  String get scheduleRunFailed => 'Run failed.';
+
+  @override
+  String scheduleFailureToast(String lead, String reason) {
+    return '$lead $reason';
+  }
+
+  @override
+  String runNowGeneratedRows(String rowsText, int rows) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rows,
+      locale: localeName,
+      other: 'rows',
+      one: 'row',
+    );
+    return 'Generated $rowsText $_temp0.';
+  }
+
+  @override
+  String runNowQueuedWebhooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count webhooks',
+      one: '1 webhook',
+    );
+    return 'Queued for $_temp0.';
+  }
+
+  @override
+  String get runNowWebhookFailed => 'Webhook delivery failed.';
+
+  @override
+  String get runNowNoSubscriber =>
+      'Not sent: no webhook is subscribed to report.generated.';
+
+  @override
+  String runNowEmailing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recipients',
+      one: '1 recipient',
+    );
+    return 'Emailing $_temp0.';
+  }
+
+  @override
+  String get runNowEmailNotConfigured => 'Email is not set up on the server.';
+
+  @override
+  String get runNowEmailNoSubscribers =>
+      'Not emailed: no valid email recipients.';
+
+  @override
+  String get runNowEmailFailed => 'Email delivery failed.';
+
+  @override
+  String get runStatusDelivering => 'Delivering';
+
+  @override
+  String get runStatusDelivered => 'Delivered';
+
+  @override
+  String get runStatusPartial => 'Partly delivered';
+
+  @override
+  String get runStatusFailed => 'Failed';
+
+  @override
+  String get runStatusNotSent => 'Not sent';
+
+  @override
+  String get runStatusUnknown => 'Unknown';
+
+  @override
+  String get runTitleScheduled => 'Scheduled run';
+
+  @override
+  String get runTitleManual => 'Run now';
+
+  @override
+  String runGeneratedAt(String stamp) {
+    return 'Generated $stamp';
+  }
+
+  @override
+  String runDueAndGenerated(String due, String generated) {
+    return 'Due $due · $generated';
+  }
+
+  @override
+  String runRowCount(String rowsText, int rows) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rows,
+      locale: localeName,
+      other: 'rows',
+      one: 'row',
+    );
+    return '$rowsText $_temp0';
+  }
+
+  @override
+  String runHistoryFooterMore(String shown) {
+    return 'Showing the $shown most recent. There are more.';
+  }
+
+  @override
+  String runHistoryFooterOf(String shown, String total) {
+    return 'Showing the $shown most recent of $total.';
+  }
+
+  @override
+  String runCountDelivered(int count) {
+    return '$count delivered';
+  }
+
+  @override
+  String runCountPending(int count) {
+    return '$count pending';
+  }
+
+  @override
+  String runCountFailed(int count) {
+    return '$count failed';
+  }
+
+  @override
+  String runCountSent(int count) {
+    return '$count sent';
+  }
+
+  @override
+  String get runCountsQueued => 'queued';
+
+  @override
+  String runWebhooksLine(String counts) {
+    return 'Webhooks: $counts';
+  }
+
+  @override
+  String get runWebhooksNoneSubscribed => 'Webhooks: none subscribed';
+
+  @override
+  String get runWebhooksFailedLine => 'Webhooks: failed';
+
+  @override
+  String runEmailLine(String counts) {
+    return 'Email: $counts';
+  }
+
+  @override
+  String runEmailNotSetUpLine(int count) {
+    return 'Email: not set up ($count not emailed)';
+  }
+
+  @override
+  String get runEmailNoRecipientsLine => 'Email: no valid recipients';
+
+  @override
+  String get runEmailFailedLine => 'Email: failed';
+
+  @override
+  String get runNoDeliveryRecorded => 'No delivery recorded';
+
+  @override
+  String get deliveryWordQueued => 'Queued';
+
+  @override
+  String get deliveryWordDelivered => 'Delivered';
+
+  @override
+  String get deliveryWordSent => 'Sent';
+
+  @override
+  String get deliveryWordRetrying => 'Retrying';
+
+  @override
+  String get deliveryWordGaveUp => 'Gave up';
+
+  @override
+  String get deliveryWordEmailFailed => 'Failed';
+
+  @override
+  String deliveryAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attempts',
+      one: '1 attempt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String deliveryHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get deliveryNotSentYet => 'Not sent yet';
+
+  @override
+  String get deliveryNoResponse => 'No response';
+
+  @override
+  String get runNoCsvLinkNote =>
+      'No download link. Links need signed links set up on the server, and stop working 7 days after the run.';
+
+  @override
+  String get runHistoryTitle => 'Run history';
+
+  @override
+  String get runHistoryBack => 'Back to Report schedules';
+
+  @override
+  String get runHistorySkeleton => 'report runs';
+
+  @override
+  String get runHistoryRefresh => 'Refresh';
+
+  @override
+  String get runHistorySection => 'Runs';
+
+  @override
+  String get runHistoryEmptyHeadline => 'No runs yet.';
+
+  @override
+  String get runHistoryEmptyBody =>
+      'A run appears each time the schedule fires or you use Run now.';
+
+  @override
+  String get runHistoryLoadMore => 'Load more';
+
+  @override
+  String get runShowDetails => 'Show run details';
+
+  @override
+  String get runHideDetails => 'Hide run details';
+
+  @override
+  String get runDownloadCsv => 'Download CSV';
+
+  @override
+  String runRowSubtitle(String rows, String delivery) {
+    return '$rows · $delivery';
+  }
+
+  @override
+  String get runDetailSectionWebhooks => 'Webhooks';
+
+  @override
+  String get runDetailSectionEmail => 'Email';
+
+  @override
+  String get runDetailSectionFile => 'The file';
+
+  @override
+  String get runSignedLink => 'Signed download link.';
+
+  @override
+  String runSignedLinkUntil(String stamp) {
+    return 'Signed download link, works until $stamp.';
+  }
+
+  @override
+  String get runWebhookNoSubscriber =>
+      'Not sent: no webhook is subscribed to report.generated.';
+
+  @override
+  String get runWebhookDeliveryFailed => 'Webhook delivery failed.';
+
+  @override
+  String runWebhookDeliveryFailedWhy(String detail) {
+    return 'Webhook delivery failed: $detail';
+  }
+
+  @override
+  String get runWebhookTargetsDeleted =>
+      'The webhooks this run was sent to have since been deleted.';
+
+  @override
+  String get runWebhookNoneRecorded => 'No webhook delivery was recorded.';
+
+  @override
+  String runEmailNotConfiguredDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recipients',
+      one: '1 recipient',
+    );
+    return 'Not emailed to $_temp0: email is not set up on the server.';
+  }
+
+  @override
+  String get runEmailNoRecipientsDetail =>
+      'Not emailed: no valid email recipients.';
+
+  @override
+  String get runEmailDeliveryFailed => 'Email delivery failed.';
+
+  @override
+  String runEmailDeliveryFailedWhy(String detail) {
+    return 'Email delivery failed: $detail';
+  }
+
+  @override
+  String get runEmailNoneRecorded => 'No email delivery was recorded.';
+
+  @override
+  String get runEmailSkeleton => 'email deliveries';
+
+  @override
+  String get runEmailNoneQueued => 'No emails were queued for this run.';
+
+  @override
+  String get csvLinkSheetSubtitle =>
+      'Open this link in a browser to download the report. Anyone with the link can download it.';
+
+  @override
+  String csvLinkSheetSubtitleUntil(String stamp) {
+    return 'Open this link in a browser to download the report. Anyone with the link can download it until $stamp.';
+  }
+
+  @override
+  String get csvLinkCopy => 'Copy the link';
+
+  @override
+  String get scheduleFormTitleNew => 'New schedule';
+
+  @override
+  String get scheduleFormTitleEdit => 'Edit schedule';
+
+  @override
+  String get scheduleFormFact => 'It runs server-side and delivers the result.';
+
+  @override
+  String get scheduleFormBack => 'Back to Report schedules';
+
+  @override
+  String get scheduleFormCommitNew => 'Create this schedule';
+
+  @override
+  String get scheduleFormCommitEdit => 'Save these changes';
+
+  @override
+  String get scheduleFormSaving => 'Saving…';
+
+  @override
+  String get scheduleFormBlockedLoading => 'Loading the saved reports.';
+
+  @override
+  String get scheduleFormBlockedReportsFailed =>
+      'The saved reports could not be loaded, so there is nothing to schedule yet.';
+
+  @override
+  String get scheduleFormBlockedNoReports =>
+      'There are no saved reports yet. Build one on Reports first.';
+
+  @override
+  String get scheduleFormBlockedNoReport =>
+      'Pick the report this schedule runs.';
+
+  @override
+  String get scheduleFormBlockedNoCadence => 'Pick how often it runs.';
+
+  @override
+  String get scheduleFormSectionReport => 'Report';
+
+  @override
+  String get scheduleFormSectionSchedule => 'Schedule';
+
+  @override
+  String get scheduleFormReportLocked => 'Locked';
+
+  @override
+  String get scheduleFormReportLockedNote =>
+      'The report on a schedule cannot be changed. To schedule a different report, create a new schedule.';
+
+  @override
+  String scheduleFormReportLockedSemantics(String name, String note) {
+    return '$name. Locked. $note';
+  }
+
+  @override
+  String get scheduleFormReportsSkeleton => 'saved reports';
+
+  @override
+  String get scheduleFormNoReportsHeadline => 'No saved reports yet.';
+
+  @override
+  String get scheduleFormNoReportsBody =>
+      'Build one on the Reports screen, then schedule it.';
+
+  @override
+  String get scheduleFormReportNotPicked => 'Not picked yet';
+
+  @override
+  String scheduleFormReportSemantics(String report) {
+    return 'Report. $report. Choose the report this schedule runs.';
+  }
+
+  @override
+  String get scheduleFormCadence => 'How often';
+
+  @override
+  String get scheduleFormCadenceDailyConsequence => 'Every day, 06:00 UTC.';
+
+  @override
+  String get scheduleFormCadenceWeeklyConsequence => 'Every Monday, 06:00 UTC.';
+
+  @override
+  String get scheduleFormCadenceHelp =>
+      'Runs automatically on this cadence (UTC), is sent to webhooks subscribed to report.generated, and is emailed to the recipients when email is set up on the server.';
+
+  @override
+  String get scheduleFormRecipients => 'Recipients';
+
+  @override
+  String get scheduleFormRecipientsHelp =>
+      'Email addresses, one per line or separated by commas.';
+
+  @override
+  String get scheduleFormRecipientsEmpty => 'Add at least one recipient';
+
+  @override
+  String scheduleFormRecipientsInvalid(String entry) {
+    return 'Not an email address: $entry';
+  }
+
+  @override
+  String scheduleFormRecipientsTooMany(int max) {
+    return 'At most $max recipients';
+  }
+
+  @override
+  String get scheduleFormFailedNew => 'The schedule was not created.';
+
+  @override
+  String get scheduleFormFailedEdit => 'The changes were not saved.';
+
+  @override
+  String scheduleFormFailedBody(String headline, String reason) {
+    return '$headline $reason';
+  }
+
+  @override
+  String get scheduleReportSheetSubtitle =>
+      'The schedule runs this definition on its cadence.';
+
+  @override
+  String get relativeJustNow => 'just now';
+
+  @override
+  String get relativeUnderAMinute => 'in under a minute';
+
+  @override
+  String relativeMinutesAgo(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String relativeHoursAgo(int hours) {
+    return '${hours}h ago';
+  }
+
+  @override
+  String relativeDaysAgo(int days) {
+    return '${days}d ago';
+  }
+
+  @override
+  String relativeInMinutes(int minutes) {
+    return 'in ${minutes}m';
+  }
+
+  @override
+  String relativeInHours(int hours) {
+    return 'in ${hours}h';
+  }
+
+  @override
+  String relativeInDays(int days) {
+    return 'in ${days}d';
+  }
+
+  @override
+  String get webhookHealthHealthy => 'Healthy';
+
+  @override
+  String get webhookHealthFailing => 'Failing';
+
+  @override
+  String get webhookHealthUnhealthy => 'Unhealthy';
+
+  @override
+  String get webhookDeliveryQueued => 'Queued';
+
+  @override
+  String get webhookDeliveryDelivered => 'Delivered';
+
+  @override
+  String get webhookDeliveryRetrying => 'Retrying';
+
+  @override
+  String get webhookDeliveryGaveUp => 'Gave up';
+
+  @override
+  String get webhooksTitle => 'Webhooks';
+
+  @override
+  String get webhooksFactPost =>
+      'Each endpoint receives a POST when its event fires.';
+
+  @override
+  String get webhooksFactRetries =>
+      'Failed deliveries retry for about eight hours.';
+
+  @override
+  String get webhooksRefresh => 'Refresh the endpoints';
+
+  @override
+  String get webhooksSkeleton => 'webhooks';
+
+  @override
+  String get webhooksSection => 'Endpoints';
+
+  @override
+  String webhooksUnhealthyNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count endpoints are not receiving. A delivery to them has given up after every retry.',
+      one:
+          '1 endpoint is not receiving. A delivery to it has given up after every retry.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhooksEmptyHeadline => 'No endpoints registered.';
+
+  @override
+  String get webhooksEmptyBody =>
+      'Add one to forward events to an external system.';
+
+  @override
+  String get webhookAdd => 'Add an endpoint';
+
+  @override
+  String get webhookNoDeliveriesYet => 'No deliveries yet';
+
+  @override
+  String webhookLastDelivery(String when) {
+    return 'Last delivery $when';
+  }
+
+  @override
+  String get webhookSigned => 'Signed — deliveries carry an HMAC signature.';
+
+  @override
+  String get webhookNotSigned => 'Not signed — deliveries carry no signature.';
+
+  @override
+  String get webhookSignedShort => 'Signed';
+
+  @override
+  String get webhookNotSignedShort => 'Not signed';
+
+  @override
+  String get webhookReceivingEvents => 'Receiving events';
+
+  @override
+  String get webhookOn => 'On';
+
+  @override
+  String get webhookOff => 'Off';
+
+  @override
+  String get webhookWaitingForServer => 'Waiting for the server.';
+
+  @override
+  String get webhookReceiving => 'Receiving';
+
+  @override
+  String get webhookPaused => 'Paused';
+
+  @override
+  String get webhookShowDeliveries => 'Show deliveries';
+
+  @override
+  String get webhookHideDeliveries => 'Hide deliveries';
+
+  @override
+  String get webhookDelete => 'Delete';
+
+  @override
+  String webhookResumeFailed(String reason) {
+    return 'That endpoint was not resumed. $reason';
+  }
+
+  @override
+  String webhookPauseFailed(String reason) {
+    return 'That endpoint was not paused. $reason';
+  }
+
+  @override
+  String get webhookDeleteAction => 'Delete this endpoint?';
+
+  @override
+  String get webhookDeleteConsequenceStops =>
+      'It stops receiving events immediately.';
+
+  @override
+  String get webhookDeleteConsequenceHistory =>
+      'Its delivery history is removed with it.';
+
+  @override
+  String get webhookDeleteConsequenceDelivered =>
+      'Nothing already delivered is withdrawn.';
+
+  @override
+  String get webhookDeleteCommit => 'Delete this endpoint';
+
+  @override
+  String get webhookDeleteCancel => 'Keep it';
+
+  @override
+  String webhookDeleteFailed(String reason) {
+    return 'That endpoint was not deleted. $reason';
+  }
+
+  @override
+  String get webhookDeliveriesSection => 'Recent deliveries';
+
+  @override
+  String get webhookDeliveriesSkeleton => 'deliveries';
+
+  @override
+  String get webhookDeliveriesEmptyHeadline => 'No deliveries yet.';
+
+  @override
+  String get webhookDeliveriesEmptyBody =>
+      'One appears each time the event fires.';
+
+  @override
+  String webhookDeliveredWhen(String when) {
+    return 'Delivered $when';
+  }
+
+  @override
+  String webhookNextRetryWhen(String when) {
+    return 'Next retry $when';
+  }
+
+  @override
+  String get webhookNoMoreRetries => 'No more retries';
+
+  @override
+  String webhookCreatedWhen(String when) {
+    return 'Created $when';
+  }
+
+  @override
+  String webhookHttpStatus(int code) {
+    return 'HTTP $code';
+  }
+
+  @override
+  String get webhookNotSentYet => 'Not sent yet';
+
+  @override
+  String get webhookNoResponse => 'No response';
+
+  @override
+  String webhookAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attempts',
+      one: '1 attempt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get webhookRedeliver => 'Redeliver';
+
+  @override
+  String get webhookQueueing => 'Queueing…';
+
+  @override
+  String get webhookRedeliveryQueued => 'Redelivery queued.';
+
+  @override
+  String webhookRedeliverFailed(String reason) {
+    return 'That delivery was not re-queued. $reason';
+  }
+
+  @override
+  String get webhookCreateSubtitle =>
+      'It receives a POST every time its event fires.';
+
+  @override
+  String get webhookCreateAddress => 'Address';
+
+  @override
+  String get webhookCreateAddressHelp =>
+      'A public http or https address the server can reach.';
+
+  @override
+  String get webhookCreateNotAUrl => 'That is not a web address.';
+
+  @override
+  String get webhookCreateWrongScheme =>
+      'The address has to start with http:// or https://.';
+
+  @override
+  String get webhookCreateBlockedUrl => 'Give the endpoint a web address.';
+
+  @override
+  String get webhookCreateBlockedEvent => 'Pick the event it listens for.';
+
+  @override
+  String get webhookCreateEvent => 'Event';
+
+  @override
+  String get webhookCreateSecret => 'Signing secret (optional)';
+
+  @override
+  String get webhookCreateSecretHelp =>
+      'Deliveries are signed with it. It is stored on the server and never shown again — keep your own copy.';
+
+  @override
+  String get webhookCreateFailed => 'The endpoint was not added.';
+
+  @override
+  String get webhookCreateCommit => 'Add this endpoint';
+
+  @override
+  String get webhookCreateAdding => 'Adding…';
+
+  @override
+  String get webhookCreateCancel => 'Cancel';
+
+  @override
+  String get messagesTitle => 'Messages';
+
+  @override
+  String get messagesFact => 'Everything the team can see.';
+
+  @override
+  String get messagesRefresh => 'Refresh the team channel';
+
+  @override
+  String get messagesWhichFeed => 'Which feed';
+
+  @override
+  String get messagesFeedAnnouncements => 'Announcements';
+
+  @override
+  String get messagesSkeleton => 'messages';
+
+  @override
+  String get announcementsSkeleton => 'announcements';
+
+  @override
+  String get messagesEmptyHeadline => 'No messages yet.';
+
+  @override
+  String get messagesEmptyBody =>
+      'Anything you send below reaches the whole team.';
+
+  @override
+  String get announcementsEmptyHeadline => 'No announcements yet.';
+
+  @override
+  String get announcementsEmptyBodyCanPost =>
+      'Post one and every user on this client sees it.';
+
+  @override
+  String get announcementsEmptyBodyReadOnly =>
+      'Your managers post here when something affects everyone.';
+
+  @override
+  String get announcementNew => 'New announcement';
+
+  @override
+  String get announcementPosted => 'Posted to everyone on this client.';
+
+  @override
+  String announcementPostFailed(String reason) {
+    return 'That announcement was not posted. $reason';
+  }
+
+  @override
+  String get messagePhotoOne => 'Photo';
+
+  @override
+  String messagePhotoMany(int count) {
+    return '$count photos';
+  }
+
+  @override
+  String get messageDirect => 'Direct';
+
+  @override
+  String get messageBroadcast => 'Broadcast';
+
+  @override
+  String messageFrom(String name) {
+    return 'From $name';
+  }
+
+  @override
+  String messageTo(String name) {
+    return 'To $name';
+  }
+
+  @override
+  String get messageToTeam => 'To the whole team';
+
+  @override
+  String get messageDirectUnknownRecipient => 'Direct message';
+
+  @override
+  String messageSenderNotOnRoster(String id) {
+    return 'Sender not on the roster: $id';
+  }
+
+  @override
+  String messageRecipientNotOnRoster(String id) {
+    return 'Recipient not on the roster: $id';
+  }
+
+  @override
+  String messagePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String messagePhotoOfCount(int index, int count) {
+    return 'Photo $index of $count';
+  }
+
+  @override
+  String get messageLongPressForId => 'Long press to copy the message id';
+
+  @override
+  String get messageIdCopied => 'Message id copied.';
+
+  @override
+  String get announcementSubtitle => 'Broadcast to the whole client';
+
+  @override
+  String announcementSemantics(String title, String body) {
+    return '$title. $body. Broadcast to the whole client.';
+  }
+
+  @override
+  String get attachSheetTitle => 'Add a photo';
+
+  @override
+  String get attachSheetSubtitle =>
+      'It is uploaded when the message is sent, not before.';
+
+  @override
+  String get attachCamera => 'Take a photo';
+
+  @override
+  String get attachGallery => 'Choose from the library';
+
+  @override
+  String get announcementSheetSubtitle => 'Every user on this client sees it.';
+
+  @override
+  String get announcementSheetHeadline => 'Headline';
+
+  @override
+  String get announcementSheetBody => 'What it says';
+
+  @override
+  String get announcementSheetBlockedTitle =>
+      'Give the announcement a headline.';
+
+  @override
+  String get announcementSheetBlockedBody => 'Say what it is about.';
+
+  @override
+  String get announcementSheetCommit => 'Post this announcement';
+
+  @override
+  String get announcementSheetCancel => 'Cancel';
+
+  @override
+  String get composerLabel => 'Message the team';
+
+  @override
+  String get composerNotSent => 'Not sent.';
+
+  @override
+  String get composerSend => 'Send';
+
+  @override
+  String get composerSending => 'Sending…';
+
+  @override
+  String get composerBlockedEmpty => 'Write something, or add a photo.';
+
+  @override
+  String get composerAddPhoto => 'Add a photo to this message';
+
+  @override
+  String composerPhotoCap(int max) {
+    return 'Up to $max photos per message';
+  }
+
+  @override
+  String composerPhotoCapLine(int max) {
+    return 'Up to $max photos.';
+  }
+
+  @override
+  String composerPhotosAttached(int count, int max) {
+    return '$count of $max photos attached.';
+  }
+
+  @override
+  String get composerPhotoFailed =>
+      'Could not add a photo. Check camera and photo permissions.';
+
+  @override
+  String composerUploadFailed(String reason) {
+    return 'A photo failed to upload, so nothing was sent. $reason Your draft is kept.';
+  }
+
+  @override
+  String composerSendFailed(String reason) {
+    return 'Message not sent. $reason Your draft is kept.';
+  }
+
+  @override
+  String pendingPhotoReady(int index) {
+    return 'Photo $index ready to send';
+  }
+
+  @override
+  String pendingPhotoRemove(int index) {
+    return 'Take photo $index out of this message';
+  }
+
+  @override
+  String get attachmentSheetTitle => 'Photo';
+
+  @override
+  String get attachmentSheetSkeleton => 'the photo';
+
+  @override
+  String get attachmentSheetClose => 'Close';
+
+  @override
+  String get attachmentUndecodableHeadline =>
+      'This photo could not be displayed.';
+
+  @override
+  String get attachmentUndecodableBody =>
+      'The file arrived, but it is not an image this device can decode.';
+
+  @override
+  String get figureSmallSample => 'small sample';
+
+  @override
+  String get figureNotScored => 'not scored';
+
+  @override
+  String get figureProvisional => 'Provisional';
+
+  @override
+  String get pickerSelected => 'Selected';
+
+  @override
+  String outletDisputePhotoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count storefront photographs attached',
+      one: '1 storefront photograph attached',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ordersStoreListLoading => 'Store list still loading';
+
+  @override
+  String get ordersStoreListUnavailable => 'Store list did not load';
+
+  @override
+  String get beatPlanStopUnknownStore => 'Store not on this list';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Store list still loading';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Store list did not load';
+
+  @override
+  String get salesLevelZeroTarget =>
+      'Every target at this level is 0 units, so there is nothing to attain.';
+
+  @override
+  String get salesLevelAttainmentUnknown =>
+      'The share of target was not worked out for this level.';
+
+  @override
+  String get salesZeroTarget => 'Target of 0 units';
 
   @override
   String get trailTitle => 'Agent trail';

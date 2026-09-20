@@ -6,6 +6,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_schedule_form_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -69,21 +70,23 @@ void main() {
 
   group('recipientsError', () {
     test('accepts 1 to 50 email addresses', () {
-      expect(recipientsError('a@x.test'), isNull);
+      expect(recipientsError('a@x.test', englishLocalizations), isNull);
       expect(
         recipientsError(
           List<String>.generate(50, (i) => 'a$i@x.test').join('\n'),
+          englishLocalizations,
         ),
         isNull,
       );
     });
 
     test('says what is wrong otherwise', () {
-      expect(recipientsError(''), 'Add at least one recipient');
-      expect(recipientsError('not-an-email'), contains('Not an email address'));
+      expect(recipientsError('', englishLocalizations), 'Add at least one recipient');
+      expect(recipientsError('not-an-email', englishLocalizations), contains('Not an email address'));
       expect(
         recipientsError(
           List<String>.generate(51, (i) => 'a$i@x.test').join('\n'),
+          englishLocalizations,
         ),
         'At most 50 recipients',
       );
@@ -195,7 +198,7 @@ void main() {
         find.byKey(const ValueKey<String>('schedule-report-readonly')),
         findsOneWidget,
       );
-      expect(find.text(scheduleReportLockedNote), findsOneWidget);
+      expect(find.text(englishLocalizations.scheduleFormReportLockedNote), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('schedule-report-field')),
         findsNothing,

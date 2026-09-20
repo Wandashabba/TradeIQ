@@ -14,24 +14,30 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/webhooks_repository.dart';
 
 /// "just now", "5m ago", "3h ago", "2d ago" — or "in 5m" for a future time.
-String relativeTime(DateTime at, {DateTime? now}) {
+String relativeTime(DateTime at, AppLocalizations l10n, {DateTime? now}) {
   final diff = at.difference(now ?? DateTime.now());
   final future = diff.inSeconds > 0;
   final span = diff.abs();
-  final String amount;
   if (span.inMinutes < 1) {
-    return future ? 'in under a minute' : 'just now';
-  } else if (span.inHours < 1) {
-    amount = '${span.inMinutes}m';
-  } else if (span.inDays < 1) {
-    amount = '${span.inHours}h';
-  } else {
-    amount = '${span.inDays}d';
+    return future ? l10n.relativeUnderAMinute : l10n.relativeJustNow;
   }
-  return future ? 'in $amount' : '$amount ago';
+  if (span.inHours < 1) {
+    return future
+        ? l10n.relativeInMinutes(span.inMinutes)
+        : l10n.relativeMinutesAgo(span.inMinutes);
+  }
+  if (span.inDays < 1) {
+    return future
+        ? l10n.relativeInHours(span.inHours)
+        : l10n.relativeHoursAgo(span.inHours);
+  }
+  return future
+      ? l10n.relativeInDays(span.inDays)
+      : l10n.relativeDaysAgo(span.inDays);
 }
 
 extension WebhookHealthStyle on WebhookHealth {
@@ -41,10 +47,10 @@ extension WebhookHealthStyle on WebhookHealth {
     WebhookHealth.unhealthy => StatusLevel.critical,
   };
 
-  String get word => switch (this) {
-    WebhookHealth.healthy => 'Healthy',
-    WebhookHealth.failing => 'Failing',
-    WebhookHealth.unhealthy => 'Unhealthy',
+  String wordIn(AppLocalizations l10n) => switch (this) {
+    WebhookHealth.healthy => l10n.webhookHealthHealthy,
+    WebhookHealth.failing => l10n.webhookHealthFailing,
+    WebhookHealth.unhealthy => l10n.webhookHealthUnhealthy,
   };
 }
 
@@ -56,11 +62,11 @@ extension DeliveryStatusStyle on DeliveryStatus {
     DeliveryStatus.gaveUp => StatusLevel.critical,
   };
 
-  String get word => switch (this) {
-    DeliveryStatus.pending => 'Queued',
-    DeliveryStatus.succeeded => 'Delivered',
-    DeliveryStatus.failedRetrying => 'Retrying',
-    DeliveryStatus.gaveUp => 'Gave up',
+  String wordIn(AppLocalizations l10n) => switch (this) {
+    DeliveryStatus.pending => l10n.webhookDeliveryQueued,
+    DeliveryStatus.succeeded => l10n.webhookDeliveryDelivered,
+    DeliveryStatus.failedRetrying => l10n.webhookDeliveryRetrying,
+    DeliveryStatus.gaveUp => l10n.webhookDeliveryGaveUp,
   };
 }
 
@@ -96,6 +102,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final webhooks = ref.watch(webhooksListProvider);
 
     return webhooks.when(
@@ -103,7 +110,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'webhooks',
+            label: l10n.webhooksSkeleton,
             child: const SkeletonRows(count: 3, rowHeight: 80),
           ),
         ],
@@ -112,12 +119,12 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
         phase: 'error',
         children: <Widget>[
           TorchErrorRegion(
-            name: 'webhooks',
+            name: l10n.webhooksSkeleton,
             child: ErrorState(
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('webhooks-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: _refresh,
               ),
             ),
@@ -129,19 +136,17 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
   }
 
   Widget _frame({required String phase, required List<Widget> children}) {
+    final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Webhooks',
-        facts: const <String>[
-          'Each endpoint receives a POST when its event fires.',
-          'Failed deliveries retry for about eight hours.',
-        ],
+        title: l10n.webhooksTitle,
+        facts: <String>[l10n.webhooksFactPost, l10n.webhooksFactRetries],
         trailing: TorchIconButton(
           key: const ValueKey<String>('webhooks-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the endpoints',
+          semanticLabel: l10n.webhooksRefresh,
           onPressed: _refresh,
         ),
       ),
@@ -158,6 +163,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
   }
 
   Widget _loaded(List<Webhook> webhooks) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
     final unhealthy = webhooks
         .where((w) => w.health == WebhookHealth.unhealthy)
@@ -167,7 +173,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
       phase: webhooks.isEmpty ? 'empty' : 'loaded',
       children: <Widget>[
         SectionRule(
-          'Endpoints',
+          l10n.webhooksSection,
           count: webhooks.isEmpty ? null : webhooks.length,
         ),
         const SizedBox(height: TiqSpace.s5),
@@ -181,10 +187,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
               const SizedBox(width: TiqSpace.s3),
               Expanded(
                 child: Text(
-                  '$unhealthy ${unhealthy == 1 ? 'endpoint is' : 'endpoints are'} '
-                  'not receiving. A delivery to '
-                  '${unhealthy == 1 ? 'it' : 'them'} has given up after every '
-                  'retry.',
+                  l10n.webhooksUnhealthyNote(unhealthy),
                   style: context.skin.text.body.style(
                     color: context.skin.palette.ink2,
                   ),
@@ -198,11 +201,11 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
         if (webhooks.isEmpty)
           EmptyState(
             scope: EmptyScope.inPanel,
-            headline: 'No endpoints registered.',
-            body: 'Add one to forward events to an external system.',
+            headline: l10n.webhooksEmptyHeadline,
+            body: l10n.webhooksEmptyBody,
             action: TorchSecondaryButton(
               key: const ValueKey<String>('webhook-create-empty'),
-              label: 'Add an endpoint',
+              label: l10n.webhookAdd,
               onPressed: _create,
             ),
           )
@@ -227,7 +230,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
             alignment: AlignmentDirectional.centerStart,
             child: TorchSecondaryButton(
               key: const ValueKey<String>('webhook-create'),
-              label: 'Add an endpoint',
+              label: l10n.webhookAdd,
               onPressed: _create,
             ),
           ),
@@ -261,6 +264,7 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
   bool get _active => _optimisticActive ?? widget.webhook.active;
 
   Future<void> _setActive(bool value) async {
+    final l10n = context.l10n;
     setState(() {
       _optimisticActive = value;
       _busy = true;
@@ -281,9 +285,9 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
       });
       showTorchToast(
         context,
-        message:
-            'That endpoint was not ${value ? 'resumed' : 'paused'}. '
-            '${TorchErrorMessage.sanitise(error).body}',
+        message: value
+            ? l10n.webhookResumeFailed(TorchErrorMessage.sanitise(error).body)
+            : l10n.webhookPauseFailed(TorchErrorMessage.sanitise(error).body),
         kind: ToastKind.failure,
       );
     }
@@ -291,18 +295,19 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
 
   Future<void> _delete() async {
     if (_busy) return;
+    final l10n = context.l10n;
     final confirmed = await showTorchSheet<bool>(
       context,
       builder: (_) => ConfirmSheet(
         key: const ValueKey<String>('webhook-delete-sheet'),
-        action: 'Delete this endpoint?',
-        consequences: const <String>[
-          'It stops receiving events immediately.',
-          'Its delivery history is removed with it.',
-          'Nothing already delivered is withdrawn.',
+        action: l10n.webhookDeleteAction,
+        consequences: <String>[
+          l10n.webhookDeleteConsequenceStops,
+          l10n.webhookDeleteConsequenceHistory,
+          l10n.webhookDeleteConsequenceDelivered,
         ],
-        commitLabel: 'Delete this endpoint',
-        cancelLabel: 'Keep it',
+        commitLabel: l10n.webhookDeleteCommit,
+        cancelLabel: l10n.webhookDeleteCancel,
         record: widget.webhook.url,
       ),
     );
@@ -319,9 +324,9 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
       setState(() => _busy = false);
       showTorchToast(
         context,
-        message:
-            'That endpoint was not deleted. '
-            '${TorchErrorMessage.sanitise(error).body}',
+        message: l10n.webhookDeleteFailed(
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
     }
@@ -330,6 +335,7 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final webhook = widget.webhook;
     final lastDelivery = webhook.lastDeliveryAt;
     final unhealthy = webhook.health == WebhookHealth.unhealthy;
@@ -342,22 +348,22 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
           density: SoftRowDensity.tall,
           title: webhook.event,
           subtitle: lastDelivery == null
-              ? 'No deliveries yet'
-              : 'Last delivery ${relativeTime(lastDelivery)}',
+              ? l10n.webhookNoDeliveriesYet
+              : l10n.webhookLastDelivery(relativeTime(lastDelivery, l10n)),
           severity: unhealthy
               ? SoftRowSeverity.critical
               : webhook.health == WebhookHealth.failing
               ? SoftRowSeverity.watch
               : SoftRowSeverity.none,
           severityLabel: unhealthy
-              ? 'Unhealthy'
+              ? l10n.webhookHealthUnhealthy
               : webhook.health == WebhookHealth.failing
-              ? 'Failing'
+              ? l10n.webhookHealthFailing
               : null,
           trailing: StatusChip(
             key: ValueKey<String>('health-${webhook.id}'),
             level: webhook.health.level,
-            label: webhook.health.word,
+            label: webhook.health.wordIn(l10n),
           ),
           meta: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,8 +378,8 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
               Text(
                 // The word, never the value. See the class comment.
                 webhook.hasSecret
-                    ? 'Signed — deliveries carry an HMAC signature.'
-                    : 'Not signed — deliveries carry no signature.',
+                    ? l10n.webhookSigned
+                    : l10n.webhookNotSigned,
                 key: ValueKey<String>('signing-${webhook.id}'),
                 style: skin.text.meta.style(color: skin.palette.ink3),
               ),
@@ -387,22 +393,26 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
                 width: double.infinity,
                 child: TorchToggle(
                   key: ValueKey<String>('toggle-${webhook.id}'),
-                  label: 'Receiving events',
+                  label: l10n.webhookReceivingEvents,
                   value: _active,
-                  onWord: 'On',
-                  offWord: 'Off',
+                  onWord: l10n.webhookOn,
+                  offWord: l10n.webhookOff,
                   onChanged: _busy ? null : _setActive,
-                  disabledReason: _busy ? 'Waiting for the server.' : null,
+                  disabledReason: _busy
+                      ? l10n.webhookWaitingForServer
+                      : null,
                 ),
               ),
               TorchTertiaryButton(
                 key: ValueKey<String>('deliveries-toggle-${webhook.id}'),
-                label: _expanded ? 'Hide deliveries' : 'Show deliveries',
+                label: _expanded
+                    ? l10n.webhookHideDeliveries
+                    : l10n.webhookShowDeliveries,
                 onPressed: () => setState(() => _expanded = !_expanded),
               ),
               TorchTertiaryButton(
                 key: ValueKey<String>('delete-${webhook.id}'),
-                label: 'Delete',
+                label: l10n.webhookDelete,
                 onPressed: _busy ? null : _delete,
               ),
             ],
@@ -413,9 +423,11 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
           semanticsLabel: <String>[
             webhook.event,
             webhook.url,
-            webhook.health.word,
-            _active ? 'Receiving' : 'Paused',
-            webhook.hasSecret ? 'Signed' : 'Not signed',
+            webhook.health.wordIn(l10n),
+            _active ? l10n.webhookReceiving : l10n.webhookPaused,
+            webhook.hasSecret
+                ? l10n.webhookSignedShort
+                : l10n.webhookNotSignedShort,
           ].join('. '),
         ),
         if (_expanded) _DeliveriesList(webhookId: webhook.id),
@@ -432,6 +444,7 @@ class _DeliveriesList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final deliveries = ref.watch(webhookDeliveriesProvider(webhookId));
     return Padding(
       key: ValueKey<String>('deliveries-$webhookId'),
@@ -445,27 +458,27 @@ class _DeliveriesList extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const SectionRule('Recent deliveries'),
+          SectionRule(l10n.webhookDeliveriesSection),
           const SizedBox(height: TiqSpace.s3),
           deliveries.when(
             loading: () => Skeleton(
-              label: 'deliveries',
+              label: l10n.webhookDeliveriesSkeleton,
               child: const SkeletonRows(count: 2, rowHeight: 64),
             ),
             error: (error, stack) => ErrorState(
               scope: ErrorScope.inline,
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: () =>
                     ref.invalidate(webhookDeliveriesProvider(webhookId)),
               ),
             ),
             data: (list) => list.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     scope: EmptyScope.inPanel,
-                    headline: 'No deliveries yet.',
-                    body: 'One appears each time the event fires.',
+                    headline: l10n.webhookDeliveriesEmptyHeadline,
+                    body: l10n.webhookDeliveriesEmptyBody,
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -506,20 +519,21 @@ class _DeliveryRow extends ConsumerStatefulWidget {
 class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
   bool _busy = false;
 
-  String get _when {
+  String _when(AppLocalizations l10n) {
     final d = widget.delivery;
     return switch (d.status) {
       DeliveryStatus.succeeded when d.deliveredAt != null =>
-        'Delivered ${relativeTime(d.deliveredAt!)}',
+        l10n.webhookDeliveredWhen(relativeTime(d.deliveredAt!, l10n)),
       DeliveryStatus.failedRetrying when d.nextAttemptAt != null =>
-        'Next retry ${relativeTime(d.nextAttemptAt!)}',
-      DeliveryStatus.gaveUp => 'No more retries',
-      _ => 'Created ${relativeTime(d.createdAt)}',
+        l10n.webhookNextRetryWhen(relativeTime(d.nextAttemptAt!, l10n)),
+      DeliveryStatus.gaveUp => l10n.webhookNoMoreRetries,
+      _ => l10n.webhookCreatedWhen(relativeTime(d.createdAt, l10n)),
     };
   }
 
   Future<void> _redeliver() async {
     if (_busy) return;
+    final l10n = context.l10n;
     setState(() => _busy = true);
     try {
       await ref
@@ -528,16 +542,16 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
       if (!mounted) return;
       showTorchToast(
         context,
-        message: 'Redelivery queued.',
+        message: l10n.webhookRedeliveryQueued,
         kind: ToastKind.success,
       );
     } catch (error) {
       if (!mounted) return;
       showTorchToast(
         context,
-        message:
-            'That delivery was not re-queued. '
-            '${TorchErrorMessage.sanitise(error).body}',
+        message: l10n.webhookRedeliverFailed(
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
     } finally {
@@ -552,14 +566,16 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final delivery = widget.delivery;
+    final when = _when(l10n);
     final facts = <String>[
       delivery.lastStatusCode != null
-          ? 'HTTP ${delivery.lastStatusCode}'
+          ? l10n.webhookHttpStatus(delivery.lastStatusCode!)
           : delivery.attempts == 0
-          ? 'Not sent yet'
-          : 'No response',
-      delivery.attempts == 1 ? '1 attempt' : '${delivery.attempts} attempts',
+          ? l10n.webhookNotSentYet
+          : l10n.webhookNoResponse,
+      l10n.webhookAttempts(delivery.attempts),
     ];
     // The backend records a non-2xx as "HTTP <code>", which the facts already
     // say; only a real diagnostic (a refused connection, a timeout) is shown.
@@ -573,10 +589,10 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
     return SoftRow(
       density: SoftRowDensity.tall,
       title: delivery.event,
-      subtitle: _when,
+      subtitle: when,
       trailing: StatusChip(
         level: delivery.status.level,
-        label: delivery.status.word,
+        label: delivery.status.wordIn(l10n),
       ),
       meta: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,16 +617,16 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
       actions: delivery.status.redeliverable
           ? TorchTertiaryButton(
               key: ValueKey<String>('redeliver-${delivery.id}'),
-              label: _busy ? 'Queueing…' : 'Redeliver',
+              label: _busy ? l10n.webhookQueueing : l10n.webhookRedeliver,
               onPressed: _busy ? null : _redeliver,
             )
           : null,
       separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         delivery.event,
-        delivery.status.word,
+        delivery.status.wordIn(l10n),
         ...facts,
-        _when,
+        when,
         ?diagnostic,
       ].join('. '),
     );
@@ -660,23 +676,25 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
   /// means the 400 is unreachable from the form rather than arriving as a
   /// sentence about "private and link-local addresses".
   String? get _urlError {
+    final l10n = context.l10n;
     final text = _url.text.trim();
     if (text.isEmpty) return null;
     final uri = Uri.tryParse(text);
     if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
-      return 'That is not a web address.';
+      return l10n.webhookCreateNotAUrl;
     }
     if (uri.scheme != 'http' && uri.scheme != 'https') {
-      return 'The address has to start with http:// or https://.';
+      return l10n.webhookCreateWrongScheme;
     }
     return null;
   }
 
   String? get _blocked {
-    if (_url.text.trim().isEmpty) return 'Give the endpoint a web address.';
+    final l10n = context.l10n;
+    if (_url.text.trim().isEmpty) return l10n.webhookCreateBlockedUrl;
     final url = _urlError;
     if (url != null) return url;
-    if (_event == null) return 'Pick the event it listens for.';
+    if (_event == null) return l10n.webhookCreateBlockedEvent;
     return null;
   }
 
@@ -709,14 +727,15 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final blocked = _blocked;
     final armed = blocked == null && !_saving;
     final failure = _failure;
 
     return TorchSheet(
       key: const ValueKey<String>('webhook-create-sheet'),
-      title: 'Add an endpoint',
-      subtitle: 'It receives a POST every time its event fires.',
+      title: l10n.webhookAdd,
+      subtitle: l10n.webhookCreateSubtitle,
       claims: <TorchClaim>[
         if (armed) TorchPrimaryButton.claim('create-webhook'),
       ],
@@ -726,19 +745,20 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
         children: <Widget>[
           TorchTextField(
             key: const ValueKey<String>('new-url'),
-            label: 'Address',
+            label: l10n.webhookCreateAddress,
             controller: _url,
             identifier: true,
+            // Not localised: an example URL is a shape, not prose.
             hint: 'https://example.com/hooks/tradeiq',
-            help: 'A public http or https address the server can reach.',
+            help: l10n.webhookCreateAddressHelp,
             error: _urlError,
           ),
           const SizedBox(height: TiqSpace.s5),
           ChoiceRow<String>(
             key: const ValueKey<String>('new-event'),
-            label: 'Event',
+            label: l10n.webhookCreateEvent,
             value: _event,
-            notAnsweredLine: 'Pick the event it listens for.',
+            notAnsweredLine: l10n.webhookCreateBlockedEvent,
             options: <ChoiceOption<String>>[
               for (final event in webhookEvents)
                 ChoiceOption<String>(value: event, label: event),
@@ -748,12 +768,10 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
           const SizedBox(height: TiqSpace.s5),
           TorchTextField(
             key: const ValueKey<String>('new-secret'),
-            label: 'Signing secret (optional)',
+            label: l10n.webhookCreateSecret,
             controller: _secret,
             obscureText: true,
-            help:
-                'Deliveries are signed with it. It is stored on the server and '
-                'never shown again — keep your own copy.',
+            help: l10n.webhookCreateSecretHelp,
           ),
           if (failure != null) ...<Widget>[
             SizedBox(height: skin.space.intraBlock),
@@ -762,7 +780,7 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
               scope: ErrorScope.inline,
               message: TorchErrorMessage(
                 kind: TorchErrorKind.rejected,
-                headline: 'The endpoint was not added.',
+                headline: l10n.webhookCreateFailed,
                 body: failure,
                 offersRetry: false,
               ),
@@ -771,16 +789,16 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
           SizedBox(height: skin.space.blockGap),
           TorchPrimaryButton(
             key: const ValueKey<String>('create-webhook'),
-            label: 'Add this endpoint',
+            label: l10n.webhookCreateCommit,
             claimId: 'create-webhook',
             busy: _saving,
-            blockedReason: blocked ?? (_saving ? 'Adding…' : null),
+            blockedReason: blocked ?? (_saving ? l10n.webhookCreateAdding : null),
             onPressed: armed ? _create : null,
           ),
           const SizedBox(height: TiqSpace.s2),
           TorchSecondaryButton(
             key: const ValueKey<String>('cancel-webhook'),
-            label: 'Cancel',
+            label: l10n.webhookCreateCancel,
             onPressed: _saving ? null : () => Navigator.of(context).pop(false),
           ),
         ],

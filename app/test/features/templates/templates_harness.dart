@@ -60,6 +60,34 @@ const sampleSchema = <String, dynamic>{
   ],
 };
 
+/// One section, one scorable question and one **weighted photo** question.
+///
+/// A weighted photo field is legal JSON — `scoring` is a flat id→weight map
+/// with no type filter — and the preview can never earn it, because capture
+/// lands with the audit-flow integration. So the reachable maximum here is 10,
+/// not 16.
+const photoWeightedSchema = <String, dynamic>{
+  'sections': <dynamic>[
+    <String, dynamic>{
+      'id': 'availability',
+      'title': 'Availability',
+      'fields': <dynamic>[
+        <String, dynamic>{
+          'id': 'onShelf',
+          'label': 'On shelf?',
+          'type': 'boolean',
+        },
+        <String, dynamic>{
+          'id': 'shelfPhoto',
+          'label': 'Shelf photo',
+          'type': 'photo',
+        },
+      ],
+    },
+  ],
+  'scoring': <String, dynamic>{'onShelf': 10, 'shelfPhoto': 6},
+};
+
 class FakeTemplatesRepository implements TemplatesRepository {
   FakeTemplatesRepository({
     this.templates = templateFixtures,

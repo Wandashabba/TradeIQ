@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -9,11 +10,18 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_schedules_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
+// `worklist_harness` re-exports the unpressable-button law; a second
+// import of `a11y_guard` is the same law twice.
 import '../worklist_harness.dart';
 import 'reports_harness.dart';
 import 'schedules_fakes.dart';
+
+/// The English grouping formatter, as the screen hands it to the pure
+/// functions under test.
+String en(num value) => TiqNumber.en.format(value);
 
 void main() {
   Future<void> pump(
@@ -39,8 +47,8 @@ void main() {
 
   group('the words', () {
     test('nextRunLabel covers active, paused and unscheduled', () {
-      expect(nextRunLabel(activeSchedule), 'Next run 2026-09-21 09:00');
-      expect(nextRunLabel(pausedSchedule), 'Paused, no next run');
+      expect(nextRunLabel(activeSchedule, englishLocalizations), 'Next run 2026-09-21 09:00');
+      expect(nextRunLabel(pausedSchedule, englishLocalizations), 'Paused, no next run');
       expect(
         nextRunLabel(
           const ReportSchedule(
@@ -50,26 +58,30 @@ void main() {
             recipients: <String>[],
             active: true,
           ),
+          englishLocalizations,
         ),
         'Next run not scheduled',
       );
-      expect(lastRunLabel(null), 'Never run');
+      expect(lastRunLabel(null, englishLocalizations), 'Never run');
     });
 
     test('the standing note says what the backend actually does', () {
-      expect(scheduleDeliveryNote, contains('run automatically'));
+      expect(englishLocalizations.schedulesDeliveryNote, contains('run automatically'));
       expect(
-        scheduleDeliveryNote,
+        englishLocalizations.schedulesDeliveryNote,
         contains('webhooks subscribed to report.generated'),
       );
       expect(
-        scheduleDeliveryNote,
+        englishLocalizations.schedulesDeliveryNote,
         contains('Recipients are emailed when email is set up'),
       );
-      expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
+      expect(englishLocalizations.schedulesDeliveryNote, isNot(contains('not sent automatically')));
     });
 
     group('runNowMessage', () {
+      // A row count is a figure, and a figure goes through the reader's own
+      // grouping. `en` here is `TiqNumber.en.format`.
+
       test('counts one row and many webhooks', () {
         expect(
           runNowMessage(
@@ -77,6 +89,8 @@ void main() {
               rowCount: 1,
               deliveredTo: const <String>['https://a.test', 'https://b.test'],
             ),
+            en,
+            englishLocalizations,
           ),
           'Generated 1 row. Queued for 2 webhooks. Email is not set up on '
           'the server.',
@@ -85,7 +99,11 @@ void main() {
 
       test('says plainly when no webhook listens', () {
         expect(
-          runNowMessage(runResultFor(deliveredTo: const <String>[])),
+          runNowMessage(
+            runResultFor(deliveredTo: const <String>[]),
+            en,
+            englishLocalizations,
+          ),
           'Generated 42 rows. Not sent: no webhook is subscribed to '
           'report.generated. Email is not set up on the server.',
         );
@@ -117,7 +135,7 @@ void main() {
           ],
         );
         expect(
-          runNowMessage(result),
+          runNowMessage(result, en, englishLocalizations),
           'Generated 3 rows. Queued for 1 webhook. Emailing 2 recipients.',
         );
       });
@@ -135,7 +153,7 @@ void main() {
           ],
         );
         expect(
-          runNowMessage(result),
+          runNowMessage(result, en, englishLocalizations),
           'Generated 1 row. Not sent: no webhook is subscribed to '
           'report.generated. Not emailed: no valid email recipients.',
         );
@@ -151,6 +169,8 @@ void main() {
                 status: 'failed',
               ),
             ),
+            en,
+            englishLocalizations,
           ),
           'Generated 42 rows. Webhook delivery failed. Email is not set up '
           'on the server.',
@@ -377,6 +397,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('ops@acme.test'), findsOneWidget);
     expect(find.text('lead@acme.test'), findsOneWidget);
+  });
+
+  // THE FAILURE, WRITTEN OUT: a blind manager presses "Show recipients", is
+  // told the control is now "Hide recipients" — so the action appears to have
+  // worked — and hears nothing. The addresses are painted inside the row's
+  // excluded text column, and the row's spoken sentence was byte-identical
+  // before and after the press.
+  testWidgets('expanding recipients says the addresses to a reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, repo: FakeSchedulesRepository());
+
+    String rowSentence() => semanticsNodes(tester)
+        .map((n) => n.getSemanticsData().label)
+        .firstWhere((l) => l.contains('Coverage by outlet'));
+
+    final before = rowSentence();
+    expect(before, isNot(contains('ops@acme.test')));
+
+    final expander = find.byKey(const ValueKey<String>('recipients-s-active'));
+    await scrollWorklistTo(tester, expander);
+    await tester.tap(expander);
+    await tester.pumpAndSettle();
+
+    final after = rowSentence();
+    expect(
+      after,
+      isNot(before),
+      reason:
+          'The control changed its own word and revealed nothing.'
+          '\n\n${semanticsDump(tester)}',
+    );
+    expect(after, contains('ops@acme.test'));
+    expect(after, contains('lead@acme.test'));
+    handle.dispose();
   });
 
   testWidgets('History opens that schedule\'s run history', (tester) async {

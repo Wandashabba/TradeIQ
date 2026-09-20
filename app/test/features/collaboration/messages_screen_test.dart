@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,8 @@ import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 
 import '../../core/design/amber_golden.dart';
+// `worklist_harness` re-exports the unpressable-button law; a second
+// import of `a11y_guard` is the same law twice.
 import '../worklist_harness.dart';
 
 /// An `Error` rather than an `Exception`: Riverpod 3 retries an Exception and
@@ -569,6 +572,75 @@ void main() {
       );
     });
 
+    // THE FAILURE, WRITTEN OUT: a blind manager is told "2 photos" and has
+    // no way to open either one.
+    //
+    // The thumbs used to live in `_MessageRow`'s `meta:`. A `SoftRow` with no
+    // `actions` and no trailing control wraps itself in
+    // `excludeSemantics: true`, which does not leave the thumb inert — it
+    // DELETES its node. `expectEveryButtonActivatable` cannot see a node that
+    // is not there, so this test counts the nodes itself.
+    testWidgets('each photo is its own reachable button for a reader', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await pump(
+        tester,
+        photos: _FakePhotosRepository(),
+        repo: _FakeCollaborationRepository(
+          messages: const <Message>[_withImages],
+        ),
+      );
+
+      final labels = <String>[
+        for (final node in semanticsNodes(tester))
+          node.getSemanticsData().label,
+      ];
+      expect(
+        labels.where((l) => l.startsWith('Photo ')),
+        <String>['Photo 1 of 2', 'Photo 2 of 2'],
+        reason:
+            'A reader hears "2 photos" from the row sentence and must be '
+            'able to reach each one.\n\n${semanticsDump(tester)}',
+      );
+
+      // Announced AND activatable: a node with a label and no tap action is
+      // the same lockout one step later.
+      for (final node in semanticsNodes(tester)) {
+        final data = node.getSemanticsData();
+        if (!data.label.startsWith('Photo ')) continue;
+        expect(
+          data.hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: '"${data.label}" announces itself and cannot be opened.',
+        );
+      }
+
+      // And the row's own sentence is unchanged by the move.
+      expect(
+        labels.any(
+          (l) =>
+              l.contains('Shelf after restock') &&
+              l.contains('2 photos') &&
+              l.contains('Long press to copy the message id'),
+        ),
+        isTrue,
+        reason: semanticsDump(tester),
+      );
+
+      // The reader's tap opens the same sheet the finger does.
+      // Through the semantics tree, not the pixels: this is the reader's own
+      // activation path, and it is the one that was missing.
+      tester.semantics.tap(find.semantics.byLabel('Photo 1 of 2'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('attachment-sheet')),
+        findsOneWidget,
+      );
+
+      handle.dispose();
+    });
+
     testWidgets('a message shows its images, and one opens full size', (
       tester,
     ) async {
@@ -818,6 +890,41 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  // The kit-wide law, on this screen, across its phases: a node that says
+  // "button" and cannot be activated is a control a reader can see and not
+  // press.
+  group('every button is activatable', () {
+    for (final phase in <String>['loaded', 'empty', 'error', 'photos']) {
+      testWidgets(phase, (tester) async {
+        final handle = tester.ensureSemantics();
+        await pump(
+          tester,
+          photos: _FakePhotosRepository(),
+          repo: _FakeCollaborationRepository(
+            messages: switch (phase) {
+              'empty' => const <Message>[],
+              'photos' => const <Message>[_withImages, _imageOnly],
+              _ => const <Message>[_first, _second, _direct],
+            },
+            listFailure: phase == 'error' ? _networkFailure : null,
+          ),
+        );
+
+        expectEveryButtonActivatable(tester);
+        handle.dispose();
+      });
+    }
+
+    testWidgets('announcements', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, repo: _FakeCollaborationRepository());
+      await openAnnouncements(tester);
+
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
   });
 
   testWidgets('Veld builds the channel', (tester) async {

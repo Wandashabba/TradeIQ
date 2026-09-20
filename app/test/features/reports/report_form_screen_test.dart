@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_form_screen.dart';
 
@@ -72,11 +73,23 @@ void main() {
       // point at it on a calendar, so it is refused rather than silently
       // moved.
       expect(parseFilterDate('2026-02-31'), isNull);
-      expect(filterDateError('2026-02-31'), isNotNull);
+      expect(filterDateError('2026-02-31', englishLocalizations), isNotNull);
+    });
+
+    // The words come from the reader's ARB, never from the form.
+    test('the reason is translated, and the FORMAT is not', () {
+      final af = lookupAppLocalizations(const Locale('af'));
+      expect(
+        filterDateError('2026-02-31', af),
+        isNot(filterDateError('2026-02-31', englishLocalizations)),
+      );
+      // The server stores the filter verbatim and reads it back as an ISO
+      // date, so the shape it names is the same in every language.
+      expect(filterDateError('2026-02-31', af), contains('2026-09-20'));
     });
 
     test('a blank box is a real filter value, not an error', () {
-      expect(filterDateError('   '), isNull);
+      expect(filterDateError('   ', englishLocalizations), isNull);
     });
   });
 

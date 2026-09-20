@@ -16,6 +16,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/reports_repository.dart';
 import 'report_form_screen.dart';
 
@@ -71,6 +72,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final page = ref.watch(reportsPageProvider);
 
     return page.when(
@@ -78,7 +80,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'reports',
+            label: l10n.reportsSkeleton,
             child: const SkeletonRows(count: 4, rowHeight: 64),
           ),
         ],
@@ -87,12 +89,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         phase: 'error',
         children: <Widget>[
           TorchErrorRegion(
-            name: 'reports',
+            name: l10n.reportsSkeleton,
             child: ErrorState(
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('reports-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: _refresh,
               ),
             ),
@@ -104,16 +106,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _frame({required String phase, required List<Widget> children}) {
+    final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Reports',
-        facts: const <String>['Definitions run on demand against live data.'],
+        title: l10n.reportsTitle,
+        facts: <String>[l10n.reportsFact],
         trailing: TorchIconButton(
           key: const ValueKey<String>('reports-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the saved reports',
+          semanticLabel: l10n.reportsRefresh,
           onPressed: _refresh,
         ),
       ),
@@ -122,6 +125,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _loaded(PaginatedResponse<ReportDefinition> page) {
+    final l10n = context.l10n;
     final reports = page.data;
     final gutter = context.skin.space.gutter;
 
@@ -135,23 +139,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
             key: const ValueKey<String>('reports-schedules'),
-            label: 'Schedules',
+            label: l10n.reportsSchedules,
             onPressed: () => context.go('/reports/schedules'),
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
 
-        SectionRule('Reports', count: reports.isEmpty ? null : reports.length),
+        SectionRule(
+          l10n.reportsSection,
+          count: reports.isEmpty ? null : reports.length,
+        ),
         const SizedBox(height: TiqSpace.s5),
 
         if (reports.isEmpty)
           EmptyState(
             scope: EmptyScope.inPanel,
-            headline: 'No saved reports.',
-            body: 'Build one, then run it to see how many rows it returns.',
+            headline: l10n.reportsEmptyHeadline,
+            body: l10n.reportsEmptyBody,
             action: TorchSecondaryButton(
               key: const ValueKey<String>('report-create-empty'),
-              label: 'New report',
+              label: l10n.reportsNew,
               onPressed: _create,
             ),
           )
@@ -195,7 +202,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             alignment: AlignmentDirectional.centerStart,
             child: TorchSecondaryButton(
               key: const ValueKey<String>('report-create'),
-              label: 'New report',
+              label: l10n.reportsNew,
               onPressed: _create,
             ),
           ),
@@ -205,12 +212,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   String _footerSummary(PaginatedResponse<ReportDefinition> page) {
+    final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
     final shown = numbers.format(page.data.length);
     final total = page.total;
     return total == null
-        ? 'Showing the first $shown. There are more.'
-        : 'Showing the first $shown of ${numbers.format(total)}.';
+        ? l10n.reportsFooterMore(shown)
+        : l10n.reportsFooterOf(shown, numbers.format(total));
   }
 
   void _create() => Navigator.of(context).push(
@@ -267,6 +275,7 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
 
   Future<void> _run() async {
     if (_running) return;
+    final l10n = context.l10n;
     setState(() => _running = true);
     try {
       final csv = await ref
@@ -287,8 +296,8 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
       showTorchToast(
         context,
         message: saved.location == null
-            ? 'Downloaded ${saved.filename}.'
-            : 'Saved ${saved.filename} to ${saved.location}.',
+            ? l10n.reportDownloaded(saved.filename)
+            : l10n.reportSavedTo(saved.filename, saved.location!),
         kind: ToastKind.success,
       );
     } catch (error) {
@@ -299,27 +308,31 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
         context,
         message: TorchErrorMessage.sanitise(error).body,
         kind: ToastKind.failure,
-        action: TorchTertiaryButton(label: 'Try again', onPressed: _run),
+        action: TorchTertiaryButton(
+          label: l10n.torchTryAgain,
+          onPressed: _run,
+        ),
       );
     }
   }
 
   Future<void> _delete() async {
     if (_deleting) return;
+    final l10n = context.l10n;
     // A saved definition somebody else's schedule runs is not a one-tap
     // delete.
     final confirmed = await showTorchSheet<bool>(
       context,
       builder: (_) => ConfirmSheet(
         key: const ValueKey<String>('report-delete-sheet'),
-        action: 'Delete ${widget.report.name}?',
-        consequences: const <String>[
-          'The definition is removed for everyone on this client.',
-          'Any schedule that runs it stops running.',
-          'Files already downloaded are not affected.',
+        action: l10n.reportDeleteAction(widget.report.name),
+        consequences: <String>[
+          l10n.reportDeleteConsequenceEveryone,
+          l10n.reportDeleteConsequenceSchedules,
+          l10n.reportDeleteConsequenceFiles,
         ],
-        commitLabel: 'Delete this report',
-        cancelLabel: 'Keep it',
+        commitLabel: l10n.reportDeleteCommit,
+        cancelLabel: l10n.reportDeleteCancel,
         record: widget.report.type,
       ),
     );
@@ -336,7 +349,9 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
       setState(() => _deleting = false);
       showTorchToast(
         context,
-        message: 'That report was not deleted. ${TorchErrorMessage.sanitise(error).body}',
+        message: l10n.reportDeleteFailed(
+          TorchErrorMessage.sanitise(error).body,
+        ),
         kind: ToastKind.failure,
       );
     }
@@ -345,21 +360,26 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final l10n = context.l10n;
     final report = widget.report;
     final outcome = widget.outcome;
     final numbers = TiqNumber.of(context);
 
     final (MarkShape mark, String word) = _running
-        ? (MarkShape.heldSquare, 'Running')
+        ? (MarkShape.heldSquare, l10n.reportWordRunning)
         : outcome == null
-        ? (MarkShape.heldSquare, 'Ready')
+        ? (MarkShape.heldSquare, l10n.reportWordReady)
         : outcome.failed
-        ? (MarkShape.watchTriangle, 'Could not run')
+        ? (MarkShape.watchTriangle, l10n.reportWordFailed)
         : outcome.rows == 0
-        // Zero is a real answer, and it gets the comparison square rather than
-        // a severity: a query that matched nothing is not a fault.
-        ? (MarkShape.notMeasuredBarredSquare, '0 rows — the query matched nothing')
-        : (MarkShape.onTargetCircle, 'Generated');
+        // Zero is a real answer, and it gets the COMPARISON square rather than
+        // a severity: a query that matched nothing is not a fault. It must not
+        // get `notMeasuredBarredSquare` — that silhouette means "we did not
+        // measure this", so it would contradict the "0 rows" beside it and
+        // send a manager to re-run a query that ran correctly. The mark is
+        // what survives greyscale and a glance; the word cannot rescue it.
+        ? (MarkShape.heldSquare, l10n.reportWordZeroRows)
+        : (MarkShape.onTargetCircle, l10n.reportWordGenerated);
 
     final slug = Text(
       report.type,
@@ -371,7 +391,10 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
       density: SoftRowDensity.tall,
       title: report.name,
       subtitle: outcome != null && !outcome.failed && (outcome.rows ?? 0) > 0
-          ? '${numbers.format(outcome.rows!)} rows · ${outcome.filename}'
+          ? l10n.reportRowsAndFile(
+              numbers.format(outcome.rows!),
+              outcome.filename!,
+            )
           : null,
       leading: TiqMark(
         shape: mark,
@@ -401,12 +424,12 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
         children: <Widget>[
           TorchTertiaryButton(
             key: ValueKey<String>('run-${report.id}'),
-            label: _running ? 'Running…' : 'Run',
+            label: _running ? l10n.reportRunning : l10n.reportRun,
             onPressed: _running || _deleting ? null : _run,
           ),
           TorchTertiaryButton(
             key: ValueKey<String>('delete-${report.id}'),
-            label: 'Delete',
+            label: l10n.reportDelete,
             onPressed: _running || _deleting ? null : _delete,
           ),
         ],
@@ -417,7 +440,7 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
         report.type,
         word,
         if (outcome != null && !outcome.failed && (outcome.rows ?? 0) > 0)
-          '${numbers.format(outcome.rows!)} rows',
+          l10n.reportRowsSpoken(numbers.format(outcome.rows!)),
       ].join('. '),
     );
   }

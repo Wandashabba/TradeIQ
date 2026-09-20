@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -164,28 +165,28 @@ void main() {
   group('relativeTime', () {
     final now = DateTime(2026, 9, 20, 12);
     test('says just now, minutes, hours and days', () {
-      expect(relativeTime(now, now: now), 'just now');
+      expect(relativeTime(now, englishLocalizations, now: now), 'just now');
       expect(
-        relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
+        relativeTime(now.subtract(const Duration(minutes: 5)), englishLocalizations, now: now),
         '5m ago',
       );
       expect(
-        relativeTime(now.subtract(const Duration(hours: 3)), now: now),
+        relativeTime(now.subtract(const Duration(hours: 3)), englishLocalizations, now: now),
         '3h ago',
       );
       expect(
-        relativeTime(now.subtract(const Duration(days: 2)), now: now),
+        relativeTime(now.subtract(const Duration(days: 2)), englishLocalizations, now: now),
         '2d ago',
       );
     });
 
     test('a future time reads forwards', () {
       expect(
-        relativeTime(now.add(const Duration(minutes: 25)), now: now),
+        relativeTime(now.add(const Duration(minutes: 25)), englishLocalizations, now: now),
         'in 25m',
       );
       expect(
-        relativeTime(now.add(const Duration(seconds: 20)), now: now),
+        relativeTime(now.add(const Duration(seconds: 20)), englishLocalizations, now: now),
         'in under a minute',
       );
     });

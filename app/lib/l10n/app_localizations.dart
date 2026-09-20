@@ -6788,12 +6788,6 @@ abstract class AppLocalizations {
   /// **'Agents who could not check in where the pin says the store is.'**
   String get outletsPinReportsNote;
 
-  /// Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet.
-  ///
-  /// In en, this message translates to:
-  /// **'Selected'**
-  String get pickerSelected;
-
   /// Severity word on a row standing for an open pin report.
   ///
   /// In en, this message translates to:
@@ -7130,12 +7124,6 @@ abstract class AppLocalizations {
   /// **'Received {when}'**
   String outletPhotoReceived(String when);
 
-  /// Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}'**
-  String outletDisputePhotoCount(int count);
-
   /// Semantic label of a pin-report photograph.
   ///
   /// In en, this message translates to:
@@ -7381,18 +7369,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{status} · {lines}'**
   String ordersRowSubtitle(String status, String lines);
-
-  /// Title of an order row while the store list is still being fetched. Not "Store not on this list": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart.
-  ///
-  /// In en, this message translates to:
-  /// **'Store list still loading'**
-  String get ordersStoreListLoading;
-
-  /// Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store.
-  ///
-  /// In en, this message translates to:
-  /// **'Store list did not load'**
-  String get ordersStoreListUnavailable;
 
   /// Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title.
   ///
@@ -7748,24 +7724,6 @@ abstract class AppLocalizations {
   /// **'Add stores to the plan to give the agent a route.'**
   String get beatPlanStopsEmptyBody;
 
-  /// Title of a beat plan stop whose store is genuinely absent from the loaded store list.
-  ///
-  /// In en, this message translates to:
-  /// **'Store not on this list'**
-  String get beatPlanStopUnknownStore;
-
-  /// Title of a beat plan stop while the store list is still being fetched.
-  ///
-  /// In en, this message translates to:
-  /// **'Store list still loading'**
-  String get beatPlanStopStoreLoading;
-
-  /// Title of a beat plan stop when the store list failed to load.
-  ///
-  /// In en, this message translates to:
-  /// **'Store list did not load'**
-  String get beatPlanStopStoreUnavailable;
-
   /// Title of a beat plan stop row when the store's name is not known.
   ///
   /// In en, this message translates to:
@@ -8048,18 +8006,6 @@ abstract class AppLocalizations {
   /// **'No target is set at this level, so there is nothing to attain.'**
   String get salesLevelNoTargets;
 
-  /// Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number.
-  ///
-  /// In en, this message translates to:
-  /// **'Every target at this level is 0 units, so there is nothing to attain.'**
-  String get salesLevelZeroTarget;
-
-  /// Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total.
-  ///
-  /// In en, this message translates to:
-  /// **'The share of target was not worked out for this level.'**
-  String get salesLevelAttainmentUnknown;
-
   /// The units and the target count beneath an attainment figure.
   ///
   /// In en, this message translates to:
@@ -8089,12 +8035,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No target'**
   String get salesNoTarget;
-
-  /// Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed "target 0 units" and "No target" in the same breath said both at once.
-  ///
-  /// In en, this message translates to:
-  /// **'Target of 0 units'**
-  String get salesZeroTarget;
 
   /// Inline empty state when the month has no targets at all.
   ///
@@ -8507,6 +8447,2610 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set monthly SKU targets under Sales targets to track sell-in against them.'**
   String get salesPanelEmptyBody;
+
+  /// Screen title: the client's own audit templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit templates'**
+  String get templatesTitle;
+
+  /// Header fact under the Audit templates title.
+  ///
+  /// In en, this message translates to:
+  /// **'A template is the form an agent fills in on a visit.'**
+  String get templatesFact;
+
+  /// Semantic label of the header's refresh button. Names what it does, never just 'Refresh'.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the templates'**
+  String get templatesRefresh;
+
+  /// What the skeleton says it is loading, inside 'Still fetching the …'.
+  ///
+  /// In en, this message translates to:
+  /// **'templates'**
+  String get templatesSkeleton;
+
+  /// Section rule above the list of templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates'**
+  String get templatesSection;
+
+  /// In-panel empty state: this client has no templates at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates yet.'**
+  String get templatesEmptyHeadline;
+
+  /// Body of the templates empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates published to this client appear here.'**
+  String get templatesEmptyBody;
+
+  /// Section rule above the block naming which template agents answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in field audits'**
+  String get templatesInAuditsSection;
+
+  /// Headline while the selected-template request is still in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking which template is in use…'**
+  String get templatesInAuditsChecking;
+
+  /// Headline when the selected-template request failed. No row then claims to be in use.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the template used in audits.'**
+  String get templatesInAuditsFailed;
+
+  /// Headline when the client has chosen no template for audits.
+  ///
+  /// In en, this message translates to:
+  /// **'No template is used in audits.'**
+  String get templatesInAuditsNone;
+
+  /// Headline naming the template in use and its version.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” (v{version})'**
+  String templatesInAuditsNamed(String name, int version);
+
+  /// Subtitle of the in-audits block: where these questions sit in a visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions, after the standard audit sections'**
+  String get templatesInAuditsSubtitle;
+
+  /// The standing explanation under the in-audits block.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents answer its questions on every visit, as an extra section after the standard audit. Required questions must be answered before a visit can be submitted. It does not change the perfect store score.'**
+  String get templatesInAuditsMeta;
+
+  /// Verb that clears the template used in audits.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop using'**
+  String get templatesStopUsing;
+
+  /// The Stop using verb while the change is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping…'**
+  String get templatesStopping;
+
+  /// Spoken sentence of the in-audits block.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in field audits. {headline}'**
+  String templatesInAuditsSemantics(String headline);
+
+  /// Toast after clearing the template used in audits.
+  ///
+  /// In en, this message translates to:
+  /// **'No template is used in audits now.'**
+  String get templatesCleared;
+
+  /// Toast after choosing a template for audits.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is now used in audits.'**
+  String templatesNowInAudits(String name);
+
+  /// Failure toast. The reason is the sanitised server message.
+  ///
+  /// In en, this message translates to:
+  /// **'The audit template was not changed. {reason}'**
+  String templatesChangeFailed(String reason);
+
+  /// Row word: this template is the one agents answer.
+  ///
+  /// In en, this message translates to:
+  /// **'In audits'**
+  String get templateWordInAudits;
+
+  /// Row word: the template is published and can be put in front of agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get templateWordActive;
+
+  /// Row word: the template is done, not broken — it simply cannot be selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get templateWordPaused;
+
+  /// A template's version, as a row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version}'**
+  String templateVersionShort(int version);
+
+  /// A template's version and the industry it was written for.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} · {industry}'**
+  String templateVersionAndIndustry(int version, String industry);
+
+  /// A template's version, spoken rather than abbreviated.
+  ///
+  /// In en, this message translates to:
+  /// **'version {version}'**
+  String templateVersionSpoken(int version);
+
+  /// Row verb that puts this template in front of agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Use in audits'**
+  String get templateUseInAudits;
+
+  /// The Use in audits verb while the change is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching…'**
+  String get templateSwitching;
+
+  /// What tapping a template row does, spoken at the end of the row's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens a preview of its form'**
+  String get templateOpensPreview;
+
+  /// Title of the manager's walk through a template's form, while it loads or fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Template preview'**
+  String get templatePreviewTitle;
+
+  /// The way out of the template preview, naming where it lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Audit templates'**
+  String get templatePreviewBack;
+
+  /// What the skeleton and the error region say they are for, inside 'Still fetching the …'.
+  ///
+  /// In en, this message translates to:
+  /// **'the template'**
+  String get templatePreviewSkeleton;
+
+  /// Header fact: a preview writes no answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview — nothing is saved'**
+  String get templatePreviewFact;
+
+  /// Where the manager is in the walk.
+  ///
+  /// In en, this message translates to:
+  /// **'Section {index} of {count}'**
+  String templatePreviewSection(int index, int count);
+
+  /// The commit that moves the walk on.
+  ///
+  /// In en, this message translates to:
+  /// **'Next section'**
+  String get templatePreviewNext;
+
+  /// The commit on the last section.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish preview'**
+  String get templatePreviewFinish;
+
+  /// The secondary that moves the walk back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back a section'**
+  String get templatePreviewBackSection;
+
+  /// Why the commit is blocked: one required question is unanswered.
+  ///
+  /// In en, this message translates to:
+  /// **'“{label}” still needs an answer.'**
+  String templatePreviewBlockedOne(String label);
+
+  /// Why the commit is blocked: several required questions are unanswered.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} required questions in this section still need answers.'**
+  String templatePreviewBlockedMany(int count);
+
+  /// Title of the sheet that ends the preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview complete'**
+  String get templatePreviewDoneTitle;
+
+  /// The honest end of the preview: what was answered, and that none of it was kept.
+  ///
+  /// In en, this message translates to:
+  /// **'You answered {answered} of {total} visible questions. Nothing was saved — a preview writes no answers, and saving them against a visit arrives with the audit-flow integration.'**
+  String templatePreviewDoneBody(int answered, int total);
+
+  /// In-panel empty state: the template parsed, and holds nothing to walk.
+  ///
+  /// In en, this message translates to:
+  /// **'This template has no form sections yet.'**
+  String get templateFormNoSectionsHeadline;
+
+  /// Body of the no-sections empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish a section to it and the preview will walk through it.'**
+  String get templateFormNoSectionsBody;
+
+  /// Section rule's empty line: this section has no visible questions.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to answer in this section yet.'**
+  String get templateFormSectionEmpty;
+
+  /// Eyebrow of the running score tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Score preview'**
+  String get templateFormScoreEyebrow;
+
+  /// State line under the score: the maximum the preview can actually reach.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of {maximum} for the whole template.'**
+  String templateFormScoreOutOf(String maximum);
+
+  /// Help line under a question that blocks the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Required before a visit can be submitted.'**
+  String get templateFieldRequired;
+
+  /// A choice row's own state line when nothing is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered yet.'**
+  String get templateFieldNotAnsweredLine;
+
+  /// Subtitle of a choice question nobody has answered. Without the full stop: it is a row's subtitle, not a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered yet'**
+  String get templateFieldNotAnswered;
+
+  /// The true option of a yes/no question.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get templateFieldYes;
+
+  /// The false option of a yes/no question.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get templateFieldNo;
+
+  /// Verb that returns an answered yes/no question to unanswered — a different fact from 'no'.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this answer'**
+  String get templateFieldClear;
+
+  /// Spoken sentence of a choice question that opens a picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}. {answer}. Opens the list of answers.'**
+  String templateFieldChoiceSemantics(String label, String answer);
+
+  /// Subtitle of a photo question: capture inside a template is not wired yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be answered yet'**
+  String get templateFieldPhotoSubtitle;
+
+  /// Why a photo question cannot be answered, and that it is not a gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo capture arrives with the audit-flow integration. This question does not block a submit.'**
+  String get templateFieldPhotoMeta;
+
+  /// Spoken sentence of a photo question.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}. Cannot be answered yet. Photo capture arrives with the audit-flow integration.'**
+  String templateFieldPhotoSemantics(String label);
+
+  /// Screen title: the manager's saved report definitions.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reportsTitle;
+
+  /// Header fact under the Reports title.
+  ///
+  /// In en, this message translates to:
+  /// **'Definitions run on demand against live data.'**
+  String get reportsFact;
+
+  /// Semantic label of the header's refresh button. Names what it does, never just 'Refresh'.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the saved reports'**
+  String get reportsRefresh;
+
+  /// What the skeleton and the error region say they are for, inside 'Still fetching the …'.
+  ///
+  /// In en, this message translates to:
+  /// **'reports'**
+  String get reportsSkeleton;
+
+  /// Section rule above the list of report definitions.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reportsSection;
+
+  /// Verb that opens the report schedules route.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedules'**
+  String get reportsSchedules;
+
+  /// In-panel empty state: this client has saved no report definitions.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved reports.'**
+  String get reportsEmptyHeadline;
+
+  /// Body of the reports empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Build one, then run it to see how many rows it returns.'**
+  String get reportsEmptyBody;
+
+  /// Verb that opens the create-report form.
+  ///
+  /// In en, this message translates to:
+  /// **'New report'**
+  String get reportsNew;
+
+  /// Pagination footer with no total: it never invents the number the endpoint does not send.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}. There are more.'**
+  String reportsFooterMore(String shown);
+
+  /// Pagination footer with a total from the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown} of {total}.'**
+  String reportsFooterOf(String shown, String total);
+
+  /// Row verb that generates this report's CSV.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get reportRun;
+
+  /// The Run verb while the report is being generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Running…'**
+  String get reportRunning;
+
+  /// Row verb that deletes a saved report definition.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get reportDelete;
+
+  /// Row word while the report is being generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get reportWordRunning;
+
+  /// Row word: the definition has not been run in this session.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get reportWordReady;
+
+  /// Row word: the run failed. The previous count is kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not run'**
+  String get reportWordFailed;
+
+  /// Row word for a measured zero. Zero is a real answer, never an error and never suppressed.
+  ///
+  /// In en, this message translates to:
+  /// **'0 rows — the query matched nothing'**
+  String get reportWordZeroRows;
+
+  /// Row word: the run produced a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get reportWordGenerated;
+
+  /// Row subtitle after a run: the count saved and the file it was saved as.
+  ///
+  /// In en, this message translates to:
+  /// **'{rows} rows · {filename}'**
+  String reportRowsAndFile(String rows, String filename);
+
+  /// The row count alone, in the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{rows} rows'**
+  String reportRowsSpoken(String rows);
+
+  /// Toast after a run when the platform did not say where the file landed.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {filename}.'**
+  String reportDownloaded(String filename);
+
+  /// Toast after a run, naming the folder the file landed in.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {filename} to {location}.'**
+  String reportSavedTo(String filename, String location);
+
+  /// What the confirm sheet says will happen.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String reportDeleteAction(String name);
+
+  /// First consequence of deleting a report definition.
+  ///
+  /// In en, this message translates to:
+  /// **'The definition is removed for everyone on this client.'**
+  String get reportDeleteConsequenceEveryone;
+
+  /// Second consequence of deleting a report definition.
+  ///
+  /// In en, this message translates to:
+  /// **'Any schedule that runs it stops running.'**
+  String get reportDeleteConsequenceSchedules;
+
+  /// Third consequence: what deleting does NOT do.
+  ///
+  /// In en, this message translates to:
+  /// **'Files already downloaded are not affected.'**
+  String get reportDeleteConsequenceFiles;
+
+  /// The confirm sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this report'**
+  String get reportDeleteCommit;
+
+  /// The confirm sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get reportDeleteCancel;
+
+  /// Failure toast after a delete. The reason is the sanitised server message.
+  ///
+  /// In en, this message translates to:
+  /// **'That report was not deleted. {reason}'**
+  String reportDeleteFailed(String reason);
+
+  /// Report type: one row per submitted visit. A slug is what the machine calls it; this is what a manager picks it by.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get reportTypeVisits;
+
+  /// Report type: one row per scored visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Scorecards'**
+  String get reportTypeScorecards;
+
+  /// Report type: one row per task raised.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get reportTypeTasks;
+
+  /// Report type: one row per order captured in store.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get reportTypeOrders;
+
+  /// What choosing the Visits report type will produce.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per submitted visit.'**
+  String get reportTypeVisitsConsequence;
+
+  /// What choosing the Scorecards report type will produce.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per scored visit.'**
+  String get reportTypeScorecardsConsequence;
+
+  /// What choosing the Tasks report type will produce.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per task raised.'**
+  String get reportTypeTasksConsequence;
+
+  /// What choosing the Orders report type will produce.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per order captured in store.'**
+  String get reportTypeOrdersConsequence;
+
+  /// Fallback consequence for a report type the app does not know by name.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per record.'**
+  String get reportTypeOtherConsequence;
+
+  /// Why a date box cannot be saved. The server stores filters verbatim and reads them back as ISO dates, so the format is not localised.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the form 2026-09-20, or leave it blank for any date.'**
+  String get reportFilterDateFormat;
+
+  /// Title of the create-report form.
+  ///
+  /// In en, this message translates to:
+  /// **'New report'**
+  String get reportFormTitle;
+
+  /// Header fact on the create-report form.
+  ///
+  /// In en, this message translates to:
+  /// **'It runs on demand against live data.'**
+  String get reportFormFact;
+
+  /// The way out of the create-report form, naming where it lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Reports'**
+  String get reportFormBack;
+
+  /// The form's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Create this report'**
+  String get reportFormCommit;
+
+  /// Blocked reason while the create request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get reportFormSaving;
+
+  /// Why Create cannot be pressed: the name box is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the report a name first.'**
+  String get reportFormBlockedName;
+
+  /// Why Create cannot be pressed: the From box does not hold an ISO date.
+  ///
+  /// In en, this message translates to:
+  /// **'The From date is not a date. Use the form 2026-09-20.'**
+  String get reportFormBlockedFrom;
+
+  /// Why Create cannot be pressed: the To box does not hold an ISO date.
+  ///
+  /// In en, this message translates to:
+  /// **'The To date is not a date. Use the form 2026-09-20.'**
+  String get reportFormBlockedTo;
+
+  /// Why Create cannot be pressed: the window runs backwards.
+  ///
+  /// In en, this message translates to:
+  /// **'The To date is before the From date.'**
+  String get reportFormBlockedOrder;
+
+  /// Section rule above the report's name and kind.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get reportFormSectionReport;
+
+  /// Section rule above the filters.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrowed to'**
+  String get reportFormSectionNarrowed;
+
+  /// Label of the report's name box.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get reportFormName;
+
+  /// Example report name, shown as a hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlet coverage, September'**
+  String get reportFormNameHint;
+
+  /// Help under the report's name box.
+  ///
+  /// In en, this message translates to:
+  /// **'What a manager will look for in the list.'**
+  String get reportFormNameHelp;
+
+  /// Label of the report-type choice.
+  ///
+  /// In en, this message translates to:
+  /// **'What it queries'**
+  String get reportFormType;
+
+  /// State line of the report-type choice while nothing is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick what the report is about.'**
+  String get reportFormTypeNotAnswered;
+
+  /// Label of the filter's start-date box.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get reportFormFrom;
+
+  /// Label of the filter's end-date box.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get reportFormTo;
+
+  /// Help under each date box: an empty box is not a filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank for any date.'**
+  String get reportFormDateHelp;
+
+  /// Label of the outlet filter, and title of the picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlet'**
+  String get reportFormOutlet;
+
+  /// The outlet filter's unset value — a real choice, and the first row of the picker, rather than an absence.
+  ///
+  /// In en, this message translates to:
+  /// **'All outlets'**
+  String get reportFormAllOutlets;
+
+  /// Spoken sentence of the outlet filter row.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlet. {outlet}. Choose an outlet.'**
+  String reportFormOutletSemantics(String outlet);
+
+  /// Headline of the inline error when the create request was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The report was not created.'**
+  String get reportFormFailed;
+
+  /// Subtitle of the outlet picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'The report is narrowed to the one you pick.'**
+  String get reportOutletSheetSubtitle;
+
+  /// What the outlet picker's skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'outlets'**
+  String get reportOutletSheetSkeleton;
+
+  /// In-panel empty state of the outlet picker.
+  ///
+  /// In en, this message translates to:
+  /// **'No outlets on this client yet.'**
+  String get reportOutletSheetEmptyHeadline;
+
+  /// Body of the outlet picker's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'The report will cover every outlet added later.'**
+  String get reportOutletSheetEmptyBody;
+
+  /// A schedule's cadence, as a person reads it. The slug stays English on the wire.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get cadenceDaily;
+
+  /// A schedule's cadence, as a person reads it.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get cadenceWeekly;
+
+  /// Screen title: which saved reports run on their own.
+  ///
+  /// In en, this message translates to:
+  /// **'Report schedules'**
+  String get schedulesTitle;
+
+  /// Header fact under the Report schedules title.
+  ///
+  /// In en, this message translates to:
+  /// **'A schedule runs its report server-side and delivers the result.'**
+  String get schedulesFact;
+
+  /// Semantic label of the header's refresh button.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the schedules'**
+  String get schedulesRefresh;
+
+  /// What the skeleton and the error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'report schedules'**
+  String get schedulesSkeleton;
+
+  /// The standing note on the schedules screen. 'report.generated' is a wire event name and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Active schedules run automatically on their cadence and are sent to your webhooks subscribed to report.generated. Recipients are emailed when email is set up on the server.'**
+  String get schedulesDeliveryNote;
+
+  /// Verb that returns to the Reports list.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to reports'**
+  String get schedulesBackToReports;
+
+  /// In-panel empty state: nothing runs on its own yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No schedules.'**
+  String get schedulesEmptyHeadline;
+
+  /// Body of the schedules empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'A report runs on demand until you schedule it.'**
+  String get schedulesEmptyBody;
+
+  /// Verb that opens the create-schedule form.
+  ///
+  /// In en, this message translates to:
+  /// **'New schedule'**
+  String get schedulesNew;
+
+  /// Section rule over the schedules that run on their own.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get schedulesGroupActive;
+
+  /// Section rule over the paused schedules. Off is a section, not a shade.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get schedulesGroupOff;
+
+  /// Empty line of the Active section, which renders whatever its count is.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is running on its own.'**
+  String get schedulesGroupActiveEmpty;
+
+  /// Empty line of the Off section.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is paused.'**
+  String get schedulesGroupOffEmpty;
+
+  /// Stand-in when the API sends a schedule with no report name.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled report'**
+  String get scheduleUntitledReport;
+
+  /// A schedule that has not fired yet. Not a blank and not a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Never run'**
+  String get scheduleNeverRun;
+
+  /// When the schedule last fired, in local time.
+  ///
+  /// In en, this message translates to:
+  /// **'Last run {stamp}'**
+  String scheduleLastRun(String stamp);
+
+  /// When the schedule fires next, in local time.
+  ///
+  /// In en, this message translates to:
+  /// **'Next run {stamp}'**
+  String scheduleNextRun(String stamp);
+
+  /// An active schedule the server has set no next run for.
+  ///
+  /// In en, this message translates to:
+  /// **'Next run not scheduled'**
+  String get scheduleNextRunNone;
+
+  /// A paused schedule says so rather than showing a stale time.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused, no next run'**
+  String get schedulePausedNoNextRun;
+
+  /// Severity word on a schedule that delivers to nobody by email.
+  ///
+  /// In en, this message translates to:
+  /// **'No recipients'**
+  String get scheduleNoRecipients;
+
+  /// The meta line under a schedule with an empty recipients list.
+  ///
+  /// In en, this message translates to:
+  /// **'No recipients — this schedule delivers to nobody by email.'**
+  String get scheduleNoRecipientsLine;
+
+  /// How many addresses a schedule delivers to.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recipient} other{{count} recipients}}'**
+  String scheduleRecipientCount(int count);
+
+  /// Label of the toggle that activates or pauses a schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs on its own'**
+  String get scheduleRunsOnItsOwn;
+
+  /// The toggle's on word.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get scheduleOn;
+
+  /// The toggle's off word.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get scheduleOff;
+
+  /// Why the toggle is disabled: a request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the server.'**
+  String get scheduleWaitingForServer;
+
+  /// Spoken state of an active schedule, at the end of the row's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Running on its own'**
+  String get scheduleRunningOnItsOwn;
+
+  /// Verb that expands the addresses in place.
+  ///
+  /// In en, this message translates to:
+  /// **'Show recipients'**
+  String get scheduleShowRecipients;
+
+  /// Verb that collapses the expanded addresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide recipients'**
+  String get scheduleHideRecipients;
+
+  /// Row verb that generates and delivers the report immediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Run now'**
+  String get scheduleRunNow;
+
+  /// Row verb that opens this schedule's run history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get scheduleHistory;
+
+  /// Row verb that opens the schedule for editing.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get scheduleEdit;
+
+  /// Row verb that deletes the schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get scheduleDelete;
+
+  /// What the confirm sheet says will happen.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this schedule?'**
+  String get scheduleDeleteAction;
+
+  /// First consequence of deleting a schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} stops running on its own.'**
+  String scheduleDeleteConsequenceStops(String name);
+
+  /// Second consequence: what deleting does NOT do.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved report itself is kept.'**
+  String get scheduleDeleteConsequenceReportKept;
+
+  /// Third consequence of deleting a schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs already delivered are not withdrawn.'**
+  String get scheduleDeleteConsequenceRuns;
+
+  /// The confirm sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this schedule'**
+  String get scheduleDeleteCommit;
+
+  /// The confirm sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get scheduleDeleteCancel;
+
+  /// Lead of the failure toast after a delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete the schedule.'**
+  String get scheduleDeleteFailed;
+
+  /// Lead of the failure toast when activating a schedule was refused. The toggle goes back.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not resume the schedule.'**
+  String get scheduleResumeFailed;
+
+  /// Lead of the failure toast when pausing a schedule was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not pause the schedule.'**
+  String get schedulePauseFailed;
+
+  /// Lead of the failure toast after Run now.
+  ///
+  /// In en, this message translates to:
+  /// **'Run failed.'**
+  String get scheduleRunFailed;
+
+  /// A failure toast: what could not be done, then the sanitised server message.
+  ///
+  /// In en, this message translates to:
+  /// **'{lead} {reason}'**
+  String scheduleFailureToast(String lead, String reason);
+
+  /// First sentence of the Run now report. `rowsText` is the count already formatted through TiqNumber, so it groups the reader's way; `rows` only picks the singular or the plural.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated {rowsText} {rows, plural, =1{row} other{rows}}.'**
+  String runNowGeneratedRows(String rowsText, int rows);
+
+  /// How many webhooks the run was queued for.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued for {count, plural, =1{1 webhook} other{{count} webhooks}}.'**
+  String runNowQueuedWebhooks(int count);
+
+  /// The webhook channel refused the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhook delivery failed.'**
+  String get runNowWebhookFailed;
+
+  /// Nothing listens for the run. 'report.generated' is a wire event name.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent: no webhook is subscribed to report.generated.'**
+  String get runNowNoSubscriber;
+
+  /// How many addresses the run is being emailed to.
+  ///
+  /// In en, this message translates to:
+  /// **'Emailing {count, plural, =1{1 recipient} other{{count} recipients}}.'**
+  String runNowEmailing(int count);
+
+  /// Why nothing was emailed: the server has no SMTP.
+  ///
+  /// In en, this message translates to:
+  /// **'Email is not set up on the server.'**
+  String get runNowEmailNotConfigured;
+
+  /// Why nothing was emailed: no address on the schedule is usable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not emailed: no valid email recipients.'**
+  String get runNowEmailNoSubscribers;
+
+  /// The email channel refused the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Email delivery failed.'**
+  String get runNowEmailFailed;
+
+  /// Run status word: the run is still being sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivering'**
+  String get runStatusDelivering;
+
+  /// Run status word: every channel took it.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get runStatusDelivered;
+
+  /// Run status word: some channel did not take it.
+  ///
+  /// In en, this message translates to:
+  /// **'Partly delivered'**
+  String get runStatusPartial;
+
+  /// Run status word: the run did not deliver at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get runStatusFailed;
+
+  /// Run status word: nothing was subscribed, or email is not set up. Not a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent'**
+  String get runStatusNotSent;
+
+  /// Run status word: the API sent a status this app does not know. Never guessed at.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get runStatusUnknown;
+
+  /// Title of a run the schedule fired on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled run'**
+  String get runTitleScheduled;
+
+  /// Title of a run a manager started by hand.
+  ///
+  /// In en, this message translates to:
+  /// **'Run now'**
+  String get runTitleManual;
+
+  /// When the run produced its file, in local time.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated {stamp}'**
+  String runGeneratedAt(String stamp);
+
+  /// A scheduled run's due time and when it actually ran. A Run now has no due time.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {due} · {generated}'**
+  String runDueAndGenerated(String due, String generated);
+
+  /// How many rows the run produced. `rowsText` is the count already formatted through TiqNumber so it groups the reader's way; `rows` only picks the singular or the plural.
+  ///
+  /// In en, this message translates to:
+  /// **'{rowsText} {rows, plural, =1{row} other{rows}}'**
+  String runRowCount(String rowsText, int rows);
+
+  /// Pagination footer with no total. It never invents a number: a fabricated total on a delivery history is a manager believing they have seen every failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recent. There are more.'**
+  String runHistoryFooterMore(String shown);
+
+  /// Pagination footer with a total from the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recent of {total}.'**
+  String runHistoryFooterOf(String shown, String total);
+
+  /// Part of a channel's count line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} delivered'**
+  String runCountDelivered(int count);
+
+  /// Part of a channel's count line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String runCountPending(int count);
+
+  /// Part of a channel's count line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String runCountFailed(int count);
+
+  /// Part of the email channel's count line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sent'**
+  String runCountSent(int count);
+
+  /// What a channel's count line says when every count is zero: it was queued and nothing has happened yet.
+  ///
+  /// In en, this message translates to:
+  /// **'queued'**
+  String get runCountsQueued;
+
+  /// What the webhook channel did with the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks: {counts}'**
+  String runWebhooksLine(String counts);
+
+  /// Nothing listened for this run.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks: none subscribed'**
+  String get runWebhooksNoneSubscribed;
+
+  /// The webhook channel refused the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks: failed'**
+  String get runWebhooksFailedLine;
+
+  /// What the email channel did with the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Email: {counts}'**
+  String runEmailLine(String counts);
+
+  /// The server has no SMTP, and how many addresses went without.
+  ///
+  /// In en, this message translates to:
+  /// **'Email: not set up ({count} not emailed)'**
+  String runEmailNotSetUpLine(int count);
+
+  /// No address on the schedule was usable.
+  ///
+  /// In en, this message translates to:
+  /// **'Email: no valid recipients'**
+  String get runEmailNoRecipientsLine;
+
+  /// The email channel refused the run.
+  ///
+  /// In en, this message translates to:
+  /// **'Email: failed'**
+  String get runEmailFailedLine;
+
+  /// The run has no delivery outcome at all — stated, never guessed at.
+  ///
+  /// In en, this message translates to:
+  /// **'No delivery recorded'**
+  String get runNoDeliveryRecorded;
+
+  /// One delivery's state: waiting to be attempted.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get deliveryWordQueued;
+
+  /// One webhook delivery's state: the endpoint took it.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get deliveryWordDelivered;
+
+  /// One email delivery's state: the server accepted it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get deliveryWordSent;
+
+  /// One delivery's state: it failed and is being tried again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying'**
+  String get deliveryWordRetrying;
+
+  /// One webhook delivery's state: every retry is spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Gave up'**
+  String get deliveryWordGaveUp;
+
+  /// One email delivery's state: every retry is spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get deliveryWordEmailFailed;
+
+  /// How many times a delivery has been tried.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attempt} other{{count} attempts}}'**
+  String deliveryAttempts(int count);
+
+  /// The status code the endpoint answered with. HTTP is a protocol name and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP {code}'**
+  String deliveryHttpStatus(int code);
+
+  /// A webhook delivery with no attempts behind it.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent yet'**
+  String get deliveryNotSentYet;
+
+  /// A webhook delivery that was attempted and got nothing back.
+  ///
+  /// In en, this message translates to:
+  /// **'No response'**
+  String get deliveryNoResponse;
+
+  /// Why a run has no download link. The API does not say which of the two it is, so both are named.
+  ///
+  /// In en, this message translates to:
+  /// **'No download link. Links need signed links set up on the server, and stop working 7 days after the run.'**
+  String get runNoCsvLinkNote;
+
+  /// Screen title: a schedule's runs, newest first.
+  ///
+  /// In en, this message translates to:
+  /// **'Run history'**
+  String get runHistoryTitle;
+
+  /// The way out of the run history, naming where it lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Report schedules'**
+  String get runHistoryBack;
+
+  /// What the skeleton and the error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'report runs'**
+  String get runHistorySkeleton;
+
+  /// Verb that reloads the first page of runs.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get runHistoryRefresh;
+
+  /// Section rule above the list of runs.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs'**
+  String get runHistorySection;
+
+  /// In-panel empty state: the schedule has never fired.
+  ///
+  /// In en, this message translates to:
+  /// **'No runs yet.'**
+  String get runHistoryEmptyHeadline;
+
+  /// Body of the run history's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'A run appears each time the schedule fires or you use Run now.'**
+  String get runHistoryEmptyBody;
+
+  /// Verb that fetches the next page of runs.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get runHistoryLoadMore;
+
+  /// Row verb that opens a run's per-channel results.
+  ///
+  /// In en, this message translates to:
+  /// **'Show run details'**
+  String get runShowDetails;
+
+  /// Row verb that closes a run's per-channel results.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide run details'**
+  String get runHideDetails;
+
+  /// Row verb that opens the signed link sheet. CSV is a file format and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Download CSV'**
+  String get runDownloadCsv;
+
+  /// A run row's subtitle: how many rows, and what each channel did.
+  ///
+  /// In en, this message translates to:
+  /// **'{rows} · {delivery}'**
+  String runRowSubtitle(String rows, String delivery);
+
+  /// Section rule over a run's webhook results.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks'**
+  String get runDetailSectionWebhooks;
+
+  /// Section rule over a run's per-recipient email deliveries.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get runDetailSectionEmail;
+
+  /// Section rule over what happened to the run's CSV.
+  ///
+  /// In en, this message translates to:
+  /// **'The file'**
+  String get runDetailSectionFile;
+
+  /// The run has a working link, with no expiry given.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed download link.'**
+  String get runSignedLink;
+
+  /// The run has a working link and when it stops working.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed download link, works until {stamp}.'**
+  String runSignedLinkUntil(String stamp);
+
+  /// Detail note: nothing listened for this run. 'report.generated' is a wire event name.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent: no webhook is subscribed to report.generated.'**
+  String get runWebhookNoSubscriber;
+
+  /// Detail note: the webhook channel refused the run, with no diagnostic.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhook delivery failed.'**
+  String get runWebhookDeliveryFailed;
+
+  /// Detail note: the webhook channel refused the run, and why.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhook delivery failed: {detail}'**
+  String runWebhookDeliveryFailedWhy(String detail);
+
+  /// Detail note: the run was queued, and its targets no longer exist.
+  ///
+  /// In en, this message translates to:
+  /// **'The webhooks this run was sent to have since been deleted.'**
+  String get runWebhookTargetsDeleted;
+
+  /// Detail note: the run has no webhook outcome at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No webhook delivery was recorded.'**
+  String get runWebhookNoneRecorded;
+
+  /// Detail note: the server has no SMTP, and how many addresses went without.
+  ///
+  /// In en, this message translates to:
+  /// **'Not emailed to {count, plural, =1{1 recipient} other{{count} recipients}}: email is not set up on the server.'**
+  String runEmailNotConfiguredDetail(int count);
+
+  /// Detail note: no address on the schedule was usable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not emailed: no valid email recipients.'**
+  String get runEmailNoRecipientsDetail;
+
+  /// Detail note: the email channel refused the run, with no diagnostic.
+  ///
+  /// In en, this message translates to:
+  /// **'Email delivery failed.'**
+  String get runEmailDeliveryFailed;
+
+  /// Detail note: the email channel refused the run, and why.
+  ///
+  /// In en, this message translates to:
+  /// **'Email delivery failed: {detail}'**
+  String runEmailDeliveryFailedWhy(String detail);
+
+  /// Detail note: the run has no email outcome at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No email delivery was recorded.'**
+  String get runEmailNoneRecorded;
+
+  /// What the per-recipient skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'email deliveries'**
+  String get runEmailSkeleton;
+
+  /// The run queued email and the list came back empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No emails were queued for this run.'**
+  String get runEmailNoneQueued;
+
+  /// Subtitle of the CSV link sheet, when the link has no stated expiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this link in a browser to download the report. Anyone with the link can download it.'**
+  String get csvLinkSheetSubtitle;
+
+  /// Subtitle of the CSV link sheet, naming when the link stops working.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this link in a browser to download the report. Anyone with the link can download it until {stamp}.'**
+  String csvLinkSheetSubtitleUntil(String stamp);
+
+  /// The CSV link sheet's action. The console has no way to open a URL, so the link is text and Copy is the verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the link'**
+  String get csvLinkCopy;
+
+  /// Title of the create-schedule form.
+  ///
+  /// In en, this message translates to:
+  /// **'New schedule'**
+  String get scheduleFormTitleNew;
+
+  /// Title of the edit-schedule form.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit schedule'**
+  String get scheduleFormTitleEdit;
+
+  /// Header fact on the schedule form.
+  ///
+  /// In en, this message translates to:
+  /// **'It runs server-side and delivers the result.'**
+  String get scheduleFormFact;
+
+  /// The way out of the schedule form, naming where it lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Report schedules'**
+  String get scheduleFormBack;
+
+  /// The create form's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Create this schedule'**
+  String get scheduleFormCommitNew;
+
+  /// The edit form's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Save these changes'**
+  String get scheduleFormCommitEdit;
+
+  /// Blocked reason while the save is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get scheduleFormSaving;
+
+  /// Why the commit cannot be pressed: the report list has not arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the saved reports.'**
+  String get scheduleFormBlockedLoading;
+
+  /// Why the commit cannot be pressed: the report list failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved reports could not be loaded, so there is nothing to schedule yet.'**
+  String get scheduleFormBlockedReportsFailed;
+
+  /// Why the commit cannot be pressed: this client has no report definitions.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no saved reports yet. Build one on Reports first.'**
+  String get scheduleFormBlockedNoReports;
+
+  /// Why the commit cannot be pressed: no report is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the report this schedule runs.'**
+  String get scheduleFormBlockedNoReport;
+
+  /// Why the commit cannot be pressed: no cadence is chosen. Also the cadence choice's own state line.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick how often it runs.'**
+  String get scheduleFormBlockedNoCadence;
+
+  /// Section rule above the schedule's report. Also the label and the picker sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get scheduleFormSectionReport;
+
+  /// Section rule above the cadence and the recipients.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get scheduleFormSectionSchedule;
+
+  /// Subtitle of the read-only report on an edited schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get scheduleFormReportLocked;
+
+  /// Why the report cannot be picked when editing: the PATCH route accepts only active, cadence and recipients.
+  ///
+  /// In en, this message translates to:
+  /// **'The report on a schedule cannot be changed. To schedule a different report, create a new schedule.'**
+  String get scheduleFormReportLockedNote;
+
+  /// Spoken sentence of the read-only report row.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}. Locked. {note}'**
+  String scheduleFormReportLockedSemantics(String name, String note);
+
+  /// What the report picker's skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'saved reports'**
+  String get scheduleFormReportsSkeleton;
+
+  /// In-panel empty state: there is nothing to schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved reports yet.'**
+  String get scheduleFormNoReportsHeadline;
+
+  /// Body of the no-reports empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Build one on the Reports screen, then schedule it.'**
+  String get scheduleFormNoReportsBody;
+
+  /// Subtitle of the report field before a report is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not picked yet'**
+  String get scheduleFormReportNotPicked;
+
+  /// Spoken sentence of the report picker row.
+  ///
+  /// In en, this message translates to:
+  /// **'Report. {report}. Choose the report this schedule runs.'**
+  String scheduleFormReportSemantics(String report);
+
+  /// Label of the cadence choice.
+  ///
+  /// In en, this message translates to:
+  /// **'How often'**
+  String get scheduleFormCadence;
+
+  /// What choosing Daily means. UTC is a time standard and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day, 06:00 UTC.'**
+  String get scheduleFormCadenceDailyConsequence;
+
+  /// What choosing Weekly means.
+  ///
+  /// In en, this message translates to:
+  /// **'Every Monday, 06:00 UTC.'**
+  String get scheduleFormCadenceWeeklyConsequence;
+
+  /// Help under the cadence choice. 'report.generated' is a wire event name.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs automatically on this cadence (UTC), is sent to webhooks subscribed to report.generated, and is emailed to the recipients when email is set up on the server.'**
+  String get scheduleFormCadenceHelp;
+
+  /// Label of the recipients box.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipients'**
+  String get scheduleFormRecipients;
+
+  /// Help under the recipients box.
+  ///
+  /// In en, this message translates to:
+  /// **'Email addresses, one per line or separated by commas.'**
+  String get scheduleFormRecipientsHelp;
+
+  /// Why the recipients box cannot be saved: it is empty. Mirrors the backend.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one recipient'**
+  String get scheduleFormRecipientsEmpty;
+
+  /// Why the recipients box cannot be saved, naming the first entry that is not an address.
+  ///
+  /// In en, this message translates to:
+  /// **'Not an email address: {entry}'**
+  String scheduleFormRecipientsInvalid(String entry);
+
+  /// Why the recipients box cannot be saved: the API's cap.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {max} recipients'**
+  String scheduleFormRecipientsTooMany(int max);
+
+  /// Headline when the create request was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The schedule was not created.'**
+  String get scheduleFormFailedNew;
+
+  /// Headline when the update request was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The changes were not saved.'**
+  String get scheduleFormFailedEdit;
+
+  /// The inline error's body: what was refused, then the sanitised server message.
+  ///
+  /// In en, this message translates to:
+  /// **'{headline} {reason}'**
+  String scheduleFormFailedBody(String headline, String reason);
+
+  /// Subtitle of the report picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'The schedule runs this definition on its cadence.'**
+  String get scheduleReportSheetSubtitle;
+
+  /// A moment less than a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get relativeJustNow;
+
+  /// A moment less than a minute from now.
+  ///
+  /// In en, this message translates to:
+  /// **'in under a minute'**
+  String get relativeUnderAMinute;
+
+  /// How long ago, in minutes. The unit is abbreviated because it sits in a row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m ago'**
+  String relativeMinutesAgo(int minutes);
+
+  /// How long ago, in hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h ago'**
+  String relativeHoursAgo(int hours);
+
+  /// How long ago, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d ago'**
+  String relativeDaysAgo(int days);
+
+  /// How long until, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'in {minutes}m'**
+  String relativeInMinutes(int minutes);
+
+  /// How long until, in hours.
+  ///
+  /// In en, this message translates to:
+  /// **'in {hours}h'**
+  String relativeInHours(int hours);
+
+  /// How long until, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'in {days}d'**
+  String relativeInDays(int days);
+
+  /// An endpoint that is receiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Healthy'**
+  String get webhookHealthHealthy;
+
+  /// An endpoint some deliveries to which are failing and still retrying.
+  ///
+  /// In en, this message translates to:
+  /// **'Failing'**
+  String get webhookHealthFailing;
+
+  /// An endpoint a delivery to which has given up after every retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Unhealthy'**
+  String get webhookHealthUnhealthy;
+
+  /// A delivery waiting to be attempted.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get webhookDeliveryQueued;
+
+  /// A delivery the endpoint took.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get webhookDeliveryDelivered;
+
+  /// A delivery that failed and is being tried again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying'**
+  String get webhookDeliveryRetrying;
+
+  /// A delivery whose retries are spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Gave up'**
+  String get webhookDeliveryGaveUp;
+
+  /// Screen title: the client's outbound endpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks'**
+  String get webhooksTitle;
+
+  /// Header fact. POST is an HTTP method and stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Each endpoint receives a POST when its event fires.'**
+  String get webhooksFactPost;
+
+  /// Header fact: how long the server keeps trying.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed deliveries retry for about eight hours.'**
+  String get webhooksFactRetries;
+
+  /// Semantic label of the header's refresh button.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the endpoints'**
+  String get webhooksRefresh;
+
+  /// What the skeleton and the error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'webhooks'**
+  String get webhooksSkeleton;
+
+  /// Section rule above the list of endpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoints'**
+  String get webhooksSection;
+
+  /// The standing warning above the list when some endpoint has stopped receiving.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 endpoint is not receiving. A delivery to it has given up after every retry.} other{{count} endpoints are not receiving. A delivery to them has given up after every retry.}}'**
+  String webhooksUnhealthyNote(int count);
+
+  /// In-panel empty state: this client forwards nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No endpoints registered.'**
+  String get webhooksEmptyHeadline;
+
+  /// Body of the webhooks empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one to forward events to an external system.'**
+  String get webhooksEmptyBody;
+
+  /// Verb that opens the create sheet. Also the sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an endpoint'**
+  String get webhookAdd;
+
+  /// Row subtitle for an endpoint nothing has been sent to.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries yet'**
+  String get webhookNoDeliveriesYet;
+
+  /// Row subtitle: when something was last sent to this endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Last delivery {when}'**
+  String webhookLastDelivery(String when);
+
+  /// The endpoint has a signing secret. The WORD, never the value: the secret is not on this screen at all. HMAC is a standard's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed — deliveries carry an HMAC signature.'**
+  String get webhookSigned;
+
+  /// The endpoint has no signing secret.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed — deliveries carry no signature.'**
+  String get webhookNotSigned;
+
+  /// The signing state in the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed'**
+  String get webhookSignedShort;
+
+  /// The signing state in the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed'**
+  String get webhookNotSignedShort;
+
+  /// Label of the toggle that activates or pauses an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving events'**
+  String get webhookReceivingEvents;
+
+  /// The toggle's on word.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get webhookOn;
+
+  /// The toggle's off word.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get webhookOff;
+
+  /// Why the toggle is disabled: a request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the server.'**
+  String get webhookWaitingForServer;
+
+  /// Spoken state of an active endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving'**
+  String get webhookReceiving;
+
+  /// Spoken state of a paused endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get webhookPaused;
+
+  /// Row verb that opens this endpoint's recent deliveries.
+  ///
+  /// In en, this message translates to:
+  /// **'Show deliveries'**
+  String get webhookShowDeliveries;
+
+  /// Row verb that closes the deliveries list.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide deliveries'**
+  String get webhookHideDeliveries;
+
+  /// Row verb that deletes the endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get webhookDelete;
+
+  /// Failure toast when activating was refused. The toggle goes back.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not resumed. {reason}'**
+  String webhookResumeFailed(String reason);
+
+  /// Failure toast when pausing was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not paused. {reason}'**
+  String webhookPauseFailed(String reason);
+
+  /// What the confirm sheet says will happen.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this endpoint?'**
+  String get webhookDeleteAction;
+
+  /// First consequence of deleting an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops receiving events immediately.'**
+  String get webhookDeleteConsequenceStops;
+
+  /// Second consequence of deleting an endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Its delivery history is removed with it.'**
+  String get webhookDeleteConsequenceHistory;
+
+  /// Third consequence: what deleting does NOT do.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing already delivered is withdrawn.'**
+  String get webhookDeleteConsequenceDelivered;
+
+  /// The confirm sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this endpoint'**
+  String get webhookDeleteCommit;
+
+  /// The confirm sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get webhookDeleteCancel;
+
+  /// Failure toast after a delete.
+  ///
+  /// In en, this message translates to:
+  /// **'That endpoint was not deleted. {reason}'**
+  String webhookDeleteFailed(String reason);
+
+  /// Section rule above an endpoint's deliveries.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent deliveries'**
+  String get webhookDeliveriesSection;
+
+  /// What the deliveries skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'deliveries'**
+  String get webhookDeliveriesSkeleton;
+
+  /// In-panel empty state: nothing has been sent to this endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries yet.'**
+  String get webhookDeliveriesEmptyHeadline;
+
+  /// Body of the deliveries empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'One appears each time the event fires.'**
+  String get webhookDeliveriesEmptyBody;
+
+  /// When a delivery succeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered {when}'**
+  String webhookDeliveredWhen(String when);
+
+  /// When a failing delivery will be tried again.
+  ///
+  /// In en, this message translates to:
+  /// **'Next retry {when}'**
+  String webhookNextRetryWhen(String when);
+
+  /// A delivery whose retries are spent.
+  ///
+  /// In en, this message translates to:
+  /// **'No more retries'**
+  String get webhookNoMoreRetries;
+
+  /// When a delivery was queued, where nothing better is known.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {when}'**
+  String webhookCreatedWhen(String when);
+
+  /// The status code the endpoint answered with. HTTP is a protocol name.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP {code}'**
+  String webhookHttpStatus(int code);
+
+  /// A delivery with no attempts behind it.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent yet'**
+  String get webhookNotSentYet;
+
+  /// A delivery that was attempted and got nothing back.
+  ///
+  /// In en, this message translates to:
+  /// **'No response'**
+  String get webhookNoResponse;
+
+  /// How many times a delivery has been tried.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attempt} other{{count} attempts}}'**
+  String webhookAttempts(int count);
+
+  /// Row verb that queues a delivery again.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeliver'**
+  String get webhookRedeliver;
+
+  /// The Redeliver verb while the request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Queueing…'**
+  String get webhookQueueing;
+
+  /// Toast after a successful redeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'Redelivery queued.'**
+  String get webhookRedeliveryQueued;
+
+  /// Failure toast after a redeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'That delivery was not re-queued. {reason}'**
+  String webhookRedeliverFailed(String reason);
+
+  /// Subtitle of the create sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'It receives a POST every time its event fires.'**
+  String get webhookCreateSubtitle;
+
+  /// Label of the endpoint's URL box.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get webhookCreateAddress;
+
+  /// Help under the URL box. Mirrors the server's own guard.
+  ///
+  /// In en, this message translates to:
+  /// **'A public http or https address the server can reach.'**
+  String get webhookCreateAddressHelp;
+
+  /// Why the URL cannot be saved: it does not parse.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a web address.'**
+  String get webhookCreateNotAUrl;
+
+  /// Why the URL cannot be saved: the scheme is not http(s). The schemes are not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'The address has to start with http:// or https://.'**
+  String get webhookCreateWrongScheme;
+
+  /// Why Add cannot be pressed: the URL box is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the endpoint a web address.'**
+  String get webhookCreateBlockedUrl;
+
+  /// Why Add cannot be pressed: no event is chosen. Also the event choice's own state line.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the event it listens for.'**
+  String get webhookCreateBlockedEvent;
+
+  /// Label of the event choice. The event names themselves are wire values and are not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get webhookCreateEvent;
+
+  /// Label of the write-only secret box.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing secret (optional)'**
+  String get webhookCreateSecret;
+
+  /// Help under the secret box: it is write-only by construction.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliveries are signed with it. It is stored on the server and never shown again — keep your own copy.'**
+  String get webhookCreateSecretHelp;
+
+  /// Headline of the inline error when the create request was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint was not added.'**
+  String get webhookCreateFailed;
+
+  /// The create sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this endpoint'**
+  String get webhookCreateCommit;
+
+  /// Blocked reason while the create request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding…'**
+  String get webhookCreateAdding;
+
+  /// The create sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get webhookCreateCancel;
+
+  /// Screen title of the team channel. Also the Messages feed's own rail chip and section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get messagesTitle;
+
+  /// Header fact under the Messages title.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the team can see.'**
+  String get messagesFact;
+
+  /// Semantic label of the header's refresh button.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the team channel'**
+  String get messagesRefresh;
+
+  /// Semantic label of the rail that switches between Messages and Announcements.
+  ///
+  /// In en, this message translates to:
+  /// **'Which feed'**
+  String get messagesWhichFeed;
+
+  /// The Announcements feed's rail chip and section rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements'**
+  String get messagesFeedAnnouncements;
+
+  /// What the Messages skeleton and error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'messages'**
+  String get messagesSkeleton;
+
+  /// What the Announcements skeleton and error region say they are for.
+  ///
+  /// In en, this message translates to:
+  /// **'announcements'**
+  String get announcementsSkeleton;
+
+  /// In-panel empty state of the message thread.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet.'**
+  String get messagesEmptyHeadline;
+
+  /// Body of the messages empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything you send below reaches the whole team.'**
+  String get messagesEmptyBody;
+
+  /// In-panel empty state of the announcements feed.
+  ///
+  /// In en, this message translates to:
+  /// **'No announcements yet.'**
+  String get announcementsEmptyHeadline;
+
+  /// Body of the announcements empty state for somebody who may post. The guidance names a next action only if you are allowed to do it.
+  ///
+  /// In en, this message translates to:
+  /// **'Post one and every user on this client sees it.'**
+  String get announcementsEmptyBodyCanPost;
+
+  /// Body of the announcements empty state for somebody who may not post.
+  ///
+  /// In en, this message translates to:
+  /// **'Your managers post here when something affects everyone.'**
+  String get announcementsEmptyBodyReadOnly;
+
+  /// Verb that opens the compose sheet. Also the sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'New announcement'**
+  String get announcementNew;
+
+  /// Toast after a successful post.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted to everyone on this client.'**
+  String get announcementPosted;
+
+  /// Failure toast after a post.
+  ///
+  /// In en, this message translates to:
+  /// **'That announcement was not posted. {reason}'**
+  String announcementPostFailed(String reason);
+
+  /// Headline of a message that is one photo and no words.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get messagePhotoOne;
+
+  /// Headline of a message that is several photos and no words.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} photos'**
+  String messagePhotoMany(int count);
+
+  /// Meta word: the message went to one person.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct'**
+  String get messageDirect;
+
+  /// Meta word: the message went to the whole team.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get messageBroadcast;
+
+  /// Who sent the message, by name and never by id.
+  ///
+  /// In en, this message translates to:
+  /// **'From {name}'**
+  String messageFrom(String name);
+
+  /// Who a direct message went to, by name.
+  ///
+  /// In en, this message translates to:
+  /// **'To {name}'**
+  String messageTo(String name);
+
+  /// Who a broadcast went to.
+  ///
+  /// In en, this message translates to:
+  /// **'To the whole team'**
+  String get messageToTeam;
+
+  /// A direct message whose recipient the roster cannot name.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct message'**
+  String get messageDirectUnknownRecipient;
+
+  /// The explicit unknown state. The id appears here and nowhere else: a deleted account, or a roster that has not loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Sender not on the roster: {id}'**
+  String messageSenderNotOnRoster(String id);
+
+  /// The explicit unknown state for the recipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient not on the roster: {id}'**
+  String messageRecipientNotOnRoster(String id);
+
+  /// How many photos a message carries, in its spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
+  String messagePhotoCount(int count);
+
+  /// What a reader hears on one attachment thumb, so two thumbs on a message are told apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {index} of {count}'**
+  String messagePhotoOfCount(int index, int count);
+
+  /// How to reach the id, at the end of the row's spoken sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press to copy the message id'**
+  String get messageLongPressForId;
+
+  /// Toast after a long press copies the id.
+  ///
+  /// In en, this message translates to:
+  /// **'Message id copied.'**
+  String get messageIdCopied;
+
+  /// Subtitle of an announcement row.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast to the whole client'**
+  String get announcementSubtitle;
+
+  /// Spoken sentence of an announcement row.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}. {body}. Broadcast to the whole client.'**
+  String announcementSemantics(String title, String body);
+
+  /// Title of the camera-or-library sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get attachSheetTitle;
+
+  /// Subtitle of the attach sheet: an abandoned draft leaves nothing on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'It is uploaded when the message is sent, not before.'**
+  String get attachSheetSubtitle;
+
+  /// The camera source.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get attachCamera;
+
+  /// The library source.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from the library'**
+  String get attachGallery;
+
+  /// Subtitle of the compose sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Every user on this client sees it.'**
+  String get announcementSheetSubtitle;
+
+  /// Label of the announcement's title box.
+  ///
+  /// In en, this message translates to:
+  /// **'Headline'**
+  String get announcementSheetHeadline;
+
+  /// Label of the announcement's body box.
+  ///
+  /// In en, this message translates to:
+  /// **'What it says'**
+  String get announcementSheetBody;
+
+  /// Why Post cannot be pressed: the headline is empty. The endpoint rejects a blank either way.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the announcement a headline.'**
+  String get announcementSheetBlockedTitle;
+
+  /// Why Post cannot be pressed: the body is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Say what it is about.'**
+  String get announcementSheetBlockedBody;
+
+  /// The compose sheet's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Post this announcement'**
+  String get announcementSheetCommit;
+
+  /// The compose sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get announcementSheetCancel;
+
+  /// Label of the composer's text box.
+  ///
+  /// In en, this message translates to:
+  /// **'Message the team'**
+  String get composerLabel;
+
+  /// Headline of the composer's inline error.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent.'**
+  String get composerNotSent;
+
+  /// The composer's commit verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get composerSend;
+
+  /// The Send verb while the message is in flight, and its blocked reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get composerSending;
+
+  /// Why Send is not armed: the draft is empty. A Send with nothing to send is not armed.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something, or add a photo.'**
+  String get composerBlockedEmpty;
+
+  /// Semantic label of the attach button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo to this message'**
+  String get composerAddPhoto;
+
+  /// Semantic label of the attach button once the cap is reached — it says why it stops.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max} photos per message'**
+  String composerPhotoCap(int max);
+
+  /// The line beside the attach button while nothing is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max} photos.'**
+  String composerPhotoCapLine(int max);
+
+  /// The line beside the attach button once photos are in the draft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {max} photos attached.'**
+  String composerPhotosAttached(int count, int max);
+
+  /// A denied camera permission lands here. It says so rather than doing nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add a photo. Check camera and photo permissions.'**
+  String get composerPhotoFailed;
+
+  /// On an upload failure nothing is sent and the draft — words and photos — stays where the sender left it.
+  ///
+  /// In en, this message translates to:
+  /// **'A photo failed to upload, so nothing was sent. {reason} Your draft is kept.'**
+  String composerUploadFailed(String reason);
+
+  /// The send was refused and the draft is kept for a retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not sent. {reason} Your draft is kept.'**
+  String composerSendFailed(String reason);
+
+  /// What a reader hears on a picked photo waiting in the draft.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {index} ready to send'**
+  String pendingPhotoReady(int index);
+
+  /// Semantic label of the button that removes a picked photo. Its own node, beside the image's, not wrapped around it.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photo {index} out of this message'**
+  String pendingPhotoRemove(int index);
+
+  /// Title of the sheet that shows one message attachment full size.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get attachmentSheetTitle;
+
+  /// What the attachment sheet's skeleton says it is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'the photo'**
+  String get attachmentSheetSkeleton;
+
+  /// The attachment sheet's way out.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get attachmentSheetClose;
+
+  /// Headline when the bytes arrived and are not an image this device can decode.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo could not be displayed.'**
+  String get attachmentUndecodableHeadline;
+
+  /// Body of the undecodable-photo error. Retry would not help, so none is offered.
+  ///
+  /// In en, this message translates to:
+  /// **'The file arrived, but it is not an image this device can decode.'**
+  String get attachmentUndecodableBody;
+
+  /// A figure computed from too thin a sample. It greys the figure and drops the delta.
+  ///
+  /// In en, this message translates to:
+  /// **'small sample'**
+  String get figureSmallSample;
+
+  /// A figure with no score behind it.
+  ///
+  /// In en, this message translates to:
+  /// **'not scored'**
+  String get figureNotScored;
+
+  /// The marker beside a figure that is not final yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Provisional'**
+  String get figureProvisional;
+
+  /// Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get pickerSelected;
+
+  /// Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}'**
+  String outletDisputePhotoCount(int count);
+
+  /// Title of an order row while the store list is still being fetched. Not "Store not on this list": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get ordersStoreListLoading;
+
+  /// Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get ordersStoreListUnavailable;
+
+  /// Title of a beat plan stop whose store is genuinely absent from the loaded store list.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get beatPlanStopUnknownStore;
+
+  /// Title of a beat plan stop while the store list is still being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get beatPlanStopStoreLoading;
+
+  /// Title of a beat plan stop when the store list failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get beatPlanStopStoreUnavailable;
+
+  /// Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Every target at this level is 0 units, so there is nothing to attain.'**
+  String get salesLevelZeroTarget;
+
+  /// Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total.
+  ///
+  /// In en, this message translates to:
+  /// **'The share of target was not worked out for this level.'**
+  String get salesLevelAttainmentUnknown;
+
+  /// Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed "target 0 units" and "No target" in the same breath said both at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Target of 0 units'**
+  String get salesZeroTarget;
 
   /// Title of the agent trail screen.
   ///

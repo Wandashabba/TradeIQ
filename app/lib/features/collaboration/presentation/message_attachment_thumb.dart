@@ -5,6 +5,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../audit/data/photos_repository.dart';
 
 /// An image attached to a message (#125), as a thumbnail in the thread.
@@ -23,11 +24,17 @@ class MessageAttachmentThumb extends ConsumerWidget {
   const MessageAttachmentThumb({
     super.key,
     required this.photoId,
+    required this.label,
     this.size = 56,
   });
 
   final String photoId;
   final double size;
+
+  /// What the reader hears, already translated by the caller — "Photo 1 of
+  /// 2", so two thumbs on one message are told apart rather than announced
+  /// twice as the same thing.
+  final String label;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +68,7 @@ class MessageAttachmentThumb extends ConsumerWidget {
     // excluding semantics node paints, hit-tests and is announced nowhere —
     // the kit-wide bug that left every button unpressable to a reader.
     return Semantics(
-      label: 'Photo attachment',
+      label: label,
       image: true,
       button: true,
       onTap: () => showMessageAttachmentSheet(context, photoId),
@@ -90,18 +97,19 @@ class MessageAttachmentSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final image = ref.watch(photoImageBytesProvider(photoId));
 
     return TorchSheet(
       key: const ValueKey<String>('attachment-sheet'),
-      title: 'Photo',
+      title: l10n.attachmentSheetTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           image.when(
             loading: () => Skeleton(
-              label: 'the photo',
+              label: l10n.attachmentSheetSkeleton,
               child: const SkeletonShell(height: 220),
             ),
             // Never a dead end: the failure names itself and offers the way
@@ -111,7 +119,7 @@ class MessageAttachmentSheet extends ConsumerWidget {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('attachment-sheet-retry'),
-                label: 'Try again',
+                label: l10n.torchTryAgain,
                 onPressed: () =>
                     ref.invalidate(photoImageBytesProvider(photoId)),
               ),
@@ -122,11 +130,10 @@ class MessageAttachmentSheet extends ConsumerWidget {
               fit: BoxFit.contain,
               errorBuilder: (context, error, stack) => ErrorState(
                 scope: ErrorScope.inline,
-                message: const TorchErrorMessage(
+                message: TorchErrorMessage(
                   kind: TorchErrorKind.rejected,
-                  headline: 'This photo could not be displayed.',
-                  body: 'The file arrived, but it is not an image this device '
-                      'can decode.',
+                  headline: l10n.attachmentUndecodableHeadline,
+                  body: l10n.attachmentUndecodableBody,
                   offersRetry: false,
                 ),
               ),
@@ -135,7 +142,7 @@ class MessageAttachmentSheet extends ConsumerWidget {
           SizedBox(height: context.skin.space.blockGap),
           TorchSecondaryButton(
             key: const ValueKey<String>('attachment-sheet-close'),
-            label: 'Close',
+            label: l10n.attachmentSheetClose,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
