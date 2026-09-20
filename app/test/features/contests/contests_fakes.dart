@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 
 /// Shared fixtures for the contest screen tests (#124).
@@ -74,6 +76,13 @@ class FakeContestsRepository implements ContestsRepository {
     this.current = const [],
     this.standingsById = const {},
     this.failCurrent = false,
+    this.listFailure,
+    this.listPending = false,
+    this.standingsFailure,
+    this.standingsPending = false,
+    this.cancelFailure,
+    this.saveFailure,
+    this.savePending = false,
   });
 
   final List<Contest> contests;
@@ -81,18 +90,42 @@ class FakeContestsRepository implements ContestsRepository {
   final Map<String, ContestStandings> standingsById;
   final bool failCurrent;
 
+  /// When set, `listContests` throws it.
+  final Object? listFailure;
+
+  /// The list never arrives, so the screen stays in its loading phase.
+  final bool listPending;
+
+  final Object? standingsFailure;
+  final bool standingsPending;
+
+  /// When set, `cancelContest` and `deleteContest` throw it.
+  final Object? cancelFailure;
+
+  /// When set, `createContest` and `updateContest` throw it.
+  final Object? saveFailure;
+
+  /// The save never resolves, so the form stays in its `saving` phase.
+  final bool savePending;
+
   final calls = <String>[];
   ContestInput? created;
   String? updatedId;
   ContestInput? updated;
 
   @override
-  Future<List<Contest>> listContests() async => contests;
+  Future<List<Contest>> listContests() async {
+    if (listFailure != null) throw listFailure!;
+    if (listPending) return Completer<List<Contest>>().future;
+    return contests;
+  }
 
   @override
   Future<Contest> createContest(ContestInput input) async {
     created = input;
     calls.add('create');
+    if (saveFailure != null) throw saveFailure!;
+    if (savePending) return Completer<Contest>().future;
     return Contest(
       id: 'c-new',
       name: input.name,
@@ -107,27 +140,39 @@ class FakeContestsRepository implements ContestsRepository {
     updatedId = id;
     updated = input;
     calls.add('update:$id');
+    if (saveFailure != null) throw saveFailure!;
+    if (savePending) return Completer<Contest>().future;
     return contests.firstWhere((c) => c.id == id);
   }
 
   @override
   Future<Contest> cancelContest(String id) async {
     calls.add('cancel:$id');
+    if (cancelFailure != null) throw cancelFailure!;
     return contests.firstWhere((c) => c.id == id);
   }
 
   @override
   Future<void> deleteContest(String id) async {
     calls.add('delete:$id');
+    if (cancelFailure != null) throw cancelFailure!;
   }
 
   @override
-  Future<ContestStandings> standings(String id) async =>
-      standingsById[id] ?? (throw Exception('no standings for $id'));
+  Future<ContestStandings> standings(String id) async {
+    if (standingsFailure != null) throw standingsFailure!;
+    if (standingsPending) return Completer<ContestStandings>().future;
+    return standingsById[id] ?? (throw Exception('no standings for $id'));
+  }
 
   @override
   Future<List<CurrentContest>> currentContests() async {
-    if (failCurrent) throw Exception('boom');
+    // A `StateError`, deliberately, and not a bare `Exception`. Riverpod 3's
+    // `defaultRetry` returns null for an `Error` and a backoff for an
+    // `Exception`, so a fixture that threw `Exception('boom')` made the
+    // provider retry ten times over ~12s — the screen sat on its skeleton and
+    // the error branch was never reached inside a widget test.
+    if (failCurrent) throw StateError('SocketException: api.tradeiq.co.za');
     return current;
   }
 }

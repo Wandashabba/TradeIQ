@@ -3637,6 +3637,47 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meContestsDetail => 'Kyk waar jy staan';
 
   @override
+  String get contestsBackToMe => 'Terug na Ek';
+
+  @override
+  String get contestsBackToToday => 'Terug na Vandag';
+
+  @override
+  String get contestRankEyebrow => 'Jou posisie';
+
+  @override
+  String get contestPointsEyebrow => 'Jou punte';
+
+  @override
+  String contestRankOutOf(int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: 'uit $total agente',
+      one: 'uit 1 agent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get contestNobodyRanked => 'Niemand het nog punte verdien nie.';
+
+  @override
+  String get wordOn => 'Aan';
+
+  @override
+  String get wordOff => 'Af';
+
+  @override
+  String get notificationsBackToMe => 'Terug na Ek';
+
+  @override
+  String get notificationsBackToToday => 'Terug na Vandag';
+
+  @override
+  String get notificationsHeading => 'Wat hierdie foon bereik';
+
+  @override
   String get loginFailedTitle => 'Ons kon jou nie inteken nie';
 
   @override

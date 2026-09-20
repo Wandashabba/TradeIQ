@@ -112,11 +112,19 @@ class PersonRow extends StatelessWidget {
   /// Ignored if [trailingWord] is set.
   final Widget? trailing;
 
-  /// [trailing]'s figure, in words, for the row's one semantics node.
+  /// What [trailing] **says**, for the row's one semantics node.
   ///
-  /// Required alongside [trailing] (see the assert): the row excludes
-  /// everything beneath it, so a painted figure that is not spelled here is a
-  /// figure a screen reader never reaches.
+  /// A `SoftRow` composes its label and excludes everything beneath it, so a
+  /// rank, a points figure or a status chip dropped into [trailing] is painted
+  /// and announced nowhere — the same hole that lost the worklists their row
+  /// verbs. [trailingWord] never had the problem because it is a string the
+  /// row can read; a widget is not, so the caller says what it means here.
+  ///
+  /// Two groups found this hole independently and closed it the same way. The
+  /// assert on the constructor is the stricter of the two readings: a
+  /// *decorative* trailing has nothing to announce, but it also has no reason
+  /// to be a widget — [PersonRow] paints its own chevron from [onTap], so
+  /// every `trailing` a caller actually passes carries a fact.
   final String? trailingLabel;
 
   /// Extra reason content beneath the role line — the evidence behind an
@@ -217,9 +225,10 @@ class PersonRow extends StatelessWidget {
         hasName ? name : unknownLabel,
         if (parts.isNotEmpty) parts.join(', '),
         if (showIdentifier) '$identifierLabel ${_spell(identifier!)}',
-        // The word wins when both are present, because `_trailing` paints the
-        // word and a reader must hear what is on the screen.
-        trailingWord ?? (trailing != null ? trailingLabel : null),
+        // Whichever trailing the row actually painted — the word, or what the
+        // widget says. The word wins when both are set, because `_trailing`
+        // paints the word and a reader must hear what is on the screen.
+        trailingWord ?? (trailing == null ? null : trailingLabel),
         metaLabel,
       ].whereType<String>().join(', '),
     );

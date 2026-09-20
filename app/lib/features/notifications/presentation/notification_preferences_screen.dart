@@ -1,19 +1,22 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/design/torch_scope.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/push/push_client.dart';
 import '../../../core/push/push_repository.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_kit.dart';
-import '../../../core/widgets/agent_scaffold.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/skin_controls.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 
 /// The signed-in user's push preferences (#67), saved optimistically.
@@ -50,6 +53,22 @@ final notificationPreferencesProvider =
 
 /// `/notifications` — one route, each role in its own shell: the field agent's
 /// translated app, or the manager's (English) console.
+///
+/// ## Toggles, and the word that is not optional
+///
+/// Every preference is a [TorchToggle], whose state word is mandatory by
+/// construction — it has a default rather than being nullable, so a caller can
+/// localise it but cannot remove it. On the agent's screen the words come from
+/// the ARB, because an English "On" inside an Afrikaans screen is a defect.
+///
+/// There is no indeterminate state: a toggle sitting at off is a recorded no.
+///
+/// ## The amber, counted
+///
+/// Neither branch has a commit. The agent's is a pushed screen with no nav, so
+/// it has two content grants and declares none; the manager's is a tab root,
+/// so Night paints the nav's active tab and nothing else. Day and Veld paint
+/// zero on both.
 class NotificationPreferencesScreen extends ConsumerWidget {
   const NotificationPreferencesScreen({super.key});
 
@@ -62,58 +81,105 @@ class NotificationPreferencesScreen extends ConsumerWidget {
   }
 }
 
+/// One preference: the category, the words that describe it, and the help line
+/// beneath.
 class _Item {
   const _Item(this.category, this.label, this.help);
+
   final NotificationCategory category;
   final String label;
   final String help;
 }
 
-Future<void> _save(
-  BuildContext context,
-  WidgetRef ref,
-  NotificationCategory category,
-  bool enabled,
-  String failure,
-) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final saved = await ref
-      .read(notificationPreferencesProvider.notifier)
-      .setCategory(category, enabled);
-  if (!saved) messenger.showSnackBar(SnackBar(content: Text(failure)));
+/// The toggle stack, shared by both roles.
+class _Toggles extends ConsumerWidget {
+  const _Toggles({
+    required this.prefs,
+    required this.items,
+    required this.failure,
+    required this.onWord,
+    required this.offWord,
+  });
+
+  final NotificationPreferences prefs;
+  final List<_Item> items;
+
+  /// What a failed save says, in the reader's language.
+  final String failure;
+  final String onWord;
+  final String offWord;
+
+  Future<void> _save(
+    BuildContext context,
+    WidgetRef ref,
+    NotificationCategory category,
+    bool enabled,
+  ) async {
+    final saved = await ref
+        .read(notificationPreferencesProvider.notifier)
+        .setCategory(category, enabled);
+    if (saved || !context.mounted) return;
+    // The preference is already back where it was — the toggle never lies
+    // about the server — and the toast says so rather than leaving the flip
+    // to be discovered.
+    showTorchToast(
+      context,
+      message: failure,
+      kind: ToastKind.failure,
+      navRenders: false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (final item in items) ...<Widget>[
+          TorchToggle(
+            key: ValueKey<String>('push-pref-${item.category.name}'),
+            label: item.label,
+            value: prefs[item.category],
+            onWord: onWord,
+            offWord: offWord,
+            onChanged: (enabled) => _save(context, ref, item.category, enabled),
+          ),
+          const SizedBox(height: TiqSpace.s2),
+          Text(
+            item.help,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+          SizedBox(height: skin.space.intraBlock),
+        ],
+      ],
+    );
+  }
 }
 
-Widget _toggles(
-  BuildContext context,
-  WidgetRef ref,
-  NotificationPreferences prefs,
-  List<_Item> items,
-  String failure,
-) => Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-    for (final item in items)
-      AgentToggle(
-        key: ValueKey('push-pref-${item.category.name}'),
-        label: item.label,
-        help: item.help,
-        value: prefs[item.category],
-        onChanged: (enabled) =>
-            _save(context, ref, item.category, enabled, failure),
-      ),
-  ],
-);
-
+/// THE AGENT'S BRANCH — translated, pushed, and always carrying the way to
+/// change a password.
 class _AgentNotificationPreferences extends ConsumerWidget {
   const _AgentNotificationPreferences();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const TorchlightRoute(child: _AgentBody());
+  }
+}
+
+class _AgentBody extends ConsumerWidget {
+  const _AgentBody();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final prefs = ref.watch(notificationPreferencesProvider);
     final pushOn = ref.watch(pushClientProvider).isEnabled;
+
     // Alerts go to managers only, so an agent is not offered them.
-    final items = [
+    final items = <_Item>[
       _Item(
         NotificationCategory.tasks,
         l10n.notificationsTasksLabel,
@@ -131,78 +197,151 @@ class _AgentNotificationPreferences extends ConsumerWidget {
       ),
     ];
 
-    return AgentScaffold(
-      title: l10n.notificationsTitle,
-      subtitle: l10n.notificationsSubtitle,
-      onBack: () => context.canPop() ? context.pop() : context.go('/today'),
-      showSyncChip: false,
-      showNotificationsAction: false,
-      body: prefs.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            StatusBanner(
-              level: BannerLevel.bad,
-              title: l10n.notificationsLoadErrorTitle,
-              subtitle: humanErrorMessage(error, l10n),
+    return prefs.when(
+      loading: () => _AgentFrame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
+            label: l10n.notificationsTitle,
+            child: const SkeletonRows(count: 3, rowHeight: 64),
+          ),
+        ],
+      ),
+      // The way to the change-password screen (#400) is on BOTH branches, so
+      // a preferences load that fails never hides it.
+      error: (error, stack) => _AgentFrame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'notification settings',
+            child: ErrorState(
+              key: const ValueKey<String>('push-prefs-error'),
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.notificationsLoadErrorTitle,
+                body: humanErrorMessage(error, l10n),
+                offersRetry: true,
+              ),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('push-prefs-retry'),
+                label: l10n.notificationsRetry,
+                onPressed: () =>
+                    ref.invalidate(notificationPreferencesProvider),
+              ),
             ),
-            const SizedBox(height: 12),
-            AgentButton(
-              key: const ValueKey('push-prefs-retry'),
-              label: l10n.notificationsRetry,
-              icon: Icons.refresh,
-              secondary: true,
-              onPressed: () => ref.invalidate(notificationPreferencesProvider),
+          ),
+          const _AgentAccountEntry(),
+        ],
+      ),
+      data: (value) => _AgentFrame(
+        phase: 'loaded',
+        children: <Widget>[
+          if (!pushOn) ...<Widget>[
+            EmptyState(
+              key: const ValueKey<String>('push-not-set-up'),
+              scope: EmptyScope.inline,
+              headline: l10n.notificationsNotSetUpTitle,
+              body: l10n.notificationsNotSetUpBody,
             ),
-            const _AgentAccountEntry(),
+            SizedBox(height: context.skin.space.blockGap),
           ],
-        ),
-        data: (value) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            if (!pushOn) ...[
-              StatusBanner(
-                key: const ValueKey('push-not-set-up'),
-                level: BannerLevel.info,
-                title: l10n.notificationsNotSetUpTitle,
-                subtitle: l10n.notificationsNotSetUpBody,
-              ),
-              const SizedBox(height: 16),
-            ],
-            GlassPane(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: _toggles(
-                context,
-                ref,
-                value,
-                items,
-                l10n.notificationsSaveFailed,
-              ),
+          SectionRule(l10n.notificationsHeading),
+          const SizedBox(height: TiqSpace.s5),
+          _Toggles(
+            prefs: value,
+            items: items,
+            failure: l10n.notificationsSaveFailed,
+            onWord: l10n.wordOn,
+            offWord: l10n.wordOff,
+          ),
+          Text(
+            l10n.notificationsFooter,
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.notificationsFooter,
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.5,
-                color: context.colors.glass
-                    ? context.lumen.inkMuted
-                    : context.colors.ink3,
-              ),
-            ),
-            const _AgentAccountEntry(),
-          ],
-        ),
+          ),
+          const _AgentAccountEntry(),
+        ],
       ),
     );
   }
 }
 
+class _AgentFrame extends ConsumerWidget {
+  const _AgentFrame({required this.phase, required this.children});
+
+  final String phase;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final canPop = context.canPop();
+
+    return TorchScope(
+      skin: context.skin,
+      phase: phase,
+      navRenders: false,
+      tabbedRoute: false,
+      // Nothing here is a commit: a preference saves itself on the flip.
+      claims: const <TorchClaim>[],
+      child: TorchShell(
+        profile: TorchShellProfile.agent,
+        header: TorchAppHeader(
+          title: l10n.notificationsTitle,
+          facts: <String>[l10n.notificationsSubtitle],
+          back: TorchIconButton(
+            key: const ValueKey<String>('notifications-back'),
+            icon: Icons.arrow_back,
+            semanticLabel: canPop
+                ? l10n.notificationsBackToMe
+                : l10n.notificationsBackToToday,
+            onPressed: () => canPop ? context.pop() : context.go('/today'),
+          ),
+        ),
+        skinCycle: const AgentSkinCycle(),
+        children: children,
+      ),
+    );
+  }
+}
+
+/// The way to the change-password screen (#400), on both of the agent's
+/// branches — loaded and failed — so a preferences load that fails never
+/// hides it.
+class _AgentAccountEntry extends StatelessWidget {
+  const _AgentAccountEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: EdgeInsets.only(top: context.skin.space.blockGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SectionRule(l10n.settingsAccountHeading),
+          const SizedBox(height: TiqSpace.s5),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              key: const ValueKey<String>('account-change-password'),
+              label: l10n.changePasswordTitle,
+              onPressed: () => context.push('/account/password'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// THE MANAGER'S BRANCH — the console, English, under the Menu slot.
 class _ManagerNotificationPreferences extends ConsumerWidget {
   const _ManagerNotificationPreferences();
 
-  static const _items = [
+  static const List<_Item> _items = <_Item>[
     _Item(
       NotificationCategory.alerts,
       'Alerts',
@@ -229,121 +368,99 @@ class _ManagerNotificationPreferences extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(notificationPreferencesProvider);
     final pushOn = ref.watch(pushClientProvider).isEnabled;
-    final colors = context.colors;
-    final muted = colors.glass ? context.lumen.inkMuted : colors.ink2;
 
-    return ManagerScaffold(
-      title: 'Notifications',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: AsyncSection<NotificationPreferences>(
-                value: prefs,
-                label: 'notification settings',
-                onRetry: () => ref.invalidate(notificationPreferencesProvider),
-                builder: (value) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (!pushOn) ...[
-                      GlassPane(
-                        key: const ValueKey('push-not-set-up'),
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.notifications_off_outlined,
-                              size: 18,
-                              color: muted,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Push notifications aren’t switched on for '
-                                'this app yet. Your choices are saved and '
-                                'apply as soon as they are.',
-                                style: TextStyle(fontSize: 13, color: muted),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    PanelCard(
-                      title: 'Push notifications',
-                      subtitle: 'What reaches your phone or browser',
-                      child: _toggles(
-                        context,
-                        ref,
-                        value,
-                        _items,
-                        'Couldn’t save that — check your connection and try again',
-                      ),
-                    ),
-                  ],
-                ),
+    return prefs.when(
+      loading: () => _frame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
+            label: 'notification settings',
+            child: const SkeletonRows(count: 4, rowHeight: 64),
+          ),
+        ],
+      ),
+      // Outside the preferences' region, so a failed load never hides the way
+      // to change a password (#400).
+      error: (error, stack) => _frame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'notification settings',
+            child: ErrorState(
+              key: const ValueKey<String>('push-prefs-error'),
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('push-prefs-retry'),
+                label: 'Try again',
+                onPressed: () =>
+                    ref.invalidate(notificationPreferencesProvider),
               ),
             ),
           ),
-          // Outside the preferences' async section, so a failed load of the
-          // toggles never hides the way to change a password (#400).
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: PanelCard(
-                title: 'Your account',
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('account-change-password'),
-                    icon: const Icon(Icons.password_outlined, size: 18),
-                    label: const Text('Change password'),
-                    onPressed: () => context.push('/account/password'),
-                  ),
-                ),
-              ),
+          const _ManagerAccountEntry(),
+        ],
+      ),
+      data: (value) => _frame(
+        phase: 'loaded',
+        children: <Widget>[
+          if (!pushOn) ...<Widget>[
+            const EmptyState(
+              key: ValueKey<String>('push-not-set-up'),
+              scope: EmptyScope.inline,
+              headline: 'Push notifications aren’t switched on yet.',
+              body: 'Your choices are saved and apply as soon as they are.',
             ),
+            SizedBox(height: context.skin.space.blockGap),
+          ],
+          SectionRule('Push notifications'),
+          const SizedBox(height: TiqSpace.s5),
+          _Toggles(
+            prefs: value,
+            items: _items,
+            failure:
+                'Couldn’t save that — check your connection and try again.',
+            onWord: 'On',
+            offWord: 'Off',
           ),
+          const _ManagerAccountEntry(),
         ],
       ),
     );
   }
+
+  Widget _frame({required String phase, required List<Widget> children}) {
+    return ConsoleFrame(
+      phase: phase,
+      active: ConsoleSlot.menu,
+      header: const TorchAppHeader(
+        title: 'Notifications',
+        facts: <String>['What reaches your phone or browser.'],
+      ),
+      children: children,
+    );
+  }
 }
 
-/// The way to the change-password screen (#400), on both of the agent's
-/// branches — loaded and failed — so a preferences load that fails never hides
-/// it.
-class _AgentAccountEntry extends StatelessWidget {
-  const _AgentAccountEntry();
+class _ManagerAccountEntry extends StatelessWidget {
+  const _ManagerAccountEntry();
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     return Padding(
-      padding: const EdgeInsets.only(top: 24),
+      padding: EdgeInsets.only(top: context.skin.space.blockGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(
-            header: true,
-            child: Text(
-              l10n.settingsAccountHeading,
-              style: Theme.of(context).textTheme.titleSmall,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SectionRule('Your account'),
+          const SizedBox(height: TiqSpace.s5),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              key: const ValueKey<String>('account-change-password'),
+              label: 'Change password',
+              onPressed: () => context.push('/account/password'),
             ),
-          ),
-          const SizedBox(height: 8),
-          AgentButton(
-            key: const ValueKey('account-change-password'),
-            label: l10n.changePasswordTitle,
-            icon: Icons.password_outlined,
-            secondary: true,
-            onPressed: () => context.push('/account/password'),
           ),
         ],
       ),

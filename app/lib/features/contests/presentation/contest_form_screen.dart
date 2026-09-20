@@ -1,22 +1,42 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'
+    show Icons, TextCapitalization, showDatePicker;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/human_error.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/glass_page_scaffold.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/contests_repository.dart';
 import 'contest_labels.dart';
 
-/// Create or edit a contest (#124).
+/// CREATE OR EDIT A CONTEST (#124).
 ///
-/// Every field is editable, dates included. Dates are calendar days, inclusive,
-/// in the client's timezone. A new contest defaults to a week starting today,
-/// so the common case needs no date picking at all.
+/// Every field is editable, dates included. Dates are calendar days,
+/// inclusive, in the client's timezone. A new contest defaults to a week
+/// starting today, so the common case needs no date picking at all.
+///
+/// ## The amber, counted
+///
+/// Not a tab root and no nav, so Night has two content grants and Day and Veld
+/// have one. The only claim is the save action, and it is declared only while
+/// the form can actually be submitted — a screen mid-save declares nothing, so
+/// a busy form carries zero amber and a ready one carries exactly one in every
+/// skin.
+///
+/// ## What the trough grammar changed, and what it did not
+///
+/// Every `TextFormField` became a [TorchTextField] and the `Form`/validator
+/// pair went with them: a trough owns its own error line, so validation is
+/// state on this widget rather than a `GlobalKey<FormState>`. The rules are
+/// the same rules — a name is required, the end may not precede the start —
+/// and both are still checked before the request rather than after it.
 class ContestFormScreen extends ConsumerStatefulWidget {
   const ContestFormScreen({super.key, this.contest});
 
@@ -24,12 +44,14 @@ class ContestFormScreen extends ConsumerStatefulWidget {
 
   bool get isEditing => contest != null;
 
+  /// The id the save button claims under.
+  static const String commitClaimId = 'contest-save';
+
   @override
   ConsumerState<ContestFormScreen> createState() => _ContestFormScreenState();
 }
 
 class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
-  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descriptionCtrl;
   late final TextEditingController _prizeCtrl;
@@ -38,6 +60,13 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
   String? _territoryId;
   late final Set<String> _eventTypes;
   bool _submitting = false;
+
+  /// The trough's own error line, or null. Set on submit and cleared on the
+  /// next keystroke — a field that goes on shouting after it has been fixed
+  /// teaches people to ignore it.
+  String? _nameError;
+  String? _dateError;
+  TorchErrorMessage? _failure;
 
   @override
   void initState() {
@@ -49,10 +78,11 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     _startDate = (c == null ? null : DateTime.tryParse(c.startDate)) ?? today;
-    _endDate = (c == null ? null : DateTime.tryParse(c.endDate)) ??
+    _endDate =
+        (c == null ? null : DateTime.tryParse(c.endDate)) ??
         today.add(const Duration(days: 6));
     _territoryId = c?.territoryId;
-    _eventTypes = {...?c?.eventTypes};
+    _eventTypes = <String>{...?c?.eventTypes};
   }
 
   @override
@@ -64,7 +94,9 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
   }
 
   static String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _pickDate({required bool isStart}) async {
     final initial = isStart ? _startDate : _endDate;
@@ -75,7 +107,14 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
       lastDate: DateTime(2035),
     );
     if (picked == null) return;
-    setState(() => isStart ? _startDate = picked : _endDate = picked);
+    setState(() {
+      if (isStart) {
+        _startDate = picked;
+      } else {
+        _endDate = picked;
+      }
+      _dateError = null;
+    });
   }
 
   String? _optional(TextEditingController ctrl) {
@@ -84,13 +123,22 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_endDate.isBefore(_startDate)) {
-      _snack('End date cannot be before the start date.');
+    final nameBlank = _nameCtrl.text.trim().isEmpty;
+    final endsFirst = _endDate.isBefore(_startDate);
+    if (nameBlank || endsFirst) {
+      setState(() {
+        _nameError = nameBlank ? 'A contest needs a name.' : null;
+        _dateError = endsFirst
+            ? 'The end date cannot be before the start date.'
+            : null;
+      });
       return;
     }
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _failure = null;
+    });
     final repo = ref.read(contestsRepositoryProvider);
     final input = ContestInput(
       name: _nameCtrl.text.trim(),
@@ -100,7 +148,7 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
       endDate: _fmt(_endDate),
       territoryId: _territoryId,
       // Canonical order, whatever order they were ticked in.
-      eventTypes: [
+      eventTypes: <String>[
         for (final type in contestEventTypes)
           if (_eventTypes.contains(type)) type,
       ],
@@ -115,183 +163,146 @@ class _ContestFormScreenState extends ConsumerState<ContestFormScreen> {
       }
       ref.invalidate(contestsListProvider);
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      _snack('Failed to save contest. ${humanErrorMessage(e)}');
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    } catch (error) {
+      // The screen stays up with everything typed still in it.
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _failure = TorchErrorMessage.sanitise(error);
+      });
     }
   }
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final glass = context.colors.glass;
-    final label = widget.isEditing ? 'Save Changes' : 'Create Contest';
+    final skin = context.skin;
+    final label = widget.isEditing ? 'Save the contest' : 'Create the contest';
 
-    final nameField = TextFormField(
-      key: const ValueKey<String>('contest-name-field'),
-      controller: _nameCtrl,
-      maxLength: 120,
-      decoration: const InputDecoration(
-        labelText: 'Name',
-        border: OutlineInputBorder(),
-      ),
-      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-    );
-    final descriptionField = TextFormField(
-      key: const ValueKey<String>('contest-description-field'),
-      controller: _descriptionCtrl,
-      minLines: 2,
-      maxLines: 4,
-      decoration: const InputDecoration(
-        labelText: 'Description (optional)',
-        border: OutlineInputBorder(),
-      ),
-    );
-    final prizeField = TextFormField(
-      key: const ValueKey<String>('contest-prize-field'),
-      controller: _prizeCtrl,
-      decoration: const InputDecoration(
-        labelText: 'Prize (optional)',
-        hintText: 'e.g. R500 voucher for first place',
-        border: OutlineInputBorder(),
-      ),
-    );
-    final startRow = _DateRow(
-      label: 'Start date',
-      value: _fmt(_startDate),
-      buttonKey: 'contest-start-date',
-      onPressed: () => _pickDate(isStart: true),
-    );
-    final endRow = _DateRow(
-      label: 'End date',
-      value: _fmt(_endDate),
-      buttonKey: 'contest-end-date',
-      onPressed: () => _pickDate(isStart: false),
-    );
-    final territoryField = _TerritoryField(
-      value: _territoryId,
-      onChanged: (id) => setState(() => _territoryId = id),
-    );
-    final eventTypes = _EventTypesField(
-      selected: _eventTypes,
-      onToggle: (type, on) => setState(
-        () => on ? _eventTypes.add(type) : _eventTypes.remove(type),
-      ),
-    );
-    const scheduleNote = _Note(
-      'Both days count in full, in your timezone.',
-    );
-
-    final sections = <(String, List<Widget>)>[
-      ('Details', [
-        nameField,
-        const SizedBox(height: 8),
-        descriptionField,
-        const SizedBox(height: 12),
-        prizeField,
-      ]),
-      ('Schedule', [
-        startRow,
-        const SizedBox(height: 10),
-        endRow,
-        const SizedBox(height: 6),
-        scheduleNote,
-      ]),
-      ('Who and what counts', [
-        territoryField,
-        const SizedBox(height: 12),
-        eventTypes,
-      ]),
-    ];
-
-    return GlassPageScaffold(
-      title: Text(widget.isEditing ? 'Edit Contest' : 'New Contest'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final (title, children) in sections) ...[
-                if (glass)
-                  _GlassSection(label: title, children: children)
-                else ...[
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  ...children,
-                ],
-                const SizedBox(height: 16),
-              ],
-              if (glass)
-                GlassPrimaryButton(
-                  key: const ValueKey<String>('contest-save-button'),
-                  label: label,
-                  busy: _submitting,
-                  onPressed: _submit,
-                )
-              else
-                FilledButton(
-                  key: const ValueKey<String>('contest-save-button'),
-                  onPressed: _submitting ? null : _submit,
-                  child: _submitting
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(label),
-                ),
-            ],
+    return TorchScope(
+      skin: skin,
+      phase: _submitting ? 'saving' : 'editing',
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        if (!_submitting)
+          TorchPrimaryButton.claim(ContestFormScreen.commitClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: widget.isEditing ? widget.contest!.name : 'New contest',
+          facts: <String>[
+            widget.isEditing ? 'Editing a contest' : 'A new contest',
+          ],
+          back: TorchIconButton(
+            key: const ValueKey<String>('contest-form-back'),
+            icon: Icons.arrow_back,
+            semanticLabel: 'Back to Contests',
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
+        primary: TorchPrimaryButton(
+          key: const ValueKey<String>('contest-save-button'),
+          claimId: ContestFormScreen.commitClaimId,
+          label: label,
+          busy: _submitting,
+          onPressed: _submitting ? null : _submit,
+          blockedReason: _submitting ? 'Saving.' : null,
+        ),
+        children: <Widget>[
+          SectionRule('Details'),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('contest-name-field'),
+            label: 'Name',
+            controller: _nameCtrl,
+            error: _nameError,
+            maximumLength: 120,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) {
+              if (_nameError != null) setState(() => _nameError = null);
+            },
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('contest-description-field'),
+            label: 'Description',
+            help: 'Optional.',
+            controller: _descriptionCtrl,
+            minLines: 2,
+            maximumLines: 4,
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          TorchTextField(
+            key: const ValueKey<String>('contest-prize-field'),
+            label: 'Prize',
+            help: 'Optional. For example: R500 voucher for first place.',
+            controller: _prizeCtrl,
+          ),
+
+          SizedBox(height: skin.space.blockGap),
+          SectionRule('Schedule'),
+          const SizedBox(height: TiqSpace.s5),
+          _DateRow(
+            label: 'Start date',
+            value: _fmt(_startDate),
+            buttonKey: 'contest-start-date',
+            onPressed: () => _pickDate(isStart: true),
+          ),
+          const SizedBox(height: TiqSpace.s4),
+          _DateRow(
+            label: 'End date',
+            value: _fmt(_endDate),
+            buttonKey: 'contest-end-date',
+            onPressed: () => _pickDate(isStart: false),
+          ),
+          const SizedBox(height: TiqSpace.s3),
+          if (_dateError != null)
+            Text(
+              _dateError!,
+              key: const ValueKey<String>('contest-date-error'),
+              style: skin.text.meta.style(color: skin.palette.bad),
+            )
+          else
+            Text(
+              'Both days count in full, in your timezone.',
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+
+          SizedBox(height: skin.space.blockGap),
+          SectionRule('Who and what counts'),
+          const SizedBox(height: TiqSpace.s5),
+          _TerritoryField(
+            value: _territoryId,
+            onChanged: (id) => setState(() => _territoryId = id),
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          _EventTypesField(
+            selected: _eventTypes,
+            onToggle: (type, on) => setState(
+              () => on ? _eventTypes.add(type) : _eventTypes.remove(type),
+            ),
+          ),
+
+          if (_failure != null) ...<Widget>[
+            SizedBox(height: skin.space.intraBlock),
+            TorchErrorRegion(
+              name: 'contest form',
+              child: ErrorState(
+                key: const ValueKey<String>('contest-save-error'),
+                scope: ErrorScope.inline,
+                message: _failure!,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-/// A glass panel with its kicker — one group of the form.
-class _GlassSection extends StatelessWidget {
-  const _GlassSection({required this.label, required this.children});
-
-  final String label;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [Kicker(label), const SizedBox(height: 12), ...children],
-      ),
-    );
-  }
-}
-
-class _Note extends StatelessWidget {
-  const _Note(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted =
-        context.colors.glass ? context.lumen.inkMuted : context.colors.ink3;
-    return Text(text, style: TextStyle(fontSize: 12, color: muted));
-  }
-}
-
+/// A date and the way to change it. The date is a figure in mono, the label a
+/// word above it, and "Pick" is a ghost — changing a date is not a commit.
 class _DateRow extends StatelessWidget {
   const _DateRow({
     required this.label,
@@ -307,31 +318,36 @@ class _DateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = context.colors.glass;
-    final pick = OutlinedButton(
-      key: ValueKey<String>(buttonKey),
-      onPressed: onPressed,
-      child: const Text('Pick'),
-    );
+    final skin = context.skin;
     return Row(
-      children: [
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
         Expanded(
-          child: glass
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Kicker(label, size: 9.5),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: LumenGlass.figure(color: context.lumen.ink),
-                    ),
-                  ],
-                )
-              : Text('$label: $value'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                label,
+                style: skin.text.meta.style(color: skin.palette.ink3),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: skin.text.figureS.style(color: skin.palette.ink1),
+              ),
+            ],
+          ),
         ),
-        pick,
+        const SizedBox(width: TiqSpace.s3),
+        TorchSecondaryButton(
+          key: ValueKey<String>(buttonKey),
+          label: 'Pick',
+          // The button names what it changes: "Pick" alone, repeated twice on
+          // one screen, is two identical nodes for a screen reader.
+          semanticLabel: 'Pick the ${label.toLowerCase()}',
+          onPressed: onPressed,
+        ),
       ],
     );
   }
@@ -339,56 +355,113 @@ class _DateRow extends StatelessWidget {
 
 /// All territories, or one of the client's. Loading or failing to load the
 /// list keeps the current choice rather than silently widening the contest.
+///
+/// **Not a `ChoiceRow`.** That component holds two to four options and asserts
+/// it — "one option is a statement, and five is a list" — and a client with
+/// eleven territories is a list. So the current scope is a standalone row and
+/// the choosing happens in a sheet, which is the one modal container.
 class _TerritoryField extends ConsumerWidget {
   const _TerritoryField({required this.value, required this.onChanged});
 
   final String? value;
   final ValueChanged<String?> onChanged;
 
+  static const String allLabel = 'All territories';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
     final territories = ref.watch(territoriesListProvider);
     final list = territories.value ?? const <Territory>[];
-    final known = value == null || list.any((t) => t.id == value);
+    final chosen = value == null
+        ? null
+        : list.where((t) => t.id == value).firstOrNull;
+    final word = value == null
+        ? allLabel
+        : (chosen == null
+              ? 'One territory'
+              : '${chosen.name} (${chosen.code})');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        DropdownButtonFormField<String?>(
+      children: <Widget>[
+        SoftRow(
           key: const ValueKey<String>('contest-territory-field'),
-          initialValue: known ? value : null,
-          decoration: const InputDecoration(
-            labelText: 'Territory',
-            helperText: 'Only agents assigned to it take part',
-            border: OutlineInputBorder(),
+          form: SoftRowForm.standalone,
+          density: SoftRowDensity.tall,
+          title: 'Territory',
+          subtitle: word,
+          meta: Text(
+            value == null
+                ? 'Every agent in the client takes part.'
+                : 'Only agents assigned to it take part.',
           ),
-          items: [
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('All territories'),
-            ),
-            for (final t in list)
-              DropdownMenuItem<String?>(
-                value: t.id,
-                child: Text('${t.name} (${t.code})'),
-              ),
-          ],
-          onChanged: territories.hasValue ? onChanged : null,
+          trailing: const SoftRowChevron(),
+          // A list that did not arrive cannot be chosen from. The row keeps
+          // the scope it has and says why beneath, rather than offering a
+          // picker with one option in it.
+          onTap: territories.hasValue
+              ? () => _pick(context, list)
+              : null,
+          semanticsLabel: 'Territory. $word. Change the territory.',
         ),
-        if (territories.hasError)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: _Note(
-              'Failed to load territories. '
-              '${humanErrorMessage(territories.error!)}',
-            ),
+        if (territories.hasError) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            'The territory list did not load, so the contest keeps the scope '
+            'it has.',
+            key: const ValueKey<String>('contest-territory-error'),
+            style: skin.text.meta.style(color: skin.palette.ink3),
           ),
+        ],
       ],
     );
   }
+
+  Future<void> _pick(BuildContext context, List<Territory> list) async {
+    final picked = await showTorchSheet<String>(
+      context,
+      builder: (sheetContext) => TorchSheet(
+        title: 'Territory',
+        subtitle: 'Who takes part in this contest.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SoftRow(
+              key: const ValueKey<String>('territory-option-all'),
+              density: SoftRowDensity.compact,
+              title: allLabel,
+              trailing: value == null ? const Text('Chosen') : null,
+              onTap: () => Navigator.of(sheetContext).pop(_allSentinel),
+            ),
+            for (var i = 0; i < list.length; i++)
+              SoftRow(
+                key: ValueKey<String>('territory-option-${list[i].id}'),
+                density: SoftRowDensity.compact,
+                title: '${list[i].name} (${list[i].code})',
+                trailing: value == list[i].id ? const Text('Chosen') : null,
+                separator: i == list.length - 1
+                    ? SoftRowSeparator.none
+                    : SoftRowSeparator.auto,
+                onTap: () => Navigator.of(sheetContext).pop(list[i].id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    onChanged(picked == _allSentinel ? null : picked);
+  }
+
+  /// A sheet that pops `null` means *dismissed*, so "all territories" needs a
+  /// value of its own to come back as.
+  static const String _allSentinel = '__all__';
 }
 
+/// Which kinds of points count. Nothing ticked counts all of them, and that
+/// is a state with a sentence rather than a blank.
 class _EventTypesField extends StatelessWidget {
   const _EventTypesField({required this.selected, required this.onToggle});
 
@@ -397,28 +470,32 @@ class _EventTypesField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        _Note(
-          selected.isEmpty
-              ? 'Counts all points. Tick kinds to count only those.'
-              : 'Counts only the ticked kinds of points.',
+      children: <Widget>[
+        TorchCheckboxGroup(
+          label: 'What counts',
+          children: <Widget>[
+            for (final type in contestEventTypes)
+              TorchCheckbox(
+                key: ValueKey<String>('contest-event-$type'),
+                label: contestEventWord(type),
+                value: selected.contains(type),
+                onChanged: (on) => onToggle(type, on),
+              ),
+          ],
         ),
-        for (final type in contestEventTypes)
-          Material(
-            type: MaterialType.transparency,
-            child: CheckboxListTile(
-              key: ValueKey<String>('contest-event-$type'),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(contestEventWord(type)),
-              value: selected.contains(type),
-              onChanged: (on) => onToggle(type, on ?? false),
-            ),
-          ),
+        const SizedBox(height: TiqSpace.s3),
+        Text(
+          selected.isEmpty
+              ? 'Nothing ticked counts all points. Tick kinds to count only '
+                    'those.'
+              : 'Counts only the ticked kinds of points.',
+          key: const ValueKey<String>('contest-event-note'),
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
       ],
     );
   }
