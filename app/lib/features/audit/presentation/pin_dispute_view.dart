@@ -227,10 +227,7 @@ class _Evidence extends StatelessWidget {
 
     Widget line(String text) => Padding(
       padding: const EdgeInsets.only(top: TiqSpace.s3),
-      child: Text(
-        text,
-        style: skin.text.body.style(color: skin.palette.ink2),
-      ),
+      child: Text(text, style: skin.text.body.style(color: skin.palette.ink2)),
     );
 
     return Container(

@@ -5205,5 +5205,556 @@
   "createOutletTerritoryNotChosen": "Choose a territory",
   "@createOutletTerritoryNotChosen": {
     "description": "Validation message when the territory picker has no selection."
+  },
+  "ordersTitle": "Orders",
+  "@ordersTitle": {
+    "description": "Title of the orders worklist route."
+  },
+  "ordersSubtitle": "Captured in the field. A submitted order is waiting on a decision.",
+  "@ordersSubtitle": {
+    "description": "Header fact on the orders worklist."
+  },
+  "ordersRefresh": "Reload the order list",
+  "@ordersRefresh": {
+    "description": "Semantic label of the refresh icon button in the orders header."
+  },
+  "ordersSectionHeading": "Orders",
+  "@ordersSectionHeading": {
+    "description": "Section rule above the order rows."
+  },
+  "ordersNewOrder": "New order",
+  "@ordersNewOrder": {
+    "description": "Action that opens the order capture form."
+  },
+  "ordersAwaitingEyebrow": "Awaiting a decision",
+  "@ordersAwaitingEyebrow": {
+    "description": "Eyebrow of the lead figure counting submitted orders."
+  },
+  "ordersAwaitingSubordinates": "{confirmed} confirmed · {cancelled} cancelled",
+  "@ordersAwaitingSubordinates": {
+    "description": "The two counts that are not the lead figure, beneath it.",
+    "placeholders": {
+      "confirmed": {
+        "type": "String"
+      },
+      "cancelled": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersValueEyebrow": "Value of these orders",
+  "@ordersValueEyebrow": {
+    "description": "Eyebrow of the summed order value. It names the scope — these orders, not every order — because the list is one page."
+  },
+  "ordersValuePartial": "Summed over the {shown} orders loaded, not the whole history.",
+  "@ordersValuePartial": {
+    "description": "State line under the order value when the list was cut. A partial sum that calls itself a total is an invented figure.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersCountPartial": "At least this many: counted over the {shown} orders loaded.",
+  "@ordersCountPartial": {
+    "description": "State line under a count taken over a cut page.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersStatusSubmitted": "Submitted",
+  "@ordersStatusSubmitted": {
+    "description": "Order status word: captured and waiting on a decision."
+  },
+  "ordersStatusConfirmed": "Confirmed",
+  "@ordersStatusConfirmed": {
+    "description": "Order status word: accepted."
+  },
+  "ordersStatusCancelled": "Cancelled",
+  "@ordersStatusCancelled": {
+    "description": "Order status word: turned down."
+  },
+  "ordersStatusOther": "Status {status}",
+  "@ordersStatusOther": {
+    "description": "Fallback for an order status the app does not know. The wire's own word is shown rather than guessed at.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersLineCount": "{count, plural, =1{1 line} other{{count} lines}}",
+  "@ordersLineCount": {
+    "description": "How many line items an order carries.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ordersRowSubtitle": "{status} · {lines}",
+  "@ordersRowSubtitle": {
+    "description": "An order row's second line: its status and how many lines it has.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "lines": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersUnknownStore": "Store not on this list",
+  "@ordersUnknownStore": {
+    "description": "Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title."
+  },
+  "ordersEmptyHeadline": "No orders yet.",
+  "@ordersEmptyHeadline": {
+    "description": "Whole-screen empty state on the orders worklist."
+  },
+  "ordersEmptyBody": "Orders appear here as agents capture them on a visit.",
+  "@ordersEmptyBody": {
+    "description": "Body of the orders empty state."
+  },
+  "ordersLoadErrorHeadline": "The order list did not load.",
+  "@ordersLoadErrorHeadline": {
+    "description": "Headline of the orders error state."
+  },
+  "ordersRetry": "Try again",
+  "@ordersRetry": {
+    "description": "Retry action on the orders error state."
+  },
+  "ordersFooterMore": "Showing the first {shown}. There are more.",
+  "@ordersFooterMore": {
+    "description": "Pagination footer when the server did not count the whole list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersFooterOf": "Showing the {shown} newest of {total} orders.",
+  "@ordersFooterOf": {
+    "description": "Pagination footer when the server counted the whole list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersFooterScope": "The figures above are of these {shown}.",
+  "@ordersFooterScope": {
+    "description": "Second footer line: the honest scope of every figure above the list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "orderFormTitle": "New order",
+  "@orderFormTitle": {
+    "description": "Title of the order capture form."
+  },
+  "orderFormBack": "Back to orders",
+  "@orderFormBack": {
+    "description": "Semantic label of the order form's back button."
+  },
+  "orderFormStoreHeading": "Which store",
+  "@orderFormStoreHeading": {
+    "description": "Section rule above the store picker on the order form."
+  },
+  "orderFormStore": "Store",
+  "@orderFormStore": {
+    "description": "Label of the store picker on the order form."
+  },
+  "orderFormStoreNotChosen": "Not chosen yet. A store decides what can be ordered.",
+  "@orderFormStoreNotChosen": {
+    "description": "Line under the store picker while nothing is chosen."
+  },
+  "orderFormStoresFailed": "The store list did not load.",
+  "@orderFormStoresFailed": {
+    "description": "Shown when the outlet list could not be fetched on the order form."
+  },
+  "orderFormLinesHeading": "Line items",
+  "@orderFormLinesHeading": {
+    "description": "Section rule above the SKU list on the order form."
+  },
+  "orderFormPickStoreFirst": "Choose a store to see what it stocks.",
+  "@orderFormPickStoreFirst": {
+    "description": "Inline empty state in place of the SKU list before a store is chosen."
+  },
+  "orderFormSkusFailed": "That store's products did not load.",
+  "@orderFormSkusFailed": {
+    "description": "Shown when the SKU list could not be fetched."
+  },
+  "orderFormNoSkusHeadline": "Nothing is stocked here.",
+  "@orderFormNoSkusHeadline": {
+    "description": "Inline empty state when a store has no SKUs."
+  },
+  "orderFormNoSkusBody": "This store has no products on its list, so there is nothing to order.",
+  "@orderFormNoSkusBody": {
+    "description": "Body of the no-SKUs empty state."
+  },
+  "orderFormTotal": "Order total",
+  "@orderFormTotal": {
+    "description": "Label of the running order total."
+  },
+  "orderFormSubmit": "Create the order",
+  "@orderFormSubmit": {
+    "description": "Commit button on the order form."
+  },
+  "orderFormBlocked": "Choose a store and set a quantity on at least one line first.",
+  "@orderFormBlocked": {
+    "description": "Blocked reason under the order form's commit button."
+  },
+  "orderFormFailed": "That order was not created. Nothing was sent.",
+  "@orderFormFailed": {
+    "description": "Toast after the order create request fails."
+  },
+  "orderFormQuantity": "Quantity",
+  "@orderFormQuantity": {
+    "description": "Label of a SKU's quantity stepper on the order form."
+  },
+  "orderFormOneFewer": "One fewer",
+  "@orderFormOneFewer": {
+    "description": "Semantic label of the quantity stepper's minus key."
+  },
+  "orderFormOneMore": "One more",
+  "@orderFormOneMore": {
+    "description": "Semantic label of the quantity stepper's plus key."
+  },
+  "orderFormTypeQuantity": "Type a quantity",
+  "@orderFormTypeQuantity": {
+    "description": "Semantic label of the quantity trough, which opens a number sheet."
+  },
+  "orderFormTypeQuantityFirst": "Type a quantity first.",
+  "@orderFormTypeQuantityFirst": {
+    "description": "Blocked reason on the number sheet's Set button while nothing has been typed."
+  },
+  "orderFormNotOrdered": "Not on this order",
+  "@orderFormNotOrdered": {
+    "description": "What a SKU with no quantity says. Nothing ordered is a state, not a zero."
+  },
+  "orderFormNoneOrdered": "None of this one",
+  "@orderFormNoneOrdered": {
+    "description": "Word for a line explicitly set to nought."
+  },
+  "orderFormNoneOrderedLine": "A line at nought is not sent.",
+  "@orderFormNoneOrderedLine": {
+    "description": "Consequence line under a quantity of nought."
+  },
+  "orderFormCancel": "Cancel",
+  "@orderFormCancel": {
+    "description": "Cancel action on the quantity number sheet."
+  },
+  "orderFormSet": "Set",
+  "@orderFormSet": {
+    "description": "Commit action on the quantity number sheet."
+  },
+  "beatPlansTitle": "Beat plans",
+  "@beatPlansTitle": {
+    "description": "Title of the beat plans route."
+  },
+  "beatPlansSubtitle": "A plan is a day of store stops, in visit order.",
+  "@beatPlansSubtitle": {
+    "description": "Header fact on the beat plans route."
+  },
+  "beatPlansRefresh": "Reload the beat plans",
+  "@beatPlansRefresh": {
+    "description": "Semantic label of the refresh icon button on the beat plans route."
+  },
+  "beatPlansSectionHeading": "Plans",
+  "@beatPlansSectionHeading": {
+    "description": "Section rule above the beat plan rows."
+  },
+  "beatPlansNewPlan": "New plan",
+  "@beatPlansNewPlan": {
+    "description": "Action that opens the beat plan builder."
+  },
+  "beatPlansEmptyHeadline": "No beat plans.",
+  "@beatPlansEmptyHeadline": {
+    "description": "Whole-screen empty state on the beat plans route."
+  },
+  "beatPlansEmptyBody": "A plan is a day of store stops in visit order. Build one to give an agent a route.",
+  "@beatPlansEmptyBody": {
+    "description": "Body of the beat plans empty state."
+  },
+  "beatPlansLoadErrorHeadline": "The beat plans did not load.",
+  "@beatPlansLoadErrorHeadline": {
+    "description": "Headline of the beat plans error state."
+  },
+  "beatPlansRetry": "Try again",
+  "@beatPlansRetry": {
+    "description": "Retry action on the beat plans error state."
+  },
+  "beatPlansFooterMore": "Showing the first {shown}. There are more.",
+  "@beatPlansFooterMore": {
+    "description": "Pagination footer on the beat plans route when the server did not count.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlansFooterOf": "Showing {shown} of {total} plans.",
+  "@beatPlansFooterOf": {
+    "description": "Pagination footer on the beat plans route when the server counted.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStatusScheduled": "Scheduled",
+  "@beatPlanStatusScheduled": {
+    "description": "Beat plan status word: planned, not started."
+  },
+  "beatPlanStatusInProgress": "In progress",
+  "@beatPlanStatusInProgress": {
+    "description": "Beat plan status word: being worked now."
+  },
+  "beatPlanStatusCompleted": "Completed",
+  "@beatPlanStatusCompleted": {
+    "description": "Beat plan status word: every stop worked."
+  },
+  "beatPlanStatusMissed": "Missed",
+  "@beatPlanStatusMissed": {
+    "description": "Beat plan status word: the day passed unworked."
+  },
+  "beatPlanStatusCancelled": "Cancelled",
+  "@beatPlanStatusCancelled": {
+    "description": "Beat plan status word: called off."
+  },
+  "beatPlanStatusOther": "Status {status}",
+  "@beatPlanStatusOther": {
+    "description": "Fallback for a beat plan status the app does not know.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanDetailTitle": "Beat plan",
+  "@beatPlanDetailTitle": {
+    "description": "Title of the beat plan detail route."
+  },
+  "beatPlanDetailBack": "Back to beat plans",
+  "@beatPlanDetailBack": {
+    "description": "Semantic label of the beat plan detail back button."
+  },
+  "beatPlanDetailLoadErrorHeadline": "This beat plan did not load.",
+  "@beatPlanDetailLoadErrorHeadline": {
+    "description": "Headline of the beat plan detail error state."
+  },
+  "beatPlanAdherenceEyebrow": "Stops worked",
+  "@beatPlanAdherenceEyebrow": {
+    "description": "Eyebrow of the adherence figure on a beat plan."
+  },
+  "beatPlanAdherenceOf": "{visited} of {total} stops",
+  "@beatPlanAdherenceOf": {
+    "description": "The adherence figure in words, beneath the percentage.",
+    "placeholders": {
+      "visited": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanAdherenceNoStops": "This plan has no stops, so there is nothing to work.",
+  "@beatPlanAdherenceNoStops": {
+    "description": "Reason shown in place of an adherence percentage for a plan with no stops. A plan with no stops is not nought per cent adherent."
+  },
+  "beatPlanStopsHeading": "Stops",
+  "@beatPlanStopsHeading": {
+    "description": "Section rule above a beat plan's stops."
+  },
+  "beatPlanStopsEmptyHeadline": "No stops on this plan.",
+  "@beatPlanStopsEmptyHeadline": {
+    "description": "Inline empty state for a beat plan with no stops."
+  },
+  "beatPlanStopsEmptyBody": "Add stores to the plan to give the agent a route.",
+  "@beatPlanStopsEmptyBody": {
+    "description": "Body of the no-stops empty state."
+  },
+  "beatPlanStopLabel": "Stop {sequence}",
+  "@beatPlanStopLabel": {
+    "description": "Title of a beat plan stop row when the store's name is not known.",
+    "placeholders": {
+      "sequence": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStopVisited": "Worked",
+  "@beatPlanStopVisited": {
+    "description": "State word on a stop that has been visited."
+  },
+  "beatPlanStopNotVisited": "Not yet",
+  "@beatPlanStopNotVisited": {
+    "description": "State word on a stop that has not been visited."
+  },
+  "beatPlanStopToggle": "Mark {stop} as worked",
+  "@beatPlanStopToggle": {
+    "description": "Semantic label of a stop's visited checkbox.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanStopFailed": "That stop was not changed. It is as it was.",
+  "@beatPlanStopFailed": {
+    "description": "Toast after marking a stop visited fails."
+  },
+  "beatPlanFormTitle": "New beat plan",
+  "@beatPlanFormTitle": {
+    "description": "Title of the beat plan builder."
+  },
+  "beatPlanFormBack": "Back to beat plans",
+  "@beatPlanFormBack": {
+    "description": "Semantic label of the beat plan builder's back button."
+  },
+  "beatPlanFormPlanHeading": "The day",
+  "@beatPlanFormPlanHeading": {
+    "description": "Section rule above the beat plan's own fields."
+  },
+  "beatPlanFormName": "Plan name",
+  "@beatPlanFormName": {
+    "description": "Label of the beat plan name field."
+  },
+  "beatPlanFormNameHelp": "What the agent will see at the top of their day.",
+  "@beatPlanFormNameHelp": {
+    "description": "Help line under the beat plan name field."
+  },
+  "beatPlanFormDate": "Scheduled date",
+  "@beatPlanFormDate": {
+    "description": "Label of the beat plan date picker."
+  },
+  "beatPlanFormDateNotChosen": "Not chosen yet.",
+  "@beatPlanFormDateNotChosen": {
+    "description": "Line under the date picker while no date is chosen."
+  },
+  "beatPlanFormPickDate": "Pick a date",
+  "@beatPlanFormPickDate": {
+    "description": "Action that opens the date picker."
+  },
+  "beatPlanFormChangeDate": "Change the date",
+  "@beatPlanFormChangeDate": {
+    "description": "Action that reopens the date picker once a date is chosen."
+  },
+  "beatPlanFormAgent": "Field agent",
+  "@beatPlanFormAgent": {
+    "description": "Label of the agent picker on the beat plan builder."
+  },
+  "beatPlanFormAgentNotChosen": "Not chosen yet. A plan belongs to one agent.",
+  "@beatPlanFormAgentNotChosen": {
+    "description": "Line under the agent picker while nothing is chosen."
+  },
+  "beatPlanFormAgentsFailed": "The agent list did not load.",
+  "@beatPlanFormAgentsFailed": {
+    "description": "Shown when the user list could not be fetched on the beat plan builder."
+  },
+  "beatPlanFormNoAgents": "No field agents on this account yet.",
+  "@beatPlanFormNoAgents": {
+    "description": "Shown when the account has no field agents to assign a plan to."
+  },
+  "beatPlanFormTerritory": "Territory",
+  "@beatPlanFormTerritory": {
+    "description": "Label of the optional territory picker on the beat plan builder."
+  },
+  "beatPlanFormTerritoryOptional": "Optional. It narrows reporting, not the stops.",
+  "@beatPlanFormTerritoryOptional": {
+    "description": "Help line under the optional territory picker."
+  },
+  "beatPlanFormTerritoryNone": "No territory",
+  "@beatPlanFormTerritoryNone": {
+    "description": "The option that clears the optional territory."
+  },
+  "beatPlanFormStopsHeading": "Stops, in order",
+  "@beatPlanFormStopsHeading": {
+    "description": "Section rule above the chosen stops on the beat plan builder."
+  },
+  "beatPlanFormStopsEmpty": "No stops yet. Add stores from the list below.",
+  "@beatPlanFormStopsEmpty": {
+    "description": "Inline empty state for the chosen stops."
+  },
+  "beatPlanFormAvailableHeading": "Stores to add",
+  "@beatPlanFormAvailableHeading": {
+    "description": "Section rule above the pool of stores not yet on the plan."
+  },
+  "beatPlanFormAvailableEmpty": "Every store is already on this plan.",
+  "@beatPlanFormAvailableEmpty": {
+    "description": "Inline empty state for the pool of available stores."
+  },
+  "beatPlanFormStoresFailed": "The store list did not load.",
+  "@beatPlanFormStoresFailed": {
+    "description": "Shown when the outlet list could not be fetched on the beat plan builder."
+  },
+  "beatPlanFormAddStop": "Add {store} to the plan",
+  "@beatPlanFormAddStop": {
+    "description": "Semantic label of the button that adds a store to the plan.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormRemoveStop": "Take {store} off the plan",
+  "@beatPlanFormRemoveStop": {
+    "description": "Semantic label of the button that removes a stop.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormMoveUp": "Move {store} earlier",
+  "@beatPlanFormMoveUp": {
+    "description": "Semantic label of the button that moves a stop up the order.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormMoveDown": "Move {store} later",
+  "@beatPlanFormMoveDown": {
+    "description": "Semantic label of the button that moves a stop down the order.",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "beatPlanFormStopCount": "{count, plural, =0{No stops} =1{1 stop} other{{count} stops}}",
+  "@beatPlanFormStopCount": {
+    "description": "How many stops are on the plan being built.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beatPlanFormSubmit": "Create the plan",
+  "@beatPlanFormSubmit": {
+    "description": "Commit button on the beat plan builder."
+  },
+  "beatPlanFormBlocked": "Name the plan, pick a date and an agent, and add at least one stop first.",
+  "@beatPlanFormBlocked": {
+    "description": "Blocked reason under the beat plan builder's commit button."
+  },
+  "beatPlanFormFailed": "That plan was not created. Nothing was saved.",
+  "@beatPlanFormFailed": {
+    "description": "Toast after the beat plan create request fails."
   }
 }

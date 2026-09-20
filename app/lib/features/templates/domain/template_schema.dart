@@ -112,10 +112,9 @@ class TemplateSchema {
   /// on exactly these; a required question hidden by its condition does not
   /// count, because the agent cannot see it.
   List<TemplateField> missingRequired(Map<String, Object?> answers) => [
-        for (final f in fields)
-          if (f.blocksSubmit && f.isVisible(answers) && !f.isAnswered(answers))
-            f,
-      ];
+    for (final f in fields)
+      if (f.blocksSubmit && f.isVisible(answers) && !f.isAnswered(answers)) f,
+  ];
 
   /// Visible, answerable questions (photos cannot be captured yet).
   int questionCount(Map<String, Object?> answers) => fields
@@ -124,10 +123,12 @@ class TemplateSchema {
 
   /// Visible questions that hold an answer.
   int answeredCount(Map<String, Object?> answers) => fields
-      .where((f) =>
-          f.type != TemplateFieldType.photo &&
-          f.isVisible(answers) &&
-          f.isAnswered(answers))
+      .where(
+        (f) =>
+            f.type != TemplateFieldType.photo &&
+            f.isVisible(answers) &&
+            f.isAnswered(answers),
+      )
       .length;
 
   /// [answers] with every visible, untouched switch recorded as off.
@@ -174,8 +175,7 @@ class TemplateSchema {
           TemplateFieldType.number => value is num,
           TemplateFieldType.photo => false,
           TemplateFieldType.choice ||
-          TemplateFieldType.text =>
-            value is String && value.isNotEmpty,
+          TemplateFieldType.text => value is String && value.isNotEmpty,
         };
         if (earned) total += weight;
       }
@@ -213,11 +213,13 @@ class TemplateSchema {
         if (fields.isEmpty) continue;
 
         final title = rawSection['title'];
-        sections.add(TemplateSection(
-          id: sectionId,
-          title: title is String && title.isNotEmpty ? title : sectionId,
-          fields: fields,
-        ));
+        sections.add(
+          TemplateSection(
+            id: sectionId,
+            title: title is String && title.isNotEmpty ? title : sectionId,
+            fields: fields,
+          ),
+        );
       }
     }
     return TemplateSchema(sections: sections);

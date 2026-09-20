@@ -48,13 +48,15 @@ class ReportsScreen extends ConsumerWidget {
             label: 'reports',
             onRetry: () => ref.invalidate(reportsListProvider),
             builder: (list) => PanelCard(
-              title: '${list.length} ${list.length == 1 ? 'report' : 'reports'}',
+              title:
+                  '${list.length} ${list.length == 1 ? 'report' : 'reports'}',
               subtitle: 'Definitions run on demand against live data',
               padded: false,
               child: list.isEmpty
                   ? const EmptyState(
                       message: 'No saved reports',
-                      hint: 'Build one, then run it to see how many rows it '
+                      hint:
+                          'Build one, then run it to see how many rows it '
                           'returns.',
                     )
                   : Column(
@@ -89,8 +91,9 @@ class _ReportRowState extends ConsumerState<_ReportRow> {
   int? _lastRowCount;
 
   Future<void> _run() async {
-    final result =
-        await ref.read(reportsRepositoryProvider).generate(widget.report.id);
+    final result = await ref
+        .read(reportsRepositoryProvider)
+        .generate(widget.report.id);
     if (mounted) {
       setState(() => _lastRowCount = result.rowCount);
     }

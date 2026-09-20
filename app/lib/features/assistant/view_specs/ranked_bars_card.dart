@@ -218,7 +218,11 @@ class _BarRow extends StatelessWidget {
         // is not read as missing. A measured zero is a reading.
         return Align(
           alignment: from,
-          child: SizedBox(width: 2, height: track, child: ColoredBox(color: p.ink3)),
+          child: SizedBox(
+            width: 2,
+            height: track,
+            child: ColoredBox(color: p.ink3),
+          ),
         );
       }
       return GrowIn(
@@ -246,7 +250,9 @@ class _BarRow extends StatelessWidget {
       trackRow = Row(
         children: <Widget>[
           Expanded(
-            child: negative ? bar(AlignmentDirectional.centerEnd) : const SizedBox(),
+            child: negative
+                ? bar(AlignmentDirectional.centerEnd)
+                : const SizedBox(),
           ),
           // The centre axis is edge-control, never amber: a 1dp ink axis at
           // 15:1 is more visible than amber would be, and amber there would
@@ -257,7 +263,9 @@ class _BarRow extends StatelessWidget {
             child: ColoredBox(color: p.edgeControl),
           ),
           Expanded(
-            child: negative ? const SizedBox() : bar(AlignmentDirectional.centerStart),
+            child: negative
+                ? const SizedBox()
+                : bar(AlignmentDirectional.centerStart),
           ),
         ],
       );
@@ -281,7 +289,9 @@ class _BarRow extends StatelessWidget {
       excludeSemantics: true,
       child: RepaintBoundary(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: veld ? TiqSpace.s3 : TiqSpace.s2),
+          padding: EdgeInsets.symmetric(
+            vertical: veld ? TiqSpace.s3 : TiqSpace.s2,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -295,7 +305,9 @@ class _BarRow extends StatelessWidget {
               // The triangle's slot is kept on every row so the focus row's
               // track is not shorter than its neighbours'.
               if (!focus)
-                SizedBox(width: MarkScale.glyph(context, veld ? 9 : 7) + TiqSpace.s1),
+                SizedBox(
+                  width: MarkScale.glyph(context, veld ? 9 : 7) + TiqSpace.s1,
+                ),
               if (focus) ...<Widget>[
                 // A filled triangle at the bar's origin, pointing right. One
                 // of the focus bar's four channels, and the one that survives

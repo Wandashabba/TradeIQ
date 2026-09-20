@@ -18,12 +18,12 @@ class AuditTemplate {
   final bool active;
 
   factory AuditTemplate.fromJson(Map<String, dynamic> json) => AuditTemplate(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        industry: json['industry'] as String?,
-        version: json['version'] as int? ?? 1,
-        active: json['active'] as bool? ?? true,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    industry: json['industry'] as String?,
+    version: json['version'] as int? ?? 1,
+    active: json['active'] as bool? ?? true,
+  );
 }
 
 /// One template fetched by GET /templates/:id, including its free-form
@@ -94,8 +94,9 @@ class DioTemplatesRepository implements TemplatesRepository {
   }
 }
 
-final templatesRepositoryProvider =
-    Provider<TemplatesRepository>((ref) => DioTemplatesRepository());
+final templatesRepositoryProvider = Provider<TemplatesRepository>(
+  (ref) => DioTemplatesRepository(),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the templates screen
 // wants the current templates, not the whole history, and "load more" UI is
@@ -116,5 +117,5 @@ final selectedTemplateProvider = FutureProvider<AuditTemplateDetail?>(
 
 final templateDetailProvider =
     FutureProvider.family<AuditTemplateDetail, String>((ref, id) {
-  return ref.read(templatesRepositoryProvider).fetchTemplate(id);
-});
+      return ref.read(templatesRepositoryProvider).fetchTemplate(id);
+    });

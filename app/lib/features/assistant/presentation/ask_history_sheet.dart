@@ -95,11 +95,7 @@ class AskHistorySheet extends ConsumerWidget {
               key: const ValueKey<String>('ask-start-over-row'),
               density: SoftRowDensity.compact,
               title: l10n.askStartOver,
-              leading: Icon(
-                Icons.add,
-                size: 16,
-                color: skin.palette.ink2,
-              ),
+              leading: Icon(Icons.add, size: 16, color: skin.palette.ink2),
               separator: SoftRowSeparator.none,
               onTap: onStartOver,
             ),
@@ -188,9 +184,7 @@ class AskStartOverSheet extends StatelessWidget {
 
     return TorchSheet(
       title: midTurn ? l10n.askStartOverMidTurnTitle : l10n.askStartOverTitle,
-      claims: const <TorchClaim>[
-        TorchClaim.primaryCommit(askStartOverClaimId),
-      ],
+      claims: const <TorchClaim>[TorchClaim.primaryCommit(askStartOverClaimId)],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -211,7 +205,9 @@ class AskStartOverSheet extends StatelessWidget {
           // Never side by side at any width: a destructive choice and a safe
           // one adjacent to a moving thumb is a design that gets people wrong.
           TorchSecondaryButton(
-            label: midTurn ? l10n.askStopAndStartOver : l10n.askStartOverConfirm,
+            label: midTurn
+                ? l10n.askStopAndStartOver
+                : l10n.askStartOverConfirm,
             onPressed: onStartOver,
           ),
         ],

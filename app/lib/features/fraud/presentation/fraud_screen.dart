@@ -20,15 +20,15 @@ class FraudScreen extends ConsumerWidget {
   static StatusLevel levelFor(double score) => score >= 70
       ? StatusLevel.critical
       : score >= 50
-          ? StatusLevel.warning
-          : StatusLevel.neutral;
+      ? StatusLevel.warning
+      : StatusLevel.neutral;
 
   /// The band's word. Public so the visit detail screen names risk the same way.
   static String wordFor(StatusLevel level) => switch (level) {
-        StatusLevel.critical => 'High risk',
-        StatusLevel.warning => 'Elevated',
-        _ => 'Low risk',
-      };
+    StatusLevel.critical => 'High risk',
+    StatusLevel.warning => 'Elevated',
+    _ => 'Low risk',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -87,8 +87,10 @@ class FraudScreen extends ConsumerWidget {
                       'not been scored yet and '
                       '${page.unscored == 1 ? 'is' : 'are'} not listed here.',
                       key: const ValueKey('fraud-unscored'),
-                      style:
-                          TextStyle(fontSize: 12, color: context.colors.ink3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.ink3,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -126,7 +128,8 @@ class _FlaggedList extends StatelessWidget {
       child: visits.isEmpty
           ? const EmptyState(
               message: 'Nothing flagged',
-              hint: 'Visits appear here when the fraud engine scores one above '
+              hint:
+                  'Visits appear here when the fraud engine scores one above '
                   'the review threshold.',
             )
           : Column(

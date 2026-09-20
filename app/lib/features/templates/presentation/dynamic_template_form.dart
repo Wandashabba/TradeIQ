@@ -65,8 +65,9 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
 
     final section = sections[_sectionIndex];
     final isLast = _sectionIndex == sections.length - 1;
-    final visibleFields =
-        section.fields.where((f) => f.isVisible(_answers)).toList();
+    final visibleFields = section.fields
+        .where((f) => f.isVisible(_answers))
+        .toList();
     final maxScore = widget.schema.maxScore;
 
     if (context.colors.glass) {
@@ -237,10 +238,7 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
             initialValue: value is String && field.options.contains(value)
                 ? value
                 : null,
-            decoration: InputDecoration(
-              labelText: field.label,
-              isDense: true,
-            ),
+            decoration: InputDecoration(labelText: field.label, isDense: true),
             items: [
               for (final option in field.options)
                 DropdownMenuItem(value: option, child: Text(option)),
@@ -254,12 +252,8 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
           child: TextFormField(
             key: ValueKey('field-${field.id}'),
             initialValue: value is num ? value.toString() : null,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: field.label,
-              isDense: true,
-            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(labelText: field.label, isDense: true),
             onChanged: (v) => _set(field.id, num.tryParse(v)),
           ),
         );
@@ -269,10 +263,7 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
           child: TextFormField(
             key: ValueKey('field-${field.id}'),
             initialValue: value is String ? value : null,
-            decoration: InputDecoration(
-              labelText: field.label,
-              isDense: true,
-            ),
+            decoration: InputDecoration(labelText: field.label, isDense: true),
             onChanged: (v) => _set(field.id, v.isEmpty ? null : v),
           ),
         );

@@ -300,7 +300,8 @@ class StatTile extends StatelessWidget {
       ],
     );
 
-    final outlined = lead &&
+    final outlined =
+        lead &&
         (severity == SeverityMarkKind.watch ||
             severity == SeverityMarkKind.critical);
 
@@ -358,8 +359,8 @@ class StatTile extends StatelessWidget {
   );
 
   String _figureWords() => switch (figureState) {
-    FigureState.missing || FigureState.notMeasured =>
-      noDataReason ?? strings.notScored,
+    FigureState.missing ||
+    FigureState.notMeasured => noDataReason ?? strings.notScored,
     FigureState.lowSample => _sampleWords(),
     FigureState.provisional => strings.provisional,
     FigureState.measured => '',
@@ -450,11 +451,9 @@ class StatTile extends StatelessWidget {
   /// and cause arrive together.
   String _spokenValue(BuildContext context) {
     if (value == null) return noDataReason!;
-    final spoken = TiqNumber.of(context).format(
-      value,
-      unit: unit,
-      decimals: decimals,
-    );
+    final spoken = TiqNumber.of(
+      context,
+    ).format(value, unit: unit, decimals: decimals);
     return sampling.isLowSample ? '$spoken, ${_sampleWords()}' : spoken;
   }
 }

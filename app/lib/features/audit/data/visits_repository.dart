@@ -66,7 +66,9 @@ class CheckInGeofenceFailed extends CheckInResult {
   /// has already been queued would leave a whole visit's work stuck in the
   /// outbox behind a check-in that will never be accepted.
   bool get canDisputePin =>
-      lat != null && lng != null && distanceMeters <= pinDisputeMaxDistanceMeters;
+      lat != null &&
+      lng != null &&
+      distanceMeters <= pinDisputeMaxDistanceMeters;
 }
 
 /// The furthest from a pin an agent may still say the PIN is what is wrong.

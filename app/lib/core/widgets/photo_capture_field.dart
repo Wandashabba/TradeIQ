@@ -161,10 +161,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
             kind: GlassKind.tile,
             blur: false,
             radius: radius,
-            child: Material(
-              type: MaterialType.transparency,
-              child: addPhoto,
-            ),
+            child: Material(type: MaterialType.transparency, child: addPhoto),
           )
         else if (_dataUrl == null)
           // A console-tokened tile framing a single "Add photo" affordance:
@@ -236,25 +233,25 @@ class _Preview extends StatelessWidget {
     Widget photo = ClipRRect(
       borderRadius: radius,
       child: Image.memory(
-            base64Decode(base64Part),
-            key: const ValueKey('photo-preview'),
-            width: 92,
-            height: 92,
-            fit: BoxFit.cover,
-            // A corrupt encode must not take the whole audit screen down.
-            errorBuilder: (context, error, stack) => Container(
-              width: 92,
-              height: 92,
-              color: colors.surface2,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.broken_image_outlined,
-                size: 18,
-                color: colors.ink3,
-              ),
-            ),
+        base64Decode(base64Part),
+        key: const ValueKey('photo-preview'),
+        width: 92,
+        height: 92,
+        fit: BoxFit.cover,
+        // A corrupt encode must not take the whole audit screen down.
+        errorBuilder: (context, error, stack) => Container(
+          width: 92,
+          height: 92,
+          color: colors.surface2,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.broken_image_outlined,
+            size: 18,
+            color: colors.ink3,
           ),
-        );
+        ),
+      ),
+    );
     if (colors.glass) {
       // The evidence itself stays unwashed; glass only frames it — a white
       // rim painted over the photo's edge and the tile shadow beneath it.

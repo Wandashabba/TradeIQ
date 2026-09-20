@@ -283,7 +283,6 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
   );
 });
 
-
 /// How a photo id becomes something the plate can draw.
 ///
 /// A seam, and a deliberate one. The default reaches for the ≤60 kB,

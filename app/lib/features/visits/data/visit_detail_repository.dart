@@ -304,13 +304,14 @@ class VisitPinDispute {
   final String? note;
   final String? resolvedByLabel;
 
-  factory VisitPinDispute.fromJson(Map<String, dynamic> json) => VisitPinDispute(
-    id: json['id'] as String,
-    distanceM: (json['distanceM'] as num).toDouble(),
-    status: json['status'] as String? ?? 'open',
-    note: json['note'] as String?,
-    resolvedByLabel: json['resolvedByLabel'] as String?,
-  );
+  factory VisitPinDispute.fromJson(Map<String, dynamic> json) =>
+      VisitPinDispute(
+        id: json['id'] as String,
+        distanceM: (json['distanceM'] as num).toDouble(),
+        status: json['status'] as String? ?? 'open',
+        note: json['note'] as String?,
+        resolvedByLabel: json['resolvedByLabel'] as String?,
+      );
 }
 
 /// The visit does not exist, or belongs to another tenant: the server answers

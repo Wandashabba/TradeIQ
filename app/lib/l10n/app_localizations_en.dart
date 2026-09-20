@@ -3938,4 +3938,401 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createOutletTerritoryNotChosen => 'Choose a territory';
+
+  @override
+  String get ordersTitle => 'Orders';
+
+  @override
+  String get ordersSubtitle =>
+      'Captured in the field. A submitted order is waiting on a decision.';
+
+  @override
+  String get ordersRefresh => 'Reload the order list';
+
+  @override
+  String get ordersSectionHeading => 'Orders';
+
+  @override
+  String get ordersNewOrder => 'New order';
+
+  @override
+  String get ordersAwaitingEyebrow => 'Awaiting a decision';
+
+  @override
+  String ordersAwaitingSubordinates(String confirmed, String cancelled) {
+    return '$confirmed confirmed · $cancelled cancelled';
+  }
+
+  @override
+  String get ordersValueEyebrow => 'Value of these orders';
+
+  @override
+  String ordersValuePartial(String shown) {
+    return 'Summed over the $shown orders loaded, not the whole history.';
+  }
+
+  @override
+  String ordersCountPartial(String shown) {
+    return 'At least this many: counted over the $shown orders loaded.';
+  }
+
+  @override
+  String get ordersStatusSubmitted => 'Submitted';
+
+  @override
+  String get ordersStatusConfirmed => 'Confirmed';
+
+  @override
+  String get ordersStatusCancelled => 'Cancelled';
+
+  @override
+  String ordersStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String ordersLineCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines',
+      one: '1 line',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ordersRowSubtitle(String status, String lines) {
+    return '$status · $lines';
+  }
+
+  @override
+  String get ordersUnknownStore => 'Store not on this list';
+
+  @override
+  String get ordersEmptyHeadline => 'No orders yet.';
+
+  @override
+  String get ordersEmptyBody =>
+      'Orders appear here as agents capture them on a visit.';
+
+  @override
+  String get ordersLoadErrorHeadline => 'The order list did not load.';
+
+  @override
+  String get ordersRetry => 'Try again';
+
+  @override
+  String ordersFooterMore(String shown) {
+    return 'Showing the first $shown. There are more.';
+  }
+
+  @override
+  String ordersFooterOf(String shown, String total) {
+    return 'Showing the $shown newest of $total orders.';
+  }
+
+  @override
+  String ordersFooterScope(String shown) {
+    return 'The figures above are of these $shown.';
+  }
+
+  @override
+  String get orderFormTitle => 'New order';
+
+  @override
+  String get orderFormBack => 'Back to orders';
+
+  @override
+  String get orderFormStoreHeading => 'Which store';
+
+  @override
+  String get orderFormStore => 'Store';
+
+  @override
+  String get orderFormStoreNotChosen =>
+      'Not chosen yet. A store decides what can be ordered.';
+
+  @override
+  String get orderFormStoresFailed => 'The store list did not load.';
+
+  @override
+  String get orderFormLinesHeading => 'Line items';
+
+  @override
+  String get orderFormPickStoreFirst => 'Choose a store to see what it stocks.';
+
+  @override
+  String get orderFormSkusFailed => 'That store\'s products did not load.';
+
+  @override
+  String get orderFormNoSkusHeadline => 'Nothing is stocked here.';
+
+  @override
+  String get orderFormNoSkusBody =>
+      'This store has no products on its list, so there is nothing to order.';
+
+  @override
+  String get orderFormTotal => 'Order total';
+
+  @override
+  String get orderFormSubmit => 'Create the order';
+
+  @override
+  String get orderFormBlocked =>
+      'Choose a store and set a quantity on at least one line first.';
+
+  @override
+  String get orderFormFailed => 'That order was not created. Nothing was sent.';
+
+  @override
+  String get orderFormQuantity => 'Quantity';
+
+  @override
+  String get orderFormOneFewer => 'One fewer';
+
+  @override
+  String get orderFormOneMore => 'One more';
+
+  @override
+  String get orderFormTypeQuantity => 'Type a quantity';
+
+  @override
+  String get orderFormTypeQuantityFirst => 'Type a quantity first.';
+
+  @override
+  String get orderFormNotOrdered => 'Not on this order';
+
+  @override
+  String get orderFormNoneOrdered => 'None of this one';
+
+  @override
+  String get orderFormNoneOrderedLine => 'A line at nought is not sent.';
+
+  @override
+  String get orderFormCancel => 'Cancel';
+
+  @override
+  String get orderFormSet => 'Set';
+
+  @override
+  String get beatPlansTitle => 'Beat plans';
+
+  @override
+  String get beatPlansSubtitle =>
+      'A plan is a day of store stops, in visit order.';
+
+  @override
+  String get beatPlansRefresh => 'Reload the beat plans';
+
+  @override
+  String get beatPlansSectionHeading => 'Plans';
+
+  @override
+  String get beatPlansNewPlan => 'New plan';
+
+  @override
+  String get beatPlansEmptyHeadline => 'No beat plans.';
+
+  @override
+  String get beatPlansEmptyBody =>
+      'A plan is a day of store stops in visit order. Build one to give an agent a route.';
+
+  @override
+  String get beatPlansLoadErrorHeadline => 'The beat plans did not load.';
+
+  @override
+  String get beatPlansRetry => 'Try again';
+
+  @override
+  String beatPlansFooterMore(String shown) {
+    return 'Showing the first $shown. There are more.';
+  }
+
+  @override
+  String beatPlansFooterOf(String shown, String total) {
+    return 'Showing $shown of $total plans.';
+  }
+
+  @override
+  String get beatPlanStatusScheduled => 'Scheduled';
+
+  @override
+  String get beatPlanStatusInProgress => 'In progress';
+
+  @override
+  String get beatPlanStatusCompleted => 'Completed';
+
+  @override
+  String get beatPlanStatusMissed => 'Missed';
+
+  @override
+  String get beatPlanStatusCancelled => 'Cancelled';
+
+  @override
+  String beatPlanStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String get beatPlanDetailTitle => 'Beat plan';
+
+  @override
+  String get beatPlanDetailBack => 'Back to beat plans';
+
+  @override
+  String get beatPlanDetailLoadErrorHeadline => 'This beat plan did not load.';
+
+  @override
+  String get beatPlanAdherenceEyebrow => 'Stops worked';
+
+  @override
+  String beatPlanAdherenceOf(String visited, String total) {
+    return '$visited of $total stops';
+  }
+
+  @override
+  String get beatPlanAdherenceNoStops =>
+      'This plan has no stops, so there is nothing to work.';
+
+  @override
+  String get beatPlanStopsHeading => 'Stops';
+
+  @override
+  String get beatPlanStopsEmptyHeadline => 'No stops on this plan.';
+
+  @override
+  String get beatPlanStopsEmptyBody =>
+      'Add stores to the plan to give the agent a route.';
+
+  @override
+  String beatPlanStopLabel(String sequence) {
+    return 'Stop $sequence';
+  }
+
+  @override
+  String get beatPlanStopVisited => 'Worked';
+
+  @override
+  String get beatPlanStopNotVisited => 'Not yet';
+
+  @override
+  String beatPlanStopToggle(String stop) {
+    return 'Mark $stop as worked';
+  }
+
+  @override
+  String get beatPlanStopFailed =>
+      'That stop was not changed. It is as it was.';
+
+  @override
+  String get beatPlanFormTitle => 'New beat plan';
+
+  @override
+  String get beatPlanFormBack => 'Back to beat plans';
+
+  @override
+  String get beatPlanFormPlanHeading => 'The day';
+
+  @override
+  String get beatPlanFormName => 'Plan name';
+
+  @override
+  String get beatPlanFormNameHelp =>
+      'What the agent will see at the top of their day.';
+
+  @override
+  String get beatPlanFormDate => 'Scheduled date';
+
+  @override
+  String get beatPlanFormDateNotChosen => 'Not chosen yet.';
+
+  @override
+  String get beatPlanFormPickDate => 'Pick a date';
+
+  @override
+  String get beatPlanFormChangeDate => 'Change the date';
+
+  @override
+  String get beatPlanFormAgent => 'Field agent';
+
+  @override
+  String get beatPlanFormAgentNotChosen =>
+      'Not chosen yet. A plan belongs to one agent.';
+
+  @override
+  String get beatPlanFormAgentsFailed => 'The agent list did not load.';
+
+  @override
+  String get beatPlanFormNoAgents => 'No field agents on this account yet.';
+
+  @override
+  String get beatPlanFormTerritory => 'Territory';
+
+  @override
+  String get beatPlanFormTerritoryOptional =>
+      'Optional. It narrows reporting, not the stops.';
+
+  @override
+  String get beatPlanFormTerritoryNone => 'No territory';
+
+  @override
+  String get beatPlanFormStopsHeading => 'Stops, in order';
+
+  @override
+  String get beatPlanFormStopsEmpty =>
+      'No stops yet. Add stores from the list below.';
+
+  @override
+  String get beatPlanFormAvailableHeading => 'Stores to add';
+
+  @override
+  String get beatPlanFormAvailableEmpty =>
+      'Every store is already on this plan.';
+
+  @override
+  String get beatPlanFormStoresFailed => 'The store list did not load.';
+
+  @override
+  String beatPlanFormAddStop(String store) {
+    return 'Add $store to the plan';
+  }
+
+  @override
+  String beatPlanFormRemoveStop(String store) {
+    return 'Take $store off the plan';
+  }
+
+  @override
+  String beatPlanFormMoveUp(String store) {
+    return 'Move $store earlier';
+  }
+
+  @override
+  String beatPlanFormMoveDown(String store) {
+    return 'Move $store later';
+  }
+
+  @override
+  String beatPlanFormStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stops',
+      one: '1 stop',
+      zero: 'No stops',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get beatPlanFormSubmit => 'Create the plan';
+
+  @override
+  String get beatPlanFormBlocked =>
+      'Name the plan, pick a date and an agent, and add at least one stop first.';
+
+  @override
+  String get beatPlanFormFailed =>
+      'That plan was not created. Nothing was saved.';
 }

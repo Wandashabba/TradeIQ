@@ -67,7 +67,9 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
       'outletId': ?_outletId,
     };
     try {
-      await ref.read(reportsRepositoryProvider).createReport(
+      await ref
+          .read(reportsRepositoryProvider)
+          .createReport(
             name: _nameCtrl.text.trim(),
             type: _type,
             filters: filters,
@@ -76,9 +78,9 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create report: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create report: $e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -92,16 +94,21 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
       key: const ValueKey<String>('report-name-field'),
       controller: _nameCtrl,
       decoration: const InputDecoration(
-          labelText: 'Name', border: OutlineInputBorder()),
+        labelText: 'Name',
+        border: OutlineInputBorder(),
+      ),
       validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
     );
     final typeField = DropdownButtonFormField<String>(
       key: const ValueKey<String>('report-type-field'),
       initialValue: _type,
       decoration: const InputDecoration(
-          labelText: 'Type', border: OutlineInputBorder()),
+        labelText: 'Type',
+        border: OutlineInputBorder(),
+      ),
       items: [
-        for (final t in _reportTypes) DropdownMenuItem(value: t, child: Text(t)),
+        for (final t in _reportTypes)
+          DropdownMenuItem(value: t, child: Text(t)),
       ],
       onChanged: (v) => setState(() => _type = v ?? _type),
     );
@@ -124,10 +131,13 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
         key: const ValueKey<String>('report-outlet-field'),
         initialValue: _outletId,
         decoration: const InputDecoration(
-            labelText: 'Outlet (optional)', border: OutlineInputBorder()),
+          labelText: 'Outlet (optional)',
+          border: OutlineInputBorder(),
+        ),
         items: [
           const DropdownMenuItem(value: null, child: Text('All outlets')),
-          for (final o in list) DropdownMenuItem(value: o.id, child: Text(o.name)),
+          for (final o in list)
+            DropdownMenuItem(value: o.id, child: Text(o.name)),
         ],
         onChanged: (v) => setState(() => _outletId = v),
       ),
@@ -193,7 +203,10 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Text('Create Report'),
                     ),
                   ],
@@ -260,10 +273,7 @@ class _DateRow extends StatelessWidget {
                 value == null
                     ? Text(
                         'Any',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: lumen.inkMuted,
-                        ),
+                        style: TextStyle(fontSize: 13, color: lumen.inkMuted),
                       )
                     : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
               ],

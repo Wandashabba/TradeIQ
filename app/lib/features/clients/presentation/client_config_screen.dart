@@ -74,15 +74,15 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     try {
       await ref.read(clientsRepositoryProvider).updateWeights(map);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Saved')));
       ref.invalidate(clientConfigProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(describeSaveFailure(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(describeSaveFailure(e))));
     }
   }
 
@@ -94,8 +94,7 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     super.dispose();
   }
 
-  double _weightOf(String key) =>
-      double.tryParse(_controllers[key]!.text) ?? 0;
+  double _weightOf(String key) => double.tryParse(_controllers[key]!.text) ?? 0;
 
   /// The server scores with `weightedSum / weightSum`, so the weights are
   /// *relative* — they do not have to add up to 1. What actually matters is
@@ -165,8 +164,11 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           'Weights are relative, not percentages: the score is the weighted '
           'average divided by the total weight, so doubling every weight changes '
           'nothing. A dimension weighted 0 is dropped from the score entirely.',
-          style:
-              TextStyle(fontSize: 11.5, color: context.colors.ink3, height: 1.5),
+          style: TextStyle(
+            fontSize: 11.5,
+            color: context.colors.ink3,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 16),
         _ThresholdsPanel(thresholds: widget.config.kpiThresholds),
@@ -203,9 +205,9 @@ class _TimezonePanelState extends ConsumerState<_TimezonePanel> {
     try {
       await ref.read(clientsRepositoryProvider).updateTimezone(picked);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Timezone set to $picked')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Timezone set to $picked')));
       ref.invalidate(clientConfigProvider);
     } catch (e) {
       if (!mounted) return;
@@ -244,10 +246,14 @@ class _TimezonePanelState extends ConsumerState<_TimezonePanel> {
             decoration: BoxDecoration(
               color: colors.surface2,
               border: Border.all(
-                color: colors.glass ? context.lumen.panelRim : colors.lineStrong,
+                color: colors.glass
+                    ? context.lumen.panelRim
+                    : colors.lineStrong,
               ),
               borderRadius: BorderRadius.circular(
-                colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+                colors.glass
+                    ? LumenGlass.radiusControl
+                    : AppColors.radiusControl,
               ),
             ),
             child: Row(
@@ -314,10 +320,11 @@ class _WorkingHoursPanelState extends ConsumerState<_WorkingHoursPanel> {
   bool _saving = false;
 
   Future<void> _change() async {
-    final picked = await showDialog<({String start, String end, List<int> days})>(
-      context: context,
-      builder: (_) => _WorkingHoursDialog(config: widget.config),
-    );
+    final picked =
+        await showDialog<({String start, String end, List<int> days})>(
+          context: context,
+          builder: (_) => _WorkingHoursDialog(config: widget.config),
+        );
     if (picked == null || !mounted) return;
 
     setState(() => _saving = true);
@@ -330,9 +337,9 @@ class _WorkingHoursPanelState extends ConsumerState<_WorkingHoursPanel> {
             days: picked.days,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Working hours saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Working hours saved')));
       ref.invalidate(clientConfigProvider);
     } catch (e) {
       if (!mounted) return;
@@ -371,10 +378,14 @@ class _WorkingHoursPanelState extends ConsumerState<_WorkingHoursPanel> {
             decoration: BoxDecoration(
               color: colors.surface2,
               border: Border.all(
-                color: colors.glass ? context.lumen.panelRim : colors.lineStrong,
+                color: colors.glass
+                    ? context.lumen.panelRim
+                    : colors.lineStrong,
               ),
               borderRadius: BorderRadius.circular(
-                colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+                colors.glass
+                    ? LumenGlass.radiusControl
+                    : AppColors.radiusControl,
               ),
             ),
             child: Row(
@@ -509,11 +520,9 @@ class _WorkingHoursDialogState extends State<_WorkingHoursDialog> {
       setState(() => _error = error);
       return;
     }
-    Navigator.of(context).pop((
-      start: _start.text.trim(),
-      end: _end.text.trim(),
-      days: days,
-    ));
+    Navigator.of(
+      context,
+    ).pop((start: _start.text.trim(), end: _end.text.trim(), days: days));
   }
 
   @override
@@ -790,7 +799,10 @@ class _ZoneRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(place, style: TextStyle(fontSize: 13, color: colors.ink1)),
+                  Text(
+                    place,
+                    style: TextStyle(fontSize: 13, color: colors.ink1),
+                  ),
                   if (place != zone) ...[
                     const SizedBox(height: 2),
                     Text(
@@ -855,15 +867,15 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
     try {
       await ref.read(clientsRepositoryProvider).updateThresholds(map);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Saved')));
       ref.invalidate(clientConfigProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(describeSaveFailure(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(describeSaveFailure(e))));
     }
   }
 
@@ -1017,7 +1029,9 @@ class _WeightRow extends StatelessWidget {
               key: ValueKey<String>('weight-$dimension'),
               controller: controller,
               enabled: enabled,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(fontSize: 13),
               decoration: const InputDecoration(isDense: true),
             ),
@@ -1028,7 +1042,10 @@ class _WeightRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 12),
               // A dropped dimension is stated in words, not implied by a 0.
               child: excluded
-                  ? const StatusChip(label: 'Excluded', level: StatusLevel.warning)
+                  ? const StatusChip(
+                      label: 'Excluded',
+                      level: StatusLevel.warning,
+                    )
                   : Text(
                       '${share.toStringAsFixed(1)}%',
                       style: colors.glass
@@ -1125,11 +1142,7 @@ class ReadOnlyNotice extends StatelessWidget {
             child: Text(
               'Read-only. Only an administrator can change scoring config — '
               'these figures are shown because they explain your scores.',
-              style: TextStyle(
-                fontSize: 12,
-                color: colors.ink3,
-                height: 1.45,
-              ),
+              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.45),
             ),
           ),
         ],

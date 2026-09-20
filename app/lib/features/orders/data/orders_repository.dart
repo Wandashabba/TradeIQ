@@ -25,12 +25,12 @@ class OrderItem {
   final int lineCount;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-        id: json['id'] as String,
-        outletId: json['outletId'] as String,
-        status: json['status'] as String,
-        total: (json['total'] as num).toDouble(),
-        lineCount: (json['_count'] as Map<String, dynamic>?)?['lines'] as int? ?? 0,
-      );
+    id: json['id'] as String,
+    outletId: json['outletId'] as String,
+    status: json['status'] as String,
+    total: (json['total'] as num).toDouble(),
+    lineCount: (json['_count'] as Map<String, dynamic>?)?['lines'] as int? ?? 0,
+  );
 }
 
 /// One line on a new order. [quantity] must be a positive integer and
@@ -46,14 +46,17 @@ class OrderLine {
   final double unitPrice;
 
   Map<String, dynamic> toJson() => {
-        'skuId': skuId,
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-      };
+    'skuId': skuId,
+    'quantity': quantity,
+    'unitPrice': unitPrice,
+  };
 }
 
 abstract class OrdersRepository {
-  Future<PaginatedResponse<OrderItem>> listOrders({String? status, String? outletId});
+  Future<PaginatedResponse<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  });
 
   /// Queues an order for POST /orders (field_agent/manager) and tries to send
   /// it now. [lines] must be non-empty.
@@ -145,12 +148,21 @@ final ordersRepositoryProvider = Provider<OrdersRepository>(
   ),
 );
 
-// The provider exposes the FIRST PAGE as a plain list: the orders screen
-// wants the most recent orders, not the whole history, and "load more" UI is
-// deliberately out of scope for the pagination sweep (see the spec).
-// `nextCursor` is available on the repository for any screen that later needs
-// to page; this provider intentionally drops it.
-final ordersListProvider = FutureProvider<List<OrderItem>>((ref) async {
-  final page = await ref.read(ordersRepositoryProvider).listOrders();
-  return page.data;
+/// The FIRST PAGE of GET /orders, cursor and all.
+///
+/// "Load more" is still out of scope, but the *fact that the list was cut* is
+/// not: a screen that sums a page and calls the answer "total value" has
+/// invented a total. The page carries `nextCursor` — and `total` where the
+/// server counts — so the screen can say "the 20 newest of 74" and refuse to
+/// present a partial sum as the whole one (unify §4, "a rank or total is
+/// never invented").
+final ordersPageProvider = FutureProvider<PaginatedResponse<OrderItem>>((
+  ref,
+) async {
+  return ref.read(ordersRepositoryProvider).listOrders();
 });
+
+/// The same page as a plain list, for callers that do not care that it is one.
+final ordersListProvider = FutureProvider<List<OrderItem>>(
+  (ref) async => (await ref.watch(ordersPageProvider.future)).data,
+);

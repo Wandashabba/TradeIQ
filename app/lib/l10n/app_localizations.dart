@@ -6145,6 +6145,660 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a territory'**
   String get createOutletTerritoryNotChosen;
+
+  /// Title of the orders worklist route.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get ordersTitle;
+
+  /// Header fact on the orders worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured in the field. A submitted order is waiting on a decision.'**
+  String get ordersSubtitle;
+
+  /// Semantic label of the refresh icon button in the orders header.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the order list'**
+  String get ordersRefresh;
+
+  /// Section rule above the order rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get ordersSectionHeading;
+
+  /// Action that opens the order capture form.
+  ///
+  /// In en, this message translates to:
+  /// **'New order'**
+  String get ordersNewOrder;
+
+  /// Eyebrow of the lead figure counting submitted orders.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting a decision'**
+  String get ordersAwaitingEyebrow;
+
+  /// The two counts that are not the lead figure, beneath it.
+  ///
+  /// In en, this message translates to:
+  /// **'{confirmed} confirmed · {cancelled} cancelled'**
+  String ordersAwaitingSubordinates(String confirmed, String cancelled);
+
+  /// Eyebrow of the summed order value. It names the scope — these orders, not every order — because the list is one page.
+  ///
+  /// In en, this message translates to:
+  /// **'Value of these orders'**
+  String get ordersValueEyebrow;
+
+  /// State line under the order value when the list was cut. A partial sum that calls itself a total is an invented figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Summed over the {shown} orders loaded, not the whole history.'**
+  String ordersValuePartial(String shown);
+
+  /// State line under a count taken over a cut page.
+  ///
+  /// In en, this message translates to:
+  /// **'At least this many: counted over the {shown} orders loaded.'**
+  String ordersCountPartial(String shown);
+
+  /// Order status word: captured and waiting on a decision.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get ordersStatusSubmitted;
+
+  /// Order status word: accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get ordersStatusConfirmed;
+
+  /// Order status word: turned down.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get ordersStatusCancelled;
+
+  /// Fallback for an order status the app does not know. The wire's own word is shown rather than guessed at.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {status}'**
+  String ordersStatusOther(String status);
+
+  /// How many line items an order carries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 line} other{{count} lines}}'**
+  String ordersLineCount(int count);
+
+  /// An order row's second line: its status and how many lines it has.
+  ///
+  /// In en, this message translates to:
+  /// **'{status} · {lines}'**
+  String ordersRowSubtitle(String status, String lines);
+
+  /// Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get ordersUnknownStore;
+
+  /// Whole-screen empty state on the orders worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders yet.'**
+  String get ordersEmptyHeadline;
+
+  /// Body of the orders empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders appear here as agents capture them on a visit.'**
+  String get ordersEmptyBody;
+
+  /// Headline of the orders error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The order list did not load.'**
+  String get ordersLoadErrorHeadline;
+
+  /// Retry action on the orders error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get ordersRetry;
+
+  /// Pagination footer when the server did not count the whole list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}. There are more.'**
+  String ordersFooterMore(String shown);
+
+  /// Pagination footer when the server counted the whole list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} newest of {total} orders.'**
+  String ordersFooterOf(String shown, String total);
+
+  /// Second footer line: the honest scope of every figure above the list.
+  ///
+  /// In en, this message translates to:
+  /// **'The figures above are of these {shown}.'**
+  String ordersFooterScope(String shown);
+
+  /// Title of the order capture form.
+  ///
+  /// In en, this message translates to:
+  /// **'New order'**
+  String get orderFormTitle;
+
+  /// Semantic label of the order form's back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to orders'**
+  String get orderFormBack;
+
+  /// Section rule above the store picker on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Which store'**
+  String get orderFormStoreHeading;
+
+  /// Label of the store picker on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get orderFormStore;
+
+  /// Line under the store picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A store decides what can be ordered.'**
+  String get orderFormStoreNotChosen;
+
+  /// Shown when the outlet list could not be fetched on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get orderFormStoresFailed;
+
+  /// Section rule above the SKU list on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Line items'**
+  String get orderFormLinesHeading;
+
+  /// Inline empty state in place of the SKU list before a store is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a store to see what it stocks.'**
+  String get orderFormPickStoreFirst;
+
+  /// Shown when the SKU list could not be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'That store\'s products did not load.'**
+  String get orderFormSkusFailed;
+
+  /// Inline empty state when a store has no SKUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is stocked here.'**
+  String get orderFormNoSkusHeadline;
+
+  /// Body of the no-SKUs empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'This store has no products on its list, so there is nothing to order.'**
+  String get orderFormNoSkusBody;
+
+  /// Label of the running order total.
+  ///
+  /// In en, this message translates to:
+  /// **'Order total'**
+  String get orderFormTotal;
+
+  /// Commit button on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Create the order'**
+  String get orderFormSubmit;
+
+  /// Blocked reason under the order form's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a store and set a quantity on at least one line first.'**
+  String get orderFormBlocked;
+
+  /// Toast after the order create request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That order was not created. Nothing was sent.'**
+  String get orderFormFailed;
+
+  /// Label of a SKU's quantity stepper on the order form.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get orderFormQuantity;
+
+  /// Semantic label of the quantity stepper's minus key.
+  ///
+  /// In en, this message translates to:
+  /// **'One fewer'**
+  String get orderFormOneFewer;
+
+  /// Semantic label of the quantity stepper's plus key.
+  ///
+  /// In en, this message translates to:
+  /// **'One more'**
+  String get orderFormOneMore;
+
+  /// Semantic label of the quantity trough, which opens a number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a quantity'**
+  String get orderFormTypeQuantity;
+
+  /// Blocked reason on the number sheet's Set button while nothing has been typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a quantity first.'**
+  String get orderFormTypeQuantityFirst;
+
+  /// What a SKU with no quantity says. Nothing ordered is a state, not a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Not on this order'**
+  String get orderFormNotOrdered;
+
+  /// Word for a line explicitly set to nought.
+  ///
+  /// In en, this message translates to:
+  /// **'None of this one'**
+  String get orderFormNoneOrdered;
+
+  /// Consequence line under a quantity of nought.
+  ///
+  /// In en, this message translates to:
+  /// **'A line at nought is not sent.'**
+  String get orderFormNoneOrderedLine;
+
+  /// Cancel action on the quantity number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get orderFormCancel;
+
+  /// Commit action on the quantity number sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get orderFormSet;
+
+  /// Title of the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plans'**
+  String get beatPlansTitle;
+
+  /// Header fact on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'A plan is a day of store stops, in visit order.'**
+  String get beatPlansSubtitle;
+
+  /// Semantic label of the refresh icon button on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload the beat plans'**
+  String get beatPlansRefresh;
+
+  /// Section rule above the beat plan rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Plans'**
+  String get beatPlansSectionHeading;
+
+  /// Action that opens the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get beatPlansNewPlan;
+
+  /// Whole-screen empty state on the beat plans route.
+  ///
+  /// In en, this message translates to:
+  /// **'No beat plans.'**
+  String get beatPlansEmptyHeadline;
+
+  /// Body of the beat plans empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'A plan is a day of store stops in visit order. Build one to give an agent a route.'**
+  String get beatPlansEmptyBody;
+
+  /// Headline of the beat plans error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The beat plans did not load.'**
+  String get beatPlansLoadErrorHeadline;
+
+  /// Retry action on the beat plans error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get beatPlansRetry;
+
+  /// Pagination footer on the beat plans route when the server did not count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}. There are more.'**
+  String beatPlansFooterMore(String shown);
+
+  /// Pagination footer on the beat plans route when the server counted.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} plans.'**
+  String beatPlansFooterOf(String shown, String total);
+
+  /// Beat plan status word: planned, not started.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get beatPlanStatusScheduled;
+
+  /// Beat plan status word: being worked now.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get beatPlanStatusInProgress;
+
+  /// Beat plan status word: every stop worked.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get beatPlanStatusCompleted;
+
+  /// Beat plan status word: the day passed unworked.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get beatPlanStatusMissed;
+
+  /// Beat plan status word: called off.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get beatPlanStatusCancelled;
+
+  /// Fallback for a beat plan status the app does not know.
+  ///
+  /// In en, this message translates to:
+  /// **'Status {status}'**
+  String beatPlanStatusOther(String status);
+
+  /// Title of the beat plan detail route.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plan'**
+  String get beatPlanDetailTitle;
+
+  /// Semantic label of the beat plan detail back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to beat plans'**
+  String get beatPlanDetailBack;
+
+  /// Headline of the beat plan detail error state.
+  ///
+  /// In en, this message translates to:
+  /// **'This beat plan did not load.'**
+  String get beatPlanDetailLoadErrorHeadline;
+
+  /// Eyebrow of the adherence figure on a beat plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops worked'**
+  String get beatPlanAdherenceEyebrow;
+
+  /// The adherence figure in words, beneath the percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'{visited} of {total} stops'**
+  String beatPlanAdherenceOf(String visited, String total);
+
+  /// Reason shown in place of an adherence percentage for a plan with no stops. A plan with no stops is not nought per cent adherent.
+  ///
+  /// In en, this message translates to:
+  /// **'This plan has no stops, so there is nothing to work.'**
+  String get beatPlanAdherenceNoStops;
+
+  /// Section rule above a beat plan's stops.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops'**
+  String get beatPlanStopsHeading;
+
+  /// Inline empty state for a beat plan with no stops.
+  ///
+  /// In en, this message translates to:
+  /// **'No stops on this plan.'**
+  String get beatPlanStopsEmptyHeadline;
+
+  /// Body of the no-stops empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add stores to the plan to give the agent a route.'**
+  String get beatPlanStopsEmptyBody;
+
+  /// Title of a beat plan stop row when the store's name is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop {sequence}'**
+  String beatPlanStopLabel(String sequence);
+
+  /// State word on a stop that has been visited.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked'**
+  String get beatPlanStopVisited;
+
+  /// State word on a stop that has not been visited.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get beatPlanStopNotVisited;
+
+  /// Semantic label of a stop's visited checkbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark {stop} as worked'**
+  String beatPlanStopToggle(String stop);
+
+  /// Toast after marking a stop visited fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That stop was not changed. It is as it was.'**
+  String get beatPlanStopFailed;
+
+  /// Title of the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'New beat plan'**
+  String get beatPlanFormTitle;
+
+  /// Semantic label of the beat plan builder's back button.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to beat plans'**
+  String get beatPlanFormBack;
+
+  /// Section rule above the beat plan's own fields.
+  ///
+  /// In en, this message translates to:
+  /// **'The day'**
+  String get beatPlanFormPlanHeading;
+
+  /// Label of the beat plan name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan name'**
+  String get beatPlanFormName;
+
+  /// Help line under the beat plan name field.
+  ///
+  /// In en, this message translates to:
+  /// **'What the agent will see at the top of their day.'**
+  String get beatPlanFormNameHelp;
+
+  /// Label of the beat plan date picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled date'**
+  String get beatPlanFormDate;
+
+  /// Line under the date picker while no date is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet.'**
+  String get beatPlanFormDateNotChosen;
+
+  /// Action that opens the date picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get beatPlanFormPickDate;
+
+  /// Action that reopens the date picker once a date is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the date'**
+  String get beatPlanFormChangeDate;
+
+  /// Label of the agent picker on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Field agent'**
+  String get beatPlanFormAgent;
+
+  /// Line under the agent picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A plan belongs to one agent.'**
+  String get beatPlanFormAgentNotChosen;
+
+  /// Shown when the user list could not be fetched on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent list did not load.'**
+  String get beatPlanFormAgentsFailed;
+
+  /// Shown when the account has no field agents to assign a plan to.
+  ///
+  /// In en, this message translates to:
+  /// **'No field agents on this account yet.'**
+  String get beatPlanFormNoAgents;
+
+  /// Label of the optional territory picker on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get beatPlanFormTerritory;
+
+  /// Help line under the optional territory picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. It narrows reporting, not the stops.'**
+  String get beatPlanFormTerritoryOptional;
+
+  /// The option that clears the optional territory.
+  ///
+  /// In en, this message translates to:
+  /// **'No territory'**
+  String get beatPlanFormTerritoryNone;
+
+  /// Section rule above the chosen stops on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops, in order'**
+  String get beatPlanFormStopsHeading;
+
+  /// Inline empty state for the chosen stops.
+  ///
+  /// In en, this message translates to:
+  /// **'No stops yet. Add stores from the list below.'**
+  String get beatPlanFormStopsEmpty;
+
+  /// Section rule above the pool of stores not yet on the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores to add'**
+  String get beatPlanFormAvailableHeading;
+
+  /// Inline empty state for the pool of available stores.
+  ///
+  /// In en, this message translates to:
+  /// **'Every store is already on this plan.'**
+  String get beatPlanFormAvailableEmpty;
+
+  /// Shown when the outlet list could not be fetched on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'The store list did not load.'**
+  String get beatPlanFormStoresFailed;
+
+  /// Semantic label of the button that adds a store to the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {store} to the plan'**
+  String beatPlanFormAddStop(String store);
+
+  /// Semantic label of the button that removes a stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Take {store} off the plan'**
+  String beatPlanFormRemoveStop(String store);
+
+  /// Semantic label of the button that moves a stop up the order.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {store} earlier'**
+  String beatPlanFormMoveUp(String store);
+
+  /// Semantic label of the button that moves a stop down the order.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {store} later'**
+  String beatPlanFormMoveDown(String store);
+
+  /// How many stops are on the plan being built.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No stops} =1{1 stop} other{{count} stops}}'**
+  String beatPlanFormStopCount(int count);
+
+  /// Commit button on the beat plan builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Create the plan'**
+  String get beatPlanFormSubmit;
+
+  /// Blocked reason under the beat plan builder's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Name the plan, pick a date and an agent, and add at least one stop first.'**
+  String get beatPlanFormBlocked;
+
+  /// Toast after the beat plan create request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That plan was not created. Nothing was saved.'**
+  String get beatPlanFormFailed;
 }
 
 class _AppLocalizationsDelegate

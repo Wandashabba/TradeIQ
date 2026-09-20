@@ -174,10 +174,7 @@ class AskLight {
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: <Color>[
-        base.withValues(alpha: 0.12),
-        base.withValues(alpha: 0),
-      ],
+      colors: <Color>[base.withValues(alpha: 0.12), base.withValues(alpha: 0)],
     );
   }
 

@@ -73,8 +73,7 @@ enum AskPhase {
 
   /// Whether the composer can commit. Offline and a dead session both disable
   /// it, and a disabled Send is never amber in any skin.
-  bool get canSend =>
-      this != AskPhase.offline && this != AskPhase.sessionEnded;
+  bool get canSend => this != AskPhase.offline && this != AskPhase.sessionEnded;
 }
 
 /// Resolve the route's phase.

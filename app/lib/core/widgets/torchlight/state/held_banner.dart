@@ -218,10 +218,7 @@ class OfflineHeldBanner extends StatelessWidget {
                 ),
               if (subtitle != null) ...<Widget>[
                 const SizedBox(height: TiqSpace.s1),
-                Text(
-                  subtitle!,
-                  style: skin.text.meta.style(color: p.ink3),
-                ),
+                Text(subtitle!, style: skin.text.meta.style(color: p.ink3)),
               ],
             ],
           ),

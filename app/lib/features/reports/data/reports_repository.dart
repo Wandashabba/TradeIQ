@@ -23,17 +23,14 @@ class ReportDefinition {
 
 /// The outcome of GET /reports/:id/generate.
 class ReportResult {
-  const ReportResult({
-    required this.rowCount,
-    required this.generatedAt,
-  });
+  const ReportResult({required this.rowCount, required this.generatedAt});
   final int rowCount;
   final String generatedAt;
 
   factory ReportResult.fromJson(Map<String, dynamic> json) => ReportResult(
-        rowCount: json['rowCount'] as int? ?? 0,
-        generatedAt: json['generatedAt'] as String,
-      );
+    rowCount: json['rowCount'] as int? ?? 0,
+    generatedAt: json['generatedAt'] as String,
+  );
 }
 
 abstract class ReportsRepository {
@@ -74,11 +71,10 @@ class DioReportsRepository implements ReportsRepository {
     required String type,
     required Map<String, dynamic> filters,
   }) async {
-    final response = await dio.post('/reports', data: {
-      'name': name,
-      'type': type,
-      'filters': filters,
-    });
+    final response = await dio.post(
+      '/reports',
+      data: {'name': name, 'type': type, 'filters': filters},
+    );
     return ReportDefinition.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -88,8 +84,9 @@ class DioReportsRepository implements ReportsRepository {
   }
 }
 
-final reportsRepositoryProvider =
-    Provider<ReportsRepository>((ref) => DioReportsRepository());
+final reportsRepositoryProvider = Provider<ReportsRepository>(
+  (ref) => DioReportsRepository(),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the reports screen
 // wants the current report definitions, not the whole history, and "load

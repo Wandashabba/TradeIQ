@@ -32,17 +32,17 @@ class AnswerBlock {
   });
 
   const AnswerBlock.paragraph(String text)
-      : this._(kind: AnswerBlockKind.paragraph, text: text);
+    : this._(kind: AnswerBlockKind.paragraph, text: text);
   const AnswerBlock.heading(String text, int level)
-      : this._(kind: AnswerBlockKind.heading, text: text, level: level);
+    : this._(kind: AnswerBlockKind.heading, text: text, level: level);
   const AnswerBlock.bullets(List<String> items)
-      : this._(kind: AnswerBlockKind.bullets, items: items);
+    : this._(kind: AnswerBlockKind.bullets, items: items);
   const AnswerBlock.numbered(List<String> items)
-      : this._(kind: AnswerBlockKind.numbered, items: items);
+    : this._(kind: AnswerBlockKind.numbered, items: items);
   const AnswerBlock.quote(String text, {String? kicker})
-      : this._(kind: AnswerBlockKind.quote, text: text, kicker: kicker);
+    : this._(kind: AnswerBlockKind.quote, text: text, kicker: kicker);
   const AnswerBlock.code(String text)
-      : this._(kind: AnswerBlockKind.code, text: text);
+    : this._(kind: AnswerBlockKind.code, text: text);
 
   final AnswerBlockKind kind;
 
@@ -60,7 +60,8 @@ class AnswerBlock {
   final String? kicker;
 
   @override
-  String toString() => 'AnswerBlock($kind, text: $text, items: $items, '
+  String toString() =>
+      'AnswerBlock($kind, text: $text, items: $items, '
       'level: $level, kicker: $kicker)';
 }
 
@@ -139,9 +140,11 @@ ParsedAnswer parseAnswer(String source, {required bool streaming}) {
 
   void flushList() {
     if (list.isEmpty) return;
-    blocks.add(listKind == AnswerBlockKind.bullets
-        ? AnswerBlock.bullets(List.of(list))
-        : AnswerBlock.numbered(List.of(list)));
+    blocks.add(
+      listKind == AnswerBlockKind.bullets
+          ? AnswerBlock.bullets(List.of(list))
+          : AnswerBlock.numbered(List.of(list)),
+    );
     list.clear();
   }
 
@@ -232,15 +235,19 @@ ParsedAnswer parseAnswer(String source, {required bool streaming}) {
     if (headingMatch != null) {
       hasMarkdown = true;
       flushAll();
-      blocks.add(AnswerBlock.heading(
-        headingMatch.group(2)!.trim(),
-        headingMatch.group(1)!.length,
-      ));
+      blocks.add(
+        AnswerBlock.heading(
+          headingMatch.group(2)!.trim(),
+          headingMatch.group(1)!.length,
+        ),
+      );
       continue;
     }
 
     final bulletMatch = _bullet.firstMatch(line);
-    final numberedMatch = bulletMatch == null ? _numbered.firstMatch(line) : null;
+    final numberedMatch = bulletMatch == null
+        ? _numbered.firstMatch(line)
+        : null;
     if (bulletMatch != null || numberedMatch != null) {
       hasMarkdown = true;
       flushParagraph();
@@ -360,12 +367,14 @@ List<InlineRun> parseInline(String text, {required bool streaming}) {
     if (run.text.isEmpty) continue;
     if (merged.isNotEmpty && merged.last.sameStyle(run)) {
       final last = merged.removeLast();
-      merged.add(InlineRun(
-        last.text + run.text,
-        bold: run.bold,
-        italic: run.italic,
-        code: run.code,
-      ));
+      merged.add(
+        InlineRun(
+          last.text + run.text,
+          bold: run.bold,
+          italic: run.italic,
+          code: run.code,
+        ),
+      );
     } else {
       merged.add(run);
     }
@@ -396,15 +405,27 @@ void _parseInto(
       final close = text.indexOf('`', i + 1);
       if (close != -1) {
         emit();
-        out.add(InlineRun(text.substring(i + 1, close),
-            bold: bold, italic: italic, code: true));
+        out.add(
+          InlineRun(
+            text.substring(i + 1, close),
+            bold: bold,
+            italic: italic,
+            code: true,
+          ),
+        );
         i = close + 1;
         continue;
       }
       if (streaming) {
         emit();
-        out.add(InlineRun(text.substring(i + 1),
-            bold: bold, italic: italic, code: true));
+        out.add(
+          InlineRun(
+            text.substring(i + 1),
+            bold: bold,
+            italic: italic,
+            code: true,
+          ),
+        );
         return;
       }
       buffer.write(c);
@@ -424,15 +445,25 @@ void _parseInto(
         final close = _findCloser(text, marker, i + 2);
         if (close != -1) {
           emit();
-          _parseInto(out, text.substring(i + 2, close),
-              streaming: streaming, bold: true, italic: italic);
+          _parseInto(
+            out,
+            text.substring(i + 2, close),
+            streaming: streaming,
+            bold: true,
+            italic: italic,
+          );
           i = close + 2;
           continue;
         }
         if (streaming) {
           emit();
-          _parseInto(out, text.substring(i + 2),
-              streaming: streaming, bold: true, italic: italic);
+          _parseInto(
+            out,
+            text.substring(i + 2),
+            streaming: streaming,
+            bold: true,
+            italic: italic,
+          );
           return;
         }
       }
@@ -450,22 +481,33 @@ void _parseInto(
         return;
       }
       // `_` inside a word (snake_case) is never emphasis.
-      final opens = after.isNotEmpty &&
+      final opens =
+          after.isNotEmpty &&
           !_isSpace(after) &&
           (c == '*' || before.isEmpty || !_isWord(before));
       if (opens) {
         final close = _findCloser(text, c, i + 1);
         if (close != -1) {
           emit();
-          _parseInto(out, text.substring(i + 1, close),
-              streaming: streaming, bold: bold, italic: true);
+          _parseInto(
+            out,
+            text.substring(i + 1, close),
+            streaming: streaming,
+            bold: bold,
+            italic: true,
+          );
           i = close + 1;
           continue;
         }
         if (streaming) {
           emit();
-          _parseInto(out, text.substring(i + 1),
-              streaming: streaming, bold: bold, italic: true);
+          _parseInto(
+            out,
+            text.substring(i + 1),
+            streaming: streaming,
+            bold: bold,
+            italic: true,
+          );
           return;
         }
       }

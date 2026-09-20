@@ -501,16 +501,19 @@ class _LedgerRow extends StatelessWidget {
               day,
               TiqNumber.of(context).format(score, decimals: 0),
             )
-          : l10n.meLedgerRowSemantics(reason, day, _pointWords(l10n, entry.points)),
+          : l10n.meLedgerRowSemantics(
+              reason,
+              day,
+              _pointWords(l10n, entry.points),
+            ),
     );
   }
 }
 
 /// "plus 5 points" / "minus 5 points". The sign in words, for the reader the
 /// triangle does not reach.
-String _pointWords(AppLocalizations l10n, int points) => points < 0
-    ? l10n.mePointsMinus(points.abs())
-    : l10n.mePointsPlus(points);
+String _pointWords(AppLocalizations l10n, int points) =>
+    points < 0 ? l10n.mePointsMinus(points.abs()) : l10n.mePointsPlus(points);
 
 /// The score a scorecard row fed into the average — a level, so no triangle
 /// and no sentiment. `FigureSlot`, like every other figure on this screen, and

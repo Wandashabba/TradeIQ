@@ -17,11 +17,11 @@ class Territory {
   final String? region;
 
   factory Territory.fromJson(Map<String, dynamic> json) => Territory(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        code: json['code'] as String,
-        region: json['region'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    code: json['code'] as String,
+    region: json['region'] as String?,
+  );
 }
 
 /// Coverage summary for one territory returned by GET /territories/:id/coverage.
@@ -49,7 +49,8 @@ class TerritoryCoverage {
     return TerritoryCoverage(
       outletCount: (json['outlets'] as List?)?.length ?? 0,
       agentCount: (json['agents'] as List?)?.length ?? 0,
-      outlets: (json['outlets'] as List?)
+      outlets:
+          (json['outlets'] as List?)
               ?.map((o) => Outlet.fromJson(o as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -97,22 +98,25 @@ class DioTerritoriesRepository implements TerritoriesRepository {
     required String code,
     String? region,
   }) async {
-    final response = await dio.post('/territories', data: {
-      'name': name,
-      'code': code,
-      'region': ?region,
-    });
+    final response = await dio.post(
+      '/territories',
+      data: {'name': name, 'code': code, 'region': ?region},
+    );
     return Territory.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async {
-    await dio.post('/territories/$territoryId/agents', data: {'userId': userId});
+    await dio.post(
+      '/territories/$territoryId/agents',
+      data: {'userId': userId},
+    );
   }
 }
 
-final territoriesRepositoryProvider =
-    Provider<TerritoriesRepository>((ref) => DioTerritoriesRepository());
+final territoriesRepositoryProvider = Provider<TerritoriesRepository>(
+  (ref) => DioTerritoriesRepository(),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the terse
 // territory-picker UIs it feeds want the current set, not the whole history,

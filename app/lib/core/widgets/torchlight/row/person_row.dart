@@ -156,7 +156,9 @@ class PersonRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: skin.text.label
             .copyWith(weight: FontWeight.w600)
-            .style(color: deactivated ? skin.palette.inkMute : skin.palette.ink2),
+            .style(
+              color: deactivated ? skin.palette.inkMute : skin.palette.ink2,
+            ),
       );
     }
     if (trailing != null) return trailing;
@@ -243,10 +245,7 @@ class _Identifier extends StatelessWidget {
       spacing: TiqSpace.s1,
       children: <Widget>[
         Text(label),
-        Text(
-          value,
-          style: skin.text.monoIdent.style(color: skin.palette.ink3),
-        ),
+        Text(value, style: skin.text.monoIdent.style(color: skin.palette.ink3)),
       ],
     );
   }

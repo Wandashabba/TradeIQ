@@ -22,12 +22,9 @@ import '../data/territories_repository.dart';
 /// fast and offering [AsyncSection]'s explicit Retry button is the better
 /// trade for a screen the user is actively looking at.
 final _territoryCoverageProvider =
-    FutureProvider.family<TerritoryCoverage, String>(
-  (ref, territoryId) {
-    return ref.read(territoriesRepositoryProvider).getCoverage(territoryId);
-  },
-  retry: (retryCount, error) => null,
-);
+    FutureProvider.family<TerritoryCoverage, String>((ref, territoryId) {
+      return ref.read(territoriesRepositoryProvider).getCoverage(territoryId);
+    }, retry: (retryCount, error) => null);
 
 /// A pin map of one territory's outlets — a check disc where a visit landed
 /// inside the coverage query's default window, a teardrop where one is still
@@ -153,7 +150,10 @@ class TerritoryMapScreen extends ConsumerWidget {
                 children: [
                   Text(
                     outlet.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(outlet.code),
@@ -184,7 +184,10 @@ class _GlassOutletSheet extends StatelessWidget {
         children: [
           const Kicker('Outlet'),
           const SizedBox(height: 6),
-          Text(outlet.name, style: LumenGlass.title(size: 20, color: lumen.ink)),
+          Text(
+            outlet.name,
+            style: LumenGlass.title(size: 20, color: lumen.ink),
+          ),
           const SizedBox(height: 4),
           Text(
             outlet.code,
@@ -260,7 +263,11 @@ class _OutletPin extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: colors.line, width: 1),
                 boxShadow: const [
-                  BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
                 ],
               ),
         child: Center(

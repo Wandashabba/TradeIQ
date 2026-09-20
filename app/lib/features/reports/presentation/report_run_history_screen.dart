@@ -19,34 +19,33 @@ import 'report_schedules_screen.dart' show reportStamp;
 // a word as well as a colour and a glyph.
 
 String runStatusWord(ReportRunStatus status) => switch (status) {
-      ReportRunStatus.delivering => 'Delivering',
-      ReportRunStatus.delivered => 'Delivered',
-      ReportRunStatus.partial => 'Partly delivered',
-      ReportRunStatus.failed => 'Failed',
-      ReportRunStatus.notSent => 'Not sent',
-      ReportRunStatus.unknown => 'Unknown',
-    };
+  ReportRunStatus.delivering => 'Delivering',
+  ReportRunStatus.delivered => 'Delivered',
+  ReportRunStatus.partial => 'Partly delivered',
+  ReportRunStatus.failed => 'Failed',
+  ReportRunStatus.notSent => 'Not sent',
+  ReportRunStatus.unknown => 'Unknown',
+};
 
 StatusLevel runStatusLevel(ReportRunStatus status) => switch (status) {
-      ReportRunStatus.delivered => StatusLevel.good,
-      ReportRunStatus.partial => StatusLevel.warning,
-      ReportRunStatus.failed => StatusLevel.critical,
-      ReportRunStatus.delivering ||
-      ReportRunStatus.notSent ||
-      ReportRunStatus.unknown =>
-        StatusLevel.neutral,
-    };
+  ReportRunStatus.delivered => StatusLevel.good,
+  ReportRunStatus.partial => StatusLevel.warning,
+  ReportRunStatus.failed => StatusLevel.critical,
+  ReportRunStatus.delivering ||
+  ReportRunStatus.notSent ||
+  ReportRunStatus.unknown => StatusLevel.neutral,
+};
 
 /// The mark beside the word: distinct per status, so two neutral states
 /// (still sending, never sent) never read alike.
 String runStatusGlyph(ReportRunStatus status) => switch (status) {
-      ReportRunStatus.delivered => '✓',
-      ReportRunStatus.partial => '!',
-      ReportRunStatus.failed => '✕',
-      ReportRunStatus.delivering => '…',
-      ReportRunStatus.notSent => '–',
-      ReportRunStatus.unknown => '?',
-    };
+  ReportRunStatus.delivered => '✓',
+  ReportRunStatus.partial => '!',
+  ReportRunStatus.failed => '✕',
+  ReportRunStatus.delivering => '…',
+  ReportRunStatus.notSent => '–',
+  ReportRunStatus.unknown => '?',
+};
 
 String runTitle(ReportRun run) => run.scheduled ? 'Scheduled run' : 'Run now';
 
@@ -63,7 +62,10 @@ String runTimesLabel(ReportRun run) {
 String rowCountLabel(int n) => '$n ${n == 1 ? 'row' : 'rows'}';
 
 String _counts(List<(int, String)> parts, String none) {
-  final said = [for (final (n, word) in parts) if (n > 0) '$n $word'];
+  final said = [
+    for (final (n, word) in parts)
+      if (n > 0) '$n $word',
+  ];
   return said.isEmpty ? none : said.join(', ');
 }
 
@@ -75,11 +77,9 @@ String runDeliverySummaryLabel(ReportRun run) {
   final webhook = run.webhook;
   switch (webhook.status) {
     case 'queued':
-      parts.add('Webhooks: ${_counts([
-            (webhook.delivered, 'delivered'),
-            (webhook.pending, 'pending'),
-            (webhook.failed, 'failed'),
-          ], 'queued')}');
+      parts.add(
+        'Webhooks: ${_counts([(webhook.delivered, 'delivered'), (webhook.pending, 'pending'), (webhook.failed, 'failed')], 'queued')}',
+      );
     case 'no_subscribers':
       parts.add('Webhooks: none subscribed');
     case 'failed':
@@ -89,11 +89,9 @@ String runDeliverySummaryLabel(ReportRun run) {
   final email = run.email;
   switch (email.status) {
     case 'queued':
-      parts.add('Email: ${_counts([
-            (email.sent, 'sent'),
-            (email.pending, 'pending'),
-            (email.failed, 'failed'),
-          ], 'queued')}');
+      parts.add(
+        'Email: ${_counts([(email.sent, 'sent'), (email.pending, 'pending'), (email.failed, 'failed')], 'queued')}',
+      );
     case 'not_configured':
       parts.add('Email: not set up (${email.notConfigured} not emailed)');
     case 'no_subscribers':
@@ -106,25 +104,25 @@ String runDeliverySummaryLabel(ReportRun run) {
 }
 
 String webhookDeliveryWord(DeliveryStatus status) => switch (status) {
-      DeliveryStatus.pending => 'Queued',
-      DeliveryStatus.succeeded => 'Delivered',
-      DeliveryStatus.failedRetrying => 'Retrying',
-      DeliveryStatus.gaveUp => 'Gave up',
-    };
+  DeliveryStatus.pending => 'Queued',
+  DeliveryStatus.succeeded => 'Delivered',
+  DeliveryStatus.failedRetrying => 'Retrying',
+  DeliveryStatus.gaveUp => 'Gave up',
+};
 
 String emailDeliveryWord(DeliveryStatus status) => switch (status) {
-      DeliveryStatus.pending => 'Queued',
-      DeliveryStatus.succeeded => 'Sent',
-      DeliveryStatus.failedRetrying => 'Retrying',
-      DeliveryStatus.gaveUp => 'Failed',
-    };
+  DeliveryStatus.pending => 'Queued',
+  DeliveryStatus.succeeded => 'Sent',
+  DeliveryStatus.failedRetrying => 'Retrying',
+  DeliveryStatus.gaveUp => 'Failed',
+};
 
 StatusLevel deliveryLevel(DeliveryStatus status) => switch (status) {
-      DeliveryStatus.pending => StatusLevel.neutral,
-      DeliveryStatus.succeeded => StatusLevel.good,
-      DeliveryStatus.failedRetrying => StatusLevel.warning,
-      DeliveryStatus.gaveUp => StatusLevel.critical,
-    };
+  DeliveryStatus.pending => StatusLevel.neutral,
+  DeliveryStatus.succeeded => StatusLevel.good,
+  DeliveryStatus.failedRetrying => StatusLevel.warning,
+  DeliveryStatus.gaveUp => StatusLevel.critical,
+};
 
 String attemptsLabel(int n) => n == 1 ? '1 attempt' : '$n attempts';
 
@@ -290,14 +288,16 @@ class _ReportRunHistoryScreenState
             label: 'report runs',
             onRetry: _refresh,
             builder: (runs) => PanelCard(
-              title: '${runs.length} ${runs.length == 1 ? 'run' : 'runs'}'
+              title:
+                  '${runs.length} ${runs.length == 1 ? 'run' : 'runs'}'
                   '${_nextCursor != null ? ' shown' : ''}',
               subtitle: 'Newest first',
               padded: false,
               child: runs.isEmpty
                   ? const EmptyState(
                       message: 'No runs yet',
-                      hint: 'A run appears each time the schedule fires or '
+                      hint:
+                          'A run appears each time the schedule fires or '
                           'you use Run now.',
                     )
                   : Column(
@@ -521,8 +521,9 @@ class _RunRowState extends State<_RunRow> {
                       _expanded ? Icons.expand_less : Icons.expand_more,
                       size: 18,
                       color: colors.ink3,
-                      semanticLabel:
-                          _expanded ? 'Hide run details' : 'Show run details',
+                      semanticLabel: _expanded
+                          ? 'Hide run details'
+                          : 'Show run details',
                     ),
                   ),
                 ],
@@ -573,7 +574,7 @@ class _RunDetail extends StatelessWidget {
             run.csvDownloadUrl == null
                 ? noCsvLinkNote
                 : 'Signed download link'
-                    '${expires == null ? '' : ', works until ${reportStamp(expires)}'}.',
+                      '${expires == null ? '' : ', works until ${reportStamp(expires)}'}.',
             key: ValueKey<String>('run-csv-note-${run.id}'),
             style: note,
           ),
@@ -595,12 +596,13 @@ class _RunDetail extends StatelessWidget {
               w.lastStatusCode != null
                   ? 'HTTP ${w.lastStatusCode}'
                   : w.attempts == 0
-                      ? 'Not sent yet'
-                      : 'No response',
+                  ? 'Not sent yet'
+                  : 'No response',
               attemptsLabel(w.attempts),
             ],
             // A non-2xx is recorded as "HTTP <code>", which the facts say.
-            error: w.status == DeliveryStatus.succeeded ||
+            error:
+                w.status == DeliveryStatus.succeeded ||
                     w.lastError == 'HTTP ${w.lastStatusCode}'
                 ? null
                 : w.lastError,
@@ -611,13 +613,18 @@ class _RunDetail extends StatelessWidget {
     final text = switch (outcome?.status) {
       'no_subscribers' =>
         'Not sent: no webhook is subscribed to $reportGeneratedEvent.',
-      'failed' => 'Webhook delivery failed'
-          '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
+      'failed' =>
+        'Webhook delivery failed'
+            '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
       'queued' => 'The webhooks this run was sent to have since been deleted.',
       _ => 'No webhook delivery was recorded.',
     };
     return [
-      Text(text, key: ValueKey<String>('run-webhook-note-${run.id}'), style: note),
+      Text(
+        text,
+        key: ValueKey<String>('run-webhook-note-${run.id}'),
+        style: note,
+      ),
     ];
   }
 
@@ -626,11 +633,13 @@ class _RunDetail extends StatelessWidget {
     final n = run.email.notConfigured;
     final text = switch (outcome?.status) {
       'queued' => null,
-      'not_configured' => 'Not emailed to $n ${n == 1 ? 'recipient' : 'recipients'}: '
-          'email is not set up on the server.',
+      'not_configured' =>
+        'Not emailed to $n ${n == 1 ? 'recipient' : 'recipients'}: '
+            'email is not set up on the server.',
       'no_subscribers' => 'Not emailed: no valid email recipients.',
-      'failed' => 'Email delivery failed'
-          '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
+      'failed' =>
+        'Email delivery failed'
+            '${outcome?.detail == null ? '.' : ': ${outcome!.detail}'}',
       _ => 'No email delivery was recorded.',
     };
     if (text != null) {
@@ -734,7 +743,10 @@ class _DeliveryResultTile extends StatelessWidget {
               spacing: 8,
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: [subject, StatusChip(label: word, level: level)],
+              children: [
+                subject,
+                StatusChip(label: word, level: level),
+              ],
             ),
             const SizedBox(height: 3),
             Wrap(

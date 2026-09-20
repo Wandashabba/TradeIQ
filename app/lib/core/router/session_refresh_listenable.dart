@@ -18,6 +18,8 @@ class SessionRefreshListenable extends ChangeNotifier {
   }
 }
 
-final sessionRefreshListenableProvider = Provider<SessionRefreshListenable>((ref) {
+final sessionRefreshListenableProvider = Provider<SessionRefreshListenable>((
+  ref,
+) {
   return SessionRefreshListenable(ref);
 });

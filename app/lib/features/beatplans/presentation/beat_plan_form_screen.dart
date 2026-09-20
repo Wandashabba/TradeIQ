@@ -81,14 +81,16 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(beatPlansRepositoryProvider).createBeatPlan(
+      await ref
+          .read(beatPlansRepositoryProvider)
+          .createBeatPlan(
             agentId: _agentId!,
             name: _nameCtrl.text.trim(),
             scheduledDate: _fmt(_scheduledDate!),
             outletIds: List<String>.of(_selectedOutletIds),
             territoryId: _territoryId,
           );
-      ref.invalidate(beatPlansListProvider);
+      ref.invalidate(beatPlansPageProvider);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       _snack('Failed to create beat plan: $e');
@@ -99,8 +101,9 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -114,7 +117,9 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
         key: const ValueKey<String>('beatplan-name-field'),
         controller: _nameCtrl,
         decoration: const InputDecoration(
-            labelText: 'Name', border: OutlineInputBorder()),
+          labelText: 'Name',
+          border: OutlineInputBorder(),
+        ),
         validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
       ),
       const SizedBox(height: 12),
@@ -127,13 +132,16 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
         loading: () => const LinearProgressIndicator(),
         error: (err, _) => Text('Failed to load agents: $err'),
         data: (list) {
-          final fieldAgents =
-              list.where((u) => u.role == 'field_agent').toList();
+          final fieldAgents = list
+              .where((u) => u.role == 'field_agent')
+              .toList();
           return DropdownButtonFormField<String>(
             key: const ValueKey<String>('beatplan-agent-field'),
             initialValue: _agentId,
             decoration: const InputDecoration(
-                labelText: 'Field agent', border: OutlineInputBorder()),
+              labelText: 'Field agent',
+              border: OutlineInputBorder(),
+            ),
             items: [
               for (final u in fieldAgents)
                 DropdownMenuItem(value: u.id, child: Text(u.label)),
@@ -150,7 +158,9 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
           key: const ValueKey<String>('beatplan-territory-field'),
           initialValue: _territoryId,
           decoration: const InputDecoration(
-              labelText: 'Territory (optional)', border: OutlineInputBorder()),
+            labelText: 'Territory (optional)',
+            border: OutlineInputBorder(),
+          ),
           items: [
             const DropdownMenuItem(value: null, child: Text('None')),
             for (final t in list)
@@ -216,8 +226,10 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
                   children: [
                     ...planFields,
                     const SizedBox(height: 20),
-                    const Text('Stops (in order)',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Stops (in order)',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     stops,
                     const SizedBox(height: 24),
                     FilledButton(
@@ -228,7 +240,10 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Text('Create Beat Plan'),
                     ),
                   ],
@@ -295,10 +310,7 @@ class _DateRow extends StatelessWidget {
                 value == null
                     ? Text(
                         'Not set',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: lumen.inkMuted,
-                        ),
+                        style: TextStyle(fontSize: 13, color: lumen.inkMuted),
                       )
                     : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
               ],
@@ -311,7 +323,11 @@ class _DateRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(value == null ? 'Scheduled date: not set' : 'Scheduled date: $value'),
+          child: Text(
+            value == null
+                ? 'Scheduled date: not set'
+                : 'Scheduled date: $value',
+          ),
         ),
         pick,
       ],
@@ -345,8 +361,9 @@ class _StopBuilder extends StatelessWidget {
       return null;
     }
 
-    final available =
-        outlets.where((o) => !selectedIds.contains(o.id)).toList();
+    final available = outlets
+        .where((o) => !selectedIds.contains(o.id))
+        .toList();
 
     if (context.colors.glass) return _glass(context, byId, available);
 
@@ -383,25 +400,25 @@ class _StopBuilder extends StatelessWidget {
   }
 
   Widget _reorderControls(int i) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_upward),
-            tooltip: 'Move up',
-            onPressed: i == 0 ? null : () => onMove(i, -1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.arrow_downward),
-            tooltip: 'Move down',
-            onPressed: i == selectedIds.length - 1 ? null : () => onMove(i, 1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            tooltip: 'Remove',
-            onPressed: () => onRemove(selectedIds[i]),
-          ),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton(
+        icon: const Icon(Icons.arrow_upward),
+        tooltip: 'Move up',
+        onPressed: i == 0 ? null : () => onMove(i, -1),
+      ),
+      IconButton(
+        icon: const Icon(Icons.arrow_downward),
+        tooltip: 'Move down',
+        onPressed: i == selectedIds.length - 1 ? null : () => onMove(i, 1),
+      ),
+      IconButton(
+        icon: const Icon(Icons.remove_circle_outline),
+        tooltip: 'Remove',
+        onPressed: () => onRemove(selectedIds[i]),
+      ),
+    ],
+  );
 
   /// Glass: each stop is a no-blur tile led by its sequence in a status tile
   /// (a count, so mono), and the pool below is a second run of tiles. Each
@@ -413,15 +430,15 @@ class _StopBuilder extends StatelessWidget {
   ) {
     final lumen = context.lumen;
     Widget tile(Widget child) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GlassPane(
-            kind: GlassKind.tile,
-            blur: false,
-            shadow: false,
-            radius: LumenGlass.radiusControl,
-            child: Material(type: MaterialType.transparency, child: child),
-          ),
-        );
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GlassPane(
+        kind: GlassKind.tile,
+        blur: false,
+        shadow: false,
+        radius: LumenGlass.radiusControl,
+        child: Material(type: MaterialType.transparency, child: child),
+      ),
+    );
     final titleStyle = TextStyle(
       fontSize: 13.5,
       fontWeight: FontWeight.w600,
@@ -475,10 +492,7 @@ class _StopBuilder extends StatelessWidget {
                   weight: FontWeight.w500,
                 ),
               ),
-              trailing: Icon(
-                Icons.add_circle_outline,
-                color: lumen.accentInk,
-              ),
+              trailing: Icon(Icons.add_circle_outline, color: lumen.accentInk),
               onTap: () => onAdd(o.id),
             ),
           ),

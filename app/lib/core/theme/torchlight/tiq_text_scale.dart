@@ -38,10 +38,7 @@ class TiqTextScale {
     final clamped = clamp(ambient);
     final cap = token.maxTextScale;
     if (cap == null) return clamped;
-    return clamped.clamp(
-      minScaleFactor: minScale,
-      maxScaleFactor: cap,
-    );
+    return clamped.clamp(minScaleFactor: minScale, maxScaleFactor: cap);
   }
 
   /// The resolved font size for [token] under [ambient] — what a test should
@@ -76,11 +73,7 @@ class TiqTextScaleScope extends StatelessWidget {
 /// scaler rather than assuming [TiqTextScaleScope] ran, so it is correct in a
 /// widget test that pumps a bare `MediaQuery`.
 class TiqRoleTextScale extends StatelessWidget {
-  const TiqRoleTextScale({
-    required this.token,
-    required this.child,
-    super.key,
-  });
+  const TiqRoleTextScale({required this.token, required this.child, super.key});
 
   final TiqTypeToken token;
   final Widget child;

@@ -252,7 +252,11 @@ class HatchPaint {
       ..isAntiAlias = false;
     final r = spec.strokeWidth;
     for (var y = rect.top + spec.pitch / 2; y < rect.bottom; y += spec.pitch) {
-      for (var x = rect.left + spec.pitch / 2; x < rect.right; x += spec.pitch) {
+      for (
+        var x = rect.left + spec.pitch / 2;
+        x < rect.right;
+        x += spec.pitch
+      ) {
         canvas.drawRect(Rect.fromCircle(center: Offset(x, y), radius: r), dot);
       }
     }

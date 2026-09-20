@@ -72,20 +72,20 @@ class BeatPlansScreen extends ConsumerWidget {
 /// A plan in flight is the one a manager can still act on; a missed one is the
 /// one that cost a visit. Both outrank a plan that is merely scheduled.
 StatusLevel _levelFor(String status) => switch (status) {
-      'completed' => StatusLevel.good,
-      'in_progress' => StatusLevel.warning,
-      'missed' || 'cancelled' => StatusLevel.critical,
-      _ => StatusLevel.neutral,
-    };
+  'completed' => StatusLevel.good,
+  'in_progress' => StatusLevel.warning,
+  'missed' || 'cancelled' => StatusLevel.critical,
+  _ => StatusLevel.neutral,
+};
 
 String _statusWord(String status) => switch (status) {
-      'scheduled' => 'Scheduled',
-      'in_progress' => 'In progress',
-      'completed' => 'Completed',
-      'missed' => 'Missed',
-      'cancelled' => 'Cancelled',
-      _ => status,
-    };
+  'scheduled' => 'Scheduled',
+  'in_progress' => 'In progress',
+  'completed' => 'Completed',
+  'missed' => 'Missed',
+  'cancelled' => 'Cancelled',
+  _ => status,
+};
 
 class _BeatPlanRow extends StatelessWidget {
   const _BeatPlanRow({required this.plan});

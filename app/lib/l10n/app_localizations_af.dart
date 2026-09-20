@@ -3980,4 +3980,407 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get createOutletTerritoryNotChosen => 'Kies ’n gebied';
+
+  @override
+  String get ordersTitle => 'Bestellings';
+
+  @override
+  String get ordersSubtitle =>
+      'In die veld vasgelê. ’n Ingedienede bestelling wag op ’n besluit.';
+
+  @override
+  String get ordersRefresh => 'Herlaai die bestellingslys';
+
+  @override
+  String get ordersSectionHeading => 'Bestellings';
+
+  @override
+  String get ordersNewOrder => 'Nuwe bestelling';
+
+  @override
+  String get ordersAwaitingEyebrow => 'Wag op ’n besluit';
+
+  @override
+  String ordersAwaitingSubordinates(String confirmed, String cancelled) {
+    return '$confirmed bevestig · $cancelled gekanselleer';
+  }
+
+  @override
+  String get ordersValueEyebrow => 'Waarde van hierdie bestellings';
+
+  @override
+  String ordersValuePartial(String shown) {
+    return 'Opgetel oor die $shown bestellings wat gelaai is, nie die hele geskiedenis nie.';
+  }
+
+  @override
+  String ordersCountPartial(String shown) {
+    return 'Ten minste soveel: getel oor die $shown bestellings wat gelaai is.';
+  }
+
+  @override
+  String get ordersStatusSubmitted => 'Ingedien';
+
+  @override
+  String get ordersStatusConfirmed => 'Bevestig';
+
+  @override
+  String get ordersStatusCancelled => 'Gekanselleer';
+
+  @override
+  String ordersStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String ordersLineCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reëls',
+      one: '1 reël',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ordersRowSubtitle(String status, String lines) {
+    return '$status · $lines';
+  }
+
+  @override
+  String get ordersUnknownStore => 'Winkel nie op hierdie lys nie';
+
+  @override
+  String get ordersEmptyHeadline => 'Nog geen bestellings nie.';
+
+  @override
+  String get ordersEmptyBody =>
+      'Bestellings verskyn hier soos agente dit tydens ’n besoek vaslê.';
+
+  @override
+  String get ordersLoadErrorHeadline =>
+      'Die bestellingslys het nie gelaai nie.';
+
+  @override
+  String get ordersRetry => 'Probeer weer';
+
+  @override
+  String ordersFooterMore(String shown) {
+    return 'Wys die eerste $shown. Daar is meer.';
+  }
+
+  @override
+  String ordersFooterOf(String shown, String total) {
+    return 'Wys die $shown nuutstes van $total bestellings.';
+  }
+
+  @override
+  String ordersFooterScope(String shown) {
+    return 'Die syfers hierbo is van hierdie $shown.';
+  }
+
+  @override
+  String get orderFormTitle => 'Nuwe bestelling';
+
+  @override
+  String get orderFormBack => 'Terug na bestellings';
+
+  @override
+  String get orderFormStoreHeading => 'Watter winkel';
+
+  @override
+  String get orderFormStore => 'Winkel';
+
+  @override
+  String get orderFormStoreNotChosen =>
+      'Nog nie gekies nie. ’n Winkel bepaal wat bestel kan word.';
+
+  @override
+  String get orderFormStoresFailed => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String get orderFormLinesHeading => 'Bestellingsreëls';
+
+  @override
+  String get orderFormPickStoreFirst =>
+      'Kies ’n winkel om te sien wat dit aanhou.';
+
+  @override
+  String get orderFormSkusFailed =>
+      'Daardie winkel se produkte het nie gelaai nie.';
+
+  @override
+  String get orderFormNoSkusHeadline => 'Niks word hier aangehou nie.';
+
+  @override
+  String get orderFormNoSkusBody =>
+      'Hierdie winkel het geen produkte op sy lys nie, so daar is niks om te bestel nie.';
+
+  @override
+  String get orderFormTotal => 'Bestellingstotaal';
+
+  @override
+  String get orderFormSubmit => 'Skep die bestelling';
+
+  @override
+  String get orderFormBlocked =>
+      'Kies eers ’n winkel en stel ’n hoeveelheid op ten minste een reël.';
+
+  @override
+  String get orderFormFailed =>
+      'Daardie bestelling is nie geskep nie. Niks is gestuur nie.';
+
+  @override
+  String get orderFormQuantity => 'Hoeveelheid';
+
+  @override
+  String get orderFormOneFewer => 'Een minder';
+
+  @override
+  String get orderFormOneMore => 'Een meer';
+
+  @override
+  String get orderFormTypeQuantity => 'Tik ’n hoeveelheid';
+
+  @override
+  String get orderFormTypeQuantityFirst => 'Tik eers ’n hoeveelheid in.';
+
+  @override
+  String get orderFormNotOrdered => 'Nie op hierdie bestelling nie';
+
+  @override
+  String get orderFormNoneOrdered => 'Niks hiervan nie';
+
+  @override
+  String get orderFormNoneOrderedLine => '’n Reël op nul word nie gestuur nie.';
+
+  @override
+  String get orderFormCancel => 'Kanselleer';
+
+  @override
+  String get orderFormSet => 'Stel';
+
+  @override
+  String get beatPlansTitle => 'Besoekplanne';
+
+  @override
+  String get beatPlansSubtitle =>
+      '’n Plan is ’n dag se winkelstoppe, in besoekvolgorde.';
+
+  @override
+  String get beatPlansRefresh => 'Herlaai die besoekplanne';
+
+  @override
+  String get beatPlansSectionHeading => 'Planne';
+
+  @override
+  String get beatPlansNewPlan => 'Nuwe plan';
+
+  @override
+  String get beatPlansEmptyHeadline => 'Geen besoekplanne nie.';
+
+  @override
+  String get beatPlansEmptyBody =>
+      '’n Plan is ’n dag se winkelstoppe in besoekvolgorde. Bou een om ’n agent ’n roete te gee.';
+
+  @override
+  String get beatPlansLoadErrorHeadline =>
+      'Die besoekplanne het nie gelaai nie.';
+
+  @override
+  String get beatPlansRetry => 'Probeer weer';
+
+  @override
+  String beatPlansFooterMore(String shown) {
+    return 'Wys die eerste $shown. Daar is meer.';
+  }
+
+  @override
+  String beatPlansFooterOf(String shown, String total) {
+    return 'Wys $shown van $total planne.';
+  }
+
+  @override
+  String get beatPlanStatusScheduled => 'Geskeduleer';
+
+  @override
+  String get beatPlanStatusInProgress => 'Aan die gang';
+
+  @override
+  String get beatPlanStatusCompleted => 'Voltooi';
+
+  @override
+  String get beatPlanStatusMissed => 'Gemis';
+
+  @override
+  String get beatPlanStatusCancelled => 'Gekanselleer';
+
+  @override
+  String beatPlanStatusOther(String status) {
+    return 'Status $status';
+  }
+
+  @override
+  String get beatPlanDetailTitle => 'Besoekplan';
+
+  @override
+  String get beatPlanDetailBack => 'Terug na besoekplanne';
+
+  @override
+  String get beatPlanDetailLoadErrorHeadline =>
+      'Hierdie besoekplan het nie gelaai nie.';
+
+  @override
+  String get beatPlanAdherenceEyebrow => 'Stoppe gewerk';
+
+  @override
+  String beatPlanAdherenceOf(String visited, String total) {
+    return '$visited van $total stoppe';
+  }
+
+  @override
+  String get beatPlanAdherenceNoStops =>
+      'Hierdie plan het geen stoppe nie, so daar is niks om te werk nie.';
+
+  @override
+  String get beatPlanStopsHeading => 'Stoppe';
+
+  @override
+  String get beatPlanStopsEmptyHeadline => 'Geen stoppe op hierdie plan nie.';
+
+  @override
+  String get beatPlanStopsEmptyBody =>
+      'Voeg winkels by die plan om die agent ’n roete te gee.';
+
+  @override
+  String beatPlanStopLabel(String sequence) {
+    return 'Stop $sequence';
+  }
+
+  @override
+  String get beatPlanStopVisited => 'Gewerk';
+
+  @override
+  String get beatPlanStopNotVisited => 'Nog nie';
+
+  @override
+  String beatPlanStopToggle(String stop) {
+    return 'Merk $stop as gewerk';
+  }
+
+  @override
+  String get beatPlanStopFailed =>
+      'Daardie stop is nie verander nie. Dit is soos dit was.';
+
+  @override
+  String get beatPlanFormTitle => 'Nuwe besoekplan';
+
+  @override
+  String get beatPlanFormBack => 'Terug na besoekplanne';
+
+  @override
+  String get beatPlanFormPlanHeading => 'Die dag';
+
+  @override
+  String get beatPlanFormName => 'Plannaam';
+
+  @override
+  String get beatPlanFormNameHelp => 'Wat die agent bo-aan hul dag sal sien.';
+
+  @override
+  String get beatPlanFormDate => 'Geskeduleerde datum';
+
+  @override
+  String get beatPlanFormDateNotChosen => 'Nog nie gekies nie.';
+
+  @override
+  String get beatPlanFormPickDate => 'Kies ’n datum';
+
+  @override
+  String get beatPlanFormChangeDate => 'Verander die datum';
+
+  @override
+  String get beatPlanFormAgent => 'Veldagent';
+
+  @override
+  String get beatPlanFormAgentNotChosen =>
+      'Nog nie gekies nie. ’n Plan behoort aan een agent.';
+
+  @override
+  String get beatPlanFormAgentsFailed => 'Die agentelys het nie gelaai nie.';
+
+  @override
+  String get beatPlanFormNoAgents =>
+      'Nog geen veldagente op hierdie rekening nie.';
+
+  @override
+  String get beatPlanFormTerritory => 'Gebied';
+
+  @override
+  String get beatPlanFormTerritoryOptional =>
+      'Opsioneel. Dit vernou verslagdoening, nie die stoppe nie.';
+
+  @override
+  String get beatPlanFormTerritoryNone => 'Geen gebied';
+
+  @override
+  String get beatPlanFormStopsHeading => 'Stoppe, in volgorde';
+
+  @override
+  String get beatPlanFormStopsEmpty =>
+      'Nog geen stoppe nie. Voeg winkels uit die lys hieronder by.';
+
+  @override
+  String get beatPlanFormAvailableHeading => 'Winkels om by te voeg';
+
+  @override
+  String get beatPlanFormAvailableEmpty =>
+      'Elke winkel is reeds op hierdie plan.';
+
+  @override
+  String get beatPlanFormStoresFailed => 'Die winkellys het nie gelaai nie.';
+
+  @override
+  String beatPlanFormAddStop(String store) {
+    return 'Voeg $store by die plan';
+  }
+
+  @override
+  String beatPlanFormRemoveStop(String store) {
+    return 'Haal $store van die plan af';
+  }
+
+  @override
+  String beatPlanFormMoveUp(String store) {
+    return 'Skuif $store vroeër';
+  }
+
+  @override
+  String beatPlanFormMoveDown(String store) {
+    return 'Skuif $store later';
+  }
+
+  @override
+  String beatPlanFormStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stoppe',
+      one: '1 stop',
+      zero: 'Geen stoppe',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get beatPlanFormSubmit => 'Skep die plan';
+
+  @override
+  String get beatPlanFormBlocked =>
+      'Benoem die plan, kies ’n datum en ’n agent, en voeg eers ten minste een stop by.';
+
+  @override
+  String get beatPlanFormFailed =>
+      'Daardie plan is nie geskep nie. Niks is gestoor nie.';
 }
