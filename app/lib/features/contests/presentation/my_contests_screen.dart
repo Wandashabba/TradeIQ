@@ -420,16 +420,22 @@ class _StandingRow extends StatelessWidget {
       // No display name and not the reader's own row: the sign-in address is
       // all there is, and it becomes the title rather than a blank.
       unknownLabel: s.email,
-      trailing: Row(
+      // A COLUMN, not a row. At 2.0x two figures side by side in a 245dp
+      // trailing slot overflow it by 55px, and a `Row` of two unbounded
+      // `Text`s cannot shrink — the rank sits above the points instead, and
+      // each line wraps on its own.
+      trailing: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
           Text(
             rank,
+            textAlign: TextAlign.end,
             style: skin.text.figureS.style(color: skin.palette.ink3),
           ),
-          const SizedBox(width: TiqSpace.s3),
           Text(
             l10n.contestPoints(points),
+            textAlign: TextAlign.end,
             style: skin.text.figureS.style(color: skin.palette.ink1),
           ),
         ],

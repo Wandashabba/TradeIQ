@@ -8,7 +8,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/contests_repository.dart';
@@ -353,47 +355,56 @@ class _DateRow extends StatelessWidget {
 
 /// All territories, or one of the client's. Loading or failing to load the
 /// list keeps the current choice rather than silently widening the contest.
+///
+/// **Not a `ChoiceRow`.** That component holds two to four options and asserts
+/// it — "one option is a statement, and five is a list" — and a client with
+/// eleven territories is a list. So the current scope is a standalone row and
+/// the choosing happens in a sheet, which is the one modal container.
 class _TerritoryField extends ConsumerWidget {
   const _TerritoryField({required this.value, required this.onChanged});
 
   final String? value;
   final ValueChanged<String?> onChanged;
 
-  /// The sentinel for "all territories". `ChoiceRow<String?>` cannot use null
-  /// as a value, because null is how it says *nothing is selected*.
-  static const String all = '__all__';
+  static const String allLabel = 'All territories';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
     final territories = ref.watch(territoriesListProvider);
     final list = territories.value ?? const <Territory>[];
-    final known = value == null || list.any((t) => t.id == value);
+    final chosen = value == null
+        ? null
+        : list.where((t) => t.id == value).firstOrNull;
+    final word = value == null
+        ? allLabel
+        : (chosen == null
+              ? 'One territory'
+              : '${chosen.name} (${chosen.code})');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        ChoiceRow<String>(
+        SoftRow(
           key: const ValueKey<String>('contest-territory-field'),
-          label: 'Territory',
-          value: known ? (value ?? all) : all,
-          options: <ChoiceOption<String>>[
-            const ChoiceOption<String>(
-              value: all,
-              label: 'All territories',
-              consequence: 'Every agent in the client takes part.',
-            ),
-            for (final t in list)
-              ChoiceOption<String>(
-                value: t.id,
-                label: '${t.name} (${t.code})',
-                consequence: 'Only agents assigned to it take part.',
-              ),
-          ],
-          onChanged: territories.hasValue
-              ? (picked) => onChanged(picked == all ? null : picked)
+          form: SoftRowForm.standalone,
+          density: SoftRowDensity.tall,
+          title: 'Territory',
+          subtitle: word,
+          meta: Text(
+            value == null
+                ? 'Every agent in the client takes part.'
+                : 'Only agents assigned to it take part.',
+          ),
+          trailing: const SoftRowChevron(),
+          // A list that did not arrive cannot be chosen from. The row keeps
+          // the scope it has and says why beneath, rather than offering a
+          // picker with one option in it.
+          onTap: territories.hasValue
+              ? () => _pick(context, list)
               : null,
+          semanticsLabel: 'Territory. $word. Change the territory.',
         ),
         if (territories.hasError) ...<Widget>[
           const SizedBox(height: TiqSpace.s3),
@@ -407,6 +418,46 @@ class _TerritoryField extends ConsumerWidget {
       ],
     );
   }
+
+  Future<void> _pick(BuildContext context, List<Territory> list) async {
+    final picked = await showTorchSheet<String>(
+      context,
+      builder: (sheetContext) => TorchSheet(
+        title: 'Territory',
+        subtitle: 'Who takes part in this contest.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SoftRow(
+              key: const ValueKey<String>('territory-option-all'),
+              density: SoftRowDensity.compact,
+              title: allLabel,
+              trailing: value == null ? const Text('Chosen') : null,
+              onTap: () => Navigator.of(sheetContext).pop(_allSentinel),
+            ),
+            for (var i = 0; i < list.length; i++)
+              SoftRow(
+                key: ValueKey<String>('territory-option-${list[i].id}'),
+                density: SoftRowDensity.compact,
+                title: '${list[i].name} (${list[i].code})',
+                trailing: value == list[i].id ? const Text('Chosen') : null,
+                separator: i == list.length - 1
+                    ? SoftRowSeparator.none
+                    : SoftRowSeparator.auto,
+                onTap: () => Navigator.of(sheetContext).pop(list[i].id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    onChanged(picked == _allSentinel ? null : picked);
+  }
+
+  /// A sheet that pops `null` means *dismissed*, so "all territories" needs a
+  /// value of its own to come back as.
+  static const String _allSentinel = '__all__';
 }
 
 /// Which kinds of points count. Nothing ticked counts all of them, and that
