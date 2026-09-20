@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/lumen_glass.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show reduceMotion;
-import 'nav_menu_sheet.dart';
+import 'torchlight/menu_sheet.dart';
 import '../theme/lumen_palette.dart';
 
 /// One slot on the floating bar. `route == null` means the Menu slot, which
@@ -181,7 +181,7 @@ class _SlotButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(glass ? LumenGlass.radiusButton : 21),
       onTap: () {
         if (route == null) {
-          showNavMenuSheet(context);
+          showTorchMenuSheet(context);
         } else {
           context.go(route);
         }

@@ -13,6 +13,7 @@ import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/network/app_version.dart';
 import 'package:tradeiq_app/features/auth/presentation/change_password_screen.dart';
 import 'package:tradeiq_app/features/auth/presentation/forgot_password_screen.dart';
+import 'package:tradeiq_app/features/auth/presentation/login_screen.dart';
 import 'package:tradeiq_app/features/auth/presentation/update_required_screen.dart';
 import 'package:tradeiq_app/features/users/presentation/user_password_screen.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
@@ -238,7 +239,7 @@ void main() {
     await tester.pumpWidget(_appWithOverrides([]));
     await tester.pumpAndSettle();
     expect(find.text('TRADEIQ'), findsOneWidget);
-    expect(find.text('Forgot password?'), findsNothing);
+    expect(find.byType(LoginScreen), findsNothing);
   });
 
   testWidgets('unauthenticated request for /dashboard redirects to login', (
@@ -255,7 +256,7 @@ void main() {
 
     // The login screen's stable unique marker after the c71f37b redesign
     // ('Sign in' appears twice: headline + submit button).
-    expect(find.text('Forgot password?'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -377,7 +378,7 @@ void main() {
 
     // The login screen's stable unique marker after the c71f37b redesign
     // ('Sign in' appears twice: headline + submit button).
-    expect(find.text('Forgot password?'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -815,6 +816,15 @@ void main() {
     testWidgets('"Forgot password?" on the sign-in screen goes there', (
       tester,
     ) async {
+      // A tall window, so the whole sign-in form is on it. At the test
+      // binding's default 800×600 the foot of the form lands exactly on the
+      // thumb zone's top edge and the tap goes to the chrome instead —
+      // `login_screen_test` covers the scrolled-on-a-phone case; what is
+      // being asserted here is the real router's half of the trip.
+      tester.view
+        ..physicalSize = const Size(800, 1400)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_appWithOverrides([]));
       await tester.pumpAndSettle();
       routerOf(tester).go('/login');
@@ -830,7 +840,7 @@ void main() {
       routerOf(tester).go('/account/password');
       await tester.pumpAndSettle();
       expect(find.byType(ChangePasswordScreen), findsNothing);
-      expect(find.text('Forgot password?'), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('an agent can change their own password', (tester) async {

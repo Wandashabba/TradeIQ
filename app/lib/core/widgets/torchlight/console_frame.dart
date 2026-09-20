@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../design/torch_scope.dart';
 import '../../theme/torchlight/tiq_skin.dart';
-import '../nav_destinations.dart';
 import 'chrome/chrome.dart';
-import 'row/row.dart';
-import 'section_rule.dart';
+import 'menu_sheet.dart';
 import 'sheet.dart';
 
 /// WHICH OF THE FOUR SLOTS A CONSOLE ROUTE SITS UNDER.
@@ -131,59 +129,7 @@ class ConsoleFrame extends StatelessWidget {
       case ConsoleSlot.ask:
         context.go('/assistant');
       case ConsoleSlot.menu:
-        showConsoleMenu(context);
+        showTorchMenuSheet(context);
     }
   }
 }
-
-/// THE MENU — the console's overflow, as the one modal container.
-///
-/// Every destination that does not fit the four slots, grouped by the verb it
-/// serves. It reads [managerDestinations] rather than keeping a second list:
-/// a destination added there appears here, in the rail and in the router guard
-/// at once, which is the property the old nav had and the one worth keeping.
-///
-/// It is deliberately the plain form of the component the spec calls a "menu
-/// sheet": rows, rules and a sheet. The grouped-with-counts version is a
-/// separate spec item.
-Future<void> showConsoleMenu(BuildContext context) {
-  return showTorchSheet<void>(
-    context,
-    builder: (sheetContext) => TorchSheet(
-      title: 'Menu',
-      subtitle: 'Everything the four tabs do not hold.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final group in NavGroup.values) ...<Widget>[
-            SectionRule(_groupName(group)),
-            const SizedBox(height: TiqSpace.s3),
-            for (final destination in managerDestinations.where(
-              (d) => d.group == group,
-            ))
-              SoftRow(
-                key: ValueKey<String>('menu-${destination.route}'),
-                density: SoftRowDensity.compact,
-                title: destination.label,
-                trailing: const SoftRowChevron(),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.go(destination.route);
-                },
-              ),
-            const SizedBox(height: TiqSpace.s6),
-          ],
-        ],
-      ),
-    ),
-  );
-}
-
-/// Sentence case, because the section rule replaced the uppercase eyebrow and
-/// "OPERATE" shouted at a screen reader is a word spelled out letter by letter.
-String _groupName(NavGroup group) => switch (group) {
-  NavGroup.operate => 'Operate',
-  NavGroup.insight => 'Insight',
-  NavGroup.configure => 'Configure',
-};

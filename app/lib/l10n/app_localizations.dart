@@ -5575,6 +5575,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See where you stand'**
   String get meContestsDetail;
+
+  /// Headline above the sign-in failure. Deliberately says nothing about WHY — a message that distinguished a wrong password from an unknown address would turn this form into a way to ask the server who works here.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not sign you in'**
+  String get loginFailedTitle;
+
+  /// Title of the console's overflow sheet, opened from the nav's Menu slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get menuTitle;
+
+  /// Subtitle of the menu sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the four tabs do not hold.'**
+  String get menuSubtitle;
+
+  /// Section rule above the menu sheet's housekeeping rows: brightness, password, sign out.
+  ///
+  /// In en, this message translates to:
+  /// **'This app'**
+  String get menuThisApp;
+
+  /// Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Light theme'**
+  String get menuThemeLight;
+
+  /// Menu row that switches the app to its dark theme. Names the state it switches TO.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark theme'**
+  String get menuThemeDark;
+
+  /// Menu row to the change-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get menuChangePassword;
+
+  /// The menu sheet's way out of the app. Held work stays on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get menuSignOut;
+
+  /// Name of the nav group holding the day's work: the floor, tasks, alerts, orders, outlets.
+  ///
+  /// In en, this message translates to:
+  /// **'Operate'**
+  String get navGroupOperate;
+
+  /// Name of the nav group holding the reading surfaces: Ask, reports, trends, contests.
+  ///
+  /// In en, this message translates to:
+  /// **'Insight'**
+  String get navGroupInsight;
+
+  /// Name of the nav group holding setup: rules, territories, users, templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get navGroupConfigure;
+
+  /// Nav destination: the manager's home screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The Floor'**
+  String get navTheFloor;
+
+  /// Nav destination: the KPI overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution overview'**
+  String get navExecutionOverview;
+
+  /// Nav destination: the task worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get navTasks;
+
+  /// Nav destination: the alert worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts'**
+  String get navAlerts;
+
+  /// Nav destination: orders captured in store.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get navOrders;
+
+  /// Nav destination: the agents' planned routes.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plans'**
+  String get navBeatPlans;
+
+  /// Nav destination: live dispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get navDispatch;
+
+  /// Nav destination: messages between managers and agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get navMessages;
+
+  /// Nav destination: the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets'**
+  String get navOutlets;
+
+  /// Nav destination: the assistant. A product name; usually left untranslated except for the verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ'**
+  String get navAskTradeIq;
+
+  /// Nav destination: reports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get navReports;
+
+  /// Nav destination: trend charts.
+  ///
+  /// In en, this message translates to:
+  /// **'Trends'**
+  String get navTrends;
+
+  /// Nav destination: sales targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales targets'**
+  String get navSalesTargets;
+
+  /// Nav destination: the agent leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaderboard'**
+  String get navLeaderboard;
+
+  /// Nav destination: contests.
+  ///
+  /// In en, this message translates to:
+  /// **'Contests'**
+  String get navContests;
+
+  /// Nav destination: the fraud review queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraud review'**
+  String get navFraudReview;
+
+  /// Nav destination: campaigns.
+  ///
+  /// In en, this message translates to:
+  /// **'Campaigns'**
+  String get navCampaigns;
+
+  /// Nav destination: the rules that raise alerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert rules'**
+  String get navAlertRules;
+
+  /// Nav destination: territories.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories'**
+  String get navTerritories;
+
+  /// Nav destination: user administration.
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get navUsers;
+
+  /// Nav destination: audit templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit templates'**
+  String get navAuditTemplates;
+
+  /// Nav destination: incentives.
+  ///
+  /// In en, this message translates to:
+  /// **'Incentives'**
+  String get navIncentives;
+
+  /// Nav destination: outgoing webhooks. A technical term, left as is.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks'**
+  String get navWebhooks;
+
+  /// Nav destination: the client's scoring configuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Scoring config'**
+  String get navScoringConfig;
+
+  /// Title of the session-ended sheet. A state, not an error: no triangle, no crimson, no word 'error'.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been signed out'**
+  String get sessionEndedTitle;
+
+  /// Body of the session-ended sheet. Names the work's safety before it names the session.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you captured is still on this phone. It sends itself when you sign in.'**
+  String get sessionEndedBody;
+
+  /// Primary action on the session-ended sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to send them'**
+  String get sessionEndedSignIn;
+
+  /// Secondary action on the session-ended sheet. Leaves the held line under the header.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get sessionEndedNotNow;
+
+  /// Opens the proof block again from the held line under the sign-in header.
+  ///
+  /// In en, this message translates to:
+  /// **'What is held'**
+  String get sessionHeldWhatIsHeld;
+
+  /// One line of the session-ended proof block: how many of one kind of capture are held. 'kind' comes from the outbox's own vocabulary (Photo, Stock count, Submitted visit).
+  ///
+  /// In en, this message translates to:
+  /// **'{count} × {kind}'**
+  String sessionHeldEntry(int count, String kind);
+
+  /// The line under the sign-in header after 'Not now'. Oatmeal and a square, never crimson — being signed out with held work is a state with one action attached, not a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture is waiting to send.} other{{count} captures are waiting to send.}}'**
+  String sessionHeldWaiting(int count);
 }
 
 class _AppLocalizationsDelegate
