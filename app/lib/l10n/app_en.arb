@@ -6233,6 +6233,14 @@
       }
     }
   },
+  "ordersStoreListLoading": "Store list still loading",
+  "@ordersStoreListLoading": {
+    "description": "Title of an order row while the store list is still being fetched. Not \"Store not on this list\": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart."
+  },
+  "ordersStoreListUnavailable": "Store list did not load",
+  "@ordersStoreListUnavailable": {
+    "description": "Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store."
+  },
   "ordersUnknownStore": "Store not on this list",
   "@ordersUnknownStore": {
     "description": "Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title."
@@ -6512,6 +6520,18 @@
   "beatPlanStopsEmptyBody": "Add stores to the plan to give the agent a route.",
   "@beatPlanStopsEmptyBody": {
     "description": "Body of the no-stops empty state."
+  },
+  "beatPlanStopUnknownStore": "Store not on this list",
+  "@beatPlanStopUnknownStore": {
+    "description": "Title of a beat plan stop whose store is genuinely absent from the loaded store list."
+  },
+  "beatPlanStopStoreLoading": "Store list still loading",
+  "@beatPlanStopStoreLoading": {
+    "description": "Title of a beat plan stop while the store list is still being fetched."
+  },
+  "beatPlanStopStoreUnavailable": "Store list did not load",
+  "@beatPlanStopStoreUnavailable": {
+    "description": "Title of a beat plan stop when the store list failed to load."
   },
   "beatPlanStopLabel": "Stop {sequence}",
   "@beatPlanStopLabel": {

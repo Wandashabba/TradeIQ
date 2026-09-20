@@ -4762,6 +4762,12 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get ordersStoreListLoading => 'Winkellys laai nog';
+
+  @override
+  String get ordersStoreListUnavailable => 'Winkellys kon nie laai nie';
+
+  @override
   String get ordersUnknownStore => 'Winkel nie op hierdie lys nie';
 
   @override
@@ -4965,6 +4971,15 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get beatPlanStopsEmptyBody =>
       'Voeg winkels by die plan om die agent ’n roete te gee.';
+
+  @override
+  String get beatPlanStopUnknownStore => 'Winkel nie op hierdie lys nie';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Winkellys laai nog';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Winkellys kon nie laai nie';
 
   @override
   String beatPlanStopLabel(String sequence) {

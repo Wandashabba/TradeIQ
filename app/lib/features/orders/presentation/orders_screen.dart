@@ -310,11 +310,26 @@ class _OrderRow extends ConsumerWidget {
 
     // The store list is reference data the app already holds; a name is what
     // a manager reads and an id is what a ticket quotes.
-    final outlets = ref.watch(outletsListProvider).value;
-    final name = outlets
+    //
+    // THE BRANCH IS ON THE `AsyncValue`, NOT ON `.value`. `.value` is null
+    // while the list is loading and null again when it failed, and reading
+    // "not on this list" off that asserted, of every order in the account,
+    // that its store is missing from the register — an unknown printed as a
+    // measured fact. The walk covers every page of GET /outlets, so on a slow
+    // link that window is not brief, and a 502 leaves it open for good.
+    final outlets = ref.watch(outletsListProvider);
+    final name = outlets.value
         ?.where((o) => o.id == order.outletId)
         .map((o) => o.name)
         .firstOrNull;
+    final title =
+        name ??
+        (outlets.isLoading
+            ? l10n.ordersStoreListLoading
+            : outlets.hasError
+            ? l10n.ordersStoreListUnavailable
+            // Genuinely loaded, and genuinely absent.
+            : l10n.ordersUnknownStore);
 
     final status = orderStatusWord(l10n, order.status);
     final lines = l10n.ordersLineCount(order.lineCount);
@@ -322,7 +337,7 @@ class _OrderRow extends ConsumerWidget {
     return SoftRow(
       key: ValueKey<String>('order-${order.id}'),
       density: SoftRowDensity.tall,
-      title: name ?? l10n.ordersUnknownStore,
+      title: title,
       titleTruncation: SoftRowTruncation.middle,
       subtitle: l10n.ordersRowSubtitle(status, lines),
       severity: orderSeverity(order.status),
@@ -347,7 +362,7 @@ class _OrderRow extends ConsumerWidget {
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
-        name ?? l10n.ordersUnknownStore,
+        title,
         status,
         lines,
         TiqNumber.of(

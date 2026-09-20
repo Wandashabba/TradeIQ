@@ -4716,6 +4716,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get ordersStoreListLoading => 'Store list still loading';
+
+  @override
+  String get ordersStoreListUnavailable => 'Store list did not load';
+
+  @override
   String get ordersUnknownStore => 'Store not on this list';
 
   @override
@@ -4913,6 +4919,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get beatPlanStopsEmptyBody =>
       'Add stores to the plan to give the agent a route.';
+
+  @override
+  String get beatPlanStopUnknownStore => 'Store not on this list';
+
+  @override
+  String get beatPlanStopStoreLoading => 'Store list still loading';
+
+  @override
+  String get beatPlanStopStoreUnavailable => 'Store list did not load';
 
   @override
   String beatPlanStopLabel(String sequence) {

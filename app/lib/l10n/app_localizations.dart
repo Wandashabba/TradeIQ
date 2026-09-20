@@ -7382,6 +7382,18 @@ abstract class AppLocalizations {
   /// **'{status} · {lines}'**
   String ordersRowSubtitle(String status, String lines);
 
+  /// Title of an order row while the store list is still being fetched. Not "Store not on this list": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get ordersStoreListLoading;
+
+  /// Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get ordersStoreListUnavailable;
+
   /// Title of an order row whose outlet is not in the loaded store list. The id goes in the meta line, never in the title.
   ///
   /// In en, this message translates to:
@@ -7735,6 +7747,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add stores to the plan to give the agent a route.'**
   String get beatPlanStopsEmptyBody;
+
+  /// Title of a beat plan stop whose store is genuinely absent from the loaded store list.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get beatPlanStopUnknownStore;
+
+  /// Title of a beat plan stop while the store list is still being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get beatPlanStopStoreLoading;
+
+  /// Title of a beat plan stop when the store list failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get beatPlanStopStoreUnavailable;
 
   /// Title of a beat plan stop row when the store's name is not known.
   ///
