@@ -5654,6 +5654,12 @@ abstract class AppLocalizations {
   /// **'Execution overview'**
   String get navExecutionOverview;
 
+  /// The floating bottom bar's first slot — the manager's home (/dashboard). Short on purpose: the rail and the menu sheet call the same route 'The Floor', but five slots share a phone's width on one line.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
   /// Nav destination: the task worklist.
   ///
   /// In en, this message translates to:

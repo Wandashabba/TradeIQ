@@ -3640,6 +3640,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navExecutionOverview => 'Execution overview';
 
   @override
+  String get navHome => 'Home';
+
+  @override
   String get navTasks => 'Tasks';
 
   @override

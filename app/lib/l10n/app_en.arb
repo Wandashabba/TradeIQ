@@ -4731,9 +4731,15 @@
   "@meLedgerScoreRowSemantics": {
     "description": "The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.",
     "placeholders": {
-      "reason": { "type": "String" },
-      "day": { "type": "String" },
-      "score": { "type": "String" }
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
     }
   },
   "meContestsDetail": "See where you stand",
@@ -4791,6 +4797,10 @@
   "navExecutionOverview": "Execution overview",
   "@navExecutionOverview": {
     "description": "Nav destination: the KPI overview."
+  },
+  "navHome": "Home",
+  "@navHome": {
+    "description": "The floating bottom bar's first slot — the manager's home (/dashboard). Short on purpose: the rail and the menu sheet call the same route 'The Floor', but five slots share a phone's width on one line."
   },
   "navTasks": "Tasks",
   "@navTasks": {
@@ -4904,21 +4914,21 @@
   "@sessionHeldEntry": {
     "description": "One line of the session-ended proof block: how many of one kind of capture are held. 'kind' comes from the outbox's own vocabulary (Photo, Stock count, Submitted visit).",
     "placeholders": {
-          "count": {
-                "type": "int"
-          },
-          "kind": {
-                "type": "String"
-          }
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
     }
   },
   "sessionHeldWaiting": "{count, plural, =1{1 capture is waiting to send.} other{{count} captures are waiting to send.}}",
   "@sessionHeldWaiting": {
     "description": "The line under the sign-in header after 'Not now'. Oatmeal and a square, never crimson — being signed out with held work is a state with one action attached, not a fault.",
     "placeholders": {
-          "count": {
-                "type": "int"
-          }
+      "count": {
+        "type": "int"
+      }
     }
   }
 }
