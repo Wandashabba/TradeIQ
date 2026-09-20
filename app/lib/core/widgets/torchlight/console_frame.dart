@@ -65,6 +65,7 @@ class ConsoleFrame extends StatelessWidget {
     this.header,
     this.claims = const <TorchClaim>[],
     this.scrollController,
+    this.band,
   });
 
   /// `loading`, `loaded`, `empty`, `filtered-empty`, `error`. Resolution
@@ -84,6 +85,15 @@ class ConsoleFrame extends StatelessWidget {
 
   final ScrollController? scrollController;
 
+  /// A pinned region between the scroll view and the nav: the message
+  /// composer, and nothing else on the console so far.
+  ///
+  /// It is a **sibling** of the scroll view rather than an overlay, and it
+  /// clears the software keyboard itself — which is exactly when the nav is
+  /// not there, and exactly when the grant the nav was holding returns to the
+  /// content. See [TorchShell.band].
+  final Widget? band;
+
   @override
   Widget build(BuildContext context) {
     return TorchSheetAware(
@@ -98,6 +108,7 @@ class ConsoleFrame extends StatelessWidget {
           profile: TorchShellProfile.console,
           header: header,
           scrollController: scrollController,
+          band: band,
           navPill: TorchNavPill(
             slots: consoleNavSlots,
             activeIndex: active.index,
