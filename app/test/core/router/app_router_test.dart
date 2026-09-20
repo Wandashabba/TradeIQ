@@ -21,6 +21,7 @@ import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
+import 'package:tradeiq_app/features/contests/presentation/contest_standings_screen.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
@@ -1011,7 +1012,21 @@ void main() {
 
       // The row pushes, so back is the record the agent came from — not the
       // leaderboard they never saw, and not Today.
-      await tester.tap(find.byTooltip('Back'));
+      //
+      // Torchlight's back control is not a tooltip'd Material leading icon: it
+      // is a TorchIconButton whose semantic label NAMES the destination, so a
+      // screen reader hears where it goes rather than the word "Back". That
+      // label is the assertion — a bare `byKey` tap would still pass if the
+      // control announced nothing at all.
+      final back = find.byKey(const ValueKey<String>('contests-back'));
+      expect(back, findsOneWidget);
+      expect(
+        tester.getSemantics(back).label,
+        contains('Back to Me'),
+        reason: 'the agent reached this from their record, so the control '
+            'says so; "Back to Today" is the deep-link case.',
+      );
+      await tester.tap(back);
       await tester.pumpAndSettle();
       expect(find.byType(MyRecordScreen), findsOneWidget);
       expect(find.text('October Sprint'), findsNothing);
@@ -1051,8 +1066,26 @@ void main() {
     testWidgets('a manager can open a contest\'s standings', (tester) async {
       await goAs(tester, 'manager', '/contests/c-active');
 
-      expect(find.text('Contest standings'), findsOneWidget);
-      expect(find.text('Aisha Patel'), findsOneWidget);
+      // A LOADED board is headed by the contest it ranks, not by the generic
+      // words "Contest standings" — those title the loading and error frames,
+      // where there is no name to show yet. Asserting the generic string here
+      // would have quietly passed on a spinner.
+      expect(find.byType(ContestStandingsScreen), findsOneWidget);
+      expect(find.text('October Sprint'), findsOneWidget);
+
+      // The point of the route: the agents on it, NAMED — not listed by the
+      // agent id the API sorts them on. The board is a lazy list under the
+      // contest's own facts, so on this surface row one starts below the fold.
+      final row = find.byKey(const ValueKey<String>('standing-a-1'));
+      await tester.scrollUntilVisible(
+        row,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('Aisha Patel')),
+        findsOneWidget,
+      );
     });
   });
 

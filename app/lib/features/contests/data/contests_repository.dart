@@ -93,10 +93,6 @@ class ContestStanding {
 
   String get label => personLabel(displayName, email);
 
-  /// 12 -> "12", 7.5 -> "7.5", 78.33 -> "78.33".
-  String get pointsFigure =>
-      points.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
-
   factory ContestStanding.fromJson(Map<String, dynamic> json) =>
       ContestStanding(
         rank: (json['rank'] as num?)?.toInt() ?? 0,

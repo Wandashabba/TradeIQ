@@ -4746,6 +4746,55 @@
   "@meContestsDetail": {
     "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
   },
+  "contestsBackToMe": "Back to Me",
+  "@contestsBackToMe": {
+    "description": "Screen-reader label for the back control on the agent’s Contests view when there is a screen to return to."
+  },
+  "contestsBackToToday": "Back to Today",
+  "@contestsBackToToday": {
+    "description": "Screen-reader label for the back control on the agent’s Contests view reached by a deep link."
+  },
+  "contestRankEyebrow": "Your rank",
+  "@contestRankEyebrow": {
+    "description": "Stat tile label above the agent’s place in a contest. Sentence case; the tile uppercases it for display."
+  },
+  "contestPointsEyebrow": "Your points",
+  "@contestPointsEyebrow": {
+    "description": "Stat tile label above the agent’s points in a contest. Sentence case; the tile uppercases it for display."
+  },
+  "contestRankOutOf": "{total, plural, =1{of 1 agent} other{of {total} agents}}",
+  "@contestRankOutOf": {
+    "description": "How many agents the contest ranks, beneath the agent’s own rank.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "contestNobodyRanked": "Nobody has earned points yet.",
+  "@contestNobodyRanked": {
+    "description": "Shown under the Standings rule when a contest has no ranked agents."
+  },
+  "wordOn": "On",
+  "@wordOn": {
+    "description": "The state word beside a toggle that is switched on."
+  },
+  "wordOff": "Off",
+  "@wordOff": {
+    "description": "The state word beside a toggle that is switched off."
+  },
+  "notificationsBackToMe": "Back to Me",
+  "@notificationsBackToMe": {
+    "description": "Screen-reader label for the back control on the agent’s notification settings when there is a screen to return to."
+  },
+  "notificationsBackToToday": "Back to Today",
+  "@notificationsBackToToday": {
+    "description": "Screen-reader label for the back control on the agent’s notification settings reached by a deep link."
+  },
+  "notificationsHeading": "What reaches this phone",
+  "@notificationsHeading": {
+    "description": "Section marker above the notification toggles."
+  },
   "loginFailedTitle": "We could not sign you in",
   "@loginFailedTitle": {
     "description": "Headline above the sign-in failure. Deliberately says nothing about WHY — a message that distinguished a wrong password from an unknown address would turn this form into a way to ask the server who works here."

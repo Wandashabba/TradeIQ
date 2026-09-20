@@ -1,438 +1,346 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaign_return_view.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaigns_screen.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../clientadmin_harness.dart';
+import 'campaigns_fakes.dart';
 
-const _campaignA = Campaign(
-  id: 'c1',
-  name: 'Summer Push',
-  status: 'active',
-  startDate: '2026-06-01',
-  endDate: '2026-08-31',
-  outletCount: 12,
-  objective: 'visibility',
-  budget: 15000,
-);
-
-const _campaignB = Campaign(
-  id: 'c2',
-  name: 'Winter Push',
-  status: 'draft',
-  startDate: '2026-01-01',
-  endDate: '2026-03-31',
-  outletCount: 0,
-);
-
-const _compliance = CampaignCompliance(
-  outletsTotal: 12,
-  outletsVisited: 9,
-  visitCoverageRate: 75,
-  avgPlanogramCompliancePct: 88.5,
-  avgAbsPriceDeviationPct: 3.2,
-  promoComplianceRate: 91,
-);
-
-CampaignRoi _roi({
-  double attributed = 42550.5,
-  double baseline = 30000,
-  double? spend = 10000,
-  double? roiPct = 25.5,
-  String? unmeasurable,
-}) => CampaignRoi.fromJson({
-  'campaignId': 'c1',
-  'outletsTotal': 12,
-  'window': {
-    'from': '2026-06-01T00:00:00.000Z',
-    'to': '2026-07-01T00:00:00.000Z',
-  },
-  'baselineWindow': {
-    'from': '2026-05-02T00:00:00.000Z',
-    'to': '2026-06-01T00:00:00.000Z',
-  },
-  'orderCount': {'attributed': 40, 'baseline': 31},
-  'attributedRevenue': attributed,
-  'baselineRevenue': baseline,
-  'incrementalRevenue': attributed - baseline,
-  'spend': spend,
-  'roiPct': roiPct,
-  'unmeasurable': unmeasurable,
-});
-
-class _FakeCampaignsRepository implements CampaignsRepository {
-  _FakeCampaignsRepository({CampaignRoi? roi, this.roiFails = false})
-    : roi = roi ?? _roi();
-
-  final CampaignRoi roi;
-  final bool roiFails;
-
-  @override
-  Future<PaginatedResponse<Campaign>> listCampaigns() async =>
-      const PaginatedResponse(data: [_campaignA, _campaignB], nextCursor: null);
-
-  @override
-  Future<CampaignCompliance> getCompliance(String id) async => _compliance;
-
-  @override
-  Future<CampaignRoi> getRoi(String id) async =>
-      roiFails ? throw Exception('roi down') : roi;
-
-  @override
-  Future<Campaign> createCampaign({
-    required String name,
-    required String startDate,
-    required String endDate,
-    String? objective,
-    double? budget,
-    List<String>? outletIds,
-  }) async =>
-      _campaignA;
-
-  @override
-  Future<Campaign> updateCampaign(
-    String id, {
-    String? name,
-    String? objective,
-    double? budget,
-    String? status,
-  }) async =>
-      _campaignA;
+Future<FakeCampaignsRepository> _pump(
+  WidgetTester tester, {
+  FakeCampaignsRepository? repo,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+  bool settle = true,
+}) async {
+  final fake = repo ?? FakeCampaignsRepository();
+  await pumpConsole(
+    tester,
+    const CampaignsScreen(),
+    skin: skin,
+    textScale: textScale,
+    locale: locale,
+    settle: settle,
+    path: '/campaigns',
+    overrides: <Override>[
+      campaignsRepositoryProvider.overrideWithValue(fake),
+      sessionAs('manager'),
+    ],
+  );
+  return fake;
 }
-
-class _ThrowingCampaignsRepository implements CampaignsRepository {
-  @override
-  Future<PaginatedResponse<Campaign>> listCampaigns() async =>
-      throw Exception('boom');
-
-  @override
-  Future<CampaignCompliance> getCompliance(String id) async =>
-      throw Exception('boom');
-
-  @override
-  Future<CampaignRoi> getRoi(String id) async => throw Exception('boom');
-
-  @override
-  Future<Campaign> createCampaign({
-    required String name,
-    required String startDate,
-    required String endDate,
-    String? objective,
-    double? budget,
-    List<String>? outletIds,
-  }) async =>
-      throw Exception('boom');
-
-  @override
-  Future<Campaign> updateCampaign(
-    String id, {
-    String? name,
-    String? objective,
-    double? budget,
-    String? status,
-  }) async =>
-      throw Exception('boom');
-}
-
-Widget _app(CampaignsRepository repo, {ThemeData? theme}) => routedApp(
-      const CampaignsScreen(),
-      theme: theme,
-      overrides: [
-        campaignsRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
 
 void main() {
-  testWidgets('renders campaign names once loaded', (tester) async {
-    await tester.pumpWidget(_app(_FakeCampaignsRepository()));
-    await tester.pumpAndSettle();
+  group('the list', () {
+    testWidgets('a row names the campaign and carries its id in mono', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-    expect(find.text('Summer Push'), findsOneWidget);
-    expect(find.text('Winter Push'), findsOneWidget);
-  });
+      expect(find.text('Summer Push'), findsOneWidget);
+      expect(find.text('12 outlets · 2026-06-01 → 2026-08-31'), findsOneWidget);
+      // The id is machine-facing and lives on the meta line; it is never the
+      // title of a row.
+      expect(find.text('c1'), findsOneWidget);
+      final row = tester.widget<SoftRow>(keyed('campaign-c1'));
+      expect(row.title, 'Summer Push');
+    });
 
-  testWidgets('tapping a campaign shows its compliance rollup',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeCampaignsRepository()));
-    await tester.pumpAndSettle();
+    testWidgets('a status is a word and a silhouette', (tester) async {
+      await _pump(tester);
+      final chips = tester
+          .widgetList<StatusChip>(find.byType(StatusChip))
+          .toList();
+      expect(chips.map((c) => c.label), containsAll(<String>['Active', 'Draft']));
+      // Neither is a severity: running normally is not a verdict.
+      expect(
+        chips.every((c) => c.level == StatusLevel.held),
+        isTrue,
+        reason: 'levels were ${chips.map((c) => c.level)}',
+      );
+    });
 
-    await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
-    await tester.pumpAndSettle();
+    testWidgets('a paused campaign wants a decision; a cancelled one is a '
+        'finding', (tester) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(
+          campaigns: const <Campaign>[
+            Campaign(
+              id: 'p',
+              name: 'Paused',
+              status: 'paused',
+              startDate: '2026-01-01',
+              endDate: '2026-02-01',
+              outletCount: 1,
+            ),
+            Campaign(
+              id: 'x',
+              name: 'Scrapped',
+              status: 'cancelled',
+              startDate: '2026-01-01',
+              endDate: '2026-02-01',
+              outletCount: 1,
+            ),
+          ],
+        ),
+      );
+      expect(campaignLevel('paused'), StatusLevel.watch);
+      expect(campaignLevel('cancelled'), StatusLevel.critical);
+      expect(find.text('Paused'), findsWidgets);
+      expect(find.text('Cancelled'), findsWidgets);
+    });
 
-    expect(
-      find.byKey(const ValueKey<String>('compliance-c1')),
-      findsOneWidget,
-    );
-  });
+    testWidgets('the row verbs are nodes, not only pixels', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      expect(find.bySemanticsLabel('Edit'), findsWidgets);
+      handle.dispose();
+    });
 
-  testWidgets('shows an error message when loading fails', (tester) async {
-    await tester.pumpWidget(_app(_ThrowingCampaignsRepository()));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('Failed to load campaigns'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('light: rows are glass tiles; the rollup lines up mono figures',
-      (tester) async {
-    await tester.pumpWidget(
-      _app(_FakeCampaignsRepository(), theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      tester
-          .widget<GlassPane>(
-            find
-                .ancestor(
-                  of: find.text('Summer Push'),
-                  matching: find.byType(GlassPane),
-                )
-                .first,
-          )
-          .kind,
-      GlassKind.tile,
-    );
-
-    await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
-    await tester.pumpAndSettle();
-
-    final rollup = find.byKey(const ValueKey<String>('compliance-c1'));
-    expect(rollup, findsOneWidget);
-    final coverage = tester.widget<Text>(
-      find.descendant(of: rollup, matching: find.text('75.0%')),
-    );
-    expect(coverage.style?.fontFamily, 'JetBrains Mono');
-    expect(find.text('Promo compliance'), findsOneWidget);
-  });
-
-  group('return (ROI)', () {
-    Future<void> openReturn(
-      WidgetTester tester,
-      CampaignsRepository repo, {
-      ThemeData? theme,
-    }) async {
-      await tester.pumpWidget(_app(repo, theme: theme ?? AppTheme.light()));
+    testWidgets('New campaign opens the form', (tester) async {
+      await _pump(tester);
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      await tester.tap(keyed('campaign-create'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
+      expect(find.text('New campaign'), findsWidgets);
+    });
+  });
+
+  group('the rollup sheet', () {
+    testWidgets('a row opens coverage, compliance and return', (tester) async {
+      final repo = await _pump(tester);
+      await tester.tap(find.text('Summer Push'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey<String>('roi-c1')), findsOneWidget);
+
+      expect(find.byType(TorchSheet), findsOneWidget);
+      expect(repo.calls, containsAll(<String>['compliance:c1', 'roi:c1']));
+      expect(find.text('Coverage'), findsOneWidget);
+      expect(find.text('Compliance'), findsOneWidget);
+
+      // Figures through the one formatter: a percent sign, never a
+      // `toStringAsFixed` and never an en_US group mark.
+      expect(find.textContaining('75.0', findRichText: true), findsOneWidget);
+      expect(find.textContaining('88.5', findRichText: true), findsOneWidget);
+
+      await scrollSheetTo(tester, find.byType(CampaignReturnView));
+      expect(find.text('Return'), findsOneWidget);
+      expect(find.byType(CampaignReturnView), findsOneWidget);
+    });
+
+    testWidgets('a failed return does not hide the compliance rollup', (
+      tester,
+    ) async {
+      await _pump(tester, repo: FakeCampaignsRepository(roiFailure: offline()));
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Coverage'), findsOneWidget);
+      expect(keyed('return-error'), findsOneWidget);
+      // Sanitised: the exception's own text never reaches a screenshot.
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
+
+    testWidgets('a failed compliance does not hide the return', (tester) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(complianceFailure: offline()),
+      );
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+
+      expect(keyed('compliance-error'), findsOneWidget);
+      await scrollSheetTo(tester, find.byType(CampaignReturnView));
+      expect(find.byType(CampaignReturnView), findsOneWidget);
+    });
+
+    testWidgets('each region loads on its own', (tester) async {
+      await _pump(tester, repo: FakeCampaignsRepository(roiPending: true));
+      await tester.tap(find.text('Summer Push'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('Coverage'), findsOneWidget);
+      expect(keyed('return-loading'), findsOneWidget);
+    });
+  });
+
+  group('the return: unmeasurable is not zero', () {
+    Future<void> openReturn(WidgetTester tester, CampaignRoi roi) async {
+      await _pump(tester, repo: FakeCampaignsRepository(roi: roi));
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(tester, find.byType(CampaignReturnView));
     }
 
-    String pillWord(WidgetTester tester) => tester
-        .widget<Text>(
-          find.descendant(
-            of: find.byKey(const ValueKey<String>('roi-status')),
-            matching: find.byType(Text),
-          ),
-        )
-        .data!;
-
-    testWidgets('positive: a mono headline, a good status with its word, and '
-        'the figures that make it', (tester) async {
-      await openReturn(tester, _FakeCampaignsRepository());
-
-      final headline = tester.widget<Text>(
-        find.byKey(const ValueKey<String>('roi-headline')),
-      );
-      expect(headline.data, '+25.5%');
-      expect(headline.style?.fontFamily, LumenGlass.mono);
-      expect(
-        tester
-            .widget<LumenStatusPill>(
-              find.byKey(const ValueKey<String>('roi-status')),
-            )
-            .status,
-        LumenStatus.good,
-      );
-      expect(pillWord(tester), 'POSITIVE RETURN');
-
-      expect(find.text('R 42550.50'), findsOneWidget); // sell-in
-      expect(find.text('R 30000.00'), findsOneWidget); // baseline
-      expect(find.text('+R 12550.50'), findsOneWidget); // incremental
-      expect(find.text('R 10000.00'), findsOneWidget); // spend
-      expect(
-        find.textContaining('Baseline, prior 30 days', findRichText: true),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('Sell-in during campaign', findRichText: true),
-        findsOneWidget,
-      );
-      // Never relabelled as consumer sales.
-      expect(
-        find.textContaining(RegExp('consumer sales|Revenue', caseSensitive: false),
-            findRichText: true),
-        findsNothing,
-      );
+    testWidgets('a positive return is a figure and a word', (tester) async {
+      await openReturn(tester, roiOf());
+      expect(keyed('roi-headline'), findsOneWidget);
+      expect(find.textContaining('+25.5', findRichText: true), findsOneWidget);
+      expect(find.text('Positive return'), findsOneWidget);
     });
 
-    testWidgets('negative: a minus headline and a crit status with its word',
-        (tester) async {
+    testWidgets('a negative return carries a minus and the word', (
+      tester,
+    ) async {
+      await openReturn(tester, roiOf(roiPct: -12.5, attributed: 20000));
+      expect(find.textContaining('−12.5', findRichText: true), findsOneWidget);
+      expect(find.text('Negative return'), findsOneWidget);
+    });
+
+    testWidgets('no budget names its reason and shows no chip at all', (
+      tester,
+    ) async {
       await openReturn(
         tester,
-        _FakeCampaignsRepository(
-          roi: _roi(attributed: 1000, baseline: 2500, spend: 500, roiPct: -400),
-        ),
+        roiOf(spend: null, roiPct: null, unmeasurable: 'no_budget'),
       );
-
-      expect(find.text('−400.0%'), findsOneWidget);
-      expect(
-        tester
-            .widget<LumenStatusPill>(
-              find.byKey(const ValueKey<String>('roi-status')),
-            )
-            .status,
-        LumenStatus.crit,
-      );
-      expect(pillWord(tester), 'NEGATIVE RETURN');
-      expect(find.text('−R 1500.00'), findsOneWidget);
+      expect(keyed('roi-unmeasurable'), findsOneWidget);
+      expect(find.text("No budget set — return can't be measured."),
+          findsOneWidget);
+      // Never 0%, never ∞, and never a grey "Unknown" chip — a chip is a
+      // claim that the system looked and decided.
+      expect(keyed('roi-headline'), findsNothing);
+      expect(keyed('roi-status'), findsNothing);
+      // A spend that was never recorded is an em dash, not a zero.
+      expect(find.textContaining(emDash, findRichText: true), findsWidgets);
     });
 
-    testWidgets('no budget: the reason, never 0% or infinity', (tester) async {
+    testWidgets('a zero budget names its own reason', (tester) async {
       await openReturn(
         tester,
-        _FakeCampaignsRepository(
-          roi: _roi(spend: null, roiPct: null, unmeasurable: 'no_budget'),
-        ),
+        roiOf(spend: 0, roiPct: null, unmeasurable: 'zero_budget'),
       );
-
-      expect(find.byKey(const ValueKey<String>('roi-headline')), findsNothing);
-      expect(
-        find.text("No budget set — return can't be measured."),
-        findsOneWidget,
-      );
-      expect(pillWord(tester), 'NOT MEASURED');
-      expect(find.text('Not set'), findsOneWidget);
-      final roiTexts = find.descendant(
-        of: find.byKey(const ValueKey<String>('roi-c1')),
-        matching: find.textContaining(RegExp(r'0\.0%|∞|Infinity|NaN')),
-      );
-      expect(roiTexts, findsNothing);
-      // The sell-in figures still show: only the percentage is unmeasurable.
-      expect(find.text('R 42550.50'), findsOneWidget);
+      expect(find.text("Budget is zero — return can't be measured."),
+          findsOneWidget);
     });
 
-    testWidgets('zero budget names its own reason', (tester) async {
-      await openReturn(
+    testWidgets('the sell-in caveat is always on screen', (tester) async {
+      await openReturn(tester, roiOf());
+      expect(keyed('roi-caveat'), findsOneWidget);
+      expect(find.textContaining('Sell-in, not shopper sales'), findsOneWidget);
+    });
+  });
+
+  group('the states', () {
+    testWidgets('empty is a designed state, not a centred "No data"', (
+      tester,
+    ) async {
+      await _pump(
         tester,
-        _FakeCampaignsRepository(
-          roi: _roi(spend: 0, roiPct: null, unmeasurable: 'zero_budget'),
-        ),
+        repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),
       );
-
-      expect(
-        find.text("Budget is zero — return can't be measured."),
-        findsOneWidget,
-      );
-      expect(pillWord(tester), 'NOT MEASURED');
+      expect(find.byType(EmptyState), findsOneWidget);
+      expect(find.text('No campaigns yet.'), findsOneWidget);
+      expect(find.byType(SectionRule), findsOneWidget);
+      expect(find.byType(SoftRow), findsNothing);
     });
 
-    testWidgets('the sell-in and overlap caveat is always on screen',
-        (tester) async {
-      for (final roi in [
-        _roi(),
-        _roi(spend: null, roiPct: null, unmeasurable: 'no_budget'),
-      ]) {
-        await openReturn(tester, _FakeCampaignsRepository(roi: roi));
-        final caveat = find.descendant(
-          of: find.byKey(const ValueKey<String>('roi-caveat')),
-          matching: find.text(campaignReturnCaveat),
-        );
-        expect(caveat, findsOneWidget);
-        expect(campaignReturnCaveat, contains('not what shoppers bought'));
-        expect(campaignReturnCaveat, contains('one campaign only'));
-        await tester.pumpWidget(const SizedBox.shrink());
-      }
-    });
-
-    testWidgets('a failed return does not hide the compliance rollup',
-        (tester) async {
-      await tester.pumpWidget(
-        _app(_FakeCampaignsRepository(roiFails: true), theme: AppTheme.light()),
+    testWidgets('loading is a skeleton, and nothing before 600ms', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listPending: true),
+        settle: false,
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('campaign-c1')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey<String>('compliance-c1')), findsOneWidget);
-      expect(find.textContaining('Failed to load return'), findsOneWidget);
+      expect(find.byType(SkeletonRows), findsNothing);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.byType(Skeleton), findsOneWidget);
     });
 
-    for (final (name, theme, palette) in [
-      ('light', AppTheme.light(), TiqColors.light),
-      ('dark', AppTheme.dark(), TiqColors.night),
+    testWidgets('a failure is sanitised and offers one retry', (tester) async {
+      await _pump(tester, repo: FakeCampaignsRepository(listFailure: offline()));
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(keyed('campaigns-retry'), findsOneWidget);
+    });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
     ]) {
-      testWidgets('$name: glass dialog; every return status word clears AA',
-          (tester) async {
-        for (final (roi, status) in [
-          (_roi(), LumenStatus.good),
-          (_roi(roiPct: -12), LumenStatus.crit),
-          (_roi(roiPct: 0), LumenStatus.warn),
-          (
-            _roi(spend: null, roiPct: null, unmeasurable: 'no_budget'),
-            LumenStatus.none,
-          ),
-        ]) {
-          await openReturn(
-            tester,
-            _FakeCampaignsRepository(roi: roi),
-            theme: theme,
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(t, skin: skin),
+        'empty': (t) => _pump(
+          t,
+          skin: skin,
+          repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),
+        ),
+        'loading': (t) async {
+          await _pump(
+            t,
+            skin: skin,
+            repo: FakeCampaignsRepository(listPending: true),
+            settle: false,
           );
-          final view = find.byKey(const ValueKey<String>('roi-c1'));
-          final ctx = tester.element(view);
-          expect(ctx.colors.glass, isTrue, reason: '$name is glass');
-          expect(ctx.colors.surface1, palette.surface1, reason: '$name palette');
-          expect(ctx.colors.isNight, name == 'dark', reason: '$name night');
-          expect(
-            tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
-            palette.surface1,
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          repo: FakeCampaignsRepository(listFailure: offline()),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'campaigns',
+            phase: phase.key,
           );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
 
-          final pillFinder = find.byKey(const ValueKey<String>('roi-status'));
-          expect(tester.widget<LumenStatusPill>(pillFinder).status, status);
-          final box = tester.widget<Container>(
-            find.descendant(of: pillFinder, matching: find.byType(Container)),
-          );
-          final wash = (box.decoration! as BoxDecoration).color!;
-          final word = tester.widget<Text>(
-            find.descendant(of: pillFinder, matching: find.byType(Text)),
-          );
-          expect(word.data, isNotEmpty, reason: '$name $status carries a word');
-          final ratio = contrastRatio(
-            word.style!.color!,
-            Color.alphaBlend(wash, palette.surface1),
-          );
-          expect(
-            ratio,
-            greaterThanOrEqualTo(4.5),
-            reason: '$name $status pill is $ratio:1',
-          );
-
-          // The figures are mono, in the theme's own ink.
-          final spend = tester.widget<Text>(
-            find.descendant(of: view, matching: find.text('R 42550.50')),
-          );
-          expect(spend.style?.fontFamily, LumenGlass.mono);
-          expect(spend.style?.color, palette.ink1);
-          // Caveat ink clears AA on the dialog ground.
-          expect(
-            contrastRatio(palette.ink3, palette.surface1),
-            greaterThanOrEqualTo(4.5),
-          );
-          await tester.pumpWidget(const SizedBox.shrink());
-        }
+      testWidgets('${skin.mode.name}, the rollup sheet: 0', (tester) async {
+        await _pump(tester, skin: skin);
+        await tester.tap(find.text('Summer Push'));
+        await tester.pumpAndSettle();
+        final census = await amberCensus(tester);
+        expect(
+          census.objectCount,
+          0,
+          reason:
+              'while a sheet is up every amber on the route beneath goes '
+              'out, and the sheet itself has no commit.\n${census.describe()}',
+        );
       });
     }
+  });
+
+  group('2.0x text and Afrikaans lengths', () {
+    testWidgets('the list survives and nothing overflows', (tester) async {
+      await _pump(tester, textScale: 2.0, locale: const Locale('af'));
+      expect(tester.takeException(), isNull);
+      await scrollConsoleTo(tester, keyed('campaign-c2'));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the rollup sheet survives at 2.0x', (tester) async {
+      await _pump(tester, textScale: 2.0, locale: const Locale('af'));
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await scrollSheetTo(tester, find.byType(CampaignReturnView));
+      expect(tester.takeException(), isNull);
+    });
   });
 }

@@ -5576,6 +5576,72 @@ abstract class AppLocalizations {
   /// **'See where you stand'**
   String get meContestsDetail;
 
+  /// Screen-reader label for the back control on the agent’s Contests view when there is a screen to return to.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Me'**
+  String get contestsBackToMe;
+
+  /// Screen-reader label for the back control on the agent’s Contests view reached by a deep link.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Today'**
+  String get contestsBackToToday;
+
+  /// Stat tile label above the agent’s place in a contest. Sentence case; the tile uppercases it for display.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rank'**
+  String get contestRankEyebrow;
+
+  /// Stat tile label above the agent’s points in a contest. Sentence case; the tile uppercases it for display.
+  ///
+  /// In en, this message translates to:
+  /// **'Your points'**
+  String get contestPointsEyebrow;
+
+  /// How many agents the contest ranks, beneath the agent’s own rank.
+  ///
+  /// In en, this message translates to:
+  /// **'{total, plural, =1{of 1 agent} other{of {total} agents}}'**
+  String contestRankOutOf(int total);
+
+  /// Shown under the Standings rule when a contest has no ranked agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has earned points yet.'**
+  String get contestNobodyRanked;
+
+  /// The state word beside a toggle that is switched on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get wordOn;
+
+  /// The state word beside a toggle that is switched off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get wordOff;
+
+  /// Screen-reader label for the back control on the agent’s notification settings when there is a screen to return to.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Me'**
+  String get notificationsBackToMe;
+
+  /// Screen-reader label for the back control on the agent’s notification settings reached by a deep link.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Today'**
+  String get notificationsBackToToday;
+
+  /// Section marker above the notification toggles.
+  ///
+  /// In en, this message translates to:
+  /// **'What reaches this phone'**
+  String get notificationsHeading;
+
   /// Headline above the sign-in failure. Deliberately says nothing about WHY — a message that distinguished a wrong password from an unknown address would turn this form into a way to ask the server who works here.
   ///
   /// In en, this message translates to:
