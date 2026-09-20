@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../gamification/data/gamification_repository.dart';
 import 'incentives_repository.dart';
 
@@ -10,19 +11,27 @@ import 'incentives_repository.dart';
 /// "tasks closed" — and so a key this client has not been taught is shown as
 /// the key rather than being silently dropped or renamed.
 enum IncentiveMetric {
-  scorecard('scorecard', 'Average scorecard', 'points'),
-  tasksClosed('tasks_closed', 'Tasks closed', 'tasks'),
-  visits('visits', 'Visits submitted', 'visits');
+  scorecard('scorecard'),
+  tasksClosed('tasks_closed'),
+  visits('visits');
 
-  const IncentiveMetric(this.wire, this.label, this.unitWord);
+  const IncentiveMetric(this.wire);
 
   final String wire;
 
-  /// What a manager calls it.
-  final String label;
+  /// What a manager calls it, in their own language.
+  String label(AppLocalizations l10n) => switch (this) {
+        IncentiveMetric.scorecard => l10n.incentiveMetricScorecard,
+        IncentiveMetric.tasksClosed => l10n.incentiveMetricTasksClosed,
+        IncentiveMetric.visits => l10n.incentiveMetricVisits,
+      };
 
-  /// The unit the threshold is counted in.
-  final String unitWord;
+  /// The unit the threshold is counted in, in their own language.
+  String unitWord(AppLocalizations l10n) => switch (this) {
+        IncentiveMetric.scorecard => l10n.incentiveUnitPoints,
+        IncentiveMetric.tasksClosed => l10n.incentiveUnitTasks,
+        IncentiveMetric.visits => l10n.incentiveUnitVisits,
+      };
 
   static IncentiveMetric? fromWire(String value) {
     for (final metric in IncentiveMetric.values) {
@@ -90,6 +99,20 @@ class IncentiveSchemeRow {
 
   int get earnedCount => progress.where((p) => p.earned).length;
 
+  /// How many agents this scheme's **own metric** can answer for.
+  ///
+  /// The denominator of every "3 of 11" about this scheme. It is not the size
+  /// of the board: a scorecard scheme on a client whose scorecards have not
+  /// run this window can measure nobody, and "0 of 11 agents have earned it"
+  /// then reads as eleven people who failed rather than nobody measured. The
+  /// sheet made the contradiction visible — four rows each saying "not
+  /// measured on this metric yet", counted into a denominator of four (#464).
+  int get measuredCount => progress.where((p) => p.value != null).length;
+
+  /// True when the metric can answer for nobody, so no fraction may be
+  /// printed. The screens say this in words instead.
+  bool get nobodyMeasured => measuredCount == 0;
+
   /// The agent closest to the reward without having reached it, or null when
   /// nobody is on the way — everybody has earned it, or nobody is measurable.
   IncentiveProgress? get closest {
@@ -106,9 +129,14 @@ class IncentivesView {
 
   final List<IncentiveSchemeRow> rows;
 
-  /// How many agents the board could answer for at all. The denominator of
-  /// every "3 of 11" on this screen, and zero when the board is unavailable —
-  /// in which case no bar renders, rather than a bar out of a made-up total.
+  /// How many agents the board returned at all, and zero when the board is
+  /// unavailable — in which case no bar renders, rather than a bar out of a
+  /// made-up total.
+  ///
+  /// This is the board-availability guard ONLY. It is not the denominator of
+  /// "3 of 11": that is [IncentiveSchemeRow.measuredCount], per scheme, because
+  /// a board of eleven agents can still be a metric that measures none of
+  /// them.
   final int agentsMeasured;
 
   int get awarding => rows.where((r) => r.scheme.active).length;

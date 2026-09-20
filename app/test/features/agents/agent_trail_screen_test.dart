@@ -14,6 +14,7 @@ import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart
 import 'package:tradeiq_app/features/agents/presentation/live_location_layer.dart'
     show formatUpdatedAt;
 import 'package:tradeiq_app/features/agents/presentation/trail_map.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -163,6 +164,20 @@ Future<void> _pump(
     liveLocationsPollIntervalProvider.overrideWithValue(null),
   ],
 );
+
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
+}
 
 void main() {
   setUp(() => TrailMap.debugFailureThreshold = 1 << 30);
@@ -610,6 +625,39 @@ void main() {
         agents: <AgentActivity>[_agent()],
       );
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // The trail an Afrikaans manager opens. Its legend is the only thing on the
+  // screen that stops the dashed lines reading as a recorded route, so an
+  // English legend is an overstated map as well as an untranslated one.
+  group('an Afrikaans manager opens the trail', () {
+    testWidgets('no English is painted, and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        agents: <AgentActivity>[_agent()],
+        locale: const Locale('af'),
+      );
+
+      for (final english in <String>[
+        'Agent trail',
+        'Pick another day',
+        'How to read it',
+        'Numbered pins are confirmed check-ins',
+        'Field agent',
+        'Last stop',
+        'stops',
+      ]) {
+        expect(paintedIgnoringCase(english), findsNothing, reason: english);
+      }
+
+      expect(paintedIgnoringCase(af.trailTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.trailPickDay), findsWidgets);
+      expect(paintedIgnoringCase(af.trailHowToRead), findsWidgets);
+      expect(paintedIgnoringCase(af.trailLegendPins), findsOneWidget);
+      expect(paintedIgnoringCase(af.roleFieldAgent), findsWidgets);
+      expect(paintedIgnoringCase(af.trailLastStop), findsWidgets);
     });
   });
 }

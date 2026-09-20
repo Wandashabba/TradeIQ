@@ -17,7 +17,8 @@ import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 
 import '../../core/design/amber_golden.dart';
-import '../a11y_guard.dart';
+// `worklist_harness` re-exports the unpressable-button law; a second
+// import of `a11y_guard` is the same law twice.
 import '../worklist_harness.dart';
 
 /// An `Error` rather than an `Exception`: Riverpod 3 retries an Exception and

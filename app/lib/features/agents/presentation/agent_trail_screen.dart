@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -96,6 +97,8 @@ class AgentTrailScreen extends ConsumerWidget {
         if (a.hasPosition) a,
     ];
 
+    final l10n = context.l10n;
+
     void refresh() {
       ref.invalidate(agentActivityForDayProvider(day));
       if (isToday) ref.invalidate(liveAgentLocationsProvider);
@@ -125,12 +128,12 @@ class AgentTrailScreen extends ConsumerWidget {
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Agent trail',
+        title: l10n.trailTitle,
         facts: <String>[_isoDay(day), ...extraFacts],
         trailing: TorchIconButton(
           key: const ValueKey<String>('agent-trail-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh this day',
+          semanticLabel: l10n.trailRefresh,
           onPressed: refresh,
         ),
       ),
@@ -139,7 +142,7 @@ class AgentTrailScreen extends ConsumerWidget {
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
             key: const ValueKey<String>('agent-trail-date'),
-            label: 'Pick another day',
+            label: l10n.trailPickDay,
             icon: Icons.calendar_today,
             onPressed: pickDay,
           ),
@@ -154,7 +157,7 @@ class AgentTrailScreen extends ConsumerWidget {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'this day',
+            label: l10n.trailSkeleton,
             child: const SkeletonRows(count: 4, rowHeight: 64),
           ),
         ],
@@ -168,7 +171,7 @@ class AgentTrailScreen extends ConsumerWidget {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('agent-trail-retry'),
-                label: 'Try again',
+                label: l10n.trailRetry,
                 onPressed: refresh,
               ),
             ),
@@ -181,7 +184,6 @@ class AgentTrailScreen extends ConsumerWidget {
             if (a.stops.isNotEmpty) a,
         ];
         final stops = withStops.fold<int>(0, (n, a) => n + a.stops.length);
-        final numbers = TiqNumber.of(context);
         final empty = withStops.isEmpty && livePositions.isEmpty;
 
         return frame(
@@ -189,19 +191,16 @@ class AgentTrailScreen extends ConsumerWidget {
           extraFacts: empty
               ? const <String>[]
               : <String>[
-                  '${numbers.format(withStops.length)} '
-                      '${withStops.length == 1 ? 'agent' : 'agents'}',
-                  '${numbers.format(stops)} '
-                      '${stops == 1 ? 'stop' : 'stops'}',
+                  l10n.trailAgentCount(withStops.length),
+                  l10n.trailStopCount(stops),
                 ],
           children: empty
               ? <Widget>[
-                  const EmptyState(
-                    key: ValueKey<String>('agent-trail-empty'),
+                  EmptyState(
+                    key: const ValueKey<String>('agent-trail-empty'),
                     scope: EmptyScope.inPanel,
-                    headline: 'No check-ins on this day.',
-                    body: 'A pin appears here when an agent confirms a '
-                        'check-in. Pick another day to see one that has some.',
+                    headline: l10n.trailEmptyHeadline,
+                    body: l10n.trailEmptyBody,
                   ),
                 ]
               : <Widget>[
@@ -211,7 +210,7 @@ class AgentTrailScreen extends ConsumerWidget {
                     live: livePositions,
                   ),
                   const SizedBox(height: TiqSpace.s6),
-                  const SectionRule('How to read it'),
+                  SectionRule(l10n.trailHowToRead),
                   const SizedBox(height: TiqSpace.s3),
                   _Legend(truncated: page.truncated, live: live),
                   const SizedBox(height: TiqSpace.s7),
@@ -222,12 +221,10 @@ class AgentTrailScreen extends ConsumerWidget {
                   if (page.truncated)
                     TorchBleed(
                       extra: context.skin.space.gutter * 2,
-                      child: const PaginationFooter(
-                        key: ValueKey<String>('agent-trail-footer'),
-                        summary: 'Showing the first 200 agents only.',
-                        narrowLine: 'A partial map that looks complete is '
-                            'worse than no map: the rest of the day is not '
-                            'here.',
+                      child: PaginationFooter(
+                        key: const ValueKey<String>('agent-trail-footer'),
+                        summary: l10n.trailFooterSummary,
+                        narrowLine: l10n.trailFooterNarrow,
                       ),
                     ),
                 ],
@@ -257,6 +254,7 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final style = skin.text.meta.style(color: skin.palette.ink2);
     final liveNow = live;
@@ -265,18 +263,11 @@ class _Legend extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(
-          'Numbered pins are confirmed check-ins, in order, and the last one '
-          'of each agent is filled. Dashed lines connect them — they are not '
-          'a recorded route.',
-          style: style,
-        ),
+        Text(l10n.trailLegendPins, style: style),
         if (liveNow != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s2),
           Text(
-            'Squares are live positions from the agent app, labelled with '
-            'their age first. Last updated '
-            '${formatUpdatedAt(liveNow.serverTime)}.',
+            l10n.trailLegendLive(formatUpdatedAt(liveNow.serverTime)),
             key: const ValueKey<String>('trail-live-legend'),
             style: style,
           ),
@@ -294,11 +285,10 @@ class _AgentTrail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
-    final numbers = TiqNumber.of(context);
     final stops = agent.stops;
-    final count = '${numbers.format(stops.length)} '
-        '${stops.length == 1 ? 'stop' : 'stops'}';
+    final count = l10n.trailStopCount(stops.length);
 
     return TorchBleed(
       extra: gutter * 2,
@@ -311,7 +301,7 @@ class _AgentTrail extends StatelessWidget {
           PersonRow(
             key: ValueKey<String>('trail-agent-${agent.agentId}'),
             name: agent.name,
-            role: 'Field agent',
+            role: l10n.roleFieldAgent,
             outlet: agent.currentOutletName,
             trailingWord: count,
             separator: SoftRowSeparator.auto,
@@ -354,6 +344,7 @@ class _StopRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
     final time = trailStopTime(stop.checkinTs);
     final place = '${numbers.format(ordinal)}. ${stop.outletName}';
@@ -361,8 +352,8 @@ class _StopRow extends StatelessWidget {
     // in-progress visit says so too: a check-in without a submit is not a
     // finished visit and the list must not read as though it were.
     final word = stop.inProgress
-        ? 'Still in this shop'
-        : (isLast ? 'Last stop' : null);
+        ? l10n.trailStillInShop
+        : (isLast ? l10n.trailLastStop : null);
 
     return SoftRow(
       density: SoftRowDensity.compact,
@@ -382,7 +373,7 @@ class _StopRow extends StatelessWidget {
       semanticsLabel: <String?>[
         place,
         word,
-        'checked in at $time',
+        l10n.trailCheckedInAt(time),
       ].whereType<String>().join(', '),
     );
   }

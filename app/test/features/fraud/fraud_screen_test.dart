@@ -15,6 +15,7 @@ import 'package:tradeiq_app/features/fraud/data/fraud_view.dart';
 import 'package:tradeiq_app/features/fraud/presentation/fraud_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -168,6 +169,20 @@ Future<_FakeFraud> _pump(
   return repo;
 }
 
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
+}
+
 void main() {
   group('the risk band', () {
     test('is declared once and banded where the backend bands', () {
@@ -179,9 +194,28 @@ void main() {
     });
 
     test('carries a word, and it is never only a colour', () {
-      for (final band in FraudRiskBand.values) {
-        expect(band.word, isNotEmpty);
+      // In every locale the app ships, not only the template one: the word is
+      // the channel that survives greyscale and a reader, and a band that
+      // falls back to English has lost it for an Afrikaans manager.
+      for (final locale in appSupportedLocales) {
+        final l10n = lookupAppLocalizations(locale);
+        final words = <String>{
+          for (final band in FraudRiskBand.values) band.word(l10n),
+        };
+        for (final band in FraudRiskBand.values) {
+          expect(band.word(l10n), isNotEmpty, reason: '\$band in \$locale');
+        }
+        // Three bands, three different words: two bands sharing one word is
+        // colour becoming the only thing that tells them apart.
+        expect(words, hasLength(FraudRiskBand.values.length));
       }
+      // And the words differ BETWEEN locales, or the ARB is being ignored.
+      expect(
+        FraudRiskBand.high.word(lookupAppLocalizations(const Locale('af'))),
+        isNot(FraudRiskBand.high.word(lookupAppLocalizations(
+          const Locale('en'),
+        ))),
+      );
     });
 
     test('a score under the review threshold takes no severity bar', () {
@@ -242,7 +276,10 @@ void main() {
         users: _roster,
       );
 
-      expect(find.textContaining(FraudView.unnamedOutlet), findsOneWidget);
+      expect(
+        find.textContaining(englishLocalizations.fraudUnnamedOutlet),
+        findsOneWidget,
+      );
       expect(find.textContaining('o-gone'), findsNothing);
     });
 
@@ -896,6 +933,111 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
       expect(tester.takeException(), isNull);
       handle.dispose();
+    });
+  });
+
+  // THE QUEUE AN AFRIKAANS MANAGER OPENS.
+  //
+  // The check's PROBE E pumped this route under Locale('af') and asserted
+  // each of these English literals was on the screen — and passed. They are
+  // the defect, so they are what the test names. The accusation this screen
+  // records is the most consequential thing in the console; asking for it
+  // entirely in a language the reader did not choose is the least defensible
+  // place in the product to do it.
+  group('an Afrikaans manager opens the fraud queue', () {
+    const englishThatWasOnScreen = <String>[
+      'Fraud review',
+      'Open',
+      'Decided',
+      'All',
+      'High risk',
+      'Not yet reviewed',
+      'Rule on this visit',
+      'See the visit',
+      'Field agent',
+      'Risk is scored',
+    ];
+
+    testWidgets('not one of those English words is painted', (tester) async {
+      await _pump(
+        tester,
+        open: <FlaggedVisit>[_visit()],
+        outlets: _outlets,
+        users: _roster,
+        locale: const Locale('af'),
+        size: const Size(360, 1200),
+      );
+
+      for (final word in englishThatWasOnScreen) {
+        expect(paintedIgnoringCase(word), findsNothing, reason: word);
+      }
+    });
+
+    testWidgets('and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        open: <FlaggedVisit>[_visit()],
+        outlets: _outlets,
+        users: _roster,
+        locale: const Locale('af'),
+        size: const Size(360, 1200),
+      );
+
+      for (final word in <String>[
+        af.fraudTitle,
+        af.fraudFilterOpen,
+        af.fraudFilterDecided,
+        af.fraudFilterAll,
+        af.fraudBandHigh,
+        af.fraudNotYetReviewed,
+        af.fraudRuleOnThisVisit,
+        af.fraudSeeTheVisit,
+        af.roleFieldAgent,
+      ]) {
+        expect(paintedIgnoringCase(word), findsWidgets, reason: word);
+      }
+    });
+
+    testWidgets('the ruling sheet accuses in Afrikaans too', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        open: <FlaggedVisit>[_visit()],
+        outlets: _outlets,
+        users: _roster,
+        locale: const Locale('af'),
+        size: const Size(360, 1200),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('fraud-rule-v-1')));
+      await tester.pumpAndSettle();
+
+      // The consequence of the one ruling that accuses a person is the line
+      // that must never be in a language the reader did not choose.
+      expect(
+        paintedIgnoringCase(af.fraudConsequenceConfirmed),
+        findsOneWidget,
+      );
+      for (final word in <String>[
+        af.fraudVerdictCleared,
+        af.fraudVerdictConfirmed,
+        af.fraudVerdictNeedsEvidence,
+        af.fraudRecordThisRuling,
+      ]) {
+        expect(paintedIgnoringCase(word), findsWidgets, reason: word);
+      }
+      expect(
+        paintedIgnoringCase('The work is recorded as faked'),
+        findsNothing,
+      );
+      expect(paintedIgnoringCase('Record this ruling'), findsNothing);
+
+      // The control's own group label is announced, never painted, so a
+      // reader is the only person who ever hears it — which is exactly why
+      // it cannot be the one thing left in English.
+      final spoken = semanticsDump(tester);
+      expect(spoken, contains(af.fraudYourRuling));
+      expect(spoken, isNot(contains('Your ruling')));
     });
   });
 }

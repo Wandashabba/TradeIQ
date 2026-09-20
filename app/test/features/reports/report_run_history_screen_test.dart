@@ -10,7 +10,8 @@ import 'package:tradeiq_app/features/reports/presentation/report_run_history_scr
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
-import '../a11y_guard.dart';
+// `worklist_harness` re-exports the unpressable-button law; a second
+// import of `a11y_guard` is the same law twice.
 import '../worklist_harness.dart';
 import 'reports_harness.dart';
 import 'schedules_fakes.dart';

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/person_label.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../users/data/users_repository.dart';
@@ -13,15 +14,23 @@ import 'fraud_repository.dart';
 /// the visit detail — and a band that each screen decides is a band that says
 /// "High risk" in one place and "Elevated" in the other for the same number.
 enum FraudRiskBand {
-  high('High risk'),
-  elevated('Elevated'),
-  low('Low risk');
+  high,
+  elevated,
+  low;
 
-  const FraudRiskBand(this.word);
-
-  /// The word. Severity is never carried by a hue alone, and this is the
-  /// channel that survives greyscale, deuteranopia, glare and a reader.
-  final String word;
+  /// The word, in the reader's language.
+  ///
+  /// Severity is never carried by a hue alone, and this is the channel that
+  /// survives greyscale, deuteranopia, glare and a reader — which is exactly
+  /// why it must also survive the reader's language. It is a method rather
+  /// than a field so there is still ONE place a band gets its word: two
+  /// spellings of one number is the drift this enum exists to stop, and an
+  /// English constant beside a translated one is two spellings.
+  String word(AppLocalizations l10n) => switch (this) {
+        FraudRiskBand.high => l10n.fraudBandHigh,
+        FraudRiskBand.elevated => l10n.fraudBandElevated,
+        FraudRiskBand.low => l10n.fraudBandLow,
+      };
 
   static FraudRiskBand of(double score) => score >= 70
       ? FraudRiskBand.high
@@ -61,9 +70,11 @@ class FraudRow {
   /// is then the only fact.
   final String? agentName;
 
-  /// Where, resolved against the outlet list. [FraudView.unnamedOutlet] when
-  /// the id is not on a list this manager can see — never the id itself.
-  final String outletName;
+  /// Where, resolved against the outlet list. **Null** when the id is not on
+  /// a list this manager can see — never the id itself, and never an English
+  /// sentence baked in by a provider that has no reader to write for. The
+  /// absence is data; [outletLabel] is where it becomes words.
+  final String? outletName;
 
   final double riskScore;
   final FraudRiskBand band;
@@ -73,6 +84,10 @@ class FraudRow {
   final FraudVerdict? verdict;
 
   final DateTime? scoredAt;
+
+  /// Where, in words: the shop's name, or why there is not one.
+  String outletLabel(AppLocalizations l10n) =>
+      outletName ?? l10n.fraudUnnamedOutlet;
 
   /// The rule codes that fired, machine-facing, for quoting back.
   String get codes => signals.map((s) => s.code).join(', ');
@@ -89,13 +104,6 @@ class FraudView {
     this.nextCursor,
   });
 
-  /// What a row says when its outlet id is not on the outlet list — still
-  /// loading, or outside this manager's list. Words, never the UUID.
-  static const String unnamedOutlet = 'Outlet name unavailable';
-
-  /// What a row says when the roster does not carry the agent.
-  static const String unknownAgent = 'Unknown agent';
-
   /// Riskiest first: the list reads top-down as the review order.
   final List<FraudRow> rows;
 
@@ -110,15 +118,8 @@ class FraudView {
 
   /// The unscored sentence, or null when there are none. Not optional where
   /// it is true: an unscored visit is not a clean one.
-  String? unscoredNote(String Function(int) figure) {
-    if (unscored <= 0) return null;
-    final count = figure(unscored);
-    return unscored == 1
-        ? '$count submitted visit has not been scored yet and is not listed '
-              'here.'
-        : '$count submitted visits have not been scored yet and are not '
-              'listed here.';
-  }
+  String? unscoredNote(AppLocalizations l10n) =>
+      unscored <= 0 ? null : l10n.fraudUnscoredNote(unscored);
 }
 
 /// The flagged page, merged with the names it needs to be readable.
@@ -159,7 +160,7 @@ final fraudViewProvider =
           // where the roster does not carry this agent at all, and the row
           // then says so in words.
           agentName: _nameOf(people[v.agentId]),
-          outletName: outletNames[v.outletId] ?? FraudView.unnamedOutlet,
+          outletName: outletNames[v.outletId],
           riskScore: v.riskScore,
           band: FraudRiskBand.of(v.riskScore),
           signals: v.signals,

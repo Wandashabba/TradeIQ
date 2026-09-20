@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -17,56 +18,57 @@ import '../data/incentives_view.dart';
 Future<void> showSchemeProgressSheet(
   BuildContext context, {
   required IncentiveSchemeRow row,
-  required int agentsMeasured,
 }) {
   return showTorchSheet<void>(
     context,
-    builder: (sheetContext) =>
-        _SchemeProgressSheet(row: row, agentsMeasured: agentsMeasured),
+    builder: (sheetContext) => _SchemeProgressSheet(row: row),
   );
 }
 
 class _SchemeProgressSheet extends StatelessWidget {
-  const _SchemeProgressSheet({
-    required this.row,
-    required this.agentsMeasured,
-  });
+  const _SchemeProgressSheet({required this.row});
 
+  /// Everything this sheet counts comes off the row, so the board's size
+  /// cannot become a denominator here by accident.
   final IncentiveSchemeRow row;
-  final int agentsMeasured;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final metric = row.metric;
     final threshold = numbers.format(row.scheme.threshold);
-    final reward = '${numbers.format(row.scheme.rewardPoints)} pts';
-    final unit = metric?.unitWord ?? '';
+    final reward = l10n.incentivesRewardPoints(
+      numbers.format(row.scheme.rewardPoints),
+    );
+    final unit = metric?.unitWord(l10n) ?? '';
     final rewardLabel = metric == null
         ? reward
-        : '$reward at $threshold $unit';
+        : l10n.incentivesRewardAt(reward, threshold, unit);
 
     return TorchSheet(
       title: row.scheme.name,
-      subtitle: '${metric?.label ?? row.scheme.metric} · $rewardLabel',
+      subtitle: l10n.schemeProgressSubtitle(
+        metric?.label(l10n) ?? row.scheme.metric,
+        rewardLabel,
+      ),
       // A reading, not a decision: nothing here is armed and nothing is lit.
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           SectionRule(
-            'Everyone',
+            l10n.schemeProgressEveryone,
             count: row.progress.isEmpty ? null : row.progress.length,
           ),
           const SizedBox(height: TiqSpace.s4),
           if (row.progress.isEmpty)
-            const EmptyState(
-              key: ValueKey<String>('scheme-progress-empty'),
+            EmptyState(
+              key: const ValueKey<String>('scheme-progress-empty'),
               scope: EmptyScope.inPanel,
-              headline: 'No agent figures loaded.',
-              body: 'Progress toward this reward is read from the board, and '
-                  'the board has not answered.',
+              headline: l10n.schemeProgressEmptyHeadline,
+              body: l10n.schemeProgressEmptyBody,
             )
           else
             for (final p in row.progress) ...<Widget>[
@@ -88,7 +90,7 @@ class _SchemeProgressSheet extends StatelessWidget {
                       // drawn at nought would tell this agent they had made no
                       // progress when nobody has measured them at all.
                       Text(
-                        'Not measured on this metric yet.',
+                        l10n.schemeProgressUnmeasured,
                         key: ValueKey<String>('scheme-unmeasured-${p.agentId}'),
                         style: skin.text.meta.style(color: skin.palette.ink3),
                       ),
@@ -104,9 +106,16 @@ class _SchemeProgressSheet extends StatelessWidget {
                     value: p.value,
                     total: row.scheme.threshold,
                     fractionText: metric == null
-                        ? '${numbers.format(p.value!)} of $threshold'
-                        : '${numbers.format(p.value!)} of $threshold $unit',
-                    doneWord: 'Earned',
+                        ? l10n.incentivesFraction(
+                            numbers.format(p.value!),
+                            threshold,
+                          )
+                        : l10n.incentivesFractionUnit(
+                            numbers.format(p.value!),
+                            threshold,
+                            unit,
+                          ),
+                    doneWord: l10n.schemeProgressEarned,
                     milestones: <ProgressMilestone>[
                       ProgressMilestone(
                         at: row.scheme.threshold,
@@ -118,19 +127,27 @@ class _SchemeProgressSheet extends StatelessWidget {
                 ),
             ],
           const SizedBox(height: TiqSpace.s2),
-          Text(
-            '${numbers.format(row.earnedCount)} of '
-            '${numbers.format(agentsMeasured)} '
-            '${agentsMeasured == 1 ? 'agent has' : 'agents have'} earned it.',
-            key: const ValueKey<String>('scheme-progress-earned'),
-            style: skin.text.meta.style(color: skin.palette.ink3),
-          ),
+          // The denominator is who this metric can measure, not who is on the
+          // board. A sheet that lists four agents each saying "not measured on
+          // this metric yet" and then counts all four into "0 of 4 agents have
+          // earned it" contradicts itself on one screen (#464).
+          if (row.progress.isNotEmpty)
+            Text(
+              row.nobodyMeasured
+                  ? l10n.schemeProgressNobodyMeasured
+                  : l10n.incentivesEarnedOf(
+                      row.measuredCount,
+                      numbers.format(row.earnedCount),
+                    ),
+              key: const ValueKey<String>('scheme-progress-earned'),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
           const SizedBox(height: TiqSpace.s5),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TorchTertiaryButton(
               key: const ValueKey<String>('scheme-progress-close'),
-              label: 'Close',
+              label: l10n.schemeProgressClose,
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),

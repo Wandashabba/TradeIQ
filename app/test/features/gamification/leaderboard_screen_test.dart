@@ -11,6 +11,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
 import 'package:tradeiq_app/features/gamification/data/leaderboard_view.dart';
 import 'package:tradeiq_app/features/gamification/presentation/leaderboard_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -113,6 +114,20 @@ Future<void> _pump(
     ),
   ],
 );
+
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
+}
 
 void main() {
   group('the view model', () {
@@ -403,6 +418,41 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
       expect(tester.takeException(), isNull);
       handle.dispose();
+    });
+  });
+
+  // PROBE E found "Leaderboard", "Ranked", "Not ranked yet", "Contests" and
+  // the points sentence painted in English under Locale('af'). Naming an
+  // agent as unranked is the one sentence on this board that stops a reader
+  // taking the section for a bottom, and it was the reader's second language.
+  group('an Afrikaans manager opens the board', () {
+    testWidgets('no English is painted, and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        entries: <LeaderboardEntry>[..._board, _unmeasured],
+        locale: const Locale('af'),
+        size: const Size(360, 1400),
+      );
+
+      for (final english in <String>[
+        'Leaderboard',
+        'Ranked',
+        'Not ranked yet',
+        'Contests',
+        'Points: the average scorecard',
+        'Field agent',
+        'Rank 1',
+      ]) {
+        expect(paintedIgnoringCase(english), findsNothing, reason: english);
+      }
+
+      expect(paintedIgnoringCase(af.leaderboardTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.leaderboardRanked), findsWidgets);
+      expect(paintedIgnoringCase(af.leaderboardNotRanked), findsWidgets);
+      expect(paintedIgnoringCase(af.roleFieldAgent), findsWidgets);
+      // The sentence that stops the unranked section reading as a bottom.
+      expect(paintedIgnoringCase(af.leaderboardUnrankedNote), findsOneWidget);
     });
   });
 }

@@ -6881,13 +6881,13 @@ abstract class AppLocalizations {
   /// Help line under the latitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -90 and 90. Johannesburg is about -26,2.'**
+  /// **'Between -90 and 90. Johannesburg is about -26.2.'**
   String get outletFieldLatitudeHelp;
 
   /// Help line under the longitude field.
   ///
   /// In en, this message translates to:
-  /// **'Between -180 and 180. Johannesburg is about 28,0.'**
+  /// **'Between -180 and 180. Johannesburg is about 28.0.'**
   String get outletFieldLongitudeHelp;
 
   /// Label of the outlet status choice row.
@@ -6929,7 +6929,7 @@ abstract class AppLocalizations {
   /// Validation message when a coordinate field holds something that is not a number.
   ///
   /// In en, this message translates to:
-  /// **'Enter a number, for example -26,2041'**
+  /// **'Enter a number, for example -26.2041'**
   String get outletCoordinateNotANumber;
 
   /// Validation message when a latitude is off the globe.
@@ -10991,6 +10991,1408 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Provisional'**
   String get figureProvisional;
+
+  /// Spoken first in a picker option's label when that option is the one currently set. On screen the same fact is a tick — this is the word, so the tick is not the only channel and a reader can tell which value is set without leaving the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get pickerSelected;
+
+  /// Spoken in a pin report's label to say that photographic evidence is attached. On screen the photograph itself is shown, not a count of them — a manager deciding where a shop is from a count is deciding from nothing — but a screen reader cannot be shown a photograph, and silence would be worse than a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 storefront photograph attached} other{{count} storefront photographs attached}}'**
+  String outletDisputePhotoCount(int count);
+
+  /// Title of an order row while the store list is still being fetched. Not "Store not on this list": nothing is yet known either way, and the ids in the meta line are what tells two such rows apart.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get ordersStoreListLoading;
+
+  /// Title of an order row when the store list failed to load. The order is real; what is missing is the register that would name its store.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get ordersStoreListUnavailable;
+
+  /// Title of a beat plan stop whose store is genuinely absent from the loaded store list.
+  ///
+  /// In en, this message translates to:
+  /// **'Store not on this list'**
+  String get beatPlanStopUnknownStore;
+
+  /// Title of a beat plan stop while the store list is still being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list still loading'**
+  String get beatPlanStopStoreLoading;
+
+  /// Title of a beat plan stop when the store list failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Store list did not load'**
+  String get beatPlanStopStoreUnavailable;
+
+  /// Reason shown in place of an attainment percentage for a level whose targets all ask for nought units. The server returns no percentage there, because a share of nothing is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Every target at this level is 0 units, so there is nothing to attain.'**
+  String get salesLevelZeroTarget;
+
+  /// Reason shown in place of an attainment percentage the server did not send. Said in words rather than guessed at from the units, which would be inventing a total.
+  ///
+  /// In en, this message translates to:
+  /// **'The share of target was not worked out for this level.'**
+  String get salesLevelAttainmentUnknown;
+
+  /// Word for a SKU or scope whose target asks for nought units — a real target that happens to ask for nothing. Distinct from salesNoTarget, which is the absence of one: a row that printed "target 0 units" and "No target" in the same breath said both at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Target of 0 units'**
+  String get salesZeroTarget;
+
+  /// Title of the agent trail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent trail'**
+  String get trailTitle;
+
+  /// Screen-reader label for the refresh control on the agent trail.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh this day'**
+  String get trailRefresh;
+
+  /// Action that opens the date picker on the agent trail.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick another day'**
+  String get trailPickDay;
+
+  /// What is loading on the agent trail, read as 'Loading this day'.
+  ///
+  /// In en, this message translates to:
+  /// **'this day'**
+  String get trailSkeleton;
+
+  /// Retry action on the agent trail's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get trailRetry;
+
+  /// Headline when no agent checked in on the chosen day.
+  ///
+  /// In en, this message translates to:
+  /// **'No check-ins on this day.'**
+  String get trailEmptyHeadline;
+
+  /// Body of the agent trail's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'A pin appears here when an agent confirms a check-in. Pick another day to see one that has some.'**
+  String get trailEmptyBody;
+
+  /// How many agents have stops on the chosen day, in the header facts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 agent} other{{count} agents}}'**
+  String trailAgentCount(int count);
+
+  /// How many stops the chosen day holds, in the header facts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 stop} other{{count} stops}}'**
+  String trailStopCount(int count);
+
+  /// Section rule above the trail map's legend.
+  ///
+  /// In en, this message translates to:
+  /// **'How to read it'**
+  String get trailHowToRead;
+
+  /// The trail map's legend line about the numbered check-in pins.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbered pins are confirmed check-ins, in order, and the last one of each agent is filled. Dashed lines connect them — they are not a recorded route.'**
+  String get trailLegendPins;
+
+  /// The trail map's legend line about live positions.
+  ///
+  /// In en, this message translates to:
+  /// **'Squares are live positions from the agent app, labelled with their age first. Last updated {when}.'**
+  String trailLegendLive(String when);
+
+  /// Pagination footer when the day holds more agents than the map draws.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first 200 agents only.'**
+  String get trailFooterSummary;
+
+  /// Why the trail map says it is truncated.
+  ///
+  /// In en, this message translates to:
+  /// **'A partial map that looks complete is worse than no map: the rest of the day is not here.'**
+  String get trailFooterNarrow;
+
+  /// Word on a trail stop whose visit has not been submitted yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Still in this shop'**
+  String get trailStillInShop;
+
+  /// Word on the agent's final stop of the day.
+  ///
+  /// In en, this message translates to:
+  /// **'Last stop'**
+  String get trailLastStop;
+
+  /// Spoken part of a trail stop's label, giving the check-in time.
+  ///
+  /// In en, this message translates to:
+  /// **'checked in at {time}'**
+  String trailCheckedInAt(String time);
+
+  /// Headline of the Veld note that stands in for the trail map.
+  ///
+  /// In en, this message translates to:
+  /// **'No map in the sun.'**
+  String get trailNoMapHeadline;
+
+  /// Body of the Veld note that stands in for the trail map.
+  ///
+  /// In en, this message translates to:
+  /// **'A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.'**
+  String get trailNoMapBody;
+
+  /// Headline when the trail map's tiles never arrive.
+  ///
+  /// In en, this message translates to:
+  /// **'The map will not load.'**
+  String get trailMapOfflineHeadline;
+
+  /// Body shown when the trail map's tiles never arrive.
+  ///
+  /// In en, this message translates to:
+  /// **'The tiles are not arriving. Every stop is listed below, in order: nothing about the day is missing, only the picture of it.'**
+  String get trailMapOfflineBody;
+
+  /// How old a live position is when it was derived from a ping near an outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'last near {when}'**
+  String liveLastNear(String when);
+
+  /// How old a live position is when it came from a check-in.
+  ///
+  /// In en, this message translates to:
+  /// **'last check-in {when}'**
+  String liveLastCheckIn(String when);
+
+  /// Where a live position is, by the nearest outlet's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Near {place}'**
+  String liveNear(String place);
+
+  /// Said of an agent whose app has never sent a position.
+  ///
+  /// In en, this message translates to:
+  /// **'never shared'**
+  String get liveNeverShared;
+
+  /// Screen-reader label for one agent's live position marker.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location: {description}'**
+  String liveLocationOf(String description);
+
+  /// Said when the live location layer failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location could not load. Trying again shortly.'**
+  String get liveLocationFailed;
+
+  /// Said while the live location layer is still loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location: loading…'**
+  String get liveLocationLoading;
+
+  /// Heading of the live location panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location'**
+  String get liveLocationHeading;
+
+  /// When the live location layer last heard from the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated {when}'**
+  String liveLastUpdated(String when);
+
+  /// What the live location panel is and is not.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent by the agent app only while it is open. Each row starts with how old that position was at the last update.'**
+  String get liveLocationNote;
+
+  /// Said when a live location refresh failed but an older one still stands.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not refresh. Showing the last update.'**
+  String get liveCouldNotRefresh;
+
+  /// Said when the live location layer holds more agents than it draws.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first 200 agents.'**
+  String get liveFirst200;
+
+  /// Title of the fraud review queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraud review'**
+  String get fraudTitle;
+
+  /// Header fact explaining how a risk score is arrived at.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk is scored 0–100 on submit. The signals are the evidence.'**
+  String get fraudFact;
+
+  /// Screen-reader label for the fraud queue's refresh control.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the review queue'**
+  String get fraudRefresh;
+
+  /// What is loading on the fraud queue, read as 'Loading flagged visits'.
+  ///
+  /// In en, this message translates to:
+  /// **'flagged visits'**
+  String get fraudSkeleton;
+
+  /// Retry action on the fraud queue's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get fraudRetry;
+
+  /// Screen-reader label for the fraud queue's filter rail.
+  ///
+  /// In en, this message translates to:
+  /// **'Which flagged visits'**
+  String get fraudFilterRail;
+
+  /// Filter chip for flagged visits nobody has ruled on.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get fraudFilterOpen;
+
+  /// Filter chip for flagged visits that carry a ruling.
+  ///
+  /// In en, this message translates to:
+  /// **'Decided'**
+  String get fraudFilterDecided;
+
+  /// Filter chip for every flagged visit.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get fraudFilterAll;
+
+  /// Section rule over the open fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get fraudSectionOpen;
+
+  /// Section rule over the ruled-on fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Decided'**
+  String get fraudSectionDecided;
+
+  /// Section rule over the whole fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Every flagged visit'**
+  String get fraudSectionAll;
+
+  /// Section rule's empty line for the open fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing waiting on a ruling.'**
+  String get fraudEmptyLineOpen;
+
+  /// Section rule's empty line for the decided fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing ruled on yet.'**
+  String get fraudEmptyLineDecided;
+
+  /// Section rule's empty line for the whole fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing flagged.'**
+  String get fraudEmptyLineAll;
+
+  /// Empty-state headline for the open fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing waiting on you.'**
+  String get fraudEmptyHeadlineOpen;
+
+  /// Empty-state headline for the decided fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'No rulings recorded yet.'**
+  String get fraudEmptyHeadlineDecided;
+
+  /// Empty-state headline for the whole fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing flagged.'**
+  String get fraudEmptyHeadlineAll;
+
+  /// Empty-state body for the open fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'A visit appears here when the fraud engine scores one above the review threshold. Ruled visits move to Decided.'**
+  String get fraudEmptyBodyOpen;
+
+  /// Empty-state body for the decided fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'A visit appears here once somebody records a ruling on it.'**
+  String get fraudEmptyBodyDecided;
+
+  /// Empty-state body for the whole fraud queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits appear here when the fraud engine scores one above the review threshold.'**
+  String get fraudEmptyBodyAll;
+
+  /// Pagination footer when the fraud queue holds more than it lists.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {count} riskiest.'**
+  String fraudFooterShowing(String count);
+
+  /// Says how many submitted visits carry no risk score yet, so a short queue never reads as an all-clear.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 submitted visit has not been scored yet and is not listed here.} other{{count} submitted visits have not been scored yet and are not listed here.}}'**
+  String fraudUnscoredNote(int count);
+
+  /// What a flagged row says where the roster does not carry the agent.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown agent'**
+  String get fraudUnknownAgent;
+
+  /// What a flagged row says where the outlet list does not carry the shop.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlet name unavailable'**
+  String get fraudUnnamedOutlet;
+
+  /// Label on the raw visit id, shown only where the agent has no name.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit'**
+  String get fraudVisitIdentifier;
+
+  /// The risk figure in a flagged row's trailing lane.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk {score}'**
+  String fraudRisk(String score);
+
+  /// The spoken form of a flagged row's risk figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk {score} of 100'**
+  String fraudRiskOf100(String score);
+
+  /// Where a flagged visit stands when nobody has ruled on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet reviewed'**
+  String get fraudNotYetReviewed;
+
+  /// The ruling that lets a flagged visit stand.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared'**
+  String get fraudVerdictCleared;
+
+  /// The ruling that records a visit as faked.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get fraudVerdictConfirmed;
+
+  /// The ruling that says nobody can tell yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs evidence'**
+  String get fraudVerdictNeedsEvidence;
+
+  /// The word for a risk score of 70 or more.
+  ///
+  /// In en, this message translates to:
+  /// **'High risk'**
+  String get fraudBandHigh;
+
+  /// The word for a risk score from 50 to 69.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevated'**
+  String get fraudBandElevated;
+
+  /// The word for a risk score under 50.
+  ///
+  /// In en, this message translates to:
+  /// **'Low risk'**
+  String get fraudBandLow;
+
+  /// Action that opens the ruling sheet on an unruled visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule on this visit'**
+  String get fraudRuleOnThisVisit;
+
+  /// Action that opens the ruling sheet on a visit that already carries one.
+  ///
+  /// In en, this message translates to:
+  /// **'See the ruling'**
+  String get fraudSeeTheRuling;
+
+  /// Action that opens the flagged visit's own record.
+  ///
+  /// In en, this message translates to:
+  /// **'See the visit'**
+  String get fraudSeeTheVisit;
+
+  /// Stands in for the reviewer's name where the record does not carry one.
+  ///
+  /// In en, this message translates to:
+  /// **'A reviewer'**
+  String get fraudReviewerFallback;
+
+  /// Who ruled on a flagged visit, and what they ruled.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} ruled it {verdict}.'**
+  String fraudRuledIt(String who, String verdict);
+
+  /// The cleared ruling inside the sentence naming who ruled it.
+  ///
+  /// In en, this message translates to:
+  /// **'cleared'**
+  String get fraudVerdictClearedPast;
+
+  /// The confirmed ruling inside the sentence naming who ruled it.
+  ///
+  /// In en, this message translates to:
+  /// **'confirmed'**
+  String get fraudVerdictConfirmedPast;
+
+  /// The needs-evidence ruling inside the sentence naming who ruled it.
+  ///
+  /// In en, this message translates to:
+  /// **'as needing evidence'**
+  String get fraudVerdictNeedsEvidencePast;
+
+  /// Said where a ruling was made against no risk score at all.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit was unscored at the time.'**
+  String get fraudSeenUnscored;
+
+  /// The score the reviewer was looking at when they ruled.
+  ///
+  /// In en, this message translates to:
+  /// **'They were looking at risk {score}.'**
+  String fraudSeenAtRisk(String score);
+
+  /// Subtitle of the ruling sheet: where, how hard, and the band's word.
+  ///
+  /// In en, this message translates to:
+  /// **'{outlet} · risk {score} of 100 · {band}'**
+  String fraudSheetSubtitle(String outlet, String score, String band);
+
+  /// Section rule over the signals that fired on a flagged visit.
+  ///
+  /// In en, this message translates to:
+  /// **'What the engine found'**
+  String get fraudWhatEngineFound;
+
+  /// Headline where a flagged visit carries no stored signals.
+  ///
+  /// In en, this message translates to:
+  /// **'No signals recorded.'**
+  String get fraudNoSignalsHeadline;
+
+  /// Body where a flagged visit carries no stored signals.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit scored above the threshold but the rules that fired were not stored with it. Open the visit to judge it on its own record.'**
+  String get fraudNoSignalsBody;
+
+  /// Label of the verdict control on the ruling sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ruling'**
+  String get fraudYourRuling;
+
+  /// The commit that records a ruling on a flagged visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Record this ruling'**
+  String get fraudRecordThisRuling;
+
+  /// Label of the note field on the ruling sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get fraudNoteLabel;
+
+  /// Hint in the ruling sheet's note field.
+  ///
+  /// In en, this message translates to:
+  /// **'What you checked, and what you found'**
+  String get fraudNoteHint;
+
+  /// Help line under the ruling sheet's note field.
+  ///
+  /// In en, this message translates to:
+  /// **'Whoever reads this decision next sees only what you write here.'**
+  String get fraudNoteHelp;
+
+  /// What the verdict control says before a ruling is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'No ruling chosen yet'**
+  String get fraudNotChosenLine;
+
+  /// Why the ruling sheet's commit is not armed yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a ruling first.'**
+  String get fraudChooseFirst;
+
+  /// What ruling a visit cleared does.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit stands and leaves the queue. The agent keeps its points.'**
+  String get fraudConsequenceCleared;
+
+  /// What ruling a visit confirmed does.
+  ///
+  /// In en, this message translates to:
+  /// **'The work is recorded as faked. This is the one ruling that accuses a person.'**
+  String get fraudConsequenceConfirmed;
+
+  /// What ruling a visit as needing evidence does.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody can tell yet. It leaves the open queue and the note is what somebody works from.'**
+  String get fraudConsequenceNeedsEvidence;
+
+  /// Why the needs-evidence ruling demands a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Say what evidence is missing, so somebody can go and get it. \"Needs evidence\" with no note is a visit that was processed rather than reviewed.'**
+  String get fraudNeedsEvidenceNoteBecause;
+
+  /// Dismisses the ruling sheet without ruling.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get fraudNotNow;
+
+  /// Dismisses the ruling sheet once a ruling stands.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get fraudClose;
+
+  /// Section rule over a flagged visit's standing ruling.
+  ///
+  /// In en, this message translates to:
+  /// **'The ruling that stands'**
+  String get fraudRulingStands;
+
+  /// Said on the ruling sheet where a ruling was made against no score.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit was unscored at the time, so there is no number behind this decision.'**
+  String get fraudStandingUnscored;
+
+  /// The score a standing ruling was made against.
+  ///
+  /// In en, this message translates to:
+  /// **'They were looking at risk {score} of 100. A rescore since then does not move the ruling.'**
+  String fraudStandingAtRisk(String score);
+
+  /// Why a standing ruling cannot be changed on this sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'A visit is ruled once. Reopening it is a change to the record and is not done from here.'**
+  String get fraudRuledOnce;
+
+  /// Title of the leaderboard screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaderboard'**
+  String get leaderboardTitle;
+
+  /// Header fact saying what a point is on the leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Points: the average scorecard, plus 5 a closed task and 2 a submitted visit.'**
+  String get leaderboardFact;
+
+  /// Screen-reader label for the leaderboard's refresh control.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the leaderboard'**
+  String get leaderboardRefresh;
+
+  /// Action that opens the contests route from the leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Contests'**
+  String get leaderboardContests;
+
+  /// What is loading, read as 'Loading the leaderboard'.
+  ///
+  /// In en, this message translates to:
+  /// **'the leaderboard'**
+  String get leaderboardSkeleton;
+
+  /// Retry action on the leaderboard's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get leaderboardRetry;
+
+  /// Headline when the leaderboard holds no agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody on the board yet.'**
+  String get leaderboardEmptyHeadline;
+
+  /// Body of the leaderboard's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents appear here once there is a field agent on this client to measure.'**
+  String get leaderboardEmptyBody;
+
+  /// Section rule over the agents who have a place this window.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked'**
+  String get leaderboardRanked;
+
+  /// Section rule's empty line where nobody is ranked.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has a place in this window yet.'**
+  String get leaderboardRankedEmptyLine;
+
+  /// Section rule and trailing word for agents nobody has measured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ranked yet'**
+  String get leaderboardNotRanked;
+
+  /// Why an agent is in the unranked section, so it does not read as a bottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing measured for these agents in this window — no submitted visit, no closed task, no scorecard. They are not last; nobody has measured them.'**
+  String get leaderboardUnrankedNote;
+
+  /// An agent's place on the leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank {rank}'**
+  String leaderboardRank(String rank);
+
+  /// The spoken form of a ranked agent's rank and payout.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank {rank}, {points} points'**
+  String leaderboardRowTrailing(String rank, String points);
+
+  /// Screen-reader label for the points history's refresh control.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh this points history'**
+  String get pointsRefresh;
+
+  /// Action that returns from one agent's ledger to the board.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the leaderboard'**
+  String get pointsBackToLeaderboard;
+
+  /// Title of the points history before the agent's name has arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Points history'**
+  String get pointsTitle;
+
+  /// What is loading, read as 'Loading this points history'.
+  ///
+  /// In en, this message translates to:
+  /// **'this points history'**
+  String get pointsSkeleton;
+
+  /// Retry action on the points history's error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get pointsRetry;
+
+  /// Section rule over one agent's points entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Ledger'**
+  String get pointsLedgerHeading;
+
+  /// Section rule's empty line on an agent with no ledger entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded yet.'**
+  String get pointsNothingRecorded;
+
+  /// Headline when an agent's ledger is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No points yet.'**
+  String get pointsEmptyHeadline;
+
+  /// Body of the points history's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries appear as this agent submits visits, closes tasks and is scored.'**
+  String get pointsEmptyBody;
+
+  /// Screen-reader label for the payout-and-average pair.
+  ///
+  /// In en, this message translates to:
+  /// **'Two figures for {name}.'**
+  String pointsTwoFigures(String name);
+
+  /// Eyebrow over the payout figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Points earned'**
+  String get pointsEarnedEyebrow;
+
+  /// The unit worded beside a points figure.
+  ///
+  /// In en, this message translates to:
+  /// **'pts'**
+  String get pointsUnitWord;
+
+  /// What the payout figure is made of.
+  ///
+  /// In en, this message translates to:
+  /// **'The average scorecard, plus 5 a closed task and 2 a submitted visit.'**
+  String get pointsStateLine;
+
+  /// Why an unranked agent's payout is an absence rather than a nought.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded for this agent in this window.'**
+  String get pointsPayoutAbsent;
+
+  /// Eyebrow over the average scorecard figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Average scorecard'**
+  String get pointsAverageEyebrow;
+
+  /// Why an agent's average scorecard is an absence rather than a nought.
+  ///
+  /// In en, this message translates to:
+  /// **'No scored visit in this window.'**
+  String get pointsNoScoredVisit;
+
+  /// The two counts the payout is built from.
+  ///
+  /// In en, this message translates to:
+  /// **'{visits} visits submitted · {tasks} tasks closed'**
+  String pointsCounts(String visits, String tasks);
+
+  /// Pagination footer on an agent's ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {count} newest entries. There are more.'**
+  String pointsFooterSummary(String count);
+
+  /// The spoken form of a scorecard ledger entry's figure.
+  ///
+  /// In en, this message translates to:
+  /// **'scored {score}'**
+  String pointsScored(String score);
+
+  /// The spoken form of a ledger entry's signed payout.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} points'**
+  String pointsSpokenPoints(String points);
+
+  /// Title of the incentives screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Incentives'**
+  String get incentivesTitle;
+
+  /// Header fact saying what an incentive scheme does.
+  ///
+  /// In en, this message translates to:
+  /// **'A scheme awards points when an agent reaches its threshold on the chosen metric. Paused schemes stop awarding.'**
+  String get incentivesFact;
+
+  /// Screen-reader label for the incentives refresh control.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the incentive schemes'**
+  String get incentivesRefresh;
+
+  /// What is loading, read as 'Loading incentive schemes'.
+  ///
+  /// In en, this message translates to:
+  /// **'incentive schemes'**
+  String get incentivesSkeleton;
+
+  /// Retry action on the incentives error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get incentivesRetry;
+
+  /// How many of the configured schemes are currently awarding.
+  ///
+  /// In en, this message translates to:
+  /// **'{awarding} of {total} awarding'**
+  String incentivesAwardingFact(String awarding, String total);
+
+  /// Section rule over the configured incentive schemes.
+  ///
+  /// In en, this message translates to:
+  /// **'Schemes'**
+  String get incentivesSchemes;
+
+  /// Section rule's empty line where no scheme exists.
+  ///
+  /// In en, this message translates to:
+  /// **'None configured.'**
+  String get incentivesNoneConfigured;
+
+  /// Action that opens the scheme form.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a scheme'**
+  String get incentivesAddScheme;
+
+  /// Headline where no incentive scheme exists.
+  ///
+  /// In en, this message translates to:
+  /// **'No schemes configured.'**
+  String get incentivesEmptyHeadline;
+
+  /// Body of the incentives empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one to start rewarding agents who clear a threshold. Nothing pays out until there is a scheme.'**
+  String get incentivesEmptyBody;
+
+  /// The word for a scheme that is currently paying out.
+  ///
+  /// In en, this message translates to:
+  /// **'Awarding'**
+  String get incentivesAwarding;
+
+  /// The word for a scheme that has stopped paying out.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get incentivesPaused;
+
+  /// A scheme's rule line where the metric has a unit word.
+  ///
+  /// In en, this message translates to:
+  /// **'{state} · {metric} · {threshold} {unit} · {reward}'**
+  String incentivesRuleWithUnit(
+    String state,
+    String metric,
+    String threshold,
+    String unit,
+    String reward,
+  );
+
+  /// A scheme's rule line where the metric key is unknown to this client, so there is no unit word to count the threshold in. The threshold is worded rather than written with a maths sign: the sign is not in the PDF font subset, and a reader announces it inconsistently or not at all.
+  ///
+  /// In en, this message translates to:
+  /// **'{state} · {metric} · at least {threshold} · {reward}'**
+  String incentivesRuleNoUnit(
+    String state,
+    String metric,
+    String threshold,
+    String reward,
+  );
+
+  /// Screen-reader label for the control that pauses a scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause {name}'**
+  String incentivesPauseScheme(String name);
+
+  /// Screen-reader label for the control that starts a scheme awarding.
+  ///
+  /// In en, this message translates to:
+  /// **'Start {name} awarding'**
+  String incentivesStartScheme(String name);
+
+  /// Action that opens every agent's progress toward one reward.
+  ///
+  /// In en, this message translates to:
+  /// **'See everyone'**
+  String get incentivesSeeEveryone;
+
+  /// Action that deletes an incentive scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this scheme'**
+  String get incentivesDeleteScheme;
+
+  /// Toast when starting a scheme failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start {name} awarding.'**
+  String incentivesCouldNotStart(String name);
+
+  /// Toast when pausing a scheme failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not pause {name}.'**
+  String incentivesCouldNotPause(String name);
+
+  /// The question the delete confirmation asks.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String incentivesDeleteAction(String name);
+
+  /// First consequence of deleting a scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops awarding immediately.'**
+  String get incentivesDeleteStops;
+
+  /// Second consequence of deleting a scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Points already awarded stay on the agents who earned them.'**
+  String get incentivesDeleteKeeps;
+
+  /// Third consequence of deleting a scheme: who has already earned it.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 agent has earned it so far.} other{{count} agents have earned it so far.}}'**
+  String incentivesEarnedSoFar(int count);
+
+  /// Toast when deleting a scheme failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete {name}. It is still awarding.'**
+  String incentivesCouldNotDelete(String name);
+
+  /// Said where a scheme pays on a metric key this build does not know.
+  ///
+  /// In en, this message translates to:
+  /// **'This client does not recognise the metric \"{metric}\", so progress toward it cannot be shown here.'**
+  String incentivesUnknownMetric(String metric);
+
+  /// Said where the leaderboard the progress bars read from did not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent figures loaded, so progress toward this reward is not shown.'**
+  String get incentivesNoBoard;
+
+  /// Said where the board answered but the scheme's own metric can measure nobody on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has been measured on {metric} in this window, so there is no progress toward this reward to show yet.'**
+  String incentivesNobodyMeasured(String metric);
+
+  /// Said where every measurable agent has already reached the threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Everybody this metric can measure has earned it.'**
+  String get incentivesEverybodyEarned;
+
+  /// Label on the progress bar naming the agent nearest the reward.
+  ///
+  /// In en, this message translates to:
+  /// **'Closest: {name}'**
+  String incentivesClosest(String name);
+
+  /// How far along a progress bar is, in the metric's own unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} of {threshold} {unit}'**
+  String incentivesFractionUnit(String value, String threshold, String unit);
+
+  /// How far along a progress bar is where the metric has no unit word.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} of {threshold}'**
+  String incentivesFraction(String value, String threshold);
+
+  /// The milestone label naming what reaching the threshold awards.
+  ///
+  /// In en, this message translates to:
+  /// **'{reward} at {threshold} {unit}'**
+  String incentivesRewardAt(String reward, String threshold, String unit);
+
+  /// A scheme's reward, in points.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} pts'**
+  String incentivesRewardPoints(String points);
+
+  /// How many of the agents this metric can measure have reached the threshold. The denominator is who the metric measures, never the board.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{earned} of 1 agent has earned it.} other{{earned} of {count} agents have earned it.}}'**
+  String incentivesEarnedOf(int count, String earned);
+
+  /// The metric that pays on an agent's 0-100 scorecard mean.
+  ///
+  /// In en, this message translates to:
+  /// **'Average scorecard'**
+  String get incentiveMetricScorecard;
+
+  /// The metric that pays on a count of closed tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks closed'**
+  String get incentiveMetricTasksClosed;
+
+  /// The metric that pays on a count of submitted visits.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits submitted'**
+  String get incentiveMetricVisits;
+
+  /// The unit the average-scorecard threshold is counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'points'**
+  String get incentiveUnitPoints;
+
+  /// The unit the tasks-closed threshold is counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'tasks'**
+  String get incentiveUnitTasks;
+
+  /// The unit the visits-submitted threshold is counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'visits'**
+  String get incentiveUnitVisits;
+
+  /// Title of the sheet that creates an incentive scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a scheme'**
+  String get schemeFormTitle;
+
+  /// Subtitle of the scheme form, saying when it takes effect.
+  ///
+  /// In en, this message translates to:
+  /// **'It starts awarding as soon as it is saved.'**
+  String get schemeFormSubtitle;
+
+  /// Label of the scheme's name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get schemeFormName;
+
+  /// Hint in the scheme's name field.
+  ///
+  /// In en, this message translates to:
+  /// **'What a manager will call it — \"Twenty visits\"'**
+  String get schemeFormNameHint;
+
+  /// Refusal where the scheme has no name.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the scheme a name.'**
+  String get schemeFormNameError;
+
+  /// Label of the metric choice on the scheme form.
+  ///
+  /// In en, this message translates to:
+  /// **'What it pays on'**
+  String get schemeFormMetricLabel;
+
+  /// What the metric choice says before one is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'No metric chosen yet'**
+  String get schemeFormMetricNotAnswered;
+
+  /// Refusal where no metric is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what the scheme pays on.'**
+  String get schemeFormMetricError;
+
+  /// What choosing the average-scorecard metric means.
+  ///
+  /// In en, this message translates to:
+  /// **'Pays when the agent\'s 0–100 mean clears the threshold.'**
+  String get schemeFormScorecardConsequence;
+
+  /// What choosing the tasks-closed metric means.
+  ///
+  /// In en, this message translates to:
+  /// **'Pays on a count of closures.'**
+  String get schemeFormTasksConsequence;
+
+  /// What choosing the visits-submitted metric means.
+  ///
+  /// In en, this message translates to:
+  /// **'Pays on a count of submitted visits.'**
+  String get schemeFormVisitsConsequence;
+
+  /// Label of the scheme's threshold field.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold'**
+  String get schemeFormThreshold;
+
+  /// Help under the threshold field before a metric is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'What an agent has to reach.'**
+  String get schemeFormThresholdHelp;
+
+  /// Help under the threshold field once a metric is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'What an agent has to reach, in {unit}.'**
+  String schemeFormThresholdHelpUnit(String unit);
+
+  /// Refusal where the threshold is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Say the figure an agent has to reach.'**
+  String get schemeFormThresholdError;
+
+  /// Refusal where the threshold is zero or less.
+  ///
+  /// In en, this message translates to:
+  /// **'A threshold of nought is a scheme that pays out to everybody the moment it is created.'**
+  String get schemeFormThresholdZero;
+
+  /// Label of the scheme's reward field.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward'**
+  String get schemeFormReward;
+
+  /// Help under the reward field.
+  ///
+  /// In en, this message translates to:
+  /// **'What clearing it awards.'**
+  String get schemeFormRewardHelp;
+
+  /// Refusal where the reward is not a number.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how many points it awards.'**
+  String get schemeFormRewardError;
+
+  /// Refusal where the reward is zero or less.
+  ///
+  /// In en, this message translates to:
+  /// **'A reward of nought is not a reward.'**
+  String get schemeFormRewardZero;
+
+  /// The commit that creates the scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this scheme'**
+  String get schemeFormSave;
+
+  /// Why the scheme form's commit is not armed yet.
+  ///
+  /// In en, this message translates to:
+  /// **'A scheme needs a name, a metric, a threshold and a reward.'**
+  String get schemeFormBlocked;
+
+  /// Dismisses the scheme form without creating anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get schemeFormNotNow;
+
+  /// Section rule over every agent's progress toward one reward.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone'**
+  String get schemeProgressEveryone;
+
+  /// Subtitle of the everyone-sheet: the metric and what it awards.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} · {reward}'**
+  String schemeProgressSubtitle(String metric, String reward);
+
+  /// Headline where the board the sheet reads from did not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent figures loaded.'**
+  String get schemeProgressEmptyHeadline;
+
+  /// Body where the board the sheet reads from did not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress toward this reward is read from the board, and the board has not answered.'**
+  String get schemeProgressEmptyBody;
+
+  /// Said of an agent the scheme's metric cannot answer for.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured on this metric yet.'**
+  String get schemeProgressUnmeasured;
+
+  /// The word on a progress bar that has reached its reward.
+  ///
+  /// In en, this message translates to:
+  /// **'Earned'**
+  String get schemeProgressEarned;
+
+  /// Said in place of a fraction where the metric can measure nobody listed.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody above has been measured on this metric in this window, so there is nothing to count yet.'**
+  String get schemeProgressNobodyMeasured;
+
+  /// Dismisses the everyone-sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get schemeProgressClose;
+
+  /// The live state of an agent whose ping is inside a store's fence.
+  ///
+  /// In en, this message translates to:
+  /// **'At store'**
+  String get liveStateAtStore;
+
+  /// The live state of an agent whose ping is close to a store.
+  ///
+  /// In en, this message translates to:
+  /// **'Near store'**
+  String get liveStateNearStore;
+
+  /// The live state of an agent who is on the road.
+  ///
+  /// In en, this message translates to:
+  /// **'In transit'**
+  String get liveStateInTransit;
+
+  /// The live state of an agent whose last position is too old to trust.
+  ///
+  /// In en, this message translates to:
+  /// **'Stale'**
+  String get liveStateStale;
+
+  /// The live state of an agent whose app has stopped reporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get liveStateOffline;
+
+  /// The live state of an agent who has declined to share a position.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sharing'**
+  String get liveStateNotSharing;
+
+  /// How old a live position is, in seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String liveAgeSeconds(String seconds);
+
+  /// How old a live position is, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String liveAgeMinutes(String minutes);
+
+  /// How old a live position is, in whole hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String liveAgeHours(String hours);
+
+  /// How old a live position is, in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String liveAgeHoursMinutes(String hours, String minutes);
+
+  /// How old a live position is, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d'**
+  String liveAgeDays(String days);
+
+  /// Where an agent is, when the ping is inside that store's fence.
+  ///
+  /// In en, this message translates to:
+  /// **'at {outlet}'**
+  String liveAtOutlet(String outlet);
+
+  /// Where an agent is, when the ping is close to that store.
+  ///
+  /// In en, this message translates to:
+  /// **'near {outlet}'**
+  String liveNearOutlet(String outlet);
+
+  /// How old a live position is, inside the spoken description.
+  ///
+  /// In en, this message translates to:
+  /// **'{age} old'**
+  String liveAgeOld(String age);
+
+  /// Screen-reader label for one numbered check-in pin on the trail map.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent}, stop {ordinal}, {outlet}, {time}'**
+  String trailPinLabel(
+    String agent,
+    String ordinal,
+    String outlet,
+    String time,
+  );
 }
 
 class _AppLocalizationsDelegate

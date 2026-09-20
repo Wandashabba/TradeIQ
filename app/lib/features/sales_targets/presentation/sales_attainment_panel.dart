@@ -122,8 +122,25 @@ class AttainmentLevels extends StatelessWidget {
   }) {
     final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
-    final measured = level.targets > 0;
-    final pct = measured ? level.attainmentPct : null;
+    // MEASURED MEANS THE SERVER WORKED A PERCENTAGE OUT, not that a row
+    // exists. `attainmentPct` is null whenever `targetUnits <= 0`, and the API
+    // accepts a target of nought units — this very screen's sheet can create
+    // one on a delisted SKU. Reading "measured" off `targets > 0` handed
+    // `StatTile` a null value with no sentence beside it, which is the assert
+    // in debug and a bare em dash in release: the exact unknown-vs-zero law
+    // this panel was rewritten to keep.
+    final pct = level.attainmentPct;
+    final noDataReason = pct != null
+        ? null
+        : level.targets == 0
+        // No target at all. Not nought per cent — an absence.
+        ? l10n.salesLevelNoTargets
+        : level.targetUnits <= 0
+        // A target exists and asks for nothing. There is no share of nothing.
+        ? l10n.salesLevelZeroTarget
+        // A level the server declined to score. Said as such rather than
+        // guessed at from the units, which would be inventing a total.
+        : l10n.salesLevelAttainmentUnknown;
 
     return StatTile(
       key: ValueKey<String>('attainment-level-$label'),
@@ -131,11 +148,13 @@ class AttainmentLevels extends StatelessWidget {
       value: pct,
       unit: TiqUnit.percent,
       decimals: pct == null || pct == pct.roundToDouble() ? 0 : 1,
-      noDataReason: measured ? null : l10n.salesLevelNoTargets,
+      noDataReason: noDataReason,
       severity: salesSeverity(pct),
       meter: pct == null ? null : MeterData(value: pct, maximum: 100),
       stateLine: salesBandWord(l10n, pct),
-      subordinates: measured
+      // The counts stand on their own: "4 of 0 units · 1 target" is true, and
+      // it is how a manager finds the delisted SKU the reason is about.
+      subordinates: level.targets > 0
           ? l10n.salesLevelSubordinates(
               numbers.format(level.actualUnits),
               numbers.format(level.targetUnits),
