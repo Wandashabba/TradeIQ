@@ -181,7 +181,10 @@ class SessionHeldLine extends StatelessWidget {
             ),
             const SizedBox(width: TiqSpace.s3),
             Expanded(
-              child: Text(message, style: skin.text.meta.style(color: p.ink2)),
+              child: Text(
+                message,
+                style: skin.text.meta.style(color: p.ink2),
+              ),
             ),
             const SizedBox(width: TiqSpace.s3),
             // Flexible, so at 2.0× the action gives ground to the sentence

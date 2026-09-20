@@ -15,17 +15,12 @@ abstract class AuthRepository {
 class DioAuthRepository implements AuthRepository {
   @override
   Future<AuthResult> login(String email, String password) async {
-    final response = await dio.post(
-      '/auth/login',
-      data: {'email': email, 'password': password},
-    );
-    return AuthResult(
-      token: response.data['token'] as String,
-      role: response.data['role'] as String,
-    );
+    final response = await dio.post('/auth/login', data: {
+      'email': email,
+      'password': password,
+    });
+    return AuthResult(token: response.data['token'] as String, role: response.data['role'] as String);
   }
 }
 
-final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => DioAuthRepository(),
-);
+final authRepositoryProvider = Provider<AuthRepository>((ref) => DioAuthRepository());

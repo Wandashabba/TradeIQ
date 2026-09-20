@@ -95,13 +95,11 @@ class LocationService {
 
   Future<LocationResult> _resolve({required bool askPermission}) async {
     try {
-      var permission = await _gateway.checkPermission().timeout(
-        permissionTimeout,
-      );
+      var permission =
+          await _gateway.checkPermission().timeout(permissionTimeout);
       if (askPermission && permission == LocationPermission.denied) {
-        permission = await _gateway.requestPermission().timeout(
-          permissionTimeout,
-        );
+        permission =
+            await _gateway.requestPermission().timeout(permissionTimeout);
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
@@ -114,9 +112,7 @@ class LocationService {
         return LocationDenied();
       }
 
-      if (!await _gateway.isLocationServiceEnabled().timeout(
-        permissionTimeout,
-      )) {
+      if (!await _gateway.isLocationServiceEnabled().timeout(permissionTimeout)) {
         return LocationError(
           'Location services are disabled',
           kind: LocationErrorKind.servicesDisabled,
@@ -146,9 +142,7 @@ class LocationService {
   }
 }
 
-final locationServiceProvider = Provider<LocationService>(
-  (ref) => LocationService(),
-);
+final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
 
 /// One fix, shared by every screen that is looking at the same moment.
 ///

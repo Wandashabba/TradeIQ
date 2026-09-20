@@ -105,22 +105,20 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "s1", "name": "Top Scorecard", "metric": "scorecard", '
-          '"threshold": 80, "rewardPoints": 100, "active": true}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "s1", "name": "Top Scorecard", "metric": "scorecard", '
+        '"threshold": 80, "rewardPoints": 100, "active": true}], '
+        '"nextCursor": "cursor-1"}',
+      );
 
-        final page = await DioIncentivesRepository().listSchemes();
+      final page = await DioIncentivesRepository().listSchemes();
 
-        expect(page, isA<PaginatedResponse<IncentiveScheme>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 's1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<IncentiveScheme>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 's1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }

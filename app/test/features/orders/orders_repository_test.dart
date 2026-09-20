@@ -12,12 +12,9 @@ import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 /// Reads go over HTTP; writes go through the outbox, so the repository needs a
 /// local database even to list. See `order_outbox_test.dart` for the writes.
 DioOrdersRepository _repository(LocalDb db) => DioOrdersRepository(
-  db: db,
-  syncService: SyncService(
-    db: db,
-    flusher: HttpQueueFlusher(db: db),
-  ),
-);
+      db: db,
+      syncService: SyncService(db: db, flusher: HttpQueueFlusher(db: db)),
+    );
 
 /// A fake HTTP layer that returns a canned body, following the pattern in
 /// `test/features/agents/agents_repository_test.dart`.
@@ -100,22 +97,20 @@ void main() {
       await db.close();
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "ord-1", "outletId": "o1", "status": "submitted", '
-          '"total": 25, "_count": {"lines": 2}}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "ord-1", "outletId": "o1", "status": "submitted", '
+        '"total": 25, "_count": {"lines": 2}}], '
+        '"nextCursor": "cursor-1"}',
+      );
 
-        final page = await _repository(db).listOrders();
+      final page = await _repository(db).listOrders();
 
-        expect(page, isA<PaginatedResponse<OrderItem>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 'ord-1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<OrderItem>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'ord-1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }

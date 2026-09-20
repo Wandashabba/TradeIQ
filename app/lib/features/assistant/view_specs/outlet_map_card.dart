@@ -53,14 +53,12 @@ class OutletMapCard extends StatelessWidget {
       final id = row['outletId'];
       final name = row['outletName'];
       final lines = row['outOfStockLines'];
-      outlets.add(
-        _MappedOutlet(
-          id: id is String ? id : '$latValue,$lngValue',
-          name: name is String ? name : 'Outlet',
-          outOfStockLines: lines is num ? lines.toInt() : null,
-          point: LatLng(latValue, lngValue),
-        ),
-      );
+      outlets.add(_MappedOutlet(
+        id: id is String ? id : '$latValue,$lngValue',
+        name: name is String ? name : 'Outlet',
+        outOfStockLines: lines is num ? lines.toInt() : null,
+        point: LatLng(latValue, lngValue),
+      ));
     }
     return outlets;
   }
@@ -121,16 +119,16 @@ class OutletMapCard extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = constraints.biggest;
-              final degenerate =
-                  !size.width.isFinite ||
+              final degenerate = !size.width.isFinite ||
                   !size.height.isFinite ||
                   size.width <= 0 ||
                   size.height <= 0;
               if (degenerate) return const SizedBox.shrink();
 
-              final (center, zoom) = fitFor([
-                for (final outlet in outlets) outlet.point,
-              ], size: size);
+              final (center, zoom) = fitFor(
+                [for (final outlet in outlets) outlet.point],
+                size: size,
+              );
 
               return FlutterMap(
                 key: ValueKey<Size>(size),
@@ -142,8 +140,7 @@ class OutletMapCard extends StatelessWidget {
                   // reason: this map cannot own the one gesture the page
                   // around it depends on.
                   interactionOptions: const InteractionOptions(
-                    flags:
-                        InteractiveFlag.all & ~InteractiveFlag.scrollWheelZoom,
+                    flags: InteractiveFlag.all & ~InteractiveFlag.scrollWheelZoom,
                   ),
                 ),
                 children: [

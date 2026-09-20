@@ -331,7 +331,9 @@ class SoftRowSpec {
   /// the ruling's wording — and what a migrating screen aligns a section rule
   /// or a sticky header to.
   double textInset({required bool hasLeading}) =>
-      horizontalPadding + severityLane + (hasLeading ? leadingExtent + gap : 0);
+      horizontalPadding +
+      severityLane +
+      (hasLeading ? leadingExtent + gap : 0);
 
   /// The whole row is the target, and it is never under the floor: 48 on
   /// Night and Day, 56 in Veld. The densities are 56/64/80, so this is an

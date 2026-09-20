@@ -113,19 +113,7 @@ void main() {
     });
 
     test('the spacing scale is base-4 and has no twelfth step', () {
-      expect(TiqSpace.scale, <double>[
-        4,
-        8,
-        12,
-        16,
-        20,
-        24,
-        32,
-        40,
-        56,
-        72,
-        96,
-      ]);
+      expect(TiqSpace.scale, <double>[4, 8, 12, 16, 20, 24, 32, 40, 56, 72, 96]);
       for (final step in TiqSpace.scale) {
         expect(step % 4, 0, reason: '$step is not on the base-4 grid.');
       }
@@ -211,7 +199,9 @@ void main() {
       }
     });
 
-    testWidgets('context.colors and context.skin both resolve', (tester) async {
+    testWidgets('context.colors and context.skin both resolve', (
+      tester,
+    ) async {
       late TiqSkin skin;
       await tester.pumpWidget(
         MaterialApp(
@@ -299,9 +289,7 @@ class _TokenSampler extends StatelessWidget {
                 child: Center(
                   child: Text(
                     'Commit',
-                    style: skin.text.label.style(
-                      color: skin.onFill(p.flame600),
-                    ),
+                    style: skin.text.label.style(color: skin.onFill(p.flame600)),
                   ),
                 ),
               ),
@@ -340,7 +328,10 @@ class _Swatch extends StatelessWidget {
             height: TiqSpace.s3,
             child: ColoredBox(color: color),
           ),
-          Text(label, style: skin.text.eyebrow.style(color: skin.palette.ink2)),
+          Text(
+            label,
+            style: skin.text.eyebrow.style(color: skin.palette.ink2),
+          ),
         ],
       ),
     );

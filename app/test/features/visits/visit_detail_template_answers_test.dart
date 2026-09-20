@@ -14,13 +14,7 @@ const _schema = {
       'id': 'promo',
       'title': 'Promo stand',
       'fields': [
-        {
-          'id': 'standUp',
-          'label': 'Is the promo stand up?',
-          'type': 'boolean',
-          'weight': 5,
-          'required': true,
-        },
+        {'id': 'standUp', 'label': 'Is the promo stand up?', 'type': 'boolean', 'weight': 5, 'required': true},
         {
           'id': 'facings',
           'label': 'Promo facings',
@@ -40,29 +34,23 @@ const _schema = {
   ],
 };
 
-VisitDetail _visit({List<VisitTemplateAnswers> responses = const []}) =>
-    VisitDetail(
-      id: 'v1',
-      status: 'submitted',
-      outlet: const VisitOutletRef(
-        id: 'o1',
-        name: 'Spar Rosebank',
-        code: 'SPR-001',
-        channelType: 'supermarket',
-      ),
-      agent: const VisitAgentRef(id: 'a1', email: 'thandi@acme.test'),
-      checkinTs: DateTime.utc(2026, 9, 14, 7),
-      submittedAtClient: DateTime.utc(2026, 9, 14, 7, 14),
-      geofencePass: true,
-      distanceM: 12,
-      score: null,
-      sections: const [],
-      photoTotal: 0,
-      photos: const [],
-      riskScore: 0,
-      signals: const [],
-      templateResponses: responses,
-    );
+VisitDetail _visit({List<VisitTemplateAnswers> responses = const []}) => VisitDetail(
+  id: 'v1',
+  status: 'submitted',
+  outlet: const VisitOutletRef(id: 'o1', name: 'Spar Rosebank', code: 'SPR-001', channelType: 'supermarket'),
+  agent: const VisitAgentRef(id: 'a1', email: 'thandi@acme.test'),
+  checkinTs: DateTime.utc(2026, 9, 14, 7),
+  submittedAtClient: DateTime.utc(2026, 9, 14, 7, 14),
+  geofencePass: true,
+  distanceM: 12,
+  score: null,
+  sections: const [],
+  photoTotal: 0,
+  photos: const [],
+  riskScore: 0,
+  signals: const [],
+  templateResponses: responses,
+);
 
 const _answers = VisitTemplateAnswers(
   templateId: 'tpl-1',
@@ -108,10 +96,7 @@ Finder _ci(String text) =>
     find.textContaining(RegExp(RegExp.escape(text), caseSensitive: false));
 
 void main() {
-  for (final (name, theme) in [
-    ('light', AppTheme.light),
-    ('night', AppTheme.dark),
-  ]) {
+  for (final (name, theme) in [('light', AppTheme.light), ('night', AppTheme.dark)]) {
     group('$name theme', () {
       testWidgets('shows each answer under the question the template asked', (
         tester,
@@ -135,10 +120,7 @@ void main() {
         // A question the agent was never shown is not listed as unanswered.
         expect(find.text('Why is it down?'), findsNothing);
         // An answer to a question the template no longer has is still shown.
-        expect(
-          find.text('retired (no longer in the template)'),
-          findsOneWidget,
-        );
+        expect(find.text('retired (no longer in the template)'), findsOneWidget);
         expect(find.text('old answer'), findsOneWidget);
 
         // Which version the answers belong to, when the template moved on.
@@ -146,34 +128,24 @@ void main() {
         expect(find.textContaining('template now v3'), findsOneWidget);
       });
 
-      testWidgets(
-        'the template’s own score is shown here, apart from the perfect store score',
-        (tester) async {
-          _tall(tester);
-          await tester.pumpWidget(_app(_visit(responses: [_answers]), theme()));
-          await tester.pumpAndSettle();
+      testWidgets('the template’s own score is shown here, apart from the perfect store score', (
+        tester,
+      ) async {
+        _tall(tester);
+        await tester.pumpWidget(_app(_visit(responses: [_answers]), theme()));
+        await tester.pumpAndSettle();
 
-          expect(
-            find.byKey(const ValueKey('visit-template-score')),
-            findsOneWidget,
-          );
-          expect(_ci('Template score 10 / 10'), findsOneWidget);
-          expect(
-            find.textContaining('not part of the perfect store score'),
-            findsOneWidget,
-          );
-        },
-      );
+        expect(find.byKey(const ValueKey('visit-template-score')), findsOneWidget);
+        expect(_ci('Template score 10 / 10'), findsOneWidget);
+        expect(find.textContaining('not part of the perfect store score'), findsOneWidget);
+      });
 
       testWidgets('no template answers: no panel', (tester) async {
         _tall(tester);
         await tester.pumpWidget(_app(_visit(), theme()));
         await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(const ValueKey('visit-template-tpl-1')),
-          findsNothing,
-        );
+        expect(find.byKey(const ValueKey('visit-template-tpl-1')), findsNothing);
         expect(_ci('Client questions'), findsNothing);
       });
     });
@@ -183,12 +155,7 @@ void main() {
     final detail = VisitDetail.fromJson({
       'id': 'v1',
       'status': 'submitted',
-      'outlet': {
-        'id': 'o1',
-        'name': 'Spar',
-        'code': 'S1',
-        'channelType': 'supermarket',
-      },
+      'outlet': {'id': 'o1', 'name': 'Spar', 'code': 'S1', 'channelType': 'supermarket'},
       'agent': {'id': 'a1', 'email': 'a@b.test'},
       'checkinTs': '2026-09-14T07:00:00.000Z',
       'submittedAtClient': null,

@@ -183,14 +183,14 @@ class ContestInput {
   /// Every field, nulls included: an edit that clears the prize or widens
   /// the contest to all territories must say so.
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'description': description,
-    'prizeDescription': prizeDescription,
-    'startDate': startDate,
-    'endDate': endDate,
-    'territoryId': territoryId,
-    'eventTypes': eventTypes,
-  };
+        'name': name,
+        'description': description,
+        'prizeDescription': prizeDescription,
+        'startDate': startDate,
+        'endDate': endDate,
+        'territoryId': territoryId,
+        'eventTypes': eventTypes,
+      };
 }
 
 abstract class ContestsRepository {
@@ -263,9 +263,8 @@ class DioContestsRepository implements ContestsRepository {
   }
 }
 
-final contestsRepositoryProvider = Provider<ContestsRepository>(
-  (ref) => DioContestsRepository(),
-);
+final contestsRepositoryProvider =
+    Provider<ContestsRepository>((ref) => DioContestsRepository());
 
 final contestsListProvider = FutureProvider<List<Contest>>((ref) {
   return ref.read(contestsRepositoryProvider).listContests();
@@ -273,8 +272,8 @@ final contestsListProvider = FutureProvider<List<Contest>>((ref) {
 
 final contestStandingsProvider =
     FutureProvider.family<ContestStandings, String>((ref, id) {
-      return ref.read(contestsRepositoryProvider).standings(id);
-    });
+  return ref.read(contestsRepositoryProvider).standings(id);
+});
 
 final currentContestsProvider = FutureProvider<List<CurrentContest>>((ref) {
   return ref.read(contestsRepositoryProvider).currentContests();

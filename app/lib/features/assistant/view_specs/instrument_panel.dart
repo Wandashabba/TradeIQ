@@ -205,8 +205,7 @@ class AnswerFigures {
       // figures. There is no "probably internal".
       return AnswerFigures(
         internal: <ChatArtifact>[
-          for (final a in internal)
-            if (!figureTypes.contains(a.type)) a,
+          for (final a in internal) if (!figureTypes.contains(a.type)) a,
         ],
         outside: const <ChatArtifact>[],
         suppressed: true,

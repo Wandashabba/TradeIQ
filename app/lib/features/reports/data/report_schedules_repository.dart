@@ -11,22 +11,18 @@ const reportCadences = <String>['daily', 'weekly'];
 
 /// A cadence slug as a person reads it.
 String cadenceLabel(String cadence) => switch (cadence) {
-  'daily' => 'Daily',
-  'weekly' => 'Weekly',
-  _ => cadence,
-};
+      'daily' => 'Daily',
+      'weekly' => 'Weekly',
+      _ => cadence,
+    };
 
 /// The webhook event a schedule's runs are announced as (#66).
 const reportGeneratedEvent = 'report.generated';
 
 DateTime? _date(Object? raw) => raw is String ? DateTime.parse(raw) : null;
 
-List<String> _strings(Object? raw) => raw is List
-    ? [
-        for (final r in raw)
-          if (r is String) r,
-      ]
-    : const [];
+List<String> _strings(Object? raw) =>
+    raw is List ? [for (final r in raw) if (r is String) r] : const [];
 
 /// A saved report on a recurring cadence, as returned by the
 /// `/report-schedules` routes.
@@ -139,9 +135,8 @@ class ScheduleRunResult {
   factory ScheduleRunResult.fromJson(Map<String, dynamic> json) {
     final rawDeliveries = json['deliveries'];
     return ScheduleRunResult(
-      schedule: ReportSchedule.fromJson(
-        json['schedule'] as Map<String, dynamic>,
-      ),
+      schedule:
+          ReportSchedule.fromJson(json['schedule'] as Map<String, dynamic>),
       runId: json['runId'] as String?,
       generatedAt: json['generatedAt'] as String,
       rowCount: json['rowCount'] as int? ?? 0,
@@ -149,8 +144,7 @@ class ScheduleRunResult {
       deliveries: rawDeliveries is List
           ? [
               for (final d in rawDeliveries)
-                if (d is Map<String, dynamic>)
-                  ReportDeliveryOutcome.fromJson(d),
+                if (d is Map<String, dynamic>) ReportDeliveryOutcome.fromJson(d),
             ]
           : const [],
     );
@@ -189,13 +183,13 @@ enum ReportRunStatus {
   unknown;
 
   static ReportRunStatus parse(String? raw) => switch (raw) {
-    'delivering' => ReportRunStatus.delivering,
-    'delivered' => ReportRunStatus.delivered,
-    'partial' => ReportRunStatus.partial,
-    'failed' => ReportRunStatus.failed,
-    'not_sent' => ReportRunStatus.notSent,
-    _ => ReportRunStatus.unknown,
-  };
+        'delivering' => ReportRunStatus.delivering,
+        'delivered' => ReportRunStatus.delivered,
+        'partial' => ReportRunStatus.partial,
+        'failed' => ReportRunStatus.failed,
+        'not_sent' => ReportRunStatus.notSent,
+        _ => ReportRunStatus.unknown,
+      };
 }
 
 /// A run's webhook deliveries, counted.
@@ -282,8 +276,7 @@ class RunWebhookResult {
       RunWebhookResult(
         id: json['id'] as String,
         url: json['url'] as String? ?? '',
-        status:
-            DeliveryStatus.parse(json['status'] as String?) ??
+        status: DeliveryStatus.parse(json['status'] as String?) ??
             DeliveryStatus.pending,
         attempts: _int(json['attempts']),
         lastStatusCode: json['lastStatusCode'] as int?,
@@ -363,8 +356,7 @@ class ReportRun {
       deliveries: rawDeliveries is List
           ? [
               for (final d in rawDeliveries)
-                if (d is Map<String, dynamic>)
-                  ReportDeliveryOutcome.fromJson(d),
+                if (d is Map<String, dynamic>) ReportDeliveryOutcome.fromJson(d),
             ]
           : const [],
       webhookDeliveries: rawWebhooks is List
@@ -400,8 +392,7 @@ class ReportEmailDelivery {
       ReportEmailDelivery(
         id: json['id'] as String,
         recipient: json['recipient'] as String? ?? '',
-        status:
-            DeliveryStatus.parse(json['status'] as String?) ??
+        status: DeliveryStatus.parse(json['status'] as String?) ??
             DeliveryStatus.pending,
         attempts: _int(json['attempts']),
         lastError: json['lastError'] as String?,
@@ -503,23 +494,18 @@ class DioReportSchedulesRepository implements ReportSchedulesRepository {
     required String cadence,
     required List<String> recipients,
   }) async {
-    final response = await dio.post(
-      '/report-schedules',
-      data: {
-        'reportDefinitionId': reportDefinitionId,
-        'cadence': cadence,
-        'recipients': recipients,
-      },
-    );
+    final response = await dio.post('/report-schedules', data: {
+      'reportDefinitionId': reportDefinitionId,
+      'cadence': cadence,
+      'recipients': recipients,
+    });
     return ReportSchedule.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<ReportSchedule> setActive(String id, bool active) async {
-    final response = await dio.patch(
-      '/report-schedules/$id',
-      data: {'active': active},
-    );
+    final response =
+        await dio.patch('/report-schedules/$id', data: {'active': active});
     return ReportSchedule.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -533,10 +519,10 @@ class DioReportSchedulesRepository implements ReportSchedulesRepository {
       cadence != null || recipients != null,
       'updateSchedule needs a cadence or recipients',
     );
-    final response = await dio.patch(
-      '/report-schedules/$id',
-      data: {'cadence': ?cadence, 'recipients': ?recipients},
-    );
+    final response = await dio.patch('/report-schedules/$id', data: {
+      'cadence': ?cadence,
+      'recipients': ?recipients,
+    });
     return ReportSchedule.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -558,12 +544,10 @@ final reportSchedulesRepositoryProvider = Provider<ReportSchedulesRepository>(
 
 // First page only, as a plain list — the same deliberate scope as
 // `reportsListProvider`: no "load more" UI in the console yet.
-final reportSchedulesListProvider = FutureProvider<List<ReportSchedule>>((
-  ref,
-) async {
-  final page = await ref
-      .read(reportSchedulesRepositoryProvider)
-      .listSchedules();
+final reportSchedulesListProvider =
+    FutureProvider<List<ReportSchedule>>((ref) async {
+  final page =
+      await ref.read(reportSchedulesRepositoryProvider).listSchedules();
   return page.data;
 });
 
@@ -572,7 +556,7 @@ final reportSchedulesListProvider = FutureProvider<List<ReportSchedule>>((
 /// every entry.
 final reportRunEmailDeliveriesProvider =
     FutureProvider.family<List<ReportEmailDelivery>, (String, String)>(
-      (ref, key) => ref
-          .read(reportSchedulesRepositoryProvider)
-          .listEmailDeliveries(key.$1, key.$2),
-    );
+  (ref, key) => ref
+      .read(reportSchedulesRepositoryProvider)
+      .listEmailDeliveries(key.$1, key.$2),
+);

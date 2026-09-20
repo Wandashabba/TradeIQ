@@ -9,10 +9,7 @@ import 'phase2_harness.dart';
 
 const List<ProofLine> _proof = <ProofLine>[
   ProofLine(text: '6 of 9 sections captured'),
-  ProofLine(
-    text: '3 photos held on this phone',
-    state: SectionState.inProgress,
-  ),
+  ProofLine(text: '3 photos held on this phone', state: SectionState.inProgress),
 ];
 
 void main() {

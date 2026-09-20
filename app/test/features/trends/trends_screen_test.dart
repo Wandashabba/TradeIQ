@@ -28,14 +28,10 @@ class _FakeTrendsRepository implements TrendsRepository {
   }
 
   @override
-  Future<List<TrendPoint>> availability([
-    TrendQuery query = const TrendQuery(),
-  ]) async => _points;
+  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => _points;
 
   @override
-  Future<List<TrendPoint>> perfectStore([
-    TrendQuery query = const TrendQuery(),
-  ]) async => _points;
+  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => _points;
 
   @override
   Future<TerritoryBenchmarkReport> benchmark(
@@ -51,19 +47,13 @@ class _FakeTrendsRepository implements TrendsRepository {
 
 class _ThrowingTrendsRepository implements TrendsRepository {
   @override
-  Future<List<TrendPoint>> scorecards([
-    TrendQuery query = const TrendQuery(),
-  ]) async => throw Exception('boom');
+  Future<List<TrendPoint>> scorecards([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 
   @override
-  Future<List<TrendPoint>> availability([
-    TrendQuery query = const TrendQuery(),
-  ]) async => throw Exception('boom');
+  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 
   @override
-  Future<List<TrendPoint>> perfectStore([
-    TrendQuery query = const TrendQuery(),
-  ]) async => throw Exception('boom');
+  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 
   @override
   Future<TerritoryBenchmarkReport> benchmark(
@@ -73,10 +63,12 @@ class _ThrowingTrendsRepository implements TrendsRepository {
 }
 
 Widget _app(TrendsRepository repo, {ThemeData? theme}) => routedApp(
-  const TrendsScreen(),
-  theme: theme,
-  overrides: [trendsRepositoryProvider.overrideWithValue(repo)],
-);
+      const TrendsScreen(),
+      theme: theme,
+      overrides: [
+        trendsRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
 
 /// The body is a lazy [ListView]; at the default 800×600 surface the third
 /// panel is never built. Drive it at a viewport tall enough to hold all three.
@@ -90,50 +82,42 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
-  testWidgets(
-    'light: both switches ride a glass pill; table figures are mono',
-    (tester) async {
-      await _pump(
-        tester,
-        _app(_FakeTrendsRepository(), theme: AppTheme.light()),
-      );
+  testWidgets('light: both switches ride a glass pill; table figures are mono',
+      (tester) async {
+    await _pump(tester, _app(_FakeTrendsRepository(), theme: AppTheme.light()));
 
-      // The selected segment is lifted onto a pill; the rest are bare words.
-      GlassPane? pillIn(Finder segment) {
-        final f = find.descendant(
-          of: segment,
-          matching: find.byType(GlassPane),
-        );
-        return f.evaluate().isEmpty ? null : tester.widget<GlassPane>(f);
-      }
+    // The selected segment is lifted onto a pill; the rest are bare words.
+    GlassPane? pillIn(Finder segment) {
+      final f = find.descendant(of: segment, matching: find.byType(GlassPane));
+      return f.evaluate().isEmpty ? null : tester.widget<GlassPane>(f);
+    }
 
-      expect(
-        pillIn(find.byKey(const ValueKey('interval-week')))?.kind,
-        GlassKind.pill,
-      );
-      expect(pillIn(find.byKey(const ValueKey('interval-day'))), isNull);
+    expect(
+      pillIn(find.byKey(const ValueKey('interval-week')))?.kind,
+      GlassKind.pill,
+    );
+    expect(pillIn(find.byKey(const ValueKey('interval-day'))), isNull);
 
-      final scorecards = find.byKey(const ValueKey('trend-scorecards'));
-      Finder inPanel(Finder f) => find.descendant(of: scorecards, matching: f);
-      expect(
-        pillIn(inPanel(find.byKey(const ValueKey('view-chart'))))?.kind,
-        GlassKind.pill,
-      );
+    final scorecards = find.byKey(const ValueKey('trend-scorecards'));
+    Finder inPanel(Finder f) => find.descendant(of: scorecards, matching: f);
+    expect(
+      pillIn(inPanel(find.byKey(const ValueKey('view-chart'))))?.kind,
+      GlassKind.pill,
+    );
 
-      await tester.tap(inPanel(find.byKey(const ValueKey('view-table'))));
-      await tester.pumpAndSettle();
-      expect(
-        pillIn(inPanel(find.byKey(const ValueKey('view-table'))))?.kind,
-        GlassKind.pill,
-      );
-      expect(pillIn(inPanel(find.byKey(const ValueKey('view-chart')))), isNull);
+    await tester.tap(inPanel(find.byKey(const ValueKey('view-table'))));
+    await tester.pumpAndSettle();
+    expect(
+      pillIn(inPanel(find.byKey(const ValueKey('view-table'))))?.kind,
+      GlassKind.pill,
+    );
+    expect(pillIn(inPanel(find.byKey(const ValueKey('view-chart')))), isNull);
 
-      expect(
-        tester.widget<Text>(inPanel(find.text('80'))).style!.fontFamily,
-        LumenGlass.mono,
-      );
-    },
-  );
+    expect(
+      tester.widget<Text>(inPanel(find.text('80'))).style!.fontFamily,
+      LumenGlass.mono,
+    );
+  });
 
   testWidgets('renders the three trend sections as charts', (tester) async {
     await _pump(tester, _app(_FakeTrendsRepository()));
@@ -177,9 +161,8 @@ void main() {
     expect(find.text('80%'), findsNWidgets(2));
   });
 
-  testWidgets('shows a failure message when a trend fails to load', (
-    tester,
-  ) async {
+  testWidgets('shows a failure message when a trend fails to load',
+      (tester) async {
     await _pump(tester, _app(_ThrowingTrendsRepository()));
 
     expect(find.textContaining('Failed to load'), findsWidgets);
@@ -199,9 +182,7 @@ void main() {
     expect(find.text('Server default'), findsOneWidget);
   });
 
-  testWidgets('switching to daily re-queries with interval=day', (
-    tester,
-  ) async {
+  testWidgets('switching to daily re-queries with interval=day', (tester) async {
     final repo = _FakeTrendsRepository();
     await _pump(tester, _app(repo));
 

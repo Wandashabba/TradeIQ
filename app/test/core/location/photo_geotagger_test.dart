@@ -81,22 +81,19 @@ void main() {
     expect(await tagger.tag(), isEmpty);
   });
 
-  test(
-    'a fix that never arrives gives up at the timeout with no tag',
-    () async {
-      final tagger = PhotoGeotagger(
-        location: _FakeLocation(() => Completer<LocationResult>().future),
-        timeout: const Duration(milliseconds: 50),
-      );
+  test('a fix that never arrives gives up at the timeout with no tag', () async {
+    final tagger = PhotoGeotagger(
+      location: _FakeLocation(() => Completer<LocationResult>().future),
+      timeout: const Duration(milliseconds: 50),
+    );
 
-      final watch = Stopwatch()..start();
-      final tag = await tagger.tag();
-      watch.stop();
+    final watch = Stopwatch()..start();
+    final tag = await tagger.tag();
+    watch.stop();
 
-      expect(tag, isEmpty);
-      expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
-    },
-  );
+    expect(tag, isEmpty);
+    expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+  });
 
   test('the default wait is short — seconds, not the check-in fix timeout', () {
     expect(

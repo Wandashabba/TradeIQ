@@ -84,9 +84,9 @@ class HttpQueueFlusher implements QueueFlusher {
   final Dio _dio;
 
   Future<String> _remoteVisitId(String localVisitId) async {
-    final draft = await (db.select(
-      db.visitDrafts,
-    )..where((t) => t.id.equals(localVisitId))).getSingleOrNull();
+    final draft = await (db.select(db.visitDrafts)
+          ..where((t) => t.id.equals(localVisitId)))
+        .getSingleOrNull();
     final remoteId = draft?.remoteId;
     if (remoteId == null) {
       throw StateError('Visit $localVisitId not synced yet');
@@ -98,30 +98,19 @@ class HttpQueueFlusher implements QueueFlusher {
   Future<void> flush(SyncQueueItem item) async {
     switch (item.entityType) {
       case 'visit':
-        final res = await _dio.post(
-          '/visits',
-          data: jsonDecode(item.payloadJson),
-        );
+        final res = await _dio.post('/visits', data: jsonDecode(item.payloadJson));
         final remoteId = (res.data as Map<String, dynamic>)['id'] as String;
-        await (db.update(db.visitDrafts)
-              ..where((t) => t.id.equals(item.entityId)))
+        await (db.update(db.visitDrafts)..where((t) => t.id.equals(item.entityId)))
             .write(VisitDraftsCompanion(remoteId: Value(remoteId)));
         return;
       case 'stock':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        await _dio.post(
-          '/stock',
-          data: {'visitId': remoteId, 'items': payload['items']},
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/stock', data: {'visitId': remoteId, 'items': payload['items']});
         return;
       case 'visit_submit':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         // Carry the device's completion time through to the server. Without it
         // the fraud engine has no honest dwell measurement (#101).
         final submittedAtClient = payload['submittedAtClient'];
@@ -134,66 +123,40 @@ class HttpQueueFlusher implements QueueFlusher {
         return;
       case 'visibility':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        final fields = Map<String, dynamic>.from(payload)
-          ..remove('visitDraftId');
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/visibility', data: {'visitId': remoteId, ...fields});
         return;
       case 'pricing':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        await _dio.post(
-          '/pricing',
-          data: {'visitId': remoteId, 'items': payload['items']},
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/pricing', data: {'visitId': remoteId, 'items': payload['items']});
         return;
       case 'competitive':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        await _dio.post(
-          '/competitive',
-          data: {'visitId': remoteId, 'items': payload['items']},
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/competitive', data: {'visitId': remoteId, 'items': payload['items']});
         return;
       case 'capability':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        final fields = Map<String, dynamic>.from(payload)
-          ..remove('visitDraftId');
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/capability', data: {'visitId': remoteId, ...fields});
         return;
       case 'risk':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        await _dio.post(
-          '/risks',
-          data: {'visitId': remoteId, 'risks': payload['risks']},
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/risks', data: {'visitId': remoteId, 'risks': payload['risks']});
         return;
       case 'task':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        final fields = Map<String, dynamic>.from(payload)
-          ..remove('visitDraftId');
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/tasks', data: {'visitId': remoteId, ...fields});
         return;
       case 'scorecard':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         await _dio.post('/scorecards', data: {'visitId': remoteId});
         return;
       case 'photo':
@@ -201,11 +164,8 @@ class HttpQueueFlusher implements QueueFlusher {
         // child: it carries the local visit-draft id and waits for the visit to
         // sync before it can name a server visit.
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        final fields = Map<String, dynamic>.from(payload)
-          ..remove('visitDraftId');
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/photos', data: {'visitId': remoteId, ...fields});
         return;
       case orderEntity:
@@ -218,10 +178,7 @@ class HttpQueueFlusher implements QueueFlusher {
         await _dio.post('/orders', data: jsonDecode(item.payloadJson));
         return;
       case locationConsentEntity:
-        await _dio.post(
-          '/locations/consent',
-          data: jsonDecode(item.payloadJson),
-        );
+        await _dio.post('/locations/consent', data: jsonDecode(item.payloadJson));
         return;
       case 'template_response':
         // The client-questions section (#122). The server upserts per (visit,
@@ -229,24 +186,17 @@ class HttpQueueFlusher implements QueueFlusher {
         // version is the one this device rendered: it may sync after the
         // manager has edited the template.
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final remoteId = await _remoteVisitId(
-          payload['visitDraftId'] as String,
-        );
-        await _dio.post(
-          '/template-responses',
-          data: {
-            'visitId': remoteId,
-            'templateId': payload['templateId'],
-            if (payload['templateVersion'] != null)
-              'templateVersion': payload['templateVersion'],
-            'answers': payload['answers'],
-          },
-        );
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/template-responses', data: {
+          'visitId': remoteId,
+          'templateId': payload['templateId'],
+          if (payload['templateVersion'] != null)
+            'templateVersion': payload['templateVersion'],
+          'answers': payload['answers'],
+        });
         return;
       default:
-        throw UnimplementedError(
-          'HTTP sync for ${item.entityType} not wired yet',
-        );
+        throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
     }
   }
 }
@@ -280,16 +230,15 @@ class SyncService {
     final owner = currentLocalUserId;
     if (owner == null) return;
 
-    final pending =
-        await (db.select(db.syncQueueItems)
-              ..where(
-                (tbl) =>
-                    tbl.synced.equals(false) &
-                    tbl.userId.equals(owner) &
-                    tbl.entityType.isNotIn(locationEntityTypes),
-              )
-              ..orderBy([(tbl) => OrderingTerm(expression: tbl.id)]))
-            .get();
+    final pending = await (db.select(db.syncQueueItems)
+          ..where(
+            (tbl) =>
+                tbl.synced.equals(false) &
+                tbl.userId.equals(owner) &
+                tbl.entityType.isNotIn(locationEntityTypes),
+          )
+          ..orderBy([(tbl) => OrderingTerm(expression: tbl.id)]))
+        .get();
 
     for (final item in pending) {
       await _sendOne(item);
@@ -311,9 +260,8 @@ class SyncService {
       // "waiting for signal" and "the server will never accept this" look
       // identical to an agent otherwise, and only one of them needs them to
       // do something about it.
-      await (db.update(
-        db.syncQueueItems,
-      )..where((tbl) => tbl.id.equals(item.id))).write(
+      await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
+          .write(
         SyncQueueItemsCompanion(
           attempts: Value(item.attempts + 1),
           // A code, not a sentence: the row outlives the language the agent
@@ -324,9 +272,8 @@ class SyncService {
       );
       return false;
     }
-    await (db.update(
-      db.syncQueueItems,
-    )..where((tbl) => tbl.id.equals(item.id))).write(
+    await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
+        .write(
       SyncQueueItemsCompanion(
         synced: const Value(true),
         attempts: Value(item.attempts + 1),
@@ -417,15 +364,14 @@ class SyncService {
     String owner,
   ) async {
     if (row.entityType != 'visit') return const <SyncQueueItem>[];
-    final candidates =
-        await (db.select(db.syncQueueItems)..where(
-              (tbl) =>
-                  tbl.userId.equals(owner) &
-                  tbl.synced.equals(false) &
-                  tbl.id.equals(row.id).not() &
-                  tbl.entityType.isNotIn(locationEntityTypes),
-            ))
-            .get();
+    final candidates = await (db.select(db.syncQueueItems)..where(
+          (tbl) =>
+              tbl.userId.equals(owner) &
+              tbl.synced.equals(false) &
+              tbl.id.equals(row.id).not() &
+              tbl.entityType.isNotIn(locationEntityTypes),
+        ))
+        .get();
     return candidates.where((c) {
       try {
         final payload = jsonDecode(c.payloadJson);
@@ -452,16 +398,15 @@ class SyncService {
     final owner = currentLocalUserId;
     if (owner == null) return;
 
-    final answers =
-        await (db.select(db.syncQueueItems)
-              ..where(
-                (t) =>
-                    t.synced.equals(false) &
-                    t.userId.equals(owner) &
-                    t.entityType.equals(locationConsentEntity),
-              )
-              ..orderBy([(t) => OrderingTerm(expression: t.id)]))
-            .get();
+    final answers = await (db.select(db.syncQueueItems)
+          ..where(
+            (t) =>
+                t.synced.equals(false) &
+                t.userId.equals(owner) &
+                t.entityType.equals(locationConsentEntity),
+          )
+          ..orderBy([(t) => OrderingTerm(expression: t.id)]))
+        .get();
     for (final answer in answers) {
       // In order, stopping at the first failure. The server refuses pings
       // until it has the acknowledgement, and a later "stop" must never land
@@ -493,17 +438,16 @@ class SyncService {
     String source,
   ) async {
     for (;;) {
-      final batch =
-          await (db.select(db.syncQueueItems)
-                ..where(
-                  (t) =>
-                      t.synced.equals(false) &
-                      t.userId.equals(owner) &
-                      t.entityType.equals(entityType),
-                )
-                ..orderBy([(t) => OrderingTerm(expression: t.id)])
-                ..limit(maxPingsPerBatch))
-              .get();
+      final batch = await (db.select(db.syncQueueItems)
+            ..where(
+              (t) =>
+                  t.synced.equals(false) &
+                  t.userId.equals(owner) &
+                  t.entityType.equals(entityType),
+            )
+            ..orderBy([(t) => OrderingTerm(expression: t.id)])
+            ..limit(maxPingsPerBatch))
+          .get();
       if (batch.isEmpty) return;
       final ids = [for (final row in batch) row.id];
       final pings = <Map<String, dynamic>>[];
@@ -527,9 +471,8 @@ class SyncService {
         }
         // No signal, a server problem, or the notice not yet on record (403):
         // keep the pings and try again on the next flush.
-        await (db.update(
-          db.syncQueueItems,
-        )..where((t) => t.id.isIn(ids))).write(
+        await (db.update(db.syncQueueItems)..where((t) => t.id.isIn(ids)))
+            .write(
           SyncQueueItemsCompanion.custom(
             attempts: db.syncQueueItems.attempts + const Constant(1),
             lastError: Variable(SyncError.of(e).code),

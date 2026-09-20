@@ -96,8 +96,7 @@ class _Candidates extends ConsumerWidget {
           if (data.candidates.isEmpty) {
             return const EmptyState(
               message: 'No agent can be ranked',
-              hint:
-                  'Ranking needs agents assigned to a territory, or a last '
+              hint: 'Ranking needs agents assigned to a territory, or a last '
                   'known location — neither is recorded yet.',
             );
           }
@@ -133,8 +132,8 @@ class _Candidates extends ConsumerWidget {
                   statusLabel: data.recommended?.agentId == c.agentId
                       ? 'Recommended'
                       : c.inTerritory
-                      ? 'In territory'
-                      : 'Available',
+                          ? 'In territory'
+                          : 'Available',
                 ),
             ],
           );

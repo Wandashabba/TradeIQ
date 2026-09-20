@@ -74,10 +74,7 @@ List<_Case> _cases() => <_Case>[
     ),
   _Case('NotMeasured', const NotMeasured(reason: 'No competitor on shelf')),
   _Case('ProvisionalMarker', const ProvisionalMarker()),
-  _Case(
-    'ProvisionalMarker.confirmed',
-    const ProvisionalMarker(confirmed: true),
-  ),
+  _Case('ProvisionalMarker.confirmed', const ProvisionalMarker(confirmed: true)),
   _Case(
     'ReconciliationLine.console',
     const ReconciliationLine(
@@ -208,11 +205,10 @@ void main() {
         r'(?![A-Za-z0-9_$])',
       );
       for (final folder in _markFolders) {
-        for (final file
-            in Directory(folder)
-                .listSync(recursive: true)
-                .whereType<File>()
-                .where((f) => f.path.endsWith('.dart'))) {
+        for (final file in Directory(folder)
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))) {
           final lines = file.readAsLinesSync();
           for (var i = 0; i < lines.length; i++) {
             final raw = lines[i];

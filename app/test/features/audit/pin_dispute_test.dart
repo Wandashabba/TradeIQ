@@ -26,9 +26,7 @@ import 'visit_harness.dart';
 
 class _QueuedPhotos implements QueuedPhotosRepository {
   final queued =
-      <
-        ({String visitDraftId, String section, String dataUrl, String? source})
-      >[];
+      <({String visitDraftId, String section, String dataUrl, String? source})>[];
 
   @override
   Future<void> queuePhoto({

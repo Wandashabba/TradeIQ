@@ -19,7 +19,8 @@ class TemplateFormScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(templateDetailProvider(templateId));
     return GlassPageScaffold(
-      title: Text(detail.value?.template.name ?? 'Template Preview'),
+      title: Text(detail.value?.template.name ?? 'Template Preview',
+      ),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

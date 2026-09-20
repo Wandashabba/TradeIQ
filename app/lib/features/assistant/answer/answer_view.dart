@@ -84,7 +84,11 @@ class AnswerBlockView extends StatelessWidget {
         return Semantics(header: true, child: rich(style, block.text));
       case AnswerBlockKind.bullets:
       case AnswerBlockKind.numbered:
-        return _ListBlock(block: block, streaming: streaming, caret: caret);
+        return _ListBlock(
+          block: block,
+          streaming: streaming,
+          caret: caret,
+        );
       case AnswerBlockKind.quote:
         return AskCallout(
           kicker: block.kicker,
@@ -254,11 +258,7 @@ class AskCallout extends StatelessWidget {
 /// vocabulary across chips and choices, and a chip that is never selected
 /// here. Three amber chips would be the repeated fill the law bans outright.
 class FollowUpChips extends ConsumerWidget {
-  const FollowUpChips({
-    super.key,
-    required this.questions,
-    this.enabled = true,
-  });
+  const FollowUpChips({super.key, required this.questions, this.enabled = true});
 
   final List<String> questions;
 

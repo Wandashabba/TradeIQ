@@ -17,23 +17,20 @@ void main() {
       }
     });
 
-    test(
-      'the provider hands out the no-op client, which does nothing',
-      () async {
-        final container = ProviderContainer();
-        addTearDown(container.dispose);
+    test('the provider hands out the no-op client, which does nothing', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-        final client = container.read(pushClientProvider);
+      final client = container.read(pushClientProvider);
 
-        expect(client, isA<NoopPushClient>());
-        expect(client.isEnabled, isFalse);
-        expect(client.platform, PushPlatform.android);
-        expect(await client.getToken(), isNull);
-        expect(await client.onTokenRefresh.isEmpty, isTrue);
-        expect(await client.onOpenedRoute.isEmpty, isTrue);
-        await client.deleteToken(); // completes, and there is nothing to assert
-      },
-    );
+      expect(client, isA<NoopPushClient>());
+      expect(client.isEnabled, isFalse);
+      expect(client.platform, PushPlatform.android);
+      expect(await client.getToken(), isNull);
+      expect(await client.onTokenRefresh.isEmpty, isTrue);
+      expect(await client.onOpenedRoute.isEmpty, isTrue);
+      await client.deleteToken(); // completes, and there is nothing to assert
+    });
   });
 
   group('PushConfig', () {

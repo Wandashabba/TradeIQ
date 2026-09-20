@@ -111,23 +111,20 @@ void main() {
 
   Future<List<SyncQueueItem>> rows() => db.select(db.syncQueueItems).get();
 
-  test(
-    'sends queued pings in batches of 100 and deletes them once sent',
-    () async {
-      await queuePings(250);
-      await sync.flushLocationQueue();
+  test('sends queued pings in batches of 100 and deletes them once sent', () async {
+    await queuePings(250);
+    await sync.flushLocationQueue();
 
-      expect(sender.batches.map((b) => b.length), [100, 100, 50]);
-      expect(sender.batches.first.first, {
-        'lat': -26.1,
-        'lng': 28.05,
-        'accuracyM': 9.0,
-        'recordedAt': '2026-09-15T08:00:00.000Z',
-      });
-      expect(sender.sources, ['foreground', 'foreground', 'foreground']);
-      expect(await rows(), isEmpty);
-    },
-  );
+    expect(sender.batches.map((b) => b.length), [100, 100, 50]);
+    expect(sender.batches.first.first, {
+      'lat': -26.1,
+      'lng': 28.05,
+      'accuracyM': 9.0,
+      'recordedAt': '2026-09-15T08:00:00.000Z',
+    });
+    expect(sender.sources, ['foreground', 'foreground', 'foreground']);
+    expect(await rows(), isEmpty);
+  });
 
   /// #153 T2 — background route points travel in their own lane. `POST
   /// /locations` takes one `source` for the whole batch, so the two must never
@@ -149,56 +146,48 @@ void main() {
       }
     }
 
-    test(
-      'posts them with source background, never mixed with the heartbeat',
-      () async {
-        await queuePings(2);
-        await queueBackgroundPings(3);
+    test('posts them with source background, never mixed with the heartbeat', () async {
+      await queuePings(2);
+      await queueBackgroundPings(3);
 
-        await sync.flushLocationQueue();
+      await sync.flushLocationQueue();
 
-        expect(sender.sources, ['foreground', 'background']);
-        expect(sender.batches.map((b) => b.length), [2, 3]);
-        // Foreground first: it is the fresher signal and the one a manager
-        // watching the live map is actually looking at.
-        expect(sender.batches.first.first['lat'], -26.1);
-        expect(sender.batches.last.first['lat'], -26.2);
-        expect(await rows(), isEmpty);
-      },
-    );
+      expect(sender.sources, ['foreground', 'background']);
+      expect(sender.batches.map((b) => b.length), [2, 3]);
+      // Foreground first: it is the fresher signal and the one a manager
+      // watching the live map is actually looking at.
+      expect(sender.batches.first.first['lat'], -26.1);
+      expect(sender.batches.last.first['lat'], -26.2);
+      expect(await rows(), isEmpty);
+    });
 
-    test(
-      'a background lane the server refuses does not hold up the heartbeat',
-      () async {
-        // The realistic case: the background notice is not on record yet (403),
-        // while foreground sharing is perfectly fine.
-        await queuePings(2);
-        await queueBackgroundPings(2);
-        var seen = 0;
-        sync = SyncService(
-          db: db,
-          flusher: flusher,
-          pingSender: _SelectiveSender(
-            onSend: (pings, source) {
-              seen++;
-              if (source == 'background') throw _http(403);
-            },
-          ),
-        );
+    test('a background lane the server refuses does not hold up the heartbeat', () async {
+      // The realistic case: the background notice is not on record yet (403),
+      // while foreground sharing is perfectly fine.
+      await queuePings(2);
+      await queueBackgroundPings(2);
+      var seen = 0;
+      sync = SyncService(
+        db: db,
+        flusher: flusher,
+        pingSender: _SelectiveSender(
+          onSend: (pings, source) {
+            seen++;
+            if (source == 'background') throw _http(403);
+          },
+        ),
+      );
 
-        await sync.flushLocationQueue();
+      await sync.flushLocationQueue();
 
-        expect(seen, 2);
-        final left = await rows();
-        // The foreground pings are gone (sent); the background ones are held for
-        // the next flush, with the attempt recorded.
-        expect(left.map((r) => r.entityType).toSet(), {
-          locationBackgroundPingEntity,
-        });
-        expect(left, hasLength(2));
-        expect(left.every((r) => r.attempts == 1), isTrue);
-      },
-    );
+      expect(seen, 2);
+      final left = await rows();
+      // The foreground pings are gone (sent); the background ones are held for
+      // the next flush, with the attempt recorded.
+      expect(left.map((r) => r.entityType).toSet(), {locationBackgroundPingEntity});
+      expect(left, hasLength(2));
+      expect(left.every((r) => r.attempts == 1), isTrue);
+    });
 
     test('batches background pings at the server limit too', () async {
       await queueBackgroundPings(150);
@@ -208,19 +197,16 @@ void main() {
     });
   });
 
-  test(
-    'flushPending sends pings in a batch, never through the per-item flusher',
-    () async {
-      await db.enqueue(entityType: 'visit', entityId: 'v1', payloadJson: '{}');
-      await queuePings(3);
+  test('flushPending sends pings in a batch, never through the per-item flusher', () async {
+    await db.enqueue(entityType: 'visit', entityId: 'v1', payloadJson: '{}');
+    await queuePings(3);
 
-      await sync.flushPending();
+    await sync.flushPending();
 
-      expect(flusher.sent.map((i) => i.entityType), ['visit']);
-      expect(sender.batches, hasLength(1));
-      expect(sender.batches.single, hasLength(3));
-    },
-  );
+    expect(flusher.sent.map((i) => i.entityType), ['visit']);
+    expect(sender.batches, hasLength(1));
+    expect(sender.batches.single, hasLength(3));
+  });
 
   test('sends the answer to the notice first, then the pings', () async {
     await queueAnswer('acknowledged');
@@ -234,69 +220,46 @@ void main() {
     expect(answer.synced, isTrue);
   });
 
-  test(
-    'holds pings back while the answer to the notice has not sent',
-    () async {
-      flusher.failWith = _http(null);
-      await queueAnswer('acknowledged');
-      await queuePings(2);
+  test('holds pings back while the answer to the notice has not sent', () async {
+    flusher.failWith = _http(null);
+    await queueAnswer('acknowledged');
+    await queuePings(2);
 
-      await sync.flushLocationQueue();
+    await sync.flushLocationQueue();
 
-      expect(sender.batches, isEmpty);
-      final all = await rows();
-      expect(
-        all.where((r) => r.entityType == locationPingEntity),
-        hasLength(2),
-      );
-      expect(
-        all.firstWhere((r) => r.entityType == locationConsentEntity).attempts,
-        1,
-      );
-    },
-  );
+    expect(sender.batches, isEmpty);
+    final all = await rows();
+    expect(all.where((r) => r.entityType == locationPingEntity), hasLength(2));
+    expect(all.firstWhere((r) => r.entityType == locationConsentEntity).attempts, 1);
+  });
 
-  test(
-    'keeps pings queued with the attempt recorded when there is no signal',
-    () async {
-      sender.failWith = _http(null);
-      await queuePings(3);
+  test('keeps pings queued with the attempt recorded when there is no signal', () async {
+    sender.failWith = _http(null);
+    await queuePings(3);
 
-      await sync.flushLocationQueue();
+    await sync.flushLocationQueue();
 
-      final left = await rows();
-      expect(left, hasLength(3));
-      expect(
-        left.every(
-          (r) => r.attempts == 1 && r.lastError == 'sync:noConnection',
-        ),
-        isTrue,
-      );
-      expect(left.every((r) => !r.synced), isTrue);
-    },
-  );
+    final left = await rows();
+    expect(left, hasLength(3));
+    expect(left.every((r) => r.attempts == 1 && r.lastError == 'sync:noConnection'), isTrue);
+    expect(left.every((r) => !r.synced), isTrue);
+  });
 
-  test(
-    'keeps pings when the server has not got the acknowledgement yet (403)',
-    () async {
-      sender.failWith = _http(403);
-      await queuePings(1);
-      await sync.flushLocationQueue();
-      expect(await rows(), hasLength(1));
-    },
-  );
+  test('keeps pings when the server has not got the acknowledgement yet (403)', () async {
+    sender.failWith = _http(403);
+    await queuePings(1);
+    await sync.flushLocationQueue();
+    expect(await rows(), hasLength(1));
+  });
 
-  test(
-    'drops a batch the server rejects as malformed instead of blocking later pings',
-    () async {
-      sender.failWith = _http(400);
-      await queuePings(120);
+  test('drops a batch the server rejects as malformed instead of blocking later pings', () async {
+    sender.failWith = _http(400);
+    await queuePings(120);
 
-      await sync.flushLocationQueue();
+    await sync.flushLocationQueue();
 
-      expect(await rows(), isEmpty);
-    },
-  );
+    expect(await rows(), isEmpty);
+  });
 
   test('sends only the signed-in agent’s pings', () async {
     await queuePings(2);

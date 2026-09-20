@@ -48,21 +48,18 @@ void main() {
       expect(zoom.isFinite, isTrue);
     });
 
-    test(
-      'three points where two are coincident still fits the real spread',
-      () {
-        final points = [
-          const LatLng(-26.10, 28.05),
-          const LatLng(-26.10, 28.05),
-          const LatLng(-26.14, 28.09),
-        ];
-        final (center, zoom) = fitFor(points, size: const Size(862, 260));
+    test('three points where two are coincident still fits the real spread', () {
+      final points = [
+        const LatLng(-26.10, 28.05),
+        const LatLng(-26.10, 28.05),
+        const LatLng(-26.14, 28.09),
+      ];
+      final (center, zoom) = fitFor(points, size: const Size(862, 260));
 
-        expect(zoom.isFinite, isTrue);
-        expect(center.latitude, closeTo(-26.12, 0.01));
-        expect(center.longitude, closeTo(28.07, 0.01));
-      },
-    );
+      expect(zoom.isFinite, isTrue);
+      expect(center.latitude, closeTo(-26.12, 0.01));
+      expect(center.longitude, closeTo(28.07, 0.01));
+    });
 
     test('a pair spanning a very large distance clamps zoom low, no crash', () {
       // Johannesburg to Cape Town — roughly 1,270km apart.
@@ -81,23 +78,25 @@ void main() {
         const LatLng(-26.100000, 28.050000),
         const LatLng(-26.100001, 28.050001),
       ];
-      final (_, zoom) = fitFor(points, size: const Size(862, 260), maxZoom: 16);
+      final (_, zoom) = fitFor(
+        points,
+        size: const Size(862, 260),
+        maxZoom: 16,
+      );
 
       expect(zoom, lessThanOrEqualTo(16));
       expect(zoom.isFinite, isTrue);
     });
 
-    test(
-      'a near-degenerate viewport (padding exceeding size) still returns a finite zoom',
-      () {
-        final points = [
-          const LatLng(-26.10, 28.05),
-          const LatLng(-26.14, 28.09),
-        ];
-        final (_, zoom) = fitFor(points, size: const Size(10, 10), padding: 24);
+    test('a near-degenerate viewport (padding exceeding size) still returns a finite zoom', () {
+      final points = [const LatLng(-26.10, 28.05), const LatLng(-26.14, 28.09)];
+      final (_, zoom) = fitFor(
+        points,
+        size: const Size(10, 10),
+        padding: 24,
+      );
 
-        expect(zoom.isFinite, isTrue);
-      },
-    );
+      expect(zoom.isFinite, isTrue);
+    });
   });
 }

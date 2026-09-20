@@ -270,11 +270,7 @@ class _AnswerRow extends StatelessWidget {
             flex: 3,
             child: Text(
               required ? '$label (required)' : label,
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.35,
-                color: colors.ink2,
-              ),
+              style: TextStyle(fontSize: 12.5, height: 1.35, color: colors.ink2),
             ),
           ),
           const SizedBox(width: 12),
@@ -380,12 +376,10 @@ class _Header extends StatelessWidget {
                   value: 'Agent reported it wrong',
                   note: [
                     switch (dispute.status) {
-                      'applied' =>
-                        'Pin moved'
-                            '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
-                      'rejected' =>
-                        'Pin kept'
-                            '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
+                      'applied' => 'Pin moved'
+                          '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
+                      'rejected' => 'Pin kept'
+                          '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
                       _ => 'Waiting for review',
                     },
                     if (dispute.note case final note?) '"$note"',

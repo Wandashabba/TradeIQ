@@ -160,10 +160,7 @@ List<({String label, double value})> _points(dynamic raw) {
     final value = row['value'];
     if (value is! num || !value.isFinite) continue;
     final period = row['period'];
-    points.add((
-      label: period is String ? period : '',
-      value: value.toDouble(),
-    ));
+    points.add((label: period is String ? period : '', value: value.toDouble()));
   }
   return points;
 }
@@ -176,9 +173,7 @@ ArtifactTable _trendTable(ArtifactDetail artifact) {
   final against = _points(comparison['points']);
   final compared = against.isNotEmpty;
   final metric = data['metric'];
-  final suffix = metric is String && _percentMetrics.contains(metric)
-      ? '%'
-      : '';
+  final suffix = metric is String && _percentMetrics.contains(metric) ? '%' : '';
 
   return ArtifactTable(
     columns: [
@@ -190,12 +185,7 @@ ArtifactTable _trendTable(ArtifactDetail artifact) {
     compared: compared,
     rows: [
       for (var i = 0; i < points.length; i++)
-        _trendRow(
-          points[i],
-          _alignedAt(i, points.length, against),
-          compared,
-          suffix,
-        ),
+        _trendRow(points[i], _alignedAt(i, points.length, against), compared, suffix),
     ],
   );
 }
@@ -216,10 +206,7 @@ ArtifactTable _trendTable(ArtifactDetail artifact) {
   if (against.isEmpty) return null;
   if (against.length == 1 || length < 2) return against.first;
   final t = i / (length - 1);
-  return against[(t * (against.length - 1)).round().clamp(
-    0,
-    against.length - 1,
-  )];
+  return against[(t * (against.length - 1)).round().clamp(0, against.length - 1)];
 }
 
 ArtifactTableRow _trendRow(
@@ -251,9 +238,7 @@ ArtifactTableRow _trendRow(
 
 ArtifactTable _pillarTable(ArtifactDetail artifact) {
   final data = _map(artifact.data);
-  final comparison = _map(
-    artifact.data is Map<String, dynamic> ? data['comparison'] : null,
-  );
+  final comparison = _map(artifact.data is Map<String, dynamic> ? data['comparison'] : null);
   final baseline = _map(comparison['values']);
   final deltas = _map(comparison['deltas']);
   final label = comparison['label'];
@@ -268,16 +253,16 @@ ArtifactTable _pillarTable(ArtifactDetail artifact) {
   ];
 
   return ArtifactTable(
-    columns: ['Figure', 'Value', if (compared) label, if (compared) 'Change'],
+    columns: [
+      'Figure',
+      'Value',
+      if (compared) label,
+      if (compared) 'Change',
+    ],
     compared: compared,
     rows: [
       for (final figure in figures)
-        _pillarRow(
-          figure,
-          baseline[figure.key],
-          _map(deltas[figure.key]),
-          compared,
-        ),
+        _pillarRow(figure, baseline[figure.key], _map(deltas[figure.key]), compared),
     ],
   );
 }
@@ -334,7 +319,9 @@ ArtifactTable _rankedBarsTable(ArtifactDetail artifact) {
     compared: false,
     rows: [
       for (final item in data.items)
-        ArtifactTableRow(cells: [item.label, data.label(item.value)]),
+        ArtifactTableRow(
+          cells: [item.label, data.label(item.value)],
+        ),
     ],
   );
 }

@@ -167,18 +167,14 @@ void main() {
       final adapter = _RecordingAdapter(jsonEncode(_row));
       dio.httpClientAdapter = adapter;
 
-      await DioReportSchedulesRepository().updateSchedule(
-        's1',
-        recipients: const ['ops@acme.test'],
-      );
+      await DioReportSchedulesRepository()
+          .updateSchedule('s1', recipients: const ['ops@acme.test']);
       expect(adapter.last!.data, {
         'recipients': ['ops@acme.test'],
       });
 
-      await DioReportSchedulesRepository().updateSchedule(
-        's1',
-        cadence: 'daily',
-      );
+      await DioReportSchedulesRepository()
+          .updateSchedule('s1', cadence: 'daily');
       expect(adapter.last!.data, {'cadence': 'daily'});
     });
 
@@ -204,151 +200,135 @@ void main() {
       expect(adapter.last!.path, '/report-schedules/s1');
     });
 
-    test(
-      'runNow POSTs to /run and parses the run and its deliveries',
-      () async {
-        final adapter = _RecordingAdapter(
-          jsonEncode({
-            'schedule': _row,
-            'runId': 'run-1',
-            'trigger': 'manual',
-            'generatedAt': '2026-09-14T10:05:00.000Z',
-            'rowCount': 42,
-            'deliveredTo': ['https://hooks.acme.test/reports'],
-            'deliveries': [
-              {
-                'channel': 'webhook',
-                'status': 'queued',
-                'targets': ['https://hooks.acme.test/reports'],
-                'webhookDeliveryIds': ['d1'],
-              },
-              {
-                'channel': 'email',
-                'status': 'not_configured',
-                'targets': ['ops@acme.test', 'lead@acme.test'],
-                'detail': 'Email delivery not configured',
-              },
-              'not-an-outcome',
-            ],
-          }),
-        );
-        dio.httpClientAdapter = adapter;
+    test('runNow POSTs to /run and parses the run and its deliveries',
+        () async {
+      final adapter = _RecordingAdapter(
+        jsonEncode({
+          'schedule': _row,
+          'runId': 'run-1',
+          'trigger': 'manual',
+          'generatedAt': '2026-09-14T10:05:00.000Z',
+          'rowCount': 42,
+          'deliveredTo': ['https://hooks.acme.test/reports'],
+          'deliveries': [
+            {
+              'channel': 'webhook',
+              'status': 'queued',
+              'targets': ['https://hooks.acme.test/reports'],
+              'webhookDeliveryIds': ['d1'],
+            },
+            {
+              'channel': 'email',
+              'status': 'not_configured',
+              'targets': ['ops@acme.test', 'lead@acme.test'],
+              'detail': 'Email delivery not configured',
+            },
+            'not-an-outcome',
+          ],
+        }),
+      );
+      dio.httpClientAdapter = adapter;
 
-        final result = await DioReportSchedulesRepository().runNow('s1');
+      final result = await DioReportSchedulesRepository().runNow('s1');
 
-        expect(adapter.last!.method, 'POST');
-        expect(adapter.last!.path, '/report-schedules/s1/run');
-        expect(result.runId, 'run-1');
-        expect(result.rowCount, 42);
-        expect(result.generatedAt, '2026-09-14T10:05:00.000Z');
-        expect(result.deliveredTo, ['https://hooks.acme.test/reports']);
-        expect(result.schedule.id, 's1');
-        expect(result.deliveries, hasLength(2));
-        expect(result.outcomeFor('webhook')!.status, 'queued');
-        final email = result.outcomeFor('email')!;
-        expect(email.status, 'not_configured');
-        expect(email.targets, ['ops@acme.test', 'lead@acme.test']);
-        expect(email.detail, 'Email delivery not configured');
-        expect(result.outcomeFor('sms'), isNull);
-      },
-    );
+      expect(adapter.last!.method, 'POST');
+      expect(adapter.last!.path, '/report-schedules/s1/run');
+      expect(result.runId, 'run-1');
+      expect(result.rowCount, 42);
+      expect(result.generatedAt, '2026-09-14T10:05:00.000Z');
+      expect(result.deliveredTo, ['https://hooks.acme.test/reports']);
+      expect(result.schedule.id, 's1');
+      expect(result.deliveries, hasLength(2));
+      expect(result.outcomeFor('webhook')!.status, 'queued');
+      final email = result.outcomeFor('email')!;
+      expect(email.status, 'not_configured');
+      expect(email.targets, ['ops@acme.test', 'lead@acme.test']);
+      expect(email.detail, 'Email delivery not configured');
+      expect(result.outcomeFor('sms'), isNull);
+    });
 
-    test(
-      'listRuns GETs the schedule\'s runs with limit and cursor, and parses them',
-      () async {
-        final adapter = _RecordingAdapter(
-          jsonEncode({
-            'data': [
-              {
-                'id': 'run-1',
-                'scheduleId': 's1',
-                'trigger': 'scheduled',
-                'status': 'partial',
-                'dueAt': '2026-09-14T09:00:00.000Z',
-                'generatedAt': '2026-09-14T09:01:00.000Z',
-                'rowCount': 42,
-                'reason': '1 email could not be sent',
-                'summary': {
-                  'webhook': {
-                    'status': 'queued',
-                    'delivered': 1,
-                    'failed': 0,
-                    'pending': 0,
-                  },
-                  'email': {
-                    'status': 'queued',
-                    'sent': 1,
-                    'failed': 1,
-                    'pending': 0,
-                    'notConfigured': 0,
-                  },
+    test('listRuns GETs the schedule\'s runs with limit and cursor, and parses them',
+        () async {
+      final adapter = _RecordingAdapter(
+        jsonEncode({
+          'data': [
+            {
+              'id': 'run-1',
+              'scheduleId': 's1',
+              'trigger': 'scheduled',
+              'status': 'partial',
+              'dueAt': '2026-09-14T09:00:00.000Z',
+              'generatedAt': '2026-09-14T09:01:00.000Z',
+              'rowCount': 42,
+              'reason': '1 email could not be sent',
+              'summary': {
+                'webhook': {'status': 'queued', 'delivered': 1, 'failed': 0, 'pending': 0},
+                'email': {
+                  'status': 'queued',
+                  'sent': 1,
+                  'failed': 1,
+                  'pending': 0,
+                  'notConfigured': 0,
                 },
-                'deliveries': [
-                  {
-                    'channel': 'webhook',
-                    'status': 'queued',
-                    'targets': ['https://a.test'],
-                  },
-                ],
-                'webhookDeliveries': [
-                  {
-                    'id': 'wd-1',
-                    'webhookId': 'w1',
-                    'url': 'https://a.test',
-                    'status': 'succeeded',
-                    'attempts': 1,
-                    'lastStatusCode': 204,
-                    'lastError': null,
-                  },
-                ],
-                'csvDownloadUrl': 'https://api.test/report-downloads/t',
-                'csvDownloadExpiresAt': '2026-09-21T09:01:00.000Z',
               },
-              {
-                'id': 'run-2',
-                'generatedAt': '2026-09-13T09:01:00.000Z',
-                'status': 'something_new',
-              },
-            ],
-            'nextCursor': 'run-2',
-          }),
-        );
-        dio.httpClientAdapter = adapter;
+              'deliveries': [
+                {'channel': 'webhook', 'status': 'queued', 'targets': ['https://a.test']},
+              ],
+              'webhookDeliveries': [
+                {
+                  'id': 'wd-1',
+                  'webhookId': 'w1',
+                  'url': 'https://a.test',
+                  'status': 'succeeded',
+                  'attempts': 1,
+                  'lastStatusCode': 204,
+                  'lastError': null,
+                },
+              ],
+              'csvDownloadUrl': 'https://api.test/report-downloads/t',
+              'csvDownloadExpiresAt': '2026-09-21T09:01:00.000Z',
+            },
+            {
+              'id': 'run-2',
+              'generatedAt': '2026-09-13T09:01:00.000Z',
+              'status': 'something_new',
+            },
+          ],
+          'nextCursor': 'run-2',
+        }),
+      );
+      dio.httpClientAdapter = adapter;
 
-        final page = await DioReportSchedulesRepository().listRuns(
-          's1',
-          cursor: 'run-0',
-          limit: 2,
-        );
+      final page = await DioReportSchedulesRepository()
+          .listRuns('s1', cursor: 'run-0', limit: 2);
 
-        expect(adapter.last!.method, 'GET');
-        expect(adapter.last!.path, '/report-schedules/s1/runs');
-        expect(adapter.last!.queryParameters, {'limit': 2, 'cursor': 'run-0'});
-        expect(page.nextCursor, 'run-2');
+      expect(adapter.last!.method, 'GET');
+      expect(adapter.last!.path, '/report-schedules/s1/runs');
+      expect(adapter.last!.queryParameters, {'limit': 2, 'cursor': 'run-0'});
+      expect(page.nextCursor, 'run-2');
 
-        final run = page.data.first;
-        expect(run.status, ReportRunStatus.partial);
-        expect(run.scheduled, isTrue);
-        expect(run.dueAt, DateTime.utc(2026, 9, 14, 9));
-        expect(run.rowCount, 42);
-        expect(run.reason, '1 email could not be sent');
-        expect(run.webhook.delivered, 1);
-        expect(run.email.sent, 1);
-        expect(run.email.failed, 1);
-        expect(run.outcomeFor('webhook')!.status, 'queued');
-        expect(run.webhookDeliveries.single.status, DeliveryStatus.succeeded);
-        expect(run.webhookDeliveries.single.lastStatusCode, 204);
-        expect(run.csvDownloadUrl, 'https://api.test/report-downloads/t');
-        expect(run.csvDownloadExpiresAt, DateTime.utc(2026, 9, 21, 9, 1));
+      final run = page.data.first;
+      expect(run.status, ReportRunStatus.partial);
+      expect(run.scheduled, isTrue);
+      expect(run.dueAt, DateTime.utc(2026, 9, 14, 9));
+      expect(run.rowCount, 42);
+      expect(run.reason, '1 email could not be sent');
+      expect(run.webhook.delivered, 1);
+      expect(run.email.sent, 1);
+      expect(run.email.failed, 1);
+      expect(run.outcomeFor('webhook')!.status, 'queued');
+      expect(run.webhookDeliveries.single.status, DeliveryStatus.succeeded);
+      expect(run.webhookDeliveries.single.lastStatusCode, 204);
+      expect(run.csvDownloadUrl, 'https://api.test/report-downloads/t');
+      expect(run.csvDownloadExpiresAt, DateTime.utc(2026, 9, 21, 9, 1));
 
-        // A sparse or newer row still parses, to safe defaults.
-        final sparse = page.data.last;
-        expect(sparse.status, ReportRunStatus.unknown);
-        expect(sparse.trigger, 'manual');
-        expect(sparse.email.status, isNull);
-        expect(sparse.csvDownloadUrl, isNull);
-      },
-    );
+      // A sparse or newer row still parses, to safe defaults.
+      final sparse = page.data.last;
+      expect(sparse.status, ReportRunStatus.unknown);
+      expect(sparse.trigger, 'manual');
+      expect(sparse.email.status, isNull);
+      expect(sparse.csvDownloadUrl, isNull);
+    });
 
     test('listRuns sends no cursor for the first page', () async {
       final adapter = _RecordingAdapter(
@@ -378,15 +358,10 @@ void main() {
       );
       dio.httpClientAdapter = adapter;
 
-      final list = await DioReportSchedulesRepository().listEmailDeliveries(
-        's1',
-        'run-1',
-      );
+      final list =
+          await DioReportSchedulesRepository().listEmailDeliveries('s1', 'run-1');
 
-      expect(
-        adapter.last!.path,
-        '/report-schedules/s1/runs/run-1/email-deliveries',
-      );
+      expect(adapter.last!.path, '/report-schedules/s1/runs/run-1/email-deliveries');
       expect(adapter.last!.queryParameters, {'limit': 50});
       expect(list.single.recipient, 'ops@acme.test');
       expect(list.single.status, DeliveryStatus.gaveUp);

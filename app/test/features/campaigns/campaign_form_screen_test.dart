@@ -81,12 +81,12 @@ class _FakeOutletsRepository implements OutletsRepository {
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse(
-    data: [
-      Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-      Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
-    ],
-    nextCursor: null,
-  );
+        data: [
+          Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+          Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<Outlet> createOutlet({
@@ -96,10 +96,15 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 }
 
-Widget _app(CampaignsRepository repo, {Campaign? campaign, ThemeData? theme}) =>
+Widget _app(
+  CampaignsRepository repo, {
+  Campaign? campaign,
+  ThemeData? theme,
+}) =>
     ProviderScope(
       overrides: [
         campaignsRepositoryProvider.overrideWithValue(repo),
@@ -112,23 +117,18 @@ Widget _app(CampaignsRepository repo, {Campaign? campaign, ThemeData? theme}) =>
     );
 
 /// The nearest glass pane around [finder].
-GlassPane _paneAround(WidgetTester tester, Finder finder) =>
-    tester.widget<GlassPane>(
+GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
       find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
 void main() {
-  testWidgets('create: submits name, dates and selected outlets', (
-    tester,
-  ) async {
+  testWidgets('create: submits name, dates and selected outlets', (tester) async {
     final repo = _RecordingCampaignsRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byKey(const ValueKey<String>('campaign-name-field')),
-      'Q3 Blitz',
-    );
+        find.byKey(const ValueKey<String>('campaign-name-field')), 'Q3 Blitz');
 
     // Confirm the default initial date in each picker dialog.
     await tester.tap(find.byKey(const ValueKey<String>('campaign-start-date')));
@@ -143,9 +143,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('outlet-option-o1')));
     await tester.pump();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('campaign-save-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('campaign-save-button')));
     await tester.pumpAndSettle();
 
     expect(repo.createdArgs, isNotNull);
@@ -161,9 +159,7 @@ void main() {
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('campaign-save-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('campaign-save-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsOneWidget);
@@ -176,12 +172,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byKey(const ValueKey<String>('campaign-name-field')),
-      'No Dates',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey<String>('campaign-save-button')),
-    );
+        find.byKey(const ValueKey<String>('campaign-name-field')), 'No Dates');
+    await tester.tap(find.byKey(const ValueKey<String>('campaign-save-button')));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('dates are required'), findsOneWidget);
@@ -195,21 +187,14 @@ void main() {
 
     expect(find.text('Summer Push'), findsOneWidget);
     // Date/outlet controls are not shown in edit mode.
-    expect(
-      find.byKey(const ValueKey<String>('campaign-start-date')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey<String>('campaign-start-date')), findsNothing);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('campaign-status-field')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('campaign-status-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Active').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('campaign-save-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('campaign-save-button')));
     await tester.pumpAndSettle();
 
     expect(repo.updatedArgs, isNotNull);
@@ -219,9 +204,8 @@ void main() {
     expect(repo.createdArgs, isNull);
   });
 
-  testWidgets('light: create groups into glass panels and saves from glass', (
-    tester,
-  ) async {
+  testWidgets('light: create groups into glass panels and saves from glass',
+      (tester) async {
     final repo = _RecordingCampaignsRepository();
     await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
     await tester.pumpAndSettle();
@@ -236,9 +220,7 @@ void main() {
     expect(find.byType(FilledButton), findsNothing);
 
     await tester.enterText(
-      find.byKey(const ValueKey<String>('campaign-name-field')),
-      'Q3 Blitz',
-    );
+        find.byKey(const ValueKey<String>('campaign-name-field')), 'Q3 Blitz');
     for (final key in ['campaign-start-date', 'campaign-end-date']) {
       final pick = find.byKey(ValueKey<String>(key));
       await tester.ensureVisible(pick);
@@ -263,9 +245,8 @@ void main() {
     expect(repo.createdArgs!['outletIds'], contains('o1'));
   });
 
-  testWidgets('light: edit puts the status control in its own glass panel', (
-    tester,
-  ) async {
+  testWidgets('light: edit puts the status control in its own glass panel',
+      (tester) async {
     final repo = _RecordingCampaignsRepository();
     await tester.pumpWidget(
       _app(repo, campaign: _existing, theme: AppTheme.light()),

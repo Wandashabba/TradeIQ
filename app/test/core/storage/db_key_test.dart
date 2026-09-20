@@ -22,7 +22,8 @@ class _FakeSecureStorage extends FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async => values[key];
+  }) async =>
+      values[key];
 
   @override
   Future<void> write({
@@ -62,7 +63,8 @@ void main() {
 
       final first = await store.keyHex();
       final second = await store.keyHex();
-      final fromNewInstance = await SecureDbKeyStore(storage: storage).keyHex();
+      final fromNewInstance =
+          await SecureDbKeyStore(storage: storage).keyHex();
 
       expect(second, first);
       expect(fromNewInstance, first);

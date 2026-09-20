@@ -36,9 +36,7 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
     setState(() => _submitting = true);
     final region = _regionCtrl.text.trim();
     try {
-      await ref
-          .read(territoriesRepositoryProvider)
-          .createTerritory(
+      await ref.read(territoriesRepositoryProvider).createTerritory(
             name: _nameCtrl.text.trim(),
             code: _codeCtrl.text.trim(),
             region: region.isEmpty ? null : region,
@@ -63,9 +61,7 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
         key: const ValueKey<String>('territory-name-field'),
         controller: _nameCtrl,
         decoration: const InputDecoration(
-          labelText: 'Name',
-          border: OutlineInputBorder(),
-        ),
+            labelText: 'Name', border: OutlineInputBorder()),
         validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
       ),
       const SizedBox(height: 12),
@@ -73,18 +69,14 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
         key: const ValueKey<String>('territory-code-field'),
         controller: _codeCtrl,
         decoration: const InputDecoration(
-          labelText: 'Code',
-          border: OutlineInputBorder(),
-        ),
+            labelText: 'Code', border: OutlineInputBorder()),
         validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
       ),
       const SizedBox(height: 12),
       TextFormField(
         controller: _regionCtrl,
         decoration: const InputDecoration(
-          labelText: 'Region (optional)',
-          border: OutlineInputBorder(),
-        ),
+            labelText: 'Region (optional)', border: OutlineInputBorder()),
       ),
     ];
 
@@ -132,10 +124,7 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                                  strokeWidth: 2, color: Colors.white))
                           : const Text('Create Territory'),
                     ),
                   ],

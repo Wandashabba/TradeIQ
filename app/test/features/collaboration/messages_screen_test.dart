@@ -109,8 +109,7 @@ class _FakeCollaborationRepository implements CollaborationRepository {
 
 class _ThrowingCollaborationRepository implements CollaborationRepository {
   @override
-  Future<PaginatedResponse<Message>> listMessages() async =>
-      throw Exception('boom');
+  Future<PaginatedResponse<Message>> listMessages() async => throw Exception('boom');
 
   @override
   Future<Message> sendMessage(
@@ -118,17 +117,18 @@ class _ThrowingCollaborationRepository implements CollaborationRepository {
     String? recipientId,
     List<String> attachmentPhotoIds = const [],
     String? clientMessageId,
-  }) async => throw Exception('boom');
+  }) async =>
+      throw Exception('boom');
 
   @override
-  Future<PaginatedResponse<Announcement>> listAnnouncements() async =>
-      throw Exception('boom');
+  Future<PaginatedResponse<Announcement>> listAnnouncements() async => throw Exception('boom');
 
   @override
   Future<Announcement> createAnnouncement({
     required String title,
     required String body,
-  }) async => throw Exception('boom');
+  }) async =>
+      throw Exception('boom');
 }
 
 class _FakePhotosRepository implements PhotosRepository {
@@ -165,7 +165,8 @@ class _FakePhotosRepository implements PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
     String? source,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 }
 
 /// The picker seam: returns a real PNG from either source, recording which.
@@ -190,21 +191,21 @@ Widget _app(
   _FakePhotosRepository? photos,
   _FakeGateway? gateway,
 }) => routedApp(
-  const MessagesScreen(),
-  theme: theme,
-  overrides: [
-    collaborationRepositoryProvider.overrideWithValue(repo),
-    photosRepositoryProvider.overrideWithValue(
-      photos ?? _FakePhotosRepository(),
-    ),
-    photoCaptureServiceProvider.overrideWithValue(
-      PhotoCaptureService(gateway: gateway ?? _FakeGateway()),
-    ),
-    sessionControllerProvider.overrideWith(
-      () => _FixedSessionController(SessionState(role: role)),
-    ),
-  ],
-);
+      const MessagesScreen(),
+      theme: theme,
+      overrides: [
+        collaborationRepositoryProvider.overrideWithValue(repo),
+        photosRepositoryProvider.overrideWithValue(
+          photos ?? _FakePhotosRepository(),
+        ),
+        photoCaptureServiceProvider.overrideWithValue(
+          PhotoCaptureService(gateway: gateway ?? _FakeGateway()),
+        ),
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(SessionState(role: role)),
+        ),
+      ],
+    );
 
 /// The screen opens on Messages; announcements live behind the segment.
 Future<void> _openAnnouncements(WidgetTester tester) async {
@@ -239,53 +240,51 @@ bool _hasRim(WidgetTester tester, Finder of, Color color) => tester
     });
 
 void main() {
-  testWidgets(
-    'light: the segment rides a pill and the composer is a glass bar',
-    (tester) async {
-      await tester.pumpWidget(
-        _app(_FakeCollaborationRepository(), theme: AppTheme.light()),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('light: the segment rides a pill and the composer is a glass bar',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(_FakeCollaborationRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
 
-      final selected = find.descendant(
-        of: find.byKey(const ValueKey('tab-_Feed.messages')),
+    final selected = find.descendant(
+      of: find.byKey(const ValueKey('tab-_Feed.messages')),
+      matching: find.byType(GlassPane),
+    );
+    expect(tester.widget<GlassPane>(selected).kind, GlassKind.pill);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tab-_Feed.announcements')),
         matching: find.byType(GlassPane),
-      );
-      expect(tester.widget<GlassPane>(selected).kind, GlassKind.pill);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('tab-_Feed.announcements')),
-          matching: find.byType(GlassPane),
-        ),
-        findsNothing,
-      );
+      ),
+      findsNothing,
+    );
 
-      final composer = tester.widgetList<GlassPane>(
-        find.ancestor(
-          of: find.byKey(const ValueKey<String>('message-body')),
-          matching: find.byType(GlassPane),
-        ),
-      );
-      expect(composer.any((p) => p.kind == GlassKind.bar), isTrue);
+    final composer = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.byKey(const ValueKey<String>('message-body')),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(composer.any((p) => p.kind == GlassKind.bar), isTrue);
 
-      // The field stays opaque, so its words and hint measure true on glass.
-      const t = TiqColors.light;
-      final field = tester.widget<TextField>(
-        find.byKey(const ValueKey<String>('message-body')),
-      );
-      expect(field.decoration!.fillColor, t.surface2);
-      expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
-      expect(contrastRatio(t.ink1, t.surface2), greaterThanOrEqualTo(4.5));
+    // The field stays opaque, so its words and hint measure true on glass.
+    const t = TiqColors.light;
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('message-body')),
+    );
+    expect(field.decoration!.fillColor, t.surface2);
+    expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
+    expect(contrastRatio(t.ink1, t.surface2), greaterThanOrEqualTo(4.5));
 
-      final row = tester.widgetList<GlassPane>(
-        find.ancestor(
-          of: find.text('Morning standup at 9'),
-          matching: find.byType(GlassPane),
-        ),
-      );
-      expect(row.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-    },
-  );
+    final row = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.text('Morning standup at 9'),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(row.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+  });
 
   testWidgets('renders message bodies once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeCollaborationRepository()));
@@ -295,9 +294,8 @@ void main() {
     expect(find.text('Restock run complete'), findsOneWidget);
   });
 
-  testWidgets('sending a message calls sendMessage with the entered body', (
-    tester,
-  ) async {
+  testWidgets('sending a message calls sendMessage with the entered body',
+      (tester) async {
     final repo = _FakeCollaborationRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -355,9 +353,8 @@ void main() {
       expect(repo.attemptKeys.last, isNot(key));
     });
 
-    testWidgets('a retry with photos keeps the key and does not re-upload', (
-      tester,
-    ) async {
+    testWidgets('a retry with photos keeps the key and does not re-upload',
+        (tester) async {
       final repo = _FakeCollaborationRepository()..failSend = true;
       final photos = _FakePhotosRepository();
       await tester.pumpWidget(_app(repo, photos: photos));
@@ -390,9 +387,8 @@ void main() {
     });
   });
 
-  testWidgets('shows an error message when the list fails to load', (
-    tester,
-  ) async {
+  testWidgets('shows an error message when the list fails to load',
+      (tester) async {
     await tester.pumpWidget(_app(_ThrowingCollaborationRepository()));
     await tester.pumpAndSettle();
 
@@ -459,18 +455,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(photos.uploadedDataUrls, hasLength(2));
-      expect(
-        photos.uploadedDataUrls.first,
-        startsWith('data:image/png;base64,'),
-      );
+      expect(photos.uploadedDataUrls.first, startsWith('data:image/png;base64,'));
       expect(repo.sentBody, 'Shelf after restock');
       expect(repo.sentAttachmentIds, ['att-1', 'att-2']);
       expect(_pending(0), findsNothing);
       expect(
         tester
-            .widget<TextField>(
-              find.byKey(const ValueKey<String>('message-body')),
-            )
+            .widget<TextField>(find.byKey(const ValueKey<String>('message-body')))
             .controller!
             .text,
         isEmpty,
@@ -546,9 +537,8 @@ void main() {
       expect(_pending(0), findsNothing);
     });
 
-    testWidgets('the attach button disables at the 4-photo cap', (
-      tester,
-    ) async {
+    testWidgets('the attach button disables at the 4-photo cap',
+        (tester) async {
       await tester.pumpWidget(_app(_FakeCollaborationRepository()));
       await tester.pumpAndSettle();
 
@@ -565,29 +555,27 @@ void main() {
   });
 
   group('thread attachments (#125)', () {
-    testWidgets(
-      'a message shows its images as thumbnails inside its own tile',
-      (tester) async {
-        await tester.pumpWidget(
-          _app(
-            _FakeCollaborationRepository(messages: const [_withImages]),
-            theme: AppTheme.light(),
-          ),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('a message shows its images as thumbnails inside its own tile',
+        (tester) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeCollaborationRepository(messages: const [_withImages]),
+          theme: AppTheme.light(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final thumbs = find.descendant(
-          of: find.byKey(const ValueKey('message-m3')),
-          matching: find.byType(MessageAttachmentThumb),
-        );
-        expect(thumbs, findsNWidgets(2));
-        expect(
-          find.byKey(const ValueKey('message-attachment-image-p1')),
-          findsOneWidget,
-        );
-        expect(find.text('Shelf after restock'), findsOneWidget);
-      },
-    );
+      final thumbs = find.descendant(
+        of: find.byKey(const ValueKey('message-m3')),
+        matching: find.byType(MessageAttachmentThumb),
+      );
+      expect(thumbs, findsNWidgets(2));
+      expect(
+        find.byKey(const ValueKey('message-attachment-image-p1')),
+        findsOneWidget,
+      );
+      expect(find.text('Shelf after restock'), findsOneWidget);
+    });
 
     testWidgets('tapping a thumbnail opens that photo full size, and Close '
         'dismisses it', (tester) async {
@@ -615,9 +603,8 @@ void main() {
       expect(find.byKey(const ValueKey('attachment-dialog')), findsNothing);
     });
 
-    testWidgets('an image-only message is headed "Photo" rather than blank', (
-      tester,
-    ) async {
+    testWidgets('an image-only message is headed "Photo" rather than blank',
+        (tester) async {
       await tester.pumpWidget(
         _app(_FakeCollaborationRepository(messages: const [_imageOnly])),
       );
@@ -673,9 +660,8 @@ void main() {
     });
   }
 
-  testWidgets('the announcements segment lists announcement titles', (
-    tester,
-  ) async {
+  testWidgets('the announcements segment lists announcement titles',
+      (tester) async {
     await tester.pumpWidget(_app(_FakeCollaborationRepository()));
     await tester.pumpAndSettle();
 
@@ -691,9 +677,8 @@ void main() {
     expect(find.byKey(const ValueKey<String>('attach-photo')), findsNothing);
   });
 
-  testWidgets('shows an error message when announcements fail to load', (
-    tester,
-  ) async {
+  testWidgets('shows an error message when announcements fail to load',
+      (tester) async {
     await tester.pumpWidget(_app(_ThrowingCollaborationRepository()));
     await tester.pumpAndSettle();
 
@@ -702,9 +687,8 @@ void main() {
     expect(find.textContaining('Failed to load announcements'), findsOneWidget);
   });
 
-  testWidgets('a manager can post an announcement with a title and body', (
-    tester,
-  ) async {
+  testWidgets('a manager can post an announcement with a title and body',
+      (tester) async {
     final repo = _FakeCollaborationRepository();
     await tester.pumpWidget(_app(repo, role: 'manager'));
     await tester.pumpAndSettle();
@@ -744,9 +728,8 @@ void main() {
     );
   });
 
-  testWidgets('a field agent reads announcements but cannot post one', (
-    tester,
-  ) async {
+  testWidgets('a field agent reads announcements but cannot post one',
+      (tester) async {
     await tester.pumpWidget(
       _app(_FakeCollaborationRepository(), role: 'field_agent'),
     );
@@ -761,9 +744,8 @@ void main() {
     expect(find.text('Q3 Kickoff'), findsOneWidget);
   });
 
-  testWidgets('Post stays disabled until both title and body are filled', (
-    tester,
-  ) async {
+  testWidgets('Post stays disabled until both title and body are filled',
+      (tester) async {
     final repo = _FakeCollaborationRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();

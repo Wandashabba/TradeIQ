@@ -20,16 +20,14 @@ const scheduleCadenceHelp =
 /// Splits the recipients box into entries: one per line, or separated by
 /// commas or semicolons. Blank entries are dropped, so "a, , b" is two.
 List<String> parseRecipients(String raw) => [
-  for (final part in raw.split(RegExp(r'[,;\n]')))
-    if (part.trim().isNotEmpty) part.trim(),
-];
+      for (final part in raw.split(RegExp(r'[,;\n]')))
+        if (part.trim().isNotEmpty) part.trim(),
+    ];
 
 /// The most recipients the API accepts on a schedule.
 const maxScheduleRecipients = 50;
 
-final _emailAddress = RegExp(
-  r'^[^\s@<>()\[\],;:"\\]+@[^\s@<>()\[\],;:"\\]+\.[^\s@<>()\[\],;:"\\]+$',
-);
+final _emailAddress = RegExp(r'^[^\s@<>()\[\],;:"\\]+@[^\s@<>()\[\],;:"\\]+\.[^\s@<>()\[\],;:"\\]+$');
 
 /// Why the recipients box cannot be saved, or null when it can. Mirrors the
 /// backend: 1–50 email addresses.
@@ -132,9 +130,8 @@ class _ReportScheduleFormScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error =
-              '${_editing ? 'Failed to save changes.' : 'Failed to '
-                        'create schedule.'} ${humanErrorMessage(e)}';
+          _error = '${_editing ? 'Failed to save changes.' : 'Failed to '
+              'create schedule.'} ${humanErrorMessage(e)}';
         });
       }
     } finally {

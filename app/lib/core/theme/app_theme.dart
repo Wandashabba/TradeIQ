@@ -66,8 +66,7 @@ class AppTheme {
       width: skin.depth.borderWidth,
     );
 
-    TextStyle role(TiqTypeToken token, Color color) =>
-        token.style(color: color);
+    TextStyle role(TiqTypeToken token, Color color) => token.style(color: color);
 
     return ThemeData(
       brightness: skin.brightness,
@@ -120,7 +119,10 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: role(skin.text.titleL, p.ink1),
         shape: Border(
-          bottom: BorderSide(color: p.hairline, width: skin.depth.borderWidth),
+          bottom: BorderSide(
+            color: p.hairline,
+            width: skin.depth.borderWidth,
+          ),
         ),
       ),
       cardTheme: CardThemeData(
@@ -170,34 +172,33 @@ class AppTheme {
         errorStyle: role(skin.text.meta, p.bad),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style:
-            FilledButton.styleFrom(
-              backgroundColor: p.flame600,
-              foregroundColor: p.onAmber,
-              disabledBackgroundColor: p.well,
-              disabledForegroundColor: p.inkMute,
-              minimumSize: Size(0, skin.space.primaryActionHeight),
-              padding: EdgeInsets.symmetric(horizontal: TiqSpace.s4),
-              shape: RoundedRectangleBorder(borderRadius: control),
-              textStyle: skin.text.label.style(),
-            ).copyWith(
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.pressed)
-                    ? p.onAmberPressed
-                    : states.contains(WidgetState.disabled)
-                    ? p.inkMute
-                    : p.onAmber,
-              ),
-              // Pressed keeps DARK ink on flame-500. flame-900 on flame-500 is
-              // 2.00:1 and makes the label vanish at the moment of commitment.
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.pressed)
-                    ? p.amberPressed
-                    : states.contains(WidgetState.disabled)
-                    ? p.well
-                    : p.flame600,
-              ),
-            ),
+        style: FilledButton.styleFrom(
+          backgroundColor: p.flame600,
+          foregroundColor: p.onAmber,
+          disabledBackgroundColor: p.well,
+          disabledForegroundColor: p.inkMute,
+          minimumSize: Size(0, skin.space.primaryActionHeight),
+          padding: EdgeInsets.symmetric(horizontal: TiqSpace.s4),
+          shape: RoundedRectangleBorder(borderRadius: control),
+          textStyle: skin.text.label.style(),
+        ).copyWith(
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.pressed)
+                ? p.onAmberPressed
+                : states.contains(WidgetState.disabled)
+                ? p.inkMute
+                : p.onAmber,
+          ),
+          // Pressed keeps DARK ink on flame-500. flame-900 on flame-500 is
+          // 2.00:1 and makes the label vanish at the moment of commitment.
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.pressed)
+                ? p.amberPressed
+                : states.contains(WidgetState.disabled)
+                ? p.well
+                : p.flame600,
+          ),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

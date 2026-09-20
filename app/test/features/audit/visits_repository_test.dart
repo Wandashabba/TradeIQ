@@ -121,20 +121,17 @@ void main() {
       syncService: SyncService(db: db, flusher: _NoopFlusher()),
     );
 
-    test(
-      'a failed fence keeps the position it measured, as evidence',
-      () async {
-        final result = await repo().checkIn(
-          outletId: 'outlet-1',
-          outletLat: -26.2041,
-          outletLng: 28.0473,
-        );
-        final failed = result as CheckInGeofenceFailed;
-        expect(failed.lat, -26.2100);
-        expect(failed.lng, 28.0473);
-        expect(failed.canDisputePin, isTrue);
-      },
-    );
+    test('a failed fence keeps the position it measured, as evidence', () async {
+      final result = await repo().checkIn(
+        outletId: 'outlet-1',
+        outletLat: -26.2041,
+        outletLng: 28.0473,
+      );
+      final failed = result as CheckInGeofenceFailed;
+      expect(failed.lat, -26.2100);
+      expect(failed.lng, 28.0473);
+      expect(failed.canDisputePin, isTrue);
+    });
 
     test('the claim is not offered beyond the server cap', () {
       expect(
@@ -243,19 +240,18 @@ void main() {
           // It never opened; closing it is allowed to fail.
         }
       });
-      final result =
-          await DriftVisitsRepository(
-            db: unopenable,
-            locationService: _FakeLocationService(
-              LocationGranted(-26.2100, 28.0473),
-            ),
-            syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
-          ).checkInDisputingPin(
-            outletId: 'outlet-1',
-            lat: -26.2100,
-            lng: 28.0473,
-            distanceMeters: 656,
-          );
+      final result = await DriftVisitsRepository(
+        db: unopenable,
+        locationService: _FakeLocationService(
+          LocationGranted(-26.2100, 28.0473),
+        ),
+        syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
+      ).checkInDisputingPin(
+        outletId: 'outlet-1',
+        lat: -26.2100,
+        lng: 28.0473,
+        distanceMeters: 656,
+      );
       expect(result, isA<CheckInFailed>());
     });
   });

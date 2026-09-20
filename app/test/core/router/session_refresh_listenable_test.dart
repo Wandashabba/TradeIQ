@@ -14,9 +14,7 @@ class FakeAuthRepository implements AuthRepository {
 void main() {
   test('notifies listeners when session state changes', () async {
     final container = ProviderContainer(
-      overrides: [
-        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-      ],
+      overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())],
     );
     addTearDown(container.dispose);
 

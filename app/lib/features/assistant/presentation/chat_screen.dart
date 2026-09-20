@@ -161,8 +161,8 @@ class _AskState extends ConsumerState<_Ask> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
-    final atTail =
-        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 24;
+    final atTail = _scroll.position.pixels >=
+        _scroll.position.maxScrollExtent - 24;
     if (atTail != _following) setState(() => _following = atTail);
   }
 
@@ -223,9 +223,8 @@ class _AskState extends ConsumerState<_Ask> {
 
   Future<void> _openStartOver() async {
     final state = ref.read(chatControllerProvider);
-    final questions = state.messages
-        .where((m) => m.role == ChatRole.user)
-        .length;
+    final questions =
+        state.messages.where((m) => m.role == ChatRole.user).length;
     await showTorchSheet<void>(
       context,
       builder: (sheetContext) => AskStartOverSheet(
@@ -264,13 +263,13 @@ class _AskState extends ConsumerState<_Ask> {
 
     final last = state.messages.isEmpty ? null : state.messages.last;
     final answer = last?.role == ChatRole.assistant ? last : null;
-    final toolRunning = answer != null && answer.tools.any((t) => t.ok == null);
+    final toolRunning =
+        answer != null && answer.tools.any((t) => t.ok == null);
     // Resolved once per build from the server's word, and handed to exactly
     // one turn: the claim and the paint read the same target, so they cannot
     // disagree about whether — or where — the answer is lit.
-    final focusTarget = answer == null
-        ? null
-        : AnswerFocusTarget.resolve(answer);
+    final focusTarget =
+        answer == null ? null : AnswerFocusTarget.resolve(answer);
     final focusArtifact = focusTarget != null;
 
     final phase = resolveAskPhase(
@@ -285,9 +284,8 @@ class _AskState extends ConsumerState<_Ask> {
       sessionEnded: sessionEnded,
     );
 
-    final questions = state.messages
-        .where((m) => m.role == ChatRole.user)
-        .length;
+    final questions =
+        state.messages.where((m) => m.role == ChatRole.user).length;
 
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
@@ -331,7 +329,9 @@ class _AskState extends ConsumerState<_Ask> {
             band: _band(context, phase),
           ),
           children: state.messages.isEmpty
-              ? <Widget>[AskFirstRun(onAsk: _send, enabled: phase.canSend)]
+              ? <Widget>[
+                  AskFirstRun(onAsk: _send, enabled: phase.canSend),
+                ]
               : <Widget>[
                   for (var i = 0; i < state.messages.length; i++) ...<Widget>[
                     if (i > 0) SizedBox(height: skin.space.blockGap + 8),
@@ -439,11 +439,9 @@ class _Turn extends ConsumerWidget {
     final animate = message.streaming && !MotionBudget.of(context).still;
     final parsed = parseAnswer(message.text, streaming: message.streaming);
     final figures = AnswerFigures.of(message);
-    final writing =
-        message.streaming && message.tools.every((t) => t.ok != null);
+    final writing = message.streaming && message.tools.every((t) => t.ok != null);
 
-    final rich =
-        message.error == null &&
+    final rich = message.error == null &&
         (parsed.hasMarkdown || parsed.followUps.isNotEmpty);
 
     final trailing = <Widget>[
@@ -530,7 +528,11 @@ class _Turn extends ConsumerWidget {
         children: <Widget>[
           for (var i = 0; i < body.length; i++) ...<Widget>[
             if (i > 0) SizedBox(height: skin.space.blockGap),
-            Arrive(key: ValueKey<int>(i), enabled: false, child: body[i]),
+            Arrive(
+              key: ValueKey<int>(i),
+              enabled: false,
+              child: body[i],
+            ),
           ],
         ],
       ),

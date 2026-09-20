@@ -138,10 +138,7 @@ class _ViewToggle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       fontSize: 11.5,
       segments: [
-        for (final (label, isTable) in const [
-          ('Chart', false),
-          ('Table', true),
-        ])
+        for (final (label, isTable) in const [('Chart', false), ('Table', true)])
           (
             key: ValueKey('view-${label.toLowerCase()}'),
             label: label,
@@ -322,7 +319,12 @@ class _TrendFilters extends ConsumerWidget {
   }
 }
 
-typedef _Segment = ({Key key, String label, bool selected, VoidCallback onTap});
+typedef _Segment = ({
+  Key key,
+  String label,
+  bool selected,
+  VoidCallback onTap,
+});
 
 /// The segmented control every switch on this screen shares.
 ///
@@ -364,7 +366,8 @@ class _Segments extends StatelessWidget {
                   child: Container(
                     padding: padding,
                     decoration: BoxDecoration(
-                      color: s.selected ? colors.surface3 : Colors.transparent,
+                      color:
+                          s.selected ? colors.surface3 : Colors.transparent,
                       border: Border(
                         right: BorderSide(
                           color: i == segments.length - 1
@@ -457,8 +460,7 @@ class _TerritoryBenchmarkPanelState
     final metric = ref.watch(benchmarkMetricProvider);
     return PanelCard(
       title: 'Compare territories',
-      subtitle:
-          "Each territory's average for the window against the client "
+      subtitle: "Each territory's average for the window against the client "
           'average',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -469,10 +471,7 @@ class _TerritoryBenchmarkPanelState
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: _Segments(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 fontSize: 11.5,
                 segments: [
                   for (final option in BenchmarkMetric.values)
@@ -584,8 +583,8 @@ class _ClientAverageHeader extends StatelessWidget {
         Text(
           'The tick on each bar marks the client average.'
           '${unassigned > 0 ? ' The average also includes '
-                    '${report.metric.samples(unassigned)} from outlets outside '
-                    'any territory.' : ''}',
+              '${report.metric.samples(unassigned)} from outlets outside '
+              'any territory.' : ''}',
           style: note,
         ),
       ],
@@ -620,11 +619,11 @@ class _TerritoryBenchmarkRow extends StatelessWidget {
       };
 
   static String wordOf(BenchmarkPosition? position) => switch (position) {
-    BenchmarkPosition.above => 'Above average',
-    BenchmarkPosition.below => 'Below average',
-    BenchmarkPosition.level => 'At average',
-    null => 'No data',
-  };
+        BenchmarkPosition.above => 'Above average',
+        BenchmarkPosition.below => 'Below average',
+        BenchmarkPosition.level => 'At average',
+        null => 'No data',
+      };
 
   String _note() {
     final average = territory.average;
@@ -696,12 +695,8 @@ class _TerritoryBenchmarkRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      average == null
-                          ? '—'
-                          : '${_trim(average)}${report.suffix}',
-                      key: ValueKey(
-                        'benchmark-average-${territory.territoryId}',
-                      ),
+                      average == null ? '—' : '${_trim(average)}${report.suffix}',
+                      key: ValueKey('benchmark-average-${territory.territoryId}'),
                       style: _figure(context),
                     ),
                   ],

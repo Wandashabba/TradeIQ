@@ -41,8 +41,11 @@ Widget _darkThemed(
   Widget child, {
   ThemeData? theme,
   bool reduceMotion = false,
-}) =>
-    _themed(child, theme: theme ?? AppTheme.dark(), reduceMotion: reduceMotion);
+}) => _themed(
+  child,
+  theme: theme ?? AppTheme.dark(),
+  reduceMotion: reduceMotion,
+);
 
 WorklistRow _row({
   String title = 'Price deviation',

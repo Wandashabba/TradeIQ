@@ -29,11 +29,8 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 
 /// The three skins in the order the design says to build them: Night first,
 /// then Day, and Veld last.
-List<SkinMode> get agentSkinModes => <SkinMode>[
-  SkinMode.night,
-  SkinMode.day,
-  SkinMode.veld,
-];
+List<SkinMode> get agentSkinModes =>
+    <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld];
 
 /// Pins [agentSkinProvider] to one mode, through the real controller.
 class PinnedAgentSkin extends AgentSkinController {

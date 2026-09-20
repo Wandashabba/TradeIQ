@@ -116,8 +116,10 @@ String answerPlainText(
 /// Inline markdown, removed — through the screen's own parser, so what is
 /// copied is exactly the words that were drawn. A second regex here would be
 /// a second definition of what a marker is, and the two would drift.
-String _plain(String text) =>
-    parseInline(text, streaming: false).map((run) => run.text).join().trim();
+String _plain(String text) => parseInline(text, streaming: false)
+    .map((run) => run.text)
+    .join()
+    .trim();
 
 /// One line per figure, with its unit and — where there is one — its movement
 /// and what it was measured against.
@@ -163,10 +165,9 @@ List<String> _figureLines(
         // A chart cannot be pasted, so what the plot said is: where it
         // started and where it ended, in the reader's own separators.
         final points = <(String, num)>[
-          for (final row
-              in (data['points'] is List
-                  ? data['points'] as List
-                  : const <dynamic>[]))
+          for (final row in (data['points'] is List
+              ? data['points'] as List
+              : const <dynamic>[]))
             if (row is Map &&
                 row['value'] is num &&
                 (row['value'] as num).isFinite)

@@ -53,7 +53,10 @@ void main() {
     expect(webhook.health, WebhookHealth.unhealthy);
     expect(webhook.consecutiveFailures, 2);
     expect(webhook.lastDeliveryStatus, DeliveryStatus.gaveUp);
-    expect(webhook.lastDeliveryAt!.toUtc(), DateTime.utc(2026, 9, 14, 8));
+    expect(
+      webhook.lastDeliveryAt!.toUtc(),
+      DateTime.utc(2026, 9, 14, 8),
+    );
   });
 
   test('Webhook.fromJson defaults active and health when missing', () {
@@ -137,29 +140,25 @@ void main() {
       expect(page.nextCursor, 'cursor-1');
     });
 
-    test(
-      'listDeliveries GETs the webhook\'s deliveries with a limit',
-      () async {
-        final adapter = _RecordingAdapter(
-          '{"data": [{"id": "d1", "event": "order.created", '
-          '"status": "succeeded", "attempts": 1, "lastStatusCode": 200, '
-          '"deliveredAt": "2026-09-14T08:00:00.000Z", '
-          '"createdAt": "2026-09-14T08:00:00.000Z"}], "nextCursor": null}',
-        );
-        dio.httpClientAdapter = adapter;
+    test('listDeliveries GETs the webhook\'s deliveries with a limit',
+        () async {
+      final adapter = _RecordingAdapter(
+        '{"data": [{"id": "d1", "event": "order.created", '
+        '"status": "succeeded", "attempts": 1, "lastStatusCode": 200, '
+        '"deliveredAt": "2026-09-14T08:00:00.000Z", '
+        '"createdAt": "2026-09-14T08:00:00.000Z"}], "nextCursor": null}',
+      );
+      dio.httpClientAdapter = adapter;
 
-        final list = await DioWebhooksRepository().listDeliveries(
-          'w1',
-          limit: 5,
-        );
+      final list =
+          await DioWebhooksRepository().listDeliveries('w1', limit: 5);
 
-        expect(adapter.last!.method, 'GET');
-        expect(adapter.last!.path, '/webhooks/w1/deliveries');
-        expect(adapter.last!.queryParameters, {'limit': 5});
-        expect(list.single.status, DeliveryStatus.succeeded);
-        expect(list.single.lastStatusCode, 200);
-      },
-    );
+      expect(adapter.last!.method, 'GET');
+      expect(adapter.last!.path, '/webhooks/w1/deliveries');
+      expect(adapter.last!.queryParameters, {'limit': 5});
+      expect(list.single.status, DeliveryStatus.succeeded);
+      expect(list.single.lastStatusCode, 200);
+    });
 
     test('redeliver POSTs to the delivery and parses the row', () async {
       final adapter = _RecordingAdapter(

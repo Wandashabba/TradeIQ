@@ -33,8 +33,8 @@ String runNowMessage(ScheduleRunResult result) {
   final queued = webhook == null
       ? result.deliveredTo.length
       : webhook.status == 'queued'
-      ? webhook.targets.length
-      : 0;
+          ? webhook.targets.length
+          : 0;
   if (queued > 0) {
     parts.add('Queued for $queued ${queued == 1 ? 'webhook' : 'webhooks'}.');
   } else if (webhook?.status == 'failed') {
@@ -129,16 +129,14 @@ class ReportSchedulesScreen extends ConsumerWidget {
             builder: (list) {
               final active = list.where((s) => s.active).length;
               return PanelCard(
-                title:
-                    '${list.length} '
+                title: '${list.length} '
                     '${list.length == 1 ? 'schedule' : 'schedules'}',
                 subtitle: '$active active',
                 padded: false,
                 child: list.isEmpty
                     ? const EmptyState(
                         message: 'No report schedules',
-                        hint:
-                            'Schedule a saved report to run it '
+                        hint: 'Schedule a saved report to run it '
                             'automatically on a cadence.',
                       )
                     : Column(
@@ -202,23 +200,29 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
     if (mounted) ref.invalidate(reportSchedulesListProvider);
   }
 
-  Future<void> _setActive(bool active) => _perform(() async {
-    await ref
-        .read(reportSchedulesRepositoryProvider)
-        .setActive(widget.schedule.id, active);
-    // Pausing clears the next run and resuming sets a new one.
-    _refresh();
-    return null;
-  }, failure: 'Could not ${active ? 'resume' : 'pause'} the schedule.');
+  Future<void> _setActive(bool active) => _perform(
+        () async {
+          await ref
+              .read(reportSchedulesRepositoryProvider)
+              .setActive(widget.schedule.id, active);
+          // Pausing clears the next run and resuming sets a new one.
+          _refresh();
+          return null;
+        },
+        failure: 'Could not ${active ? 'resume' : 'pause'} the schedule.',
+      );
 
-  Future<void> _runNow() => _perform(() async {
-    final result = await ref
-        .read(reportSchedulesRepositoryProvider)
-        .runNow(widget.schedule.id);
-    // The run stamps lastRunAt; reload so the row shows it.
-    _refresh();
-    return runNowMessage(result);
-  }, failure: 'Run failed.');
+  Future<void> _runNow() => _perform(
+        () async {
+          final result = await ref
+              .read(reportSchedulesRepositoryProvider)
+              .runNow(widget.schedule.id);
+          // The run stamps lastRunAt; reload so the row shows it.
+          _refresh();
+          return runNowMessage(result);
+        },
+        failure: 'Run failed.',
+      );
 
   /// Opens the form in edit mode. The form saves, refreshes the list and pops
   /// itself; a failed save stays on the form.
@@ -236,7 +240,8 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
   void _history() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => ReportRunHistoryScreen(schedule: widget.schedule),
+        builder: (context) =>
+            ReportRunHistoryScreen(schedule: widget.schedule),
       ),
     );
   }
@@ -266,13 +271,16 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _perform(() async {
-      await ref
-          .read(reportSchedulesRepositoryProvider)
-          .deleteSchedule(widget.schedule.id);
-      _refresh();
-      return null;
-    }, failure: 'Could not delete the schedule.');
+    await _perform(
+      () async {
+        await ref
+            .read(reportSchedulesRepositoryProvider)
+            .deleteSchedule(widget.schedule.id);
+        _refresh();
+        return null;
+      },
+      failure: 'Could not delete the schedule.',
+    );
   }
 
   @override

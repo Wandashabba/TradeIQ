@@ -99,11 +99,7 @@ void main() {
         state: TroughState.finding,
       );
       expect(spec.fill, TroughSpec.findingWashNight);
-      expect(
-        spec.fill!.a,
-        1.0,
-        reason: 'A composited value is a declared one.',
-      );
+      expect(spec.fill!.a, 1.0, reason: 'A composited value is a declared one.');
       expect(spec.outline, TiqSkin.night().palette.bad);
       expect(spec.outlineWidth, 2);
     });
@@ -249,7 +245,10 @@ void main() {
         tester,
         skin: TiqSkin.night(density: TiqDensity.field),
         locale: const Locale('af'),
-        child: TorchNumericField(label: 'Prys', onChanged: (v) => captured = v),
+        child: TorchNumericField(
+          label: 'Prys',
+          onChanged: (v) => captured = v,
+        ),
       );
       await tester.enterText(find.byType(TextField), '1.5');
       await tester.pump();

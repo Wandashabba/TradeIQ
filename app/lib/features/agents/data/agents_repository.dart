@@ -34,14 +34,14 @@ class AgentStop {
   final bool inProgress;
 
   factory AgentStop.fromJson(Map<String, dynamic> json) => AgentStop(
-    visitId: json['visitId'] as String,
-    outletId: json['outletId'] as String,
-    outletName: json['outletName'] as String,
-    lat: (json['lat'] as num).toDouble(),
-    lng: (json['lng'] as num).toDouble(),
-    checkinTs: DateTime.parse(json['checkinTs'] as String),
-    inProgress: json['status'] == 'in_progress',
-  );
+        visitId: json['visitId'] as String,
+        outletId: json['outletId'] as String,
+        outletName: json['outletName'] as String,
+        lat: (json['lat'] as num).toDouble(),
+        lng: (json['lng'] as num).toDouble(),
+        checkinTs: DateTime.parse(json['checkinTs'] as String),
+        inProgress: json['status'] == 'in_progress',
+      );
 }
 
 /// One agent's day, as returned by GET /agents/activity.
@@ -79,8 +79,7 @@ class AgentActivity {
   /// confidently wrong outlet with no throw and no signal.
   String? get lastOutletName {
     if (stops.isEmpty) return null;
-    final sorted = [...stops]
-      ..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
+    final sorted = [...stops]..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
     return sorted.last.outletName;
   }
 
@@ -172,9 +171,8 @@ class DioAgentsRepository implements AgentsRepository {
   }
 }
 
-final agentsRepositoryProvider = Provider<AgentsRepository>(
-  (ref) => DioAgentsRepository(),
-);
+final agentsRepositoryProvider =
+    Provider<AgentsRepository>((ref) => DioAgentsRepository());
 
 /// Today's activity, scoped by the dashboard's territory filter so the panel
 /// agrees with every other panel by construction rather than by convention.
@@ -182,16 +180,19 @@ final agentsRepositoryProvider = Provider<AgentsRepository>(
 /// Retries disabled, matching `territory_map_screen.dart`: Riverpod's default
 /// backs off silently for seconds before surfacing an error, leaving a bare
 /// spinner with no explanation on a screen the manager is looking at.
-final agentActivityTodayProvider = FutureProvider<AgentActivityPage>((ref) {
+final agentActivityTodayProvider =
+    FutureProvider<AgentActivityPage>((ref) {
   final filter = ref.watch(dashboardFilterProvider);
   // Through nowProvider, not DateTime.now() directly — see its doc comment
   // in dashboard_repository.dart: injected so a test can pin "now" instead
   // of racing wall-clock time.
   final now = ref.read(nowProvider)();
   final (from, to) = dayBoundsLocal(now);
-  return ref
-      .read(agentsRepositoryProvider)
-      .listActivity(from: from, to: to, territoryId: filter.territoryId);
+  return ref.read(agentsRepositoryProvider).listActivity(
+        from: from,
+        to: to,
+        territoryId: filter.territoryId,
+      );
 }, retry: (retryCount, error) => null);
 
 /// One chosen day's activity, for the drill-in map's date picker.
@@ -202,11 +203,13 @@ final agentActivityTodayProvider = FutureProvider<AgentActivityPage>((ref) {
 /// forever, each instance still watching `dashboardFilterProvider`, so
 /// changing the territory filter would re-fire a request for every day ever
 /// viewed.
-final agentActivityForDayProvider = FutureProvider.autoDispose
-    .family<AgentActivityPage, DateTime>((ref, day) {
-      final filter = ref.watch(dashboardFilterProvider);
-      final (from, to) = dayBoundsLocal(day);
-      return ref
-          .read(agentsRepositoryProvider)
-          .listActivity(from: from, to: to, territoryId: filter.territoryId);
-    }, retry: (retryCount, error) => null);
+final agentActivityForDayProvider =
+    FutureProvider.autoDispose.family<AgentActivityPage, DateTime>((ref, day) {
+  final filter = ref.watch(dashboardFilterProvider);
+  final (from, to) = dayBoundsLocal(day);
+  return ref.read(agentsRepositoryProvider).listActivity(
+        from: from,
+        to: to,
+        territoryId: filter.territoryId,
+      );
+}, retry: (retryCount, error) => null);

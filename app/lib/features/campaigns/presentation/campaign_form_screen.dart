@@ -46,9 +46,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
     final c = widget.campaign;
     _nameCtrl = TextEditingController(text: c?.name ?? '');
     _objectiveCtrl = TextEditingController(text: c?.objective ?? '');
-    _budgetCtrl = TextEditingController(
-      text: c?.budget != null ? '${c!.budget}' : '',
-    );
+    _budgetCtrl =
+        TextEditingController(text: c?.budget != null ? '${c!.budget}' : '');
     _status = c?.status ?? 'draft';
   }
 
@@ -121,9 +120,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
           endDate: _fmt(_endDate!),
           objective: objective.isEmpty ? null : objective,
           budget: _parsedBudget(),
-          outletIds: _selectedOutletIds.isEmpty
-              ? null
-              : _selectedOutletIds.toList(),
+          outletIds:
+              _selectedOutletIds.isEmpty ? null : _selectedOutletIds.toList(),
         );
       }
       ref.invalidate(campaignsListProvider);
@@ -137,9 +135,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -148,27 +145,24 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
       key: const ValueKey<String>('campaign-name-field'),
       controller: _nameCtrl,
       decoration: const InputDecoration(
-        labelText: 'Name',
-        border: OutlineInputBorder(),
-      ),
+          labelText: 'Name', border: OutlineInputBorder()),
       validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
     );
     final objectiveField = TextFormField(
       controller: _objectiveCtrl,
       decoration: const InputDecoration(
-        labelText: 'Objective (optional)',
-        border: OutlineInputBorder(),
-      ),
+          labelText: 'Objective (optional)', border: OutlineInputBorder()),
     );
     final budgetField = TextFormField(
       controller: _budgetCtrl,
       decoration: const InputDecoration(
-        labelText: 'Budget (optional)',
-        prefixText: 'R ',
-        border: OutlineInputBorder(),
-      ),
+          labelText: 'Budget (optional)',
+          prefixText: 'R ',
+          border: OutlineInputBorder()),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+      ],
       validator: (v) {
         final raw = v?.trim() ?? '';
         if (raw.isEmpty) return null;
@@ -205,7 +199,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
     final label = widget.isEditing ? 'Save Changes' : 'Create Campaign';
 
     return GlassPageScaffold(
-      title: Text(widget.isEditing ? 'Edit Campaign' : 'New Campaign'),
+      title: Text(widget.isEditing ? 'Edit Campaign' : 'New Campaign',
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -232,11 +227,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
                     else ...[
                       _GlassSection(
                         label: 'Schedule',
-                        children: [
-                          startRow,
-                          const SizedBox(height: 10),
-                          endRow,
-                        ],
+                        children: [startRow, const SizedBox(height: 10), endRow],
                       ),
                       const SizedBox(height: 14),
                       _GlassSection(
@@ -277,10 +268,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
                       const SizedBox(height: 8),
                       endRow,
                       const SizedBox(height: 16),
-                      const Text(
-                        'Outlets',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      const Text('Outlets',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       outletSelect,
                     ],
                     const SizedBox(height: 24),
@@ -292,10 +281,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                                  strokeWidth: 2, color: Colors.white))
                           : Text(label),
                     ),
                   ],
@@ -347,9 +333,7 @@ class _StatusField extends StatelessWidget {
       key: const ValueKey<String>('campaign-status-field'),
       initialValue: value,
       decoration: const InputDecoration(
-        labelText: 'Status',
-        border: OutlineInputBorder(),
-      ),
+          labelText: 'Status', border: OutlineInputBorder()),
       items: const [
         DropdownMenuItem(value: 'draft', child: Text('Draft')),
         DropdownMenuItem(value: 'active', child: Text('Active')),
@@ -398,7 +382,10 @@ class _DateRow extends StatelessWidget {
                 value == null
                     ? Text(
                         'Not set',
-                        style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: lumen.inkMuted,
+                        ),
                       )
                     : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
               ],
@@ -410,9 +397,7 @@ class _DateRow extends StatelessWidget {
     }
     return Row(
       children: [
-        Expanded(
-          child: Text(value == null ? '$label: not set' : '$label: $value'),
-        ),
+        Expanded(child: Text(value == null ? '$label: not set' : '$label: $value')),
         pick,
       ],
     );

@@ -89,7 +89,8 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
     required String metric,
     required double threshold,
     required int rewardPoints,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> deleteScheme(String id) async => throw UnimplementedError();
@@ -103,10 +104,12 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
 }
 
 Widget _app(IncentivesRepository repo, {ThemeData? theme}) => routedApp(
-  const IncentivesScreen(),
-  theme: theme,
-  overrides: [incentivesRepositoryProvider.overrideWithValue(repo)],
-);
+      const IncentivesScreen(),
+      theme: theme,
+      overrides: [
+        incentivesRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
 
 const _ruleLine = '≥ 80 · 100 pts';
 
@@ -204,6 +207,9 @@ void main() {
     await tester.pumpWidget(_app(_ThrowingIncentivesRepository()));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Failed to load incentives'), findsOneWidget);
+    expect(
+      find.textContaining('Failed to load incentives'),
+      findsOneWidget,
+    );
   });
 }

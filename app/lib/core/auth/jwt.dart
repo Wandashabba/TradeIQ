@@ -16,7 +16,10 @@ DateTime? jwtExpiry(String token) {
   final exp = _payload(token)?['exp'];
   if (exp is! num) return null;
 
-  return DateTime.fromMillisecondsSinceEpoch((exp * 1000).toInt(), isUtc: true);
+  return DateTime.fromMillisecondsSinceEpoch(
+    (exp * 1000).toInt(),
+    isUtc: true,
+  );
 }
 
 /// Decodes a JWT's payload segment, or null if it cannot be read.

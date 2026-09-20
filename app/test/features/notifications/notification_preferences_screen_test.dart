@@ -90,9 +90,10 @@ Widget _screen(
   );
 }
 
-bool _toggleValue(WidgetTester tester, NotificationCategory category) => tester
-    .widget<AgentToggle>(find.byKey(ValueKey('push-pref-${category.name}')))
-    .value;
+bool _toggleValue(WidgetTester tester, NotificationCategory category) =>
+    tester
+        .widget<AgentToggle>(find.byKey(ValueKey('push-pref-${category.name}')))
+        .value;
 
 /// #67 — the notification preferences screen: the field agent's, translated,
 /// and the manager's console page.
@@ -115,10 +116,7 @@ void main() {
       expect(find.text('Boodskappe en aankondigings'), findsOneWidget);
       expect(find.text('Agterstallige take'), findsOneWidget);
       // Push is unconfigured in tests: said plainly, not as an error.
-      expect(
-        find.text('Kennisgewings is nog nie aangeskakel nie'),
-        findsOneWidget,
-      );
+      expect(find.text('Kennisgewings is nog nie aangeskakel nie'), findsOneWidget);
       expect(find.text('Notifications'), findsNothing);
       expect(find.byKey(const ValueKey('push-pref-alerts')), findsNothing);
       expect(find.byType(GlassPane), findsWidgets);
@@ -149,9 +147,7 @@ void main() {
 
       expect(_toggleValue(tester, NotificationCategory.tasks), isTrue);
       expect(
-        find.text(
-          'Kon dit nie stoor nie. Kyk of jy verbinding het en probeer weer.',
-        ),
+        find.text('Kon dit nie stoor nie. Kyk of jy verbinding het en probeer weer.'),
         findsOneWidget,
       );
     });
@@ -163,10 +159,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Kon nie jou kennisgewing-instellings laai nie'),
-        findsOneWidget,
-      );
+      expect(find.text('Kon nie jou kennisgewing-instellings laai nie'), findsOneWidget);
 
       repository.failLoad = false;
       await tester.tap(find.byKey(const ValueKey('push-prefs-retry')));
@@ -176,43 +169,42 @@ void main() {
   });
 
   group('manager, night theme', () {
-    testWidgets(
-      'renders every category on the dark console and saves a toggle',
-      (tester) async {
-        final repository = _FakePushRepository(
-          const NotificationPreferences(sla: false),
-        );
-        await tester.pumpWidget(
-          _screen(repository, role: 'manager', theme: AppTheme.dark()),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('renders every category on the dark console and saves a toggle', (
+      tester,
+    ) async {
+      final repository = _FakePushRepository(
+        const NotificationPreferences(sla: false),
+      );
+      await tester.pumpWidget(
+        _screen(repository, role: 'manager', theme: AppTheme.dark()),
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.text('Notifications'), findsOneWidget);
-        expect(find.text('Push notifications'), findsOneWidget);
-        for (final label in [
-          'Alerts',
-          'Tasks assigned to you',
-          'Messages and announcements',
-          'Overdue tasks',
-        ]) {
-          expect(find.text(label), findsOneWidget);
-        }
-        expect(
-          Theme.of(tester.element(find.text('Alerts'))).brightness,
-          Brightness.dark,
-        );
-        expect(find.byKey(const ValueKey('push-not-set-up')), findsOneWidget);
-        expect(find.byType(GlassPane), findsWidgets);
-        expect(_toggleValue(tester, NotificationCategory.sla), isFalse);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Push notifications'), findsOneWidget);
+      for (final label in [
+        'Alerts',
+        'Tasks assigned to you',
+        'Messages and announcements',
+        'Overdue tasks',
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(
+        Theme.of(tester.element(find.text('Alerts'))).brightness,
+        Brightness.dark,
+      );
+      expect(find.byKey(const ValueKey('push-not-set-up')), findsOneWidget);
+      expect(find.byType(GlassPane), findsWidgets);
+      expect(_toggleValue(tester, NotificationCategory.sla), isFalse);
 
-        await tester.tap(find.byKey(const ValueKey('push-pref-alerts')));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('push-pref-alerts')));
+      await tester.pumpAndSettle();
 
-        expect(repository.updates, [
-          {NotificationCategory.alerts: false},
-        ]);
-        expect(_toggleValue(tester, NotificationCategory.alerts), isFalse);
-      },
-    );
+      expect(repository.updates, [
+        {NotificationCategory.alerts: false},
+      ]);
+      expect(_toggleValue(tester, NotificationCategory.alerts), isFalse);
+    });
   });
 }

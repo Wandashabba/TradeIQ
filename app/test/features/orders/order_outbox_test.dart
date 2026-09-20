@@ -74,10 +74,7 @@ void main() {
     final before = DateTime.now().toUtc();
     final repo = DioOrdersRepository(
       db: db,
-      syncService: SyncService(
-        db: db,
-        flusher: HttpQueueFlusher(db: db, dio: dio),
-      ),
+      syncService: SyncService(db: db, flusher: HttpQueueFlusher(db: db, dio: dio)),
     );
 
     await repo.createOrder(
@@ -99,10 +96,7 @@ void main() {
     // The capture time is the device's own, stamped when the order was taken.
     final capturedAt = DateTime.parse(sent['capturedAt'] as String);
     expect(capturedAt.isUtc, isTrue);
-    expect(
-      capturedAt.isBefore(before.subtract(const Duration(seconds: 1))),
-      isFalse,
-    );
+    expect(capturedAt.isBefore(before.subtract(const Duration(seconds: 1))), isFalse);
     expect(capturedAt.isAfter(after.add(const Duration(seconds: 1))), isFalse);
 
     // And the row is marked sent, not left for a retry.
@@ -111,33 +105,27 @@ void main() {
     expect(rows.single.synced, isTrue);
   });
 
-  test(
-    'keeps the order queued when it cannot send, capture time intact',
-    () async {
-      // No signal: the order is on the phone and the capture time is already
-      // stamped, so syncing tomorrow still reports when it was actually taken.
-      final failing = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _ThrowingAdapter();
-      final repo = DioOrdersRepository(
-        db: db,
-        syncService: SyncService(
-          db: db,
-          flusher: HttpQueueFlusher(db: db, dio: failing),
-        ),
-      );
+  test('keeps the order queued when it cannot send, capture time intact', () async {
+    // No signal: the order is on the phone and the capture time is already
+    // stamped, so syncing tomorrow still reports when it was actually taken.
+    final failing = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+      ..httpClientAdapter = _ThrowingAdapter();
+    final repo = DioOrdersRepository(
+      db: db,
+      syncService: SyncService(db: db, flusher: HttpQueueFlusher(db: db, dio: failing)),
+    );
 
-      await repo.createOrder(
-        outletId: 'ou1',
-        lines: const [OrderLine(skuId: 'sku1', quantity: 1, unitPrice: 5)],
-      );
+    await repo.createOrder(
+      outletId: 'ou1',
+      lines: const [OrderLine(skuId: 'sku1', quantity: 1, unitPrice: 5)],
+    );
 
-      final row = (await db.select(db.syncQueueItems).get()).single;
-      expect(row.synced, isFalse);
-      final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
-      expect(payload['capturedAt'], isA<String>());
-      expect(DateTime.parse(payload['capturedAt'] as String).isUtc, isTrue);
-    },
-  );
+    final row = (await db.select(db.syncQueueItems).get()).single;
+    expect(row.synced, isFalse);
+    final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    expect(payload['capturedAt'], isA<String>());
+    expect(DateTime.parse(payload['capturedAt'] as String).isUtc, isTrue);
+  });
 
   test('flushes a queued order payload to /orders unchanged', () async {
     // The round trip that matters: what the flusher posts is exactly what was
@@ -168,28 +156,25 @@ void main() {
     });
   });
 
-  test(
-    'sends a payload queued by an older build, which carries no capture time',
-    () async {
-      // Upgrading the app must not strand orders already in the outbox. The
-      // server falls back to the time it receives them.
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+  test('sends a payload queued by an older build, which carries no capture time', () async {
+    // Upgrading the app must not strand orders already in the outbox. The
+    // server falls back to the time it receives them.
+    final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(
-        _item(
-          jsonEncode({
-            'outletId': 'ou1',
-            'lines': [
-              {'skuId': 'sku1', 'quantity': 1, 'unitPrice': 5.0},
-            ],
-          }),
-        ),
-      );
+    await flusher.flush(
+      _item(
+        jsonEncode({
+          'outletId': 'ou1',
+          'lines': [
+            {'skuId': 'sku1', 'quantity': 1, 'unitPrice': 5.0},
+          ],
+        }),
+      ),
+    );
 
-      expect(requests.single.path, '/orders');
-      expect((requests.single.data as Map).containsKey('capturedAt'), isFalse);
-    },
-  );
+    expect(requests.single.path, '/orders');
+    expect((requests.single.data as Map).containsKey('capturedAt'), isFalse);
+  });
 }
 
 class _ThrowingAdapter implements HttpClientAdapter {

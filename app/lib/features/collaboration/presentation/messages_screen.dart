@@ -407,8 +407,7 @@ class _AnnouncementList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PanelCard(
-      title:
-          '${announcements.length} '
+      title: '${announcements.length} '
           '${announcements.length == 1 ? 'announcement' : 'announcements'}',
       subtitle: 'Broadcast to the whole client',
       padded: false,
@@ -497,8 +496,8 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final ready =
-        _titleCtrl.text.trim().isNotEmpty && _bodyCtrl.text.trim().isNotEmpty;
+    final ready = _titleCtrl.text.trim().isNotEmpty &&
+        _bodyCtrl.text.trim().isNotEmpty;
 
     return AlertDialog(
       backgroundColor: colors.surface1,
@@ -524,7 +523,10 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
             maxLines: 4,
             style: TextStyle(fontSize: 13, color: colors.ink1),
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Body', isDense: true),
+            decoration: const InputDecoration(
+              labelText: 'Body',
+              isDense: true,
+            ),
           ),
         ],
       ),
@@ -621,10 +623,8 @@ class _Composer extends StatelessWidget {
           // the thread scrolls beneath a glass bar.
           fillColor: colors.surface2,
           hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 10,
-          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
       ),
     );
@@ -682,10 +682,7 @@ class _Composer extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const StatusChip(
-                  label: 'Not sent',
-                  level: StatusLevel.critical,
-                ),
+                const StatusChip(label: 'Not sent', level: StatusLevel.critical),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -698,13 +695,7 @@ class _Composer extends StatelessWidget {
             ),
           ),
         Row(
-          children: [
-            attach,
-            const SizedBox(width: 2),
-            field,
-            const SizedBox(width: 8),
-            send,
-          ],
+          children: [attach, const SizedBox(width: 2), field, const SizedBox(width: 8), send],
         ),
       ],
     );
@@ -890,10 +881,7 @@ class _Segmented<T> extends StatelessWidget {
               key: ValueKey('tab-${segments[i].value}'),
               onTap: () => onChanged(segments[i].value),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                 decoration: BoxDecoration(
                   color: segments[i].value == selected
                       ? colors.surface3

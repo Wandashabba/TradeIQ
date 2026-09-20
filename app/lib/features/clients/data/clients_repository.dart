@@ -74,25 +74,24 @@ class ClientConfig {
   final List<int> workDays;
 
   factory ClientConfig.fromJson(Map<String, dynamic> json) => ClientConfig(
-    name: json['name'] as String,
-    scorecardWeights: (json['scorecardWeights'] as Map<String, dynamic>? ?? {})
-        .map((k, v) => MapEntry(k, (v as num).toDouble())),
-    kpiThresholds: (json['kpiThresholds'] as Map<String, dynamic>? ?? {}).map(
-      (k, v) => MapEntry(k, (v as num).toDouble()),
-    ),
-    assistantEnabled: json['assistantEnabled'] as bool? ?? false,
-    timezone: json['timezone'] as String? ?? defaultClientTimeZone,
-    workHoursStart: json['workHoursStart'] as String? ?? defaultWorkHoursStart,
-    workHoursEnd: json['workHoursEnd'] as String? ?? defaultWorkHoursEnd,
-    // A server that predates the column sends nothing, and Monday-to-Friday
-    // is the safe way to be wrong: it narrows tracking rather than widening
-    // it, which is the direction a privacy control should fail in.
-    workDays:
-        (json['workDays'] as List<dynamic>?)
-            ?.map((d) => (d as num).toInt())
-            .toList() ??
-        defaultWorkDays,
-  );
+        name: json['name'] as String,
+        scorecardWeights:
+            (json['scorecardWeights'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num).toDouble())),
+        kpiThresholds: (json['kpiThresholds'] as Map<String, dynamic>? ?? {})
+            .map((k, v) => MapEntry(k, (v as num).toDouble())),
+        assistantEnabled: json['assistantEnabled'] as bool? ?? false,
+        timezone: json['timezone'] as String? ?? defaultClientTimeZone,
+        workHoursStart: json['workHoursStart'] as String? ?? defaultWorkHoursStart,
+        workHoursEnd: json['workHoursEnd'] as String? ?? defaultWorkHoursEnd,
+        // A server that predates the column sends nothing, and Monday-to-Friday
+        // is the safe way to be wrong: it narrows tracking rather than widening
+        // it, which is the direction a privacy control should fail in.
+        workDays: (json['workDays'] as List<dynamic>?)
+                ?.map((d) => (d as num).toInt())
+                .toList() ??
+            defaultWorkDays,
+      );
 }
 
 /// The KPI thresholds the backend actually reads.
@@ -181,28 +180,25 @@ class DioClientsRepository implements ClientsRepository {
 
   @override
   Future<ClientConfig> updateWeights(Map<String, double> weights) async {
-    final response = await dio.patch(
-      '/clients/me',
-      data: {'scorecardWeights': weights},
-    );
+    final response = await dio.patch('/clients/me', data: {
+      'scorecardWeights': weights,
+    });
     return ClientConfig.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async {
-    final response = await dio.patch(
-      '/clients/me',
-      data: {'kpiThresholds': thresholds},
-    );
+    final response = await dio.patch('/clients/me', data: {
+      'kpiThresholds': thresholds,
+    });
     return ClientConfig.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<ClientConfig> updateTimezone(String timezone) async {
-    final response = await dio.patch(
-      '/clients/me',
-      data: {'timezone': timezone},
-    );
+    final response = await dio.patch('/clients/me', data: {
+      'timezone': timezone,
+    });
     return ClientConfig.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -212,17 +208,17 @@ class DioClientsRepository implements ClientsRepository {
     required String end,
     required List<int> days,
   }) async {
-    final response = await dio.patch(
-      '/clients/me',
-      data: {'workHoursStart': start, 'workHoursEnd': end, 'workDays': days},
-    );
+    final response = await dio.patch('/clients/me', data: {
+      'workHoursStart': start,
+      'workHoursEnd': end,
+      'workDays': days,
+    });
     return ClientConfig.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final clientsRepositoryProvider = Provider<ClientsRepository>(
-  (ref) => DioClientsRepository(),
-);
+final clientsRepositoryProvider =
+    Provider<ClientsRepository>((ref) => DioClientsRepository());
 
 final clientConfigProvider = FutureProvider<ClientConfig>((ref) {
   return ref.read(clientsRepositoryProvider).getConfig();

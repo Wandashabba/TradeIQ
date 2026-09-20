@@ -78,17 +78,16 @@ class Webhook {
   final DateTime? lastDeliveryAt;
 
   factory Webhook.fromJson(Map<String, dynamic> json) => Webhook(
-    id: json['id'] as String,
-    url: json['url'] as String,
-    event: json['event'] as String,
-    active: json['active'] as bool? ?? true,
-    health: WebhookHealth.parse(json['health'] as String?),
-    consecutiveFailures: json['consecutiveFailures'] as int? ?? 0,
-    lastDeliveryStatus: DeliveryStatus.parse(
-      json['lastDeliveryStatus'] as String?,
-    ),
-    lastDeliveryAt: _date(json['lastDeliveryAt']),
-  );
+        id: json['id'] as String,
+        url: json['url'] as String,
+        event: json['event'] as String,
+        active: json['active'] as bool? ?? true,
+        health: WebhookHealth.parse(json['health'] as String?),
+        consecutiveFailures: json['consecutiveFailures'] as int? ?? 0,
+        lastDeliveryStatus:
+            DeliveryStatus.parse(json['lastDeliveryStatus'] as String?),
+        lastDeliveryAt: _date(json['lastDeliveryAt']),
+      );
 }
 
 /// One event delivered (or being delivered) to one webhook, from
@@ -123,8 +122,7 @@ class WebhookDelivery {
         id: json['id'] as String,
         event: json['event'] as String,
         // An unknown future status reads as queued rather than crashing.
-        status:
-            DeliveryStatus.parse(json['status'] as String?) ??
+        status: DeliveryStatus.parse(json['status'] as String?) ??
             DeliveryStatus.pending,
         attempts: json['attempts'] as int? ?? 0,
         createdAt: _date(json['createdAt']) ?? DateTime.now(),
@@ -138,7 +136,10 @@ class WebhookDelivery {
 
 abstract class WebhooksRepository {
   Future<PaginatedResponse<Webhook>> listWebhooks();
-  Future<Webhook> createWebhook({required String url, required String event});
+  Future<Webhook> createWebhook({
+    required String url,
+    required String event,
+  });
   Future<void> deleteWebhook(String id);
 
   /// PATCH /webhooks/:id — activate or deactivate a webhook without deleting it.
@@ -166,10 +167,10 @@ class DioWebhooksRepository implements WebhooksRepository {
     required String url,
     required String event,
   }) async {
-    final response = await dio.post(
-      '/webhooks',
-      data: {'url': url, 'event': event},
-    );
+    final response = await dio.post('/webhooks', data: {
+      'url': url,
+      'event': event,
+    });
     return Webhook.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -201,16 +202,14 @@ class DioWebhooksRepository implements WebhooksRepository {
 
   @override
   Future<WebhookDelivery> redeliver(String deliveryId) async {
-    final response = await dio.post(
-      '/webhook-deliveries/$deliveryId/redeliver',
-    );
+    final response =
+        await dio.post('/webhook-deliveries/$deliveryId/redeliver');
     return WebhookDelivery.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final webhooksRepositoryProvider = Provider<WebhooksRepository>(
-  (ref) => DioWebhooksRepository(),
-);
+final webhooksRepositoryProvider =
+    Provider<WebhooksRepository>((ref) => DioWebhooksRepository());
 
 // The provider exposes the FIRST PAGE as a plain list: the webhooks screen
 // wants the current webhooks, not the whole history, and "load more" UI is
@@ -225,5 +224,5 @@ final webhooksListProvider = FutureProvider<List<Webhook>>((ref) async {
 /// The recent deliveries for one webhook — fetched only when its row is opened.
 final webhookDeliveriesProvider =
     FutureProvider.family<List<WebhookDelivery>, String>((ref, webhookId) {
-      return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
-    });
+  return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
+});

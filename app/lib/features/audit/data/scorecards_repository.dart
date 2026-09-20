@@ -165,11 +165,11 @@ class VisitOutcome {
 /// which always equals what the phone recorded, so the line could never
 /// render outside a test. Every open of a submitted visit's outcome now asks
 /// the server again.
-final visitOutcomeProvider = FutureProvider.autoDispose
-    .family<VisitOutcome, ({String visitDraftId, String outletId})>((
-      ref,
-      args,
-    ) async {
+final visitOutcomeProvider =
+    FutureProvider.autoDispose.family<
+      VisitOutcome,
+      ({String visitDraftId, String outletId})
+    >((ref, args) async {
       final db = ref.read(localDbProvider);
       final repo = ref.read(scorecardsRepositoryProvider);
 

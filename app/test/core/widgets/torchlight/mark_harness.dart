@@ -91,7 +91,11 @@ int luminanceOf(int r, int g, int b) =>
 /// Luminance and not colour: a hue difference is not a difference here, which
 /// is the point. Two marks that are the same shape in two colours score zero,
 /// and that is the failure this measures.
-double greyscaleDifference(Uint8List a, Uint8List b, {int tolerance = 8}) {
+double greyscaleDifference(
+  Uint8List a,
+  Uint8List b, {
+  int tolerance = 8,
+}) {
   if (a.length != b.length) {
     throw ArgumentError('Two different frame sizes cannot be compared.');
   }

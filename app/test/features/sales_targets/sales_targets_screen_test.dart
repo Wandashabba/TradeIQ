@@ -191,7 +191,8 @@ Widget _app(
   theme: theme,
   overrides: [
     salesTargetsRepositoryProvider.overrideWithValue(repo),
-    if (picker != null) csvFilePickerProvider.overrideWithValue(picker.call),
+    if (picker != null)
+      csvFilePickerProvider.overrideWithValue(picker.call),
     salesTargetsMonthProvider.overrideWith(
       () => SalesMonthNotifier(DateTime(2026, 9, 17)),
     ),
@@ -560,33 +561,32 @@ void main() {
     );
   });
 
-  testWidgets(
-    'removing the file restores the paste box and retires the preview',
-    (tester) async {
-      final repo = _FakeSalesTargetsRepository();
-      await _pumpTall(
-        tester,
-        _app(repo, picker: _FakeCsvPicker(file: _pickedCsv)),
-      );
-      await _openImport(tester);
-      await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-      await tester.pumpAndSettle();
+  testWidgets('removing the file restores the paste box and retires the preview', (
+    tester,
+  ) async {
+    final repo = _FakeSalesTargetsRepository();
+    await _pumpTall(
+      tester,
+      _app(repo, picker: _FakeCsvPicker(file: _pickedCsv)),
+    );
+    await _openImport(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey<String>('csv-clear-file')));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('csv-clear-file')));
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
-      // Nothing can be applied any more: what was shown is no longer the source.
-      final apply = tester.widget<FilledButton>(
-        find.byKey(const ValueKey<String>('csv-apply')),
-      );
-      expect(apply.onPressed, isNull);
-      expect(repo.imports, [(_pickedCsv.contents, true)]);
-    },
-  );
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
+    // Nothing can be applied any more: what was shown is no longer the source.
+    final apply = tester.widget<FilledButton>(
+      find.byKey(const ValueKey<String>('csv-apply')),
+    );
+    expect(apply.onPressed, isNull);
+    expect(repo.imports, [(_pickedCsv.contents, true)]);
+  });
 
   testWidgets('cancelling the chooser leaves the pasted CSV alone', (
     tester,
@@ -629,10 +629,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('csv-file-error')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('csv-file-error')), findsOneWidget);
     expect(find.textContaining('under 8 MB'), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
   });

@@ -187,10 +187,11 @@ class FigureSlot extends StatelessWidget {
   }
 
   TextScaler _scalerFor(BuildContext context, TiqTypeToken token) {
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final cap = token.maxTextScale;
-    return cap == null ? scaler : scaler.clamp(maxScaleFactor: cap);
+    return cap == null
+        ? scaler
+        : scaler.clamp(maxScaleFactor: cap);
   }
 
   /// Measure, do not guess. Every candidate is laid out with its real affixes
@@ -228,15 +229,13 @@ class FigureSlot extends StatelessWidget {
   /// that inherited a negative one would kern into the digit beside it.
   InlineSpan _span(TiqTypeToken token, FormattedFigure figure, TiqSkin skin) {
     final ink = _ink(skin, figure.state);
-    final run = token
-        .style(color: ink)
-        .copyWith(
-          decoration: figure.state == FigureState.provisional
-              ? TextDecoration.underline
-              : null,
-          decorationStyle: TextDecorationStyle.dotted,
-          decorationColor: ink,
-        );
+    final run = token.style(color: ink).copyWith(
+      decoration: figure.state == FigureState.provisional
+          ? TextDecoration.underline
+          : null,
+      decorationStyle: TextDecorationStyle.dotted,
+      decorationColor: ink,
+    );
     final affix = run.copyWith(
       fontFamily: TiqFonts.prose,
       fontFamilyFallback: TiqFonts.proseFallback,

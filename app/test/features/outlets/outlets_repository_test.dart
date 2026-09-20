@@ -113,26 +113,26 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        final adapter = _RecordingAdapter(
-          '{"data": [{"id": "o1", "name": "Test Hypermarket", "code": "TH-001", '
-          '"lat": -26.2041, "lng": 28.0473}], "nextCursor": "cursor-1"}',
-        );
-        dio.httpClientAdapter = adapter;
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      final adapter = _RecordingAdapter(
+        '{"data": [{"id": "o1", "name": "Test Hypermarket", "code": "TH-001", '
+        '"lat": -26.2041, "lng": 28.0473}], "nextCursor": "cursor-1"}',
+      );
+      dio.httpClientAdapter = adapter;
 
-        final page = await DioOutletsRepository().listOutlets();
+      final page = await DioOutletsRepository().listOutlets();
 
-        expect(page, isA<PaginatedResponse<Outlet>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 'o1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<Outlet>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'o1');
+      expect(page.nextCursor, 'cursor-1');
+    });
 
     test('forwards mine/limit/cursor as query parameters', () async {
-      final adapter = _RecordingAdapter('{"data": [], "nextCursor": null}');
+      final adapter = _RecordingAdapter(
+        '{"data": [], "nextCursor": null}',
+      );
       dio.httpClientAdapter = adapter;
 
       await DioOutletsRepository().listOutlets(
@@ -188,50 +188,46 @@ void main() {
     // This sweep exists because unbounded reads kill processes. An unbounded
     // CLIENT loop is the same bug wearing different clothes, so the fetch-all
     // providers must not trust the server's cursor to terminate.
-    test(
-      'outletsListProvider fails loudly on a cursor that never advances',
-      () async {
-        final repo = _StalledCursorOutletsRepository();
-        final container = ProviderContainer(
-          overrides: [outletsRepositoryProvider.overrideWithValue(repo)],
-        );
-        addTearDown(container.dispose);
+    test('outletsListProvider fails loudly on a cursor that never advances',
+        () async {
+      final repo = _StalledCursorOutletsRepository();
+      final container = ProviderContainer(
+        overrides: [outletsRepositoryProvider.overrideWithValue(repo)],
+      );
+      addTearDown(container.dispose);
 
-        await expectLater(
-          container.read(outletsListProvider.future),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('stalled'),
-            ),
+      await expectLater(
+        container.read(outletsListProvider.future),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('stalled'),
           ),
-        );
+        ),
+      );
 
-        // Caught on the second call — the first cannot know the cursor is stuck,
-        // the second can. It must not keep going.
-        expect(repo.calls, 2);
-      },
-    );
+      // Caught on the second call — the first cannot know the cursor is stuck,
+      // the second can. It must not keep going.
+      expect(repo.calls, 2);
+    });
 
-    test(
-      'assignedOutletsProvider forwards mine through every page it walks',
-      () async {
-        final repo = _TwoPageOutletsRepository();
-        final container = ProviderContainer(
-          overrides: [
-            outletsRepositoryProvider.overrideWithValue(repo),
-            onlyMyTerritoriesProvider.overrideWith(() => _FixedOnlyMine(true)),
-          ],
-        );
-        addTearDown(container.dispose);
+    test('assignedOutletsProvider forwards mine through every page it walks',
+        () async {
+      final repo = _TwoPageOutletsRepository();
+      final container = ProviderContainer(
+        overrides: [
+          outletsRepositoryProvider.overrideWithValue(repo),
+          onlyMyTerritoriesProvider.overrideWith(() => _FixedOnlyMine(true)),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final outlets = await container.read(assignedOutletsProvider.future);
+      final outlets = await container.read(assignedOutletsProvider.future);
 
-        expect(outlets.map((o) => o.id), ['o1', 'o2']);
-        expect(repo.calls.every((c) => c.mine == true), isTrue);
-      },
-    );
+      expect(outlets.map((o) => o.id), ['o1', 'o2']);
+      expect(repo.calls.every((c) => c.mine == true), isTrue);
+    });
   });
 }
 

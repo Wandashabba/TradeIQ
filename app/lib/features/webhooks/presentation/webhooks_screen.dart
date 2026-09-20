@@ -50,12 +50,10 @@ class WebhooksScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(webhooksListProvider),
             builder: (list) {
               final live = list.where((w) => w.active).length;
-              final unhealthy = list
-                  .where((w) => w.health == WebhookHealth.unhealthy)
-                  .length;
+              final unhealthy =
+                  list.where((w) => w.health == WebhookHealth.unhealthy).length;
               return PanelCard(
-                title:
-                    '${list.length} '
+                title: '${list.length} '
                     '${list.length == 1 ? 'endpoint' : 'endpoints'}',
                 subtitle: unhealthy == 0
                     ? '$live receiving'
@@ -64,8 +62,7 @@ class WebhooksScreen extends ConsumerWidget {
                 child: list.isEmpty
                     ? const EmptyState(
                         message: 'No endpoints registered',
-                        hint:
-                            'Add one to forward events to an external system.',
+                        hint: 'Add one to forward events to an external system.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -295,9 +292,7 @@ class _DeliveryTile extends ConsumerWidget {
         );
       } catch (e) {
         messenger.showSnackBar(
-          SnackBar(
-            content: Text('Could not redeliver. ${humanErrorMessage(e)}'),
-          ),
+          SnackBar(content: Text('Could not redeliver. ${humanErrorMessage(e)}')),
         );
       } finally {
         ref.invalidate(webhookDeliveriesProvider(webhookId));
@@ -417,9 +412,7 @@ class _CreateWebhookDialogState extends ConsumerState<_CreateWebhookDialog> {
   Future<void> _create() async {
     setState(() => _submitting = true);
     try {
-      await ref
-          .read(webhooksRepositoryProvider)
-          .createWebhook(
+      await ref.read(webhooksRepositoryProvider).createWebhook(
             url: _urlCtrl.text.trim(),
             event: _eventCtrl.text.trim(),
           );
@@ -428,9 +421,9 @@ class _CreateWebhookDialogState extends ConsumerState<_CreateWebhookDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to create webhook: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create webhook: $e')),
+        );
       }
     }
   }

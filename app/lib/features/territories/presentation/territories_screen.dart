@@ -15,10 +15,8 @@ import 'territory_map_screen.dart';
 
 /// Coverage for one territory. Kept per-id and cached by Riverpod so a row
 /// that rebuilds does not re-fetch.
-final _coverageProvider = FutureProvider.family<TerritoryCoverage, String>((
-  ref,
-  id,
-) {
+final _coverageProvider =
+    FutureProvider.family<TerritoryCoverage, String>((ref, id) {
   return ref.read(territoriesRepositoryProvider).getCoverage(id);
 });
 
@@ -60,8 +58,7 @@ class TerritoriesScreen extends ConsumerWidget {
             label: 'territories',
             onRetry: () => ref.invalidate(territoriesListProvider),
             builder: (list) => PanelCard(
-              title:
-                  '${list.length} '
+              title: '${list.length} '
                   '${list.length == 1 ? 'territory' : 'territories'}',
               subtitle: 'Outlet and agent counts, plus coverage rate',
               padded: false,
@@ -99,9 +96,8 @@ class _TerritoryRow extends ConsumerWidget {
         title: Text(territory.name),
         content: FutureBuilder<TerritoryCoverage>(
           key: ValueKey<String>('coverage-${territory.id}'),
-          future: ref
-              .read(territoriesRepositoryProvider)
-              .getCoverage(territory.id),
+          future:
+              ref.read(territoriesRepositoryProvider).getCoverage(territory.id),
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const SizedBox(
@@ -155,9 +151,9 @@ class _TerritoryRow extends ConsumerWidget {
     // rest is just a count, so it stays neutral.
     final (level, status) = switch (coverage) {
       AsyncData(:final value) when value.agentCount == 0 => (
-        StatusLevel.warning,
-        'Unassigned',
-      ),
+          StatusLevel.warning,
+          'Unassigned',
+        ),
       AsyncData() => (StatusLevel.good, 'Assigned'),
       _ => (StatusLevel.neutral, null),
     };
@@ -238,16 +234,16 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
         // The row's coverage figure is now stale — drop it so it refetches.
         ref.invalidate(_coverageProvider(widget.territory.id));
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Agent assigned.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Agent assigned.')),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to assign agent: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to assign agent: $e')),
+        );
       }
     }
   }
@@ -264,9 +260,8 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
         ),
         error: (err, _) => Text('Failed to load agents: $err'),
         data: (list) {
-          final fieldAgents = list
-              .where((u) => u.role == 'field_agent')
-              .toList();
+          final fieldAgents =
+              list.where((u) => u.role == 'field_agent').toList();
           if (fieldAgents.isEmpty) {
             return const Text('No field agents available.');
           }

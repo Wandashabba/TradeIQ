@@ -11,17 +11,13 @@ import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dar
 
 import 'ask_harness.dart' show askBlock, askSkins, screenText;
 
-ChatArtifact artifact(
-  String type, {
-  Object? data,
-  Object? params,
-  String? id,
-}) => ChatArtifact(
-  id: id ?? 'a1',
-  type: type,
-  params: params ?? const {'agentId': 'agent-1'},
-  data: data ?? const {},
-);
+ChatArtifact artifact(String type, {Object? data, Object? params, String? id}) =>
+    ChatArtifact(
+      id: id ?? 'a1',
+      type: type,
+      params: params ?? const {'agentId': 'agent-1'},
+      data: data ?? const {},
+    );
 
 const String persistedId = '2b3f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e';
 
@@ -293,7 +289,9 @@ void main() {
       );
     });
 
-    testWidgets('names what the movement is measured against', (tester) async {
+    testWidgets('names what the movement is measured against', (
+      tester,
+    ) async {
       // A triangle on its own is a number without a baseline.
       await pumpView(
         tester,
@@ -312,33 +310,33 @@ void main() {
       );
     });
 
-    testWidgets(
-      'a fall reads as a fall, and the sign never guesses a verdict',
-      (tester) async {
-        await pumpView(
-          tester,
-          artifact(
-            'pillar_metrics',
-            params: const {'pillar': 'stock'},
-            data: stockData,
-          ),
-        );
+    testWidgets('a fall reads as a fall, and the sign never guesses a verdict', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        artifact(
+          'pillar_metrics',
+          params: const {'pillar': 'stock'},
+          data: stockData,
+        ),
+      );
 
-        final deltas = tester
-            .widgetList<Delta>(find.byType(Delta))
-            .map((d) => d.data)
-            .toList();
-        expect(
-          deltas.map((d) => d.direction),
-          containsAll(<DeltaDirection>[DeltaDirection.up, DeltaDirection.down]),
-        );
-        // More stock-outs is up and bad; more share of shelf is up and good.
-        // The tool result carries no sentiment, so none is invented.
-        expect(deltas.map((d) => d.sentiment).toSet(), <TiqSentiment>{
-          TiqSentiment.neutral,
-        });
-      },
-    );
+      final deltas = tester
+          .widgetList<Delta>(find.byType(Delta))
+          .map((d) => d.data)
+          .toList();
+      expect(
+        deltas.map((d) => d.direction),
+        containsAll(<DeltaDirection>[DeltaDirection.up, DeltaDirection.down]),
+      );
+      // More stock-outs is up and bad; more share of shelf is up and good.
+      // The tool result carries no sentiment, so none is invented.
+      expect(
+        deltas.map((d) => d.sentiment).toSet(),
+        <TiqSentiment>{TiqSentiment.neutral},
+      );
+    });
 
     testWidgets('renders the figures when nothing was compared', (
       tester,
@@ -561,11 +559,7 @@ void main() {
         locale: const Locale('af'),
       );
       expect(
-        tester
-            .widget<ChartLegend>(find.byType(ChartLegend))
-            .entries
-            .first
-            .label,
+        tester.widget<ChartLegend>(find.byType(ChartLegend)).entries.first.label,
         'Beskikbaarheid op die rak',
       );
 
@@ -577,11 +571,7 @@ void main() {
         ),
       );
       expect(
-        tester
-            .widget<ChartLegend>(find.byType(ChartLegend))
-            .entries
-            .first
-            .label,
+        tester.widget<ChartLegend>(find.byType(ChartLegend)).entries.first.label,
         'Sell in cases',
       );
     });

@@ -7,8 +7,11 @@ import 'package:tradeiq_app/core/widgets/agent_motion.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
 
-Widget _wrap(Widget child, {bool reduceMotion = false, ThemeData? theme}) =>
-    MaterialApp(
+Widget _wrap(
+  Widget child, {
+  bool reduceMotion = false,
+  ThemeData? theme,
+}) => MaterialApp(
       theme: theme,
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: reduceMotion),
@@ -18,25 +21,23 @@ Widget _wrap(Widget child, {bool reduceMotion = false, ThemeData? theme}) =>
 
 void main() {
   group('reduce motion', () {
-    testWidgets(
-      'is honoured — a person who turned motion off has told us something',
-      (tester) async {
-        late bool reduced;
-        await tester.pumpWidget(
-          _wrap(
-            Builder(
-              builder: (context) {
-                reduced = reduceMotion(context);
-                return const SizedBox();
-              },
-            ),
-            reduceMotion: true,
+    testWidgets('is honoured — a person who turned motion off has told us something',
+        (tester) async {
+      late bool reduced;
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (context) {
+              reduced = reduceMotion(context);
+              return const SizedBox();
+            },
           ),
-        );
+          reduceMotion: true,
+        ),
+      );
 
-        expect(reduced, isTrue);
-      },
-    );
+      expect(reduced, isTrue);
+    });
 
     testWidgets('a pulsing dot does not animate when motion is reduced', (
       tester,
@@ -54,9 +55,7 @@ void main() {
       expect(find.byType(PulseDot), findsOneWidget);
     });
 
-    testWidgets('an inactive pulse never starts a ticker at all', (
-      tester,
-    ) async {
+    testWidgets('an inactive pulse never starts a ticker at all', (tester) async {
       await tester.pumpWidget(
         _wrap(const PulseDot(color: Colors.blue, active: false)),
       );

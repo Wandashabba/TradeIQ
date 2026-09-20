@@ -378,10 +378,7 @@ void main() {
         // The controls are reachable at every size — a layout that renders but
         // strands the export button has not worked.
         expect(find.text('Filters'), findsOneWidget);
-        expect(
-          find.byKey(const ValueKey('artifact-export-pdf')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('artifact-export-pdf')), findsOneWidget);
 
         // The assertion that catches the real bug. A RenderFlex overflow is an
         // exception here and a yellow-and-black stripe in front of a customer.
@@ -390,45 +387,44 @@ void main() {
       });
     });
 
-    testWidgets(
-      'the nav rail can take the side panel away as the window WIDENS',
-      (tester) async {
-        // A known defect, pinned rather than asserted-as-correct, because the
-        // shape of it is not obvious from either file alone.
-        //
-        // The artifact screen switches at 880 of BODY width. `ManagerScaffold`
-        // claims 233px for its rail and divider above 1080 of SCREEN width. So:
-        //
-        //   1000 screen → 1000 body → side panel
-        //   1080 screen →  847 body → STACKED   ← widened, and lost the panel
-        //   1113 screen →  880 body → side panel again
-        //
-        // Widening a window must never remove a panel. Neither breakpoint is
-        // wrong on its own, which is exactly why nothing caught it: the bug is
-        // in the composition. Fixing it means moving one of the two numbers and
-        // that is a design call, not a test fix — filed rather than guessed at.
-        await pumpArtifact(
-          tester,
-          StubArtifactRepository(trendArtifact()),
-          size: const Size(1000, 900),
-        );
-        expectSidePanel(tester);
+    testWidgets('the nav rail can take the side panel away as the window WIDENS', (
+      tester,
+    ) async {
+      // A known defect, pinned rather than asserted-as-correct, because the
+      // shape of it is not obvious from either file alone.
+      //
+      // The artifact screen switches at 880 of BODY width. `ManagerScaffold`
+      // claims 233px for its rail and divider above 1080 of SCREEN width. So:
+      //
+      //   1000 screen → 1000 body → side panel
+      //   1080 screen →  847 body → STACKED   ← widened, and lost the panel
+      //   1113 screen →  880 body → side panel again
+      //
+      // Widening a window must never remove a panel. Neither breakpoint is
+      // wrong on its own, which is exactly why nothing caught it: the bug is
+      // in the composition. Fixing it means moving one of the two numbers and
+      // that is a design call, not a test fix — filed rather than guessed at.
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1000, 900),
+      );
+      expectSidePanel(tester);
 
-        await pumpArtifact(
-          tester,
-          StubArtifactRepository(trendArtifact()),
-          size: const Size(1080, 900),
-        );
-        await expectStacked(tester);
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1080, 900),
+      );
+      await expectStacked(tester);
 
-        await pumpArtifact(
-          tester,
-          StubArtifactRepository(trendArtifact()),
-          size: const Size(1113, 900),
-        );
-        expectSidePanel(tester);
-      },
-    );
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1113, 900),
+      );
+      expectSidePanel(tester);
+    });
 
     testWidgets('switches layout exactly at 880, not near it', (tester) async {
       // Off-by-one at a breakpoint is the classic responsive bug, and it is
@@ -546,10 +542,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('artifact-export-pdf')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('not available in this build'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('not available in this build'), findsOneWidget);
       expect(find.textContaining('Please try again'), findsNothing);
     });
   });
@@ -671,9 +664,7 @@ void main() {
         LumenGlass.mono,
       );
       final row = tester.widget<Container>(
-        find
-            .ancestor(of: find.text('74'), matching: find.byType(Container))
-            .first,
+        find.ancestor(of: find.text('74'), matching: find.byType(Container)).first,
       );
       expect(
         ((row.decoration! as BoxDecoration).border! as Border).top.color,
@@ -693,19 +684,15 @@ void main() {
 
       final words = find.text('Those parameters are not valid for this view.');
       final ink = tester.widget<Text>(words).style!.color!;
-      final wash =
-          (tester
-                      .widget<Container>(
-                        find
-                            .ancestor(
-                              of: words,
-                              matching: find.byType(Container),
-                            )
-                            .first,
-                      )
-                      .decoration!
-                  as BoxDecoration)
-              .color!;
+      final wash = (tester
+                  .widget<Container>(
+                    find
+                        .ancestor(of: words, matching: find.byType(Container))
+                        .first,
+                  )
+                  .decoration!
+              as BoxDecoration)
+          .color!;
       // Contrast is only honest measured against an opaque ground.
       expect(wash.a, 1.0);
       expect(contrastRatio(wash, ink), greaterThanOrEqualTo(4.5));
@@ -723,9 +710,7 @@ void main() {
       expect(
         tester
             .widget<GlassPane>(
-              find
-                  .ancestor(of: sentence, matching: find.byType(GlassPane))
-                  .first,
+              find.ancestor(of: sentence, matching: find.byType(GlassPane)).first,
             )
             .kind,
         GlassKind.pill,
@@ -771,9 +756,7 @@ void main() {
       expect(
         tester
             .widget<GlassPane>(
-              find
-                  .ancestor(of: message, matching: find.byType(GlassPane))
-                  .first,
+              find.ancestor(of: message, matching: find.byType(GlassPane)).first,
             )
             .kind,
         GlassKind.panel,

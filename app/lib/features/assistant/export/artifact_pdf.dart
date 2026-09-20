@@ -206,16 +206,7 @@ Future<Uint8List> buildArtifactPdf(ArtifactPdfRequest request) async {
             style: pw.TextStyle(fontSize: 11, font: bold, color: ink1),
           ),
           pw.SizedBox(height: 6),
-          _table(
-            table,
-            bold: bold,
-            ink1: ink1,
-            ink2: ink2,
-            ink3: ink3,
-            line: line,
-            good: good,
-            crit: crit,
-          ),
+          _table(table, bold: bold, ink1: ink1, ink2: ink2, ink3: ink3, line: line, good: good, crit: crit),
         ],
         pw.SizedBox(height: 14),
         pw.Text(
@@ -246,9 +237,7 @@ pw.Widget _table(
   required PdfColor crit,
 }) {
   return pw.Table(
-    border: pw.TableBorder(
-      horizontalInside: pw.BorderSide(color: line, width: 0.5),
-    ),
+    border: pw.TableBorder(horizontalInside: pw.BorderSide(color: line, width: 0.5)),
     columnWidths: {
       for (var i = 0; i < table.columns.length; i++)
         i: pw.FlexColumnWidth(i == 0 ? 3 : 2),
@@ -264,12 +253,7 @@ pw.Widget _table(
               padding: const pw.EdgeInsets.symmetric(vertical: 5),
               child: pw.Text(
                 column.toUpperCase(),
-                style: pw.TextStyle(
-                  fontSize: 7.5,
-                  font: bold,
-                  color: ink3,
-                  letterSpacing: 0.5,
-                ),
+                style: pw.TextStyle(fontSize: 7.5, font: bold, color: ink3, letterSpacing: 0.5),
               ),
             ),
         ],

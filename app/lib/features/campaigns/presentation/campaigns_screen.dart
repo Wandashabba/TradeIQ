@@ -46,8 +46,7 @@ class CampaignsScreen extends ConsumerWidget {
               child: list.isEmpty
                   ? const EmptyState(
                       message: 'No campaigns yet',
-                      hint:
-                          'Create one to track visit coverage, planogram and '
+                      hint: 'Create one to track visit coverage, planogram and '
                           'promo compliance against a date window.',
                     )
                   : Column(
@@ -69,20 +68,20 @@ class CampaignsScreen extends ConsumerWidget {
 /// Status drives the row's level: a live campaign is what a manager acts on, a
 /// paused one wants a decision, a cancelled one is a failure to explain.
 StatusLevel _levelFor(String status) => switch (status) {
-  'active' => StatusLevel.good,
-  'paused' => StatusLevel.warning,
-  'cancelled' => StatusLevel.critical,
-  _ => StatusLevel.neutral,
-};
+      'active' => StatusLevel.good,
+      'paused' => StatusLevel.warning,
+      'cancelled' => StatusLevel.critical,
+      _ => StatusLevel.neutral,
+    };
 
 String _statusWord(String status) => switch (status) {
-  'active' => 'Active',
-  'draft' => 'Draft',
-  'paused' => 'Paused',
-  'completed' => 'Completed',
-  'cancelled' => 'Cancelled',
-  _ => status,
-};
+      'active' => 'Active',
+      'draft' => 'Draft',
+      'paused' => 'Paused',
+      'completed' => 'Completed',
+      'cancelled' => 'Cancelled',
+      _ => status,
+    };
 
 class _CampaignRow extends ConsumerWidget {
   const _CampaignRow({required this.campaign});
@@ -111,78 +110,78 @@ class _CampaignRow extends ConsumerWidget {
     );
   }
 
-  Widget _complianceSection(
-    Future<CampaignCompliance> future,
-  ) => FutureBuilder<CampaignCompliance>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const _DialogLoading();
-      }
-      if (snapshot.hasError) {
-        return Text('Failed to load compliance: ${snapshot.error}');
-      }
-      final c = snapshot.data!;
-      if (context.colors.glass) {
-        // Glass: each measure a label and a mono figure, so the rates
-        // line up down the right edge and read as a table.
-        return Column(
-          key: ValueKey<String>('compliance-${campaign.id}'),
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionLabel('Coverage'),
-            const SizedBox(height: 8),
-            _FigureLine('Outlets total', c.outletsTotal.toStringAsFixed(0)),
-            _FigureLine('Outlets visited', c.outletsVisited.toStringAsFixed(0)),
-            _FigureLine(
-              'Visit coverage',
-              '${c.visitCoverageRate.toStringAsFixed(1)}%',
-            ),
-            const SizedBox(height: 12),
-            const SectionLabel('Compliance'),
-            const SizedBox(height: 8),
-            _FigureLine(
-              'Avg planogram compliance',
-              '${c.avgPlanogramCompliancePct.toStringAsFixed(1)}%',
-            ),
-            _FigureLine(
-              'Avg abs price deviation',
-              '${c.avgAbsPriceDeviationPct.toStringAsFixed(1)}%',
-            ),
-            _FigureLine(
-              'Promo compliance',
-              '${c.promoComplianceRate.toStringAsFixed(1)}%',
-            ),
-          ],
-        );
-      }
-      return Column(
-        key: ValueKey<String>('compliance-${campaign.id}'),
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionLabel('Coverage'),
-          const SizedBox(height: 6),
-          Text('Outlets total: ${c.outletsTotal.toStringAsFixed(0)}'),
-          Text('Outlets visited: ${c.outletsVisited.toStringAsFixed(0)}'),
-          Text('Visit coverage: ${c.visitCoverageRate.toStringAsFixed(1)}%'),
-          const SizedBox(height: 10),
-          const SectionLabel('Compliance'),
-          const SizedBox(height: 6),
-          Text(
-            'Avg planogram compliance: ${c.avgPlanogramCompliancePct.toStringAsFixed(1)}%',
-          ),
-          Text(
-            'Avg abs price deviation: ${c.avgAbsPriceDeviationPct.toStringAsFixed(1)}%',
-          ),
-          Text(
-            'Promo compliance: ${c.promoComplianceRate.toStringAsFixed(1)}%',
-          ),
-        ],
+  Widget _complianceSection(Future<CampaignCompliance> future) =>
+      FutureBuilder<CampaignCompliance>(
+          future: future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const _DialogLoading();
+            }
+            if (snapshot.hasError) {
+              return Text('Failed to load compliance: ${snapshot.error}');
+            }
+            final c = snapshot.data!;
+            if (context.colors.glass) {
+              // Glass: each measure a label and a mono figure, so the rates
+              // line up down the right edge and read as a table.
+              return Column(
+                key: ValueKey<String>('compliance-${campaign.id}'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionLabel('Coverage'),
+                  const SizedBox(height: 8),
+                  _FigureLine('Outlets total', c.outletsTotal.toStringAsFixed(0)),
+                  _FigureLine(
+                    'Outlets visited',
+                    c.outletsVisited.toStringAsFixed(0),
+                  ),
+                  _FigureLine(
+                    'Visit coverage',
+                    '${c.visitCoverageRate.toStringAsFixed(1)}%',
+                  ),
+                  const SizedBox(height: 12),
+                  const SectionLabel('Compliance'),
+                  const SizedBox(height: 8),
+                  _FigureLine(
+                    'Avg planogram compliance',
+                    '${c.avgPlanogramCompliancePct.toStringAsFixed(1)}%',
+                  ),
+                  _FigureLine(
+                    'Avg abs price deviation',
+                    '${c.avgAbsPriceDeviationPct.toStringAsFixed(1)}%',
+                  ),
+                  _FigureLine(
+                    'Promo compliance',
+                    '${c.promoComplianceRate.toStringAsFixed(1)}%',
+                  ),
+                ],
+              );
+            }
+            return Column(
+              key: ValueKey<String>('compliance-${campaign.id}'),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionLabel('Coverage'),
+                const SizedBox(height: 6),
+                Text('Outlets total: ${c.outletsTotal.toStringAsFixed(0)}'),
+                Text('Outlets visited: ${c.outletsVisited.toStringAsFixed(0)}'),
+                Text(
+                    'Visit coverage: ${c.visitCoverageRate.toStringAsFixed(1)}%'),
+                const SizedBox(height: 10),
+                const SectionLabel('Compliance'),
+                const SizedBox(height: 6),
+                Text(
+                    'Avg planogram compliance: ${c.avgPlanogramCompliancePct.toStringAsFixed(1)}%'),
+                Text(
+                    'Avg abs price deviation: ${c.avgAbsPriceDeviationPct.toStringAsFixed(1)}%'),
+                Text(
+                    'Promo compliance: ${c.promoComplianceRate.toStringAsFixed(1)}%'),
+              ],
+            );
+          },
       );
-    },
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -247,9 +246,8 @@ class _CampaignDialogBody extends StatefulWidget {
 }
 
 class _CampaignDialogBodyState extends State<_CampaignDialogBody> {
-  late final Future<CampaignCompliance> _compliance = widget.repo.getCompliance(
-    widget.campaignId,
-  );
+  late final Future<CampaignCompliance> _compliance = widget.repo
+      .getCompliance(widget.campaignId);
   late final Future<CampaignRoi> _roi = widget.repo.getRoi(widget.campaignId);
 
   @override

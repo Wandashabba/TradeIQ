@@ -107,58 +107,56 @@ void main() {
     setUp(() => originalAdapter = dio.httpClientAdapter);
     tearDown(() => dio.httpClientAdapter = originalAdapter);
 
-    test(
-      'sends the metric with the shared query and parses the report',
-      () async {
-        final adapter = _RecordingAdapter(_benchmarkBody);
-        dio.httpClientAdapter = adapter;
+    test('sends the metric with the shared query and parses the report',
+        () async {
+      final adapter = _RecordingAdapter(_benchmarkBody);
+      dio.httpClientAdapter = adapter;
 
-        final report = await DioTrendsRepository().benchmark(
-          BenchmarkMetric.perfectStore,
-          TrendQuery(
-            interval: TrendInterval.day,
-            from: DateTime.utc(2026, 3, 1),
-          ),
-        );
+      final report = await DioTrendsRepository().benchmark(
+        BenchmarkMetric.perfectStore,
+        TrendQuery(
+          interval: TrendInterval.day,
+          from: DateTime.utc(2026, 3, 1),
+        ),
+      );
 
-        expect(adapter.last!.path, '/trends/benchmark');
-        expect(adapter.last!.queryParameters, {
-          'interval': 'day',
-          'from': '2026-03-01T00:00:00.000Z',
-          'metric': 'perfectStore',
-        });
+      expect(adapter.last!.path, '/trends/benchmark');
+      expect(adapter.last!.queryParameters, {
+        'interval': 'day',
+        'from': '2026-03-01T00:00:00.000Z',
+        'metric': 'perfectStore',
+      });
 
-        expect(report.metric, BenchmarkMetric.perfectStore);
-        expect(report.isPercent, isTrue);
-        expect(report.suffix, '%');
-        expect(report.target, isNull);
-        expect(report.unassignedCount, 1);
-        expect(report.client.average, 40.0);
-        expect(report.client.count, 5);
-        expect(report.client.points.map((p) => p.count), [4, 1]);
+      expect(report.metric, BenchmarkMetric.perfectStore);
+      expect(report.isPercent, isTrue);
+      expect(report.suffix, '%');
+      expect(report.target, isNull);
+      expect(report.unassignedCount, 1);
+      expect(report.client.average, 40.0);
+      expect(report.client.count, 5);
+      expect(report.client.points.map((p) => p.count), [4, 1]);
 
-        final [north, south, empty] = report.territories;
-        expect(north.territoryId, 't-north');
-        expect(north.territoryCode, 'tb-north');
-        expect(north.average, 66.67);
-        expect(north.rank, 1);
-        expect(north.deltaFromClient, 26.67);
-        expect(north.position, BenchmarkPosition.above);
+      final [north, south, empty] = report.territories;
+      expect(north.territoryId, 't-north');
+      expect(north.territoryCode, 'tb-north');
+      expect(north.average, 66.67);
+      expect(north.rank, 1);
+      expect(north.deltaFromClient, 26.67);
+      expect(north.position, BenchmarkPosition.above);
 
-        // A measured zero stays a zero …
-        expect(south.average, 0.0);
-        expect(south.count, 1);
-        expect(south.position, BenchmarkPosition.below);
+      // A measured zero stays a zero …
+      expect(south.average, 0.0);
+      expect(south.count, 1);
+      expect(south.position, BenchmarkPosition.below);
 
-        // … and "nothing measured" stays null, never coerced to 0.
-        expect(empty.average, isNull);
-        expect(empty.count, 0);
-        expect(empty.rank, isNull);
-        expect(empty.deltaFromClient, isNull);
-        expect(empty.position, isNull);
-        expect(empty.points, isEmpty);
-      },
-    );
+      // … and "nothing measured" stays null, never coerced to 0.
+      expect(empty.average, isNull);
+      expect(empty.count, 0);
+      expect(empty.rank, isNull);
+      expect(empty.deltaFromClient, isNull);
+      expect(empty.position, isNull);
+      expect(empty.points, isEmpty);
+    });
   });
 
   test('scorecard reports carry the target and no percent suffix', () {

@@ -34,7 +34,10 @@ class DispatchCandidate {
 
 /// The result of ranking agents for an outlet via POST /dispatch.
 class DispatchResult {
-  const DispatchResult({required this.candidates, this.recommended});
+  const DispatchResult({
+    required this.candidates,
+    this.recommended,
+  });
   final List<DispatchCandidate> candidates;
   final DispatchCandidate? recommended;
 
@@ -63,13 +66,10 @@ class DioDispatchRepository implements DispatchRepository {
   }
 }
 
-final dispatchRepositoryProvider = Provider<DispatchRepository>(
-  (ref) => DioDispatchRepository(),
-);
+final dispatchRepositoryProvider =
+    Provider<DispatchRepository>((ref) => DioDispatchRepository());
 
-final dispatchResultProvider = FutureProvider.family<DispatchResult, String>((
-  ref,
-  outletId,
-) {
+final dispatchResultProvider =
+    FutureProvider.family<DispatchResult, String>((ref, outletId) {
   return ref.read(dispatchRepositoryProvider).dispatch(outletId);
 });

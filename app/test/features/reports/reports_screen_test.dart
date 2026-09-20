@@ -44,7 +44,8 @@ class _FakeReportsRepository implements ReportsRepository {
     required String name,
     required String type,
     required Map<String, dynamic> filters,
-  }) async => _reportA;
+  }) async =>
+      _reportA;
 
   @override
   Future<void> deleteReport(String id) async {
@@ -58,24 +59,28 @@ class _FailingReportsRepository implements ReportsRepository {
       throw Exception('boom');
 
   @override
-  Future<ReportResult> generate(String id) async => throw Exception('boom');
+  Future<ReportResult> generate(String id) async =>
+      throw Exception('boom');
 
   @override
   Future<ReportDefinition> createReport({
     required String name,
     required String type,
     required Map<String, dynamic> filters,
-  }) async => throw Exception('boom');
+  }) async =>
+      throw Exception('boom');
 
   @override
   Future<void> deleteReport(String id) async => throw Exception('boom');
 }
 
 Widget _app(ReportsRepository repo, {ThemeData? theme}) => routedApp(
-  const ReportsScreen(),
-  theme: theme,
-  overrides: [reportsRepositoryProvider.overrideWithValue(repo)],
-);
+      const ReportsScreen(),
+      theme: theme,
+      overrides: [
+        reportsRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
 
 void main() {
   testWidgets('renders report names once loaded', (tester) async {
@@ -86,9 +91,8 @@ void main() {
     expect(find.text('Sales by SKU'), findsOneWidget);
   });
 
-  testWidgets('running a report generates it and shows the row count', (
-    tester,
-  ) async {
+  testWidgets('running a report generates it and shows the row count',
+      (tester) async {
     final repo = _FakeReportsRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -115,30 +119,27 @@ void main() {
     await tester.pumpWidget(_app(_FailingReportsRepository()));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Failed to load reports'), findsOneWidget);
+    expect(
+      find.textContaining('Failed to load reports'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('light: rows sit on glass worklist tiles', (tester) async {
-    await tester.pumpWidget(
-      _app(_FakeReportsRepository(), theme: AppTheme.light()),
-    );
+    await tester.pumpWidget(_app(_FakeReportsRepository(), theme: AppTheme.light()));
     await tester.pumpAndSettle();
 
     final tile = tester.widget<GlassPane>(
       find
-          .ancestor(
-            of: find.text('Coverage by outlet'),
-            matching: find.byType(GlassPane),
-          )
+          .ancestor(of: find.text('Coverage by outlet'), matching: find.byType(GlassPane))
           .first,
     );
     expect(tile.kind, GlassKind.tile);
     expect(tile.blur, isFalse);
   });
 
-  testWidgets('Schedules in the top bar opens report schedules', (
-    tester,
-  ) async {
+  testWidgets('Schedules in the top bar opens report schedules',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

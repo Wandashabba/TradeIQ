@@ -137,9 +137,7 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
     });
 
     try {
-      await ref
-          .read(artifactExporterProvider)
-          .export(
+      await ref.read(artifactExporterProvider).export(
             ArtifactExportRequest(
               title: expandedArtifactTitle(detail),
               subtitle: expandedArtifactSubtitle(detail),

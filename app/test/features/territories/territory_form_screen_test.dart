@@ -36,7 +36,9 @@ class _RecordingTerritoriesRepository implements TerritoriesRepository {
 
 Widget _app(_RecordingTerritoriesRepository repo, {ThemeData? theme}) =>
     ProviderScope(
-      overrides: [territoriesRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        territoriesRepositoryProvider.overrideWithValue(repo),
+      ],
       child: MaterialApp(theme: theme, home: const TerritoryFormScreen()),
     );
 
@@ -47,17 +49,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byKey(const ValueKey<String>('territory-name-field')),
-      'KZN Coast',
-    );
+        find.byKey(const ValueKey<String>('territory-name-field')), 'KZN Coast');
     await tester.enterText(
-      find.byKey(const ValueKey<String>('territory-code-field')),
-      'KZN-C',
-    );
+        find.byKey(const ValueKey<String>('territory-code-field')), 'KZN-C');
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('territory-save-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('territory-save-button')));
     await tester.pumpAndSettle();
 
     expect(repo.createdArgs, isNotNull);
@@ -70,40 +66,30 @@ void main() {
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('territory-save-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('territory-save-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsWidgets);
     expect(repo.createdArgs, isNull);
   });
 
-  testWidgets('light: the fields sit on a glass panel, create is glass', (
-    tester,
-  ) async {
+  testWidgets('light: the fields sit on a glass panel, create is glass',
+      (tester) async {
     final repo = _RecordingTerritoriesRepository();
     await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
     await tester.pumpAndSettle();
 
     final panel = tester.widget<GlassPane>(
       find
-          .ancestor(
-            of: find.text('TERRITORY'),
-            matching: find.byType(GlassPane),
-          )
+          .ancestor(of: find.text('TERRITORY'), matching: find.byType(GlassPane))
           .first,
     );
     expect(panel.kind, GlassKind.panel);
 
     await tester.enterText(
-      find.byKey(const ValueKey<String>('territory-name-field')),
-      'KZN Coast',
-    );
+        find.byKey(const ValueKey<String>('territory-name-field')), 'KZN Coast');
     await tester.enterText(
-      find.byKey(const ValueKey<String>('territory-code-field')),
-      'KZN-C',
-    );
+        find.byKey(const ValueKey<String>('territory-code-field')), 'KZN-C');
     final save = find.byKey(const ValueKey<String>('territory-save-button'));
     expect(tester.widget(save), isA<GlassPrimaryButton>());
     await tester.ensureVisible(save);

@@ -95,9 +95,8 @@ class _WebSourcesState extends State<WebSources> {
             count: widget.sources.isEmpty ? null : widget.sources.length,
             // A search that found nothing usable is a fact about the search,
             // not an empty state — the rule stays and says so.
-            emptyLine: widget.sources.isEmpty
-                ? l10n.askSourcesNothingUsable
-                : null,
+            emptyLine:
+                widget.sources.isEmpty ? l10n.askSourcesNothingUsable : null,
           ),
           if (shown.isNotEmpty) SizedBox(height: skin.space.intraBlock),
           for (var i = 0; i < shown.length; i++)
@@ -192,9 +191,7 @@ class _SourceRowState extends State<SourceRow> {
 
     final meta = <String>[
       if (source.pageAge != null) source.pageAge!,
-      if (_unreachable)
-        l10n.askSourceUnreachable
-      else
+      if (_unreachable) l10n.askSourceUnreachable else
         l10n.askSourceOpensInBrowser,
     ].join(' · ');
 

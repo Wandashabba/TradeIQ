@@ -499,9 +499,7 @@ class _TrendPainter extends CustomPainter {
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final point = Offset(x(i, points.length), y(points[i].value));
-      i == 0
-          ? path.moveTo(point.dx, point.dy)
-          : path.lineTo(point.dx, point.dy);
+      i == 0 ? path.moveTo(point.dx, point.dy) : path.lineTo(point.dx, point.dy);
     }
 
     // The area fill is part of the series object, not a second one: one
@@ -535,7 +533,10 @@ class _TrendPainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
       Offset? previous;
       for (var i = 0; i < comparison.length; i++) {
-        final point = Offset(x(i, comparison.length), y(comparison[i].value));
+        final point = Offset(
+          x(i, comparison.length),
+          y(comparison[i].value),
+        );
         if (previous != null) _dashed(canvas, previous, point, dash, veld);
         previous = point;
       }

@@ -271,7 +271,10 @@ class _ScoredState extends ConsumerState<_Scored> {
               agentLead: l10n.outcomeReconciledLead,
               agentTail: l10n.outcomeReconciledTail,
             ),
-            semanticsLabel: l10n.outcomeReconciledSemantics(total, seenBefore),
+            semanticsLabel: l10n.outcomeReconciledSemantics(
+              total,
+              seenBefore,
+            ),
           ),
         ],
         const SizedBox(height: TiqSpace.s3),
@@ -584,8 +587,9 @@ String _dimensionLabel(AppLocalizations l10n, String key, String fallback) =>
     };
 
 /// Why a dimension could not be scored ([kUnmeasurableReasons]), localised.
-String? _unmeasurableReason(AppLocalizations l10n, String key) => switch (key) {
-  'competitive' => l10n.outcomeUnmeasurableCompetitive,
-  'salesCapability' => l10n.outcomeUnmeasurableSalesCapability,
-  _ => kUnmeasurableReasons[key],
-};
+String? _unmeasurableReason(AppLocalizations l10n, String key) =>
+    switch (key) {
+      'competitive' => l10n.outcomeUnmeasurableCompetitive,
+      'salesCapability' => l10n.outcomeUnmeasurableSalesCapability,
+      _ => kUnmeasurableReasons[key],
+    };

@@ -71,7 +71,11 @@ void main() {
         {'id': 's1', 'outletId': 'o1', 'sequence': 1, 'visited': true},
         {'id': 's2', 'outletId': 'o2', 'sequence': 2, 'visited': false},
       ],
-      'adherence': {'stopsTotal': 2, 'stopsVisited': 1, 'adherenceRate': 0.5},
+      'adherence': {
+        'stopsTotal': 2,
+        'stopsVisited': 1,
+        'adherenceRate': 0.5,
+      },
     });
 
     expect(detail.plan.id, 'bp1');
@@ -95,22 +99,20 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "bp1", "name": "North Route", "status": "planned", '
-          '"scheduledDate": "2026-07-10"}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "bp1", "name": "North Route", "status": "planned", '
+        '"scheduledDate": "2026-07-10"}], '
+        '"nextCursor": "cursor-1"}',
+      );
 
-        final page = await DioBeatPlansRepository().listBeatPlans();
+      final page = await DioBeatPlansRepository().listBeatPlans();
 
-        expect(page, isA<PaginatedResponse<BeatPlan>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 'bp1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<BeatPlan>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'bp1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }

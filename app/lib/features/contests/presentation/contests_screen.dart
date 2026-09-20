@@ -54,8 +54,7 @@ class ContestsScreen extends ConsumerWidget {
               child: list.isEmpty
                   ? const EmptyState(
                       message: 'No contests yet',
-                      hint:
-                          'Create one to rank agents by the points they '
+                      hint: 'Create one to rank agents by the points they '
                           'earn between two dates, for a prize.',
                     )
                   : Column(
@@ -159,8 +158,7 @@ class _ContestRow extends ConsumerWidget {
               context,
               ref,
               title: 'Cancel “${c.name}”?',
-              body:
-                  'Agents stop seeing it straight away. You keep its '
+              body: 'Agents stop seeing it straight away. You keep its '
                   'standings, but it cannot be edited or restarted.',
               confirmLabel: 'Cancel contest',
               failure: 'Failed to cancel contest.',

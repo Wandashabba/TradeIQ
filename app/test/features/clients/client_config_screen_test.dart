@@ -15,7 +15,10 @@ import '../../helpers/routed_app.dart';
 
 const _config = ClientConfig(
   name: 'Acme Beverages',
-  scorecardWeights: {'availability': 0.3, 'visibility': 0.2},
+  scorecardWeights: {
+    'availability': 0.3,
+    'visibility': 0.2,
+  },
   // Deliberately partial: only `green` is stored. The other three keys must
   // fall back to what the engine already uses, not to zero.
   kpiThresholds: {'green': 80.0},
@@ -37,14 +40,14 @@ class _FakeClientsRepository implements ClientsRepository {
 
   @override
   Future<ClientConfig> getConfig() async => ClientConfig(
-    name: _config.name,
-    scorecardWeights: _config.scorecardWeights,
-    kpiThresholds: _config.kpiThresholds,
-    timezone: timezone,
-    workHoursStart: workHoursStart,
-    workHoursEnd: workHoursEnd,
-    workDays: workDays,
-  );
+        name: _config.name,
+        scorecardWeights: _config.scorecardWeights,
+        kpiThresholds: _config.kpiThresholds,
+        timezone: timezone,
+        workHoursStart: workHoursStart,
+        workHoursEnd: workHoursEnd,
+        workDays: workDays,
+      );
 
   @override
   Future<ClientConfig> updateWorkingHours({
@@ -174,13 +177,15 @@ Widget _app(
   String role = 'admin',
   ThemeData? theme,
 }) => routedApp(
-  const ClientConfigScreen(),
-  theme: theme,
-  overrides: [
-    clientsRepositoryProvider.overrideWithValue(repo),
-    sessionControllerProvider.overrideWith(() => _FixedSessionController(role)),
-  ],
-);
+      const ClientConfigScreen(),
+      theme: theme,
+      overrides: [
+        clientsRepositoryProvider.overrideWithValue(repo),
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(role),
+        ),
+      ],
+    );
 
 Future<void> _pump(WidgetTester tester, Widget app) async {
   tester.view.physicalSize = const Size(1280, 2200);
@@ -192,35 +197,29 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
-  testWidgets(
-    'light: the read-only notice is opaque and rimmed; shares are mono',
-    (tester) async {
-      await _pump(
-        tester,
-        _app(
-          _FakeClientsRepository(),
-          role: 'manager',
-          theme: AppTheme.light(),
-        ),
-      );
+  testWidgets('light: the read-only notice is opaque and rimmed; shares are mono',
+      (tester) async {
+    await _pump(
+      tester,
+      _app(_FakeClientsRepository(), role: 'manager', theme: AppTheme.light()),
+    );
 
-      const t = TiqColors.light;
-      final notice = tester.widget<Container>(
-        find.byKey(const ValueKey<String>('read-only-notice')).first,
-      );
-      final deco = notice.decoration! as BoxDecoration;
-      // An opaque ground, so its words measure against the colour on screen.
-      expect(deco.color, t.surface2);
-      expect(deco.color!.a, 1.0);
-      expect((deco.border! as Border).top.color, LumenPalette.light.panelRim);
-      expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
+    const t = TiqColors.light;
+    final notice = tester.widget<Container>(
+      find.byKey(const ValueKey<String>('read-only-notice')).first,
+    );
+    final deco = notice.decoration! as BoxDecoration;
+    // An opaque ground, so its words measure against the colour on screen.
+    expect(deco.color, t.surface2);
+    expect(deco.color!.a, 1.0);
+    expect((deco.border! as Border).top.color, LumenPalette.light.panelRim);
+    expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
 
-      expect(
-        tester.widget<Text>(find.text('60.0%')).style!.fontFamily,
-        LumenGlass.mono,
-      );
-    },
-  );
+    expect(
+      tester.widget<Text>(find.text('60.0%')).style!.fontFamily,
+      LumenGlass.mono,
+    );
+  });
 
   testWidgets('dark: the share figure keeps its flat style', (tester) async {
     await _pump(tester, _app(_FakeClientsRepository()));
@@ -228,19 +227,13 @@ void main() {
     expect(tester.widget<Text>(find.text('60.0%')).style!.fontFamily, isNull);
   });
 
-  testWidgets('renders a weight field for each scorecard weight', (
-    tester,
-  ) async {
+  testWidgets('renders a weight field for each scorecard weight', (tester) async {
     await _pump(tester, _app(_FakeClientsRepository()));
 
-    expect(
-      find.byKey(const ValueKey<String>('weight-availability')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('weight-visibility')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey<String>('weight-availability')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('weight-visibility')),
+        findsOneWidget);
   });
 
   testWidgets('saving submits the parsed weights map', (tester) async {
@@ -312,9 +305,8 @@ void main() {
     expect(repo.savedThresholds?['priceDeviationPct'], 5.0);
   });
 
-  testWidgets('shows an error message when the config fails to load', (
-    tester,
-  ) async {
+  testWidgets('shows an error message when the config fails to load',
+      (tester) async {
     await _pump(tester, _app(_ThrowingClientsRepository()));
 
     expect(find.textContaining('Failed to load config'), findsOneWidget);
@@ -326,10 +318,7 @@ void main() {
     // UNHANDLED exception and crashed the screen.
     await _pump(tester, _app(_FakeClientsRepository(), role: 'manager'));
 
-    expect(
-      find.byKey(const ValueKey<String>('read-only-notice')),
-      findsWidgets,
-    );
+    expect(find.byKey(const ValueKey<String>('read-only-notice')), findsWidgets);
     expect(find.byKey(const ValueKey<String>('save-config')), findsNothing);
     expect(find.byKey(const ValueKey<String>('save-thresholds')), findsNothing);
 
@@ -398,9 +387,10 @@ void main() {
       });
 
       test('matches case-insensitively, reading a space as an underscore', () {
-        expect(timezoneOptions('new york', current: 'UTC').all, [
-          'America/New_York',
-        ]);
+        expect(
+          timezoneOptions('new york', current: 'UTC').all,
+          ['America/New_York'],
+        );
         final johann = timezoneOptions('JOHANN', current: 'UTC');
         expect(johann.suggested, isEmpty);
         expect(johann.all.first, 'Africa/Johannesburg');
@@ -440,10 +430,7 @@ void main() {
         expect(deco.color, ink.surface2);
         expect(deco.color!.a, 1.0);
         expect((deco.border! as Border).top.color, rim);
-        expect(
-          contrastRatio(ink.ink1, ink.surface2),
-          greaterThanOrEqualTo(4.5),
-        );
+        expect(contrastRatio(ink.ink1, ink.surface2), greaterThanOrEqualTo(4.5));
 
         // The picker opens in the same theme, with the current zone ticked.
         await openPicker(tester);
@@ -475,24 +462,20 @@ void main() {
       expect(shownZone(tester), 'America/New_York');
     });
 
-    testWidgets(
-      'lists Johannesburg first, ahead of the current zone and the rest',
-      (tester) async {
-        await _pump(
-          tester,
-          _app(_FakeClientsRepository(timezone: 'Europe/London')),
-        );
-        await openPicker(tester);
+    testWidgets('lists Johannesburg first, ahead of the current zone and the rest',
+        (tester) async {
+      await _pump(
+        tester,
+        _app(_FakeClientsRepository(timezone: 'Europe/London')),
+      );
+      await openPicker(tester);
 
-        final johannesburg = tester
-            .getTopLeft(option('Africa/Johannesburg'))
-            .dy;
-        final london = tester.getTopLeft(option('Europe/London')).dy;
-        final firstOfAll = tester.getTopLeft(option('Africa/Abidjan')).dy;
-        expect(johannesburg, lessThan(london));
-        expect(london, lessThan(firstOfAll));
-      },
-    );
+      final johannesburg = tester.getTopLeft(option('Africa/Johannesburg')).dy;
+      final london = tester.getTopLeft(option('Europe/London')).dy;
+      final firstOfAll = tester.getTopLeft(option('Africa/Abidjan')).dy;
+      expect(johannesburg, lessThan(london));
+      expect(london, lessThan(firstOfAll));
+    });
 
     testWidgets('says so when nothing matches, and cancelling saves nothing', (
       tester,
@@ -551,9 +534,7 @@ void main() {
       expect(change.onPressed, isNotNull);
     });
 
-    testWidgets('an unexpected failure is reported, not thrown', (
-      tester,
-    ) async {
+    testWidgets('an unexpected failure is reported, not thrown', (tester) async {
       await _pump(
         tester,
         _app(_TimezoneFailureRepository(Exception('network down'))),
@@ -562,10 +543,7 @@ void main() {
       await pickBySearch(tester, 'tokyo', 'Asia/Tokyo');
 
       expect(tester.takeException(), isNull);
-      expect(
-        find.text('Could not save: Exception: network down'),
-        findsOneWidget,
-      );
+      expect(find.text('Could not save: Exception: network down'), findsOneWidget);
     });
 
     testWidgets('a field agent sees the zone but cannot change it', (

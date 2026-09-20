@@ -77,13 +77,15 @@ class _RecordingSchedulesRepository implements ReportSchedulesRepository {
     String scheduleId, {
     String? cursor,
     int limit = reportRunsPageSize,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<List<ReportEmailDelivery>> listEmailDeliveries(
     String scheduleId,
     String runId,
-  ) async => throw UnimplementedError();
+  ) async =>
+      throw UnimplementedError();
 
   @override
   Future<ScheduleRunResult> runNow(String id) async =>
@@ -112,7 +114,8 @@ class _FakeReportsRepository implements ReportsRepository {
     required String name,
     required String type,
     required Map<String, dynamic> filters,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> deleteReport(String id) async => throw UnimplementedError();
@@ -123,18 +126,18 @@ Widget _app(
   _FakeReportsRepository? reports,
   ThemeData? theme,
   ReportSchedule? schedule,
-}) => ProviderScope(
-  overrides: [
-    reportSchedulesRepositoryProvider.overrideWithValue(repo),
-    reportsRepositoryProvider.overrideWithValue(
-      reports ?? _FakeReportsRepository(),
-    ),
-  ],
-  child: MaterialApp(
-    theme: theme,
-    home: ReportScheduleFormScreen(schedule: schedule),
-  ),
-);
+}) =>
+    ProviderScope(
+      overrides: [
+        reportSchedulesRepositoryProvider.overrideWithValue(repo),
+        reportsRepositoryProvider
+            .overrideWithValue(reports ?? _FakeReportsRepository()),
+      ],
+      child: MaterialApp(
+        theme: theme,
+        home: ReportScheduleFormScreen(schedule: schedule),
+      ),
+    );
 
 const _existing = ReportSchedule(
   id: 's-1',
@@ -145,9 +148,8 @@ const _existing = ReportSchedule(
   active: true,
 );
 
-final _recipients = find.byKey(
-  const ValueKey<String>('schedule-recipients-field'),
-);
+final _recipients =
+    find.byKey(const ValueKey<String>('schedule-recipients-field'));
 
 String _recipientsText(WidgetTester tester) =>
     tester.widget<TextFormField>(_recipients).controller!.text;
@@ -166,9 +168,7 @@ Future<void> _fillValid(WidgetTester tester) async {
   await tester.tap(find.text('Sales by SKU').last);
   await tester.pumpAndSettle();
 
-  await tester.tap(
-    find.byKey(const ValueKey<String>('schedule-cadence-field')),
-  );
+  await tester.tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Weekly').last);
   await tester.pumpAndSettle();
@@ -182,11 +182,10 @@ Future<void> _fillValid(WidgetTester tester) async {
 void main() {
   group('parseRecipients', () {
     test('splits on commas, semicolons and lines, trimming blanks away', () {
-      expect(parseRecipients(' a@acme.test,b@acme.test ;\n\n c@acme.test , '), [
-        'a@acme.test',
-        'b@acme.test',
-        'c@acme.test',
-      ]);
+      expect(
+        parseRecipients(' a@acme.test,b@acme.test ;\n\n c@acme.test , '),
+        ['a@acme.test', 'b@acme.test', 'c@acme.test'],
+      );
     });
 
     test('whitespace and separators alone are no recipients', () {
@@ -194,9 +193,8 @@ void main() {
     });
   });
 
-  testWidgets('creates a schedule with the picked report, cadence and list', (
-    tester,
-  ) async {
+  testWidgets('creates a schedule with the picked report, cadence and list',
+      (tester) async {
     final repo = _RecordingSchedulesRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -211,16 +209,13 @@ void main() {
     });
   });
 
-  testWidgets('cadence defaults to daily, the first allowed value', (
-    tester,
-  ) async {
+  testWidgets('cadence defaults to daily, the first allowed value',
+      (tester) async {
     final repo = _RecordingSchedulesRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('schedule-report-field')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('schedule-report-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coverage by outlet').last);
     await tester.pumpAndSettle();
@@ -234,9 +229,8 @@ void main() {
     expect(repo.createdArgs!['reportDefinitionId'], 'r-a');
   });
 
-  testWidgets('blocks submit without a report or any recipient', (
-    tester,
-  ) async {
+  testWidgets('blocks submit without a report or any recipient',
+      (tester) async {
     final repo = _RecordingSchedulesRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -252,9 +246,8 @@ void main() {
     expect(repo.createdArgs, isNull);
   });
 
-  testWidgets('with no saved reports there is nothing to schedule', (
-    tester,
-  ) async {
+  testWidgets('with no saved reports there is nothing to schedule',
+      (tester) async {
     final repo = _RecordingSchedulesRepository();
     await tester.pumpWidget(
       _app(repo, reports: _FakeReportsRepository(reports: const [])),
@@ -277,10 +270,8 @@ void main() {
     await _tapSave(tester);
 
     expect(
-      find.text(
-        'Failed to create schedule. Something went wrong. Please try '
-        'again.',
-      ),
+      find.text('Failed to create schedule. Something went wrong. Please try '
+          'again.'),
       findsOneWidget,
     );
     expect(find.text('New Schedule'), findsOneWidget);
@@ -289,26 +280,20 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets(
-    'the cadence field says it runs automatically, and is emailed once set up',
-    (tester) async {
-      await tester.pumpWidget(_app(_RecordingSchedulesRepository()));
-      await tester.pumpAndSettle();
+  testWidgets('the cadence field says it runs automatically, and is emailed once set up',
+      (tester) async {
+    await tester.pumpWidget(_app(_RecordingSchedulesRepository()));
+    await tester.pumpAndSettle();
 
-      expect(find.text(scheduleCadenceHelp), findsOneWidget);
-      expect(scheduleCadenceHelp, contains('Runs automatically'));
-      expect(scheduleCadenceHelp, contains('report.generated'));
-      expect(
-        scheduleCadenceHelp,
-        contains('emailed to the recipients when email is set up'),
-      );
-      expect(find.textContaining('Nothing sends'), findsNothing);
-    },
-  );
+    expect(find.text(scheduleCadenceHelp), findsOneWidget);
+    expect(scheduleCadenceHelp, contains('Runs automatically'));
+    expect(scheduleCadenceHelp, contains('report.generated'));
+    expect(scheduleCadenceHelp, contains('emailed to the recipients when email is set up'));
+    expect(find.textContaining('Nothing sends'), findsNothing);
+  });
 
-  testWidgets('blocks submit when a recipient is not an email address', (
-    tester,
-  ) async {
+  testWidgets('blocks submit when a recipient is not an email address',
+      (tester) async {
     final repo = _RecordingSchedulesRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -320,10 +305,7 @@ void main() {
     );
     await _tapSave(tester);
 
-    expect(
-      find.text('Not an email address: https://hooks.acme.test/x'),
-      findsOneWidget,
-    );
+    expect(find.text('Not an email address: https://hooks.acme.test/x'), findsOneWidget);
     expect(repo.createdArgs, isNull);
   });
 
@@ -331,38 +313,24 @@ void main() {
     test('accepts 1 to 50 email addresses', () {
       expect(recipientsError('ops@acme.test\nlead@acme.test'), isNull);
       expect(
-        recipientsError(
-          List.generate(
-            maxScheduleRecipients,
-            (i) => 'r$i@acme.test',
-          ).join(','),
-        ),
+        recipientsError(List.generate(maxScheduleRecipients, (i) => 'r$i@acme.test').join(',')),
         isNull,
       );
     });
 
     test('says what is wrong otherwise', () {
       expect(recipientsError(' , '), 'Add at least one recipient');
+      expect(recipientsError('ops@acme.test; not-an-email'), 'Not an email address: not-an-email');
       expect(
-        recipientsError('ops@acme.test; not-an-email'),
-        'Not an email address: not-an-email',
-      );
-      expect(
-        recipientsError(
-          List.generate(
-            maxScheduleRecipients + 1,
-            (i) => 'r$i@acme.test',
-          ).join(','),
-        ),
+        recipientsError(List.generate(maxScheduleRecipients + 1, (i) => 'r$i@acme.test').join(',')),
         'At most $maxScheduleRecipients recipients',
       );
     });
   });
 
   group('edit mode', () {
-    testWidgets('is prefilled with the schedule, report read-only', (
-      tester,
-    ) async {
+    testWidgets('is prefilled with the schedule, report read-only',
+        (tester) async {
       final repo = _RecordingSchedulesRepository();
       await tester.pumpWidget(_app(repo, schedule: _existing));
       await tester.pumpAndSettle();
@@ -377,14 +345,10 @@ void main() {
         find.byKey(const ValueKey<String>('schedule-report-field')),
         findsNothing,
       );
-      final readonly = find.byKey(
-        const ValueKey<String>('schedule-report-readonly'),
-      );
+      final readonly =
+          find.byKey(const ValueKey<String>('schedule-report-readonly'));
       expect(
-        find.descendant(
-          of: readonly,
-          matching: find.text('Coverage by outlet'),
-        ),
+        find.descendant(of: readonly, matching: find.text('Coverage by outlet')),
         findsOneWidget,
       );
       expect(find.text(scheduleReportLockedNote), findsOneWidget);
@@ -392,23 +356,18 @@ void main() {
       expect(find.text(scheduleCadenceHelp), findsOneWidget);
     });
 
-    testWidgets('saves the new cadence and recipients, blanks dropped', (
-      tester,
-    ) async {
+    testWidgets('saves the new cadence and recipients, blanks dropped',
+        (tester) async {
       final repo = _RecordingSchedulesRepository();
       await tester.pumpWidget(_app(repo, schedule: _existing));
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('schedule-cadence-field')),
-      );
+      await tester
+          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Daily').last);
       await tester.pumpAndSettle();
-      await tester.enterText(
-        _recipients,
-        ' new@acme.test ;\n\n, ops@acme.test',
-      );
+      await tester.enterText(_recipients, ' new@acme.test ;\n\n, ops@acme.test');
       await _tapSave(tester);
 
       expect(repo.updatedArgs, {
@@ -431,9 +390,8 @@ void main() {
       expect(repo.updateCalls, 0);
     });
 
-    testWidgets('a cadence outside the allow-list must be re-picked', (
-      tester,
-    ) async {
+    testWidgets('a cadence outside the allow-list must be re-picked',
+        (tester) async {
       final repo = _RecordingSchedulesRepository();
       await tester.pumpWidget(
         _app(
@@ -456,9 +414,8 @@ void main() {
       expect(find.text('Pick a cadence'), findsOneWidget);
       expect(repo.updateCalls, 0);
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('schedule-cadence-field')),
-      );
+      await tester
+          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Weekly').last);
       await tester.pumpAndSettle();
@@ -467,9 +424,8 @@ void main() {
       expect(repo.updatedArgs!['cadence'], 'weekly');
     });
 
-    testWidgets('a failed save keeps the form, the edits, and says why', (
-      tester,
-    ) async {
+    testWidgets('a failed save keeps the form, the edits, and says why',
+        (tester) async {
       final repo = _RecordingSchedulesRepository(failUpdate: true);
       await tester.pumpWidget(_app(repo, schedule: _existing));
       await tester.pumpAndSettle();
@@ -519,9 +475,8 @@ void main() {
       ]);
     });
 
-    testWidgets('$name: a failed save reads in the crit text colour', (
-      tester,
-    ) async {
+    testWidgets('$name: a failed save reads in the crit text colour',
+        (tester) async {
       final repo = _RecordingSchedulesRepository(failUpdate: true);
       await tester.pumpWidget(_app(repo, theme: theme, schedule: _existing));
       await tester.pumpAndSettle();
@@ -542,9 +497,8 @@ void main() {
     ('light', AppTheme.light()),
     ('dark', AppTheme.dark()),
   ]) {
-    testWidgets('$name: sections are glass panels, create is glass', (
-      tester,
-    ) async {
+    testWidgets('$name: sections are glass panels, create is glass',
+        (tester) async {
       final repo = _RecordingSchedulesRepository();
       await tester.pumpWidget(_app(repo, theme: theme));
       await tester.pumpAndSettle();

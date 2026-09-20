@@ -18,16 +18,11 @@ double haversineDistanceMeters(Coordinates a, Coordinates b) {
   final lat1 = _toRadians(a.lat);
   final lat2 = _toRadians(b.lat);
 
-  final h =
-      pow(sin(dLat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dLng / 2), 2);
+  final h = pow(sin(dLat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dLng / 2), 2);
 
   return 2 * _earthRadiusMeters * asin(sqrt(h));
 }
 
-bool isWithinGeofence(
-  Coordinates outlet,
-  Coordinates checkin, {
-  double radiusMeters = defaultGeofenceRadiusMeters,
-}) {
+bool isWithinGeofence(Coordinates outlet, Coordinates checkin, {double radiusMeters = defaultGeofenceRadiusMeters}) {
   return haversineDistanceMeters(outlet, checkin) <= radiusMeters;
 }

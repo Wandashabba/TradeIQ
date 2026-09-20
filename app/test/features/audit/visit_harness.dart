@@ -121,15 +121,7 @@ class ScriptedVisits implements VisitsRepository {
 
   /// Every wrong-pin report filed, in order (#386).
   final disputes =
-      <
-        ({
-          String outletId,
-          double lat,
-          double lng,
-          double distance,
-          String? note,
-        })
-      >[];
+      <({String outletId, double lat, double lng, double distance, String? note})>[];
 
   /// Makes the next wrong-pin report fail the way a local write can.
   bool disputeFails = false;

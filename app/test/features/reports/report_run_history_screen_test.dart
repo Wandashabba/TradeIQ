@@ -36,16 +36,8 @@ final _delivered = ReportRun(
   webhook: const RunWebhookSummary(status: 'queued', delivered: 1),
   email: const RunEmailSummary(status: 'queued', sent: 2),
   deliveries: const [
-    ReportDeliveryOutcome(
-      channel: 'webhook',
-      status: 'queued',
-      targets: ['https://hooks.acme.test/r'],
-    ),
-    ReportDeliveryOutcome(
-      channel: 'email',
-      status: 'queued',
-      targets: ['ops@acme.test', 'lead@acme.test'],
-    ),
+    ReportDeliveryOutcome(channel: 'webhook', status: 'queued', targets: ['https://hooks.acme.test/r']),
+    ReportDeliveryOutcome(channel: 'email', status: 'queued', targets: ['ops@acme.test', 'lead@acme.test']),
   ],
   webhookDeliveries: const [
     RunWebhookResult(
@@ -93,8 +85,7 @@ final _notSent = ReportRun(
   status: ReportRunStatus.notSent,
   generatedAt: DateTime(2026, 9, 12, 8, 0),
   rowCount: 0,
-  reason:
-      'No active webhook is subscribed to report.generated; '
+  reason: 'No active webhook is subscribed to report.generated; '
       'Email delivery not configured',
   webhook: const RunWebhookSummary(status: 'no_subscribers'),
   email: const RunEmailSummary(status: 'not_configured', notConfigured: 2),
@@ -131,11 +122,9 @@ class _FakeRunsRepository implements ReportSchedulesRepository {
     this.failMore = false,
     this.failEmails = false,
     this.pendingRuns,
-  }) : pages =
-           pages ??
-           [
-             [_delivered, _partial, _notSent],
-           ];
+  }) : pages = pages ?? [
+          [_delivered, _partial, _notSent],
+        ];
 
   /// Each inner list is one page; every page but the last has a next cursor.
   List<List<ReportRun>> pages;
@@ -183,7 +172,8 @@ class _FakeRunsRepository implements ReportSchedulesRepository {
     required String reportDefinitionId,
     required String cadence,
     required List<String> recipients,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<ReportSchedule> setActive(String id, bool active) async =>
@@ -194,7 +184,8 @@ class _FakeRunsRepository implements ReportSchedulesRepository {
     String id, {
     String? cadence,
     List<String>? recipients,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> deleteSchedule(String id) async => throw UnimplementedError();
@@ -205,23 +196,21 @@ class _FakeRunsRepository implements ReportSchedulesRepository {
 }
 
 Widget _app(ReportSchedulesRepository repo, {ThemeData? theme}) => routedApp(
-  const ReportRunHistoryScreen(schedule: _schedule),
-  theme: theme,
-  overrides: [reportSchedulesRepositoryProvider.overrideWithValue(repo)],
-);
+      const ReportRunHistoryScreen(schedule: _schedule),
+      theme: theme,
+      overrides: [reportSchedulesRepositoryProvider.overrideWithValue(repo)],
+    );
 
 Finder _inRow(String runId, Finder matching) => find.descendant(
-  of: find.byKey(ValueKey<String>('run-$runId')),
-  matching: matching,
-);
+      of: find.byKey(ValueKey<String>('run-$runId')),
+      matching: matching,
+    );
 
 void main() {
   group('words', () {
     test('every status has its own word, glyph and level', () {
       final words = {for (final s in ReportRunStatus.values) runStatusWord(s)};
-      final glyphs = {
-        for (final s in ReportRunStatus.values) runStatusGlyph(s),
-      };
+      final glyphs = {for (final s in ReportRunStatus.values) runStatusGlyph(s)};
       expect(words, hasLength(ReportRunStatus.values.length));
       expect(glyphs, hasLength(ReportRunStatus.values.length));
       expect(runStatusWord(ReportRunStatus.partial), 'Partly delivered');
@@ -269,69 +258,60 @@ void main() {
       );
     });
 
-    test(
-      'times: a scheduled run shows its due time, Run now only generated',
-      () {
-        expect(
-          runTimesLabel(_delivered),
-          'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
-        );
-        expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
-      },
-    );
+    test('times: a scheduled run shows its due time, Run now only generated', () {
+      expect(
+        runTimesLabel(_delivered),
+        'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
+      );
+      expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
+    });
   });
 
   testWidgets(
-    'lists runs with a glyph and a word, times, rows, summary and reason',
-    (tester) async {
-      await tester.pumpWidget(_app(_FakeRunsRepository()));
-      await tester.pumpAndSettle();
+      'lists runs with a glyph and a word, times, rows, summary and reason',
+      (tester) async {
+    await tester.pumpWidget(_app(_FakeRunsRepository()));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Run history'), findsOneWidget);
-      expect(find.text('Coverage by outlet'), findsOneWidget);
-      expect(find.text('3 runs'), findsOneWidget);
+    expect(find.text('Run history'), findsOneWidget);
+    expect(find.text('Coverage by outlet'), findsOneWidget);
+    expect(find.text('3 runs'), findsOneWidget);
 
-      // Status is a glyph and a word, never colour alone.
-      for (final (run, glyph, word) in [
-        (_delivered, '✓', 'DELIVERED'),
-        (_partial, '!', 'PARTLY DELIVERED'),
-        (_notSent, '–', 'NOT SENT'),
-      ]) {
-        expect(
-          _inRow(run.id, find.text(glyph)),
-          findsOneWidget,
-          reason: run.id,
-        );
-        expect(_inRow(run.id, find.text(word)), findsOneWidget, reason: run.id);
-      }
+    // Status is a glyph and a word, never colour alone.
+    for (final (run, glyph, word) in [
+      (_delivered, '✓', 'DELIVERED'),
+      (_partial, '!', 'PARTLY DELIVERED'),
+      (_notSent, '–', 'NOT SENT'),
+    ]) {
+      expect(_inRow(run.id, find.text(glyph)), findsOneWidget, reason: run.id);
+      expect(_inRow(run.id, find.text(word)), findsOneWidget, reason: run.id);
+    }
 
-      expect(find.text('Scheduled run'), findsOneWidget);
-      expect(find.text('Run now'), findsNWidgets(2));
-      expect(
-        find.text('Due 2026-09-14 09:00 · Generated 2026-09-14 09:01'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('42 rows · Webhooks: 1 delivered · Email: 2 sent'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('1 row · Webhooks: 1 failed · Email: 1 sent, 1 failed'),
-        findsOneWidget,
-      );
-      expect(
-        _inRow(
-          _notSent.id,
-          find.textContaining('No active webhook is subscribed'),
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Scheduled run'), findsOneWidget);
+    expect(find.text('Run now'), findsNWidgets(2));
+    expect(
+      find.text('Due 2026-09-14 09:00 · Generated 2026-09-14 09:01'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('42 rows · Webhooks: 1 delivered · Email: 2 sent'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('1 row · Webhooks: 1 failed · Email: 1 sent, 1 failed'),
+      findsOneWidget,
+    );
+    expect(
+      _inRow(
+        _notSent.id,
+        find.textContaining('No active webhook is subscribed'),
+      ),
+      findsOneWidget,
+    );
+  });
 
-  testWidgets('Download CSV appears only with a link, and copies it', (
-    tester,
-  ) async {
+  testWidgets('Download CSV appears only with a link, and copies it',
+      (tester) async {
     String? copied;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -343,19 +323,14 @@ void main() {
       },
     );
     addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        null,
-      ),
+      () => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
     );
 
     await tester.pumpWidget(_app(_FakeRunsRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('download-run-delivered')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('download-run-delivered')), findsOneWidget);
     expect(find.byKey(const ValueKey('download-run-partial')), findsNothing);
     expect(find.byKey(const ValueKey('download-run-not-sent')), findsNothing);
 
@@ -378,88 +353,56 @@ void main() {
   });
 
   testWidgets(
-    'opening a run shows webhook results and per-recipient email deliveries',
-    (tester) async {
-      final repo = _FakeRunsRepository();
-      await tester.pumpWidget(_app(repo));
-      await tester.pumpAndSettle();
-      expect(repo.emailCalls, isEmpty, reason: 'fetched only when opened');
+      'opening a run shows webhook results and per-recipient email deliveries',
+      (tester) async {
+    final repo = _FakeRunsRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+    expect(repo.emailCalls, isEmpty, reason: 'fetched only when opened');
 
-      await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
+    await tester.pumpAndSettle();
 
-      expect(repo.emailCalls, ['run-partial']);
-      final detail = find.byKey(const ValueKey('run-detail-run-partial'));
-      Finder inDetail(Finder f) => find.descendant(of: detail, matching: f);
+    expect(repo.emailCalls, ['run-partial']);
+    final detail = find.byKey(const ValueKey('run-detail-run-partial'));
+    Finder inDetail(Finder f) => find.descendant(of: detail, matching: f);
 
-      final webhook = find.byKey(const ValueKey('run-webhook-wd-2'));
-      expect(
-        find.descendant(
-          of: webhook,
-          matching: find.text('https://hooks.acme.test/r'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: webhook, matching: find.text('GAVE UP')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: webhook, matching: find.text('HTTP 500')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: webhook, matching: find.text('6 attempts')),
-        findsOneWidget,
-      );
+    final webhook = find.byKey(const ValueKey('run-webhook-wd-2'));
+    expect(
+      find.descendant(of: webhook, matching: find.text('https://hooks.acme.test/r')),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: webhook, matching: find.text('GAVE UP')), findsOneWidget);
+    expect(find.descendant(of: webhook, matching: find.text('HTTP 500')), findsOneWidget);
+    expect(find.descendant(of: webhook, matching: find.text('6 attempts')), findsOneWidget);
 
-      final sent = find.byKey(const ValueKey('run-email-e1'));
-      expect(
-        find.descendant(of: sent, matching: find.text('ops@acme.test')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: sent, matching: find.text('SENT')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: sent, matching: find.text('1 attempt')),
-        findsOneWidget,
-      );
+    final sent = find.byKey(const ValueKey('run-email-e1'));
+    expect(find.descendant(of: sent, matching: find.text('ops@acme.test')), findsOneWidget);
+    expect(find.descendant(of: sent, matching: find.text('SENT')), findsOneWidget);
+    expect(find.descendant(of: sent, matching: find.text('1 attempt')), findsOneWidget);
 
-      final failed = find.byKey(const ValueKey('run-email-e2'));
-      expect(
-        find.descendant(of: failed, matching: find.text('lead@acme.test')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: failed, matching: find.text('FAILED')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: failed, matching: find.text('6 attempts')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: failed,
-          matching: find.text('SMTP 550: mailbox unavailable'),
-        ),
-        findsOneWidget,
-      );
+    final failed = find.byKey(const ValueKey('run-email-e2'));
+    expect(find.descendant(of: failed, matching: find.text('lead@acme.test')), findsOneWidget);
+    expect(find.descendant(of: failed, matching: find.text('FAILED')), findsOneWidget);
+    expect(find.descendant(of: failed, matching: find.text('6 attempts')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: failed,
+        matching: find.text('SMTP 550: mailbox unavailable'),
+      ),
+      findsOneWidget,
+    );
 
-      expect(inDetail(find.text(noCsvLinkNote)), findsOneWidget);
+    expect(inDetail(find.text(noCsvLinkNote)), findsOneWidget);
 
-      // Closing hides it again.
-      await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-      await tester.pumpAndSettle();
-      expect(detail, findsNothing);
-    },
-  );
+    // Closing hides it again.
+    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
+    await tester.pumpAndSettle();
+    expect(detail, findsNothing);
+  });
 
-  testWidgets('a run that was not sent says why, without fetching emails', (
-    tester,
-  ) async {
+  testWidgets('a run that was not sent says why, without fetching emails',
+      (tester) async {
     final repo = _FakeRunsRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -472,30 +415,26 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text(
-        'Not emailed to 2 recipients: email is not set up on the server.',
-      ),
+      find.text('Not emailed to 2 recipients: email is not set up on the server.'),
       findsOneWidget,
     );
     expect(repo.emailCalls, isEmpty);
   });
 
-  testWidgets(
-    'a failed email log load is an error with a retry, in the detail',
-    (tester) async {
-      await tester.pumpWidget(_app(_FakeRunsRepository(failEmails: true)));
-      await tester.pumpAndSettle();
+  testWidgets('a failed email log load is an error with a retry, in the detail',
+      (tester) async {
+    await tester.pumpWidget(_app(_FakeRunsRepository(failEmails: true)));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Failed to load email deliveries'),
-        findsOneWidget,
-      );
-      expect(find.text('Retry'), findsOneWidget);
-    },
-  );
+    expect(
+      find.textContaining('Failed to load email deliveries'),
+      findsOneWidget,
+    );
+    expect(find.text('Retry'), findsOneWidget);
+  });
 
   testWidgets('shows a spinner while runs load', (tester) async {
     final pending = Completer<PaginatedResponse<ReportRun>>();
@@ -518,9 +457,8 @@ void main() {
     expect(find.text('0 runs'), findsOneWidget);
   });
 
-  testWidgets('a failed load shows an error, and Retry loads the runs', (
-    tester,
-  ) async {
+  testWidgets('a failed load shows an error, and Retry loads the runs',
+      (tester) async {
     final repo = _FakeRunsRepository(failRuns: true);
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -558,9 +496,8 @@ void main() {
     expect(find.byKey(const ValueKey('run-run-delivered')), findsNothing);
   });
 
-  testWidgets('Load more fetches the next page with its cursor and appends', (
-    tester,
-  ) async {
+  testWidgets('Load more fetches the next page with its cursor and appends',
+      (tester) async {
     final repo = _FakeRunsRepository(
       pages: [
         [_delivered, _partial],
@@ -584,9 +521,8 @@ void main() {
     expect(more, findsNothing, reason: 'the last page has no next cursor');
   });
 
-  testWidgets('a failed Load more keeps the runs and offers to try again', (
-    tester,
-  ) async {
+  testWidgets('a failed Load more keeps the runs and offers to try again',
+      (tester) async {
     final repo = _FakeRunsRepository(
       failMore: true,
       pages: [
@@ -612,9 +548,8 @@ void main() {
     ('night', AppTheme.dark(), TiqColors.night),
   ]) {
     group('Lumen Glass ($name)', () {
-      testWidgets('runs are no-blur glass tiles inside a glass panel', (
-        tester,
-      ) async {
+      testWidgets('runs are no-blur glass tiles inside a glass panel',
+          (tester) async {
         await tester.pumpWidget(_app(_FakeRunsRepository(), theme: theme));
         await tester.pumpAndSettle();
 
@@ -666,11 +601,7 @@ void main() {
         await tester.pumpWidget(_app(_FakeRunsRepository(), theme: theme));
         await tester.pumpAndSettle();
 
-        for (final word in const [
-          'DELIVERED',
-          'PARTLY DELIVERED',
-          'NOT SENT',
-        ]) {
+        for (final word in const ['DELIVERED', 'PARTLY DELIVERED', 'NOT SENT']) {
           final pill = find.ancestor(
             of: find.text(word),
             matching: find.byType(LumenStatusPill),
@@ -680,10 +611,8 @@ void main() {
           );
           final wash = (box.decoration! as BoxDecoration).color!;
           final ink = tester.widget<Text>(find.text(word)).style!.color!;
-          final ratio = contrastRatio(
-            ink,
-            Color.alphaBlend(wash, palette.surface1),
-          );
+          final ratio =
+              contrastRatio(ink, Color.alphaBlend(wash, palette.surface1));
           expect(ratio, greaterThanOrEqualTo(4.5), reason: '$word ($name)');
         }
       });
@@ -694,16 +623,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(
-          find.textContaining('Failed to load report runs'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('Failed to load report runs'), findsOneWidget);
         expect(find.text('Retry'), findsOneWidget);
         expect(
-          find.ancestor(
-            of: find.text('Coverage by outlet'),
-            matching: find.byType(GlassPane),
-          ),
+          find.ancestor(of: find.text('Coverage by outlet'), matching: find.byType(GlassPane)),
           findsWidgets,
         );
         expect(tester.takeException(), isNull);

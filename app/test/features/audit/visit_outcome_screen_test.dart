@@ -278,8 +278,7 @@ void main() {
       expect(
         find.text('First scored visit here.'),
         findsNothing,
-        reason:
-            'unknown is not absent — that sentence is a false claim about '
+        reason: 'unknown is not absent — that sentence is a false claim about '
             'their own record',
       );
       expect(
@@ -338,16 +337,11 @@ void main() {
         outcome: VisitOutcome(score: total(71.4), previous: total(64.6)),
       );
       expect(find.text('71'), findsOneWidget, reason: 'the hero');
-      expect(
-        find.textContaining('from your last visit here (65)'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('from your last visit here (65)'),
+          findsOneWidget);
       expect(find.text('+6'), findsOneWidget, reason: '71 − 65 = 6');
-      expect(
-        find.text('+7'),
-        findsNothing,
-        reason: 'a delta that does not add up to the figures beside it',
-      );
+      expect(find.text('+7'), findsNothing,
+          reason: 'a delta that does not add up to the figures beside it');
       expect(
         find.bySemanticsLabel(
           RegExp(r'Up 6 points from your last visit here \(65\)\.'),
@@ -365,15 +359,10 @@ void main() {
         outcome: VisitOutcome(score: total(71.4), previous: total(71.6)),
       );
       expect(find.text('71'), findsOneWidget, reason: 'the hero');
-      expect(
-        find.textContaining('Same as your last visit here'),
-        findsNothing,
-        reason: '71 is not the same as 72',
-      );
-      expect(
-        find.textContaining('from your last visit here (72)'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Same as your last visit here'), findsNothing,
+          reason: '71 is not the same as 72');
+      expect(find.textContaining('from your last visit here (72)'),
+          findsOneWidget);
       expect(
         find.bySemanticsLabel(
           RegExp(r'Down 1 point from your last visit here \(72\)\.'),
@@ -390,15 +379,10 @@ void main() {
         outcome: VisitOutcome(score: total(71.4), previous: total(70.6)),
       );
       expect(find.text('71'), findsOneWidget, reason: 'the hero');
-      expect(
-        find.textContaining('Same as your last visit here (71)'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('+1'),
-        findsNothing,
-        reason: '71 beside 71 is not up a point',
-      );
+      expect(find.textContaining('Same as your last visit here (71)'),
+          findsOneWidget);
+      expect(find.text('+1'), findsNothing,
+          reason: '71 beside 71 is not up a point');
     });
   });
 

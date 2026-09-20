@@ -16,21 +16,25 @@ void main() {
   group('a delta never stands beside nothing', () {
     test('a missing figure removes the delta', () {
       expect(
-        DeltaRule.resolve(figureState: FigureState.missing, delta: _fall),
+        DeltaRule.resolve(
+          figureState: FigureState.missing,
+          delta: _fall,
+        ),
         DeltaSuppression.nullFigure,
       );
     });
 
     test('a not-measured figure removes the delta', () {
       expect(
-        DeltaRule.resolve(figureState: FigureState.notMeasured, delta: _fall),
+        DeltaRule.resolve(
+          figureState: FigureState.notMeasured,
+          delta: _fall,
+        ),
         DeltaSuppression.nullFigure,
       );
     });
 
-    testWidgets('the slot renders nothing at all beside a null', (
-      tester,
-    ) async {
+    testWidgets('the slot renders nothing at all beside a null', (tester) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -66,11 +70,7 @@ void main() {
         DeltaRule.resolve(
           figureState: FigureState.measured,
           delta: _fall,
-          sampling: const FigureSampling(
-            kind: MetricKind.rate,
-            n: 5,
-            baselineN: 5,
-          ),
+          sampling: const FigureSampling(kind: MetricKind.rate, n: 5, baselineN: 5),
         ),
         DeltaSuppression.none,
         reason: 'The boundary is not a gradient.',
@@ -95,9 +95,8 @@ void main() {
       );
     });
 
-    testWidgets('a suppressed delta is replaced by words, never by a gap', (
-      tester,
-    ) async {
+    testWidgets('a suppressed delta is replaced by words, never by a gap',
+        (tester) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),
@@ -122,13 +121,11 @@ void main() {
       );
     });
 
-    test(
-      'a thin sample with no count still suppresses, without inventing one',
-      () {
-        expect(FigureSampling.unknownAndThin.isLowSample, isTrue);
-        expect(FigureSampling.unknownAndThin.n, isNull);
-      },
-    );
+    test('a thin sample with no count still suppresses, without inventing one',
+        () {
+      expect(FigureSampling.unknownAndThin.isLowSample, isTrue);
+      expect(FigureSampling.unknownAndThin.n, isNull);
+    });
 
     test('no sampling information is not a low sample', () {
       expect(FigureSampling.unknown.isLowSample, isFalse);
@@ -217,9 +214,8 @@ void main() {
       }
     });
 
-    testWidgets('a measured zero movement is the flat bar and a word', (
-      tester,
-    ) async {
+    testWidgets('a measured zero movement is the flat bar and a word',
+        (tester) async {
       await tester.pumpWidget(
         skinned(
           TiqSkin.night(),

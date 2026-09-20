@@ -102,22 +102,20 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "tpl-1", "name": "Grocery Audit", '
-          '"version": 2, "active": true}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "tpl-1", "name": "Grocery Audit", '
+        '"version": 2, "active": true}], '
+        '"nextCursor": "cursor-1"}',
+      );
 
-        final page = await DioTemplatesRepository().listTemplates();
+      final page = await DioTemplatesRepository().listTemplates();
 
-        expect(page, isA<PaginatedResponse<AuditTemplate>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 'tpl-1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      expect(page, isA<PaginatedResponse<AuditTemplate>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'tpl-1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }
