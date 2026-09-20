@@ -76,6 +76,7 @@ class UsersScreen extends ConsumerWidget {
 
     return users.when(
       loading: () => _frame(
+        context,
         ref,
         phase: 'loading',
         canEdit: canEdit,
@@ -87,6 +88,7 @@ class UsersScreen extends ConsumerWidget {
         ],
       ),
       error: (error, stack) => _frame(
+        context,
         ref,
         phase: 'error',
         canEdit: canEdit,
@@ -108,7 +110,20 @@ class UsersScreen extends ConsumerWidget {
     );
   }
 
+  /// The frame every phase is drawn in — **including the create control.**
+  ///
+  /// The control lives here and not in `_loaded` on purpose. Adding a user is
+  /// `POST /users`; it does not depend on whether `GET /users` came back.
+  /// Before the migration this was a `floatingActionButton` on the scaffold,
+  /// outside the async section, and it survived every phase. Building it
+  /// inside `_loaded` quietly took it away from the reader who needs it most:
+  /// an admin on a bad connection whose roster 500s and who is then offered
+  /// nothing but "Try again".
+  ///
+  /// `canEdit` still gates it — a non-admin never saw it and still does not.
+  /// The amber is unchanged: a [TorchSecondaryButton] claims nothing.
   Widget _frame(
+    BuildContext context,
     WidgetRef ref, {
     required String phase,
     required bool canEdit,
@@ -131,7 +146,20 @@ class UsersScreen extends ConsumerWidget {
           onPressed: () => ref.invalidate(usersListProvider),
         ),
       ),
-      children: children,
+      children: <Widget>[
+        ...children,
+        if (canEdit) ...<Widget>[
+          const SizedBox(height: TiqSpace.s7),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              key: const ValueKey<String>('user-create'),
+              label: 'Add user',
+              onPressed: () => showCreateUserSheet(context),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -146,6 +174,7 @@ class UsersScreen extends ConsumerWidget {
     final active = list.where((u) => u.active).length;
 
     return _frame(
+      context,
       ref,
       phase: list.isEmpty ? 'empty' : 'loaded',
       canEdit: canEdit,
@@ -192,18 +221,6 @@ class UsersScreen extends ConsumerWidget {
               ],
             ),
           ),
-
-        if (canEdit) ...<Widget>[
-          const SizedBox(height: TiqSpace.s7),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TorchSecondaryButton(
-              key: const ValueKey<String>('user-create'),
-              label: 'Add user',
-              onPressed: () => showCreateUserSheet(context),
-            ),
-          ),
-        ],
       ],
     );
   }

@@ -32,13 +32,40 @@ const campaignB = Campaign(
   outletCount: 0,
 );
 
-const compliance = CampaignCompliance(
+const _defaultCompliance = CampaignCompliance(
   outletsTotal: 12,
   outletsVisited: 9,
   visitCoverageRate: 75,
   avgPlanogramCompliancePct: 88.5,
   avgAbsPriceDeviationPct: 3.2,
   promoComplianceRate: 91,
+);
+
+/// A campaign that launched and has not been visited yet.
+///
+/// This is what the server actually sends for one: `pct()` returns 0 on a zero
+/// denominator and `mean()` returns 0 on an empty array
+/// (`backend/src/lib/kpiMath.ts`), and `campaigns.service.ts` builds the
+/// visibility and pricing row sets out of the visits — so four rates that were
+/// computed over nothing arrive as four zeroes, indistinguishable on the wire
+/// from a campaign where every store was audited and every planogram failed.
+const unvisitedCompliance = CampaignCompliance(
+  outletsTotal: 12,
+  outletsVisited: 0,
+  visitCoverageRate: 0,
+  avgPlanogramCompliancePct: 0,
+  avgAbsPriceDeviationPct: 0,
+  promoComplianceRate: 0,
+);
+
+/// A campaign with no outlets at all: visit coverage is a division by zero.
+const noOutletCompliance = CampaignCompliance(
+  outletsTotal: 0,
+  outletsVisited: 0,
+  visitCoverageRate: 0,
+  avgPlanogramCompliancePct: 0,
+  avgAbsPriceDeviationPct: 0,
+  promoComplianceRate: 0,
 );
 
 CampaignRoi roiOf({
@@ -71,6 +98,7 @@ class FakeCampaignsRepository implements CampaignsRepository {
   FakeCampaignsRepository({
     this.campaigns = const <Campaign>[campaignA, campaignB],
     CampaignRoi? roi,
+    CampaignCompliance? compliance,
     this.listFailure,
     this.listPending = false,
     this.complianceFailure,
@@ -79,10 +107,12 @@ class FakeCampaignsRepository implements CampaignsRepository {
     this.roiPending = false,
     this.saveFailure,
     this.savePending = false,
-  }) : roi = roi ?? roiOf();
+  }) : roi = roi ?? roiOf(),
+       compliance = compliance ?? _defaultCompliance;
 
   final List<Campaign> campaigns;
   final CampaignRoi roi;
+  final CampaignCompliance compliance;
   final Object? listFailure;
   final bool listPending;
   final Object? complianceFailure;
