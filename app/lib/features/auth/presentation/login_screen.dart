@@ -1,31 +1,36 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/auth/session_ended.dart';
+import '../../../core/design/torch_scope.dart';
 import '../../../core/network/human_error.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_motion.dart';
-import '../../../core/widgets/dimmed_aisle_backdrop.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
-import '../../../core/widgets/primary_action_button.dart';
-import '../../../core/widgets/trade_iq_logo.dart';
-import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/torchlight/entry_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
+import 'entry_brand.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
 /// credentials — the one place in the app where it does. Everywhere else a 401
 /// is an expired session (the api_client interceptor signs the user out), so
 /// the shared [humanErrorMessage] says "session expired"; saying that on the
 /// login screen would tell the user the wrong story. Everything that is not a
-/// 401 — connectivity, timeouts, server errors — is delegated so login and the
-/// rest of the app speak with the same voice.
+/// 401 — connectivity, timeouts, rate limits, server errors — is delegated so
+/// login and the rest of the app speak with the same voice.
+///
+/// **It never says whether the account exists.** One sentence covers a wrong
+/// password, an unknown address, a disabled user and a typo, because anything
+/// that distinguishes them turns this form into a way to ask the server who
+/// works here.
 ///
 /// Pass the active [l10n] (`context.l10n`); without it the English copy is
 /// used.
@@ -36,67 +41,107 @@ String loginErrorMessage(Object error, [AppLocalizations? l10n]) {
   return humanErrorMessage(error, l10n);
 }
 
-class LoginScreen extends ConsumerStatefulWidget {
+/// Which kind of failure a sign-in error is, in the kit's closed set.
+///
+/// A 401 is [TorchErrorKind.rejected] and offers no Retry: pressing a button
+/// that sends the same wrong password again fails identically, and the field
+/// the user has to change is already on the screen.
+TorchErrorKind loginErrorKind(Object error) {
+  if (error is! DioException) return TorchErrorKind.unknown;
+  final status = error.response?.statusCode;
+  if (status == 401) return TorchErrorKind.rejected;
+  if (status == 429) return TorchErrorKind.rejected;
+  if (status != null && status >= 500) return TorchErrorKind.server;
+  return switch (error.type) {
+    DioExceptionType.connectionError ||
+    DioExceptionType.connectionTimeout ||
+    DioExceptionType.sendTimeout ||
+    DioExceptionType.receiveTimeout => TorchErrorKind.network,
+    _ => TorchErrorKind.unknown,
+  };
+}
+
+/// `/login` — the way in.
+///
+/// ## Amber, counted
+///
+/// Not a tab root and no nav, so Night has two content grants and Day and Veld
+/// have one. **One object takes one of them: the sign-in button**, and only
+/// while it is armed. An empty form carries zero amber in every skin — the
+/// first screen anyone sees is also the screen with the least reason to be
+/// lit, because nothing on it is ready to commit yet.
+///
+/// The trough's focus rule is ink, not amber (§15.5), so a focused field costs
+/// nothing; the brand is a wordmark, and a word is never amber.
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  Widget build(BuildContext context) =>
+      const EntryTorchlightRoute(child: _SignIn());
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+class _SignIn extends ConsumerStatefulWidget {
+  const _SignIn();
+
+  @override
+  ConsumerState<_SignIn> createState() => _SignInState();
+}
+
+class _SignInState extends ConsumerState<_SignIn> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  bool _show = false;
 
   // Deliberately local state, not `session.isLoading` — AsyncNotifier's state
   // is AsyncLoading from initial mount until build() resolves, which would
-  // incorrectly disable the button (and show a spinner) before any
-  // submission has happened.
-  bool _isSubmitting = false;
-  bool _obscurePassword = true;
+  // incorrectly disable the button (and show it busy) before any submission
+  // has happened.
+  bool _sending = false;
 
   /// Defaults to on, matching what the app has always done: the session was
   /// persisted unconditionally, checkbox or not. Honouring the box while
   /// leaving it unticked by default would silently switch every field agent to
   /// re-logging in each morning — a regression dressed up as a fix.
-  bool _rememberMe = true;
+  bool _remember = true;
 
-  /// The aisle behind the form, as a still: the first frame of the splash's
-  /// footage, never played — a picture of a real store, not motion competing
-  /// with the fields.
-  final _footage = VideoPlayerController.asset(
-    'assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4',
-  );
+  /// The session-ended sheet is raised once, from the first frame that has a
+  /// navigator under it, and never again on a rebuild.
+  bool _askedAboutHeldWork = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeFootage();
+    for (final c in <TextEditingController>[_email, _password]) {
+      c.addListener(_changed);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerHeldWork());
   }
 
-  Future<void> _initializeFootage() async {
-    try {
-      await _footage.initialize();
-      await _footage.setVolume(0);
-      if (mounted) setState(() {});
-    } on UnimplementedError {
-      // Widget tests have no platform video player; the ground stands alone.
-    }
+  void _changed() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _footage.dispose();
+    for (final c in <TextEditingController>[_email, _password]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
+  /// What is still missing, in the order the fields are on screen. Null when
+  /// the primary can be pressed — and the same two sentences the form used to
+  /// print under the fields, now under the button that will not move.
+  String? _missing(AppLocalizations l10n) {
+    if (_email.text.trim().isEmpty) return l10n.loginEmailRequired;
+    if (_password.text.isEmpty) return l10n.loginPasswordRequired;
+    return null;
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    setState(() => _isSubmitting = true);
+    setState(() => _sending = true);
     await ref
         .read(sessionControllerProvider.notifier)
         .login(
@@ -109,12 +154,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // The password is passed through UNTOUCHED: leading or trailing
           // spaces in a password may be deliberate, and trimming one would
           // silently lock out whoever chose it.
-          _emailController.text.trim().toLowerCase(),
-          _passwordController.text,
-          rememberMe: _rememberMe,
+          _email.text.trim().toLowerCase(),
+          _password.text,
+          rememberMe: _remember,
         );
     if (mounted) {
-      setState(() => _isSubmitting = false);
+      setState(() => _sending = false);
     }
   }
 
@@ -122,376 +167,199 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// Whatever is already in the email field goes with them, so it is not
   /// typed twice.
   void _forgotPassword() {
-    context.go('/forgot-password', extra: _emailController.text.trim());
+    context.go('/forgot-password', extra: _email.text.trim());
+  }
+
+  /// SIGNED OUT WITH WORK ON THE PHONE (#380/#392).
+  ///
+  /// A state, not an error. The sheet names what is held before it names the
+  /// session, is non-dismissible on its first appearance, and after "Not now"
+  /// leaves the held line under this screen's header until somebody signs in
+  /// and the outbox drains.
+  Future<void> _offerHeldWork() async {
+    if (_askedAboutHeldWork || !mounted) return;
+    final ended = ref.read(sessionEndedProvider);
+    if (ended == null || ended.answered || ended.isEmpty) return;
+    _askedAboutHeldWork = true;
+    final l10n = context.l10n;
+    await showTorchSheet<bool>(
+      context,
+      dismissible: false,
+      builder: (sheetContext) => SessionEndedSheet(
+        key: const ValueKey<String>('session-ended-sheet'),
+        title: l10n.sessionEndedTitle,
+        body: l10n.sessionEndedBody,
+        signInLabel: l10n.sessionEndedSignIn,
+        notNowLabel: l10n.sessionEndedNotNow,
+        proof: <ProofLine>[
+          for (final line in ended.lines)
+            ProofLine(text: sessionHeldLineText(l10n, line)),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    ref.read(sessionEndedProvider.notifier).answered();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Light is Lumen Glass: the form is one pane on the lit ground. Dark keeps
-    // the dimmed-aisle sign-in exactly as it was, pinned to the dark theme.
-    if (context.colors.glass) return _glassLayout(context);
-    return Theme(
-      data: AppTheme.dark(),
-      child: Builder(builder: _darkLayout),
-    );
-  }
-
-  /// The fade-and-rise the form arrives with — instant under reduced motion.
-  Widget _entrance(BuildContext context, Widget child) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: reduceMotion(context) ? 0 : 400),
-      curve: Curves.easeOutCubic,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, (1 - t) * 12),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _glassLayout(BuildContext context) {
-    final colors = context.colors;
-    return Scaffold(
-      backgroundColor: colors.plane,
-      body: LitGround(
-        backdrop: AisleFootage(controller: _footage),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 14, 8, 4),
-                    child: Row(
-                      children: [
-                        GlassBackChip(
-                          tooltip: context.l10n.loginBackTooltip,
-                          onTap: () => context.go('/'),
-                        ),
-                        const Expanded(
-                          child: Center(child: TradeIqLogo(size: 34)),
-                        ),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-                      child: _entrance(
-                        context,
-                        GlassPane(
-                          kind: GlassKind.panel,
-                          radius: LumenGlass.radiusScore,
-                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
-                          child: _form(context, glass: true),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _darkLayout(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Same dimmed footage as the splash, held on its first frame.
-          DimmedAisleBackdrop(controller: _footage),
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 22, 24, 20),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            tooltip: context.l10n.loginBackTooltip,
-                            onPressed: () => context.go('/'),
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const Expanded(
-                            child: Align(
-                              alignment: Alignment.center,
-                              child: TradeIqLogo(size: 36),
-                            ),
-                          ),
-                          const SizedBox(width: 48),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _entrance(
-                        context,
-                        Container(
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Color(0xF2101216),
-                            border: Border.fromBorderSide(
-                              BorderSide(color: Color(0xFF262B33)),
-                            ),
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(AppColors.radiusPanel),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(0x4D000000),
-                                blurRadius: 40,
-                                offset: Offset(0, -8),
-                              ),
-                            ],
-                          ),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(24, 35, 24, 28),
-                            child: _form(context, glass: false),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _form(BuildContext context, {required bool glass}) {
-    final session = ref.watch(sessionControllerProvider);
-    final colors = context.colors;
     final l10n = context.l10n;
-    final labelColor = glass ? colors.ink2 : AppColors.textSecondary;
+    final session = ref.watch(sessionControllerProvider);
+    final held = ref.watch(sessionEndedProvider);
+    final missing = _missing(l10n);
+    final armed = missing == null && !_sending;
+    final failure = session.hasError ? session.error! : null;
 
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (glass) ...[
-            Kicker(l10n.loginKicker),
-            const SizedBox(height: 8),
-            Text(
-              l10n.loginSignIn,
-              style: LumenGlass.title(color: context.lumen.ink, size: 28),
+    return TorchSheetAware(
+      builder: (context, beneathSheet) => TorchScope(
+        skin: context.skin,
+        phase: _sending
+            ? 'sending'
+            : failure != null
+            ? 'error'
+            : armed
+            ? 'armed'
+            : 'blocked',
+        navRenders: false,
+        tabbedRoute: false,
+        beneathSheet: beneathSheet,
+        claims: <TorchClaim>[
+          if (armed) TorchPrimaryButton.claim('sign-in'),
+        ],
+        child: TorchShell(
+          profile: TorchShellProfile.agent,
+          header: TorchAppHeader(
+            title: l10n.loginSignIn,
+            back: TorchIconButton(
+              icon: Icons.arrow_back,
+              semanticLabel: l10n.loginBackTooltip,
+              onPressed: () => context.go('/'),
             ),
-            const SizedBox(height: 6),
+          ),
+          // Not a tab root: the cycle sits at the leading end of the thumb
+          // zone. Never a screen without it.
+          skinCycle: const EntrySkinCycle(),
+          primary: TorchPrimaryButton(
+            key: const ValueKey<String>('login-submit'),
+            label: l10n.loginSignIn,
+            claimId: 'sign-in',
+            busy: _sending,
+            blockedReason: missing,
+            onPressed: armed ? _submit : null,
+          ),
+          children: <Widget>[
+            const EntryBrand(monogram: 40, compact: true),
+            const SizedBox(height: TiqSpace.s6),
+            if (held != null && !held.isEmpty) ...<Widget>[
+              SessionHeldLine(
+                key: const ValueKey<String>('login-held-line'),
+                message: l10n.sessionHeldWaiting(held.total),
+                actionLabel: l10n.sessionHeldWhatIsHeld,
+                onPressed: () => _showHeldWork(l10n, held),
+              ),
+              const SizedBox(height: TiqSpace.s6),
+            ],
             Text(
               l10n.loginSubtitle,
-              style: TextStyle(fontSize: 13.5, color: colors.ink3),
-            ),
-            const SizedBox(height: 24),
-          ] else ...[
-            Text(
-              l10n.loginSignIn,
-              style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 29),
-          ],
-          _FieldLabel(l10n.loginEmailLabel, color: labelColor),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            // An email address has no capital letters to offer and nothing to
-            // correct. Android capitalises the first letter of a text field by
-            // default and would happily "fix" a domain into a dictionary word,
-            // which is how a correct password started failing to log in (#351).
-            textCapitalization: TextCapitalization.none,
-            autocorrect: false,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.username, AutofillHints.email],
-            decoration: InputDecoration(
-              hintText: l10n.loginEmailHint,
-              prefixIcon: const Icon(Icons.mail_outline, size: 20),
-            ),
-            validator: (value) => (value == null || value.trim().isEmpty)
-                ? l10n.loginEmailRequired
-                : null,
-          ),
-          const SizedBox(height: 19),
-          _FieldLabel(l10n.loginPasswordLabel, color: labelColor),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.password],
-            onFieldSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              hintText: l10n.loginPasswordHint,
-              prefixIcon: const Icon(Icons.lock_outline, size: 20),
-              suffixIcon: IconButton(
-                tooltip: _obscurePassword
-                    ? l10n.loginShowPassword
-                    : l10n.loginHidePassword,
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 20,
-                ),
+              style: context.skin.text.body.style(
+                color: context.skin.palette.ink2,
               ),
             ),
-            validator: (value) => (value == null || value.isEmpty)
-                ? l10n.loginPasswordRequired
-                : null,
-          ),
-          const SizedBox(height: 11),
-          Row(
-            children: [
-              Transform.translate(
-                offset: const Offset(-7, 0),
-                child: Checkbox(
-                  value: _rememberMe,
-                  visualDensity: VisualDensity.compact,
-                  onChanged: (value) =>
-                      setState(() => _rememberMe = value ?? false),
+            const SizedBox(height: TiqSpace.s6),
+            // ABOVE the fields, not under the button. A refusal here is about
+            // the two things directly beneath it, and on a 360×640 phone the
+            // foot of this form is already past the fold: an error printed
+            // there is an error the person has to go looking for, on the one
+            // screen where they do not yet know what went wrong.
+            if (failure != null) ...<Widget>[
+              ErrorState(
+                key: const ValueKey<String>('login-error'),
+                scope: ErrorScope.inline,
+                message: TorchErrorMessage(
+                  kind: loginErrorKind(failure),
+                  headline: l10n.loginFailedTitle,
+                  body: loginErrorMessage(failure, l10n),
+                  offersRetry: false,
                 ),
               ),
-              // Expanded, not a Spacer: on a narrow phone the label gives way
-              // before the row overflows.
-              Expanded(
-                child: Text(
-                  l10n.loginRememberMe,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: labelColor, fontSize: 14),
-                ),
-              ),
-              TextButton(
-                key: const ValueKey<String>('login-forgot-password'),
-                onPressed: _forgotPassword,
-                style: TextButton.styleFrom(
-                  foregroundColor: glass
-                      ? context.lumen.accentInk
-                      : AppColors.blueLight,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                ),
-                child: Text(
-                  l10n.loginForgotPassword,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
+              const SizedBox(height: TiqSpace.s6),
             ],
-          ),
-          const SizedBox(height: 14),
-          if (session.hasError) ...[
-            glass
-                ? _GlassError(loginErrorMessage(session.error!, l10n))
-                : Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1FFF6B7A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0x66FF6B7A)),
-                    ),
-                    child: Text(
-                      loginErrorMessage(session.error!, l10n),
-                      style: const TextStyle(
-                        color: Color(0xFFFFB3BA),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-            const SizedBox(height: 14),
-          ],
-          if (glass)
-            GlassPrimaryButton(
-              label: l10n.loginSignIn,
-              trailingIcon: Icons.arrow_forward,
-              onPressed: _submit,
-              busy: _isSubmitting,
-            )
-          else
-            PrimaryActionButton(
-              label: l10n.loginSignIn,
-              onPressed: _submit,
-              isLoading: _isSubmitting,
+            TorchTextField(
+              key: const ValueKey<String>('login-email'),
+              label: l10n.loginEmailLabel,
+              hint: l10n.loginEmailHint,
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              // An email address has no capital letters to offer and nothing
+              // to correct. Android capitalises the first letter of a text
+              // field by default and would happily "fix" a domain into a
+              // dictionary word, which is how a correct password started
+              // failing to log in (#351).
+              textCapitalization: TextCapitalization.none,
+              autocorrect: false,
+              autofillHints: const <String>[
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
+              textInputAction: TextInputAction.next,
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.label, {required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+            const SizedBox(height: TiqSpace.s5),
+            TorchTextField(
+              key: const ValueKey<String>('login-password'),
+              label: l10n.loginPasswordLabel,
+              hint: l10n.loginPasswordHint,
+              controller: _password,
+              obscureText: !_show,
+              autofillHints: const <String>[AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (armed) _submit();
+              },
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            TorchCheckbox(
+              key: const ValueKey<String>('login-show-password'),
+              label: l10n.loginShowPassword,
+              value: _show,
+              onChanged: (v) => setState(() => _show = v),
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            TorchCheckbox(
+              key: const ValueKey<String>('login-remember-me'),
+              label: l10n.loginRememberMe,
+              value: _remember,
+              onChanged: (v) => setState(() => _remember = v),
+            ),
+            const SizedBox(height: TiqSpace.s4),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TorchTertiaryButton(
+                key: const ValueKey<String>('login-forgot-password'),
+                label: l10n.loginForgotPassword,
+                onPressed: _forgotPassword,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-/// A failed sign-in on glass: an opaque crit wash, so the words clear AA on
-/// their own, and a glyph beside them so it never rests on colour.
-class _GlassError extends StatelessWidget {
-  const _GlassError(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final crit = LumenStatus.crit.swatchOf(colors);
-    return Container(
-      key: const ValueKey('login-error'),
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(crit.tint, colors.surface1),
-        borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
-        border: Border.all(color: crit.rim),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, size: 16, color: colors.crit),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: crit.ink,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+  /// "What is held" from the line under the header: the same proof block,
+  /// dismissible this time, because by now the person has already answered.
+  void _showHeldWork(AppLocalizations l10n, SessionEnded held) {
+    showTorchSheet<void>(
+      context,
+      builder: (sheetContext) => TorchSheet(
+        title: l10n.sessionHeldWhatIsHeld,
+        subtitle: l10n.sessionEndedBody,
+        child: ProofBlock(
+          lines: <ProofLine>[
+            for (final line in held.lines)
+              ProofLine(text: sessionHeldLineText(l10n, line)),
+          ],
+          semanticsLabel: l10n.sessionHeldWhatIsHeld,
+        ),
       ),
     );
   }

@@ -127,6 +127,15 @@ class _TorchAppHeaderState extends State<TorchAppHeader> {
               Expanded(
                 child: Semantics(
                   header: true,
+                  // A NODE, not an annotation. Without `container` this is a
+                  // bare annotation that merges into the nearest enclosing
+                  // node — and the nearest enclosing node is the back button's
+                  // own, because that is a non-container annotation too and
+                  // the two are siblings under a plain Column. The result was
+                  // one control labelled "Back to welcome\nSign in": a reader
+                  // heard the way out and the name of the screen as a single
+                  // button, on every Torchlight route that has a back arrow.
+                  container: true,
                   child: Text(
                     widget.title,
                     style: skin.text.titleL.style(color: p.ink1),
