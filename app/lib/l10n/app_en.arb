@@ -5756,5 +5756,484 @@
   "beatPlanFormFailed": "That plan was not created. Nothing was saved.",
   "@beatPlanFormFailed": {
     "description": "Toast after the beat plan create request fails."
+  },
+  "salesTargetsTitle": "Sales targets",
+  "@salesTargetsTitle": {
+    "description": "Title of the sales targets route."
+  },
+  "salesTargetsSubtitle": "Units ordered through TradeIQ, not what shoppers bought.",
+  "@salesTargetsSubtitle": {
+    "description": "Header fact on the sales targets route. It says what the metric is before any figure is read."
+  },
+  "salesSellIn": "Sell-in (orders)",
+  "@salesSellIn": {
+    "description": "The metric's name: units ordered through TradeIQ. Used wherever the server did not send its own label."
+  },
+  "salesTargetsHelp": "Set one target per SKU for the whole account, a territory, or a single store.",
+  "@salesTargetsHelp": {
+    "description": "Second header fact on the sales targets route."
+  },
+  "salesTargetsUpload": "Upload a CSV of targets",
+  "@salesTargetsUpload": {
+    "description": "Semantic label of the CSV import icon button."
+  },
+  "salesMonthPrevious": "The month before {month}",
+  "@salesMonthPrevious": {
+    "description": "Semantic label of the previous-month button.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesMonthNext": "The month after {month}",
+  "@salesMonthNext": {
+    "description": "Semantic label of the next-month button.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTimeZone": "Local days in {zone}",
+  "@salesTimeZone": {
+    "description": "Says which time zone the month's days were counted in.",
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "salesLevelsHeading": "Against target",
+  "@salesLevelsHeading": {
+    "description": "Section rule above the three attainment levels."
+  },
+  "salesLevelAccount": "Account-wide",
+  "@salesLevelAccount": {
+    "description": "The attainment level covering every store on the account."
+  },
+  "salesLevelTerritories": "Territories",
+  "@salesLevelTerritories": {
+    "description": "The attainment level covering territory-scoped targets."
+  },
+  "salesLevelOutlets": "Stores",
+  "@salesLevelOutlets": {
+    "description": "The attainment level covering store-scoped targets."
+  },
+  "salesLevelNoTargets": "No target is set at this level, so there is nothing to attain.",
+  "@salesLevelNoTargets": {
+    "description": "Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained."
+  },
+  "salesLevelSubordinates": "{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}",
+  "@salesLevelSubordinates": {
+    "description": "The units and the target count beneath an attainment figure.",
+    "placeholders": {
+      "actual": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "int"
+      }
+    }
+  },
+  "salesBandOnTarget": "On target",
+  "@salesBandOnTarget": {
+    "description": "Attainment band word at or above 100 per cent."
+  },
+  "salesBandClose": "Close",
+  "@salesBandClose": {
+    "description": "Attainment band word from 80 to 99 per cent."
+  },
+  "salesBandBehind": "Behind",
+  "@salesBandBehind": {
+    "description": "Attainment band word below 80 per cent."
+  },
+  "salesNoTarget": "No target",
+  "@salesNoTarget": {
+    "description": "Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero."
+  },
+  "salesNoTargetsHeadline": "No targets for {month}.",
+  "@salesNoTargetsHeadline": {
+    "description": "Inline empty state when the month has no targets at all.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesNoTargetsBody": "Set a target on a SKU below, or upload a CSV of targets.",
+  "@salesNoTargetsBody": {
+    "description": "Body of the no-targets empty state."
+  },
+  "salesSkusHeading": "SKUs",
+  "@salesSkusHeading": {
+    "description": "Section rule above the per-SKU rows."
+  },
+  "salesSkusTruncated": "Showing the first {shown}.",
+  "@salesSkusTruncated": {
+    "description": "Pagination footer when the server cut the SKU list.",
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "salesSkusEmptyHeadline": "No SKUs on this account.",
+  "@salesSkusEmptyHeadline": {
+    "description": "Inline empty state when the account has no products."
+  },
+  "salesSkusEmptyBody": "Targets are set per SKU, so there is nothing to set one on yet.",
+  "@salesSkusEmptyBody": {
+    "description": "Body of the no-SKUs empty state."
+  },
+  "salesRowFigures": "{metric} {actual} · target {target} units",
+  "@salesRowFigures": {
+    "description": "A SKU row's figures: what was ordered, against the target.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "actual": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "salesRowNoTargetFigures": "{metric} {actual} · no target set",
+  "@salesRowNoTargetFigures": {
+    "description": "A SKU row's figures when no target exists. It says so in words rather than printing a nought.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "actual": {
+        "type": "String"
+      }
+    }
+  },
+  "salesScopeTerritory": "Territory",
+  "@salesScopeTerritory": {
+    "description": "Scope word for a territory-scoped target."
+  },
+  "salesScopeOutlet": "Store",
+  "@salesScopeOutlet": {
+    "description": "Scope word for a store-scoped target."
+  },
+  "salesScopeAccount": "Whole account",
+  "@salesScopeAccount": {
+    "description": "Scope word for an account-wide target."
+  },
+  "salesScopeUnknown": "Scope not on this list",
+  "@salesScopeUnknown": {
+    "description": "Shown when a scoped target names a territory or store the report did not resolve."
+  },
+  "salesScopedRowTitle": "{sku} · {scope}",
+  "@salesScopedRowTitle": {
+    "description": "Title of a scoped target's row.",
+    "placeholders": {
+      "sku": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "salesSetTarget": "Set a target",
+  "@salesSetTarget": {
+    "description": "Action that opens the target sheet for a SKU with no target."
+  },
+  "salesEditTarget": "Edit the target",
+  "@salesEditTarget": {
+    "description": "Action that opens the target sheet for an existing target."
+  },
+  "salesRemoveTarget": "Remove the target",
+  "@salesRemoveTarget": {
+    "description": "Action that deletes a target."
+  },
+  "salesRemoveFailed": "That target was not removed. It is still set.",
+  "@salesRemoveFailed": {
+    "description": "Toast after a target delete fails."
+  },
+  "salesTargetSheetSet": "Set a sales target",
+  "@salesTargetSheetSet": {
+    "description": "Title of the sheet that creates a target."
+  },
+  "salesTargetSheetEdit": "Edit a sales target",
+  "@salesTargetSheetEdit": {
+    "description": "Title of the sheet that edits a target."
+  },
+  "salesTargetSheetSubtitle": "Units of {metric} for {month}.",
+  "@salesTargetSheetSubtitle": {
+    "description": "Subtitle of the target sheet: the metric and the month it applies to.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesTargetSku": "SKU",
+  "@salesTargetSku": {
+    "description": "Label of the SKU picker in the target sheet."
+  },
+  "salesTargetSkuNotChosen": "Not chosen yet. A target belongs to one SKU.",
+  "@salesTargetSkuNotChosen": {
+    "description": "Line under the SKU picker while nothing is chosen."
+  },
+  "salesTargetSkuLocked": "A target is identified by its SKU, so an edit cannot move it.",
+  "@salesTargetSkuLocked": {
+    "description": "Reason shown under the locked SKU picker when editing."
+  },
+  "salesTargetScope": "Applies to",
+  "@salesTargetScope": {
+    "description": "Label of the scope choice in the target sheet."
+  },
+  "salesTargetScopeLocked": "A target is identified by its scope, so an edit cannot move it.",
+  "@salesTargetScopeLocked": {
+    "description": "Reason shown under the locked scope choice when editing."
+  },
+  "salesTargetScopeAccountConsequence": "Every store on the account counts towards it.",
+  "@salesTargetScopeAccountConsequence": {
+    "description": "Consequence line under the account-wide scope option."
+  },
+  "salesTargetScopeTerritoryConsequence": "Only stores in the chosen territory count.",
+  "@salesTargetScopeTerritoryConsequence": {
+    "description": "Consequence line under the territory scope option."
+  },
+  "salesTargetScopeOutletConsequence": "Only the chosen store counts.",
+  "@salesTargetScopeOutletConsequence": {
+    "description": "Consequence line under the store scope option."
+  },
+  "salesTargetTerritoryNotChosen": "Not chosen yet. A territory target needs one.",
+  "@salesTargetTerritoryNotChosen": {
+    "description": "Line under the territory picker in the target sheet while nothing is chosen."
+  },
+  "salesTargetOutletNotChosen": "Not chosen yet. A store target needs one.",
+  "@salesTargetOutletNotChosen": {
+    "description": "Line under the store picker in the target sheet while nothing is chosen."
+  },
+  "salesTargetUnits": "Target units",
+  "@salesTargetUnits": {
+    "description": "Label of the target units field in the target sheet."
+  },
+  "salesTargetUnitsHelp": "A whole number of units, for the month.",
+  "@salesTargetUnitsHelp": {
+    "description": "Help line under the target units field."
+  },
+  "salesTargetUnitsMissing": "Enter a whole number of units.",
+  "@salesTargetUnitsMissing": {
+    "description": "Validation message when the target units field is empty or not a whole number."
+  },
+  "salesTargetSave": "Save the target",
+  "@salesTargetSave": {
+    "description": "Commit button in the target sheet."
+  },
+  "salesTargetBlocked": "Choose a SKU and a scope, and enter a whole number of units.",
+  "@salesTargetBlocked": {
+    "description": "Blocked reason under the target sheet's commit button."
+  },
+  "salesTargetCancel": "Cancel",
+  "@salesTargetCancel": {
+    "description": "Cancel action in the target sheet."
+  },
+  "salesTargetsLoadErrorHeadline": "The targets did not load.",
+  "@salesTargetsLoadErrorHeadline": {
+    "description": "Headline of the sales targets error state."
+  },
+  "salesTargetsRetry": "Try again",
+  "@salesTargetsRetry": {
+    "description": "Retry action on the sales targets error state."
+  },
+  "salesImportTitle": "Upload sales targets",
+  "@salesImportTitle": {
+    "description": "Title of the CSV import sheet."
+  },
+  "salesImportSubtitle": "Preview what a file would do, then apply the rows that are good.",
+  "@salesImportSubtitle": {
+    "description": "Subtitle of the CSV import sheet."
+  },
+  "salesImportFormat": "It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.",
+  "@salesImportFormat": {
+    "description": "What the CSV file must contain."
+  },
+  "salesImportChooseFile": "Choose a CSV file",
+  "@salesImportChooseFile": {
+    "description": "Action that opens the platform file chooser."
+  },
+  "salesImportChooseAnother": "Choose another file",
+  "@salesImportChooseAnother": {
+    "description": "Action that replaces the chosen file."
+  },
+  "salesImportRemoveFile": "Remove the file",
+  "@salesImportRemoveFile": {
+    "description": "Action that clears the chosen file and brings the paste box back."
+  },
+  "salesImportPasteLabel": "Or paste a CSV",
+  "@salesImportPasteLabel": {
+    "description": "Label of the CSV paste box."
+  },
+  "salesImportPasteHint": "month,sku,targetUnits,territory,outlet",
+  "@salesImportPasteHint": {
+    "description": "Placeholder inside the CSV paste box: the header row it wants."
+  },
+  "salesImportFileHeld": "Preview to see what this file would do. Remove it to paste a CSV instead.",
+  "@salesImportFileHeld": {
+    "description": "Shown in place of the paste box while a file is held."
+  },
+  "salesImportFileUnreadable": "That file could not be read.",
+  "@salesImportFileUnreadable": {
+    "description": "Shown when the chooser returned a file the console cannot take and gave no reason of its own."
+  },
+  "salesImportPreview": "Preview",
+  "@salesImportPreview": {
+    "description": "Action that runs the dry-run import."
+  },
+  "salesImportApply": "Apply",
+  "@salesImportApply": {
+    "description": "Commit action before a preview has been run."
+  },
+  "salesImportApplyRows": "{count, plural, =1{Apply 1 row} other{Apply {count} rows}}",
+  "@salesImportApplyRows": {
+    "description": "Commit action once a preview says how many rows are good.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "salesImportBlockedPreview": "Preview the file first. What gets written is always what was shown.",
+  "@salesImportBlockedPreview": {
+    "description": "Blocked reason on Apply before a preview has been run, or after the CSV changed."
+  },
+  "salesImportBlockedNoRows": "No row in this file can be written.",
+  "@salesImportBlockedNoRows": {
+    "description": "Blocked reason on Apply when the preview found nothing valid."
+  },
+  "salesImportReadyEyebrow": "Rows ready to write",
+  "@salesImportReadyEyebrow": {
+    "description": "Eyebrow of the dry run's valid-row count."
+  },
+  "salesImportErrorsEyebrow": "Rows with errors",
+  "@salesImportErrorsEyebrow": {
+    "description": "Eyebrow of the dry run's invalid-row count."
+  },
+  "salesImportWouldDo": "Would create {created} and update {updated}.",
+  "@salesImportWouldDo": {
+    "description": "What the dry run says the file would do.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportErrorsHeading": "What is wrong",
+  "@salesImportErrorsHeading": {
+    "description": "Section rule above the dry run's row errors."
+  },
+  "salesImportRowError": "Row {row}: {message}",
+  "@salesImportRowError": {
+    "description": "One row error from the dry run.",
+    "placeholders": {
+      "row": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportRowErrorColumn": "Row {row} · {column}: {message}",
+  "@salesImportRowErrorColumn": {
+    "description": "One row error from the dry run, naming the column.",
+    "placeholders": {
+      "row": {
+        "type": "String"
+      },
+      "column": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportMoreErrors": "…and {count} more.",
+  "@salesImportMoreErrors": {
+    "description": "Shown when the dry run found more errors than the sheet lists.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportNothingWrong": "Every row in this file can be written.",
+  "@salesImportNothingWrong": {
+    "description": "Shown when a dry run found no errors at all."
+  },
+  "salesImportApplied": "{created} created, {updated} updated.",
+  "@salesImportApplied": {
+    "description": "Toast after an import is applied.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "salesImportAppliedSkipped": "{created} created, {updated} updated, {skipped} rows skipped.",
+  "@salesImportAppliedSkipped": {
+    "description": "Toast after an import is applied with some rows refused.",
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
+  "salesPanelTitle": "Sell-in vs target",
+  "@salesPanelTitle": {
+    "description": "Title of the dashboard's sales attainment panel."
+  },
+  "salesPanelSubtitle": "{metric} · {month} — not consumer sales",
+  "@salesPanelSubtitle": {
+    "description": "Subtitle of the dashboard's sales attainment panel.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "salesPanelThisMonth": "this month",
+  "@salesPanelThisMonth": {
+    "description": "Stand-in for the month in the dashboard panel's subtitle before the server has said which month it answered for."
+  },
+  "salesPanelLink": "Targets",
+  "@salesPanelLink": {
+    "description": "Action on the dashboard panel that opens the sales targets route."
+  },
+  "salesPanelEmptyBody": "Set monthly SKU targets under Sales targets to track sell-in against them.",
+  "@salesPanelEmptyBody": {
+    "description": "Body of the dashboard panel's empty state."
   }
 }

@@ -4335,4 +4335,335 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get beatPlanFormFailed =>
       'That plan was not created. Nothing was saved.';
+
+  @override
+  String get salesTargetsTitle => 'Sales targets';
+
+  @override
+  String get salesTargetsSubtitle =>
+      'Units ordered through TradeIQ, not what shoppers bought.';
+
+  @override
+  String get salesSellIn => 'Sell-in (orders)';
+
+  @override
+  String get salesTargetsHelp =>
+      'Set one target per SKU for the whole account, a territory, or a single store.';
+
+  @override
+  String get salesTargetsUpload => 'Upload a CSV of targets';
+
+  @override
+  String salesMonthPrevious(String month) {
+    return 'The month before $month';
+  }
+
+  @override
+  String salesMonthNext(String month) {
+    return 'The month after $month';
+  }
+
+  @override
+  String salesTimeZone(String zone) {
+    return 'Local days in $zone';
+  }
+
+  @override
+  String get salesLevelsHeading => 'Against target';
+
+  @override
+  String get salesLevelAccount => 'Account-wide';
+
+  @override
+  String get salesLevelTerritories => 'Territories';
+
+  @override
+  String get salesLevelOutlets => 'Stores';
+
+  @override
+  String get salesLevelNoTargets =>
+      'No target is set at this level, so there is nothing to attain.';
+
+  @override
+  String salesLevelSubordinates(String actual, String target, int targets) {
+    String _temp0 = intl.Intl.pluralLogic(
+      targets,
+      locale: localeName,
+      other: '$targets targets',
+      one: '1 target',
+    );
+    return '$actual of $target units · $_temp0';
+  }
+
+  @override
+  String get salesBandOnTarget => 'On target';
+
+  @override
+  String get salesBandClose => 'Close';
+
+  @override
+  String get salesBandBehind => 'Behind';
+
+  @override
+  String get salesNoTarget => 'No target';
+
+  @override
+  String salesNoTargetsHeadline(String month) {
+    return 'No targets for $month.';
+  }
+
+  @override
+  String get salesNoTargetsBody =>
+      'Set a target on a SKU below, or upload a CSV of targets.';
+
+  @override
+  String get salesSkusHeading => 'SKUs';
+
+  @override
+  String salesSkusTruncated(String shown) {
+    return 'Showing the first $shown.';
+  }
+
+  @override
+  String get salesSkusEmptyHeadline => 'No SKUs on this account.';
+
+  @override
+  String get salesSkusEmptyBody =>
+      'Targets are set per SKU, so there is nothing to set one on yet.';
+
+  @override
+  String salesRowFigures(String metric, String actual, String target) {
+    return '$metric $actual · target $target units';
+  }
+
+  @override
+  String salesRowNoTargetFigures(String metric, String actual) {
+    return '$metric $actual · no target set';
+  }
+
+  @override
+  String get salesScopeTerritory => 'Territory';
+
+  @override
+  String get salesScopeOutlet => 'Store';
+
+  @override
+  String get salesScopeAccount => 'Whole account';
+
+  @override
+  String get salesScopeUnknown => 'Scope not on this list';
+
+  @override
+  String salesScopedRowTitle(String sku, String scope) {
+    return '$sku · $scope';
+  }
+
+  @override
+  String get salesSetTarget => 'Set a target';
+
+  @override
+  String get salesEditTarget => 'Edit the target';
+
+  @override
+  String get salesRemoveTarget => 'Remove the target';
+
+  @override
+  String get salesRemoveFailed =>
+      'That target was not removed. It is still set.';
+
+  @override
+  String get salesTargetSheetSet => 'Set a sales target';
+
+  @override
+  String get salesTargetSheetEdit => 'Edit a sales target';
+
+  @override
+  String salesTargetSheetSubtitle(String metric, String month) {
+    return 'Units of $metric for $month.';
+  }
+
+  @override
+  String get salesTargetSku => 'SKU';
+
+  @override
+  String get salesTargetSkuNotChosen =>
+      'Not chosen yet. A target belongs to one SKU.';
+
+  @override
+  String get salesTargetSkuLocked =>
+      'A target is identified by its SKU, so an edit cannot move it.';
+
+  @override
+  String get salesTargetScope => 'Applies to';
+
+  @override
+  String get salesTargetScopeLocked =>
+      'A target is identified by its scope, so an edit cannot move it.';
+
+  @override
+  String get salesTargetScopeAccountConsequence =>
+      'Every store on the account counts towards it.';
+
+  @override
+  String get salesTargetScopeTerritoryConsequence =>
+      'Only stores in the chosen territory count.';
+
+  @override
+  String get salesTargetScopeOutletConsequence =>
+      'Only the chosen store counts.';
+
+  @override
+  String get salesTargetTerritoryNotChosen =>
+      'Not chosen yet. A territory target needs one.';
+
+  @override
+  String get salesTargetOutletNotChosen =>
+      'Not chosen yet. A store target needs one.';
+
+  @override
+  String get salesTargetUnits => 'Target units';
+
+  @override
+  String get salesTargetUnitsHelp => 'A whole number of units, for the month.';
+
+  @override
+  String get salesTargetUnitsMissing => 'Enter a whole number of units.';
+
+  @override
+  String get salesTargetSave => 'Save the target';
+
+  @override
+  String get salesTargetBlocked =>
+      'Choose a SKU and a scope, and enter a whole number of units.';
+
+  @override
+  String get salesTargetCancel => 'Cancel';
+
+  @override
+  String get salesTargetsLoadErrorHeadline => 'The targets did not load.';
+
+  @override
+  String get salesTargetsRetry => 'Try again';
+
+  @override
+  String get salesImportTitle => 'Upload sales targets';
+
+  @override
+  String get salesImportSubtitle =>
+      'Preview what a file would do, then apply the rows that are good.';
+
+  @override
+  String get salesImportFormat =>
+      'It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.';
+
+  @override
+  String get salesImportChooseFile => 'Choose a CSV file';
+
+  @override
+  String get salesImportChooseAnother => 'Choose another file';
+
+  @override
+  String get salesImportRemoveFile => 'Remove the file';
+
+  @override
+  String get salesImportPasteLabel => 'Or paste a CSV';
+
+  @override
+  String get salesImportPasteHint => 'month,sku,targetUnits,territory,outlet';
+
+  @override
+  String get salesImportFileHeld =>
+      'Preview to see what this file would do. Remove it to paste a CSV instead.';
+
+  @override
+  String get salesImportFileUnreadable => 'That file could not be read.';
+
+  @override
+  String get salesImportPreview => 'Preview';
+
+  @override
+  String get salesImportApply => 'Apply';
+
+  @override
+  String salesImportApplyRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apply $count rows',
+      one: 'Apply 1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salesImportBlockedPreview =>
+      'Preview the file first. What gets written is always what was shown.';
+
+  @override
+  String get salesImportBlockedNoRows => 'No row in this file can be written.';
+
+  @override
+  String get salesImportReadyEyebrow => 'Rows ready to write';
+
+  @override
+  String get salesImportErrorsEyebrow => 'Rows with errors';
+
+  @override
+  String salesImportWouldDo(String created, String updated) {
+    return 'Would create $created and update $updated.';
+  }
+
+  @override
+  String get salesImportErrorsHeading => 'What is wrong';
+
+  @override
+  String salesImportRowError(String row, String message) {
+    return 'Row $row: $message';
+  }
+
+  @override
+  String salesImportRowErrorColumn(String row, String column, String message) {
+    return 'Row $row · $column: $message';
+  }
+
+  @override
+  String salesImportMoreErrors(String count) {
+    return '…and $count more.';
+  }
+
+  @override
+  String get salesImportNothingWrong =>
+      'Every row in this file can be written.';
+
+  @override
+  String salesImportApplied(String created, String updated) {
+    return '$created created, $updated updated.';
+  }
+
+  @override
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  ) {
+    return '$created created, $updated updated, $skipped rows skipped.';
+  }
+
+  @override
+  String get salesPanelTitle => 'Sell-in vs target';
+
+  @override
+  String salesPanelSubtitle(String metric, String month) {
+    return '$metric · $month — not consumer sales';
+  }
+
+  @override
+  String get salesPanelThisMonth => 'this month';
+
+  @override
+  String get salesPanelLink => 'Targets';
+
+  @override
+  String get salesPanelEmptyBody =>
+      'Set monthly SKU targets under Sales targets to track sell-in against them.';
 }

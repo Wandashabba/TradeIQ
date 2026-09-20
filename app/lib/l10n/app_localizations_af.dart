@@ -4383,4 +4383,336 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get beatPlanFormFailed =>
       'Daardie plan is nie geskep nie. Niks is gestoor nie.';
+
+  @override
+  String get salesTargetsTitle => 'Verkoopsteikens';
+
+  @override
+  String get salesTargetsSubtitle =>
+      'Eenhede wat deur TradeIQ bestel is, nie wat kopers gekoop het nie.';
+
+  @override
+  String get salesSellIn => 'Inverkope (bestellings)';
+
+  @override
+  String get salesTargetsHelp =>
+      'Stel een teiken per SKU vir die hele rekening, ’n gebied, of ’n enkele winkel.';
+
+  @override
+  String get salesTargetsUpload => 'Laai ’n CSV van teikens op';
+
+  @override
+  String salesMonthPrevious(String month) {
+    return 'Die maand voor $month';
+  }
+
+  @override
+  String salesMonthNext(String month) {
+    return 'Die maand na $month';
+  }
+
+  @override
+  String salesTimeZone(String zone) {
+    return 'Plaaslike dae in $zone';
+  }
+
+  @override
+  String get salesLevelsHeading => 'Teenoor teiken';
+
+  @override
+  String get salesLevelAccount => 'Rekeningwyd';
+
+  @override
+  String get salesLevelTerritories => 'Gebiede';
+
+  @override
+  String get salesLevelOutlets => 'Winkels';
+
+  @override
+  String get salesLevelNoTargets =>
+      'Geen teiken is op hierdie vlak gestel nie, so daar is niks om te behaal nie.';
+
+  @override
+  String salesLevelSubordinates(String actual, String target, int targets) {
+    String _temp0 = intl.Intl.pluralLogic(
+      targets,
+      locale: localeName,
+      other: '$targets teikens',
+      one: '1 teiken',
+    );
+    return '$actual van $target eenhede · $_temp0';
+  }
+
+  @override
+  String get salesBandOnTarget => 'Op teiken';
+
+  @override
+  String get salesBandClose => 'Naby';
+
+  @override
+  String get salesBandBehind => 'Agter';
+
+  @override
+  String get salesNoTarget => 'Geen teiken';
+
+  @override
+  String salesNoTargetsHeadline(String month) {
+    return 'Geen teikens vir $month nie.';
+  }
+
+  @override
+  String get salesNoTargetsBody =>
+      'Stel ’n teiken op ’n SKU hieronder, of laai ’n CSV van teikens op.';
+
+  @override
+  String get salesSkusHeading => 'SKU’s';
+
+  @override
+  String salesSkusTruncated(String shown) {
+    return 'Wys die eerste $shown.';
+  }
+
+  @override
+  String get salesSkusEmptyHeadline => 'Geen SKU’s op hierdie rekening nie.';
+
+  @override
+  String get salesSkusEmptyBody =>
+      'Teikens word per SKU gestel, so daar is nog niks om een op te stel nie.';
+
+  @override
+  String salesRowFigures(String metric, String actual, String target) {
+    return '$metric $actual · teiken $target eenhede';
+  }
+
+  @override
+  String salesRowNoTargetFigures(String metric, String actual) {
+    return '$metric $actual · geen teiken gestel nie';
+  }
+
+  @override
+  String get salesScopeTerritory => 'Gebied';
+
+  @override
+  String get salesScopeOutlet => 'Winkel';
+
+  @override
+  String get salesScopeAccount => 'Hele rekening';
+
+  @override
+  String get salesScopeUnknown => 'Omvang nie op hierdie lys nie';
+
+  @override
+  String salesScopedRowTitle(String sku, String scope) {
+    return '$sku · $scope';
+  }
+
+  @override
+  String get salesSetTarget => 'Stel ’n teiken';
+
+  @override
+  String get salesEditTarget => 'Wysig die teiken';
+
+  @override
+  String get salesRemoveTarget => 'Verwyder die teiken';
+
+  @override
+  String get salesRemoveFailed =>
+      'Daardie teiken is nie verwyder nie. Dit is steeds gestel.';
+
+  @override
+  String get salesTargetSheetSet => 'Stel ’n verkoopsteiken';
+
+  @override
+  String get salesTargetSheetEdit => 'Wysig ’n verkoopsteiken';
+
+  @override
+  String salesTargetSheetSubtitle(String metric, String month) {
+    return 'Eenhede van $metric vir $month.';
+  }
+
+  @override
+  String get salesTargetSku => 'SKU';
+
+  @override
+  String get salesTargetSkuNotChosen =>
+      'Nog nie gekies nie. ’n Teiken behoort aan een SKU.';
+
+  @override
+  String get salesTargetSkuLocked =>
+      '’n Teiken word deur sy SKU geïdentifiseer, so ’n wysiging kan dit nie skuif nie.';
+
+  @override
+  String get salesTargetScope => 'Geld vir';
+
+  @override
+  String get salesTargetScopeLocked =>
+      '’n Teiken word deur sy omvang geïdentifiseer, so ’n wysiging kan dit nie skuif nie.';
+
+  @override
+  String get salesTargetScopeAccountConsequence =>
+      'Elke winkel op die rekening tel daartoe by.';
+
+  @override
+  String get salesTargetScopeTerritoryConsequence =>
+      'Net winkels in die gekose gebied tel.';
+
+  @override
+  String get salesTargetScopeOutletConsequence => 'Net die gekose winkel tel.';
+
+  @override
+  String get salesTargetTerritoryNotChosen =>
+      'Nog nie gekies nie. ’n Gebiedsteiken benodig een.';
+
+  @override
+  String get salesTargetOutletNotChosen =>
+      'Nog nie gekies nie. ’n Winkelteiken benodig een.';
+
+  @override
+  String get salesTargetUnits => 'Teikeneenhede';
+
+  @override
+  String get salesTargetUnitsHelp => '’n Heelgetal eenhede, vir die maand.';
+
+  @override
+  String get salesTargetUnitsMissing => 'Tik ’n heelgetal eenhede in.';
+
+  @override
+  String get salesTargetSave => 'Stoor die teiken';
+
+  @override
+  String get salesTargetBlocked =>
+      'Kies ’n SKU en ’n omvang, en tik ’n heelgetal eenhede in.';
+
+  @override
+  String get salesTargetCancel => 'Kanselleer';
+
+  @override
+  String get salesTargetsLoadErrorHeadline => 'Die teikens het nie gelaai nie.';
+
+  @override
+  String get salesTargetsRetry => 'Probeer weer';
+
+  @override
+  String get salesImportTitle => 'Laai verkoopsteikens op';
+
+  @override
+  String get salesImportSubtitle =>
+      'Sien vooraf wat ’n lêer sou doen, en pas dan die goeie reëls toe.';
+
+  @override
+  String get salesImportFormat =>
+      'Dit benodig ’n opskrifreël: month (YYYY-MM), sku (id of naam), targetUnits, en opsioneel territory of outlet (id of kode). Bestaande teikens vir dieselfde SKU, maand en omvang word vervang.';
+
+  @override
+  String get salesImportChooseFile => 'Kies ’n CSV-lêer';
+
+  @override
+  String get salesImportChooseAnother => 'Kies ’n ander lêer';
+
+  @override
+  String get salesImportRemoveFile => 'Verwyder die lêer';
+
+  @override
+  String get salesImportPasteLabel => 'Of plak ’n CSV';
+
+  @override
+  String get salesImportPasteHint => 'month,sku,targetUnits,territory,outlet';
+
+  @override
+  String get salesImportFileHeld =>
+      'Sien vooraf wat hierdie lêer sou doen. Verwyder dit om eerder ’n CSV te plak.';
+
+  @override
+  String get salesImportFileUnreadable =>
+      'Daardie lêer kon nie gelees word nie.';
+
+  @override
+  String get salesImportPreview => 'Sien vooraf';
+
+  @override
+  String get salesImportApply => 'Pas toe';
+
+  @override
+  String salesImportApplyRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Pas $count reëls toe',
+      one: 'Pas 1 reël toe',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salesImportBlockedPreview =>
+      'Sien eers die lêer vooraf. Wat geskryf word is altyd wat gewys is.';
+
+  @override
+  String get salesImportBlockedNoRows =>
+      'Geen reël in hierdie lêer kan geskryf word nie.';
+
+  @override
+  String get salesImportReadyEyebrow => 'Reëls gereed om te skryf';
+
+  @override
+  String get salesImportErrorsEyebrow => 'Reëls met foute';
+
+  @override
+  String salesImportWouldDo(String created, String updated) {
+    return 'Sou $created skep en $updated bywerk.';
+  }
+
+  @override
+  String get salesImportErrorsHeading => 'Wat verkeerd is';
+
+  @override
+  String salesImportRowError(String row, String message) {
+    return 'Reël $row: $message';
+  }
+
+  @override
+  String salesImportRowErrorColumn(String row, String column, String message) {
+    return 'Reël $row · $column: $message';
+  }
+
+  @override
+  String salesImportMoreErrors(String count) {
+    return '…en nog $count.';
+  }
+
+  @override
+  String get salesImportNothingWrong =>
+      'Elke reël in hierdie lêer kan geskryf word.';
+
+  @override
+  String salesImportApplied(String created, String updated) {
+    return '$created geskep, $updated bygewerk.';
+  }
+
+  @override
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  ) {
+    return '$created geskep, $updated bygewerk, $skipped reëls oorgeslaan.';
+  }
+
+  @override
+  String get salesPanelTitle => 'Inverkope teenoor teiken';
+
+  @override
+  String salesPanelSubtitle(String metric, String month) {
+    return '$metric · $month — nie verbruikersverkope nie';
+  }
+
+  @override
+  String get salesPanelThisMonth => 'hierdie maand';
+
+  @override
+  String get salesPanelLink => 'Teikens';
+
+  @override
+  String get salesPanelEmptyBody =>
+      'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
 }

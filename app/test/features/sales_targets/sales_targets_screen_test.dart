@@ -1,18 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_attainment_panel.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
+import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../operations_harness.dart';
 
-const _report = SalesAttainmentReport(
+const SalesAttainmentReport _report = SalesAttainmentReport(
   month: '2026-09',
   timeZone: 'Africa/Johannesburg',
-  skus: [
+  skus: <SkuAttainment>[
     SkuAttainment(
       skuId: 'cola',
       skuName: 'Cola 2L',
@@ -21,7 +27,7 @@ const _report = SalesAttainmentReport(
       targetUnits: 100,
       actualUnits: 50,
       attainmentPct: 50,
-      scoped: [
+      scoped: <ScopedAttainment>[
         ScopedAttainment(
           targetId: 't-cola-north',
           scope: 'territory',
@@ -32,6 +38,8 @@ const _report = SalesAttainmentReport(
         ),
       ],
     ),
+    // No target at all: attainmentPct is null and targetUnits is null. This
+    // row is the whole of #396.
     SkuAttainment(
       skuId: 'chips',
       skuName: 'Chips 125g',
@@ -51,23 +59,43 @@ const _report = SalesAttainmentReport(
     actualUnits: 30,
     attainmentPct: 75,
   ),
+  // `outlet` is left at its default: no targets at this level at all.
 );
 
-const _preview = SalesTargetImportResult(
+const SalesAttainmentReport _noTargets = SalesAttainmentReport(
+  month: '2026-09',
+  timeZone: 'Africa/Johannesburg',
+  skus: <SkuAttainment>[
+    SkuAttainment(
+      skuId: 'chips',
+      skuName: 'Chips 125g',
+      category: 'Snacks',
+      actualUnits: 4,
+    ),
+  ],
+);
+
+const SalesAttainmentReport _noSkus = SalesAttainmentReport(
+  month: '2026-09',
+  timeZone: 'Africa/Johannesburg',
+  skus: <SkuAttainment>[],
+);
+
+const SalesTargetImportResult _preview = SalesTargetImportResult(
   dryRun: true,
   totalRows: 3,
   validRows: 2,
   invalidRows: 1,
   created: 1,
   updated: 1,
-  errors: [
+  errors: <ImportRowError>[
     ImportRowError(
       row: 3,
       column: 'month',
       message: '"2026-9" is not a month; use YYYY-MM',
     ),
   ],
-  rows: [
+  rows: <ImportPreviewRow>[
     ImportPreviewRow(
       row: 2,
       skuName: 'Cola 2L',
@@ -84,33 +112,38 @@ DioException _refusal(int status, String message) {
   return DioException(
     requestOptions: options,
     type: DioExceptionType.badResponse,
-    response: Response(
+    response: Response<Object?>(
       requestOptions: options,
       statusCode: status,
-      data: {'error': message},
+      data: <String, Object?>{'error': message},
     ),
   );
 }
 
-class _FakeSalesTargetsRepository implements SalesTargetsRepository {
-  _FakeSalesTargetsRepository({
+class _FakeSalesTargets implements SalesTargetsRepository {
+  _FakeSalesTargets({
     this.report = _report,
+    this.reportError,
     this.upsertError,
     this.previewError,
+    this.deleteError,
   });
 
   final SalesAttainmentReport report;
+  final Object? reportError;
   final Object? upsertError;
   final Object? previewError;
+  final Object? deleteError;
 
-  final requestedMonths = <String?>[];
-  final upserts = <Map<String, Object?>>[];
-  final deleted = <String>[];
-  final imports = <(String, bool)>[];
+  final List<String?> requestedMonths = <String?>[];
+  final List<Map<String, Object?>> upserts = <Map<String, Object?>>[];
+  final List<String> deleted = <String>[];
+  final List<(String, bool)> imports = <(String, bool)>[];
 
   @override
   Future<SalesAttainmentReport> attainment(String? month) async {
     requestedMonths.add(month);
+    if (reportError != null) throw reportError!;
     return report;
   }
 
@@ -123,7 +156,7 @@ class _FakeSalesTargetsRepository implements SalesTargetsRepository {
     String? outletId,
   }) async {
     if (upsertError != null) throw upsertError!;
-    upserts.add({
+    upserts.add(<String, Object?>{
       'skuId': skuId,
       'month': month,
       'targetUnits': targetUnits,
@@ -133,7 +166,10 @@ class _FakeSalesTargetsRepository implements SalesTargetsRepository {
   }
 
   @override
-  Future<void> delete(String id) async => deleted.add(id);
+  Future<void> delete(String id) async {
+    if (deleteError != null) throw deleteError!;
+    deleted.add(id);
+  }
 
   @override
   Future<SalesTargetImportResult> importCsv(
@@ -155,12 +191,6 @@ class _FakeSalesTargetsRepository implements SalesTargetsRepository {
   }
 }
 
-class _ThrowingSalesTargetsRepository extends _FakeSalesTargetsRepository {
-  @override
-  Future<SalesAttainmentReport> attainment(String? month) async =>
-      throw Exception('boom');
-}
-
 /// Stands in for the platform's file chooser, which a widget test has no way
 /// to open. Returns [file], or throws [error] if one was given.
 class _FakeCsvPicker {
@@ -177,523 +207,703 @@ class _FakeCsvPicker {
   }
 }
 
-const _pickedCsv = PickedCsv(
+const PickedCsv _pickedCsv = PickedCsv(
   name: 'september-targets.csv',
   contents: 'month,sku,targetUnits\n2026-09,Cola 2L,120\n2026-9,Chips 125g,10',
 );
 
-Widget _app(
-  SalesTargetsRepository repo, {
-  ThemeData? theme,
+Future<_FakeSalesTargets> _pump(
+  WidgetTester tester, {
+  _FakeSalesTargets? repo,
   _FakeCsvPicker? picker,
-}) => routedApp(
-  const SalesTargetsScreen(),
-  theme: theme,
-  overrides: [
-    salesTargetsRepositoryProvider.overrideWithValue(repo),
-    if (picker != null)
-      csvFilePickerProvider.overrideWithValue(picker.call),
-    salesTargetsMonthProvider.overrideWith(
-      () => SalesMonthNotifier(DateTime(2026, 9, 17)),
-    ),
-  ],
-);
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+  Size size = const Size(360, 720),
+}) async {
+  final resolved = repo ?? _FakeSalesTargets();
+  await pumpOperations(
+    tester,
+    const SalesTargetsScreen(),
+    skin: skin,
+    size: size,
+    textScale: textScale,
+    locale: locale,
+    overrides: <Override>[
+      salesTargetsRepositoryProvider.overrideWithValue(resolved),
+      if (picker != null) csvFilePickerProvider.overrideWithValue(picker.call),
+      salesTargetsMonthProvider.overrideWith(
+        () => SalesMonthNotifier(DateTime(2026, 9, 17)),
+      ),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOpsOutletsRepository(
+          outlets: <Outlet>[opsOutlet('o1', 'Kasi Corner Spaza')],
+        ),
+      ),
+      territoriesRepositoryProvider.overrideWithValue(
+        FakeTerritoriesRepository(
+          territories: const <Territory>[
+            Territory(id: 'north', name: 'North', code: 'N1'),
+          ],
+        ),
+      ),
+    ],
+  );
+  return resolved;
+}
 
-/// Opens the CSV dialog from the screen's toolbar.
 Future<void> _openImport(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey<String>('sales-targets-import')));
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpTall(WidgetTester tester, Widget app) async {
-  tester.view.physicalSize = const Size(1400, 1800);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(app);
-  await tester.pumpAndSettle();
-}
-
 void main() {
-  testWidgets('shows sell-in vs target per SKU, scope and level', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
+  group('a target that does not exist is not a target of zero (#396)', () {
+    testWidgets('a level with no targets renders an em dash and the reason', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-    expect(repo.requestedMonths, ['2026-09']);
-    expect(find.text('September 2026'), findsOneWidget);
-    // Labelled as sell-in from orders, never as consumer sales.
-    expect(find.text('Sell-in (orders) vs target'), findsOneWidget);
-    expect(find.text('Cola 2L'), findsOneWidget);
-    expect(find.text('Sell-in 50 · target 100 units'), findsOneWidget);
-    expect(find.text('Cola 2L · North (territory)'), findsOneWidget);
-    expect(find.text('75%'), findsWidgets);
-    // A SKU with sell-in but no target is shown, as having no target.
-    expect(find.text('Chips 125g'), findsOneWidget);
-    expect(find.text('Sell-in 4 · target — units'), findsOneWidget);
-    // Status chips set their label in capitals, so match without case.
-    expect(
-      find.textContaining(RegExp('^no target\$', caseSensitive: false)),
-      findsOneWidget,
-    );
-    // Level figures: account-wide and territories, none for outlets.
-    expect(find.text('50 of 100 units · 1 target'), findsOneWidget);
-    expect(find.text('30 of 40 units · 1 target'), findsOneWidget);
-    // Keys, not the word: "Outlets" is also a nav destination on the rail.
-    expect(
-      find.byKey(const ValueKey<String>('attainment-level-Account-wide')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('attainment-level-Territories')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('attainment-level-Outlets')),
-      findsNothing,
-    );
-  });
+      // The old panel dropped the level out of the grid entirely, so a
+      // manager who set no store targets saw two tiles and no reason for the
+      // third's absence.
+      final stores = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('attainment-level-Stores')),
+      );
+      expect(stores.value, isNull);
+      expect(
+        stores.noDataReason,
+        'No target is set at this level, so there is nothing to attain.',
+      );
+      expect(stores.severity, isNull, reason: 'Absence is not a miss.');
+      expect(stores.stateLine, isNull, reason: 'No band word on nothing.');
+    });
 
-  testWidgets('steps between months', (tester) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
+    testWidgets('a SKU with no target says so in words', (tester) async {
+      await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
 
-    await tester.tap(find.byKey(const ValueKey<String>('sales-month-next')));
-    await tester.pumpAndSettle();
-    expect(find.text('October 2026'), findsOneWidget);
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('sku-chips')),
+      );
+      expect(row.subtitle, contains('no target set'));
+      expect(row.severity, SoftRowSeverity.none);
+      expect(row.severityLabel, isNull);
+      expect(find.text('No target'), findsWidgets);
+    });
 
-    await tester.tap(find.byKey(const ValueKey<String>('sales-month-prev')));
-    await tester.tap(find.byKey(const ValueKey<String>('sales-month-prev')));
-    await tester.pumpAndSettle();
-    expect(find.text('August 2026'), findsOneWidget);
-    expect(repo.requestedMonths, ['2026-09', '2026-10', '2026-08']);
-  });
+    testWidgets('a SKU with a target carries its band, and a bar', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-  testWidgets('shows an error state with a retry when loading fails', (
-    tester,
-  ) async {
-    await _pumpTall(tester, _app(_ThrowingSalesTargetsRepository()));
+      await scrollOpsTo(tester, find.byKey(const ValueKey<String>('sku-cola')));
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('sku-cola')),
+      );
+      // 50% is behind, which is crimson at the solid commitment level plus
+      // the word.
+      expect(row.severity, SoftRowSeverity.critical);
+      expect(row.severityLabel, 'Behind');
+    });
 
-    expect(find.textContaining('Failed to load sales targets'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
-    // Nothing to target without the SKU list, so no add button.
-    expect(
-      find.byKey(const ValueKey<String>('sales-target-add')),
-      findsNothing,
-    );
-  });
-
-  testWidgets('sets a target on a SKU for the picked month', (tester) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(find.byKey(const ValueKey<String>('set-target-chips')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('target-units')),
-      '25',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('target-save')));
-    await tester.pumpAndSettle();
-
-    expect(repo.upserts, [
-      {
-        'skuId': 'chips',
-        'month': '2026-09',
-        'targetUnits': 25,
-        'territoryId': null,
-        'outletId': null,
-      },
-    ]);
-    expect(find.byKey(const ValueKey<String>('target-save')), findsNothing);
-  });
-
-  testWidgets('editing a territory target keeps its scope', (tester) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('edit-target-t-cola-north')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Edit sales target'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('target-units')),
-      '45',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('target-save')));
-    await tester.pumpAndSettle();
-
-    expect(repo.upserts.single, {
-      'skuId': 'cola',
-      'month': '2026-09',
-      'targetUnits': 45,
-      'territoryId': 'north',
-      'outletId': null,
+    testWidgets('a scoped target names what it applies to', (tester) async {
+      await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('scoped-t-cola-north')),
+      );
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('scoped-t-cola-north')),
+      );
+      // The old row said "North (territory)" with the wire's own word in
+      // brackets; this one is two translated words.
+      expect(row.title, 'Cola 2L · North · Territory');
+      // 75% is behind, and behind is crimson plus the word.
+      expect(row.severity, SoftRowSeverity.critical);
+      expect(row.severityLabel, 'Behind');
     });
   });
 
-  testWidgets('keeps the dialog open with the reason when a save is refused', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository(
-      upsertError: _refusal(404, 'SKU not found'),
-    );
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(find.byKey(const ValueKey<String>('set-target-chips')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('target-units')),
-      '25',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('target-save')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('SKU not found'), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('target-save')), findsOneWidget);
-  });
-
-  testWidgets('refuses a non-numeric target before calling the server', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(find.byKey(const ValueKey<String>('set-target-chips')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('target-units')),
-      'lots',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('target-save')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Enter a whole number of units'), findsOneWidget);
-    expect(repo.upserts, isEmpty);
-  });
-
-  testWidgets('removes a target', (tester) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('delete-target-t-cola')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(repo.deleted, ['t-cola']);
-  });
-
-  testWidgets('previews a CSV with its row errors, then applies it', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('sales-targets-import')),
-    );
-    await tester.pumpAndSettle();
-
-    const csv =
-        'month,sku,targetUnits\n2026-09,Cola 2L,120\n2026-9,Chips 125g,10';
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('csv-input')),
-      csv,
-    );
-    await tester.pump();
-
-    // Nothing to apply until a preview has run.
-    FilledButton apply() => tester.widget<FilledButton>(
-      find.byKey(const ValueKey<String>('csv-apply')),
-    );
-    expect(apply().onPressed, isNull);
-
-    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-    await tester.pumpAndSettle();
-
-    expect(repo.imports, [(csv, true)]);
-    expect(
-      find.text('2 ready · 1 with errors · would create 1, update 1'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Row 3 · month: "2026-9" is not a month; use YYYY-MM'),
-      findsOneWidget,
-    );
-    expect(find.text('Apply 2 rows'), findsOneWidget);
-    expect(apply().onPressed, isNotNull);
-
-    await tester.tap(find.byKey(const ValueKey<String>('csv-apply')));
-    await tester.pumpAndSettle();
-
-    expect(repo.imports, [(csv, true), (csv, false)]);
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsNothing);
-    expect(
-      find.text('Targets saved: 1 created, 1 updated · 1 rows skipped'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('editing the CSV after a preview requires a fresh preview', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('sales-targets-import')),
-    );
-    await tester.pumpAndSettle();
-    final input = find.byKey(const ValueKey<String>('csv-input'));
-    await tester.enterText(input, 'month,sku,targetUnits\n2026-09,Cola 2L,1');
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(input, 'month,sku,targetUnits\n2026-09,Cola 2L,2');
-    await tester.pump();
-
-    final apply = tester.widget<FilledButton>(
-      find.byKey(const ValueKey<String>('csv-apply')),
-    );
-    expect(apply.onPressed, isNull);
-  });
-
-  testWidgets('shows a file-level CSV refusal in the dialog', (tester) async {
-    final repo = _FakeSalesTargetsRepository(
-      previewError: _refusal(
-        400,
-        'The header row must include month, sku, targetUnits (missing: targetUnits)',
-      ),
-    );
-    await _pumpTall(tester, _app(repo));
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('sales-targets-import')),
-    );
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('csv-input')),
-      'month,sku\n2026-09,Cola 2L',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey<String>('csv-file-error')),
-      findsOneWidget,
-    );
-    expect(find.textContaining('missing: targetUnits'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('csv-preview-pane')),
-      findsNothing,
-    );
-  });
-
-  testWidgets('light: level figures and the CSV preview are glass tiles', (
-    tester,
-  ) async {
-    await _pumpTall(
+  group('the month', () {
+    testWidgets('names itself in the reader\'s language and steps', (
       tester,
-      _app(_FakeSalesTargetsRepository(), theme: AppTheme.light()),
-    );
+    ) async {
+      final repo = await _pump(tester);
+      expect(find.text('September 2026'), findsOneWidget);
 
-    final level = tester.widget<GlassPane>(
-      find.byKey(const ValueKey<String>('attainment-level-Account-wide')),
-    );
-    expect(level.kind, GlassKind.tile);
-    expect(level.blur, isFalse);
+      await tester.tap(find.byKey(const ValueKey<String>('sales-month-prev')));
+      await tester.pumpAndSettle();
+      expect(find.text('August 2026'), findsOneWidget);
+      expect(repo.requestedMonths.last, '2026-08');
+
+      await tester.tap(find.byKey(const ValueKey<String>('sales-month-next')));
+      await tester.pumpAndSettle();
+      expect(repo.requestedMonths.last, '2026-09');
+    });
+
+    testWidgets('the step buttons name where they go', (tester) async {
+      await _pump(tester);
+      final handle = tester.ensureSemantics();
+      expect(
+        tester
+            .getSemantics(
+              find.byKey(const ValueKey<String>('sales-month-prev')),
+            )
+            .label,
+        contains('The month before September 2026'),
+      );
+      handle.dispose();
+    });
   });
 
-  testWidgets('uploads a chosen file: previews first, applies what was shown', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    final picker = _FakeCsvPicker(file: _pickedCsv);
-    await _pumpTall(tester, _app(repo, picker: picker));
-    await _openImport(tester);
+  group('setting a target', () {
+    testWidgets('sends the SKU, month and units', (tester) async {
+      final repo = await _pump(tester);
 
-    // Pasting is still there as the fallback, until a file is chosen.
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('set-target-cola')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('set-target-cola')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('target-units')),
+        '250',
+      );
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('target-save')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('target-save')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
-    await tester.pumpAndSettle();
+      expect(repo.upserts, hasLength(1));
+      expect(repo.upserts.single['skuId'], 'cola');
+      expect(repo.upserts.single['month'], '2026-09');
+      expect(repo.upserts.single['targetUnits'], 250);
+    });
 
-    expect(picker.calls, 1);
-    expect(find.text('september-targets.csv'), findsOneWidget);
-    // The paste box goes away: only one of the two can be about to upload.
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsNothing);
+    testWidgets('editing a territory target keeps its scope', (tester) async {
+      final repo = await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('edit-target-t-cola-north')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('edit-target-t-cola-north')),
+      );
+      await tester.pumpAndSettle();
 
-    FilledButton apply() => tester.widget<FilledButton>(
-      find.byKey(const ValueKey<String>('csv-apply')),
-    );
-    expect(apply().onPressed, isNull);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('target-units')),
+        '60',
+      );
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('target-save')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('target-save')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-    await tester.pumpAndSettle();
+      expect(repo.upserts.single['territoryId'], 'north');
+      expect(repo.upserts.single['outletId'], isNull);
+      expect(repo.upserts.single['targetUnits'], 60);
+    });
 
-    expect(repo.imports, [(_pickedCsv.contents, true)]);
-    expect(
-      find.text('2 ready · 1 with errors · would create 1, update 1'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Row 3 · month: "2026-9" is not a month; use YYYY-MM'),
-      findsOneWidget,
-    );
-    expect(apply().onPressed, isNotNull);
-
-    await tester.tap(find.byKey(const ValueKey<String>('csv-apply')));
-    await tester.pumpAndSettle();
-
-    // Applied exactly the text that was previewed — the file is never re-read
-    // between the preview and the apply.
-    expect(repo.imports, [
-      (_pickedCsv.contents, true),
-      (_pickedCsv.contents, false),
-    ]);
-    expect(
-      find.text('Targets saved: 1 created, 1 updated · 1 rows skipped'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('removing the file restores the paste box and retires the preview', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    await _pumpTall(
+    testWidgets('a refusal keeps the sheet open with the server\'s reason', (
       tester,
-      _app(repo, picker: _FakeCsvPicker(file: _pickedCsv)),
-    );
-    await _openImport(tester);
-    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
-    await tester.pumpAndSettle();
+    ) async {
+      await _pump(
+        tester,
+        repo: _FakeSalesTargets(
+          upsertError: _refusal(404, 'No SKU with id "cola" on this account'),
+        ),
+      );
 
-    await tester.tap(find.byKey(const ValueKey<String>('csv-clear-file')));
-    await tester.pumpAndSettle();
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('set-target-cola')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('set-target-cola')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('target-units')),
+        '250',
+      );
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('target-save')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('target-save')));
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
-    // Nothing can be applied any more: what was shown is no longer the source.
-    final apply = tester.widget<FilledButton>(
-      find.byKey(const ValueKey<String>('csv-apply')),
-    );
-    expect(apply.onPressed, isNull);
-    expect(repo.imports, [(_pickedCsv.contents, true)]);
-  });
+      // A refusal that closes the form has thrown away the thing the manager
+      // has to fix.
+      expect(find.byKey(const ValueKey<String>('target-save')), findsOneWidget);
+      expect(find.textContaining('No SKU with id "cola"'), findsOneWidget);
+    });
 
-  testWidgets('cancelling the chooser leaves the pasted CSV alone', (
-    tester,
-  ) async {
-    final repo = _FakeSalesTargetsRepository();
-    final picker = _FakeCsvPicker();
-    await _pumpTall(tester, _app(repo, picker: picker));
-    await _openImport(tester);
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('csv-input')),
-      'month,sku,targetUnits\n2026-09,Cola 2L,1',
-    );
-    await tester.pump();
-
-    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
-    await tester.pumpAndSettle();
-
-    expect(picker.calls, 1);
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
-    expect(repo.imports, isEmpty);
-  });
-
-  testWidgets('says why a file could not be taken, and offers paste still', (
-    tester,
-  ) async {
-    await _pumpTall(
+    testWidgets('a non-numeric target never reaches the server', (
       tester,
-      _app(
-        _FakeSalesTargetsRepository(),
-        picker: _FakeCsvPicker(
-          error: const CsvFileException(
-            'That file is too large to be a list of targets. '
-            'Choose a CSV under 8 MB.',
+    ) async {
+      final repo = await _pump(tester);
+
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('set-target-cola')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('set-target-cola')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('target-units')),
+        'lots',
+      );
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('target-save')),
+      );
+
+      final save = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('target-save')),
+      );
+      expect(save.onPressed, isNull);
+      expect(save.blockedReason, isNotNull);
+      expect(repo.upserts, isEmpty);
+    });
+  });
+
+  group('removing a target', () {
+    testWidgets('sends the delete', (tester) async {
+      final repo = await _pump(tester);
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('delete-target-t-cola')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('delete-target-t-cola')),
+      );
+      await tester.pumpAndSettle();
+      expect(repo.deleted, <String>['t-cola']);
+    });
+
+    testWidgets('a failure says the target is still set', (tester) async {
+      await _pump(
+        tester,
+        repo: _FakeSalesTargets(deleteError: StateError('no route to host')),
+      );
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('delete-target-t-cola')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('delete-target-t-cola')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('That target was not removed. It is still set.'),
+        findsOneWidget,
+      );
+      await settleOpsToasts(tester);
+    });
+  });
+
+  group('the CSV import', () {
+    testWidgets('previews with its row errors, then applies', (tester) async {
+      final repo = await _pump(tester);
+      await _openImport(tester);
+
+      const csv =
+          'month,sku,targetUnits\n2026-09,Cola 2L,120\n2026-9,Chips 125g,10';
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('csv-input')),
+        csv,
+      );
+      await tester.pumpAndSettle();
+
+      // Nothing to apply until a preview has run, and it says why.
+      TorchPrimaryButton apply() => tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      expect(apply().onPressed, isNull);
+      expect(apply().blockedReason, contains('Preview the file first'));
+
+      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+      await tester.pumpAndSettle();
+
+      expect(repo.imports, <(String, bool)>[(csv, true)]);
+
+      // The dry run is a designed state: two figures and a worklist.
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-preview-pane')),
+      );
+      final ready = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('csv-ready')),
+      );
+      expect(ready.value, 2);
+      final errors = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('csv-errors')),
+      );
+      expect(errors.value, 1);
+      expect(find.text('Would create 1 and update 1.'), findsOneWidget);
+      expect(
+        find.text('Row 3 · month: "2026-9" is not a month; use YYYY-MM'),
+        findsOneWidget,
+      );
+
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      expect(find.text('Apply 2 rows'), findsOneWidget);
+      expect(apply().onPressed, isNotNull);
+
+      await tester.tap(find.byKey(const ValueKey<String>('csv-apply')));
+      await tester.pumpAndSettle();
+
+      expect(repo.imports, <(String, bool)>[(csv, true), (csv, false)]);
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsNothing);
+      expect(
+        find.text('1 created, 1 updated, 1 rows skipped.'),
+        findsOneWidget,
+      );
+      await settleOpsToasts(tester);
+    });
+
+    testWidgets('editing the CSV after a preview requires a fresh one', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _openImport(tester);
+
+      final input = find.byKey(const ValueKey<String>('csv-input'));
+      await tester.enterText(input, 'month,sku,targetUnits\n2026-09,Cola 2L,1');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(input, 'month,sku,targetUnits\n2026-09,Cola 2L,2');
+      await tester.pumpAndSettle();
+
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      // What gets written is always what was shown.
+      final apply = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      expect(apply.onPressed, isNull);
+      expect(
+        find.byKey(const ValueKey<String>('csv-preview-pane')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a file-level refusal is shown, and no dry run with it', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: _FakeSalesTargets(
+          previewError: _refusal(
+            400,
+            'The header row must include month, sku, targetUnits '
+            '(missing: targetUnits)',
           ),
         ),
-      ),
-    );
-    await _openImport(tester);
-    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
-    await tester.pumpAndSettle();
+      );
+      await _openImport(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('csv-input')),
+        'month,sku\n2026-09,Cola 2L',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey<String>('csv-file-error')), findsOneWidget);
-    expect(find.textContaining('under 8 MB'), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('csv-file-error')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('missing: targetUnits'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('csv-preview-pane')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a chosen file previews first, and applies what was shown', (
+      tester,
+    ) async {
+      final picker = _FakeCsvPicker(file: _pickedCsv);
+      final repo = await _pump(tester, picker: picker);
+      await _openImport(tester);
+
+      // Pasting is still there as the fallback, until a file is chosen.
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+      await tester.pumpAndSettle();
+
+      expect(picker.calls, 1);
+      expect(find.text('september-targets.csv'), findsOneWidget);
+      // While a file is held there is no question about which source uploads.
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsNothing);
+
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-preview')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-apply')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('csv-apply')));
+      await tester.pumpAndSettle();
+
+      expect(repo.imports, <(String, bool)>[
+        (_pickedCsv.contents, true),
+        (_pickedCsv.contents, false),
+      ]);
+      await settleOpsToasts(tester);
+    });
+
+    testWidgets('removing the file restores the paste box and the preview', (
+      tester,
+    ) async {
+      final picker = _FakeCsvPicker(file: _pickedCsv);
+      await _pump(tester, picker: picker);
+      await _openImport(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+      await tester.pumpAndSettle();
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-preview')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+      await tester.pumpAndSettle();
+
+      await scrollOpsSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('csv-clear-file')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('csv-clear-file')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('csv-preview-pane')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('cancelling the chooser leaves the pasted CSV alone', (
+      tester,
+    ) async {
+      final picker = _FakeCsvPicker();
+      await _pump(tester, picker: picker);
+      await _openImport(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('csv-input')),
+        'month,sku,targetUnits\n2026-09,Cola 2L,1',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+      await tester.pumpAndSettle();
+
+      expect(picker.calls, 1);
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+    });
+
+    testWidgets('says why a file could not be taken, and offers paste still', (
+      tester,
+    ) async {
+      final picker = _FakeCsvPicker(
+        error: const CsvFileException('That file is larger than 8 MB.'),
+      );
+      await _pump(tester, picker: picker);
+      await _openImport(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('larger than 8 MB'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+    });
   });
 
-  group('dashboard panel', () {
-    Widget panel(SalesTargetsRepository repo) => routedApp(
-      const SingleChildScrollView(child: SalesAttainmentPanel()),
-      overrides: [salesTargetsRepositoryProvider.overrideWithValue(repo)],
-    );
+  group('the states', () {
+    testWidgets('no targets at all names the month', (tester) async {
+      await _pump(tester, repo: _FakeSalesTargets(report: _noTargets));
+      expect(find.text('No targets for September 2026.'), findsOneWidget);
+    });
 
+    testWidgets('no SKUs says targets are set per SKU', (tester) async {
+      await _pump(tester, repo: _FakeSalesTargets(report: _noSkus));
+      expect(find.text('No SKUs on this account.'), findsOneWidget);
+    });
+
+    testWidgets('error sanitises and retries', (tester) async {
+      await _pump(
+        tester,
+        repo: _FakeSalesTargets(
+          reportError: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      );
+      expect(find.text('The targets did not load.'), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+    });
+  });
+
+  group('the dashboard panel', () {
     testWidgets('sends no month and labels the figure with the one it got', (
       tester,
     ) async {
-      final repo = _FakeSalesTargetsRepository();
-      await _pumpTall(tester, panel(repo));
+      final repo = _FakeSalesTargets();
+      await pumpOperations(
+        tester,
+        const SalesAttainmentPanel(),
+        overrides: <Override>[
+          salesTargetsRepositoryProvider.overrideWithValue(repo),
+        ],
+      );
 
-      // Which month "now" is belongs to the account's timezone, so the panel
-      // asks for no month and names the one the server answered for (#339).
-      expect(repo.requestedMonths, [null]);
-      expect(find.text('Sell-in vs target'), findsOneWidget);
-      expect(
-        find.textContaining('Sell-in (orders) · September 2026'),
-        findsOneWidget,
-      );
-      expect(find.text('50%'), findsOneWidget);
-      // Both levels are under 80%: account-wide 50% and territories 75%.
-      expect(
-        find.textContaining(RegExp('^behind\$', caseSensitive: false)),
-        findsNWidgets(2),
-      );
-      expect(find.text('75%'), findsOneWidget);
+      // #339: which month is current is the server's answer, not this
+      // device's.
+      expect(repo.requestedMonths, <String?>[null]);
+      expect(find.textContaining('September 2026'), findsOneWidget);
     });
 
     testWidgets('says so when no targets are set', (tester) async {
-      await _pumpTall(
+      await pumpOperations(
         tester,
-        panel(
-          _FakeSalesTargetsRepository(
-            report: const SalesAttainmentReport(
-              month: '2026-09',
-              timeZone: 'UTC',
-              skus: [],
-            ),
+        const SalesAttainmentPanel(),
+        overrides: <Override>[
+          salesTargetsRepositoryProvider.overrideWithValue(
+            _FakeSalesTargets(report: _noTargets),
           ),
-        ),
+        ],
       );
-
-      expect(find.text('No sales targets for September 2026'), findsOneWidget);
+      expect(find.text('No targets for September 2026.'), findsOneWidget);
     });
   });
 
-  test('attainment formatting and levels', () {
-    expect(formatAttainment(null), '—');
-    expect(formatAttainment(50), '50%');
-    expect(formatAttainment(33.33), '33.3%');
-    expect(attainmentLevel(null).name, 'neutral');
-    expect(attainmentLevel(100).name, 'good');
-    expect(attainmentLevel(85).name, 'warning');
-    expect(attainmentLevel(40).name, 'critical');
-    expect(salesMonthKey(DateTime(2026, 13)), '2027-01');
-    // The dashboard only learns its month from the wire, so the key has to
-    // read back as a label — and anything that is not a key is left alone.
-    expect(salesMonthLabelFromKey('2026-09'), 'September 2026');
-    expect(salesMonthLabelFromKey('2026-13'), '2026-13');
-    expect(salesMonthLabelFromKey(''), '');
+  group('Afrikaans and 2.0x', () {
+    testWidgets('Afrikaans has no English left on it', (tester) async {
+      await _pump(tester, locale: const Locale('af'));
+      expect(find.text('Verkoopsteikens'), findsWidgets);
+      expect(find.text('Teenoor teiken'), findsOneWidget);
+      expect(find.text('September 2026'), findsOneWidget);
+      expect(find.text('Against target'), findsNothing);
+    });
+
+    testWidgets('2.0x does not overflow', (tester) async {
+      await _pump(tester, textScale: 2.0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Afrikaans at 1.4x does not overflow either', (tester) async {
+      await _pump(tester, textScale: 1.4, locale: const Locale('af'));
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(t, skin: skin),
+        'no-targets': (t) => _pump(
+          t,
+          skin: skin,
+          repo: _FakeSalesTargets(report: _noTargets),
+        ),
+        'empty': (t) => _pump(
+          t,
+          skin: skin,
+          repo: _FakeSalesTargets(report: _noSkus),
+        ),
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          repo: _FakeSalesTargets(
+            reportError: StateError('SocketException: api.tradeiq.co.za'),
+          ),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'sales-targets',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+
+      // While a sheet is up every amber on the route beneath goes out, so the
+      // sheet's own commit is the single lit object — including in Night,
+      // where the nav's tab drops to its ink form.
+      testWidgets('${skin.mode.name}, beneath the target sheet: 1', (
+        tester,
+      ) async {
+        await _pump(tester, skin: skin);
+        await scrollOpsTo(
+          tester,
+          find.byKey(const ValueKey<String>('set-target-cola')),
+        );
+        await tester.tap(find.byKey(const ValueKey<String>('set-target-cola')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey<String>('target-units')),
+          '250',
+        );
+        await tester.pumpAndSettle();
+        // The commit has to be ON SCREEN to be counted: the census walks the
+        // pixels of the composed frame, and a sheet taller than 88% of a
+        // 360x720 phone keeps its last control below the fold.
+        await scrollOpsSheetTo(
+          tester,
+          find.byKey(const ValueKey<String>('target-save')),
+        );
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'sales-targets',
+          phase: 'target-sheet',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'The sheet owns the frame: the nav tab beneath it is out and '
+              'the sheet\'s commit is the one light.\n${census.describe()}',
+        );
+      });
+    }
   });
 }

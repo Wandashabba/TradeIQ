@@ -6799,6 +6799,526 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That plan was not created. Nothing was saved.'**
   String get beatPlanFormFailed;
+
+  /// Title of the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales targets'**
+  String get salesTargetsTitle;
+
+  /// Header fact on the sales targets route. It says what the metric is before any figure is read.
+  ///
+  /// In en, this message translates to:
+  /// **'Units ordered through TradeIQ, not what shoppers bought.'**
+  String get salesTargetsSubtitle;
+
+  /// The metric's name: units ordered through TradeIQ. Used wherever the server did not send its own label.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell-in (orders)'**
+  String get salesSellIn;
+
+  /// Second header fact on the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Set one target per SKU for the whole account, a territory, or a single store.'**
+  String get salesTargetsHelp;
+
+  /// Semantic label of the CSV import icon button.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload a CSV of targets'**
+  String get salesTargetsUpload;
+
+  /// Semantic label of the previous-month button.
+  ///
+  /// In en, this message translates to:
+  /// **'The month before {month}'**
+  String salesMonthPrevious(String month);
+
+  /// Semantic label of the next-month button.
+  ///
+  /// In en, this message translates to:
+  /// **'The month after {month}'**
+  String salesMonthNext(String month);
+
+  /// Says which time zone the month's days were counted in.
+  ///
+  /// In en, this message translates to:
+  /// **'Local days in {zone}'**
+  String salesTimeZone(String zone);
+
+  /// Section rule above the three attainment levels.
+  ///
+  /// In en, this message translates to:
+  /// **'Against target'**
+  String get salesLevelsHeading;
+
+  /// The attainment level covering every store on the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account-wide'**
+  String get salesLevelAccount;
+
+  /// The attainment level covering territory-scoped targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories'**
+  String get salesLevelTerritories;
+
+  /// The attainment level covering store-scoped targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get salesLevelOutlets;
+
+  /// Reason shown in place of an attainment percentage for a level with no targets. A level with no target is not nought per cent attained.
+  ///
+  /// In en, this message translates to:
+  /// **'No target is set at this level, so there is nothing to attain.'**
+  String get salesLevelNoTargets;
+
+  /// The units and the target count beneath an attainment figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{actual} of {target} units · {targets, plural, =1{1 target} other{{targets} targets}}'**
+  String salesLevelSubordinates(String actual, String target, int targets);
+
+  /// Attainment band word at or above 100 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'On target'**
+  String get salesBandOnTarget;
+
+  /// Attainment band word from 80 to 99 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get salesBandClose;
+
+  /// Attainment band word below 80 per cent.
+  ///
+  /// In en, this message translates to:
+  /// **'Behind'**
+  String get salesBandBehind;
+
+  /// Word for a SKU or scope with no target set. Never a nought: a target that does not exist is not a target of zero.
+  ///
+  /// In en, this message translates to:
+  /// **'No target'**
+  String get salesNoTarget;
+
+  /// Inline empty state when the month has no targets at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No targets for {month}.'**
+  String salesNoTargetsHeadline(String month);
+
+  /// Body of the no-targets empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target on a SKU below, or upload a CSV of targets.'**
+  String get salesNoTargetsBody;
+
+  /// Section rule above the per-SKU rows.
+  ///
+  /// In en, this message translates to:
+  /// **'SKUs'**
+  String get salesSkusHeading;
+
+  /// Pagination footer when the server cut the SKU list.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown}.'**
+  String salesSkusTruncated(String shown);
+
+  /// Inline empty state when the account has no products.
+  ///
+  /// In en, this message translates to:
+  /// **'No SKUs on this account.'**
+  String get salesSkusEmptyHeadline;
+
+  /// Body of the no-SKUs empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Targets are set per SKU, so there is nothing to set one on yet.'**
+  String get salesSkusEmptyBody;
+
+  /// A SKU row's figures: what was ordered, against the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} {actual} · target {target} units'**
+  String salesRowFigures(String metric, String actual, String target);
+
+  /// A SKU row's figures when no target exists. It says so in words rather than printing a nought.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} {actual} · no target set'**
+  String salesRowNoTargetFigures(String metric, String actual);
+
+  /// Scope word for a territory-scoped target.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get salesScopeTerritory;
+
+  /// Scope word for a store-scoped target.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get salesScopeOutlet;
+
+  /// Scope word for an account-wide target.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole account'**
+  String get salesScopeAccount;
+
+  /// Shown when a scoped target names a territory or store the report did not resolve.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope not on this list'**
+  String get salesScopeUnknown;
+
+  /// Title of a scoped target's row.
+  ///
+  /// In en, this message translates to:
+  /// **'{sku} · {scope}'**
+  String salesScopedRowTitle(String sku, String scope);
+
+  /// Action that opens the target sheet for a SKU with no target.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target'**
+  String get salesSetTarget;
+
+  /// Action that opens the target sheet for an existing target.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the target'**
+  String get salesEditTarget;
+
+  /// Action that deletes a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the target'**
+  String get salesRemoveTarget;
+
+  /// Toast after a target delete fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That target was not removed. It is still set.'**
+  String get salesRemoveFailed;
+
+  /// Title of the sheet that creates a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a sales target'**
+  String get salesTargetSheetSet;
+
+  /// Title of the sheet that edits a target.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit a sales target'**
+  String get salesTargetSheetEdit;
+
+  /// Subtitle of the target sheet: the metric and the month it applies to.
+  ///
+  /// In en, this message translates to:
+  /// **'Units of {metric} for {month}.'**
+  String salesTargetSheetSubtitle(String metric, String month);
+
+  /// Label of the SKU picker in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'SKU'**
+  String get salesTargetSku;
+
+  /// Line under the SKU picker while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A target belongs to one SKU.'**
+  String get salesTargetSkuNotChosen;
+
+  /// Reason shown under the locked SKU picker when editing.
+  ///
+  /// In en, this message translates to:
+  /// **'A target is identified by its SKU, so an edit cannot move it.'**
+  String get salesTargetSkuLocked;
+
+  /// Label of the scope choice in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to'**
+  String get salesTargetScope;
+
+  /// Reason shown under the locked scope choice when editing.
+  ///
+  /// In en, this message translates to:
+  /// **'A target is identified by its scope, so an edit cannot move it.'**
+  String get salesTargetScopeLocked;
+
+  /// Consequence line under the account-wide scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Every store on the account counts towards it.'**
+  String get salesTargetScopeAccountConsequence;
+
+  /// Consequence line under the territory scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Only stores in the chosen territory count.'**
+  String get salesTargetScopeTerritoryConsequence;
+
+  /// Consequence line under the store scope option.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the chosen store counts.'**
+  String get salesTargetScopeOutletConsequence;
+
+  /// Line under the territory picker in the target sheet while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A territory target needs one.'**
+  String get salesTargetTerritoryNotChosen;
+
+  /// Line under the store picker in the target sheet while nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Not chosen yet. A store target needs one.'**
+  String get salesTargetOutletNotChosen;
+
+  /// Label of the target units field in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Target units'**
+  String get salesTargetUnits;
+
+  /// Help line under the target units field.
+  ///
+  /// In en, this message translates to:
+  /// **'A whole number of units, for the month.'**
+  String get salesTargetUnitsHelp;
+
+  /// Validation message when the target units field is empty or not a whole number.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number of units.'**
+  String get salesTargetUnitsMissing;
+
+  /// Commit button in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the target'**
+  String get salesTargetSave;
+
+  /// Blocked reason under the target sheet's commit button.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a SKU and a scope, and enter a whole number of units.'**
+  String get salesTargetBlocked;
+
+  /// Cancel action in the target sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get salesTargetCancel;
+
+  /// Headline of the sales targets error state.
+  ///
+  /// In en, this message translates to:
+  /// **'The targets did not load.'**
+  String get salesTargetsLoadErrorHeadline;
+
+  /// Retry action on the sales targets error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get salesTargetsRetry;
+
+  /// Title of the CSV import sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload sales targets'**
+  String get salesImportTitle;
+
+  /// Subtitle of the CSV import sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview what a file would do, then apply the rows that are good.'**
+  String get salesImportSubtitle;
+
+  /// What the CSV file must contain.
+  ///
+  /// In en, this message translates to:
+  /// **'It needs a header row: month (YYYY-MM), sku (id or name), targetUnits, and optionally territory or outlet (id or code). Existing targets for the same SKU, month and scope are replaced.'**
+  String get salesImportFormat;
+
+  /// Action that opens the platform file chooser.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a CSV file'**
+  String get salesImportChooseFile;
+
+  /// Action that replaces the chosen file.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another file'**
+  String get salesImportChooseAnother;
+
+  /// Action that clears the chosen file and brings the paste box back.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the file'**
+  String get salesImportRemoveFile;
+
+  /// Label of the CSV paste box.
+  ///
+  /// In en, this message translates to:
+  /// **'Or paste a CSV'**
+  String get salesImportPasteLabel;
+
+  /// Placeholder inside the CSV paste box: the header row it wants.
+  ///
+  /// In en, this message translates to:
+  /// **'month,sku,targetUnits,territory,outlet'**
+  String get salesImportPasteHint;
+
+  /// Shown in place of the paste box while a file is held.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview to see what this file would do. Remove it to paste a CSV instead.'**
+  String get salesImportFileHeld;
+
+  /// Shown when the chooser returned a file the console cannot take and gave no reason of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read.'**
+  String get salesImportFileUnreadable;
+
+  /// Action that runs the dry-run import.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get salesImportPreview;
+
+  /// Commit action before a preview has been run.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get salesImportApply;
+
+  /// Commit action once a preview says how many rows are good.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Apply 1 row} other{Apply {count} rows}}'**
+  String salesImportApplyRows(int count);
+
+  /// Blocked reason on Apply before a preview has been run, or after the CSV changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview the file first. What gets written is always what was shown.'**
+  String get salesImportBlockedPreview;
+
+  /// Blocked reason on Apply when the preview found nothing valid.
+  ///
+  /// In en, this message translates to:
+  /// **'No row in this file can be written.'**
+  String get salesImportBlockedNoRows;
+
+  /// Eyebrow of the dry run's valid-row count.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows ready to write'**
+  String get salesImportReadyEyebrow;
+
+  /// Eyebrow of the dry run's invalid-row count.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows with errors'**
+  String get salesImportErrorsEyebrow;
+
+  /// What the dry run says the file would do.
+  ///
+  /// In en, this message translates to:
+  /// **'Would create {created} and update {updated}.'**
+  String salesImportWouldDo(String created, String updated);
+
+  /// Section rule above the dry run's row errors.
+  ///
+  /// In en, this message translates to:
+  /// **'What is wrong'**
+  String get salesImportErrorsHeading;
+
+  /// One row error from the dry run.
+  ///
+  /// In en, this message translates to:
+  /// **'Row {row}: {message}'**
+  String salesImportRowError(String row, String message);
+
+  /// One row error from the dry run, naming the column.
+  ///
+  /// In en, this message translates to:
+  /// **'Row {row} · {column}: {message}'**
+  String salesImportRowErrorColumn(String row, String column, String message);
+
+  /// Shown when the dry run found more errors than the sheet lists.
+  ///
+  /// In en, this message translates to:
+  /// **'…and {count} more.'**
+  String salesImportMoreErrors(String count);
+
+  /// Shown when a dry run found no errors at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Every row in this file can be written.'**
+  String get salesImportNothingWrong;
+
+  /// Toast after an import is applied.
+  ///
+  /// In en, this message translates to:
+  /// **'{created} created, {updated} updated.'**
+  String salesImportApplied(String created, String updated);
+
+  /// Toast after an import is applied with some rows refused.
+  ///
+  /// In en, this message translates to:
+  /// **'{created} created, {updated} updated, {skipped} rows skipped.'**
+  String salesImportAppliedSkipped(
+    String created,
+    String updated,
+    String skipped,
+  );
+
+  /// Title of the dashboard's sales attainment panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell-in vs target'**
+  String get salesPanelTitle;
+
+  /// Subtitle of the dashboard's sales attainment panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} · {month} — not consumer sales'**
+  String salesPanelSubtitle(String metric, String month);
+
+  /// Stand-in for the month in the dashboard panel's subtitle before the server has said which month it answered for.
+  ///
+  /// In en, this message translates to:
+  /// **'this month'**
+  String get salesPanelThisMonth;
+
+  /// Action on the dashboard panel that opens the sales targets route.
+  ///
+  /// In en, this message translates to:
+  /// **'Targets'**
+  String get salesPanelLink;
+
+  /// Body of the dashboard panel's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Set monthly SKU targets under Sales targets to track sell-in against them.'**
+  String get salesPanelEmptyBody;
 }
 
 class _AppLocalizationsDelegate
