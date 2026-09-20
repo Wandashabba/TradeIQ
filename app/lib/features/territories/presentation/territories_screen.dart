@@ -218,8 +218,20 @@ class _TerritoryRowView extends ConsumerWidget {
       ].join(' · '),
     };
 
+    // A territory nobody is assigned to is the one state this list flags, and
+    // it flagged it before the migration too (`StatusLevel.warning`,
+    // `statusLabel: 'Unassigned'`). It is a **Watch** — the lower of the two
+    // commitment levels, an outlined channel rather than a solid bar — because
+    // an unworked patch is a gap to close, not a breach of a configured
+    // threshold. `severityLabel` is required with it, so the word survives
+    // greyscale, glare and a screen reader; the lane is reserved on every row
+    // whether or not a bar is drawn, so nothing shifts.
+    final unassigned = row.unassigned ?? false;
+
     return SoftRow(
       density: SoftRowDensity.tall,
+      severity: unassigned ? SoftRowSeverity.watch : SoftRowSeverity.none,
+      severityLabel: unassigned ? l10n.territoryUnassigned : null,
       title: territory.name,
       titleTruncation: SoftRowTruncation.middle,
       subtitle: counts,
@@ -239,7 +251,6 @@ class _TerritoryRowView extends ConsumerWidget {
         meta,
         counts,
         _coverageSentence(context, row),
-        if (row.unassigned ?? false) l10n.territoryUnassigned,
       ].join('. '),
     );
   }

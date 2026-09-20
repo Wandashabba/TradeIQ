@@ -80,6 +80,34 @@ void main() {
       expect(row.onTap, isNotNull);
     });
 
+    testWidgets('a territory nobody works carries the flag and the word', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        coverageFor: <String, TerritoryCoverage>{
+          'ter-1': coverage(agentCount: 0),
+          'ter-2': coverage(agentCount: 2),
+        },
+      );
+
+      SoftRow rowFor(String id) => tester.widget<SoftRow>(
+        find.descendant(
+          of: find.byKey(ValueKey<String>('territory-$id')),
+          matching: find.byType(SoftRow),
+        ),
+      );
+
+      // Colour is never the only signal: the crimson channel comes with the
+      // word, which is what survives greyscale and a screen reader.
+      expect(rowFor('ter-1').severity, SoftRowSeverity.watch);
+      expect(rowFor('ter-1').severityLabel, 'Unassigned');
+      expect(rowFor('ter-2').severity, SoftRowSeverity.none);
+      expect(rowFor('ter-2').severityLabel, isNull);
+      // And it is legible without the bar at all: the count says it too.
+      expect(find.textContaining('No agents'), findsOneWidget);
+    });
+
     testWidgets('the section rule counts what it is showing', (tester) async {
       await _pump(tester);
 
