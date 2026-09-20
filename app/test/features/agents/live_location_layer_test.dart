@@ -8,12 +8,17 @@ import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/live_location_layer.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../helpers/routed_app.dart';
 
 /// #153 T1 — the manager's live layer on the "Where are my agents" panel and
 /// the trail map: six states by shape and word, age first, and "last updated".
 final _serverTime = DateTime.utc(2026, 9, 15, 8, 30, 5);
+
+/// The English messages, so every assertion below is still the exact English
+/// it was before these helpers learned to read the ARB.
+final _en = englishLocalizations;
 
 Map<String, dynamic> _json() => {
   'serverTime': _serverTime.toIso8601String(),
@@ -190,30 +195,30 @@ void main() {
   });
 
   test('formatAgeSeconds', () {
-    expect(formatAgeSeconds(null), 'never shared');
-    expect(formatAgeSeconds(45), '45s');
-    expect(formatAgeSeconds(120), '2 min');
-    expect(formatAgeSeconds(3600), '1 h');
-    expect(formatAgeSeconds(7500), '2 h 5 min');
-    expect(formatAgeSeconds(3 * 86400 + 5), '3 d');
+    expect(formatAgeSeconds(_en, null), 'never shared');
+    expect(formatAgeSeconds(_en, 45), '45s');
+    expect(formatAgeSeconds(_en, 120), '2 min');
+    expect(formatAgeSeconds(_en, 3600), '1 h');
+    expect(formatAgeSeconds(_en, 7500), '2 h 5 min');
+    expect(formatAgeSeconds(_en, 3 * 86400 + 5), '3 d');
   });
 
   test('descriptions lead with age and name where the place came from', () {
-    expect(liveAgentDescription(page.agents[0]), '45s old · At store · Thabo · at Sandton Spar');
-    expect(liveAgentDescription(page.agents[1]), '2 min old · In transit · Lerato · last check-in Rosebank PnP');
-    expect(liveAgentDescription(page.agents[4]), 'never shared · Offline · Pieter');
-    expect(liveAgentDescription(page.agents[5]), '1 min old · Near store · Ayanda · near Sandton Spar');
+    expect(liveAgentDescription(_en, page.agents[0]), '45s old · At store · Thabo · at Sandton Spar');
+    expect(liveAgentDescription(_en, page.agents[1]), '2 min old · In transit · Lerato · last check-in Rosebank PnP');
+    expect(liveAgentDescription(_en, page.agents[4]), 'never shared · Offline · Pieter');
+    expect(liveAgentDescription(_en, page.agents[5]), '1 min old · Near store · Ayanda · near Sandton Spar');
     // Not sharing has no position to age, so the state leads.
-    expect(liveAgentDescription(page.agents[6]), 'Not sharing · Zanele · last check-in Rosebank PnP');
+    expect(liveAgentDescription(_en, page.agents[6]), 'Not sharing · Zanele · last check-in Rosebank PnP');
   });
 
   test('pin and age text for the new states', () {
-    expect(livePinStateText(page.agents[5]), 'Near Sandton Spar');
-    expect(livePinStateText(page.agents[0]), 'At store');
-    expect(liveAgeText(page.agents[6]), '—');
-    expect(liveAgeText(page.agents[4]), 'never shared');
-    expect(liveStateLabel(LiveAgentState.nearStore), 'Near store');
-    expect(liveStateLabel(LiveAgentState.notSharing), 'Not sharing');
+    expect(livePinStateText(_en, page.agents[5]), 'Near Sandton Spar');
+    expect(livePinStateText(_en, page.agents[0]), 'At store');
+    expect(liveAgeText(_en, page.agents[6]), '—');
+    expect(liveAgeText(_en, page.agents[4]), 'never shared');
+    expect(liveStateLabel(_en, LiveAgentState.nearStore), 'Near store');
+    expect(liveStateLabel(_en, LiveAgentState.notSharing), 'Not sharing');
   });
 
   test('the six live states differ by shape, not colour (#144)', () {
@@ -238,7 +243,7 @@ void main() {
         for (final state in LiveAgentState.values) {
           final entry = find.byKey(ValueKey('live-legend-${state.name}'));
           expect(entry, findsOneWidget);
-          expect(find.descendant(of: entry, matching: find.text(liveStateLabel(state))), findsOneWidget);
+          expect(find.descendant(of: entry, matching: find.text(liveStateLabel(_en, state))), findsOneWidget);
           final glyph = tester.widget<LiveAgentStateGlyph>(
             find.descendant(of: entry, matching: find.byType(LiveAgentStateGlyph)),
           );

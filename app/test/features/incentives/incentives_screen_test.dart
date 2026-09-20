@@ -13,6 +13,7 @@ import 'package:tradeiq_app/features/gamification/data/gamification_repository.d
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_view.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -168,6 +169,20 @@ Future<_FakeIncentives> _pump(
     ],
   );
   return repo;
+}
+
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
 }
 
 void main() {
@@ -920,6 +935,77 @@ void main() {
       );
       expect(bar.milestones.single.label, '250 pts at 20 visits');
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // PROBE E found "Incentives", "Schemes", "Add a scheme", "Awarding",
+  // "Delete this scheme" and the scheme sentence painted in English under
+  // Locale('af').
+  group('an Afrikaans manager opens the schemes', () {
+    testWidgets('no English is painted, and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        schemes: <IncentiveScheme>[_scheme()],
+        board: <LeaderboardEntry>[
+          _agent(visits: 14),
+          _agent(agentId: 'a-2', name: 'Busi Dlamini', visits: 3),
+        ],
+        locale: const Locale('af'),
+        size: const Size(360, 1400),
+      );
+
+      for (final english in <String>[
+        'Incentives',
+        'Schemes',
+        'Add a scheme',
+        'Awarding',
+        'Delete this scheme',
+        'A scheme awards points',
+        'See everyone',
+        'Visits submitted',
+        'Closest:',
+        'agents have earned it',
+      ]) {
+        expect(paintedIgnoringCase(english), findsNothing, reason: english);
+      }
+
+      expect(paintedIgnoringCase(af.incentivesTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesSchemes), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesAddScheme), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesAwarding), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesDeleteScheme), findsWidgets);
+      expect(paintedIgnoringCase(af.incentivesSeeEveryone), findsWidgets);
+      // The metric's own name, which used to be a constructor argument on the
+      // enum and therefore could only ever be English.
+      expect(paintedIgnoringCase(af.incentiveMetricVisits), findsWidgets);
+    });
+
+    testWidgets('the scheme form asks for a threshold in Afrikaans', (
+      tester,
+    ) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        size: const Size(360, 1400),
+      );
+      await tester.tap(paintedIgnoringCase(af.incentivesAddScheme));
+      await tester.pumpAndSettle();
+
+      expect(paintedIgnoringCase(af.schemeFormTitle), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormThreshold), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormReward), findsWidgets);
+      expect(paintedIgnoringCase(af.schemeFormMetricNotAnswered), findsWidgets);
+      expect(paintedIgnoringCase('Threshold'), findsNothing);
+      expect(paintedIgnoringCase('Reward'), findsNothing);
+      expect(paintedIgnoringCase('No metric chosen yet'), findsNothing);
+
+      // A choice group's label reaches a reader and nobody else, so it is the
+      // easiest string in the app to leave in English and never notice.
+      final spoken = semanticsDump(tester);
+      expect(spoken, contains(af.schemeFormMetricLabel));
+      expect(spoken, isNot(contains('What it pays on')));
     });
   });
 }

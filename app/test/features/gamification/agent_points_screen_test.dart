@@ -9,6 +9,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
 import 'package:tradeiq_app/features/gamification/presentation/agent_points_screen.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -122,6 +123,20 @@ Future<void> _pump(
     ),
   ],
 );
+
+/// Painted text, ignoring case.
+///
+/// The kit uppercases eyebrows and field labels for display while the ARB
+/// holds sentence case, so a case-sensitive `textContaining` would pass on an
+/// English eyebrow simply by failing to see it. Ignoring case makes the
+/// absence assertions below stricter, not looser.
+Finder paintedIgnoringCase(String text) {
+  final needle = text.toUpperCase();
+  return find.byWidgetPredicate(
+    (Widget w) => w is Text && (w.data ?? '').toUpperCase().contains(needle),
+    description: 'text containing "$text", ignoring case',
+  );
+}
 
 void main() {
   group('whose record this is', () {
@@ -527,6 +542,77 @@ void main() {
         locale: const Locale('af'),
       );
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // The ledger an Afrikaans manager opens from the board. The board one tap
+  // back is now Afrikaans; a ledger that stays English is the console's
+  // boundary drawn through one manager's two taps.
+  group('an Afrikaans manager opens the ledger', () {
+    testWidgets('no English is painted, and the Afrikaans is', (tester) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        size: const Size(360, 1600),
+      );
+
+      for (final english in <String>[
+        'Points earned',
+        'Average scorecard',
+        'Back to the leaderboard',
+        'Ledger',
+        'Field agent',
+        'visits submitted',
+        'tasks closed',
+      ]) {
+        expect(paintedIgnoringCase(english), findsNothing, reason: english);
+      }
+
+      expect(paintedIgnoringCase(af.pointsEarnedEyebrow), findsWidgets);
+      expect(paintedIgnoringCase(af.pointsAverageEyebrow), findsWidgets);
+      expect(paintedIgnoringCase(af.pointsBackToLeaderboard), findsWidgets);
+      expect(paintedIgnoringCase(af.pointsLedgerHeading), findsWidgets);
+    });
+
+    testWidgets('a ledger entry names its reason in Afrikaans', (
+      tester,
+    ) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        size: const Size(360, 1600),
+      );
+
+      // `PointsEntry.reasonLabel` is the English fallback of last resort and
+      // nothing a reader sees may come from it. The agent's own record has
+      // read these three through the ARB since it shipped; the console read
+      // the raw switch, so one event had two spellings.
+      expect(paintedIgnoringCase(af.meReasonTaskClosed), findsWidgets);
+      expect(paintedIgnoringCase('Task closed'), findsNothing);
+    });
+
+    testWidgets('an unranked agent is unmeasured in Afrikaans, not nought', (
+      tester,
+    ) async {
+      final af = lookupAppLocalizations(const Locale('af'));
+      await _pump(
+        tester,
+        board: <LeaderboardEntry>[
+          _standing(rank: null, scorecardsCounted: 0, avgScorecard: 0),
+        ],
+        locale: const Locale('af'),
+        size: const Size(360, 1600),
+      );
+
+      // The two fixes meeting: the payout is an absence (#464), and the
+      // sentence saying so is in the reader's language.
+      expect(paintedIgnoringCase(af.pointsPayoutAbsent), findsOneWidget);
+      expect(
+        paintedIgnoringCase('Nothing recorded for this agent'),
+        findsNothing,
+      );
     });
   });
 }
