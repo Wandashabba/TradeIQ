@@ -3601,6 +3601,143 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meContestsDetail => 'See where you stand';
 
   @override
+  String get loginFailedTitle => 'We could not sign you in';
+
+  @override
+  String get menuTitle => 'Menu';
+
+  @override
+  String get menuSubtitle => 'Everything the four tabs do not hold.';
+
+  @override
+  String get menuThisApp => 'This app';
+
+  @override
+  String get menuThemeLight => 'Light theme';
+
+  @override
+  String get menuThemeDark => 'Dark theme';
+
+  @override
+  String get menuChangePassword => 'Change password';
+
+  @override
+  String get menuSignOut => 'Sign out';
+
+  @override
+  String get navGroupOperate => 'Operate';
+
+  @override
+  String get navGroupInsight => 'Insight';
+
+  @override
+  String get navGroupConfigure => 'Configure';
+
+  @override
+  String get navTheFloor => 'The Floor';
+
+  @override
+  String get navExecutionOverview => 'Execution overview';
+
+  @override
+  String get navTasks => 'Tasks';
+
+  @override
+  String get navAlerts => 'Alerts';
+
+  @override
+  String get navOrders => 'Orders';
+
+  @override
+  String get navBeatPlans => 'Beat plans';
+
+  @override
+  String get navDispatch => 'Dispatch';
+
+  @override
+  String get navMessages => 'Messages';
+
+  @override
+  String get navOutlets => 'Outlets';
+
+  @override
+  String get navAskTradeIq => 'Ask TradeIQ';
+
+  @override
+  String get navReports => 'Reports';
+
+  @override
+  String get navTrends => 'Trends';
+
+  @override
+  String get navSalesTargets => 'Sales targets';
+
+  @override
+  String get navLeaderboard => 'Leaderboard';
+
+  @override
+  String get navContests => 'Contests';
+
+  @override
+  String get navFraudReview => 'Fraud review';
+
+  @override
+  String get navCampaigns => 'Campaigns';
+
+  @override
+  String get navAlertRules => 'Alert rules';
+
+  @override
+  String get navTerritories => 'Territories';
+
+  @override
+  String get navUsers => 'Users';
+
+  @override
+  String get navAuditTemplates => 'Audit templates';
+
+  @override
+  String get navIncentives => 'Incentives';
+
+  @override
+  String get navWebhooks => 'Webhooks';
+
+  @override
+  String get navScoringConfig => 'Scoring config';
+
+  @override
+  String get sessionEndedTitle => 'You have been signed out';
+
+  @override
+  String get sessionEndedBody =>
+      'Everything you captured is still on this phone. It sends itself when you sign in.';
+
+  @override
+  String get sessionEndedSignIn => 'Sign in to send them';
+
+  @override
+  String get sessionEndedNotNow => 'Not now';
+
+  @override
+  String get sessionHeldWhatIsHeld => 'What is held';
+
+  @override
+  String sessionHeldEntry(int count, String kind) {
+    return '$count × $kind';
+  }
+
+  @override
+  String sessionHeldWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count captures are waiting to send.',
+      one: '1 capture is waiting to send.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get torchTryAgain => 'Try again';
 
   @override

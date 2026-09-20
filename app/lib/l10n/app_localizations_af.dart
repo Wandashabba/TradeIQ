@@ -3637,6 +3637,143 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meContestsDetail => 'Kyk waar jy staan';
 
   @override
+  String get loginFailedTitle => 'Ons kon jou nie inteken nie';
+
+  @override
+  String get menuTitle => 'Kieslys';
+
+  @override
+  String get menuSubtitle => 'Alles wat nie in die vier oortjies pas nie.';
+
+  @override
+  String get menuThisApp => 'Hierdie program';
+
+  @override
+  String get menuThemeLight => 'Ligte tema';
+
+  @override
+  String get menuThemeDark => 'Donker tema';
+
+  @override
+  String get menuChangePassword => 'Verander wagwoord';
+
+  @override
+  String get menuSignOut => 'Teken uit';
+
+  @override
+  String get navGroupOperate => 'Bedryf';
+
+  @override
+  String get navGroupInsight => 'Insig';
+
+  @override
+  String get navGroupConfigure => 'Stel op';
+
+  @override
+  String get navTheFloor => 'Die Vloer';
+
+  @override
+  String get navExecutionOverview => 'Uitvoeringsoorsig';
+
+  @override
+  String get navTasks => 'Take';
+
+  @override
+  String get navAlerts => 'Waarskuwings';
+
+  @override
+  String get navOrders => 'Bestellings';
+
+  @override
+  String get navBeatPlans => 'Roeteplanne';
+
+  @override
+  String get navDispatch => 'Versending';
+
+  @override
+  String get navMessages => 'Boodskappe';
+
+  @override
+  String get navOutlets => 'Winkels';
+
+  @override
+  String get navAskTradeIq => 'Vra TradeIQ';
+
+  @override
+  String get navReports => 'Verslae';
+
+  @override
+  String get navTrends => 'Tendense';
+
+  @override
+  String get navSalesTargets => 'Verkoopsteikens';
+
+  @override
+  String get navLeaderboard => 'Ranglys';
+
+  @override
+  String get navContests => 'Kompetisies';
+
+  @override
+  String get navFraudReview => 'Bedrogoorsig';
+
+  @override
+  String get navCampaigns => 'Veldtogte';
+
+  @override
+  String get navAlertRules => 'Waarskuwingreëls';
+
+  @override
+  String get navTerritories => 'Gebiede';
+
+  @override
+  String get navUsers => 'Gebruikers';
+
+  @override
+  String get navAuditTemplates => 'Oudit-sjablone';
+
+  @override
+  String get navIncentives => 'Aansporings';
+
+  @override
+  String get navWebhooks => 'Webhooks';
+
+  @override
+  String get navScoringConfig => 'Punte-opstelling';
+
+  @override
+  String get sessionEndedTitle => 'Jy is uitgeteken';
+
+  @override
+  String get sessionEndedBody =>
+      'Alles wat jy vasgelê het, is nog op hierdie foon. Dit stuur self sodra jy inteken.';
+
+  @override
+  String get sessionEndedSignIn => 'Teken in om dit te stuur';
+
+  @override
+  String get sessionEndedNotNow => 'Nie nou nie';
+
+  @override
+  String get sessionHeldWhatIsHeld => 'Wat word gehou';
+
+  @override
+  String sessionHeldEntry(int count, String kind) {
+    return '$count × $kind';
+  }
+
+  @override
+  String sessionHeldWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vasleggings wag om gestuur te word.',
+      one: '1 vaslegging wag om gestuur te word.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get torchTryAgain => 'Probeer weer';
 
   @override

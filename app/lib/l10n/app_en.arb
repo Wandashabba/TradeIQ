@@ -4731,14 +4731,201 @@
   "@meLedgerScoreRowSemantics": {
     "description": "The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.",
     "placeholders": {
-      "reason": { "type": "String" },
-      "day": { "type": "String" },
-      "score": { "type": "String" }
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
     }
   },
   "meContestsDetail": "See where you stand",
   "@meContestsDetail": {
     "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
+  },
+  "loginFailedTitle": "We could not sign you in",
+  "@loginFailedTitle": {
+    "description": "Headline above the sign-in failure. Deliberately says nothing about WHY — a message that distinguished a wrong password from an unknown address would turn this form into a way to ask the server who works here."
+  },
+  "menuTitle": "Menu",
+  "@menuTitle": {
+    "description": "Title of the console's overflow sheet, opened from the nav's Menu slot."
+  },
+  "menuSubtitle": "Everything the four tabs do not hold.",
+  "@menuSubtitle": {
+    "description": "Subtitle of the menu sheet."
+  },
+  "menuThisApp": "This app",
+  "@menuThisApp": {
+    "description": "Section rule above the menu sheet's housekeeping rows: brightness, password, sign out."
+  },
+  "menuThemeLight": "Light theme",
+  "@menuThemeLight": {
+    "description": "Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in."
+  },
+  "menuThemeDark": "Dark theme",
+  "@menuThemeDark": {
+    "description": "Menu row that switches the app to its dark theme. Names the state it switches TO."
+  },
+  "menuChangePassword": "Change password",
+  "@menuChangePassword": {
+    "description": "Menu row to the change-password screen."
+  },
+  "menuSignOut": "Sign out",
+  "@menuSignOut": {
+    "description": "The menu sheet's way out of the app. Held work stays on the phone."
+  },
+  "navGroupOperate": "Operate",
+  "@navGroupOperate": {
+    "description": "Name of the nav group holding the day's work: the floor, tasks, alerts, orders, outlets."
+  },
+  "navGroupInsight": "Insight",
+  "@navGroupInsight": {
+    "description": "Name of the nav group holding the reading surfaces: Ask, reports, trends, contests."
+  },
+  "navGroupConfigure": "Configure",
+  "@navGroupConfigure": {
+    "description": "Name of the nav group holding setup: rules, territories, users, templates."
+  },
+  "navTheFloor": "The Floor",
+  "@navTheFloor": {
+    "description": "Nav destination: the manager's home screen."
+  },
+  "navExecutionOverview": "Execution overview",
+  "@navExecutionOverview": {
+    "description": "Nav destination: the KPI overview."
+  },
+  "navTasks": "Tasks",
+  "@navTasks": {
+    "description": "Nav destination: the task worklist."
+  },
+  "navAlerts": "Alerts",
+  "@navAlerts": {
+    "description": "Nav destination: the alert worklist."
+  },
+  "navOrders": "Orders",
+  "@navOrders": {
+    "description": "Nav destination: orders captured in store."
+  },
+  "navBeatPlans": "Beat plans",
+  "@navBeatPlans": {
+    "description": "Nav destination: the agents' planned routes."
+  },
+  "navDispatch": "Dispatch",
+  "@navDispatch": {
+    "description": "Nav destination: live dispatch."
+  },
+  "navMessages": "Messages",
+  "@navMessages": {
+    "description": "Nav destination: messages between managers and agents."
+  },
+  "navOutlets": "Outlets",
+  "@navOutlets": {
+    "description": "Nav destination: the outlet list."
+  },
+  "navAskTradeIq": "Ask TradeIQ",
+  "@navAskTradeIq": {
+    "description": "Nav destination: the assistant. A product name; usually left untranslated except for the verb."
+  },
+  "navReports": "Reports",
+  "@navReports": {
+    "description": "Nav destination: reports."
+  },
+  "navTrends": "Trends",
+  "@navTrends": {
+    "description": "Nav destination: trend charts."
+  },
+  "navSalesTargets": "Sales targets",
+  "@navSalesTargets": {
+    "description": "Nav destination: sales targets."
+  },
+  "navLeaderboard": "Leaderboard",
+  "@navLeaderboard": {
+    "description": "Nav destination: the agent leaderboard."
+  },
+  "navContests": "Contests",
+  "@navContests": {
+    "description": "Nav destination: contests."
+  },
+  "navFraudReview": "Fraud review",
+  "@navFraudReview": {
+    "description": "Nav destination: the fraud review queue."
+  },
+  "navCampaigns": "Campaigns",
+  "@navCampaigns": {
+    "description": "Nav destination: campaigns."
+  },
+  "navAlertRules": "Alert rules",
+  "@navAlertRules": {
+    "description": "Nav destination: the rules that raise alerts."
+  },
+  "navTerritories": "Territories",
+  "@navTerritories": {
+    "description": "Nav destination: territories."
+  },
+  "navUsers": "Users",
+  "@navUsers": {
+    "description": "Nav destination: user administration."
+  },
+  "navAuditTemplates": "Audit templates",
+  "@navAuditTemplates": {
+    "description": "Nav destination: audit templates."
+  },
+  "navIncentives": "Incentives",
+  "@navIncentives": {
+    "description": "Nav destination: incentives."
+  },
+  "navWebhooks": "Webhooks",
+  "@navWebhooks": {
+    "description": "Nav destination: outgoing webhooks. A technical term, left as is."
+  },
+  "navScoringConfig": "Scoring config",
+  "@navScoringConfig": {
+    "description": "Nav destination: the client's scoring configuration."
+  },
+  "sessionEndedTitle": "You have been signed out",
+  "@sessionEndedTitle": {
+    "description": "Title of the session-ended sheet. A state, not an error: no triangle, no crimson, no word 'error'."
+  },
+  "sessionEndedBody": "Everything you captured is still on this phone. It sends itself when you sign in.",
+  "@sessionEndedBody": {
+    "description": "Body of the session-ended sheet. Names the work's safety before it names the session."
+  },
+  "sessionEndedSignIn": "Sign in to send them",
+  "@sessionEndedSignIn": {
+    "description": "Primary action on the session-ended sheet."
+  },
+  "sessionEndedNotNow": "Not now",
+  "@sessionEndedNotNow": {
+    "description": "Secondary action on the session-ended sheet. Leaves the held line under the header."
+  },
+  "sessionHeldWhatIsHeld": "What is held",
+  "@sessionHeldWhatIsHeld": {
+    "description": "Opens the proof block again from the held line under the sign-in header."
+  },
+  "sessionHeldEntry": "{count} × {kind}",
+  "@sessionHeldEntry": {
+    "description": "One line of the session-ended proof block: how many of one kind of capture are held. 'kind' comes from the outbox's own vocabulary (Photo, Stock count, Submitted visit).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionHeldWaiting": "{count, plural, =1{1 capture is waiting to send.} other{{count} captures are waiting to send.}}",
+  "@sessionHeldWaiting": {
+    "description": "The line under the sign-in header after 'Not now'. Oatmeal and a square, never crimson — being signed out with held work is a state with one action attached, not a fault.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "torchTryAgain": "Try again",
   "@torchTryAgain": {

@@ -973,6 +973,26 @@ the editor and carries its message; the ratchet is what enforces the migration.
 Turn the diagnostic back on when the last shim call site is gone, and delete the
 shims.
 
+**The way in.** The splash, sign-in and the menu sheet are migrated. They bring
+a third skin controller with them — `entrySkinProvider` in
+`core/theme/torchlight/entry_skin.dart` — because the other two both answer a
+question these screens cannot ask: the agent's defaults to Day because an agent
+starts outdoors at 06:30, and the console's follows the app theme because a
+manager already chose a brightness in settings. **Before anyone signs in there
+is no role.** The entry screens default to **Night**, which is what the way in
+has looked like since the premium-ui redesign, and carry the skin cycle in the
+thumb zone like every other non-tab-root screen. The splash is the one screen
+in the product with no chrome at all, including no skin cycle: five seconds, no
+words to read, the whole surface a skip, and the screen it hands to has the
+cycle.
+
+**One menu, not two.** `core/widgets/torchlight/menu_sheet.dart` is the single
+grouped-overflow sheet, opened by the Torchlight console frame's Menu slot and
+by the Lumen bottom bar's. `nav_menu_sheet.dart` and `showConsoleMenu` are both
+gone. Keeping two was not a tidiness problem: the glass one carried the theme
+toggle and Sign out and the Torchlight one carried neither, so a manager whose
+route had been migrated had no way out of the app from a phone.
+
 **Sequencing.** `GlassPane` is in 61 files and is deleted when its call sites are
 empty, not first. Golden infrastructure lands **Night only**, before any feature
 screen is ported; Day follows per component; **Veld is sequenced last**, after
