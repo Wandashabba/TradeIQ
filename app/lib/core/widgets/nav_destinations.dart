@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
+
 /// A console destination. Grouped by verb — a manager scanning twenty flat
 /// rows has to *read* the menu; three verbs let them scan it.
 class NavDestination {
@@ -11,21 +13,64 @@ class NavDestination {
   });
 
   final String route;
+
+  /// The English name, and the key [labelIn] switches on. Never rendered
+  /// directly — see [labelIn]; a hardcoded English string on a screen that has
+  /// an Afrikaans translation is a defect, and this list feeds the rail, the
+  /// menu sheet and the router guard alike.
   final String label;
+
   final IconData icon;
   final NavGroup group;
+
+  /// The destination's name in [l10n]'s language.
+  ///
+  /// Switched on [route] rather than carried in the const list, because a
+  /// `const` entry cannot hold a lookup against localisations that do not
+  /// exist until a `BuildContext` does. A route with no key falls back to
+  /// [label] — a new destination reads in English until somebody translates
+  /// it, which is visibly worse than reading nothing.
+  String labelIn(AppLocalizations l10n) => switch (route) {
+    '/dashboard' => l10n.navTheFloor,
+    '/dashboard/overview' => l10n.navExecutionOverview,
+    '/tasks' => l10n.navTasks,
+    '/alerts' => l10n.navAlerts,
+    '/orders' => l10n.navOrders,
+    '/beatplans' => l10n.navBeatPlans,
+    '/dispatch' => l10n.navDispatch,
+    '/messages' => l10n.navMessages,
+    '/outlets' => l10n.navOutlets,
+    '/assistant' => l10n.navAskTradeIq,
+    '/reports' => l10n.navReports,
+    '/trends' => l10n.navTrends,
+    '/sales-targets' => l10n.navSalesTargets,
+    '/leaderboard' => l10n.navLeaderboard,
+    '/contests' => l10n.navContests,
+    '/fraud' => l10n.navFraudReview,
+    '/campaigns' => l10n.navCampaigns,
+    '/alert-rules' => l10n.navAlertRules,
+    '/territories' => l10n.navTerritories,
+    '/users' => l10n.navUsers,
+    '/audit-templates' => l10n.navAuditTemplates,
+    '/incentives' => l10n.navIncentives,
+    '/webhooks' => l10n.navWebhooks,
+    '/client-config' => l10n.navScoringConfig,
+    _ => label,
+  };
 }
 
 enum NavGroup { operate, insight, configure }
 
-extension NavGroupHeading on NavGroup {
-  /// The group header as the UI renders it (rail and menu sheet).
-  String get heading => switch (this) {
-    NavGroup.operate => 'OPERATE',
-    NavGroup.insight => 'INSIGHT',
-    NavGroup.configure => 'CONFIGURE',
-  };
-}
+/// The group's name in [l10n]'s language, sentence case.
+///
+/// Sentence case, because the section rule replaced the uppercase eyebrow and
+/// "OPERATE" shouted at a screen reader is a word spelled out letter by
+/// letter.
+String navGroupName(AppLocalizations l10n, NavGroup group) => switch (group) {
+  NavGroup.operate => l10n.navGroupOperate,
+  NavGroup.insight => l10n.navGroupInsight,
+  NavGroup.configure => l10n.navGroupConfigure,
+};
 
 /// Single source of manager navigation. The sidebar, the floating bottom
 /// bar's Menu sheet, and the router guard all read THIS list — a destination
