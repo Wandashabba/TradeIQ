@@ -2296,3 +2296,137 @@ bucket, and the gap is counted in the legend.
 * **`RankedBarList`** (canonical 51) — no screen in this group ranks with bars;
   the territory comparison ranks with rows and meters, which is what a list of
   fifteen territories at 2.0× can actually show.
+
+---
+
+## 18. Operations — stores, orders, beat plans and sales targets
+
+The tail of the migration: `features/{outlets,orders,beatplans,sales_targets}`.
+Four folders that are mostly **lists of records and forms that create them**,
+which is why the kit gained one component here and not five — the shapes were
+already built, and what was missing was the one control a form needs that a
+worklist never does.
+
+### 18.1 What the group added to the kit
+
+| added | replaces | why it could not be a Phase 2 component |
+|---|---|---|
+| `TorchPickerField` (`input/picker_field.dart`) | `DropdownButtonFormField` | `ChoiceRow` is two-to-four options; a territory list is forty |
+| `ConsoleSkinCycle` (`console_skin.dart`) | — | the console's thumb-zone form of the cycle, for every non-tab-root route |
+
+**The picker is a sheet, not a menu.** Unify §1.10 gives this product *one*
+modal container, so a choice from a list too long for a `ChoiceRow` opens that
+container: a sheet of `SoftRow`s, each a 56dp target with room for the name,
+the code and a detail line. A Material dropdown sizes itself to its longest
+item, scrolls under a thumb, and has nowhere to put the second line — which
+matters because of §1.15: a `PickerOption` takes a **`label`** a person says
+out loud and an optional `identifier` set in the identifier face beneath it.
+A picker that offers uuids is a picker nobody can use. **Nothing selected is a
+state**: the trough holds an em dash and the missing value is said in words
+underneath, never a grey "Choose a territory" squatting in the value's slot.
+
+### 18.2 Three kit defects of the unpressable-button class
+
+Writing the census tests turned up the §12 button defect in three more places,
+all fixed here with guard tests that press through `SemanticsAction.tap`
+rather than `tester.tap` — the only kind of test that can tell a painted
+button from an operable one:
+
+* **`SectionRule`** wrapped its whole subtree, `action` included, in
+  `Semantics(excludeSemantics: true)`. That node drops *every* descendant
+  node, so a `SectionRuleAction` was painted, hit-tested and announced
+  nowhere at all.
+* **`SectionRuleAction`** declared `button: true` with no `onTap` on the node,
+  so even once it had a node a reader could focus it and not press it.
+* **`PaginationFooter.action`** sat inside the footer's own excluding node,
+  with the same result.
+
+The repair is the same shape each time: **the words are one utterance, the
+verb is its own node.** `excludeSemantics` is correct over a block of text and
+wrong over anything a person acts on.
+
+### 18.3 Unknown versus zero, four more times
+
+This group is where #396 bites hardest, because three of its four folders are
+figures over records that may not exist.
+
+* **A plan with no stops is not nought per cent adherent.** `adherenceRate` is
+  `visited / total`, and the old detail ran it through `toStringAsFixed(0)`
+  unconditionally, so an empty plan read "0% adherence" and accused an agent
+  of skipping stops that were never scheduled. Em dash, the reason in words,
+  and the meter goes with it.
+* **A sum over one page is not a total.** `GET /orders` returns one page; the
+  old screen summed it and labelled the figure "Total value". The providers
+  expose the page rather than dropping the cursor, the figure names its own
+  scope in its eyebrow, and a `PaginationFooter` says what was shown. The
+  "awaiting a decision" count over a cut page reads *at least* this many.
+* **A SKU with no target for the month is not a SKU whose target is zero.**
+  Em dash, unit suppressed, no delta, and a sentence. The rule runs up the
+  scopes too: a territory with nothing filed under it says so rather than
+  summing to zero.
+* **A missing coordinate is words, never `0,00000`** — the outlet change
+  ledger renders the absence, not the origin of the Atlantic.
+
+### 18.4 Colour is never the only signal, twice re-argued
+
+The old order strip and the old plan list both painted **cancelled**
+crimson-critical. A cancelled order is a closed fact and a cancelled plan is a
+decision somebody made; neither owes anybody anything. Only a **submitted**
+order and a **missed** plan carry the severity bar, and each carries the word
+beside it.
+
+### 18.5 A row names a shop
+
+`Order 4f3a90c1` over an outlet uuid, and `Stop 1` over an outlet uuid, were
+the two worst §1.15 violations left in the product. Both are titled with the
+store's name now, resolved from the store list the app already holds; the ids
+keep the identifier face; **a store that is not on the loaded list says so in
+words rather than falling back to its id.**
+
+### 18.6 A quantity is a count
+
+The order form's two 18dp icon buttons around a 30dp label — with no way to
+type 48 — become the count stepper: a value trough, an adjacent ± pair and a
+number sheet. A SKU nobody touched is **not on the order**; one set to nought
+is a decision. Both are still left out of the request, and the two now read
+differently on screen.
+
+### 18.7 The CSV import is a designed state
+
+The sales-target import's dry run comes back as a **preview** — the rows that
+would land, the rows that would not and why, each one named — and applying is
+a separate press on exactly what was shown. Editing the CSV after a preview
+invalidates it; a file that cannot be read says why and leaves the paste box
+working. A dry run whose result is a snackbar is a dry run nobody read.
+
+### 18.8 The census
+
+| screen | frame | Night | Day / Veld |
+|---|---|---|---|
+| `/outlets` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| `/outlets/create` | `TorchShell` + thumb zone | 1 armed, 0 blocked | the same |
+| `/outlets/:id` (the pin repair) | `TorchShell` + thumb zone | 1 loaded, 0 loading/error | the same |
+| `/orders` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| the order form (pushed) | `TorchShell` + thumb zone | 1 with a line, 0 empty | the same |
+| `/beatplans` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| the plan detail (pushed) | `TorchShell`, no commit | 0 | 0 |
+| the plan builder (pushed) | `TorchShell` + thumb zone | 1 complete, 0 empty | the same |
+| `/sales-targets` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
+| the target sheet | `TorchSheet` over the route | 1 — the commit | 1 |
+
+The three pushed screens are `PageRouteBuilder`s over their list rather than
+router paths, which is why the nav is not on them and Night spends its second
+grant on nothing.
+
+Every cell is a test, per phase, in all three skins — loaded, empty, loading
+and error, not only the happy one.
+
+### 18.9 What is not built, and why
+
+* **A calendar.** The beat-plan builder's date picker is the one Material
+  control left on a Torchlight route. The kit has no calendar, a date is the
+  one value nobody should have to type, and building one for a single call
+  site would be a component nobody else reviewed.
+* **A map on the outlet create form.** #386 gives it **editable lat/lng**, and
+  that is preserved exactly; a picker map would be a second way to set the
+  same pair and a second thing to keep honest about accuracy.
