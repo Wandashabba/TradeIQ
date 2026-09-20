@@ -1,27 +1,16 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_run_history_screen.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
-
-const _schedule = ReportSchedule(
-  id: 's1',
-  reportDefinitionId: 'r1',
-  reportName: 'Coverage by outlet',
-  cadence: 'daily',
-  recipients: ['ops@acme.test', 'lead@acme.test'],
-  active: true,
-);
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
+import 'reports_harness.dart';
+import 'schedules_fakes.dart';
 
 const _csvUrl = 'https://api.acme.test/report-downloads/abc.def';
 
@@ -35,11 +24,19 @@ final _delivered = ReportRun(
   rowCount: 42,
   webhook: const RunWebhookSummary(status: 'queued', delivered: 1),
   email: const RunEmailSummary(status: 'queued', sent: 2),
-  deliveries: const [
-    ReportDeliveryOutcome(channel: 'webhook', status: 'queued', targets: ['https://hooks.acme.test/r']),
-    ReportDeliveryOutcome(channel: 'email', status: 'queued', targets: ['ops@acme.test', 'lead@acme.test']),
+  deliveries: const <ReportDeliveryOutcome>[
+    ReportDeliveryOutcome(
+      channel: 'webhook',
+      status: 'queued',
+      targets: <String>['https://hooks.acme.test/r'],
+    ),
+    ReportDeliveryOutcome(
+      channel: 'email',
+      status: 'queued',
+      targets: <String>['ops@acme.test', 'lead@acme.test'],
+    ),
   ],
-  webhookDeliveries: const [
+  webhookDeliveries: const <RunWebhookResult>[
     RunWebhookResult(
       id: 'wd-1',
       url: 'https://hooks.acme.test/r',
@@ -62,11 +59,11 @@ final _partial = ReportRun(
   reason: '1 webhook delivery gave up after retries; 1 email could not be sent',
   webhook: const RunWebhookSummary(status: 'queued', failed: 1),
   email: const RunEmailSummary(status: 'queued', sent: 1, failed: 1),
-  deliveries: const [
+  deliveries: const <ReportDeliveryOutcome>[
     ReportDeliveryOutcome(channel: 'webhook', status: 'queued'),
     ReportDeliveryOutcome(channel: 'email', status: 'queued'),
   ],
-  webhookDeliveries: const [
+  webhookDeliveries: const <RunWebhookResult>[
     RunWebhookResult(
       id: 'wd-2',
       url: 'https://hooks.acme.test/r',
@@ -85,21 +82,22 @@ final _notSent = ReportRun(
   status: ReportRunStatus.notSent,
   generatedAt: DateTime(2026, 9, 12, 8, 0),
   rowCount: 0,
-  reason: 'No active webhook is subscribed to report.generated; '
+  reason:
+      'No active webhook is subscribed to report.generated; '
       'Email delivery not configured',
   webhook: const RunWebhookSummary(status: 'no_subscribers'),
   email: const RunEmailSummary(status: 'not_configured', notConfigured: 2),
-  deliveries: const [
+  deliveries: const <ReportDeliveryOutcome>[
     ReportDeliveryOutcome(channel: 'webhook', status: 'no_subscribers'),
     ReportDeliveryOutcome(
       channel: 'email',
       status: 'not_configured',
-      targets: ['ops@acme.test', 'lead@acme.test'],
+      targets: <String>['ops@acme.test', 'lead@acme.test'],
     ),
   ],
 );
 
-const _partialEmails = [
+const _partialEmails = <ReportEmailDelivery>[
   ReportEmailDelivery(
     id: 'e1',
     recipient: 'ops@acme.test',
@@ -115,104 +113,41 @@ const _partialEmails = [
   ),
 ];
 
-class _FakeRunsRepository implements ReportSchedulesRepository {
-  _FakeRunsRepository({
-    List<List<ReportRun>>? pages,
-    this.failRuns = false,
-    this.failMore = false,
-    this.failEmails = false,
-    this.pendingRuns,
-  }) : pages = pages ?? [
-          [_delivered, _partial, _notSent],
-        ];
-
-  /// Each inner list is one page; every page but the last has a next cursor.
-  List<List<ReportRun>> pages;
-  bool failRuns;
-  final bool failMore;
-  final bool failEmails;
-  final Completer<PaginatedResponse<ReportRun>>? pendingRuns;
-
-  final runCalls = <String?>[];
-  final emailCalls = <String>[];
-
-  @override
-  Future<PaginatedResponse<ReportRun>> listRuns(
-    String scheduleId, {
-    String? cursor,
-    int limit = reportRunsPageSize,
-  }) async {
-    runCalls.add(cursor);
-    if (pendingRuns != null && cursor == null) return pendingRuns!.future;
-    if (failRuns) throw Exception('boom');
-    if (cursor != null && failMore) throw Exception('boom');
-    final index = cursor == null ? 0 : int.parse(cursor.substring(5));
-    return PaginatedResponse(
-      data: pages[index],
-      nextCursor: index + 1 < pages.length ? 'page-${index + 1}' : null,
-    );
-  }
-
-  @override
-  Future<List<ReportEmailDelivery>> listEmailDeliveries(
-    String scheduleId,
-    String runId,
-  ) async {
-    emailCalls.add(runId);
-    if (failEmails) throw Exception('boom');
-    return runId == _partial.id ? _partialEmails : const [];
-  }
-
-  @override
-  Future<PaginatedResponse<ReportSchedule>> listSchedules() async =>
-      throw UnimplementedError();
-
-  @override
-  Future<ReportSchedule> createSchedule({
-    required String reportDefinitionId,
-    required String cadence,
-    required List<String> recipients,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<ReportSchedule> setActive(String id, bool active) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<ReportSchedule> updateSchedule(
-    String id, {
-    String? cadence,
-    List<String>? recipients,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteSchedule(String id) async => throw UnimplementedError();
-
-  @override
-  Future<ScheduleRunResult> runNow(String id) async =>
-      throw UnimplementedError();
-}
-
-Widget _app(ReportSchedulesRepository repo, {ThemeData? theme}) => routedApp(
-      const ReportRunHistoryScreen(schedule: _schedule),
-      theme: theme,
-      overrides: [reportSchedulesRepositoryProvider.overrideWithValue(repo)],
-    );
-
-Finder _inRow(String runId, Finder matching) => find.descendant(
-      of: find.byKey(ValueKey<String>('run-$runId')),
-      matching: matching,
-    );
-
 void main() {
+  Future<void> pump(
+    WidgetTester tester, {
+    required FakeSchedulesRepository repo,
+    TiqSkin? skin,
+    double textScale = 1.0,
+  }) => pumpPushedReports(
+    tester,
+    ReportRunHistoryScreen(schedule: activeSchedule),
+    skin: skin,
+    textScale: textScale,
+    overrides: <Override>[
+      reportSchedulesRepositoryProvider.overrideWithValue(repo),
+    ],
+  );
+
+  Future<void> expand(WidgetTester tester, String runId) async {
+    final toggle = find.byKey(ValueKey<String>('run-toggle-$runId'));
+    await scrollWorklistTo(tester, toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+  }
+
   group('words', () {
-    test('every status has its own word, glyph and level', () {
-      final words = {for (final s in ReportRunStatus.values) runStatusWord(s)};
-      final glyphs = {for (final s in ReportRunStatus.values) runStatusGlyph(s)};
+    test('every status has its own word, silhouette and level', () {
+      final words = <String>{
+        for (final s in ReportRunStatus.values) runStatusWord(s),
+      };
+      final marks = <Object>{
+        for (final s in ReportRunStatus.values) runStatusMark(s),
+      };
       expect(words, hasLength(ReportRunStatus.values.length));
-      expect(glyphs, hasLength(ReportRunStatus.values.length));
+      // Colour is never the only signal, so no two statuses may share a
+      // silhouette either.
+      expect(marks, hasLength(ReportRunStatus.values.length));
       expect(runStatusWord(ReportRunStatus.partial), 'Partly delivered');
       expect(runStatusWord(ReportRunStatus.notSent), 'Not sent');
     });
@@ -265,372 +200,332 @@ void main() {
       );
       expect(runTimesLabel(_partial), 'Generated 2026-09-13 15:30');
     });
+
+    group('the footer counts honestly', () {
+      test('with a total it names it', () {
+        expect(
+          runHistoryFooterSummary(
+            shown: 20,
+            total: 74,
+            format: (n) => '$n',
+          ),
+          'Showing the 20 most recent of 74.',
+        );
+      });
+
+      test('without one it never invents a number', () {
+        final summary = runHistoryFooterSummary(
+          shown: 20,
+          total: null,
+          format: (n) => '$n',
+        );
+        expect(summary, 'Showing the 20 most recent. There are more.');
+        expect(summary, isNot(contains('of')));
+      });
+    });
   });
 
-  testWidgets(
-      'lists runs with a glyph and a word, times, rows, summary and reason',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeRunsRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Run history'), findsOneWidget);
-    expect(find.text('Coverage by outlet'), findsOneWidget);
-    expect(find.text('3 runs'), findsOneWidget);
-
-    // Status is a glyph and a word, never colour alone.
-    for (final (run, glyph, word) in [
-      (_delivered, '✓', 'DELIVERED'),
-      (_partial, '!', 'PARTLY DELIVERED'),
-      (_notSent, '–', 'NOT SENT'),
-    ]) {
-      expect(_inRow(run.id, find.text(glyph)), findsOneWidget, reason: run.id);
-      expect(_inRow(run.id, find.text(word)), findsOneWidget, reason: run.id);
-    }
+  testWidgets('each run carries its status, times, rows and channels', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repo: FakeSchedulesRepository(
+        runs: <ReportRun>[_delivered, _partial, _notSent],
+      ),
+    );
 
     expect(find.text('Scheduled run'), findsOneWidget);
     expect(find.text('Run now'), findsNWidgets(2));
-    expect(
-      find.text('Due 2026-09-14 09:00 · Generated 2026-09-14 09:01'),
-      findsOneWidget,
-    );
     expect(
       find.text('42 rows · Webhooks: 1 delivered · Email: 2 sent'),
       findsOneWidget,
     );
     expect(
-      find.text('1 row · Webhooks: 1 failed · Email: 1 sent, 1 failed'),
-      findsOneWidget,
-    );
-    expect(
-      _inRow(
-        _notSent.id,
-        find.textContaining('No active webhook is subscribed'),
-      ),
-      findsOneWidget,
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey<String>('run-times-run-delivered')),
+          )
+          .data,
+      'Due 2026-09-14 09:00 · Generated 2026-09-14 09:01',
     );
   });
 
-  testWidgets('Download CSV appears only with a link, and copies it',
-      (tester) async {
-    String? copied;
+  testWidgets('a run with no rows says 0, and 0 is not an error', (
+    tester,
+  ) async {
+    await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]));
+
+    expect(find.textContaining('0 rows'), findsOneWidget);
+    expect(find.byType(ErrorState), findsNothing);
+  });
+
+  group('the detail', () {
+    testWidgets('opens the webhook results and the per-recipient emails', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(
+          runs: <ReportRun>[_partial],
+          emailDeliveries: _partialEmails,
+        ),
+      );
+
+      await expand(tester, 'run-partial');
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('run-webhook-wd-2')),
+      );
+      expect(find.text('Gave up'), findsOneWidget);
+      expect(find.text('HTTP 500 · 6 attempts'), findsOneWidget);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('run-email-e2')),
+      );
+      expect(find.text('Failed'), findsOneWidget);
+      expect(find.text('SMTP 550: mailbox unavailable'), findsOneWidget);
+    });
+
+    testWidgets('a run that was not sent says why, without fetching emails', (
+      tester,
+    ) async {
+      await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_notSent]));
+
+      await expand(tester, 'run-not-sent');
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('run-webhook-note-run-not-sent')),
+      );
+      expect(
+        find.text(
+          'Not sent: no webhook is subscribed to report.generated.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Not emailed to 2 recipients: email is not set up on the server.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a run with no signed link says so, and offers no action', (
+      tester,
+    ) async {
+      await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_partial]));
+
+      expect(
+        find.byKey(const ValueKey<String>('download-run-partial')),
+        findsNothing,
+      );
+      await expand(tester, 'run-partial');
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('run-csv-note-run-partial')),
+      );
+      expect(find.text(noCsvLinkNote), findsOneWidget);
+    });
+  });
+
+  testWidgets('Download CSV opens a sheet, not a dialog, and copies the link', (
+    tester,
+  ) async {
+    final copied = <MethodCall>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
-        if (call.method == 'Clipboard.setData') {
-          copied = (call.arguments as Map)['text'] as String?;
-        }
+        if (call.method == 'Clipboard.setData') copied.add(call);
         return null;
       },
     );
     addTearDown(
-      () => tester.binding.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null),
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
     );
 
-    await tester.pumpWidget(_app(_FakeRunsRepository()));
+    await pump(tester, repo: FakeSchedulesRepository(runs: <ReportRun>[_delivered]));
+
+    final download = find.byKey(
+      const ValueKey<String>('download-run-delivered'),
+    );
+    await scrollWorklistTo(tester, download);
+    await tester.tap(download);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('download-run-delivered')), findsOneWidget);
-    expect(find.byKey(const ValueKey('download-run-partial')), findsNothing);
-    expect(find.byKey(const ValueKey('download-run-not-sent')), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('download-run-delivered')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('csv-link-dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('csv-link-sheet')), findsOneWidget);
     expect(find.text(_csvUrl), findsOneWidget);
-    expect(find.textContaining('until 2026-09-21 09:01'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('copy-csv-link')));
+    await tester.tap(find.byKey(const ValueKey<String>('copy-csv-link')));
     await tester.pumpAndSettle();
 
-    expect(copied, _csvUrl);
-    expect(find.byKey(const ValueKey('csv-link-dialog')), findsNothing);
-    expect(find.text('Download link copied'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
+    expect(copied, hasLength(1));
+    expect(copied.single.arguments['text'], _csvUrl);
   });
 
-  testWidgets(
-      'opening a run shows webhook results and per-recipient email deliveries',
-      (tester) async {
-    final repo = _FakeRunsRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-    expect(repo.emailCalls, isEmpty, reason: 'fetched only when opened');
+  group('the page', () {
+    testWidgets('no runs is a stated result', (tester) async {
+      await pump(tester, repo: FakeSchedulesRepository());
 
-    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-    await tester.pumpAndSettle();
-
-    expect(repo.emailCalls, ['run-partial']);
-    final detail = find.byKey(const ValueKey('run-detail-run-partial'));
-    Finder inDetail(Finder f) => find.descendant(of: detail, matching: f);
-
-    final webhook = find.byKey(const ValueKey('run-webhook-wd-2'));
-    expect(
-      find.descendant(of: webhook, matching: find.text('https://hooks.acme.test/r')),
-      findsOneWidget,
-    );
-    expect(find.descendant(of: webhook, matching: find.text('GAVE UP')), findsOneWidget);
-    expect(find.descendant(of: webhook, matching: find.text('HTTP 500')), findsOneWidget);
-    expect(find.descendant(of: webhook, matching: find.text('6 attempts')), findsOneWidget);
-
-    final sent = find.byKey(const ValueKey('run-email-e1'));
-    expect(find.descendant(of: sent, matching: find.text('ops@acme.test')), findsOneWidget);
-    expect(find.descendant(of: sent, matching: find.text('SENT')), findsOneWidget);
-    expect(find.descendant(of: sent, matching: find.text('1 attempt')), findsOneWidget);
-
-    final failed = find.byKey(const ValueKey('run-email-e2'));
-    expect(find.descendant(of: failed, matching: find.text('lead@acme.test')), findsOneWidget);
-    expect(find.descendant(of: failed, matching: find.text('FAILED')), findsOneWidget);
-    expect(find.descendant(of: failed, matching: find.text('6 attempts')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: failed,
-        matching: find.text('SMTP 550: mailbox unavailable'),
-      ),
-      findsOneWidget,
-    );
-
-    expect(inDetail(find.text(noCsvLinkNote)), findsOneWidget);
-
-    // Closing hides it again.
-    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-    await tester.pumpAndSettle();
-    expect(detail, findsNothing);
-  });
-
-  testWidgets('a run that was not sent says why, without fetching emails',
-      (tester) async {
-    final repo = _FakeRunsRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('run-toggle-run-not-sent')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Not sent: no webhook is subscribed to report.generated.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Not emailed to 2 recipients: email is not set up on the server.'),
-      findsOneWidget,
-    );
-    expect(repo.emailCalls, isEmpty);
-  });
-
-  testWidgets('a failed email log load is an error with a retry, in the detail',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeRunsRepository(failEmails: true)));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('Failed to load email deliveries'),
-      findsOneWidget,
-    );
-    expect(find.text('Retry'), findsOneWidget);
-  });
-
-  testWidgets('shows a spinner while runs load', (tester) async {
-    final pending = Completer<PaginatedResponse<ReportRun>>();
-    await tester.pumpWidget(_app(_FakeRunsRepository(pendingRuns: pending)));
-    await tester.pump();
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Coverage by outlet'), findsOneWidget);
-
-    pending.complete(const PaginatedResponse(data: [], nextCursor: null));
-    await tester.pumpAndSettle();
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-  });
-
-  testWidgets('no runs is a stated result', (tester) async {
-    await tester.pumpWidget(_app(_FakeRunsRepository(pages: [const []])));
-    await tester.pumpAndSettle();
-
-    expect(find.text('No runs yet'), findsOneWidget);
-    expect(find.text('0 runs'), findsOneWidget);
-  });
-
-  testWidgets('a failed load shows an error, and Retry loads the runs',
-      (tester) async {
-    final repo = _FakeRunsRepository(failRuns: true);
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text(
-        'Failed to load report runs. Something went wrong. Please try again.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('3 runs'), findsNothing);
-
-    repo.failRuns = false;
-    await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('3 runs'), findsOneWidget);
-    expect(repo.runCalls, [null, null]);
-  });
-
-  testWidgets('Refresh reloads the first page', (tester) async {
-    final repo = _FakeRunsRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-    expect(find.text('3 runs'), findsOneWidget);
-
-    repo.pages = [
-      [_partial],
-    ];
-    await tester.tap(find.byKey(const ValueKey('runs-refresh')));
-    await tester.pumpAndSettle();
-
-    expect(repo.runCalls, [null, null]);
-    expect(find.text('1 run'), findsOneWidget);
-    expect(find.byKey(const ValueKey('run-run-delivered')), findsNothing);
-  });
-
-  testWidgets('Load more fetches the next page with its cursor and appends',
-      (tester) async {
-    final repo = _FakeRunsRepository(
-      pages: [
-        [_delivered, _partial],
-        [_notSent],
-      ],
-    );
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    expect(find.text('2 runs shown'), findsOneWidget);
-    expect(find.byKey(const ValueKey('run-run-not-sent')), findsNothing);
-
-    final more = find.byKey(const ValueKey('runs-load-more'));
-    await tester.ensureVisible(more);
-    await tester.tap(more);
-    await tester.pumpAndSettle();
-
-    expect(repo.runCalls, [null, 'page-1']);
-    expect(find.text('3 runs'), findsOneWidget);
-    expect(find.byKey(const ValueKey('run-run-not-sent')), findsOneWidget);
-    expect(more, findsNothing, reason: 'the last page has no next cursor');
-  });
-
-  testWidgets('a failed Load more keeps the runs and offers to try again',
-      (tester) async {
-    final repo = _FakeRunsRepository(
-      failMore: true,
-      pages: [
-        [_delivered],
-        [_notSent],
-      ],
-    );
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    final more = find.byKey(const ValueKey('runs-load-more'));
-    await tester.ensureVisible(more);
-    await tester.tap(more);
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('run-run-delivered')), findsOneWidget);
-    expect(find.byKey(const ValueKey('runs-load-more-error')), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
-  });
-
-  for (final (name, theme, palette) in [
-    ('light', AppTheme.light(), TiqColors.light),
-    ('night', AppTheme.dark(), TiqColors.night),
-  ]) {
-    group('Lumen Glass ($name)', () {
-      testWidgets('runs are no-blur glass tiles inside a glass panel',
-          (tester) async {
-        await tester.pumpWidget(_app(_FakeRunsRepository(), theme: theme));
-        await tester.pumpAndSettle();
-
-        expect(palette.glass, isTrue);
-        final panes = tester
-            .widgetList<GlassPane>(
-              find.ancestor(
-                of: find.byKey(const ValueKey('run-times-run-delivered')),
-                matching: find.byType(GlassPane),
-              ),
-            )
-            .toList();
-        expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-        expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
-        // The glyph is a Lumen status tile beside the word.
-        expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('run-glyph-run-delivered')),
-            matching: find.text('✓'),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.ancestor(
-            of: find.text('DELIVERED'),
-            matching: find.byType(LumenStatusPill),
-          ),
-          findsOneWidget,
-        );
-
-        // Detail deliveries are glass tiles too.
-        await tester.tap(find.byKey(const ValueKey('run-toggle-run-partial')));
-        await tester.pumpAndSettle();
-        expect(
-          tester
-              .widgetList<GlassPane>(
-                find.ancestor(
-                  of: find.text('lead@acme.test').last,
-                  matching: find.byType(GlassPane),
-                ),
-              )
-              .any((p) => p.kind == GlassKind.tile && !p.blur),
-          isTrue,
-        );
-        expect(tester.takeException(), isNull);
-      });
-
-      testWidgets('status words clear AA 4.5:1 on their wash', (tester) async {
-        await tester.pumpWidget(_app(_FakeRunsRepository(), theme: theme));
-        await tester.pumpAndSettle();
-
-        for (final word in const ['DELIVERED', 'PARTLY DELIVERED', 'NOT SENT']) {
-          final pill = find.ancestor(
-            of: find.text(word),
-            matching: find.byType(LumenStatusPill),
-          );
-          final box = tester.widget<Container>(
-            find.descendant(of: pill, matching: find.byType(Container)).first,
-          );
-          final wash = (box.decoration! as BoxDecoration).color!;
-          final ink = tester.widget<Text>(find.text(word)).style!.color!;
-          final ratio =
-              contrastRatio(ink, Color.alphaBlend(wash, palette.surface1));
-          expect(ratio, greaterThanOrEqualTo(4.5), reason: '$word ($name)');
-        }
-      });
-
-      testWidgets('the error state renders on glass', (tester) async {
-        await tester.pumpWidget(
-          _app(_FakeRunsRepository(failRuns: true), theme: theme),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('Failed to load report runs'), findsOneWidget);
-        expect(find.text('Retry'), findsOneWidget);
-        expect(
-          find.ancestor(of: find.text('Coverage by outlet'), matching: find.byType(GlassPane)),
-          findsWidgets,
-        );
-        expect(tester.takeException(), isNull);
-      });
+      expect(find.text('No runs yet.'), findsOneWidget);
+      expect(find.byType(EmptyState), findsOneWidget);
     });
-  }
+
+    testWidgets('a failed load is sanitised and Retry loads the runs', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository(
+        runs: <ReportRun>[_delivered],
+        runsFailure: networkFailure,
+      );
+      await pump(tester, repo: repo);
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(repo.runsCalls, 1);
+    });
+
+    testWidgets('Refresh reloads the first page', (tester) async {
+      final repo = FakeSchedulesRepository(runs: <ReportRun>[_delivered]);
+      await pump(tester, repo: repo);
+      expect(repo.runsCalls, 1);
+
+      await tester.tap(find.byKey(const ValueKey<String>('runs-refresh')));
+      await tester.pumpAndSettle();
+      expect(repo.runsCalls, 2);
+    });
+
+    testWidgets('a cut history says how much of it is on screen', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(
+          runs: <ReportRun>[_delivered, _partial],
+          runsNextCursor: 'cursor-2',
+          runsTotal: 74,
+        ),
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(find.text('Showing the 2 most recent of 74.'), findsOneWidget);
+    });
+
+    testWidgets('without a total it says there are more and stops', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: FakeSchedulesRepository(
+          runs: <ReportRun>[_delivered],
+          runsNextCursor: 'cursor-2',
+        ),
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(
+        find.text('Showing the 1 most recent. There are more.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Load more fetches the next page with its cursor', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository(
+        runs: <ReportRun>[_delivered],
+        runsNextCursor: 'cursor-2',
+        morePage: <ReportRun>[_partial],
+      );
+      await pump(tester, repo: repo);
+
+      final more = find.byKey(const ValueKey<String>('runs-load-more'));
+      await scrollWorklistTo(tester, more);
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+
+      expect(repo.runsCursor, 'cursor-2');
+      expect(repo.runsCalls, 2);
+      await scrollWorklistTo(tester, find.text('Run now'));
+      expect(find.text('Run now'), findsOneWidget);
+    });
+
+    testWidgets('a failed Load more keeps the runs and offers to try again', (
+      tester,
+    ) async {
+      final repo = FakeSchedulesRepository(
+        runs: <ReportRun>[_delivered],
+        runsNextCursor: 'cursor-2',
+        moreRunsFailure: networkFailure,
+      );
+      await pump(tester, repo: repo);
+
+      final more = find.byKey(const ValueKey<String>('runs-load-more'));
+      await scrollWorklistTo(tester, more);
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('runs-load-more-error')),
+        findsOneWidget,
+      );
+      expect(find.text('Try again'), findsOneWidget);
+    });
+  });
+
+  group('the amber census', () {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      for (final phase in const <String>['loaded', 'empty', 'error']) {
+        testWidgets('${skin.mode.name}, $phase: a record of what happened '
+            'lights nothing', (tester) async {
+          await pump(
+            tester,
+            skin: skin,
+            repo: FakeSchedulesRepository(
+              runs: phase == 'loaded'
+                  ? <ReportRun>[_delivered, _partial]
+                  : const <ReportRun>[],
+              runsFailure: phase == 'error' ? networkFailure : null,
+            ),
+          );
+
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'reports/schedules/runs',
+            phase: phase,
+          );
+          expect(
+            census.objectCount,
+            0,
+            reason:
+                'No nav on a pushed route and no commit action on a history: '
+                'nothing is armed in any skin.\n${census.describe()}',
+          );
+        });
+      }
+    }
+  });
+
+  testWidgets('2.0x: the runs survive and nothing overflows', (tester) async {
+    await pump(
+      tester,
+      repo: FakeSchedulesRepository(runs: <ReportRun>[_delivered, _partial]),
+      textScale: 2.0,
+    );
+
+    expect(find.text('Scheduled run'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

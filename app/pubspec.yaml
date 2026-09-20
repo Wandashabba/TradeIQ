@@ -73,6 +73,12 @@ dependencies:
   # Opening a cited web source (Ask TradeIQ `webSearch`) in the platform's
   # own browser, never an in-app web view.
   url_launcher: ^6.3.2
+  # Saving a server-generated CSV where the manager asked for it (#390). Web
+  # only: the conditional import in `core/download/` reaches for it behind
+  # `dart.library.js_interop`, and every other platform writes a real file
+  # through path_provider. Declared because a transitive dependency is not a
+  # dependency you may import.
+  web: ^1.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -17,8 +17,30 @@ export interface CreateWebhookInput {
   secret?: string;
 }
 
-export async function createWebhook(input: CreateWebhookInput) {
-  return prisma.webhook.create({
+/**
+ * A webhook as the API is allowed to hand it back.
+ *
+ * The signing secret is NEVER one of the fields. It was: `create`, `list` and
+ * `update` all returned the raw Prisma row, so `GET /webhooks` shipped every
+ * subscriber's HMAC secret to the console on every load — and from there to
+ * any browser extension, crash report or screenshot that saw the response.
+ * A secret that has left the server is a secret that can forge deliveries, and
+ * nothing in the product ever needed to show it.
+ *
+ * What a manager does need is whether an endpoint is signed at all, so
+ * `hasSecret` is derived and the secret itself stays in the column.
+ */
+export type PublicWebhook = Omit<Webhook, 'secret'> & { hasSecret: boolean };
+
+export function toPublicWebhook<T extends { secret: string | null }>(
+  webhook: T,
+): Omit<T, 'secret'> & { hasSecret: boolean } {
+  const { secret, ...rest } = webhook;
+  return { ...rest, hasSecret: secret !== null && secret !== '' };
+}
+
+export async function createWebhook(input: CreateWebhookInput): Promise<PublicWebhook> {
+  const created = await prisma.webhook.create({
     data: {
       clientId: input.clientId,
       url: input.url,
@@ -26,6 +48,7 @@ export async function createWebhook(input: CreateWebhookInput) {
       secret: input.secret,
     },
   });
+  return toPublicWebhook(created);
 }
 
 export interface ListWebhooksForClientInput {
@@ -66,7 +89,10 @@ export async function listWebhooksForClient(input: ListWebhooksForClientInput) {
   const page = buildPage(rows, input.limit);
   return {
     ...page,
-    data: page.data.map((webhook) => ({ ...webhook, health: webhookHealth(webhook) })),
+    data: page.data.map((webhook) => ({
+      ...toPublicWebhook(webhook),
+      health: webhookHealth(webhook),
+    })),
   };
 }
 
@@ -84,9 +110,12 @@ export interface UpdateWebhookInput {
   event?: string;
 }
 
-export async function updateWebhook(id: string, input: UpdateWebhookInput) {
+export async function updateWebhook(
+  id: string,
+  input: UpdateWebhookInput,
+): Promise<PublicWebhook> {
   // Prisma treats undefined fields as "leave unchanged".
-  return prisma.webhook.update({
+  const updated = await prisma.webhook.update({
     where: { id },
     data: {
       active: input.active,
@@ -94,6 +123,7 @@ export async function updateWebhook(id: string, input: UpdateWebhookInput) {
       event: input.event,
     },
   });
+  return toPublicWebhook(updated);
 }
 
 export async function deleteWebhook(id: string): Promise<void> {
