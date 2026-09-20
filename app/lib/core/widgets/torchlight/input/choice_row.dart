@@ -65,6 +65,7 @@ class ChoiceRow<T> extends StatelessWidget {
     this.notAnsweredLine = 'Not answered yet',
     this.error,
     this.clear,
+    this.forceColumn = false,
   });
 
   /// Names the question, and is what a screen reader reads before the options.
@@ -88,6 +89,15 @@ class ChoiceRow<T> extends StatelessWidget {
   /// nothing-selected.
   final Widget? clear;
 
+  /// Stack whatever the measurement says.
+  ///
+  /// For a group where a mis-tap is not recoverable — a verdict that accuses
+  /// a person of faking their work — three 44dp targets side by side is a
+  /// mis-tap waiting to happen, and the arithmetic that says they fit is not
+  /// the argument. Veld already forces this for the same reason; this is the
+  /// caller's way of saying the stakes do it too.
+  final bool forceColumn;
+
   /// Above 14 characters a label stops fitting a quarter of a 360dp phone, and
   /// the group becomes a column. Measured, never guessed — see [layoutFor].
   static const int longLabelCharacters = 14;
@@ -100,9 +110,12 @@ class ChoiceRow<T> extends StatelessWidget {
     required double maxWidth,
     required TextScaler scaler,
     required TextDirection direction,
+    bool forceColumn = false,
   }) {
     // Veld is ALWAYS a column: three side-by-side 56dp targets in the sun is a
-    // mis-tap, whatever the arithmetic says.
+    // mis-tap, whatever the arithmetic says. A caller that declares the same
+    // about its own stakes gets the same answer.
+    if (forceColumn) return ChoiceLayout.column;
     if (skin.density == TiqDensity.veld) return ChoiceLayout.column;
     if (!maxWidth.isFinite) return ChoiceLayout.row;
     final cell = (maxWidth - TiqSpace.s2 * (labels.length - 1)) / labels.length;
@@ -171,6 +184,7 @@ class ChoiceRow<T> extends StatelessWidget {
                     maxWidth: constraints.maxWidth,
                     scaler: MediaQuery.textScalerOf(context),
                     direction: Directionality.of(context),
+                    forceColumn: forceColumn,
                   );
                   final tiles = <Widget>[
                     for (var i = 0; i < options.length; i++)

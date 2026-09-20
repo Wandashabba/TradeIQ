@@ -57,6 +57,7 @@ class CampaignsScreen extends ConsumerWidget {
 
     return campaigns.when(
       loading: () => _frame(
+        context,
         ref,
         phase: 'loading',
         children: <Widget>[
@@ -67,6 +68,7 @@ class CampaignsScreen extends ConsumerWidget {
         ],
       ),
       error: (error, stack) => _frame(
+        context,
         ref,
         phase: 'error',
         children: <Widget>[
@@ -87,7 +89,19 @@ class CampaignsScreen extends ConsumerWidget {
     );
   }
 
+  /// The frame every phase is drawn in — **including the create control.**
+  ///
+  /// The control lives here and not in `_loaded` on purpose. Creating a
+  /// campaign is `POST /campaigns`; it does not depend on whether
+  /// `GET /campaigns` came back. Before the migration this was a
+  /// `floatingActionButton` on the scaffold, outside the async section, and it
+  /// survived every phase. Building it inside `_loaded` quietly took it away
+  /// from the reader who needs it most: an admin on a bad connection whose
+  /// list 500s and who is then offered nothing but "Try again".
+  ///
+  /// The amber is unchanged — a [TorchSecondaryButton] claims nothing.
   Widget _frame(
+    BuildContext context,
     WidgetRef ref, {
     required String phase,
     required List<Widget> children,
@@ -105,7 +119,22 @@ class CampaignsScreen extends ConsumerWidget {
           onPressed: () => ref.invalidate(campaignsListProvider),
         ),
       ),
-      children: children,
+      children: <Widget>[
+        ...children,
+        const SizedBox(height: TiqSpace.s7),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchSecondaryButton(
+            key: const ValueKey<String>('campaign-create'),
+            label: 'New campaign',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CampaignFormScreen(),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -113,6 +142,7 @@ class CampaignsScreen extends ConsumerWidget {
     final gutter = context.skin.space.gutter;
 
     return _frame(
+      context,
       ref,
       phase: list.isEmpty ? 'empty' : 'loaded',
       children: <Widget>[
@@ -142,20 +172,6 @@ class CampaignsScreen extends ConsumerWidget {
               ],
             ),
           ),
-
-        const SizedBox(height: TiqSpace.s7),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TorchSecondaryButton(
-            key: const ValueKey<String>('campaign-create'),
-            label: 'New campaign',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const CampaignFormScreen(),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -354,6 +370,31 @@ class _Compliance extends StatelessWidget {
 
   final CampaignCompliance compliance;
 
+  /// Why the rates on this sheet are not numbers yet, or null when they are.
+  ///
+  /// The server cannot tell us: `pct()` returns 0 on a zero denominator and
+  /// `mean()` returns 0 on an empty list (`backend/src/lib/kpiMath.ts`), so a
+  /// campaign that launched yesterday and a campaign where every store was
+  /// audited and every planogram was wrong arrive here as the same four
+  /// zeroes. The counts beside them still carry the distinction, so the
+  /// screen recovers it from the denominators:
+  ///
+  /// * **no outlets at all** — visit coverage is not a rate, it is a division
+  ///   by zero;
+  /// * **no visits in the window** — the two means and the promo rate were
+  ///   computed over no rows, because `campaigns.service.ts` builds the
+  ///   visibility and pricing row sets out of the visits.
+  ///
+  /// Reporting those as a measured "0.0%" is four verdicts about work nobody
+  /// did, and it is the reading that turns a rollup into a reason to call a
+  /// field team. The Spend line two sections down already refuses the same
+  /// trade.
+  String? get _noOutlets =>
+      compliance.outletsTotal == 0 ? 'No outlets in this campaign' : null;
+
+  String? get _noVisits =>
+      compliance.outletsVisited == 0 ? 'No visits in the window' : null;
+
   @override
   Widget build(BuildContext context) {
     final c = compliance;
@@ -363,12 +404,15 @@ class _Compliance extends StatelessWidget {
       children: <Widget>[
         SectionRule('Coverage'),
         const SizedBox(height: TiqSpace.s4),
+        // The counts themselves are measured, zero included: "twelve outlets,
+        // none visited" is the fact that makes the em dashes below legible.
         _FigureLine('Outlets total', c.outletsTotal, decimals: 0),
         _FigureLine('Outlets visited', c.outletsVisited, decimals: 0),
         _FigureLine(
           'Visit coverage',
           c.visitCoverageRate,
           unit: TiqUnit.percent,
+          notMeasured: _noOutlets,
         ),
         SizedBox(height: context.skin.space.blockGap),
         SectionRule('Compliance'),
@@ -377,16 +421,19 @@ class _Compliance extends StatelessWidget {
           'Avg planogram compliance',
           c.avgPlanogramCompliancePct,
           unit: TiqUnit.percent,
+          notMeasured: _noVisits,
         ),
         _FigureLine(
           'Avg abs price deviation',
           c.avgAbsPriceDeviationPct,
           unit: TiqUnit.percent,
+          notMeasured: _noVisits,
         ),
         _FigureLine(
           'Promo compliance',
           c.promoComplianceRate,
           unit: TiqUnit.percent,
+          notMeasured: _noVisits,
         ),
       ],
     );
@@ -401,16 +448,32 @@ class _FigureLine extends StatelessWidget {
     this.value, {
     this.unit = TiqUnit.none,
     this.decimals = 1,
+    this.notMeasured,
   });
 
   final String label;
-  final double value;
+
+  /// Nullable on purpose. A non-nullable `double` here is what made every
+  /// figure on this sheet a `FigureState.measured` one, including the four
+  /// that were computed over nothing.
+  final double? value;
   final TiqUnit unit;
   final int decimals;
+
+  /// The reason this measure was not measured, in words, or null when it was.
+  ///
+  /// Set, the figure becomes an em dash in ink-3 with the unit suppressed, the
+  /// reason stands beside the label where a reader meets it before the dash,
+  /// and a screen reader hears `Not measured. <reason>` rather than "em dash".
+  /// There is no hatched track: this line has no track in the measured case
+  /// either, and inventing one only for the unmeasured state would draw a bar
+  /// that reads as a value. The words carry it, as they do for Spend.
+  final String? notMeasured;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final reason = notMeasured;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: TiqSpace.s2),
       child: Row(
@@ -418,7 +481,7 @@ class _FigureLine extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              label,
+              reason == null ? label : '$label · $reason',
               style: skin.text.meta.style(color: skin.palette.ink3),
             ),
           ),
@@ -427,11 +490,15 @@ class _FigureLine extends StatelessWidget {
           // measures itself down and overflows at 2.0x.
           Flexible(
             child: FigureSlot(
-              value: value,
+              value: reason == null ? value : null,
               role: skin.text.figureS,
               unit: unit,
               decimals: decimals,
-              color: skin.palette.ink1,
+              state: reason == null
+                  ? FigureState.measured
+                  : FigureState.notMeasured,
+              semanticsLabel: reason == null ? null : 'Not measured. $reason',
+              color: reason == null ? skin.palette.ink1 : skin.palette.ink3,
               textAlign: TextAlign.end,
             ),
           ),

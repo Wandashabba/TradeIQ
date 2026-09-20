@@ -91,6 +91,17 @@ class ContestsScreen extends ConsumerWidget {
     );
   }
 
+  /// The frame every phase is drawn in — **including the create control.**
+  ///
+  /// The control lives here and not in `_loaded` on purpose. Creating a
+  /// contest is `POST /contests`; it does not depend on whether
+  /// `GET /contests` came back. Before the migration this was a
+  /// `floatingActionButton` on the scaffold, outside the async section, and it
+  /// survived every phase. Building it inside `_loaded` quietly took it away
+  /// from the reader who needs it most: a manager whose list 500s and who is
+  /// then offered nothing but "Try again".
+  ///
+  /// The amber is unchanged — a [TorchSecondaryButton] claims nothing.
   Widget _frame(
     BuildContext context,
     WidgetRef ref, {
@@ -113,7 +124,25 @@ class ContestsScreen extends ConsumerWidget {
           onPressed: () => ref.invalidate(contestsListProvider),
         ),
       ),
-      children: children,
+      children: <Widget>[
+        ...children,
+        const SizedBox(height: TiqSpace.s7),
+        // A ghost at the foot of the list, not a floating button: a FAB here
+        // would collide with the nav circle's position vocabulary, and
+        // creating a contest is not the commit this screen is about.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchSecondaryButton(
+            key: const ValueKey<String>('contest-create'),
+            label: 'New contest',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ContestFormScreen(),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -154,23 +183,6 @@ class ContestsScreen extends ConsumerWidget {
               ],
             ),
           ),
-
-        const SizedBox(height: TiqSpace.s7),
-        // A ghost at the foot of the list, not a floating button: a FAB here
-        // would collide with the nav circle's position vocabulary, and
-        // creating a contest is not the commit this screen is about.
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TorchSecondaryButton(
-            key: const ValueKey<String>('contest-create'),
-            label: 'New contest',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ContestFormScreen(),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }

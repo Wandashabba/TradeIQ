@@ -175,6 +175,153 @@ void main() {
     });
   });
 
+  group('the rollup: unmeasured is not zero', () {
+    Future<void> openRollup(
+      WidgetTester tester,
+      CampaignCompliance compliance,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(compliance: compliance),
+      );
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a campaign nobody has visited reports no compliance rates at '
+        'all, not three zeroes', (tester) async {
+      await openRollup(tester, unvisitedCompliance);
+
+      // The failure, written as itself. Before the fix the compliance half of
+      // this sheet read "Avg planogram compliance 0.0% · Avg abs price
+      // deviation 0.0% · Promo compliance 0.0%" — three verdicts about work
+      // nobody did, indistinguishable from a campaign where every store was
+      // audited and every planogram was wrong.
+      //
+      // Exactly one 0.0% survives, and it is the honest one: twelve outlets,
+      // none visited, coverage really is nought. The unit stays with it,
+      // which is how you can tell the two apart at a glance.
+      expect(
+        find.textContaining('0.0%', findRichText: true),
+        findsOneWidget,
+        reason: 'coverage over twelve outlets is a measured zero; the three '
+            'means and the promo rate were computed over no rows at all',
+      );
+      expect(
+        find.textContaining(emDash, findRichText: true),
+        findsNWidgets(3),
+      );
+    });
+
+    testWidgets('each em dash carries its reason in words, beside the label '
+        'and to a screen reader', (tester) async {
+      final handle = tester.ensureSemantics();
+      await openRollup(tester, unvisitedCompliance);
+
+      expect(
+        find.text('Visit coverage · No visits in the window'),
+        findsNothing,
+        reason: 'coverage is a rate over outlets, and there are twelve',
+      );
+      expect(find.text('Visit coverage'), findsOneWidget);
+      expect(
+        find.text('Avg planogram compliance · No visits in the window'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Avg abs price deviation · No visits in the window'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Promo compliance · No visits in the window'),
+        findsOneWidget,
+      );
+      // A hatch is for sighted readers and the sentence is for everyone;
+      // neither is a fallback for the other. "Em dash" is not a sentence.
+      expect(
+        find.bySemanticsLabel('Not measured. No visits in the window'),
+        findsNWidgets(3),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('the counts beside the dashes stay measured, zero included', (
+      tester,
+    ) async {
+      await openRollup(tester, unvisitedCompliance);
+
+      // "Twelve outlets, none visited" is the fact that makes the em dashes
+      // legible; suppressing it would leave the reader nothing to read.
+      expect(find.textContaining('12', findRichText: true), findsWidgets);
+      expect(find.text('Outlets total'), findsOneWidget);
+      expect(find.text('Outlets visited'), findsOneWidget);
+      expect(find.textContaining('0', findRichText: true), findsWidgets);
+      // And they are not hatched — a count of nought visits is a fact, not
+      // an absence of one.
+      expect(
+        find.text('Outlets visited · No visits in the window'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a campaign with no outlets says so about coverage itself', (
+      tester,
+    ) async {
+      await openRollup(tester, noOutletCompliance);
+
+      // Coverage is a division by zero here, not a rate of nought.
+      expect(
+        find.text('Visit coverage · No outlets in this campaign'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('0.0%', findRichText: true), findsNothing);
+      expect(
+        find.textContaining(emDash, findRichText: true),
+        findsNWidgets(4),
+      );
+    });
+
+    testWidgets('a measured zero is still a zero', (tester) async {
+      // The other half of the rule, and the one a careless fix breaks: a
+      // campaign that WAS visited and scored nought on promo compliance has
+      // a finding, and the finding renders "0".
+      await openRollup(
+        tester,
+        const CampaignCompliance(
+          outletsTotal: 12,
+          outletsVisited: 12,
+          visitCoverageRate: 100,
+          avgPlanogramCompliancePct: 41.5,
+          avgAbsPriceDeviationPct: 8,
+          promoComplianceRate: 0,
+        ),
+      );
+
+      expect(find.text('100.0%', findRichText: true), findsOneWidget);
+      expect(find.text('0.0%', findRichText: true), findsOneWidget);
+      expect(find.textContaining(emDash, findRichText: true), findsNothing);
+      expect(find.textContaining('No visits in the window'), findsNothing);
+    });
+
+    testWidgets('an unvisited rollup survives 2.0x and Afrikaans lengths', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(compliance: unvisitedCompliance),
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      await tester.tap(find.text('Summer Push'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(
+        find.textContaining(emDash, findRichText: true),
+        findsNWidgets(3),
+      );
+    });
+  });
+
   group('the return: unmeasurable is not zero', () {
     Future<void> openReturn(WidgetTester tester, CampaignRoi roi) async {
       await _pump(tester, repo: FakeCampaignsRepository(roi: roi));
@@ -257,6 +404,45 @@ void main() {
       expect(find.byType(SkeletonRows), findsNothing);
       await tester.pump(const Duration(milliseconds: 700));
       expect(find.byType(Skeleton), findsOneWidget);
+    });
+
+    testWidgets('New campaign is on the screen in every phase, not only when '
+        'the list loaded', (tester) async {
+      // The capability, written as the failure. Before the fix the create
+      // control was built inside `_loaded`, so an admin whose GET /campaigns
+      // 500s was offered exactly one thing: "Try again". Creating a campaign
+      // is a POST; it has nothing to do with whether the list arrived, and
+      // before the migration it was a FAB on the scaffold that survived
+      // every state.
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listFailure: offline()),
+      );
+      expect(keyed('campaigns-retry'), findsOneWidget);
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
+    });
+
+    testWidgets('New campaign is there while the list is still loading', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(listPending: true),
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
+    });
+
+    testWidgets('New campaign is there on an empty list', (tester) async {
+      await _pump(
+        tester,
+        repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),
+      );
+      await scrollConsoleTo(tester, keyed('campaign-create'));
+      expect(keyed('campaign-create'), findsOneWidget);
     });
 
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
