@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/widgets/bottom_nav_bar.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/core/widgets/manager_scaffold.dart';
 
 import '../../helpers/routed_app.dart';
@@ -26,6 +27,12 @@ Future<void> _pumpAt(
 }
 
 void main() {
+  // The open-sheet count is an app-wide static, and the menu tests here end
+  // with the menu up. Without this the NEXT test's `showTorchSheet` asserts
+  // that a second sheet was opened over an existing one.
+  setUp(TorchSheets.resetForTest);
+  tearDown(TorchSheets.resetForTest);
+
   testWidgets('at desktop width the rail is visible with its labels', (
     tester,
   ) async {
@@ -116,12 +123,13 @@ void main() {
     await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();
 
-    // The sidebar's full list, same three groups, now in the sheet.
-    expect(find.text('OPERATE'), findsOneWidget);
-    expect(find.text('INSIGHT'), findsOneWidget);
-    expect(find.text('CONFIGURE'), findsOneWidget);
-    expect(find.text('Webhooks'), findsOneWidget);
-    expect(find.text('Sign out'), findsOneWidget);
+    // The sidebar's full list, same three groups, now in the sheet — in
+    // sentence case, because the section rule replaced the uppercase eyebrow.
+    expect(find.text('Operate'), findsOneWidget);
+    expect(find.text('Insight'), findsOneWidget);
+    expect(find.text('Configure'), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-/webhooks')), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-sign-out')), findsOneWidget);
   });
 
   testWidgets('under reduced motion the pill does not animate', (tester) async {

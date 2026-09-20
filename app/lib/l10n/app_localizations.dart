@@ -5576,6 +5576,1044 @@ abstract class AppLocalizations {
   /// **'See where you stand'**
   String get meContestsDetail;
 
+  /// Headline above the sign-in failure. Deliberately says nothing about WHY — a message that distinguished a wrong password from an unknown address would turn this form into a way to ask the server who works here.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not sign you in'**
+  String get loginFailedTitle;
+
+  /// Title of the console's overflow sheet, opened from the nav's Menu slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get menuTitle;
+
+  /// Subtitle of the menu sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the four tabs do not hold.'**
+  String get menuSubtitle;
+
+  /// Section rule above the menu sheet's housekeeping rows: brightness, password, sign out.
+  ///
+  /// In en, this message translates to:
+  /// **'This app'**
+  String get menuThisApp;
+
+  /// Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Light theme'**
+  String get menuThemeLight;
+
+  /// Menu row that switches the app to its dark theme. Names the state it switches TO.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark theme'**
+  String get menuThemeDark;
+
+  /// Menu row to the change-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get menuChangePassword;
+
+  /// The menu sheet's way out of the app. Held work stays on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get menuSignOut;
+
+  /// Name of the nav group holding the day's work: the floor, tasks, alerts, orders, outlets.
+  ///
+  /// In en, this message translates to:
+  /// **'Operate'**
+  String get navGroupOperate;
+
+  /// Name of the nav group holding the reading surfaces: Ask, reports, trends, contests.
+  ///
+  /// In en, this message translates to:
+  /// **'Insight'**
+  String get navGroupInsight;
+
+  /// Name of the nav group holding setup: rules, territories, users, templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get navGroupConfigure;
+
+  /// Nav destination: the manager's home screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The Floor'**
+  String get navTheFloor;
+
+  /// Nav destination: the KPI overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution overview'**
+  String get navExecutionOverview;
+
+  /// Nav destination: the task worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get navTasks;
+
+  /// Nav destination: the alert worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts'**
+  String get navAlerts;
+
+  /// Nav destination: orders captured in store.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get navOrders;
+
+  /// Nav destination: the agents' planned routes.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat plans'**
+  String get navBeatPlans;
+
+  /// Nav destination: live dispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get navDispatch;
+
+  /// Nav destination: messages between managers and agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get navMessages;
+
+  /// Nav destination: the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets'**
+  String get navOutlets;
+
+  /// Nav destination: the assistant. A product name; usually left untranslated except for the verb.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ'**
+  String get navAskTradeIq;
+
+  /// Nav destination: reports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get navReports;
+
+  /// Nav destination: trend charts.
+  ///
+  /// In en, this message translates to:
+  /// **'Trends'**
+  String get navTrends;
+
+  /// Nav destination: sales targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales targets'**
+  String get navSalesTargets;
+
+  /// Nav destination: the agent leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaderboard'**
+  String get navLeaderboard;
+
+  /// Nav destination: contests.
+  ///
+  /// In en, this message translates to:
+  /// **'Contests'**
+  String get navContests;
+
+  /// Nav destination: the fraud review queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraud review'**
+  String get navFraudReview;
+
+  /// Nav destination: campaigns.
+  ///
+  /// In en, this message translates to:
+  /// **'Campaigns'**
+  String get navCampaigns;
+
+  /// Nav destination: the rules that raise alerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert rules'**
+  String get navAlertRules;
+
+  /// Nav destination: territories.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories'**
+  String get navTerritories;
+
+  /// Nav destination: user administration.
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get navUsers;
+
+  /// Nav destination: audit templates.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit templates'**
+  String get navAuditTemplates;
+
+  /// Nav destination: incentives.
+  ///
+  /// In en, this message translates to:
+  /// **'Incentives'**
+  String get navIncentives;
+
+  /// Nav destination: outgoing webhooks. A technical term, left as is.
+  ///
+  /// In en, this message translates to:
+  /// **'Webhooks'**
+  String get navWebhooks;
+
+  /// Nav destination: the client's scoring configuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Scoring config'**
+  String get navScoringConfig;
+
+  /// Title of the session-ended sheet. A state, not an error: no triangle, no crimson, no word 'error'.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been signed out'**
+  String get sessionEndedTitle;
+
+  /// Body of the session-ended sheet. Names the work's safety before it names the session.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you captured is still on this phone. It sends itself when you sign in.'**
+  String get sessionEndedBody;
+
+  /// Primary action on the session-ended sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to send them'**
+  String get sessionEndedSignIn;
+
+  /// Secondary action on the session-ended sheet. Leaves the held line under the header.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get sessionEndedNotNow;
+
+  /// Opens the proof block again from the held line under the sign-in header.
+  ///
+  /// In en, this message translates to:
+  /// **'What is held'**
+  String get sessionHeldWhatIsHeld;
+
+  /// One line of the session-ended proof block: how many of one kind of capture are held. 'kind' comes from the outbox's own vocabulary (Photo, Stock count, Submitted visit).
+  ///
+  /// In en, this message translates to:
+  /// **'{count} × {kind}'**
+  String sessionHeldEntry(int count, String kind);
+
+  /// The line under the sign-in header after 'Not now'. Oatmeal and a square, never crimson — being signed out with held work is a state with one action attached, not a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture is waiting to send.} other{{count} captures are waiting to send.}}'**
+  String sessionHeldWaiting(int count);
+
+  /// The one retry verb, wherever a region offers one.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get torchTryAgain;
+
+  /// The line a skeleton shows after ten seconds, so an 8s stall does not read as frozen.
+  ///
+  /// In en, this message translates to:
+  /// **'Still fetching · this is slower than usual'**
+  String get torchStillFetching;
+
+  /// A person's role, on a person row.
+  ///
+  /// In en, this message translates to:
+  /// **'Field agent'**
+  String get roleFieldAgent;
+
+  /// Screen title: the manager's list of territories.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories'**
+  String get territoriesTitle;
+
+  /// The header fact under the Territories title.
+  ///
+  /// In en, this message translates to:
+  /// **'A territory groups outlets and the agents who work them.'**
+  String get territoriesFact;
+
+  /// Semantic label of the header's refresh button. Names what it does, never just 'Refresh'.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the territories list'**
+  String get territoriesRefresh;
+
+  /// Section rule above the list of territories.
+  ///
+  /// In en, this message translates to:
+  /// **'All territories'**
+  String get territoriesSectionAll;
+
+  /// The verb that opens the create form, in the section rule's action slot.
+  ///
+  /// In en, this message translates to:
+  /// **'New territory'**
+  String get territoriesNew;
+
+  /// Whole-screen empty state: the client has no territories at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories yet'**
+  String get territoriesEmptyHeadline;
+
+  /// Body under territoriesEmptyHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'A territory groups outlets and the agents who work them. Create one and outlets can be assigned to it.'**
+  String get territoriesEmptyBody;
+
+  /// How many outlets are in a territory.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No outlets} =1{1 outlet} other{{count} outlets}}'**
+  String territoryOutlets(int count);
+
+  /// How many agents are assigned to a territory.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No agents} =1{1 agent} other{{count} agents}}'**
+  String territoryAgents(int count);
+
+  /// The word under a coverage percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Covered'**
+  String get territoryCoveredWord;
+
+  /// The coverage figure as a sentence, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% covered'**
+  String territoryCoveredPercent(int percent);
+
+  /// A row's coverage request is still in flight. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading coverage'**
+  String get territoryCoverageLoading;
+
+  /// A row's coverage request failed. An em dash and this sentence, never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Coverage did not load'**
+  String get territoryCoverageFailed;
+
+  /// There is nothing to take a percentage of. The wire sends 0 here and a nought over an empty denominator is a verdict nobody reached.
+  ///
+  /// In en, this message translates to:
+  /// **'No outlets to cover yet'**
+  String get territoryCoverageNoOutlets;
+
+  /// A territory with no agents on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Unassigned'**
+  String get territoryUnassigned;
+
+  /// The sentence under an agent count of zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody works this territory yet.'**
+  String get territoryUnassignedLine;
+
+  /// Semantic label of the coverage figures in the territory sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Coverage for this territory'**
+  String get territoryCoverageCluster;
+
+  /// Eyebrow over the outlet count, and the section rule over the outlet list.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets'**
+  String get territoryOutletsWord;
+
+  /// Eyebrow over the agent count.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents'**
+  String get territoryAgentsWord;
+
+  /// The state line under a coverage percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'{visited} of {total} visited in this window'**
+  String territoryVisitedOf(int visited, int total);
+
+  /// A header fact on the territory map: how many of its outlets were visited.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{None visited} =1{1 visited} other{{count} visited}}'**
+  String territoryVisitedCount(int count);
+
+  /// Opens one territory's map from its sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the map'**
+  String get territoryOpenMap;
+
+  /// Opens the roster, and commits the assignment once one is picked.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign an agent'**
+  String get territoryAssign;
+
+  /// Title of the roster pane in the territory sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign to {territory}'**
+  String territoryAssignTitle(String territory);
+
+  /// Subtitle of the roster pane.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a field agent to work this territory.'**
+  String get territoryAssignSubtitle;
+
+  /// Section rule over the roster.
+  ///
+  /// In en, this message translates to:
+  /// **'Field agents'**
+  String get territoryFieldAgents;
+
+  /// The word on the agent row the manager has selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked'**
+  String get territoryAgentPicked;
+
+  /// The word on a deactivated agent's row, which cannot be picked.
+  ///
+  /// In en, this message translates to:
+  /// **'No longer active'**
+  String get territoryAgentInactive;
+
+  /// Why the Assign button is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a field agent first.'**
+  String get territoryAssignBlocked;
+
+  /// Returns the sheet to its evidence pane.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to coverage'**
+  String get territoryAssignBack;
+
+  /// Toast after a successful assignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to {territory}.'**
+  String territoryAssignDone(String territory);
+
+  /// Toast after a failed assignment. The honest half is that nothing changed.
+  ///
+  /// In en, this message translates to:
+  /// **'That agent was not assigned. Nothing changed.'**
+  String get territoryAssignFailed;
+
+  /// The roster is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No field agents yet'**
+  String get territoryNoAgentsHeadline;
+
+  /// Body under territoryNoAgentsHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a field agent under Users, then assign them here.'**
+  String get territoryNoAgentsBody;
+
+  /// Title of the create-territory screen.
+  ///
+  /// In en, this message translates to:
+  /// **'New territory'**
+  String get territoryNewTitle;
+
+  /// Header fact on the create form.
+  ///
+  /// In en, this message translates to:
+  /// **'A code is what the back office quotes. It must be unique for this client.'**
+  String get territoryNewFact;
+
+  /// The back button's spoken label. Names the destination, never just 'Back'.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to territories'**
+  String get territoryBackToList;
+
+  /// Field label: the territory's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get territoryNameLabel;
+
+  /// Help under the name field.
+  ///
+  /// In en, this message translates to:
+  /// **'What people call this patch — Gauteng North.'**
+  String get territoryNameHelp;
+
+  /// Field label: the territory's code.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get territoryCodeLabel;
+
+  /// Help under the code field.
+  ///
+  /// In en, this message translates to:
+  /// **'The short code outlets are filed under — GP-N.'**
+  String get territoryCodeHelp;
+
+  /// Field label: the optional region.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get territoryRegionLabel;
+
+  /// Help under the region field.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. The wider area this sits in.'**
+  String get territoryRegionHelp;
+
+  /// Validation message on an empty required field.
+  ///
+  /// In en, this message translates to:
+  /// **'This is required.'**
+  String get territoryFieldRequired;
+
+  /// The commit button on the create form.
+  ///
+  /// In en, this message translates to:
+  /// **'Create territory'**
+  String get territoryCreate;
+
+  /// Why the create button is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'A name and a code are both required.'**
+  String get territoryCreateBlocked;
+
+  /// Toast after a territory is created.
+  ///
+  /// In en, this message translates to:
+  /// **'{territory} created.'**
+  String territoryCreated(String territory);
+
+  /// Title of the territory map route while the territory itself is still being resolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory map'**
+  String get territoryMapTitle;
+
+  /// Designed state: the territory exists and nothing is filed under it.
+  ///
+  /// In en, this message translates to:
+  /// **'No outlets in this territory'**
+  String get territoryMapEmptyHeadline;
+
+  /// Body under territoryMapEmptyHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets are filed under a territory by its code. Give an outlet this territory\'s code and it appears here.'**
+  String get territoryMapEmptyBody;
+
+  /// Body when the basemap tiles never arrived. Not an error: the list carries everything.
+  ///
+  /// In en, this message translates to:
+  /// **'The map did not load, so {territory} is listed below instead. Every store and its state is there.'**
+  String territoryTilesOffBody(String territory);
+
+  /// A store somebody has been to in this window.
+  ///
+  /// In en, this message translates to:
+  /// **'Visited'**
+  String get territoryOutletVisited;
+
+  /// A store nobody has been to in this window.
+  ///
+  /// In en, this message translates to:
+  /// **'Not visited yet'**
+  String get territoryOutletNotVisited;
+
+  /// The sentence under the visited state in the outlet sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'A visit landed here inside the coverage window.'**
+  String get territoryOutletVisitedLine;
+
+  /// The sentence under the not-visited state in the outlet sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'No visit has landed here inside the coverage window.'**
+  String get territoryOutletNotVisitedLine;
+
+  /// Label before an outlet's coordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned at'**
+  String get territoryOutletPosition;
+
+  /// The id in the URL matches nothing this client can see.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not find that territory'**
+  String get territoryNotFoundHeadline;
+
+  /// Body under territoryNotFoundHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'It may have been deleted, or the link may belong to another client.'**
+  String get territoryNotFoundBody;
+
+  /// Screen title: ranking agents for one outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get dispatchTitle;
+
+  /// Header fact on Dispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents are ranked in-territory first, then by distance from their last known location.'**
+  String get dispatchFact;
+
+  /// Section rule over the outlet picker.
+  ///
+  /// In en, this message translates to:
+  /// **'The outlet'**
+  String get dispatchOutletSection;
+
+  /// The picker's title when nothing is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an outlet'**
+  String get dispatchChooseOutlet;
+
+  /// Why an outlet has to be chosen first.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking needs a destination to measure distance from.'**
+  String get dispatchChooseOutletHint;
+
+  /// Spoken label of the picker once an outlet is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlet: {outlet}. Choose a different one.'**
+  String dispatchChangeOutlet(String outlet);
+
+  /// In-panel empty state before an outlet is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an outlet to rank agents'**
+  String get dispatchNoOutletHeadline;
+
+  /// Body under dispatchNoOutletHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody can be ranked until there is somewhere to rank them against.'**
+  String get dispatchNoOutletBody;
+
+  /// The outlet list came back empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No outlets yet'**
+  String get dispatchNoOutletsHeadline;
+
+  /// Body under dispatchNoOutletsHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an outlet and it can be dispatched.'**
+  String get dispatchNoOutletsBody;
+
+  /// Section rule over the ranked agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Candidates'**
+  String get dispatchCandidatesSection;
+
+  /// The server returned no candidates.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent can be ranked'**
+  String get dispatchNoCandidatesHeadline;
+
+  /// Body under dispatchNoCandidatesHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking needs agents assigned to a territory, or a last known location — neither is recorded yet.'**
+  String get dispatchNoCandidatesBody;
+
+  /// This agent's territory contains the outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'In territory'**
+  String get dispatchInTerritory;
+
+  /// This agent's territory does not contain the outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside territory'**
+  String get dispatchOutsideTerritory;
+
+  /// The server's own pick. Never a rank this screen computed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get dispatchRecommended;
+
+  /// How far the server last saw this agent from the outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'{metres} m away'**
+  String dispatchMetresAway(int metres);
+
+  /// The server cannot place this agent. Never a zero — an agent with no fix must not look like one on the doorstep.
+  ///
+  /// In en, this message translates to:
+  /// **'No last-known location'**
+  String get dispatchNoLocation;
+
+  /// Screen title: the manager's trend charts.
+  ///
+  /// In en, this message translates to:
+  /// **'Trends'**
+  String get trendsTitle;
+
+  /// Header fact on Trends.
+  ///
+  /// In en, this message translates to:
+  /// **'Server-side buckets — weeks start Monday, UTC.'**
+  String get trendsFact;
+
+  /// Spoken label of the filter rail scoping every chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get trendsFilters;
+
+  /// The view showing three series over the window.
+  ///
+  /// In en, this message translates to:
+  /// **'Over time'**
+  String get trendsOverTime;
+
+  /// The view comparing every territory against the client average.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare territories'**
+  String get trendsCompare;
+
+  /// The day bucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get trendsDaily;
+
+  /// The week bucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get trendsWeekly;
+
+  /// No range was asked for. Null is not 'all time' — it is the server's own lookback.
+  ///
+  /// In en, this message translates to:
+  /// **'Server default'**
+  String get trendsServerDefault;
+
+  /// A range the manager chose.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom range'**
+  String get trendsCustomRange;
+
+  /// Drops back to the server's default lookback.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the range'**
+  String get trendsClearRange;
+
+  /// Spoken label of the chart-or-table toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as'**
+  String get trendsViewAs;
+
+  /// Show the series as a chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Chart'**
+  String get trendsAsChart;
+
+  /// Show the series as its table twin.
+  ///
+  /// In en, this message translates to:
+  /// **'Table'**
+  String get trendsAsTable;
+
+  /// First column of the table twin.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get trendsPeriod;
+
+  /// A bucket with no reading. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured'**
+  String get trendsNotMeasured;
+
+  /// How to reach the scrub readout. Everything it shows is also in the table.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag across the chart to read one bucket.'**
+  String get trendsScrubHint;
+
+  /// Spoken label of a chart. The values live in the table, not in a paragraph read at 200 words a minute.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count} buckets. The exact figures are in the table view.'**
+  String trendsChartHint(String name, int count);
+
+  /// How many buckets broke the line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bucket not measured} other{{count} buckets not measured}}'**
+  String trendsGapNote(int count);
+
+  /// Designed state: the window measured nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No data in range'**
+  String get trendsEmptyHeadline;
+
+  /// Body under trendsEmptyHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Trends fill in as visits are submitted and scored.'**
+  String get trendsEmptyBody;
+
+  /// Section rule over the scorecard series.
+  ///
+  /// In en, this message translates to:
+  /// **'Scorecard trend'**
+  String get trendScorecards;
+
+  /// The scorecard series' name in its legend.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted execution score'**
+  String get trendScorecardsSeries;
+
+  /// Section rule over the availability series.
+  ///
+  /// In en, this message translates to:
+  /// **'Availability trend'**
+  String get trendAvailability;
+
+  /// The availability series' name in its legend.
+  ///
+  /// In en, this message translates to:
+  /// **'On-shelf availability'**
+  String get trendAvailabilitySeries;
+
+  /// Section rule over the perfect-store series.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect store trend'**
+  String get trendPerfectStore;
+
+  /// The perfect-store series' name in its legend.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets passing every gate'**
+  String get trendPerfectStoreSeries;
+
+  /// Spoken label of the metric rail.
+  ///
+  /// In en, this message translates to:
+  /// **'Metric'**
+  String get trendsMetric;
+
+  /// The scorecard metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get trendsMetricScore;
+
+  /// The perfect-store metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect store'**
+  String get trendsMetricPerfectStore;
+
+  /// The availability metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Availability'**
+  String get trendsMetricAvailability;
+
+  /// The share-of-shelf metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of shelf'**
+  String get trendsMetricShareOfShelf;
+
+  /// The client's own line, which every territory is read against.
+  ///
+  /// In en, this message translates to:
+  /// **'Client average'**
+  String get trendsClientAverage;
+
+  /// The client's configured standard, when the wire names none.
+  ///
+  /// In en, this message translates to:
+  /// **'Target'**
+  String get trendsTarget;
+
+  /// Why the client average can differ from the territories' own.
+  ///
+  /// In en, this message translates to:
+  /// **'Also includes {samples} from outlets outside every territory.'**
+  String trendsUnassignedNote(String samples);
+
+  /// There is nothing to compare.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories set up'**
+  String get trendsNoTerritoriesHeadline;
+
+  /// Body under trendsNoTerritoriesHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Add territories and each one can be read against the client average.'**
+  String get trendsNoTerritoriesBody;
+
+  /// Body when the client average itself was never measured.
+  ///
+  /// In en, this message translates to:
+  /// **'The comparison fills in as visits are submitted and scored.'**
+  String get trendsCompareEmptyBody;
+
+  /// This territory sits above the client average.
+  ///
+  /// In en, this message translates to:
+  /// **'Above average'**
+  String get trendsAboveAverage;
+
+  /// This territory sits below the client average. A watch, not a breach — sitting under your own average is not failing a threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Below average'**
+  String get trendsBelowAverage;
+
+  /// This territory is level with the client average.
+  ///
+  /// In en, this message translates to:
+  /// **'At average'**
+  String get trendsAtAverage;
+
+  /// The note under a territory above the line.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} points above the client average · {samples}'**
+  String trendsAboveBy(String points, String samples);
+
+  /// The note under a territory below the line.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} points below the client average · {samples}'**
+  String trendsBelowBy(String points, String samples);
+
+  /// The note under a territory on the line.
+  ///
+  /// In en, this message translates to:
+  /// **'Level with the client average · {samples}'**
+  String trendsLevelWith(String samples);
+
+  /// The note under a territory with no reading.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing measured in this window'**
+  String get trendsNothingMeasuredHere;
+
+  /// A territory's rank, spoken.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked {rank}'**
+  String trendsRank(int rank);
+
+  /// The server could not rank this territory. A rank is never invented.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ranked'**
+  String get trendsUnranked;
+
+  /// The word on the territory row whose series the chart is drawing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing'**
+  String get trendsShowing;
+
+  /// Section rule over the comparison chart.
+  ///
+  /// In en, this message translates to:
+  /// **'{territory} against the client average'**
+  String trendsAgainstClient(String territory);
+
+  /// Spoken value of a territory's meter.
+  ///
+  /// In en, this message translates to:
+  /// **'{territory}: {value}, client average {average}'**
+  String trendsMeterHint(String territory, int value, int average);
+
+  /// How many scorecards are behind a figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scorecard} other{{count} scorecards}}'**
+  String trendsSamplesScorecards(int count);
+
+  /// How many stock lines are behind a figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 stock line} other{{count} stock lines}}'**
+  String trendsSamplesStockLines(int count);
+
+  /// How many visits with facings are behind a figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 visit with facings} other{{count} visits with facings}}'**
+  String trendsSamplesFacings(int count);
+
   /// Title of the manager's outlet list route.
   ///
   /// In en, this message translates to:

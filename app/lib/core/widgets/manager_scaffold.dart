@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../auth/session_controller.dart';
 import '../theme/lumen_glass.dart';
 import '../theme/theme_mode_controller.dart';
@@ -191,7 +192,7 @@ class _NavRail extends StatelessWidget {
                         ? const EdgeInsets.fromLTRB(22, 14, 16, 6)
                         : const EdgeInsets.fromLTRB(16, 12, 16, 5),
                     child: Text(
-                      group.heading,
+                      navGroupName(context.l10n, group).toUpperCase(),
                       style: glass
                           ? LumenGlass.kickerStyle(
                               color: context.lumen.inkMuted,
@@ -326,7 +327,7 @@ class _NavRowState extends State<_NavRow> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                destination.label,
+                destination.labelIn(context.l10n),
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
@@ -370,7 +371,7 @@ class _NavRowState extends State<_NavRow> {
             const SizedBox(width: 9),
             Expanded(
               child: Text(
-                destination.label,
+                destination.labelIn(context.l10n),
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,

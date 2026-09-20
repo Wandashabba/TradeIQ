@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/bottom_nav_bar.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
 
@@ -33,6 +33,12 @@ Widget _app({String activeRoute = '/dashboard', ThemeData? theme}) =>
     );
 
 void main() {
+  // The open-sheet count is an app-wide static, and the menu tests here end
+  // with the menu up. Without this the NEXT test's `showTorchSheet` asserts
+  // that a second sheet was opened over an existing one.
+  setUp(TorchSheets.resetForTest);
+  tearDown(TorchSheets.resetForTest);
+
   testWidgets('shows the five slots with the active tab pilled', (
     tester,
   ) async {
@@ -64,7 +70,7 @@ void main() {
     );
   });
 
-  testWidgets('menu slot opens the grouped sheet with sign-out', (
+  testWidgets('menu slot opens the one Torchlight menu, sign-out included', (
     tester,
   ) async {
     await tester.pumpWidget(_app());
@@ -72,10 +78,12 @@ void main() {
     await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();
 
-    expect(find.text('OPERATE'), findsOneWidget);
-    expect(find.text('INSIGHT'), findsOneWidget);
-    expect(find.text('CONFIGURE'), findsOneWidget);
-    expect(find.text('Sign out'), findsOneWidget);
+    // Sentence case: the section rule replaced the uppercase eyebrow, and
+    // "OPERATE" read out letter by letter is not a word.
+    expect(find.text('Operate'), findsOneWidget);
+    expect(find.text('Insight'), findsOneWidget);
+    expect(find.text('Configure'), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-sign-out')), findsOneWidget);
   });
 
   // ── Theme treatment (premium-ui sub2) ──────────────────────────────────
@@ -223,50 +231,23 @@ void main() {
     expect(contrastRatio(active, pillOnBar), greaterThanOrEqualTo(4.5));
   });
 
-  testWidgets('dark theme: menu sheet is the night glass sheet — surface1 '
-      'ground, night rim, AA kickers, glass tiles', (tester) async {
+  testWidgets('the Lumen bar opens the SAME sheet the console frame does', (
+    tester,
+  ) async {
+    // The seam worth testing: this bar is still painted in Lumen and lives on
+    // unmigrated manager routes, and `AppTheme.dark()` registers a `TiqSkin`,
+    // so the Torchlight menu resolves its tokens from the ambient theme
+    // rather than needing a route of its own. Two menus for one nav is what
+    // lost the app its sign-out; one menu is the fix.
     await tester.pumpWidget(_app(theme: AppTheme.dark()));
 
     await tester.tap(find.text('MENU'));
     await tester.pumpAndSettle();
 
-    // The sheet's panel is the top-rounded Container — the opaque night
-    // surface1 under the night panel rim, not a hardcoded paper value.
-    final panel = tester.widget<Container>(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.decoration is BoxDecoration &&
-            (w.decoration! as BoxDecoration).borderRadius ==
-                const BorderRadius.vertical(
-                  top: Radius.circular(LumenGlass.radiusScore),
-                ),
-      ),
-    );
-    final panelDeco = panel.decoration! as BoxDecoration;
-    expect(panelDeco.color, TiqColors.night.surface1);
-    expect((panelDeco.border! as Border).top.color, LumenPalette.dark.panelRim);
-
-    // Group headers are the night kicker, and stay AA-readable on the sheet
-    // surface they actually sit on.
-    final heading = tester.widget<Text>(find.text('OPERATE')).style!.color!;
-    expect(heading, LumenPalette.dark.kicker);
-    expect(
-      contrastRatio(heading, TiqColors.night.surface1),
-      greaterThanOrEqualTo(4.5),
-      reason: 'sheet group labels are 9.5px text on surface1',
-    );
-
-    // Destination tiles are no-blur glass tiles; the divider is the hairline.
-    final tile = tester.widget<GlassPane>(
-      find.ancestor(
-        of: find.byKey(const ValueKey('nav-sheet-/dashboard')),
-        matching: find.byType(GlassPane),
-      ),
-    );
-    expect(tile.kind, GlassKind.tile);
-    expect(tile.blur, isFalse);
-    final divider = tester.widget<Divider>(find.byType(Divider).first);
-    expect(divider.color, TiqColors.night.line);
+    expect(find.byType(TorchSheet), findsOneWidget);
+    expect(find.byType(GlassPane), findsNothing);
+    expect(find.byKey(const ValueKey('menu-/dashboard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-sign-out')), findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-theme')), findsOneWidget);
   });
 }
