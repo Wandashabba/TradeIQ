@@ -214,13 +214,23 @@ class _Standing extends StatelessWidget {
             StatTile(
               key: const ValueKey<String>('points-total'),
               eyebrow: 'Points earned',
-              value: entry.points,
+              // The board refuses to print this number for an unranked agent
+              // and so does this screen: `points` is 0 for them because the
+              // window holds no ledger entry at all, which is an absence and
+              // not a payout of nought. Both screens read the one decision on
+              // the entry rather than each making their own (#464).
+              value: entry.measuredPoints,
               decimals: 0,
               unit: TiqUnit.worded('pts'),
+              noDataReason: entry.payoutIsMeasured
+                  ? null
+                  : LeaderboardEntry.payoutAbsentReason,
               // A payout has no 0–100 scale, so it gets no meter. The average
               // beneath it does, and the difference is the point.
-              stateLine: 'The average scorecard, plus 5 a closed task and 2 a '
-                  'submitted visit.',
+              stateLine: entry.payoutIsMeasured
+                  ? 'The average scorecard, plus 5 a closed task and 2 a '
+                        'submitted visit.'
+                  : null,
             ),
             StatTile(
               key: const ValueKey<String>('points-average'),

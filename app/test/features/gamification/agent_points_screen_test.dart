@@ -228,6 +228,86 @@ void main() {
     });
   });
 
+  group('unknown versus zero on the payout', () {
+    testWidgets(
+      'the agent the board will not place has no payout to print either',
+      (tester) async {
+        // The exact row the leaderboard renders as "Not ranked yet": the
+        // window holds no ledger entry at all, so `points` is 0 only because
+        // `mean([]) + 0` is 0. Printing "0 pts" at full commitment here is
+        // the same absence rendered as an absence one tap back and as a
+        // measured nought here — and it is what puts a person into a
+        // performance conversation as the agent on zero.
+        await _pump(
+          tester,
+          board: <LeaderboardEntry>[
+            _standing(
+              rank: null,
+              points: 0,
+              avgScorecard: 0,
+              scorecardsCounted: 0,
+            ),
+          ],
+        );
+
+        final payout = tester.widget<StatTile>(
+          find.byKey(const ValueKey<String>('points-total')),
+        );
+        expect(payout.value, isNull);
+        expect(payout.figureState, FigureState.missing);
+        expect(payout.noDataReason, isNotNull);
+        expect(
+          find.textContaining('Nothing recorded for this agent'),
+          findsOneWidget,
+        );
+        // No figure, so no unit and no recipe sentence beside nothing.
+        expect(find.textContaining('0 pts'), findsNothing);
+        expect(find.textContaining('plus 5 a closed task'), findsNothing);
+        // And the header still says the absence in words.
+        expect(find.textContaining('Not ranked yet'), findsOneWidget);
+      },
+    );
+
+    testWidgets('a ranked agent on nought points still prints the nought', (
+      tester,
+    ) async {
+      // A scored agent whose scorecards average 0 and who closed nothing IS
+      // measured: the server gave them a place. This is the over-correction
+      // guard — suppressing here would invent an absence out of a real zero.
+      await _pump(
+        tester,
+        board: <LeaderboardEntry>[
+          _standing(
+            rank: 3,
+            points: 0,
+            avgScorecard: 0,
+            scorecardsCounted: 4,
+          ),
+        ],
+      );
+
+      final payout = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('points-total')),
+      );
+      expect(payout.value, 0);
+      expect(payout.figureState, FigureState.measured);
+      expect(payout.noDataReason, isNull);
+      expect(find.textContaining('plus 5 a closed task'), findsOneWidget);
+    });
+
+    test('the two screens read one decision, not two', () {
+      // The board's rule and this screen's rule are the same getter. A screen
+      // that made its own copy is how the mismatch got in.
+      final unmeasured = _standing(rank: null, points: 0);
+      final ranked = _standing(rank: 2, points: 94);
+
+      expect(unmeasured.payoutIsMeasured, isFalse);
+      expect(unmeasured.measuredPoints, isNull);
+      expect(ranked.payoutIsMeasured, isTrue);
+      expect(ranked.measuredPoints, 94);
+    });
+  });
+
   group('the payout and the average are not peers', () {
     testWidgets('the payout carries no 0-100 meter and the average does', (
       tester,

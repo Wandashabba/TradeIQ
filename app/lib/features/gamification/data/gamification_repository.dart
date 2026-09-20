@@ -52,6 +52,28 @@ class LeaderboardEntry {
   /// The name when there is one, otherwise the email.
   String get label => personLabel(displayName, email);
 
+  /// Whether [points] is a payout somebody earned, or the engine's nought.
+  ///
+  /// The server ranks an agent exactly when the window holds something for
+  /// them — a visit, a closure, a scorecard, an adjustment — and hands an
+  /// unmeasured agent `rank: null`. That same agent's `points` is always 0,
+  /// because it is `mean([]) + 0`: an absence arriving as a measured figure.
+  /// Rendering it as "0 pts" tells a manager this agent earned nothing, which
+  /// is a different sentence from "nobody has measured this agent".
+  ///
+  /// This getter is the ONE place that decision lives. The board and the
+  /// agent's own ledger both read it, because the same absence rendered as an
+  /// absence on one screen and as a nought on the next is how a person ends
+  /// up in a performance conversation as "the agent on zero" (#464).
+  bool get payoutIsMeasured => rank != null;
+
+  /// The payout to print, or null when there is none to print.
+  double? get measuredPoints => payoutIsMeasured ? points : null;
+
+  /// Why [measuredPoints] is absent, for the figure that has to say so.
+  static const String payoutAbsentReason =
+      'Nothing recorded for this agent in this window.';
+
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
       LeaderboardEntry(
         agentId: json['agentId'] as String,
