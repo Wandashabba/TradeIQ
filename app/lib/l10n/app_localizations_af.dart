@@ -5454,4 +5454,798 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get salesPanelEmptyBody =>
       'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
+
+  @override
+  String get trailTitle => 'Agentspoor';
+
+  @override
+  String get trailRefresh => 'Herlaai hierdie dag';
+
+  @override
+  String get trailPickDay => 'Kies ’n ander dag';
+
+  @override
+  String get trailSkeleton => 'hierdie dag';
+
+  @override
+  String get trailRetry => 'Probeer weer';
+
+  @override
+  String get trailEmptyHeadline => 'Geen inklokke op hierdie dag nie.';
+
+  @override
+  String get trailEmptyBody =>
+      '’n Pen verskyn hier wanneer ’n agent ’n inklok bevestig. Kies ’n ander dag om een te sien wat van hulle het.';
+
+  @override
+  String trailAgentCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agente',
+      one: '1 agent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trailStopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stoppe',
+      one: '1 stop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get trailHowToRead => 'Hoe om dit te lees';
+
+  @override
+  String get trailLegendPins =>
+      'Genommerde penne is bevestigde inklokke, in volgorde, en elke agent se laaste een is gevul. Strepieslyne verbind hulle — hulle is nie ’n aangetekende roete nie.';
+
+  @override
+  String trailLegendLive(String when) {
+    return 'Vierkante is lewende posisies uit die agent-app, met hul ouderdom eerste gemerk. Laas bygewerk $when.';
+  }
+
+  @override
+  String get trailFooterSummary => 'Wys net die eerste 200 agente.';
+
+  @override
+  String get trailFooterNarrow =>
+      '’n Gedeeltelike kaart wat volledig lyk is erger as geen kaart nie: die res van die dag is nie hier nie.';
+
+  @override
+  String get trailStillInShop => 'Nog in hierdie winkel';
+
+  @override
+  String get trailLastStop => 'Laaste stop';
+
+  @override
+  String trailCheckedInAt(String time) {
+    return 'ingeklok om $time';
+  }
+
+  @override
+  String get trailNoMapHeadline => 'Geen kaart in die son nie.';
+
+  @override
+  String get trailNoMapBody =>
+      '’n Donker basiskaart wat buite gelees word is ’n swart reghoek. Elke stop is hieronder gelys, in volgorde, met die tyd waarop dit bevestig is.';
+
+  @override
+  String get trailMapOfflineHeadline => 'Die kaart wil nie laai nie.';
+
+  @override
+  String get trailMapOfflineBody =>
+      'Die teëls kom nie aan nie. Elke stop is hieronder gelys, in volgorde: niks van die dag ontbreek nie, net die prentjie daarvan.';
+
+  @override
+  String liveLastNear(String when) {
+    return 'laas naby $when';
+  }
+
+  @override
+  String liveLastCheckIn(String when) {
+    return 'laaste inklok $when';
+  }
+
+  @override
+  String liveNear(String place) {
+    return 'Naby $place';
+  }
+
+  @override
+  String get liveNeverShared => 'nooit gedeel nie';
+
+  @override
+  String liveLocationOf(String description) {
+    return 'Lewende ligging: $description';
+  }
+
+  @override
+  String get liveLocationFailed =>
+      'Lewende ligging kon nie laai nie. Ons probeer binnekort weer.';
+
+  @override
+  String get liveLocationLoading => 'Lewende ligging: laai tans…';
+
+  @override
+  String get liveLocationHeading => 'Lewende ligging';
+
+  @override
+  String liveLastUpdated(String when) {
+    return 'Laas bygewerk $when';
+  }
+
+  @override
+  String get liveLocationNote =>
+      'Word net deur die agent-app gestuur terwyl dit oop is. Elke ry begin met hoe oud daardie posisie by die laaste bywerking was.';
+
+  @override
+  String get liveCouldNotRefresh =>
+      'Kon nie verfris nie. Wys die laaste bywerking.';
+
+  @override
+  String get liveFirst200 => 'Wys die eerste 200 agente.';
+
+  @override
+  String get fraudTitle => 'Bedrogoorsig';
+
+  @override
+  String get fraudFact =>
+      'Risiko word met indiening 0–100 bepunt. Die seine is die bewyse.';
+
+  @override
+  String get fraudRefresh => 'Herlaai die oorsigtou';
+
+  @override
+  String get fraudSkeleton => 'gemerkte besoeke';
+
+  @override
+  String get fraudRetry => 'Probeer weer';
+
+  @override
+  String get fraudFilterRail => 'Watter gemerkte besoeke';
+
+  @override
+  String get fraudFilterOpen => 'Oop';
+
+  @override
+  String get fraudFilterDecided => 'Beslis';
+
+  @override
+  String get fraudFilterAll => 'Almal';
+
+  @override
+  String get fraudSectionOpen => 'Oop';
+
+  @override
+  String get fraudSectionDecided => 'Beslis';
+
+  @override
+  String get fraudSectionAll => 'Elke gemerkte besoek';
+
+  @override
+  String get fraudEmptyLineOpen => 'Niks wag op ’n beslissing nie.';
+
+  @override
+  String get fraudEmptyLineDecided => 'Nog niks waaroor beslis is nie.';
+
+  @override
+  String get fraudEmptyLineAll => 'Niks is gemerk nie.';
+
+  @override
+  String get fraudEmptyHeadlineOpen => 'Niks wag op jou nie.';
+
+  @override
+  String get fraudEmptyHeadlineDecided =>
+      'Nog geen beslissings aangeteken nie.';
+
+  @override
+  String get fraudEmptyHeadlineAll => 'Niks is gemerk nie.';
+
+  @override
+  String get fraudEmptyBodyOpen =>
+      '’n Besoek verskyn hier wanneer die bedrogenjin een bo die oorsigdrempel bepunt. Besoeke waaroor beslis is, skuif na Beslis.';
+
+  @override
+  String get fraudEmptyBodyDecided =>
+      '’n Besoek verskyn hier sodra iemand ’n beslissing daaroor aanteken.';
+
+  @override
+  String get fraudEmptyBodyAll =>
+      'Besoeke verskyn hier wanneer die bedrogenjin een bo die oorsigdrempel bepunt.';
+
+  @override
+  String fraudFooterShowing(String count) {
+    return 'Wys die $count met die hoogste risiko.';
+  }
+
+  @override
+  String fraudUnscoredNote(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count ingediende besoeke is nog nie bepunt nie en word nie hier gelys nie.',
+      one:
+          '1 ingediende besoek is nog nie bepunt nie en word nie hier gelys nie.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get fraudUnknownAgent => 'Onbekende agent';
+
+  @override
+  String get fraudUnnamedOutlet => 'Winkelnaam nie beskikbaar nie';
+
+  @override
+  String get fraudVisitIdentifier => 'Besoek';
+
+  @override
+  String fraudRisk(String score) {
+    return 'Risiko $score';
+  }
+
+  @override
+  String fraudRiskOf100(String score) {
+    return 'Risiko $score uit 100';
+  }
+
+  @override
+  String get fraudNotYetReviewed => 'Nog nie hersien nie';
+
+  @override
+  String get fraudVerdictCleared => 'Skoongespreek';
+
+  @override
+  String get fraudVerdictConfirmed => 'Bevestig';
+
+  @override
+  String get fraudVerdictNeedsEvidence => 'Kort bewyse';
+
+  @override
+  String get fraudBandHigh => 'Hoë risiko';
+
+  @override
+  String get fraudBandElevated => 'Verhoog';
+
+  @override
+  String get fraudBandLow => 'Lae risiko';
+
+  @override
+  String get fraudRuleOnThisVisit => 'Beslis oor hierdie besoek';
+
+  @override
+  String get fraudSeeTheRuling => 'Sien die beslissing';
+
+  @override
+  String get fraudSeeTheVisit => 'Sien die besoek';
+
+  @override
+  String get fraudReviewerFallback => '’n Hersiener';
+
+  @override
+  String fraudRuledIt(String who, String verdict) {
+    return '$who het dit $verdict.';
+  }
+
+  @override
+  String get fraudVerdictClearedPast => 'skoongespreek';
+
+  @override
+  String get fraudVerdictConfirmedPast => 'bevestig';
+
+  @override
+  String get fraudVerdictNeedsEvidencePast => 'gemerk as kort aan bewyse';
+
+  @override
+  String get fraudSeenUnscored => 'Die besoek was destyds onbepunt.';
+
+  @override
+  String fraudSeenAtRisk(String score) {
+    return 'Hulle het na risiko $score gekyk.';
+  }
+
+  @override
+  String fraudSheetSubtitle(String outlet, String score, String band) {
+    return '$outlet · risiko $score uit 100 · $band';
+  }
+
+  @override
+  String get fraudWhatEngineFound => 'Wat die enjin gevind het';
+
+  @override
+  String get fraudNoSignalsHeadline => 'Geen seine aangeteken nie.';
+
+  @override
+  String get fraudNoSignalsBody =>
+      'Die besoek het bo die drempel bepunt, maar die reëls wat afgegaan het is nie daarmee gestoor nie. Maak die besoek oop om dit op sy eie rekord te beoordeel.';
+
+  @override
+  String get fraudYourRuling => 'Jou beslissing';
+
+  @override
+  String get fraudRecordThisRuling => 'Teken hierdie beslissing aan';
+
+  @override
+  String get fraudNoteLabel => 'Nota';
+
+  @override
+  String get fraudNoteHint => 'Wat jy nagegaan het, en wat jy gevind het';
+
+  @override
+  String get fraudNoteHelp =>
+      'Wie ook al hierdie besluit volgende lees, sien net wat jy hier skryf.';
+
+  @override
+  String get fraudNotChosenLine => 'Nog geen beslissing gekies nie';
+
+  @override
+  String get fraudChooseFirst => 'Kies eers ’n beslissing.';
+
+  @override
+  String get fraudConsequenceCleared =>
+      'Die besoek bly staan en verlaat die tou. Die agent hou sy punte.';
+
+  @override
+  String get fraudConsequenceConfirmed =>
+      'Die werk word as vervals aangeteken. Dit is die een beslissing wat ’n persoon beskuldig.';
+
+  @override
+  String get fraudConsequenceNeedsEvidence =>
+      'Niemand kan nog sê nie. Dit verlaat die oop tou en die nota is waarmee iemand werk.';
+
+  @override
+  String get fraudNeedsEvidenceNoteBecause =>
+      'Sê watter bewyse kort, sodat iemand dit kan gaan haal. “Kort bewyse” sonder ’n nota is ’n besoek wat verwerk eerder as hersien is.';
+
+  @override
+  String get fraudNotNow => 'Nie nou nie';
+
+  @override
+  String get fraudClose => 'Maak toe';
+
+  @override
+  String get fraudRulingStands => 'Die beslissing wat geld';
+
+  @override
+  String get fraudStandingUnscored =>
+      'Die besoek was destyds onbepunt, so daar is geen getal agter hierdie besluit nie.';
+
+  @override
+  String fraudStandingAtRisk(String score) {
+    return 'Hulle het na risiko $score uit 100 gekyk. ’n Herbepunting sedertdien skuif nie die beslissing nie.';
+  }
+
+  @override
+  String get fraudRuledOnce =>
+      'Oor ’n besoek word een keer beslis. Om dit te heropen is ’n verandering aan die rekord en word nie van hier af gedoen nie.';
+
+  @override
+  String get leaderboardTitle => 'Ranglys';
+
+  @override
+  String get leaderboardFact =>
+      'Punte: die gemiddelde telkaart, plus 5 vir ’n afgehandelde taak en 2 vir ’n ingediende besoek.';
+
+  @override
+  String get leaderboardRefresh => 'Herlaai die ranglys';
+
+  @override
+  String get leaderboardContests => 'Kompetisies';
+
+  @override
+  String get leaderboardSkeleton => 'die ranglys';
+
+  @override
+  String get leaderboardRetry => 'Probeer weer';
+
+  @override
+  String get leaderboardEmptyHeadline => 'Nog niemand op die ranglys nie.';
+
+  @override
+  String get leaderboardEmptyBody =>
+      'Agente verskyn hier sodra daar ’n veldagent by hierdie kliënt is om te meet.';
+
+  @override
+  String get leaderboardRanked => 'Geplaas';
+
+  @override
+  String get leaderboardRankedEmptyLine =>
+      'Niemand het nog ’n plek in hierdie venster nie.';
+
+  @override
+  String get leaderboardNotRanked => 'Nog nie geplaas nie';
+
+  @override
+  String get leaderboardUnrankedNote =>
+      'Niks is vir hierdie agente in hierdie venster gemeet nie — geen ingediende besoek, geen afgehandelde taak, geen telkaart nie. Hulle is nie laaste nie; niemand het hulle gemeet nie.';
+
+  @override
+  String leaderboardRank(String rank) {
+    return 'Rang $rank';
+  }
+
+  @override
+  String leaderboardRowTrailing(String rank, String points) {
+    return 'Rang $rank, $points punte';
+  }
+
+  @override
+  String get pointsRefresh => 'Herlaai hierdie puntegeskiedenis';
+
+  @override
+  String get pointsBackToLeaderboard => 'Terug na die ranglys';
+
+  @override
+  String get pointsTitle => 'Puntegeskiedenis';
+
+  @override
+  String get pointsSkeleton => 'hierdie puntegeskiedenis';
+
+  @override
+  String get pointsRetry => 'Probeer weer';
+
+  @override
+  String get pointsLedgerHeading => 'Grootboek';
+
+  @override
+  String get pointsNothingRecorded => 'Nog niks aangeteken nie.';
+
+  @override
+  String get pointsEmptyHeadline => 'Nog geen punte nie.';
+
+  @override
+  String get pointsEmptyBody =>
+      'Inskrywings verskyn soos hierdie agent besoeke indien, take afhandel en bepunt word.';
+
+  @override
+  String pointsTwoFigures(String name) {
+    return 'Twee syfers vir $name.';
+  }
+
+  @override
+  String get pointsEarnedEyebrow => 'Punte verdien';
+
+  @override
+  String get pointsUnitWord => 'pte';
+
+  @override
+  String get pointsStateLine =>
+      'Die gemiddelde telkaart, plus 5 vir ’n afgehandelde taak en 2 vir ’n ingediende besoek.';
+
+  @override
+  String get pointsPayoutAbsent =>
+      'Niks is vir hierdie agent in hierdie venster aangeteken nie.';
+
+  @override
+  String get pointsAverageEyebrow => 'Gemiddelde telkaart';
+
+  @override
+  String get pointsNoScoredVisit =>
+      'Geen bepunte besoek in hierdie venster nie.';
+
+  @override
+  String pointsCounts(String visits, String tasks) {
+    return '$visits besoeke ingedien · $tasks take afgehandel';
+  }
+
+  @override
+  String pointsFooterSummary(String count) {
+    return 'Wys die $count nuutste inskrywings. Daar is meer.';
+  }
+
+  @override
+  String pointsScored(String score) {
+    return '$score behaal';
+  }
+
+  @override
+  String pointsSpokenPoints(String points) {
+    return '$points punte';
+  }
+
+  @override
+  String get incentivesTitle => 'Aansporings';
+
+  @override
+  String get incentivesFact =>
+      '’n Skema ken punte toe wanneer ’n agent sy drempel op die gekose maatstaf bereik. Skemas wat gepouseer is, ken niks toe nie.';
+
+  @override
+  String get incentivesRefresh => 'Herlaai die aansporingskemas';
+
+  @override
+  String get incentivesSkeleton => 'aansporingskemas';
+
+  @override
+  String get incentivesRetry => 'Probeer weer';
+
+  @override
+  String incentivesAwardingFact(String awarding, String total) {
+    return '$awarding van $total ken toe';
+  }
+
+  @override
+  String get incentivesSchemes => 'Skemas';
+
+  @override
+  String get incentivesNoneConfigured => 'Niks opgestel nie.';
+
+  @override
+  String get incentivesAddScheme => 'Voeg ’n skema by';
+
+  @override
+  String get incentivesEmptyHeadline => 'Geen skemas opgestel nie.';
+
+  @override
+  String get incentivesEmptyBody =>
+      'Voeg een by om agente te begin beloon wat ’n drempel klaar. Niks betaal uit voordat daar ’n skema is nie.';
+
+  @override
+  String get incentivesAwarding => 'Ken toe';
+
+  @override
+  String get incentivesPaused => 'Gepouseer';
+
+  @override
+  String incentivesRuleWithUnit(
+    String state,
+    String metric,
+    String threshold,
+    String unit,
+    String reward,
+  ) {
+    return '$state · $metric · $threshold $unit · $reward';
+  }
+
+  @override
+  String incentivesRuleNoUnit(
+    String state,
+    String metric,
+    String threshold,
+    String reward,
+  ) {
+    return '$state · $metric · ≥ $threshold · $reward';
+  }
+
+  @override
+  String incentivesPauseScheme(String name) {
+    return 'Pouseer $name';
+  }
+
+  @override
+  String incentivesStartScheme(String name) {
+    return 'Laat $name begin toeken';
+  }
+
+  @override
+  String get incentivesSeeEveryone => 'Sien almal';
+
+  @override
+  String get incentivesDeleteScheme => 'Skrap hierdie skema';
+
+  @override
+  String incentivesCouldNotStart(String name) {
+    return 'Kon nie $name laat begin toeken nie.';
+  }
+
+  @override
+  String incentivesCouldNotPause(String name) {
+    return 'Kon nie $name pouseer nie.';
+  }
+
+  @override
+  String incentivesDeleteAction(String name) {
+    return 'Skrap $name?';
+  }
+
+  @override
+  String get incentivesDeleteStops => 'Dit hou onmiddellik op toeken.';
+
+  @override
+  String get incentivesDeleteKeeps =>
+      'Punte wat reeds toegeken is, bly by die agente wat hulle verdien het.';
+
+  @override
+  String incentivesEarnedSoFar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agente het dit tot dusver verdien.',
+      one: '1 agent het dit tot dusver verdien.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String incentivesCouldNotDelete(String name) {
+    return 'Kon nie $name skrap nie. Dit ken steeds toe.';
+  }
+
+  @override
+  String incentivesUnknownMetric(String metric) {
+    return 'Hierdie kliënt herken nie die maatstaf “$metric” nie, so vordering daarheen kan nie hier gewys word nie.';
+  }
+
+  @override
+  String get incentivesNoBoard =>
+      'Geen agentsyfers gelaai nie, so vordering na hierdie beloning word nie gewys nie.';
+
+  @override
+  String incentivesNobodyMeasured(String metric) {
+    return 'Niemand is in hierdie venster op $metric gemeet nie, so daar is nog geen vordering na hierdie beloning om te wys nie.';
+  }
+
+  @override
+  String get incentivesEverybodyEarned =>
+      'Almal wat hierdie maatstaf kan meet, het dit verdien.';
+
+  @override
+  String incentivesClosest(String name) {
+    return 'Naaste: $name';
+  }
+
+  @override
+  String incentivesFractionUnit(String value, String threshold, String unit) {
+    return '$value van $threshold $unit';
+  }
+
+  @override
+  String incentivesFraction(String value, String threshold) {
+    return '$value van $threshold';
+  }
+
+  @override
+  String incentivesRewardAt(String reward, String threshold, String unit) {
+    return '$reward by $threshold $unit';
+  }
+
+  @override
+  String incentivesRewardPoints(String points) {
+    return '$points pte';
+  }
+
+  @override
+  String incentivesEarnedOf(int count, String earned) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$earned van $count agente het dit verdien.',
+      one: '$earned van 1 agent het dit verdien.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get incentiveMetricScorecard => 'Gemiddelde telkaart';
+
+  @override
+  String get incentiveMetricTasksClosed => 'Take afgehandel';
+
+  @override
+  String get incentiveMetricVisits => 'Besoeke ingedien';
+
+  @override
+  String get incentiveUnitPoints => 'punte';
+
+  @override
+  String get incentiveUnitTasks => 'take';
+
+  @override
+  String get incentiveUnitVisits => 'besoeke';
+
+  @override
+  String get schemeFormTitle => 'Voeg ’n skema by';
+
+  @override
+  String get schemeFormSubtitle => 'Dit begin toeken sodra dit gestoor is.';
+
+  @override
+  String get schemeFormName => 'Naam';
+
+  @override
+  String get schemeFormNameHint =>
+      'Wat ’n bestuurder dit sal noem — “Twintig besoeke”';
+
+  @override
+  String get schemeFormNameError => 'Gee die skema ’n naam.';
+
+  @override
+  String get schemeFormMetricLabel => 'Waarop dit betaal';
+
+  @override
+  String get schemeFormMetricNotAnswered => 'Nog geen maatstaf gekies nie';
+
+  @override
+  String get schemeFormMetricError => 'Kies waarop die skema betaal.';
+
+  @override
+  String get schemeFormScorecardConsequence =>
+      'Betaal wanneer die agent se 0–100 gemiddeld die drempel klaar.';
+
+  @override
+  String get schemeFormTasksConsequence =>
+      'Betaal op ’n telling van afhandelings.';
+
+  @override
+  String get schemeFormVisitsConsequence =>
+      'Betaal op ’n telling van ingediende besoeke.';
+
+  @override
+  String get schemeFormThreshold => 'Drempel';
+
+  @override
+  String get schemeFormThresholdHelp => 'Wat ’n agent moet bereik.';
+
+  @override
+  String schemeFormThresholdHelpUnit(String unit) {
+    return 'Wat ’n agent moet bereik, in $unit.';
+  }
+
+  @override
+  String get schemeFormThresholdError =>
+      'Sê die syfer wat ’n agent moet bereik.';
+
+  @override
+  String get schemeFormThresholdZero =>
+      '’n Drempel van nul is ’n skema wat aan almal uitbetaal die oomblik wat dit geskep word.';
+
+  @override
+  String get schemeFormReward => 'Beloning';
+
+  @override
+  String get schemeFormRewardHelp => 'Wat dit toeken as dit geklaar word.';
+
+  @override
+  String get schemeFormRewardError => 'Sê hoeveel punte dit toeken.';
+
+  @override
+  String get schemeFormRewardZero =>
+      '’n Beloning van nul is nie ’n beloning nie.';
+
+  @override
+  String get schemeFormSave => 'Stoor hierdie skema';
+
+  @override
+  String get schemeFormBlocked =>
+      '’n Skema het ’n naam, ’n maatstaf, ’n drempel en ’n beloning nodig.';
+
+  @override
+  String get schemeFormNotNow => 'Nie nou nie';
+
+  @override
+  String get schemeProgressEveryone => 'Almal';
+
+  @override
+  String schemeProgressSubtitle(String metric, String reward) {
+    return '$metric · $reward';
+  }
+
+  @override
+  String get schemeProgressEmptyHeadline => 'Geen agentsyfers gelaai nie.';
+
+  @override
+  String get schemeProgressEmptyBody =>
+      'Vordering na hierdie beloning word van die ranglys af gelees, en die ranglys het nie geantwoord nie.';
+
+  @override
+  String get schemeProgressUnmeasured =>
+      'Nog nie op hierdie maatstaf gemeet nie.';
+
+  @override
+  String get schemeProgressEarned => 'Verdien';
+
+  @override
+  String get schemeProgressNobodyMeasured =>
+      'Niemand hierbo is in hierdie venster op hierdie maatstaf gemeet nie, so daar is nog niks om te tel nie.';
+
+  @override
+  String get schemeProgressClose => 'Maak toe';
 }

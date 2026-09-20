@@ -7194,5 +7194,1109 @@
   "salesPanelEmptyBody": "Set monthly SKU targets under Sales targets to track sell-in against them.",
   "@salesPanelEmptyBody": {
     "description": "Body of the dashboard panel's empty state."
+  },
+  "trailTitle": "Agent trail",
+  "@trailTitle": {
+    "description": "Title of the agent trail screen."
+  },
+  "trailRefresh": "Refresh this day",
+  "@trailRefresh": {
+    "description": "Screen-reader label for the refresh control on the agent trail."
+  },
+  "trailPickDay": "Pick another day",
+  "@trailPickDay": {
+    "description": "Action that opens the date picker on the agent trail."
+  },
+  "trailSkeleton": "this day",
+  "@trailSkeleton": {
+    "description": "What is loading on the agent trail, read as 'Loading this day'."
+  },
+  "trailRetry": "Try again",
+  "@trailRetry": {
+    "description": "Retry action on the agent trail's error state."
+  },
+  "trailEmptyHeadline": "No check-ins on this day.",
+  "@trailEmptyHeadline": {
+    "description": "Headline when no agent checked in on the chosen day."
+  },
+  "trailEmptyBody": "A pin appears here when an agent confirms a check-in. Pick another day to see one that has some.",
+  "@trailEmptyBody": {
+    "description": "Body of the agent trail's empty state."
+  },
+  "trailAgentCount": "{count, plural, =1{1 agent} other{{count} agents}}",
+  "@trailAgentCount": {
+    "description": "How many agents have stops on the chosen day, in the header facts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trailStopCount": "{count, plural, =1{1 stop} other{{count} stops}}",
+  "@trailStopCount": {
+    "description": "How many stops the chosen day holds, in the header facts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trailHowToRead": "How to read it",
+  "@trailHowToRead": {
+    "description": "Section rule above the trail map's legend."
+  },
+  "trailLegendPins": "Numbered pins are confirmed check-ins, in order, and the last one of each agent is filled. Dashed lines connect them — they are not a recorded route.",
+  "@trailLegendPins": {
+    "description": "The trail map's legend line about the numbered check-in pins."
+  },
+  "trailLegendLive": "Squares are live positions from the agent app, labelled with their age first. Last updated {when}.",
+  "@trailLegendLive": {
+    "description": "The trail map's legend line about live positions.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "trailFooterSummary": "Showing the first 200 agents only.",
+  "@trailFooterSummary": {
+    "description": "Pagination footer when the day holds more agents than the map draws."
+  },
+  "trailFooterNarrow": "A partial map that looks complete is worse than no map: the rest of the day is not here.",
+  "@trailFooterNarrow": {
+    "description": "Why the trail map says it is truncated."
+  },
+  "trailStillInShop": "Still in this shop",
+  "@trailStillInShop": {
+    "description": "Word on a trail stop whose visit has not been submitted yet."
+  },
+  "trailLastStop": "Last stop",
+  "@trailLastStop": {
+    "description": "Word on the agent's final stop of the day."
+  },
+  "trailCheckedInAt": "checked in at {time}",
+  "@trailCheckedInAt": {
+    "description": "Spoken part of a trail stop's label, giving the check-in time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trailNoMapHeadline": "No map in the sun.",
+  "@trailNoMapHeadline": {
+    "description": "Headline of the Veld note that stands in for the trail map."
+  },
+  "trailNoMapBody": "A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.",
+  "@trailNoMapBody": {
+    "description": "Body of the Veld note that stands in for the trail map."
+  },
+  "trailMapOfflineHeadline": "The map will not load.",
+  "@trailMapOfflineHeadline": {
+    "description": "Headline when the trail map's tiles never arrive."
+  },
+  "trailMapOfflineBody": "The tiles are not arriving. Every stop is listed below, in order: nothing about the day is missing, only the picture of it.",
+  "@trailMapOfflineBody": {
+    "description": "Body shown when the trail map's tiles never arrive."
+  },
+  "liveLastNear": "last near {when}",
+  "@liveLastNear": {
+    "description": "How old a live position is when it was derived from a ping near an outlet.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "liveLastCheckIn": "last check-in {when}",
+  "@liveLastCheckIn": {
+    "description": "How old a live position is when it came from a check-in.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "liveNear": "Near {place}",
+  "@liveNear": {
+    "description": "Where a live position is, by the nearest outlet's name.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "liveNeverShared": "never shared",
+  "@liveNeverShared": {
+    "description": "Said of an agent whose app has never sent a position."
+  },
+  "liveLocationOf": "Live location: {description}",
+  "@liveLocationOf": {
+    "description": "Screen-reader label for one agent's live position marker.",
+    "placeholders": {
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "liveLocationFailed": "Live location could not load. Trying again shortly.",
+  "@liveLocationFailed": {
+    "description": "Said when the live location layer failed to load."
+  },
+  "liveLocationLoading": "Live location: loading…",
+  "@liveLocationLoading": {
+    "description": "Said while the live location layer is still loading."
+  },
+  "liveLocationHeading": "Live location",
+  "@liveLocationHeading": {
+    "description": "Heading of the live location panel."
+  },
+  "liveLastUpdated": "Last updated {when}",
+  "@liveLastUpdated": {
+    "description": "When the live location layer last heard from the server.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "liveLocationNote": "Sent by the agent app only while it is open. Each row starts with how old that position was at the last update.",
+  "@liveLocationNote": {
+    "description": "What the live location panel is and is not."
+  },
+  "liveCouldNotRefresh": "Could not refresh. Showing the last update.",
+  "@liveCouldNotRefresh": {
+    "description": "Said when a live location refresh failed but an older one still stands."
+  },
+  "liveFirst200": "Showing the first 200 agents.",
+  "@liveFirst200": {
+    "description": "Said when the live location layer holds more agents than it draws."
+  },
+  "fraudTitle": "Fraud review",
+  "@fraudTitle": {
+    "description": "Title of the fraud review queue."
+  },
+  "fraudFact": "Risk is scored 0–100 on submit. The signals are the evidence.",
+  "@fraudFact": {
+    "description": "Header fact explaining how a risk score is arrived at."
+  },
+  "fraudRefresh": "Refresh the review queue",
+  "@fraudRefresh": {
+    "description": "Screen-reader label for the fraud queue's refresh control."
+  },
+  "fraudSkeleton": "flagged visits",
+  "@fraudSkeleton": {
+    "description": "What is loading on the fraud queue, read as 'Loading flagged visits'."
+  },
+  "fraudRetry": "Try again",
+  "@fraudRetry": {
+    "description": "Retry action on the fraud queue's error state."
+  },
+  "fraudFilterRail": "Which flagged visits",
+  "@fraudFilterRail": {
+    "description": "Screen-reader label for the fraud queue's filter rail."
+  },
+  "fraudFilterOpen": "Open",
+  "@fraudFilterOpen": {
+    "description": "Filter chip for flagged visits nobody has ruled on."
+  },
+  "fraudFilterDecided": "Decided",
+  "@fraudFilterDecided": {
+    "description": "Filter chip for flagged visits that carry a ruling."
+  },
+  "fraudFilterAll": "All",
+  "@fraudFilterAll": {
+    "description": "Filter chip for every flagged visit."
+  },
+  "fraudSectionOpen": "Open",
+  "@fraudSectionOpen": {
+    "description": "Section rule over the open fraud queue."
+  },
+  "fraudSectionDecided": "Decided",
+  "@fraudSectionDecided": {
+    "description": "Section rule over the ruled-on fraud queue."
+  },
+  "fraudSectionAll": "Every flagged visit",
+  "@fraudSectionAll": {
+    "description": "Section rule over the whole fraud queue."
+  },
+  "fraudEmptyLineOpen": "Nothing waiting on a ruling.",
+  "@fraudEmptyLineOpen": {
+    "description": "Section rule's empty line for the open fraud queue."
+  },
+  "fraudEmptyLineDecided": "Nothing ruled on yet.",
+  "@fraudEmptyLineDecided": {
+    "description": "Section rule's empty line for the decided fraud queue."
+  },
+  "fraudEmptyLineAll": "Nothing flagged.",
+  "@fraudEmptyLineAll": {
+    "description": "Section rule's empty line for the whole fraud queue."
+  },
+  "fraudEmptyHeadlineOpen": "Nothing waiting on you.",
+  "@fraudEmptyHeadlineOpen": {
+    "description": "Empty-state headline for the open fraud queue."
+  },
+  "fraudEmptyHeadlineDecided": "No rulings recorded yet.",
+  "@fraudEmptyHeadlineDecided": {
+    "description": "Empty-state headline for the decided fraud queue."
+  },
+  "fraudEmptyHeadlineAll": "Nothing flagged.",
+  "@fraudEmptyHeadlineAll": {
+    "description": "Empty-state headline for the whole fraud queue."
+  },
+  "fraudEmptyBodyOpen": "A visit appears here when the fraud engine scores one above the review threshold. Ruled visits move to Decided.",
+  "@fraudEmptyBodyOpen": {
+    "description": "Empty-state body for the open fraud queue."
+  },
+  "fraudEmptyBodyDecided": "A visit appears here once somebody records a ruling on it.",
+  "@fraudEmptyBodyDecided": {
+    "description": "Empty-state body for the decided fraud queue."
+  },
+  "fraudEmptyBodyAll": "Visits appear here when the fraud engine scores one above the review threshold.",
+  "@fraudEmptyBodyAll": {
+    "description": "Empty-state body for the whole fraud queue."
+  },
+  "fraudFooterShowing": "Showing the {count} riskiest.",
+  "@fraudFooterShowing": {
+    "description": "Pagination footer when the fraud queue holds more than it lists.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudUnscoredNote": "{count, plural, =1{1 submitted visit has not been scored yet and is not listed here.} other{{count} submitted visits have not been scored yet and are not listed here.}}",
+  "@fraudUnscoredNote": {
+    "description": "Says how many submitted visits carry no risk score yet, so a short queue never reads as an all-clear.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fraudUnknownAgent": "Unknown agent",
+  "@fraudUnknownAgent": {
+    "description": "What a flagged row says where the roster does not carry the agent."
+  },
+  "fraudUnnamedOutlet": "Outlet name unavailable",
+  "@fraudUnnamedOutlet": {
+    "description": "What a flagged row says where the outlet list does not carry the shop."
+  },
+  "fraudVisitIdentifier": "Visit",
+  "@fraudVisitIdentifier": {
+    "description": "Label on the raw visit id, shown only where the agent has no name."
+  },
+  "fraudRisk": "Risk {score}",
+  "@fraudRisk": {
+    "description": "The risk figure in a flagged row's trailing lane.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudRiskOf100": "Risk {score} of 100",
+  "@fraudRiskOf100": {
+    "description": "The spoken form of a flagged row's risk figure.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudNotYetReviewed": "Not yet reviewed",
+  "@fraudNotYetReviewed": {
+    "description": "Where a flagged visit stands when nobody has ruled on it."
+  },
+  "fraudVerdictCleared": "Cleared",
+  "@fraudVerdictCleared": {
+    "description": "The ruling that lets a flagged visit stand."
+  },
+  "fraudVerdictConfirmed": "Confirmed",
+  "@fraudVerdictConfirmed": {
+    "description": "The ruling that records a visit as faked."
+  },
+  "fraudVerdictNeedsEvidence": "Needs evidence",
+  "@fraudVerdictNeedsEvidence": {
+    "description": "The ruling that says nobody can tell yet."
+  },
+  "fraudBandHigh": "High risk",
+  "@fraudBandHigh": {
+    "description": "The word for a risk score of 70 or more."
+  },
+  "fraudBandElevated": "Elevated",
+  "@fraudBandElevated": {
+    "description": "The word for a risk score from 50 to 69."
+  },
+  "fraudBandLow": "Low risk",
+  "@fraudBandLow": {
+    "description": "The word for a risk score under 50."
+  },
+  "fraudRuleOnThisVisit": "Rule on this visit",
+  "@fraudRuleOnThisVisit": {
+    "description": "Action that opens the ruling sheet on an unruled visit."
+  },
+  "fraudSeeTheRuling": "See the ruling",
+  "@fraudSeeTheRuling": {
+    "description": "Action that opens the ruling sheet on a visit that already carries one."
+  },
+  "fraudSeeTheVisit": "See the visit",
+  "@fraudSeeTheVisit": {
+    "description": "Action that opens the flagged visit's own record."
+  },
+  "fraudReviewerFallback": "A reviewer",
+  "@fraudReviewerFallback": {
+    "description": "Stands in for the reviewer's name where the record does not carry one."
+  },
+  "fraudRuledIt": "{who} ruled it {verdict}.",
+  "@fraudRuledIt": {
+    "description": "Who ruled on a flagged visit, and what they ruled.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "verdict": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudVerdictClearedPast": "cleared",
+  "@fraudVerdictClearedPast": {
+    "description": "The cleared ruling inside the sentence naming who ruled it."
+  },
+  "fraudVerdictConfirmedPast": "confirmed",
+  "@fraudVerdictConfirmedPast": {
+    "description": "The confirmed ruling inside the sentence naming who ruled it."
+  },
+  "fraudVerdictNeedsEvidencePast": "as needing evidence",
+  "@fraudVerdictNeedsEvidencePast": {
+    "description": "The needs-evidence ruling inside the sentence naming who ruled it."
+  },
+  "fraudSeenUnscored": "The visit was unscored at the time.",
+  "@fraudSeenUnscored": {
+    "description": "Said where a ruling was made against no risk score at all."
+  },
+  "fraudSeenAtRisk": "They were looking at risk {score}.",
+  "@fraudSeenAtRisk": {
+    "description": "The score the reviewer was looking at when they ruled.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudSheetSubtitle": "{outlet} · risk {score} of 100 · {band}",
+  "@fraudSheetSubtitle": {
+    "description": "Subtitle of the ruling sheet: where, how hard, and the band's word.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudWhatEngineFound": "What the engine found",
+  "@fraudWhatEngineFound": {
+    "description": "Section rule over the signals that fired on a flagged visit."
+  },
+  "fraudNoSignalsHeadline": "No signals recorded.",
+  "@fraudNoSignalsHeadline": {
+    "description": "Headline where a flagged visit carries no stored signals."
+  },
+  "fraudNoSignalsBody": "The visit scored above the threshold but the rules that fired were not stored with it. Open the visit to judge it on its own record.",
+  "@fraudNoSignalsBody": {
+    "description": "Body where a flagged visit carries no stored signals."
+  },
+  "fraudYourRuling": "Your ruling",
+  "@fraudYourRuling": {
+    "description": "Label of the verdict control on the ruling sheet."
+  },
+  "fraudRecordThisRuling": "Record this ruling",
+  "@fraudRecordThisRuling": {
+    "description": "The commit that records a ruling on a flagged visit."
+  },
+  "fraudNoteLabel": "Note",
+  "@fraudNoteLabel": {
+    "description": "Label of the note field on the ruling sheet."
+  },
+  "fraudNoteHint": "What you checked, and what you found",
+  "@fraudNoteHint": {
+    "description": "Hint in the ruling sheet's note field."
+  },
+  "fraudNoteHelp": "Whoever reads this decision next sees only what you write here.",
+  "@fraudNoteHelp": {
+    "description": "Help line under the ruling sheet's note field."
+  },
+  "fraudNotChosenLine": "No ruling chosen yet",
+  "@fraudNotChosenLine": {
+    "description": "What the verdict control says before a ruling is chosen."
+  },
+  "fraudChooseFirst": "Choose a ruling first.",
+  "@fraudChooseFirst": {
+    "description": "Why the ruling sheet's commit is not armed yet."
+  },
+  "fraudConsequenceCleared": "The visit stands and leaves the queue. The agent keeps its points.",
+  "@fraudConsequenceCleared": {
+    "description": "What ruling a visit cleared does."
+  },
+  "fraudConsequenceConfirmed": "The work is recorded as faked. This is the one ruling that accuses a person.",
+  "@fraudConsequenceConfirmed": {
+    "description": "What ruling a visit confirmed does."
+  },
+  "fraudConsequenceNeedsEvidence": "Nobody can tell yet. It leaves the open queue and the note is what somebody works from.",
+  "@fraudConsequenceNeedsEvidence": {
+    "description": "What ruling a visit as needing evidence does."
+  },
+  "fraudNeedsEvidenceNoteBecause": "Say what evidence is missing, so somebody can go and get it. \"Needs evidence\" with no note is a visit that was processed rather than reviewed.",
+  "@fraudNeedsEvidenceNoteBecause": {
+    "description": "Why the needs-evidence ruling demands a note."
+  },
+  "fraudNotNow": "Not now",
+  "@fraudNotNow": {
+    "description": "Dismisses the ruling sheet without ruling."
+  },
+  "fraudClose": "Close",
+  "@fraudClose": {
+    "description": "Dismisses the ruling sheet once a ruling stands."
+  },
+  "fraudRulingStands": "The ruling that stands",
+  "@fraudRulingStands": {
+    "description": "Section rule over a flagged visit's standing ruling."
+  },
+  "fraudStandingUnscored": "The visit was unscored at the time, so there is no number behind this decision.",
+  "@fraudStandingUnscored": {
+    "description": "Said on the ruling sheet where a ruling was made against no score."
+  },
+  "fraudStandingAtRisk": "They were looking at risk {score} of 100. A rescore since then does not move the ruling.",
+  "@fraudStandingAtRisk": {
+    "description": "The score a standing ruling was made against.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "fraudRuledOnce": "A visit is ruled once. Reopening it is a change to the record and is not done from here.",
+  "@fraudRuledOnce": {
+    "description": "Why a standing ruling cannot be changed on this sheet."
+  },
+  "leaderboardTitle": "Leaderboard",
+  "@leaderboardTitle": {
+    "description": "Title of the leaderboard screen."
+  },
+  "leaderboardFact": "Points: the average scorecard, plus 5 a closed task and 2 a submitted visit.",
+  "@leaderboardFact": {
+    "description": "Header fact saying what a point is on the leaderboard."
+  },
+  "leaderboardRefresh": "Refresh the leaderboard",
+  "@leaderboardRefresh": {
+    "description": "Screen-reader label for the leaderboard's refresh control."
+  },
+  "leaderboardContests": "Contests",
+  "@leaderboardContests": {
+    "description": "Action that opens the contests route from the leaderboard."
+  },
+  "leaderboardSkeleton": "the leaderboard",
+  "@leaderboardSkeleton": {
+    "description": "What is loading, read as 'Loading the leaderboard'."
+  },
+  "leaderboardRetry": "Try again",
+  "@leaderboardRetry": {
+    "description": "Retry action on the leaderboard's error state."
+  },
+  "leaderboardEmptyHeadline": "Nobody on the board yet.",
+  "@leaderboardEmptyHeadline": {
+    "description": "Headline when the leaderboard holds no agents."
+  },
+  "leaderboardEmptyBody": "Agents appear here once there is a field agent on this client to measure.",
+  "@leaderboardEmptyBody": {
+    "description": "Body of the leaderboard's empty state."
+  },
+  "leaderboardRanked": "Ranked",
+  "@leaderboardRanked": {
+    "description": "Section rule over the agents who have a place this window."
+  },
+  "leaderboardRankedEmptyLine": "Nobody has a place in this window yet.",
+  "@leaderboardRankedEmptyLine": {
+    "description": "Section rule's empty line where nobody is ranked."
+  },
+  "leaderboardNotRanked": "Not ranked yet",
+  "@leaderboardNotRanked": {
+    "description": "Section rule and trailing word for agents nobody has measured."
+  },
+  "leaderboardUnrankedNote": "Nothing measured for these agents in this window — no submitted visit, no closed task, no scorecard. They are not last; nobody has measured them.",
+  "@leaderboardUnrankedNote": {
+    "description": "Why an agent is in the unranked section, so it does not read as a bottom."
+  },
+  "leaderboardRank": "Rank {rank}",
+  "@leaderboardRank": {
+    "description": "An agent's place on the leaderboard.",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      }
+    }
+  },
+  "leaderboardRowTrailing": "Rank {rank}, {points} points",
+  "@leaderboardRowTrailing": {
+    "description": "The spoken form of a ranked agent's rank and payout.",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      },
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsRefresh": "Refresh this points history",
+  "@pointsRefresh": {
+    "description": "Screen-reader label for the points history's refresh control."
+  },
+  "pointsBackToLeaderboard": "Back to the leaderboard",
+  "@pointsBackToLeaderboard": {
+    "description": "Action that returns from one agent's ledger to the board."
+  },
+  "pointsTitle": "Points history",
+  "@pointsTitle": {
+    "description": "Title of the points history before the agent's name has arrived."
+  },
+  "pointsSkeleton": "this points history",
+  "@pointsSkeleton": {
+    "description": "What is loading, read as 'Loading this points history'."
+  },
+  "pointsRetry": "Try again",
+  "@pointsRetry": {
+    "description": "Retry action on the points history's error state."
+  },
+  "pointsLedgerHeading": "Ledger",
+  "@pointsLedgerHeading": {
+    "description": "Section rule over one agent's points entries."
+  },
+  "pointsNothingRecorded": "Nothing recorded yet.",
+  "@pointsNothingRecorded": {
+    "description": "Section rule's empty line on an agent with no ledger entries."
+  },
+  "pointsEmptyHeadline": "No points yet.",
+  "@pointsEmptyHeadline": {
+    "description": "Headline when an agent's ledger is empty."
+  },
+  "pointsEmptyBody": "Entries appear as this agent submits visits, closes tasks and is scored.",
+  "@pointsEmptyBody": {
+    "description": "Body of the points history's empty state."
+  },
+  "pointsTwoFigures": "Two figures for {name}.",
+  "@pointsTwoFigures": {
+    "description": "Screen-reader label for the payout-and-average pair.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsEarnedEyebrow": "Points earned",
+  "@pointsEarnedEyebrow": {
+    "description": "Eyebrow over the payout figure."
+  },
+  "pointsUnitWord": "pts",
+  "@pointsUnitWord": {
+    "description": "The unit worded beside a points figure."
+  },
+  "pointsStateLine": "The average scorecard, plus 5 a closed task and 2 a submitted visit.",
+  "@pointsStateLine": {
+    "description": "What the payout figure is made of."
+  },
+  "pointsPayoutAbsent": "Nothing recorded for this agent in this window.",
+  "@pointsPayoutAbsent": {
+    "description": "Why an unranked agent's payout is an absence rather than a nought."
+  },
+  "pointsAverageEyebrow": "Average scorecard",
+  "@pointsAverageEyebrow": {
+    "description": "Eyebrow over the average scorecard figure."
+  },
+  "pointsNoScoredVisit": "No scored visit in this window.",
+  "@pointsNoScoredVisit": {
+    "description": "Why an agent's average scorecard is an absence rather than a nought."
+  },
+  "pointsCounts": "{visits} visits submitted · {tasks} tasks closed",
+  "@pointsCounts": {
+    "description": "The two counts the payout is built from.",
+    "placeholders": {
+      "visits": {
+        "type": "String"
+      },
+      "tasks": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsFooterSummary": "Showing the {count} newest entries. There are more.",
+  "@pointsFooterSummary": {
+    "description": "Pagination footer on an agent's ledger.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsScored": "scored {score}",
+  "@pointsScored": {
+    "description": "The spoken form of a scorecard ledger entry's figure.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsSpokenPoints": "{points} points",
+  "@pointsSpokenPoints": {
+    "description": "The spoken form of a ledger entry's signed payout.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesTitle": "Incentives",
+  "@incentivesTitle": {
+    "description": "Title of the incentives screen."
+  },
+  "incentivesFact": "A scheme awards points when an agent reaches its threshold on the chosen metric. Paused schemes stop awarding.",
+  "@incentivesFact": {
+    "description": "Header fact saying what an incentive scheme does."
+  },
+  "incentivesRefresh": "Refresh the incentive schemes",
+  "@incentivesRefresh": {
+    "description": "Screen-reader label for the incentives refresh control."
+  },
+  "incentivesSkeleton": "incentive schemes",
+  "@incentivesSkeleton": {
+    "description": "What is loading, read as 'Loading incentive schemes'."
+  },
+  "incentivesRetry": "Try again",
+  "@incentivesRetry": {
+    "description": "Retry action on the incentives error state."
+  },
+  "incentivesAwardingFact": "{awarding} of {total} awarding",
+  "@incentivesAwardingFact": {
+    "description": "How many of the configured schemes are currently awarding.",
+    "placeholders": {
+      "awarding": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesSchemes": "Schemes",
+  "@incentivesSchemes": {
+    "description": "Section rule over the configured incentive schemes."
+  },
+  "incentivesNoneConfigured": "None configured.",
+  "@incentivesNoneConfigured": {
+    "description": "Section rule's empty line where no scheme exists."
+  },
+  "incentivesAddScheme": "Add a scheme",
+  "@incentivesAddScheme": {
+    "description": "Action that opens the scheme form."
+  },
+  "incentivesEmptyHeadline": "No schemes configured.",
+  "@incentivesEmptyHeadline": {
+    "description": "Headline where no incentive scheme exists."
+  },
+  "incentivesEmptyBody": "Add one to start rewarding agents who clear a threshold. Nothing pays out until there is a scheme.",
+  "@incentivesEmptyBody": {
+    "description": "Body of the incentives empty state."
+  },
+  "incentivesAwarding": "Awarding",
+  "@incentivesAwarding": {
+    "description": "The word for a scheme that is currently paying out."
+  },
+  "incentivesPaused": "Paused",
+  "@incentivesPaused": {
+    "description": "The word for a scheme that has stopped paying out."
+  },
+  "incentivesRuleWithUnit": "{state} · {metric} · {threshold} {unit} · {reward}",
+  "@incentivesRuleWithUnit": {
+    "description": "A scheme's rule line where the metric has a unit word.",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      },
+      "metric": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      },
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesRuleNoUnit": "{state} · {metric} · ≥ {threshold} · {reward}",
+  "@incentivesRuleNoUnit": {
+    "description": "A scheme's rule line where the metric key is unknown to this client.",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      },
+      "metric": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      },
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesPauseScheme": "Pause {name}",
+  "@incentivesPauseScheme": {
+    "description": "Screen-reader label for the control that pauses a scheme.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesStartScheme": "Start {name} awarding",
+  "@incentivesStartScheme": {
+    "description": "Screen-reader label for the control that starts a scheme awarding.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesSeeEveryone": "See everyone",
+  "@incentivesSeeEveryone": {
+    "description": "Action that opens every agent's progress toward one reward."
+  },
+  "incentivesDeleteScheme": "Delete this scheme",
+  "@incentivesDeleteScheme": {
+    "description": "Action that deletes an incentive scheme."
+  },
+  "incentivesCouldNotStart": "Could not start {name} awarding.",
+  "@incentivesCouldNotStart": {
+    "description": "Toast when starting a scheme failed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesCouldNotPause": "Could not pause {name}.",
+  "@incentivesCouldNotPause": {
+    "description": "Toast when pausing a scheme failed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesDeleteAction": "Delete {name}?",
+  "@incentivesDeleteAction": {
+    "description": "The question the delete confirmation asks.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesDeleteStops": "It stops awarding immediately.",
+  "@incentivesDeleteStops": {
+    "description": "First consequence of deleting a scheme."
+  },
+  "incentivesDeleteKeeps": "Points already awarded stay on the agents who earned them.",
+  "@incentivesDeleteKeeps": {
+    "description": "Second consequence of deleting a scheme."
+  },
+  "incentivesEarnedSoFar": "{count, plural, =1{1 agent has earned it so far.} other{{count} agents have earned it so far.}}",
+  "@incentivesEarnedSoFar": {
+    "description": "Third consequence of deleting a scheme: who has already earned it.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "incentivesCouldNotDelete": "Could not delete {name}. It is still awarding.",
+  "@incentivesCouldNotDelete": {
+    "description": "Toast when deleting a scheme failed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesUnknownMetric": "This client does not recognise the metric \"{metric}\", so progress toward it cannot be shown here.",
+  "@incentivesUnknownMetric": {
+    "description": "Said where a scheme pays on a metric key this build does not know.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesNoBoard": "No agent figures loaded, so progress toward this reward is not shown.",
+  "@incentivesNoBoard": {
+    "description": "Said where the leaderboard the progress bars read from did not answer."
+  },
+  "incentivesNobodyMeasured": "Nobody has been measured on {metric} in this window, so there is no progress toward this reward to show yet.",
+  "@incentivesNobodyMeasured": {
+    "description": "Said where the board answered but the scheme's own metric can measure nobody on it.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesEverybodyEarned": "Everybody this metric can measure has earned it.",
+  "@incentivesEverybodyEarned": {
+    "description": "Said where every measurable agent has already reached the threshold."
+  },
+  "incentivesClosest": "Closest: {name}",
+  "@incentivesClosest": {
+    "description": "Label on the progress bar naming the agent nearest the reward.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesFractionUnit": "{value} of {threshold} {unit}",
+  "@incentivesFractionUnit": {
+    "description": "How far along a progress bar is, in the metric's own unit.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesFraction": "{value} of {threshold}",
+  "@incentivesFraction": {
+    "description": "How far along a progress bar is where the metric has no unit word.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesRewardAt": "{reward} at {threshold} {unit}",
+  "@incentivesRewardAt": {
+    "description": "The milestone label naming what reaching the threshold awards.",
+    "placeholders": {
+      "reward": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesRewardPoints": "{points} pts",
+  "@incentivesRewardPoints": {
+    "description": "A scheme's reward, in points.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "incentivesEarnedOf": "{count, plural, =1{{earned} of 1 agent has earned it.} other{{earned} of {count} agents have earned it.}}",
+  "@incentivesEarnedOf": {
+    "description": "How many of the agents this metric can measure have reached the threshold. The denominator is who the metric measures, never the board.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "earned": {
+        "type": "String"
+      }
+    }
+  },
+  "incentiveMetricScorecard": "Average scorecard",
+  "@incentiveMetricScorecard": {
+    "description": "The metric that pays on an agent's 0-100 scorecard mean."
+  },
+  "incentiveMetricTasksClosed": "Tasks closed",
+  "@incentiveMetricTasksClosed": {
+    "description": "The metric that pays on a count of closed tasks."
+  },
+  "incentiveMetricVisits": "Visits submitted",
+  "@incentiveMetricVisits": {
+    "description": "The metric that pays on a count of submitted visits."
+  },
+  "incentiveUnitPoints": "points",
+  "@incentiveUnitPoints": {
+    "description": "The unit the average-scorecard threshold is counted in."
+  },
+  "incentiveUnitTasks": "tasks",
+  "@incentiveUnitTasks": {
+    "description": "The unit the tasks-closed threshold is counted in."
+  },
+  "incentiveUnitVisits": "visits",
+  "@incentiveUnitVisits": {
+    "description": "The unit the visits-submitted threshold is counted in."
+  },
+  "schemeFormTitle": "Add a scheme",
+  "@schemeFormTitle": {
+    "description": "Title of the sheet that creates an incentive scheme."
+  },
+  "schemeFormSubtitle": "It starts awarding as soon as it is saved.",
+  "@schemeFormSubtitle": {
+    "description": "Subtitle of the scheme form, saying when it takes effect."
+  },
+  "schemeFormName": "Name",
+  "@schemeFormName": {
+    "description": "Label of the scheme's name field."
+  },
+  "schemeFormNameHint": "What a manager will call it — \"Twenty visits\"",
+  "@schemeFormNameHint": {
+    "description": "Hint in the scheme's name field."
+  },
+  "schemeFormNameError": "Give the scheme a name.",
+  "@schemeFormNameError": {
+    "description": "Refusal where the scheme has no name."
+  },
+  "schemeFormMetricLabel": "What it pays on",
+  "@schemeFormMetricLabel": {
+    "description": "Label of the metric choice on the scheme form."
+  },
+  "schemeFormMetricNotAnswered": "No metric chosen yet",
+  "@schemeFormMetricNotAnswered": {
+    "description": "What the metric choice says before one is chosen."
+  },
+  "schemeFormMetricError": "Choose what the scheme pays on.",
+  "@schemeFormMetricError": {
+    "description": "Refusal where no metric is chosen."
+  },
+  "schemeFormScorecardConsequence": "Pays when the agent's 0–100 mean clears the threshold.",
+  "@schemeFormScorecardConsequence": {
+    "description": "What choosing the average-scorecard metric means."
+  },
+  "schemeFormTasksConsequence": "Pays on a count of closures.",
+  "@schemeFormTasksConsequence": {
+    "description": "What choosing the tasks-closed metric means."
+  },
+  "schemeFormVisitsConsequence": "Pays on a count of submitted visits.",
+  "@schemeFormVisitsConsequence": {
+    "description": "What choosing the visits-submitted metric means."
+  },
+  "schemeFormThreshold": "Threshold",
+  "@schemeFormThreshold": {
+    "description": "Label of the scheme's threshold field."
+  },
+  "schemeFormThresholdHelp": "What an agent has to reach.",
+  "@schemeFormThresholdHelp": {
+    "description": "Help under the threshold field before a metric is chosen."
+  },
+  "schemeFormThresholdHelpUnit": "What an agent has to reach, in {unit}.",
+  "@schemeFormThresholdHelpUnit": {
+    "description": "Help under the threshold field once a metric is chosen.",
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "schemeFormThresholdError": "Say the figure an agent has to reach.",
+  "@schemeFormThresholdError": {
+    "description": "Refusal where the threshold is not a number."
+  },
+  "schemeFormThresholdZero": "A threshold of nought is a scheme that pays out to everybody the moment it is created.",
+  "@schemeFormThresholdZero": {
+    "description": "Refusal where the threshold is zero or less."
+  },
+  "schemeFormReward": "Reward",
+  "@schemeFormReward": {
+    "description": "Label of the scheme's reward field."
+  },
+  "schemeFormRewardHelp": "What clearing it awards.",
+  "@schemeFormRewardHelp": {
+    "description": "Help under the reward field."
+  },
+  "schemeFormRewardError": "Say how many points it awards.",
+  "@schemeFormRewardError": {
+    "description": "Refusal where the reward is not a number."
+  },
+  "schemeFormRewardZero": "A reward of nought is not a reward.",
+  "@schemeFormRewardZero": {
+    "description": "Refusal where the reward is zero or less."
+  },
+  "schemeFormSave": "Save this scheme",
+  "@schemeFormSave": {
+    "description": "The commit that creates the scheme."
+  },
+  "schemeFormBlocked": "A scheme needs a name, a metric, a threshold and a reward.",
+  "@schemeFormBlocked": {
+    "description": "Why the scheme form's commit is not armed yet."
+  },
+  "schemeFormNotNow": "Not now",
+  "@schemeFormNotNow": {
+    "description": "Dismisses the scheme form without creating anything."
+  },
+  "schemeProgressEveryone": "Everyone",
+  "@schemeProgressEveryone": {
+    "description": "Section rule over every agent's progress toward one reward."
+  },
+  "schemeProgressSubtitle": "{metric} · {reward}",
+  "@schemeProgressSubtitle": {
+    "description": "Subtitle of the everyone-sheet: the metric and what it awards.",
+    "placeholders": {
+      "metric": {
+        "type": "String"
+      },
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "schemeProgressEmptyHeadline": "No agent figures loaded.",
+  "@schemeProgressEmptyHeadline": {
+    "description": "Headline where the board the sheet reads from did not answer."
+  },
+  "schemeProgressEmptyBody": "Progress toward this reward is read from the board, and the board has not answered.",
+  "@schemeProgressEmptyBody": {
+    "description": "Body where the board the sheet reads from did not answer."
+  },
+  "schemeProgressUnmeasured": "Not measured on this metric yet.",
+  "@schemeProgressUnmeasured": {
+    "description": "Said of an agent the scheme's metric cannot answer for."
+  },
+  "schemeProgressEarned": "Earned",
+  "@schemeProgressEarned": {
+    "description": "The word on a progress bar that has reached its reward."
+  },
+  "schemeProgressNobodyMeasured": "Nobody above has been measured on this metric in this window, so there is nothing to count yet.",
+  "@schemeProgressNobodyMeasured": {
+    "description": "Said in place of a fraction where the metric can measure nobody listed."
+  },
+  "schemeProgressClose": "Close",
+  "@schemeProgressClose": {
+    "description": "Dismisses the everyone-sheet."
   }
 }
