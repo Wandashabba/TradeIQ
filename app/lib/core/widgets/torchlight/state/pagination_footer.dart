@@ -54,7 +54,15 @@ class PaginationFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final lines = <String>[summary, ?narrowLine, ?unscoredNote];
+    // A blank string is not a line. The unscored note is honest on its own —
+    // a queue that was NOT cut but still has visits nobody scored has
+    // something to own up to and no summary to lead with — and an empty
+    // `Text('')` there would render as a gap above the sentence that matters.
+    final lines = <String>[
+      summary,
+      ?narrowLine,
+      ?unscoredNote,
+    ].where((line) => line.trim().isNotEmpty).toList();
 
     // The words are one utterance; the action is NOT inside it. An
     // `excludeSemantics` node drops every descendant node, so an action

@@ -209,29 +209,19 @@ class _TorchProgressBarState extends State<TorchProgressBar>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: skin.text.label.style(color: p.ink2),
-                ),
-              ),
-              const SizedBox(width: TiqSpace.s2),
-              // THE FRACTION IS ALWAYS TEXT. Even at zero — "0/9" is
-              // information, and a hidden bar is not.
-              Text(
-                complete
-                    ? widget.doneWord
-                    : _indeterminate
-                    ? widget.workingWord
-                    : (fractionLine ?? ''),
-                style: complete
-                    ? skin.text.bodyStrong.style(color: p.good)
-                    : skin.text.figureS.style(color: p.ink2),
-              ),
-            ],
+          _Heading(
+            label: widget.label,
+            labelStyle: skin.text.label.style(color: p.ink2),
+            // THE FRACTION IS ALWAYS TEXT. Even at zero — "0/9" is
+            // information, and a hidden bar is not.
+            figure: complete
+                ? widget.doneWord
+                : _indeterminate
+                ? widget.workingWord
+                : (fractionLine ?? ''),
+            figureStyle: complete
+                ? skin.text.bodyStrong.style(color: p.good)
+                : skin.text.figureS.style(color: p.ink2),
           ),
           const SizedBox(height: TiqSpace.s2),
           if (veldWorking)
@@ -286,6 +276,83 @@ class _TorchProgressBarState extends State<TorchProgressBar>
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The bar's own heading: what is progressing, and how far.
+///
+/// **Measured, then stacked** — never a `Row` that assumes both fit. "Closest:
+/// Thandi Mokoena" beside "14 of 20 visits" is about 360dp of type at 2.0x on
+/// a 360dp phone, and the Row this replaced ran 160dp off the right edge at
+/// exactly the setting whose reader needed it most. Neither side may shrink:
+/// the fraction is the bar's only statement in words and the label names whose
+/// progress it is, so when they will not sit side by side the figure drops
+/// beneath and both stay whole.
+class _Heading extends StatelessWidget {
+  const _Heading({
+    required this.label,
+    required this.labelStyle,
+    required this.figure,
+    required this.figureStyle,
+  });
+
+  final String label;
+  final TextStyle labelStyle;
+  final String figure;
+  final TextStyle figureStyle;
+
+  static double _widthOf(
+    String text,
+    TextStyle style,
+    TextScaler scaler,
+    TextDirection direction,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final direction = Directionality.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fits =
+            constraints.maxWidth.isFinite &&
+            _widthOf(label, labelStyle, scaler, direction) +
+                    TiqSpace.s2 +
+                    _widthOf(figure, figureStyle, scaler, direction) <=
+                constraints.maxWidth;
+
+        if (fits) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: Text(label, style: labelStyle)),
+              const SizedBox(width: TiqSpace.s2),
+              Text(figure, style: figureStyle),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(label, style: labelStyle),
+            const SizedBox(height: TiqSpace.s1),
+            Text(figure, style: figureStyle),
+          ],
+        );
+      },
     );
   }
 }

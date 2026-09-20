@@ -92,6 +92,10 @@ MyEarnings earningsFixture({
     // beside it, and that is the one the screen reads.
     rank: rank ?? 1,
     avgScorecard: avgScorecard,
+    // A figure with a sample behind it: the board's own rows now say how many
+    // scorecards their mean is of, so an unscored agent is told apart from
+    // one who scored nothing.
+    scorecardsCounted: 4,
     points: points,
   ),
   rank: rank,
