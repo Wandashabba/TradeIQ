@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_kit.dart' show formatAgo;
 import '../../../core/widgets/torchlight/bleed.dart';
@@ -63,6 +64,7 @@ class AgentPointsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final history = ref.watch(agentPointsProvider(agentId));
     final canPop = ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
 
@@ -103,7 +105,7 @@ class AgentPointsScreen extends ConsumerWidget {
         trailing: TorchIconButton(
           key: const ValueKey<String>('points-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh this points history',
+          semanticLabel: l10n.pointsRefresh,
           onPressed: refresh,
         ),
       ),
@@ -112,7 +114,7 @@ class AgentPointsScreen extends ConsumerWidget {
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
             key: const ValueKey<String>('points-back-to-leaderboard'),
-            label: 'Back to the leaderboard',
+            label: l10n.pointsBackToLeaderboard,
             onPressed: back,
           ),
         ),
@@ -124,18 +126,18 @@ class AgentPointsScreen extends ConsumerWidget {
     return history.when(
       loading: () => frame(
         phase: 'loading',
-        title: 'Points history',
+        title: l10n.pointsTitle,
         facts: const <String>[],
         children: <Widget>[
           Skeleton(
-            label: 'this points history',
+            label: l10n.pointsSkeleton,
             child: const SkeletonRows(count: 5, rowHeight: 64),
           ),
         ],
       ),
       error: (error, stack) => frame(
         phase: 'error',
-        title: 'Points history',
+        title: l10n.pointsTitle,
         facts: const <String>[],
         children: <Widget>[
           TorchErrorRegion(
@@ -144,7 +146,7 @@ class AgentPointsScreen extends ConsumerWidget {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('points-retry'),
-                label: 'Try again',
+                label: l10n.pointsRetry,
                 onPressed: refresh,
               ),
             ),
@@ -161,9 +163,13 @@ class AgentPointsScreen extends ConsumerWidget {
           // whose record they opened.
           title: h.label,
           facts: <String>[
-            'Field agent',
-            if (standing?.rank != null) 'Rank ${standing!.rank}',
-            if (standing != null && standing.rank == null) 'Not ranked yet',
+            l10n.roleFieldAgent,
+            if (standing?.rank != null)
+              l10n.leaderboardRank(
+                TiqNumber.of(context).format(standing!.rank!),
+              ),
+            if (standing != null && standing.rank == null)
+              l10n.leaderboardNotRanked,
           ],
           children: <Widget>[
             if (standing != null) ...<Widget>[
@@ -171,18 +177,17 @@ class AgentPointsScreen extends ConsumerWidget {
               const SizedBox(height: TiqSpace.s7),
             ],
             SectionRule(
-              'Ledger',
+              l10n.pointsLedgerHeading,
               count: entries.isEmpty ? null : entries.length,
-              emptyLine: entries.isEmpty ? 'Nothing recorded yet.' : null,
+              emptyLine: entries.isEmpty ? l10n.pointsNothingRecorded : null,
             ),
             const SizedBox(height: TiqSpace.s5),
             if (entries.isEmpty)
-              const EmptyState(
-                key: ValueKey<String>('points-empty'),
+              EmptyState(
+                key: const ValueKey<String>('points-empty'),
                 scope: EmptyScope.inPanel,
-                headline: 'No points yet.',
-                body: 'Entries appear as this agent submits visits, closes '
-                    'tasks and is scored.',
+                headline: l10n.pointsEmptyHeadline,
+                body: l10n.pointsEmptyBody,
               )
             else
               _Ledger(entries: entries, hasMore: h.nextCursor != null),
@@ -201,6 +206,7 @@ class _Standing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final scored = entry.scorecardsCounted;
@@ -209,11 +215,11 @@ class _Standing extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         StatCluster(
-          semanticsLabel: 'Two figures for ${entry.label}.',
+          semanticsLabel: l10n.pointsTwoFigures(entry.label),
           tiles: <StatTile>[
             StatTile(
               key: const ValueKey<String>('points-total'),
-              eyebrow: 'Points earned',
+              eyebrow: l10n.pointsEarnedEyebrow,
               // The board refuses to print this number for an unranked agent
               // and so does this screen: `points` is 0 for them because the
               // window holds no ledger entry at all, which is an absence and
@@ -221,27 +227,22 @@ class _Standing extends StatelessWidget {
               // the entry rather than each making their own (#464).
               value: entry.measuredPoints,
               decimals: 0,
-              unit: TiqUnit.worded('pts'),
+              unit: TiqUnit.worded(l10n.pointsUnitWord),
               noDataReason: entry.payoutIsMeasured
                   ? null
-                  : LeaderboardEntry.payoutAbsentReason,
+                  : l10n.pointsPayoutAbsent,
               // A payout has no 0–100 scale, so it gets no meter. The average
               // beneath it does, and the difference is the point.
-              stateLine: entry.payoutIsMeasured
-                  ? 'The average scorecard, plus 5 a closed task and 2 a '
-                        'submitted visit.'
-                  : null,
+              stateLine: entry.payoutIsMeasured ? l10n.pointsStateLine : null,
             ),
             StatTile(
               key: const ValueKey<String>('points-average'),
-              eyebrow: 'Average scorecard',
+              eyebrow: l10n.pointsAverageEyebrow,
               // mean([]) is 0 on the wire. Zero scorecards is an absence, not
               // a score of nought, and the two must not render alike.
               value: scored == 0 ? null : entry.avgScorecard,
               decimals: 1,
-              noDataReason: scored == 0
-                  ? 'No scored visit in this window.'
-                  : null,
+              noDataReason: scored == 0 ? l10n.pointsNoScoredVisit : null,
               sampling: FigureSampling(
                 kind: MetricKind.average,
                 n: scored,
@@ -254,8 +255,10 @@ class _Standing extends StatelessWidget {
         ),
         const SizedBox(height: TiqSpace.s4),
         Text(
-          '${numbers.format(entry.visitsSubmitted)} visits submitted · '
-          '${numbers.format(entry.tasksClosed)} tasks closed',
+          l10n.pointsCounts(
+            numbers.format(entry.visitsSubmitted),
+            numbers.format(entry.tasksClosed),
+          ),
           key: const ValueKey<String>('points-counts'),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
@@ -272,6 +275,7 @@ class _Ledger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     return Column(
@@ -297,9 +301,9 @@ class _Ledger extends StatelessWidget {
             extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('points-footer'),
-              summary: 'Showing the '
-                  '${numbers.format(entries.length)} newest entries. '
-                  'There are more.',
+              summary: l10n.pointsFooterSummary(
+                numbers.format(entries.length),
+              ),
             ),
           ),
         ],
@@ -325,9 +329,10 @@ class PointsEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
-    final when = formatAgo(entry.occurredAt);
+    final when = formatAgo(entry.occurredAt, l10n);
     // A scorecard entry earns no points of its own — the board averages the
     // score — so the figure it shows is the score that feeds that average,
     // and it is not a signed payout.
@@ -335,14 +340,17 @@ class PointsEntryRow extends StatelessWidget {
     final value = isScorecard ? entry.score! : entry.points;
     final unit = isScorecard
         ? TiqUnit.none
-        : TiqUnit.worded('pts');
+        : TiqUnit.worded(l10n.pointsUnitWord);
     final spoken = isScorecard
-        ? 'scored ${numbers.format(entry.score!)}'
-        : '${numbers.format(entry.points, signed: true)} points';
+        ? l10n.pointsScored(numbers.format(entry.score!))
+        : l10n.pointsSpokenPoints(
+            numbers.format(entry.points, signed: true),
+          );
+    final reason = pointsReasonLabel(l10n, entry);
 
     return SoftRow(
       density: SoftRowDensity.standard,
-      title: entry.reasonLabel,
+      title: reason,
       subtitle: entry.outletName,
       meta: Text(when),
       trailing: FigureSlot(
@@ -357,7 +365,7 @@ class PointsEntryRow extends StatelessWidget {
       // The row is one node and excludes what is under it, so the figure and
       // the age are spelled here or they are never spoken.
       semanticsLabel: <String?>[
-        entry.reasonLabel,
+        reason,
         spoken,
         entry.outletName,
         when,

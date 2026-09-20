@@ -6248,4 +6248,72 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get schemeProgressClose => 'Maak toe';
+
+  @override
+  String get liveStateAtStore => 'By winkel';
+
+  @override
+  String get liveStateNearStore => 'Naby winkel';
+
+  @override
+  String get liveStateInTransit => 'Onderweg';
+
+  @override
+  String get liveStateStale => 'Verouderd';
+
+  @override
+  String get liveStateOffline => 'Aflyn';
+
+  @override
+  String get liveStateNotSharing => 'Deel nie';
+
+  @override
+  String liveAgeSeconds(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String liveAgeMinutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String liveAgeHours(String hours) {
+    return '$hours u';
+  }
+
+  @override
+  String liveAgeHoursMinutes(String hours, String minutes) {
+    return '$hours u $minutes min';
+  }
+
+  @override
+  String liveAgeDays(String days) {
+    return '$days d';
+  }
+
+  @override
+  String liveAtOutlet(String outlet) {
+    return 'by $outlet';
+  }
+
+  @override
+  String liveNearOutlet(String outlet) {
+    return 'naby $outlet';
+  }
+
+  @override
+  String liveAgeOld(String age) {
+    return '$age oud';
+  }
+
+  @override
+  String trailPinLabel(
+    String agent,
+    String ordinal,
+    String outlet,
+    String time,
+  ) {
+    return '$agent, stop $ordinal, $outlet, $time';
+  }
 }

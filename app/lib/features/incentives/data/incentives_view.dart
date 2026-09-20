@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../gamification/data/gamification_repository.dart';
 import 'incentives_repository.dart';
 
@@ -10,19 +11,27 @@ import 'incentives_repository.dart';
 /// "tasks closed" — and so a key this client has not been taught is shown as
 /// the key rather than being silently dropped or renamed.
 enum IncentiveMetric {
-  scorecard('scorecard', 'Average scorecard', 'points'),
-  tasksClosed('tasks_closed', 'Tasks closed', 'tasks'),
-  visits('visits', 'Visits submitted', 'visits');
+  scorecard('scorecard'),
+  tasksClosed('tasks_closed'),
+  visits('visits');
 
-  const IncentiveMetric(this.wire, this.label, this.unitWord);
+  const IncentiveMetric(this.wire);
 
   final String wire;
 
-  /// What a manager calls it.
-  final String label;
+  /// What a manager calls it, in their own language.
+  String label(AppLocalizations l10n) => switch (this) {
+        IncentiveMetric.scorecard => l10n.incentiveMetricScorecard,
+        IncentiveMetric.tasksClosed => l10n.incentiveMetricTasksClosed,
+        IncentiveMetric.visits => l10n.incentiveMetricVisits,
+      };
 
-  /// The unit the threshold is counted in.
-  final String unitWord;
+  /// The unit the threshold is counted in, in their own language.
+  String unitWord(AppLocalizations l10n) => switch (this) {
+        IncentiveMetric.scorecard => l10n.incentiveUnitPoints,
+        IncentiveMetric.tasksClosed => l10n.incentiveUnitTasks,
+        IncentiveMetric.visits => l10n.incentiveUnitVisits,
+      };
 
   static IncentiveMetric? fromWire(String value) {
     for (final metric in IncentiveMetric.values) {

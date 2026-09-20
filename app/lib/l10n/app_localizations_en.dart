@@ -6189,4 +6189,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get schemeProgressClose => 'Close';
+
+  @override
+  String get liveStateAtStore => 'At store';
+
+  @override
+  String get liveStateNearStore => 'Near store';
+
+  @override
+  String get liveStateInTransit => 'In transit';
+
+  @override
+  String get liveStateStale => 'Stale';
+
+  @override
+  String get liveStateOffline => 'Offline';
+
+  @override
+  String get liveStateNotSharing => 'Not sharing';
+
+  @override
+  String liveAgeSeconds(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String liveAgeMinutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String liveAgeHours(String hours) {
+    return '$hours h';
+  }
+
+  @override
+  String liveAgeHoursMinutes(String hours, String minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String liveAgeDays(String days) {
+    return '$days d';
+  }
+
+  @override
+  String liveAtOutlet(String outlet) {
+    return 'at $outlet';
+  }
+
+  @override
+  String liveNearOutlet(String outlet) {
+    return 'near $outlet';
+  }
+
+  @override
+  String liveAgeOld(String age) {
+    return '$age old';
+  }
+
+  @override
+  String trailPinLabel(
+    String agent,
+    String ordinal,
+    String outlet,
+    String time,
+  ) {
+    return '$agent, stop $ordinal, $outlet, $time';
+  }
 }

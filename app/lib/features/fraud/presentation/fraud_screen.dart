@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -95,6 +96,7 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final view = ref.watch(fraudViewProvider(_filter));
 
     Widget frame({required String phase, required List<Widget> children}) =>
@@ -102,14 +104,12 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
           phase: phase,
           active: ConsoleSlot.menu,
           header: TorchAppHeader(
-            title: 'Fraud review',
-            facts: const <String>[
-              'Risk is scored 0–100 on submit. The signals are the evidence.',
-            ],
+            title: l10n.fraudTitle,
+            facts: <String>[l10n.fraudFact],
             trailing: TorchIconButton(
               key: const ValueKey<String>('fraud-refresh'),
               icon: Icons.refresh,
-              semanticLabel: 'Refresh the review queue',
+              semanticLabel: l10n.fraudRefresh,
               onPressed: _refresh,
             ),
           ),
@@ -131,7 +131,7 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'flagged visits',
+            label: l10n.fraudSkeleton,
             child: const SkeletonRows(count: 4, rowHeight: 80),
           ),
         ],
@@ -145,7 +145,7 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('fraud-retry'),
-                label: 'Try again',
+                label: l10n.fraudRetry,
                 onPressed: _refresh,
               ),
             ),
@@ -160,23 +160,24 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
   }
 
   List<Widget> _body(FraudView view) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
-    final unscored = view.unscoredNote(numbers.format);
+    final unscored = view.unscoredNote(l10n);
 
     return <Widget>[
       SectionRule(
-        _sectionName(),
+        _sectionName(l10n),
         count: view.rows.isEmpty ? null : view.rows.length,
-        emptyLine: view.rows.isEmpty ? _emptyLine() : null,
+        emptyLine: view.rows.isEmpty ? _emptyLine(l10n) : null,
       ),
       const SizedBox(height: TiqSpace.s5),
       if (view.rows.isEmpty)
         EmptyState(
           key: const ValueKey<String>('fraud-empty'),
           scope: EmptyScope.inPanel,
-          headline: _emptyHeadline(),
-          body: _emptyBody(),
+          headline: _emptyHeadline(l10n),
+          body: _emptyBody(l10n),
         )
       else
         TorchBleed(
@@ -204,7 +205,7 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
           child: PaginationFooter(
             key: const ValueKey<String>('fraud-footer'),
             summary: view.hasMore
-                ? 'Showing the ${numbers.format(view.rows.length)} riskiest.'
+                ? l10n.fraudFooterShowing(numbers.format(view.rows.length))
                 : '',
             unscoredNote: unscored,
           ),
@@ -213,33 +214,28 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
     ];
   }
 
-  String _sectionName() => switch (_filter) {
-    FlaggedReviewFilter.open => 'Open',
-    FlaggedReviewFilter.decided => 'Decided',
-    FlaggedReviewFilter.all => 'Every flagged visit',
+  String _sectionName(AppLocalizations l10n) => switch (_filter) {
+    FlaggedReviewFilter.open => l10n.fraudSectionOpen,
+    FlaggedReviewFilter.decided => l10n.fraudSectionDecided,
+    FlaggedReviewFilter.all => l10n.fraudSectionAll,
   };
 
-  String _emptyLine() => switch (_filter) {
-    FlaggedReviewFilter.open => 'Nothing waiting on a ruling.',
-    FlaggedReviewFilter.decided => 'Nothing ruled on yet.',
-    FlaggedReviewFilter.all => 'Nothing flagged.',
+  String _emptyLine(AppLocalizations l10n) => switch (_filter) {
+    FlaggedReviewFilter.open => l10n.fraudEmptyLineOpen,
+    FlaggedReviewFilter.decided => l10n.fraudEmptyLineDecided,
+    FlaggedReviewFilter.all => l10n.fraudEmptyLineAll,
   };
 
-  String _emptyHeadline() => switch (_filter) {
-    FlaggedReviewFilter.open => 'Nothing waiting on you.',
-    FlaggedReviewFilter.decided => 'No rulings recorded yet.',
-    FlaggedReviewFilter.all => 'Nothing flagged.',
+  String _emptyHeadline(AppLocalizations l10n) => switch (_filter) {
+    FlaggedReviewFilter.open => l10n.fraudEmptyHeadlineOpen,
+    FlaggedReviewFilter.decided => l10n.fraudEmptyHeadlineDecided,
+    FlaggedReviewFilter.all => l10n.fraudEmptyHeadlineAll,
   };
 
-  String _emptyBody() => switch (_filter) {
-    FlaggedReviewFilter.open =>
-      'A visit appears here when the fraud engine scores one above the review '
-          'threshold. Ruled visits move to Decided.',
-    FlaggedReviewFilter.decided =>
-      'A visit appears here once somebody records a ruling on it.',
-    FlaggedReviewFilter.all =>
-      'Visits appear here when the fraud engine scores one above the review '
-          'threshold.',
+  String _emptyBody(AppLocalizations l10n) => switch (_filter) {
+    FlaggedReviewFilter.open => l10n.fraudEmptyBodyOpen,
+    FlaggedReviewFilter.decided => l10n.fraudEmptyBodyDecided,
+    FlaggedReviewFilter.all => l10n.fraudEmptyBodyAll,
   };
 }
 
@@ -255,24 +251,25 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return TorchFilterRail(
-      semanticsLabel: 'Which flagged visits',
+      semanticsLabel: l10n.fraudFilterRail,
       chips: <Widget>[
         TorchFilterChip(
           key: const ValueKey<String>('fraud-filter-open'),
-          label: 'Open',
+          label: l10n.fraudFilterOpen,
           selected: filter == FlaggedReviewFilter.open,
           onSelected: () => onFilter(FlaggedReviewFilter.open),
         ),
         TorchFilterChip(
           key: const ValueKey<String>('fraud-filter-decided'),
-          label: 'Decided',
+          label: l10n.fraudFilterDecided,
           selected: filter == FlaggedReviewFilter.decided,
           onSelected: () => onFilter(FlaggedReviewFilter.decided),
         ),
         TorchFilterChip(
           key: const ValueKey<String>('fraud-filter-all'),
-          label: 'All',
+          label: l10n.fraudFilterAll,
           selected: filter == FlaggedReviewFilter.all,
           onSelected: () => onFilter(FlaggedReviewFilter.all),
         ),
@@ -303,13 +300,14 @@ class _FlaggedRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final score = numbers.format(row.riskScore, decimals: 0);
     final verdict = row.verdict;
     final standing = verdict == null
-        ? 'Not yet reviewed'
-        : _verdictWord(verdict.kind);
+        ? l10n.fraudNotYetReviewed
+        : verdictWord(l10n, verdict.kind);
 
     void openSheet() =>
         showVerdictSheet(context, ref, row: row, onRuled: onRuled);
@@ -324,28 +322,32 @@ class _FlaggedRow extends ConsumerWidget {
       // the visit reference drops to its own line in the mono identifier
       // face: the one place a raw id belongs, because it is then the only
       // fact there is.
-      role: row.agentName == null ? FraudView.unknownAgent : 'Field agent',
-      outlet: row.outletName,
+      role: row.agentName == null
+          ? l10n.fraudUnknownAgent
+          : l10n.roleFieldAgent,
+      outlet: row.outletLabel(l10n),
       identifier: row.agentName == null ? row.visitId : null,
-      identifierLabel: row.agentName == null ? 'Visit' : null,
+      identifierLabel: row.agentName == null
+          ? l10n.fraudVisitIdentifier
+          : null,
       // Crimson at two commitment levels, and the band's WORD beside it. A
       // score under the review threshold takes no bar at all: the lane is
       // still reserved, so the column does not shift.
       severity: row.band.severity,
-      severityLabel: row.band.word,
+      severityLabel: row.band.word(l10n),
       trailing: Text(
-        'Risk $score',
+        l10n.fraudRisk(score),
         textAlign: TextAlign.end,
         maxLines: 2,
         style: skin.text.figureS.style(color: skin.palette.ink2),
       ),
-      trailingLabel: 'Risk $score of 100',
+      trailingLabel: l10n.fraudRiskOf100(score),
       meta: _Evidence(row: row, standing: standing),
       metaLabel: <String>[
         standing,
         if (row.codes.isNotEmpty) row.codes,
         if (row.evidence.isNotEmpty) row.evidence,
-        if (verdict != null) _standingSentence(verdict, numbers),
+        if (verdict != null) standingSentence(l10n, verdict, numbers),
       ].join('. '),
       actions: Wrap(
         spacing: TiqSpace.s4,
@@ -353,12 +355,14 @@ class _FlaggedRow extends ConsumerWidget {
         children: <Widget>[
           TorchTertiaryButton(
             key: ValueKey<String>('fraud-rule-${row.visitId}'),
-            label: verdict == null ? 'Rule on this visit' : 'See the ruling',
+            label: verdict == null
+                ? l10n.fraudRuleOnThisVisit
+                : l10n.fraudSeeTheRuling,
             onPressed: openSheet,
           ),
           TorchTertiaryButton(
             key: ValueKey<String>('view-visit-${row.visitId}'),
-            label: 'See the visit',
+            label: l10n.fraudSeeTheVisit,
             onPressed: () => context.push('/visits/${row.visitId}'),
           ),
         ],
@@ -367,26 +371,46 @@ class _FlaggedRow extends ConsumerWidget {
     );
   }
 
-  static String _verdictWord(FraudVerdictKind kind) => switch (kind) {
-    FraudVerdictKind.cleared => 'Cleared',
-    FraudVerdictKind.confirmed => 'Confirmed',
-    FraudVerdictKind.needsEvidence => 'Needs evidence',
-  };
+}
 
-  /// Who ruled, what they ruled, and the score they were looking at when they
-  /// did — because a rescore can move the number afterwards and a clearing
-  /// read later must not look as though it was made against a figure nobody
-  /// ever saw.
-  static String _standingSentence(FraudVerdict verdict, TiqNumber numbers) {
-    final at = verdict.riskScoreAtReview;
-    final who = verdict.reviewerLabel.isEmpty
-        ? 'A reviewer'
-        : verdict.reviewerLabel;
-    final seen = at == null
-        ? ' The visit was unscored at the time.'
-        : ' They were looking at risk ${numbers.format(at)}.';
-    return '$who ruled it ${_verdictWord(verdict.kind).toLowerCase()}.$seen';
-  }
+/// A ruling, as the word that names it.
+String verdictWord(AppLocalizations l10n, FraudVerdictKind kind) =>
+    switch (kind) {
+      FraudVerdictKind.cleared => l10n.fraudVerdictCleared,
+      FraudVerdictKind.confirmed => l10n.fraudVerdictConfirmed,
+      FraudVerdictKind.needsEvidence => l10n.fraudVerdictNeedsEvidence,
+    };
+
+/// The same ruling inside a sentence about who made it.
+///
+/// A separate key rather than `.toLowerCase()` on the standalone word: the
+/// English pair happens to differ only in case, and Afrikaans does not —
+/// "Kort bewyse" becomes "gemerk as kort aan bewyse" in a sentence, which no
+/// case transform produces.
+String verdictWordInSentence(AppLocalizations l10n, FraudVerdictKind kind) =>
+    switch (kind) {
+      FraudVerdictKind.cleared => l10n.fraudVerdictClearedPast,
+      FraudVerdictKind.confirmed => l10n.fraudVerdictConfirmedPast,
+      FraudVerdictKind.needsEvidence => l10n.fraudVerdictNeedsEvidencePast,
+    };
+
+/// Who ruled, what they ruled, and the score they were looking at when they
+/// did — because a rescore can move the number afterwards and a clearing read
+/// later must not look as though it was made against a figure nobody ever saw.
+String standingSentence(
+  AppLocalizations l10n,
+  FraudVerdict verdict,
+  TiqNumber numbers,
+) {
+  final at = verdict.riskScoreAtReview;
+  final who = verdict.reviewerLabel.isEmpty
+      ? l10n.fraudReviewerFallback
+      : verdict.reviewerLabel;
+  final seen = at == null
+      ? l10n.fraudSeenUnscored
+      : l10n.fraudSeenAtRisk(numbers.format(at));
+  return '${l10n.fraudRuledIt(who, verdictWordInSentence(l10n, verdict.kind))} '
+      '$seen';
 }
 
 /// What the rules found, under the person it is about.
@@ -403,6 +427,7 @@ class _Evidence extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final verdict = row.verdict;
@@ -414,7 +439,7 @@ class _Evidence extends StatelessWidget {
         FlagChip(
           key: ValueKey<String>('fraud-flag-${row.visitId}'),
           kind: FlagKind.forReview,
-          label: row.band.word,
+          label: row.band.word(l10n),
           detail: standing,
           cleared: verdict?.kind == FraudVerdictKind.cleared,
         ),
@@ -433,7 +458,7 @@ class _Evidence extends StatelessWidget {
         if (verdict != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s1),
           Text(
-            _FlaggedRow._standingSentence(verdict, numbers),
+            standingSentence(l10n, verdict, numbers),
             key: ValueKey<String>('fraud-verdict-${row.visitId}'),
           ),
         ],

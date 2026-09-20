@@ -1605,5 +1605,20 @@
   "schemeProgressUnmeasured": "Nog nie op hierdie maatstaf gemeet nie.",
   "schemeProgressEarned": "Verdien",
   "schemeProgressNobodyMeasured": "Niemand hierbo is in hierdie venster op hierdie maatstaf gemeet nie, so daar is nog niks om te tel nie.",
-  "schemeProgressClose": "Maak toe"
+  "schemeProgressClose": "Maak toe",
+  "liveStateAtStore": "By winkel",
+  "liveStateNearStore": "Naby winkel",
+  "liveStateInTransit": "Onderweg",
+  "liveStateStale": "Verouderd",
+  "liveStateOffline": "Aflyn",
+  "liveStateNotSharing": "Deel nie",
+  "liveAgeSeconds": "{seconds}s",
+  "liveAgeMinutes": "{minutes} min",
+  "liveAgeHours": "{hours} u",
+  "liveAgeHoursMinutes": "{hours} u {minutes} min",
+  "liveAgeDays": "{days} d",
+  "liveAtOutlet": "by {outlet}",
+  "liveNearOutlet": "naby {outlet}",
+  "liveAgeOld": "{age} oud",
+  "trailPinLabel": "{agent}, stop {ordinal}, {outlet}, {time}"
 }

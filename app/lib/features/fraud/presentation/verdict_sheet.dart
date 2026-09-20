@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../data/fraud_repository.dart';
 import '../data/fraud_view.dart';
+import 'fraud_screen.dart' show standingSentence;
 
 /// The verdict control's claim id, declared by the sheet that carries it.
 const String kVerdictClaimId = 'record-verdict';
@@ -57,6 +59,7 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final row = widget.row;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
@@ -64,8 +67,12 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
     final score = numbers.format(row.riskScore, decimals: 0);
 
     return TorchSheet(
-      title: row.agentName ?? FraudView.unknownAgent,
-      subtitle: '${row.outletName} · risk $score of 100 · ${row.band.word}',
+      title: row.agentName ?? l10n.fraudUnknownAgent,
+      subtitle: l10n.fraudSheetSubtitle(
+        row.outletLabel(l10n),
+        score,
+        row.band.word(l10n),
+      ),
       // An untabbed route: Night grants two and this spends one on the commit.
       // While it is up, every amber on the queue beneath goes out.
       claims: standing == null
@@ -75,16 +82,14 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const SectionRule('What the engine found'),
+          SectionRule(l10n.fraudWhatEngineFound),
           const SizedBox(height: TiqSpace.s3),
           if (row.signals.isEmpty)
-            const EmptyState(
-              key: ValueKey<String>('verdict-no-signals'),
+            EmptyState(
+              key: const ValueKey<String>('verdict-no-signals'),
               scope: EmptyScope.inline,
-              headline: 'No signals recorded.',
-              body: 'The visit scored above the threshold but the rules that '
-                  'fired were not stored with it. Open the visit to judge it '
-                  'on its own record.',
+              headline: l10n.fraudNoSignalsHeadline,
+              body: l10n.fraudNoSignalsBody,
             )
           else
             for (final signal in row.signals)
@@ -114,40 +119,33 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
           else
             VerdictControl<FraudVerdictKind>(
               key: const ValueKey<String>('verdict-control'),
-              label: 'Your ruling',
+              label: l10n.fraudYourRuling,
               claimId: kVerdictClaimId,
-              commitLabel: 'Record this ruling',
+              commitLabel: l10n.fraudRecordThisRuling,
               busy: _busy,
               error: _error,
-              noteLabel: 'Note',
-              noteHint: 'What you checked, and what you found',
-              noteHelp: 'Whoever reads this decision next sees only what you '
-                  'write here.',
-              notChosenLine: 'No ruling chosen yet',
-              chooseFirstReason: 'Choose a ruling first.',
-              options: const <VerdictOption<FraudVerdictKind>>[
+              noteLabel: l10n.fraudNoteLabel,
+              noteHint: l10n.fraudNoteHint,
+              noteHelp: l10n.fraudNoteHelp,
+              notChosenLine: l10n.fraudNotChosenLine,
+              chooseFirstReason: l10n.fraudChooseFirst,
+              options: <VerdictOption<FraudVerdictKind>>[
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.cleared,
-                  label: 'Cleared',
-                  consequence: 'The visit stands and leaves the queue. The '
-                      'agent keeps its points.',
+                  label: l10n.fraudVerdictCleared,
+                  consequence: l10n.fraudConsequenceCleared,
                 ),
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.confirmed,
-                  label: 'Confirmed',
-                  consequence: 'The work is recorded as faked. This is the '
-                      'one ruling that accuses a person.',
+                  label: l10n.fraudVerdictConfirmed,
+                  consequence: l10n.fraudConsequenceConfirmed,
                 ),
                 VerdictOption<FraudVerdictKind>(
                   value: FraudVerdictKind.needsEvidence,
-                  label: 'Needs evidence',
-                  consequence: 'Nobody can tell yet. It leaves the open queue '
-                      'and the note is what somebody works from.',
+                  label: l10n.fraudVerdictNeedsEvidence,
+                  consequence: l10n.fraudConsequenceNeedsEvidence,
                   requiresNote: true,
-                  noteIsRequiredBecause:
-                      'Say what evidence is missing, so somebody can go and '
-                      'get it. "Needs evidence" with no note is a visit that '
-                      'was processed rather than reviewed.',
+                  noteIsRequiredBecause: l10n.fraudNeedsEvidenceNoteBecause,
                 ),
               ],
               onCommit: _record,
@@ -157,7 +155,7 @@ class _VerdictSheetState extends ConsumerState<_VerdictSheet> {
             alignment: AlignmentDirectional.centerStart,
             child: TorchTertiaryButton(
               key: const ValueKey<String>('verdict-close'),
-              label: standing == null ? 'Not now' : 'Close',
+              label: standing == null ? l10n.fraudNotNow : l10n.fraudClose,
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
             ),
           ),
@@ -214,30 +212,29 @@ class _Standing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final at = verdict.riskScoreAtReview;
-    final who = verdict.reviewerLabel.isEmpty
-        ? 'A reviewer'
-        : verdict.reviewerLabel;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const SectionRule('The ruling that stands'),
+        SectionRule(l10n.fraudRulingStands),
         const SizedBox(height: TiqSpace.s3),
         Text(
-          '$who ruled it ${_word(verdict.kind).toLowerCase()}.',
+          // The queue's own sentence, so the sheet and the row behind it
+          // cannot describe one ruling two ways. It carries the score the
+          // reviewer saw; the line beneath says what a rescore does to it.
+          standingSentence(l10n, verdict, numbers),
           key: const ValueKey<String>('verdict-standing'),
           style: skin.text.bodyStrong.style(color: skin.palette.ink1),
         ),
         const SizedBox(height: TiqSpace.s2),
         Text(
           at == null
-              ? 'The visit was unscored at the time, so there is no number '
-                    'behind this decision.'
-              : 'They were looking at risk ${numbers.format(at)} of 100. A '
-                    'rescore since then does not move the ruling.',
+              ? l10n.fraudStandingUnscored
+              : l10n.fraudStandingAtRisk(numbers.format(at)),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
         if (verdict.note != null && verdict.note!.isNotEmpty) ...<Widget>[
@@ -250,17 +247,10 @@ class _Standing extends StatelessWidget {
         ],
         const SizedBox(height: TiqSpace.s4),
         Text(
-          'A visit is ruled once. Reopening it is a change to the record and '
-          'is not done from here.',
+          l10n.fraudRuledOnce,
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
       ],
     );
   }
-
-  static String _word(FraudVerdictKind kind) => switch (kind) {
-    FraudVerdictKind.cleared => 'Cleared',
-    FraudVerdictKind.confirmed => 'Confirmed',
-    FraudVerdictKind.needsEvidence => 'Needs evidence',
-  };
 }

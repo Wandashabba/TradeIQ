@@ -444,13 +444,7 @@ class _Ledger extends StatelessWidget {
 /// guessed at, because a machine word shown as a machine word is honest and a
 /// mistranslated one is not.
 String meReasonLabel(AppLocalizations l10n, PointsEntry entry) =>
-    switch (entry.reason) {
-      'visit_submitted' => l10n.meReasonVisitSubmitted,
-      'task_closed' => l10n.meReasonTaskClosed,
-      'scorecard' => l10n.meReasonScorecard,
-      '' => l10n.meReasonPoints,
-      _ => entry.reasonLabel,
-    };
+    pointsReasonLabel(l10n, entry);
 
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({required this.entry, required this.last});

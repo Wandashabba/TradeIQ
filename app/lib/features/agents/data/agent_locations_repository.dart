@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../l10n/l10n.dart';
 import '../../dashboard/data/dashboard_repository.dart'
     show dashboardFilterProvider;
 
@@ -191,24 +192,31 @@ final liveAgentLocationsProvider =
 
 /// "45s", "4 min", "2 h 5 min", "3 d" — the age of a position, from the
 /// server's own measurement rather than this device's clock.
-String formatAgeSeconds(int? seconds) {
-  if (seconds == null) return 'never shared';
-  if (seconds < 60) return '${seconds}s';
+///
+/// The unit letters are translated with the rest: an age is the first thing
+/// every pin, row and spoken description says, so an English "h" is an
+/// English word in the leading position of an Afrikaans sentence.
+String formatAgeSeconds(AppLocalizations l10n, int? seconds) {
+  if (seconds == null) return l10n.liveNeverShared;
+  if (seconds < 60) return l10n.liveAgeSeconds('$seconds');
   final minutes = seconds ~/ 60;
-  if (minutes < 60) return '$minutes min';
+  if (minutes < 60) return l10n.liveAgeMinutes('$minutes');
   final hours = minutes ~/ 60;
   if (hours < 24) {
     final rest = minutes % 60;
-    return rest == 0 ? '$hours h' : '$hours h $rest min';
+    return rest == 0
+        ? l10n.liveAgeHours('$hours')
+        : l10n.liveAgeHoursMinutes('$hours', '$rest');
   }
-  return '${hours ~/ 24} d';
+  return l10n.liveAgeDays('${hours ~/ 24}');
 }
 
-String liveStateLabel(LiveAgentState state) => switch (state) {
-  LiveAgentState.atStore => 'At store',
-  LiveAgentState.nearStore => 'Near store',
-  LiveAgentState.inTransit => 'In transit',
-  LiveAgentState.stale => 'Stale',
-  LiveAgentState.offline => 'Offline',
-  LiveAgentState.notSharing => 'Not sharing',
-};
+String liveStateLabel(AppLocalizations l10n, LiveAgentState state) =>
+    switch (state) {
+      LiveAgentState.atStore => l10n.liveStateAtStore,
+      LiveAgentState.nearStore => l10n.liveStateNearStore,
+      LiveAgentState.inTransit => l10n.liveStateInTransit,
+      LiveAgentState.stale => l10n.liveStateStale,
+      LiveAgentState.offline => l10n.liveStateOffline,
+      LiveAgentState.notSharing => l10n.liveStateNotSharing,
+    };

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/tiq_number.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -68,6 +69,7 @@ class IncentivesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final view = ref.watch(incentivesViewProvider);
 
     void refresh() {
@@ -83,16 +85,12 @@ class IncentivesScreen extends ConsumerWidget {
       phase: phase,
       active: ConsoleSlot.menu,
       header: TorchAppHeader(
-        title: 'Incentives',
-        facts: <String>[
-          'A scheme awards points when an agent reaches its threshold on the '
-              'chosen metric. Paused schemes stop awarding.',
-          ?facts,
-        ],
+        title: l10n.incentivesTitle,
+        facts: <String>[l10n.incentivesFact, ?facts],
         trailing: TorchIconButton(
           key: const ValueKey<String>('incentives-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the incentive schemes',
+          semanticLabel: l10n.incentivesRefresh,
           onPressed: refresh,
         ),
       ),
@@ -104,7 +102,7 @@ class IncentivesScreen extends ConsumerWidget {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'incentive schemes',
+            label: l10n.incentivesSkeleton,
             child: const SkeletonRows(count: 3, rowHeight: 80),
           ),
         ],
@@ -118,7 +116,7 @@ class IncentivesScreen extends ConsumerWidget {
               message: TorchErrorMessage.sanitise(error),
               action: TorchSecondaryButton(
                 key: const ValueKey<String>('incentives-retry'),
-                label: 'Try again',
+                label: l10n.incentivesRetry,
                 onPressed: refresh,
               ),
             ),
@@ -127,29 +125,34 @@ class IncentivesScreen extends ConsumerWidget {
       ),
       data: (data) {
         final gutter = context.skin.space.gutter;
+        final numbers = TiqNumber.of(context);
         return frame(
           phase: data.rows.isEmpty ? 'empty' : 'loaded',
           facts: data.rows.isEmpty
               ? null
-              : '${data.awarding} of ${data.rows.length} awarding',
+              : l10n.incentivesAwardingFact(
+                  numbers.format(data.awarding),
+                  numbers.format(data.rows.length),
+                ),
           children: <Widget>[
             SectionRule(
-              'Schemes',
+              l10n.incentivesSchemes,
               count: data.rows.isEmpty ? null : data.rows.length,
-              emptyLine: data.rows.isEmpty ? 'None configured.' : null,
+              emptyLine: data.rows.isEmpty
+                  ? l10n.incentivesNoneConfigured
+                  : null,
               action: SectionRuleAction(
-                'Add a scheme',
+                l10n.incentivesAddScheme,
                 onTap: () => showSchemeFormSheet(context, ref),
               ),
             ),
             const SizedBox(height: TiqSpace.s5),
             if (data.rows.isEmpty)
-              const EmptyState(
-                key: ValueKey<String>('incentives-empty'),
+              EmptyState(
+                key: const ValueKey<String>('incentives-empty'),
                 scope: EmptyScope.inPanel,
-                headline: 'No schemes configured.',
-                body: 'Add one to start rewarding agents who clear a '
-                    'threshold. Nothing pays out until there is a scheme.',
+                headline: l10n.incentivesEmptyHeadline,
+                body: l10n.incentivesEmptyBody,
               )
             else
               TorchBleed(
@@ -198,18 +201,29 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final row = widget.row;
     final scheme = row.scheme;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final threshold = numbers.format(scheme.threshold);
-    final reward = '${numbers.format(scheme.rewardPoints)} pts';
-    final metricLabel = row.metric?.label ?? scheme.metric;
-    final unit = row.metric?.unitWord;
-    final stateWord = scheme.active ? 'Awarding' : 'Paused';
+    final reward = l10n.incentivesRewardPoints(
+      numbers.format(scheme.rewardPoints),
+    );
+    final metricLabel = row.metric?.label(l10n) ?? scheme.metric;
+    final unit = row.metric?.unitWord(l10n);
+    final stateWord = scheme.active
+        ? l10n.incentivesAwarding
+        : l10n.incentivesPaused;
     final rule = unit == null
-        ? '$stateWord · $metricLabel · ≥ $threshold · $reward'
-        : '$stateWord · $metricLabel · $threshold $unit · $reward';
+        ? l10n.incentivesRuleNoUnit(stateWord, metricLabel, threshold, reward)
+        : l10n.incentivesRuleWithUnit(
+            stateWord,
+            metricLabel,
+            threshold,
+            unit,
+            reward,
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -234,10 +248,10 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
                 ? Icons.payments_outlined
                 : Icons.pause_circle_outline,
             toggledOn: scheme.active,
-            stateWord: scheme.active ? 'Awarding' : null,
+            stateWord: scheme.active ? l10n.incentivesAwarding : null,
             semanticLabel: scheme.active
-                ? 'Pause ${scheme.name}'
-                : 'Start ${scheme.name} awarding',
+                ? l10n.incentivesPauseScheme(scheme.name)
+                : l10n.incentivesStartScheme(scheme.name),
             onPressed: _busy ? null : () => _setActive(!scheme.active),
           ),
           actions: Wrap(
@@ -247,12 +261,12 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
               if (row.progress.isNotEmpty)
                 TorchTertiaryButton(
                   key: ValueKey<String>('scheme-everyone-${scheme.id}'),
-                  label: 'See everyone',
+                  label: l10n.incentivesSeeEveryone,
                   onPressed: () => showSchemeProgressSheet(context, row: row),
                 ),
               TorchTertiaryButton(
                 key: ValueKey<String>('delete-${scheme.id}'),
-                label: 'Delete this scheme',
+                label: l10n.incentivesDeleteScheme,
                 destructive: true,
                 onPressed: _busy ? null : _confirmDelete,
               ),
@@ -298,8 +312,8 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
         context,
         kind: ToastKind.failure,
         message: value
-            ? 'Could not start ${widget.row.scheme.name} awarding.'
-            : 'Could not pause ${widget.row.scheme.name}.',
+            ? context.l10n.incentivesCouldNotStart(widget.row.scheme.name)
+            : context.l10n.incentivesCouldNotPause(widget.row.scheme.name),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -307,22 +321,20 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
   }
 
   Future<void> _confirmDelete() async {
+    final l10n = context.l10n;
     final scheme = widget.row.scheme;
-    final numbers = TiqNumber.of(context);
     final confirmed = await showTorchSheet<bool>(
       context,
       dismissible: false,
       builder: (sheetContext) => ConfirmSheet(
-        action: 'Delete ${scheme.name}?',
+        action: l10n.incentivesDeleteAction(scheme.name),
         record: scheme.metric,
         consequences: <String>[
-          'It stops awarding immediately.',
-          'Points already awarded stay on the agents who earned them.',
-          '${numbers.format(widget.row.earnedCount)} '
-              '${widget.row.earnedCount == 1 ? 'agent has' : 'agents have'} '
-              'earned it so far.',
+          l10n.incentivesDeleteStops,
+          l10n.incentivesDeleteKeeps,
+          l10n.incentivesEarnedSoFar(widget.row.earnedCount),
         ],
-        commitLabel: 'Delete this scheme',
+        commitLabel: l10n.incentivesDeleteScheme,
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -338,7 +350,7 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
       showTorchToast(
         context,
         kind: ToastKind.failure,
-        message: 'Could not delete ${scheme.name}. It is still awarding.',
+        message: context.l10n.incentivesCouldNotDelete(scheme.name),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -355,6 +367,7 @@ class _Progress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final metric = row.metric;
@@ -363,8 +376,7 @@ class _Progress extends StatelessWidget {
       // A metric key this client has not been taught. Saying so is better
       // than a bar against a threshold nobody can interpret.
       return Text(
-        'This client does not recognise the metric "${row.scheme.metric}", so '
-        'progress toward it cannot be shown here.',
+        l10n.incentivesUnknownMetric(row.scheme.metric),
         key: ValueKey<String>('scheme-unknown-metric-${row.scheme.id}'),
         style: skin.text.meta.style(color: skin.palette.ink3),
       );
@@ -374,7 +386,7 @@ class _Progress extends StatelessWidget {
       // honest bar to draw — and a bar out of an invented total is worse than
       // none.
       return Text(
-        'No agent figures loaded, so progress toward this reward is not shown.',
+        l10n.incentivesNoBoard,
         key: ValueKey<String>('scheme-no-board-${row.scheme.id}'),
         style: skin.text.meta.style(color: skin.palette.ink3),
       );
@@ -385,8 +397,7 @@ class _Progress extends StatelessWidget {
       // on it. "0 of 11 agents have earned it" would be eleven people who
       // failed; nobody was measured. Words, not a fraction.
       return Text(
-        'Nobody has been measured on ${metric.label.toLowerCase()} in this '
-        'window, so there is no progress toward this reward to show yet.',
+        l10n.incentivesNobodyMeasured(metric.label(l10n).toLowerCase()),
         key: ValueKey<String>('scheme-none-measured-${row.scheme.id}'),
         style: skin.text.meta.style(color: skin.palette.ink3),
       );
@@ -396,9 +407,12 @@ class _Progress extends StatelessWidget {
     final earned = row.earnedCount;
     // The denominator is who this metric can measure, never the whole board.
     final measured = row.measuredCount;
-    final reward = '${numbers.format(row.scheme.rewardPoints)} pts';
+    final reward = l10n.incentivesRewardPoints(
+      numbers.format(row.scheme.rewardPoints),
+    );
     final threshold = numbers.format(row.scheme.threshold);
-    final rewardLabel = '$reward at $threshold ${metric.unitWord}';
+    final unit = metric.unitWord(l10n);
+    final rewardLabel = l10n.incentivesRewardAt(reward, threshold, unit);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -409,7 +423,7 @@ class _Progress extends StatelessWidget {
           // case returned above — so nobody being on the way can only mean
           // everybody measurable has already arrived.
           Text(
-            'Everybody this metric can measure has earned it.',
+            l10n.incentivesEverybodyEarned,
             key: ValueKey<String>('scheme-nobody-close-${row.scheme.id}'),
             style: skin.text.meta.style(color: skin.palette.ink3),
           )
@@ -418,12 +432,14 @@ class _Progress extends StatelessWidget {
             key: ValueKey<String>('scheme-bar-${row.scheme.id}'),
             // The person, not the metric: "who is about to earn this?" is the
             // question a manager actually has.
-            label: 'Closest: ${closest.name}',
+            label: l10n.incentivesClosest(closest.name),
             value: closest.value,
             total: row.scheme.threshold,
-            fractionText:
-                '${numbers.format(closest.value!)} of $threshold '
-                '${metric.unitWord}',
+            fractionText: l10n.incentivesFractionUnit(
+              numbers.format(closest.value!),
+              threshold,
+              unit,
+            ),
             milestones: <ProgressMilestone>[
               ProgressMilestone(
                 at: row.scheme.threshold,
@@ -434,8 +450,7 @@ class _Progress extends StatelessWidget {
           ),
         const SizedBox(height: TiqSpace.s3),
         Text(
-          '${numbers.format(earned)} of ${numbers.format(measured)} '
-          '${measured == 1 ? 'agent has' : 'agents have'} earned it.',
+          l10n.incentivesEarnedOf(measured, numbers.format(earned)),
           key: ValueKey<String>('scheme-earned-${row.scheme.id}'),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),

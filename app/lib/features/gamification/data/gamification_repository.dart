@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
+import '../../../l10n/l10n.dart';
 
 /// One agent's standing in the S-gamification leaderboard returned by
 /// GET /gamification/leaderboard.
@@ -70,9 +71,6 @@ class LeaderboardEntry {
   /// The payout to print, or null when there is none to print.
   double? get measuredPoints => payoutIsMeasured ? points : null;
 
-  /// Why [measuredPoints] is absent, for the figure that has to say so.
-  static const String payoutAbsentReason =
-      'Nothing recorded for this agent in this window.';
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
       LeaderboardEntry(
@@ -119,12 +117,13 @@ class PointsEntry {
   /// Where it happened, when the source can still be resolved.
   final String? outletName;
 
-  /// The reason in words, **in English**.
+  /// The reason in words, **in English**, and the fallback of last resort.
   ///
-  /// The manager console is English-only, so this is the right thing there.
-  /// It is not the right thing on a translated screen: use `meReasonLabel` in
-  /// `my_record_screen.dart`, which maps the same three wire values through
-  /// the ARB and falls back to this for a reason it does not know.
+  /// Nothing a reader sees should come from here: every screen that shows a
+  /// ledger goes through [pointsReasonLabel], which maps the reasons the
+  /// server can actually write through the ARB. This remains for a reason
+  /// invented by a server newer than this build, where a machine word shown
+  /// as a machine word is honest and a guessed translation is not.
   String get reasonLabel => switch (reason) {
         'visit_submitted' => 'Visit submitted',
         'task_closed' => 'Task closed',
@@ -145,6 +144,24 @@ class PointsEntry {
         outletName: json['outletName'] as String?,
       );
 }
+
+/// THE REASON, IN THE READER'S LANGUAGE.
+///
+/// The three reasons `pointsLedger.ts` can write (`PointsReason`) are
+/// translated; anything else keeps [PointsEntry.reasonLabel]'s untranslated
+/// wire form rather than being guessed at, because a machine word shown as a
+/// machine word is honest and a mistranslated one is not.
+///
+/// It lives beside the model both the agent's own record and the manager's
+/// console read, so the two cannot drift into two spellings of one event.
+String pointsReasonLabel(AppLocalizations l10n, PointsEntry entry) =>
+    switch (entry.reason) {
+      'visit_submitted' => l10n.meReasonVisitSubmitted,
+      'task_closed' => l10n.meReasonTaskClosed,
+      'scorecard' => l10n.meReasonScorecard,
+      '' => l10n.meReasonPoints,
+      _ => entry.reasonLabel,
+    };
 
 /// GET /gamification/agents/:agentId/points — who, and their latest entries.
 class AgentPointsHistory {

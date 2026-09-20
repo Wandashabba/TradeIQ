@@ -8298,5 +8298,122 @@
   "schemeProgressClose": "Close",
   "@schemeProgressClose": {
     "description": "Dismisses the everyone-sheet."
+  },
+  "liveStateAtStore": "At store",
+  "@liveStateAtStore": {
+    "description": "The live state of an agent whose ping is inside a store's fence."
+  },
+  "liveStateNearStore": "Near store",
+  "@liveStateNearStore": {
+    "description": "The live state of an agent whose ping is close to a store."
+  },
+  "liveStateInTransit": "In transit",
+  "@liveStateInTransit": {
+    "description": "The live state of an agent who is on the road."
+  },
+  "liveStateStale": "Stale",
+  "@liveStateStale": {
+    "description": "The live state of an agent whose last position is too old to trust."
+  },
+  "liveStateOffline": "Offline",
+  "@liveStateOffline": {
+    "description": "The live state of an agent whose app has stopped reporting."
+  },
+  "liveStateNotSharing": "Not sharing",
+  "@liveStateNotSharing": {
+    "description": "The live state of an agent who has declined to share a position."
+  },
+  "liveAgeSeconds": "{seconds}s",
+  "@liveAgeSeconds": {
+    "description": "How old a live position is, in seconds.",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAgeMinutes": "{minutes} min",
+  "@liveAgeMinutes": {
+    "description": "How old a live position is, in minutes.",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAgeHours": "{hours} h",
+  "@liveAgeHours": {
+    "description": "How old a live position is, in whole hours.",
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAgeHoursMinutes": "{hours} h {minutes} min",
+  "@liveAgeHoursMinutes": {
+    "description": "How old a live position is, in hours and minutes.",
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAgeDays": "{days} d",
+  "@liveAgeDays": {
+    "description": "How old a live position is, in days.",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAtOutlet": "at {outlet}",
+  "@liveAtOutlet": {
+    "description": "Where an agent is, when the ping is inside that store's fence.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "liveNearOutlet": "near {outlet}",
+  "@liveNearOutlet": {
+    "description": "Where an agent is, when the ping is close to that store.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "liveAgeOld": "{age} old",
+  "@liveAgeOld": {
+    "description": "How old a live position is, inside the spoken description.",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "trailPinLabel": "{agent}, stop {ordinal}, {outlet}, {time}",
+  "@trailPinLabel": {
+    "description": "Screen-reader label for one numbered check-in pin on the trail map.",
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "ordinal": {
+        "type": "String"
+      },
+      "outlet": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
   }
 }

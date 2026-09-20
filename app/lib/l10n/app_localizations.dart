@@ -9754,6 +9754,101 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get schemeProgressClose;
+
+  /// The live state of an agent whose ping is inside a store's fence.
+  ///
+  /// In en, this message translates to:
+  /// **'At store'**
+  String get liveStateAtStore;
+
+  /// The live state of an agent whose ping is close to a store.
+  ///
+  /// In en, this message translates to:
+  /// **'Near store'**
+  String get liveStateNearStore;
+
+  /// The live state of an agent who is on the road.
+  ///
+  /// In en, this message translates to:
+  /// **'In transit'**
+  String get liveStateInTransit;
+
+  /// The live state of an agent whose last position is too old to trust.
+  ///
+  /// In en, this message translates to:
+  /// **'Stale'**
+  String get liveStateStale;
+
+  /// The live state of an agent whose app has stopped reporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get liveStateOffline;
+
+  /// The live state of an agent who has declined to share a position.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sharing'**
+  String get liveStateNotSharing;
+
+  /// How old a live position is, in seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String liveAgeSeconds(String seconds);
+
+  /// How old a live position is, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String liveAgeMinutes(String minutes);
+
+  /// How old a live position is, in whole hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String liveAgeHours(String hours);
+
+  /// How old a live position is, in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String liveAgeHoursMinutes(String hours, String minutes);
+
+  /// How old a live position is, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d'**
+  String liveAgeDays(String days);
+
+  /// Where an agent is, when the ping is inside that store's fence.
+  ///
+  /// In en, this message translates to:
+  /// **'at {outlet}'**
+  String liveAtOutlet(String outlet);
+
+  /// Where an agent is, when the ping is close to that store.
+  ///
+  /// In en, this message translates to:
+  /// **'near {outlet}'**
+  String liveNearOutlet(String outlet);
+
+  /// How old a live position is, inside the spoken description.
+  ///
+  /// In en, this message translates to:
+  /// **'{age} old'**
+  String liveAgeOld(String age);
+
+  /// Screen-reader label for one numbered check-in pin on the trail map.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent}, stop {ordinal}, {outlet}, {time}'**
+  String trailPinLabel(
+    String agent,
+    String ordinal,
+    String outlet,
+    String time,
+  );
 }
 
 class _AppLocalizationsDelegate
