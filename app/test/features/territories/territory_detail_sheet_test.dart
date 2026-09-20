@@ -75,10 +75,11 @@ void main() {
             ),
           )
           .toList();
-      expect(
-        tiles.map((t) => t.eyebrow),
-        <String>['Covered', 'Outlets', 'Agents'],
-      );
+      expect(tiles.map((t) => t.eyebrow), <String>[
+        'Covered',
+        'Outlets',
+        'Agents',
+      ]);
       expect(tiles.first.value, closeTo(66.67, 0.01));
       expect(find.text('2 of 3 visited in this window'), findsOneWidget);
     });

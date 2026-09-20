@@ -109,48 +109,38 @@ void main() {
     },
   );
 
-  test(
-    'TerritoryCoverage.fromJson leaves a missing coverage block NULL',
-    () {
-      // Not zero. A response with no coverage block has not measured a
-      // coverage of nought — it has not measured one at all, and the two read
-      // identically on screen if the client invents the difference away.
-      final coverage = TerritoryCoverage.fromJson(const {
-        'territory': {'id': 't1'},
-      });
+  test('TerritoryCoverage.fromJson leaves a missing coverage block NULL', () {
+    // Not zero. A response with no coverage block has not measured a
+    // coverage of nought — it has not measured one at all, and the two read
+    // identically on screen if the client invents the difference away.
+    final coverage = TerritoryCoverage.fromJson(const {
+      'territory': {'id': 't1'},
+    });
 
-      expect(coverage.outletCount, 0);
-      expect(coverage.agentCount, 0);
-      expect(coverage.outlets, isEmpty);
-      expect(coverage.outletsVisited, isNull);
-      expect(coverage.outletsTotal, isNull);
-      expect(coverage.coverageRate, isNull);
-      expect(coverage.coverageMeasured, isFalse);
-      expect(coverage.measuredCoverageRate, isNull);
-    },
-  );
+    expect(coverage.outletCount, 0);
+    expect(coverage.agentCount, 0);
+    expect(coverage.outlets, isEmpty);
+    expect(coverage.outletsVisited, isNull);
+    expect(coverage.outletsTotal, isNull);
+    expect(coverage.coverageRate, isNull);
+    expect(coverage.coverageMeasured, isFalse);
+    expect(coverage.measuredCoverageRate, isNull);
+  });
 
-  test(
-    'a coverage rate over an empty denominator is not a measurement',
-    () {
-      // `territories.service.ts` sends `outletsTotal > 0 ? rate : 0`, so a
-      // territory with nothing filed under it arrives as a confident 0%.
-      final coverage = TerritoryCoverage.fromJson(const {
-        'outlets': <Object>[],
-        'agents': <Object>[],
-        'coverage': {
-          'outletsVisited': 0,
-          'outletsTotal': 0,
-          'coverageRate': 0,
-        },
-      });
+  test('a coverage rate over an empty denominator is not a measurement', () {
+    // `territories.service.ts` sends `outletsTotal > 0 ? rate : 0`, so a
+    // territory with nothing filed under it arrives as a confident 0%.
+    final coverage = TerritoryCoverage.fromJson(const {
+      'outlets': <Object>[],
+      'agents': <Object>[],
+      'coverage': {'outletsVisited': 0, 'outletsTotal': 0, 'coverageRate': 0},
+    });
 
-      expect(coverage.coverageRate, 0);
-      expect(coverage.coverageMeasured, isFalse);
-      // Which is the value every caller reads.
-      expect(coverage.measuredCoverageRate, isNull);
-    },
-  );
+    expect(coverage.coverageRate, 0);
+    expect(coverage.coverageMeasured, isFalse);
+    // Which is the value every caller reads.
+    expect(coverage.measuredCoverageRate, isNull);
+  });
 
   test('a real nought over a real denominator IS a measurement', () {
     final coverage = TerritoryCoverage.fromJson(const {

@@ -76,7 +76,7 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final outlets = ref.watch(outletsListProvider);
+    final outlets = ref.watch(dispatchOutletsProvider);
     final chosen = _outlet;
 
     return ConsoleFrame(
@@ -163,7 +163,7 @@ class _OutletPickerSheet extends ConsumerWidget {
             action: TorchTertiaryButton(
               key: const ValueKey<String>('outlets-retry'),
               label: l10n.torchTryAgain,
-              onPressed: () => ref.invalidate(outletsListProvider),
+              onPressed: () => ref.invalidate(dispatchOutletsProvider),
             ),
           ),
         ),
@@ -291,12 +291,20 @@ class _CandidateRow extends StatelessWidget {
     final territoryWord = candidate.inTerritory
         ? l10n.dispatchInTerritory
         : l10n.dispatchOutsideTerritory;
+    // The placement goes in the REASON LINE, not only in the trailing figure.
+    // A plain `trailing` is inside the row's excluded label (§9b), so a figure
+    // there is painted and announced nowhere — which is exactly how the
+    // "no last-known location" fact would go missing for the reader who most
+    // needs it. The figure is the visual; this is the utterance.
+    final placement = placed
+        ? l10n.dispatchMetresAway(candidate.distanceM!.round())
+        : l10n.dispatchNoLocation;
 
     return PersonRow(
       // The name when there is one, otherwise the address people mail.
       name: candidate.label,
       role: l10n.roleFieldAgent,
-      outlet: territoryWord,
+      outlet: '$territoryWord · $placement',
       // Both facts, stacked, and never `trailingWord` — that slot takes one
       // word and this row has two things to say: whether the SERVER picked
       // this agent, and how far away the server last saw them.

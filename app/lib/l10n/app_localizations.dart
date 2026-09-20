@@ -6044,6 +6044,12 @@ abstract class AppLocalizations {
   /// **'metres away'**
   String get dispatchMetresUnit;
 
+  /// How far the server last saw this agent from the outlet.
+  ///
+  /// In en, this message translates to:
+  /// **'{metres} m away'**
+  String dispatchMetresAway(int metres);
+
   /// The server cannot place this agent. Never a zero — an agent with no fix must not look like one on the doorstep.
   ///
   /// In en, this message translates to:

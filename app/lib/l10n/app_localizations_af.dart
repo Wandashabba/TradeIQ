@@ -3932,6 +3932,11 @@ class AppLocalizationsAf extends AppLocalizations {
   String get dispatchMetresUnit => 'meter weg';
 
   @override
+  String dispatchMetresAway(int metres) {
+    return '$metres m weg';
+  }
+
+  @override
   String get dispatchNoLocation => 'Geen laas bekende ligging nie';
 
   @override

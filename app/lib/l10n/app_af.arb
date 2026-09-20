@@ -990,6 +990,7 @@
   "dispatchOutsideTerritory": "Buite gebied",
   "dispatchRecommended": "Aanbeveel",
   "dispatchMetresUnit": "meter weg",
+  "dispatchMetresAway": "{metres} m weg",
   "dispatchNoLocation": "Geen laas bekende ligging nie",
   "dispatchNoLocationShort": "nie geplaas nie",
   "trendsTitle": "Tendense",

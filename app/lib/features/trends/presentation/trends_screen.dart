@@ -501,7 +501,6 @@ class _ClientAverage extends StatelessWidget {
           eyebrow: l10n.trendsClientAverage,
           value: average,
           unit: unit,
-          decimals: 1,
           meter: target == null
               ? null
               : MeterData(value: average, maximum: 100, target: target),
@@ -520,7 +519,6 @@ class _ClientAverage extends StatelessWidget {
             eyebrow: report.targetLabel ?? l10n.trendsTarget,
             value: target,
             unit: unit,
-            decimals: 1,
           ),
       ],
     );
@@ -605,7 +603,6 @@ class _BenchmarkRow extends StatelessWidget {
             value: average,
             role: skin.text.figureS,
             unit: average == null ? TiqUnit.none : unit,
-            decimals: 1,
             state: average == null ? FigureState.missing : FigureState.measured,
             textAlign: TextAlign.end,
             semanticsLabel: average == null ? l10n.trendsNotMeasured : null,
