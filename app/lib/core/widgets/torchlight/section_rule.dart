@@ -164,7 +164,27 @@ class SectionRule extends StatelessWidget {
     final width = painter.width;
     painter.dispose();
     final knockOut = knockOutFor(skin);
-    final actionRoom = action == null ? 0.0 : TiqSpace.s11;
+    // MEASURE the action too, at the live scaler and in the caller's own
+    // language. A fixed reservation was the bug: "Add a scheme" at 2.0x is
+    // roughly three times TiqSpace.s11, so a short section name never wrapped,
+    // the inline Row kept the action, and the action ran 168dp off the right
+    // of a 360dp phone. A constant cannot know how long a verb is in
+    // Afrikaans.
+    var actionRoom = 0.0;
+    final verb = action?.label;
+    if (verb != null) {
+      final actionPainter = TextPainter(
+        text: TextSpan(
+          text: verb,
+          style: skin.text.label.style(color: skin.palette.ink2),
+        ),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      actionRoom = actionPainter.width + knockOut;
+      actionPainter.dispose();
+    }
     // The rule needs a visible run after the text or it is not a rule.
     return width + leadIn + knockOut * 2 + actionRoom + TiqSpace.s7 > maxWidth;
   }
