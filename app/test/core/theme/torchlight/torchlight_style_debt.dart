@@ -37,8 +37,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'campaigns/presentation/campaign_return_view.dart': 3,
   'campaigns/presentation/campaigns_screen.dart': 1,
   'clients/presentation/client_config_screen.dart': 21,
-  'collaboration/presentation/message_attachment_thumb.dart': 3,
-  'collaboration/presentation/messages_screen.dart': 9,
   'contests/presentation/contest_form_screen.dart': 2,
   'contests/presentation/contest_standings_screen.dart': 4,
   'contests/presentation/contests_screen.dart': 1,
@@ -54,23 +52,16 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'orders/presentation/orders_screen.dart': 2,
   'outlets/presentation/create_outlet_screen.dart': 7,
   'outlets/presentation/outlets_list_screen.dart': 1,
-  'reports/presentation/report_form_screen.dart': 2,
-  'reports/presentation/report_run_history_screen.dart': 13,
-  'reports/presentation/report_schedule_form_screen.dart': 3,
-  'reports/presentation/report_schedules_screen.dart': 1,
   'sales_targets/presentation/sales_attainment_panel.dart': 3,
   'sales_targets/presentation/sales_targets_screen.dart': 11,
-  'templates/presentation/dynamic_template_form.dart': 1,
-  'templates/presentation/templates_screen.dart': 3,
   'territories/presentation/territories_screen.dart': 2,
   'territories/presentation/territory_form_screen.dart': 1,
   'territories/presentation/territory_map_screen.dart': 5,
   'trends/presentation/trends_screen.dart': 9,
   'users/presentation/users_screen.dart': 3,
   'visits/presentation/visit_detail_screen.dart': 17,
-  'webhooks/presentation/webhooks_screen.dart': 6,
 };
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 281;
+const int torchlightStyleDebtTotal = 240;
