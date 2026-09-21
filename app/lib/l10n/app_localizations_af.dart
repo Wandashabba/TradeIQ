@@ -535,16 +535,16 @@ class AppLocalizationsAf extends AppLocalizations {
   String get visitSectionOutletInfo => 'Winkelinligting';
 
   @override
-  String get visitSectionStock => 'Voorraad & beskikbaarheid';
+  String get visitSectionStock => 'Voorraad';
 
   @override
-  String get visitSectionVisibility => 'Sigbaarheid & uitstalling';
+  String get visitSectionVisibility => 'Sigbaarheid';
 
   @override
-  String get visitSectionPricing => 'Pryse & promosies';
+  String get visitSectionPricing => 'Prysbepaling';
 
   @override
-  String get visitSectionCompetitive => 'Mededinging';
+  String get visitSectionCompetitive => 'Mededingend';
 
   @override
   String get visitSectionCapability => 'Spanvermoë';
@@ -1648,7 +1648,9 @@ class AppLocalizationsAf extends AppLocalizations {
       'Al jou werk is gestuur. Dubbeltik om dit te sien.';
 
   @override
-  String get visitClientQuestions => 'Die kliënt se vrae';
+  String visitClientQuestions(String template) {
+    return 'Kliëntvrae · $template';
+  }
 
   @override
   String get visitReadFailedTitle => 'Hierdie besoek kon nie gelees word nie.';
@@ -1740,8 +1742,8 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String visitScoreSemantics(String name) {
-    return '$name, nog nie beskikbaar nie. Word uitgewerk wanneer die besoek stuur.';
+  String visitScoreSemantics(int value, String band) {
+    return '$value uit 100. $band.';
   }
 
   @override
@@ -7902,4 +7904,243 @@ class AppLocalizationsAf extends AppLocalizations {
   ) {
     return '$agent, stop $ordinal, $outlet, $time';
   }
+
+  @override
+  String get visitReviewTitle => 'Besoekhersiening';
+
+  @override
+  String get visitBackToList => 'Terug na die lys waarvandaan jy kom';
+
+  @override
+  String get visitBackToFloor => 'Terug na Die Vloer';
+
+  @override
+  String get visitInProgress => 'Onvoltooid';
+
+  @override
+  String get visitOutsideFence => 'Buite die grens';
+
+  @override
+  String get visitInsideFence => 'Binne die grens';
+
+  @override
+  String get visitPinReported =>
+      'Die agent het gerapporteer dat die speld verkeerd is';
+
+  @override
+  String get visitTheVisit => 'Die besoek';
+
+  @override
+  String get visitCheckedIn => 'Aangemeld';
+
+  @override
+  String get visitDeviceClock => 'Van die foon se eie klok';
+
+  @override
+  String get visitSubmitted => 'Ingedien';
+
+  @override
+  String get visitNotYet => 'Nog nie';
+
+  @override
+  String visitMinutesOnSite(int minutes) {
+    return '$minutes minute op die perseel';
+  }
+
+  @override
+  String get visitGeofence => 'Afstand vanaf die winkel';
+
+  @override
+  String get visitNoDistance => 'Geen afstand is aangeteken nie';
+
+  @override
+  String get visitPin => 'Speld';
+
+  @override
+  String get visitPinMoved => 'Die speld is geskuif';
+
+  @override
+  String visitPinMovedBy(String name) {
+    return 'Die speld is deur $name geskuif';
+  }
+
+  @override
+  String get visitPinKept => 'Die speld is behou';
+
+  @override
+  String visitPinKeptBy(String name) {
+    return 'Die speld is deur $name behou';
+  }
+
+  @override
+  String get visitPinWaiting => 'Wag vir hersiening';
+
+  @override
+  String get visitScoreHeading => 'Perfekte-winkel telling';
+
+  @override
+  String get visitNotScored => 'Nie bepunt nie';
+
+  @override
+  String get visitScoredOnSubmit =>
+      'Die telling word bereken wanneer die besoek ingedien word.';
+
+  @override
+  String get visitNoScorecard =>
+      'Geen telkaart is vir hierdie besoek gegenereer nie.';
+
+  @override
+  String get visitUnbanded => 'Sonder band';
+
+  @override
+  String visitScoreMeterSemantics(int value, int target) {
+    return '$value uit 100, teiken $target';
+  }
+
+  @override
+  String get visitHowScored => 'Hoe dit bepunt is';
+
+  @override
+  String get visitOnTarget => 'Op teiken';
+
+  @override
+  String get visitBelowTarget => 'Onder teiken';
+
+  @override
+  String visitAnsweredVersion(int version) {
+    return 'Beantwoord teen v$version';
+  }
+
+  @override
+  String visitAnsweredOlderVersion(int version, int current) {
+    return 'Beantwoord teen v$version · die sjabloon is nou v$current, en die etikette hieronder kom uit die huidige weergawe';
+  }
+
+  @override
+  String visitAnswerOrphan(String field) {
+    return '$field (nie meer in die sjabloon nie)';
+  }
+
+  @override
+  String visitRequiredQuestion(String label) {
+    return '$label (verpligtend)';
+  }
+
+  @override
+  String visitTemplateScore(String score, String max) {
+    return 'Sjabloontelling $score uit $max';
+  }
+
+  @override
+  String get visitTemplateScoreNote =>
+      'Die sjabloontelling is die kliënt se eie maatstaf. Dit maak nie deel van die perfekte-winkel telling uit nie.';
+
+  @override
+  String get visitNoAnswersHeadline => 'Geen antwoorde is aangeteken nie';
+
+  @override
+  String get visitNoAnswersBody =>
+      'Die sjabloon was aan hierdie besoek geheg en niks is ingevul nie.';
+
+  @override
+  String get visitNotCaptured => 'Nie in die app vasgelê nie';
+
+  @override
+  String get visitNotAnswered => 'Nie beantwoord nie';
+
+  @override
+  String get visitYes => 'Ja';
+
+  @override
+  String get visitNo => 'Nee';
+
+  @override
+  String get visitWhatWasCaptured => 'Wat vasgelê is';
+
+  @override
+  String get visitNothingCaptured => 'Niks is vasgelê nie';
+
+  @override
+  String get visitCaptured => 'Vasgelê';
+
+  @override
+  String visitNCaptured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vasgelê',
+      one: '1 vasgelê',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitClear => 'Skoon';
+
+  @override
+  String visitNFlagged(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count gemerk',
+      one: '1 gemerk',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitNotCapturedSection => 'Nie vasgelê nie';
+
+  @override
+  String get visitNoFindings => 'Geen bevindings nie.';
+
+  @override
+  String get visitNothingRecorded =>
+      'Niks is in hierdie afdeling aangeteken nie.';
+
+  @override
+  String get visitFindingsTruncated => 'Bevindings kom uit die eerste 500 rye.';
+
+  @override
+  String get visitSeverityCritical => 'Krities';
+
+  @override
+  String get visitSeverityWatch => 'Dophou';
+
+  @override
+  String get visitPhotos => 'Foto’s';
+
+  @override
+  String get visitNoPhotos => 'Geen foto’s is op hierdie besoek geneem nie.';
+
+  @override
+  String visitShowingOf(int shown, int total) {
+    return 'Wys $shown van $total';
+  }
+
+  @override
+  String visitPhotoSemantics(String outlet, String section, String time) {
+    return '$outlet, $section, $time';
+  }
+
+  @override
+  String get visitFraudSignals => 'Bedrogseine';
+
+  @override
+  String get visitRiskOfHundred => 'uit 100';
+
+  @override
+  String visitRiskSemantics(int value, String band) {
+    return 'Risiko $value uit 100. $band.';
+  }
+
+  @override
+  String get visitNotFoundHeadline => 'Hierdie besoek is nie hier nie';
+
+  @override
+  String get visitNotFoundBody =>
+      'Dit bestaan nie, of dit behoort aan ’n ander kliënt.';
+
+  @override
+  String get visitBackToAlerts => 'Terug na waarskuwings';
 }
