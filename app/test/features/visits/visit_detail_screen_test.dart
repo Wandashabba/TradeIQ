@@ -1,504 +1,570 @@
-import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
-import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
-import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
-import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
-import 'package:tradeiq_app/features/visits/presentation/visit_detail_screen.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/evidence_thumb.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
+import '../../core/design/amber_golden.dart';
+import '../../core/widgets/torchlight/torch_harness.dart' show torchSkins;
+import 'visit_harness.dart';
 
-final _submitted = VisitDetail(
-  id: 'v1',
-  status: 'submitted',
-  outlet: const VisitOutletRef(
-    id: 'o1',
-    name: 'Spar Rosebank',
-    code: 'SPR-001',
-    channelType: 'supermarket',
-  ),
-  agent: const VisitAgentRef(id: 'a1', email: 'thandi@acme.test'),
-  checkinTs: DateTime.utc(2026, 9, 14, 7),
-  submittedAtClient: DateTime.utc(2026, 9, 14, 7, 14),
-  geofencePass: true,
-  distanceM: 44.5,
-  score: const VisitScore(
-    weightedTotal: 55.48,
-    ratingBand: 'red',
-    target: 85,
-    dimensions: [
-      ScoreDimension(key: 'availability', score: 90),
-      ScoreDimension(key: 'pricing', score: 40),
-      ScoreDimension(key: 'competitive', score: null),
-    ],
-  ),
-  sections: const [
-    VisitSectionSummary(
-      key: 'stock',
-      count: 2,
-      flagged: 1,
-      findings: [
-        '1 of 2 SKUs out of stock',
-        'Cola 330ml: out of stock, 5 days',
-      ],
-    ),
-    VisitSectionSummary(key: 'visibility', count: 0, flagged: 0, findings: []),
-    VisitSectionSummary(
-      key: 'pricing',
-      count: 3,
-      flagged: 0,
-      findings: ['0 of 3 prices more than 10% off master'],
-    ),
-    VisitSectionSummary(key: 'competitive', count: 0, flagged: 0, findings: []),
-    VisitSectionSummary(
-      key: 'risks',
-      count: 1,
-      flagged: 1,
-      findings: ['critical: expired_stock, Two expired packs'],
-    ),
-  ],
-  photoTotal: 1,
-  photos: [
-    VisitPhotoRef(
-      id: 'p1',
-      section: 'visibility',
-      timestamp: DateTime.utc(2026, 9, 14, 7, 5),
-    ),
-  ],
-  riskScore: 72,
-  signals: const [
-    FraudSignal(
-      code: 'photo_gps_divergence',
-      detail: "A photo's GPS tag is 500m from the check-in location",
-    ),
-  ],
-);
-
-final _draft = VisitDetail(
-  id: 'v2',
-  status: 'in_progress',
-  outlet: const VisitOutletRef(
-    id: 'o1',
-    name: 'Spar Rosebank',
-    code: 'SPR-001',
-    channelType: 'supermarket',
-  ),
-  agent: const VisitAgentRef(id: 'a1', email: 'thandi@acme.test'),
-  checkinTs: DateTime.utc(2026, 9, 14, 7),
-  submittedAtClient: null,
-  geofencePass: false,
-  distanceM: 61,
-  score: null,
-  sections: const [],
-  photoTotal: 0,
-  photos: const [],
-  riskScore: 0,
-  signals: const [],
-);
-
-class _Repo implements VisitDetailRepository {
-  _Repo(this.result);
-  final FutureOr<VisitDetail> Function(String id) result;
-  int calls = 0;
-
-  @override
-  Future<VisitDetail> fetch(String visitId) async {
-    calls++;
-    return result(visitId);
-  }
-}
-
-/// A real, decodable image (1×1 transparent PNG) for the thumbnails.
-final _pngBytes = Uint8List.fromList(const <int>[
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, //
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, //
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-]);
-
-class _Photos implements PhotosRepository {
-  final requested = <String>[];
-
-  @override
-  Future<Uint8List> thumbnailBytes(String photoId) async {
-    requested.add(photoId);
-    return _pngBytes;
-  }
-
-  @override
-  Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
-
-  @override
-  Future<PhotoUploadResult> uploadPhoto({
-    required String visitId,
-    required String section,
-    required String dataUrl,
-    required Map<String, dynamic> gpsTag,
-    required String timestamp,
-    String? source,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<String> uploadMessageAttachment(String dataUrl) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Uint8List> imageBytes(String photoId) async =>
-      throw UnimplementedError();
-}
-
-Widget _app(
-  VisitDetailRepository repo, {
-  required ThemeData theme,
-  PhotosRepository? photos,
-  String visitId = 'v1',
-}) => ProviderScope(
-  overrides: [
-    visitDetailRepositoryProvider.overrideWithValue(repo),
-    photosRepositoryProvider.overrideWithValue(photos ?? _Photos()),
-  ],
-  child: MaterialApp.router(
-    theme: theme,
-    routerConfig: GoRouter(
-      initialLocation: '/visits/$visitId',
-      routes: [
-        GoRoute(
-          path: '/visits/:id',
-          builder: (context, state) =>
-              VisitDetailScreen(visitId: state.pathParameters['id']!),
-        ),
-        GoRoute(
-          path: '/alerts',
-          builder: (context, state) => const Text('alerts list'),
-        ),
-        GoRoute(
-          path: '/dashboard',
-          builder: (context, state) => const Text('dashboard'),
-        ),
-      ],
-    ),
-  ),
-);
-
-/// Big enough that the lazy ListView builds every panel.
-void _tallView(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1200, 3200);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-}
-
-final _themes = <String, ThemeData Function()>{
-  'light': AppTheme.light,
-  'dark': AppTheme.dark,
-};
+/// THE MANAGER'S VISIT REVIEW, on Torchlight.
+///
+/// Every status is a word beside its mark; no finding rides on colour alone.
+/// Unknown is never zero. A deep link keeps its way out.
 
 void main() {
-  for (final entry in _themes.entries) {
-    group('${entry.key} theme', () {
-      testWidgets('header, score, sections, photos and fraud render as '
-          'glass panels', (tester) async {
-        _tallView(tester);
-        final photos = _Photos();
-        await tester.pumpWidget(
-          _app(_Repo((_) => _submitted), theme: entry.value(), photos: photos),
-        );
-        await tester.pumpAndSettle();
+  group('the frame', () {
+    testWidgets('names the outlet, the visit and the agent', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit());
 
-        // Header: outlet, code, agent, when, status.
-        expect(find.text('Spar Rosebank'), findsOneWidget);
-        expect(find.text('SPR-001'), findsOneWidget);
-        expect(find.text('thandi@acme.test'), findsOneWidget);
-        expect(find.text('44.5 m'), findsOneWidget);
-        expect(find.text('14 min on site'), findsOneWidget);
-
-        // Every block is a pane of glass, in both themes.
-        for (final key in [
-          'visit-header',
-          'visit-score',
-          'visit-section-stock',
-          'visit-section-risks',
-          'visit-photos',
-          'visit-fraud',
-        ]) {
-          final pane = find.descendant(
-            of: find.byKey(ValueKey(key)),
-            matching: find.byType(GlassPane),
-          );
-          final self = find.byKey(ValueKey(key));
-          expect(
-            tester.widgetList(self).first is GlassPane ||
-                pane.evaluate().isNotEmpty,
-            isTrue,
-            reason: '$key is a glass panel',
-          );
-        }
-        expect(find.byType(PanelCard), findsNWidgets(7)); // 5 sections + 2
-
-        // The score as a mono figure with an explicit ink.
-        final figure = tester.widget<Text>(
-          find.byKey(const ValueKey('visit-score-figure')),
-        );
-        expect(figure.data, '55');
-        expect(figure.style!.fontFamily, LumenGlass.mono);
-        expect(figure.style!.color, isNotNull);
-
-        // Photos are thumbnails fetched by id — the only bytes on the screen.
-        expect(find.byKey(const ValueKey('visit-photo-p1')), findsOneWidget);
-        expect(photos.requested, ['p1']);
-        expect(find.byType(Image), findsOneWidget);
-      });
-
-      testWidgets('every status is a word', (tester) async {
-        _tallView(tester);
-        await tester.pumpWidget(
-          _app(_Repo((_) => _submitted), theme: entry.value()),
-        );
-        await tester.pumpAndSettle();
-
-        for (final word in [
-          'SUBMITTED',
-          'INSIDE FENCE',
-          '✕ GAP', // the `red` band on the wire, marked and spelled out
-          'ON TARGET',
-          'BELOW TARGET',
-          'NOT MEASURED',
-          '1 FLAGGED',
-          'NOT CAPTURED',
-          'CLEAR',
-          'HIGH RISK', // riskScore 72
-        ]) {
-          expect(find.text(word), findsWidgets, reason: word);
-        }
-        // A flagged risk is crit; a flagged stock row is warn.
-        LumenStatus pillIn(String key) => tester
-            .widget<LumenStatusPill>(
-              find.descendant(
-                of: find.byKey(ValueKey(key)),
-                matching: find.byType(LumenStatusPill),
-              ),
-            )
-            .status;
-        expect(pillIn('visit-section-risks'), LumenStatus.crit);
-        expect(pillIn('visit-section-stock'), LumenStatus.warn);
-        expect(pillIn('visit-section-pricing'), LumenStatus.good);
-        expect(pillIn('visit-section-visibility'), LumenStatus.none);
-      });
-
-      testWidgets('every word clears AA (4.5:1)', (tester) async {
-        _tallView(tester);
-        final theme = entry.value();
-        await tester.pumpWidget(_app(_Repo((_) => _submitted), theme: theme));
-        await tester.pumpAndSettle();
-
-        final colors = theme.extension<TiqColors>()!;
-        // Status pills: the word on its own wash, over the pane.
-        final pills = tester.widgetList<LumenStatusPill>(
-          find.byType(LumenStatusPill),
-        );
-        expect(pills, isNotEmpty);
-        for (final pill in pills) {
-          final sw = pill.status.swatchOf(colors);
-          final ground = Color.alphaBlend(sw.tint, colors.surface1);
-          final ratio = contrastRatio(sw.ink, ground);
-          expect(
-            ratio,
-            greaterThanOrEqualTo(4.5),
-            reason: '${pill.label} is $ratio:1',
-          );
-        }
-
-        // Every other word in the body, on the pane it sits on.
-        final body = find.byKey(const ValueKey('visit-header'));
-        expect(body, findsOneWidget);
-        final texts = tester.widgetList<Text>(
-          find.descendant(
-            of: find.byType(ListView),
-            matching: find.byType(Text),
-          ),
-        );
-        var checked = 0;
-        for (final t in texts) {
-          final color = t.style?.color;
-          if (color == null || color.a < 1) continue;
-          // Pills are measured above against their own wash.
-          if (pills.any((p) => (p.label ?? '').toUpperCase() == t.data)) {
-            continue;
-          }
-          for (final ground in [colors.surface1, colors.surface2]) {
-            final ratio = contrastRatio(color, ground);
-            expect(
-              ratio,
-              greaterThanOrEqualTo(4.5),
-              reason: '"${t.data}" is $ratio:1',
-            );
-          }
-          checked++;
-        }
-        expect(checked, greaterThan(20));
-      });
+      expect(find.text('Spar Rosebank'), findsOneWidget);
+      expect(
+        find.textContaining('Visit review'),
+        findsWidgets,
+        reason: 'the header facts say what this screen is',
+      );
+      expect(find.textContaining('SPR-001'), findsWidgets);
+      expect(find.textContaining('thandi@acme.test'), findsWidgets);
     });
-  }
 
-  testWidgets('a draft: in progress, not scored, no fraud panel', (
-    tester,
-  ) async {
-    _tallView(tester);
-    await tester.pumpWidget(
-      _app(_Repo((_) => _draft), theme: AppTheme.light(), visitId: 'v2'),
-    );
-    await tester.pumpAndSettle();
+    testWidgets('a push from a list goes back to that list', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit(), pushed: true);
+      expect(find.text('Spar Rosebank'), findsOneWidget);
 
-    expect(find.text('IN PROGRESS'), findsOneWidget);
-    expect(find.text('NOT SCORED'), findsOneWidget);
-    expect(find.text('OUTSIDE FENCE'), findsOneWidget);
-    expect(find.text('Not yet'), findsOneWidget);
-    expect(
-      find.text('The score is calculated when the visit is submitted.'),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('visit-fraud')), findsNothing);
-    expect(find.text('No photos were captured on this visit.'), findsOneWidget);
-  });
+      await tester.tap(find.byKey(const ValueKey<String>('visit-detail-back')));
+      await tester.pumpAndSettle();
+      expect(find.text('the alerts list'), findsOneWidget);
+    });
 
-  testWidgets('outside the fence because the agent said the pin is wrong '
-      '(#386): the reason is beside the failed fence', (tester) async {
-    _tallView(tester);
-    final flagged = VisitDetail(
-      id: 'v4',
-      status: 'in_progress',
-      outlet: _draft.outlet,
-      agent: _draft.agent,
-      checkinTs: _draft.checkinTs,
-      submittedAtClient: null,
-      geofencePass: false,
-      distanceM: 8400,
-      score: null,
-      sections: const [],
-      photoTotal: 0,
-      photos: const [],
-      riskScore: 30,
-      signals: const [],
-      pinDispute: const VisitPinDispute(
-        id: 'd1',
-        distanceM: 8400,
-        status: 'open',
-        note: 'Pinned on the depot',
-      ),
-    );
-    await tester.pumpWidget(
-      _app(_Repo((_) => flagged), theme: AppTheme.light(), visitId: 'v4'),
-    );
-    await tester.pumpAndSettle();
+    // A deep link has nothing to pop to. Losing this escape strands a
+    // reviewer on a screen with no exit, which is why it is a test and not a
+    // convention.
+    testWidgets('a deep link goes to the console instead', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit());
 
-    // Still OUTSIDE FENCE — the claim explains the failure, it never
-    // replaces it.
-    expect(find.text('OUTSIDE FENCE'), findsOneWidget);
-    expect(find.byKey(const ValueKey('visit-pin-dispute')), findsOneWidget);
-    expect(find.text('Agent reported it wrong'), findsOneWidget);
-    expect(
-      find.text('Waiting for review · "Pinned on the depot"'),
-      findsOneWidget,
-    );
-  });
+      final back = tester.widget<Semantics>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey<String>('visit-detail-back')),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(back.properties.label, 'Back to The Floor');
 
-  testWidgets('an ordinary out-of-fence visit carries no claim', (
-    tester,
-  ) async {
-    _tallView(tester);
-    await tester.pumpWidget(
-      _app(_Repo((_) => _draft), theme: AppTheme.light(), visitId: 'v2'),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('visit-pin-dispute')), findsNothing);
-  });
+      await tester.tap(find.byKey(const ValueKey<String>('visit-detail-back')));
+      await tester.pumpAndSettle();
+      expect(find.text('the floor'), findsOneWidget);
+    });
 
-  testWidgets('loading shows a spinner, not a stale or empty screen', (
-    tester,
-  ) async {
-    final pending = Completer<VisitDetail>();
-    await tester.pumpWidget(
-      _app(_Repo((_) => pending.future), theme: AppTheme.light()),
-    );
-    await tester.pump();
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byKey(const ValueKey('visit-header')), findsNothing);
-
-    pending.complete(_submitted);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('visit-header')), findsOneWidget);
-  });
-
-  for (final entry in _themes.entries) {
-    testWidgets('${entry.key}: not found says so, with a way back', (
+    testWidgets('a failed fetch offers a retry, not a raw exception', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _app(
-          _Repo((id) => throw VisitNotFoundException(id)),
-          theme: entry.value(),
-          visitId: 'gone',
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('visit-not-found')), findsOneWidget);
-      expect(find.text('NOT FOUND'), findsOneWidget);
+      await pumpVisit(tester, failure: Exception('network down'));
       expect(
-        find.text(
-          'This visit does not exist, or it belongs to another client.',
-        ),
+        find.byKey(const ValueKey<String>('visit-detail-retry')),
         findsOneWidget,
       );
-      // Not the generic error: no Retry for a visit that will not appear.
-      expect(find.text('Retry'), findsNothing);
-      // A deep link has nothing to pop to, so the console is offered.
-      expect(
-        find.byKey(const ValueKey('visit-detail-console')),
-        findsOneWidget,
+      expect(find.textContaining('Exception'), findsNothing);
+    });
+
+    testWidgets('a visit that is not there says so, with a way on', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        failure: const VisitNotFoundException('v-missing'),
+        visitId: 'v-missing',
       );
 
-      await tester.tap(find.text('Back to alerts'));
-      await tester.pumpAndSettle();
-      expect(find.text('alerts list'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('visit-not-found')), findsOneWidget);
+      expect(find.text('This visit is not here'), findsOneWidget);
+      // The id is readable back to support, in the identifier face.
+      expect(find.text('v-missing'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('visit-not-found-alerts')),
+        findsOneWidget,
+      );
     });
-  }
 
-  testWidgets('an error says so in words and retries', (tester) async {
-    var fail = true;
-    final repo = _Repo((_) {
-      if (fail) throw Exception('boom');
-      return _submitted;
+    testWidgets('a pending fetch is a skeleton, never a stale screen', (
+      tester,
+    ) async {
+      await pumpVisit(tester, pending: true);
+      expect(find.byType(Skeleton), findsOneWidget);
+      expect(find.text('Spar Rosebank'), findsNothing);
     });
-    _tallView(tester);
-    await tester.pumpWidget(_app(repo, theme: AppTheme.dark()));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Failed to load visit'), findsOneWidget);
-    expect(find.byKey(const ValueKey('visit-not-found')), findsNothing);
-
-    fail = false;
-    await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, 2);
-    expect(find.text('Spar Rosebank'), findsOneWidget);
   });
 
-  test('formatVisitTime reads as a date and a clock', () {
-    final local = DateTime(2026, 9, 4, 8, 5);
-    expect(formatVisitTime(local), '4 Sep 2026, 08:05');
+  group('the visit itself', () {
+    testWidgets('check-in, submit and the time on site', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final checkedIn = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-checked-in')),
+      );
+      expect(checkedIn.semanticsLabel, contains('14 Sep 2026'));
+      expect(checkedIn.subtitle, "From the phone's own clock");
+
+      final submitted = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-submitted')),
+      );
+      expect(submitted.subtitle, '14 minutes on site');
+    });
+
+    testWidgets('a draft says not yet, and carries no dwell', (tester) async {
+      await pumpVisit(tester, detail: draftVisit());
+
+      final submitted = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-submitted')),
+      );
+      expect(submitted.semanticsLabel, contains('Not yet'));
+      expect(submitted.subtitle, isNull);
+      expect(
+        find.byKey(const ValueKey<String>('visit-flag-unfinished')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('inside the fence is a distance and a word', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final geofence = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-geofence')),
+      );
+      expect(geofence.subtitle, 'Inside the fence');
+      expect(geofence.semanticsLabel, contains('44'));
+      expect(
+        find.byKey(const ValueKey<String>('visit-flag-out-of-fence')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('outside the fence is a flag chip carrying the distance', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(geofencePass: false, distanceM: 61),
+      );
+
+      final chip = tester.widget<FlagChip>(
+        find.byKey(const ValueKey<String>('visit-flag-out-of-fence')),
+      );
+      // Out of fence is a measurement, not a verdict: the neutral treatment,
+      // with the measured distance hung off the word.
+      expect(chip.kind, FlagKind.outOfFence);
+      expect(chip.detail, contains('61'));
+    });
+
+    // A nought here would read as a perfect check-in.
+    testWidgets('a missing distance is words, never 0 m', (tester) async {
+      await pumpVisit(tester, detail: submittedVisit(distanceM: null));
+
+      final geofence = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-geofence')),
+      );
+      expect(geofence.subtitle, 'No distance was recorded');
+      expect(geofence.semanticsLabel, contains('—'));
+      expect(geofence.semanticsLabel, isNot(contains('0')));
+    });
+
+    // Outside the fence BECAUSE the agent said the pin is wrong (#386).
+    // Without this a reviewer cannot tell a depot-pinned outlet from a faked
+    // visit, and that is the whole difference.
+    testWidgets('a disputed pin is stated, with who answered it', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(
+          geofencePass: false,
+          distanceM: 900,
+          pinDispute: const VisitPinDispute(
+            id: 'd1',
+            distanceM: 900,
+            status: 'applied',
+            note: 'The pin is on the depot',
+            resolvedByLabel: 'Nomsa D.',
+          ),
+        ),
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-pin-dispute')),
+      );
+      expect(row.subtitle, contains('The pin was moved by Nomsa D.'));
+      expect(row.subtitle, contains('The pin is on the depot'));
+      expect(find.byKey(const ValueKey<String>('visit-flag-pin')), findsOneWidget);
+    });
+
+    testWidgets('an ordinary out-of-fence visit carries no pin claim', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit(geofencePass: false));
+      expect(find.byKey(const ValueKey<String>('visit-flag-pin')), findsNothing);
+    });
+  });
+
+  group('the score', () {
+    testWidgets('the figure, the band as a mark and a word, and the meter', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      expect(
+        find.byKey(const ValueKey<String>('visit-score-figure')),
+        findsOneWidget,
+      );
+      expect(find.text('Gap'), findsOneWidget);
+      // The hero is ink-1 at every band: a severity-coded figure at 72px is a
+      // hue doing a number's job.
+      final hero = tester.widget<FigureSlot>(
+        find.byKey(const ValueKey<String>('visit-score-figure')),
+      );
+      expect(hero.color, TiqSkin.night().palette.ink1);
+      expect(hero.value, 55);
+      // And the mark beside the word, so the band survives greyscale.
+      expect(find.byType(SeverityMark), findsWidgets);
+    });
+
+    testWidgets('a band this build does not know is not guessed at', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(
+          score: const VisitScore(
+            weightedTotal: 61,
+            ratingBand: 'chartreuse',
+            target: 85,
+            dimensions: <ScoreDimension>[],
+          ),
+        ),
+      );
+
+      expect(find.text('Unbanded'), findsOneWidget);
+      expect(find.text('Gap'), findsNothing);
+    });
+
+    testWidgets('a draft says the score comes on submit', (tester) async {
+      await pumpVisit(tester, detail: draftVisit());
+      expect(find.text('Not scored'), findsOneWidget);
+      expect(
+        find.text('The score is calculated when the visit is submitted.'),
+        findsOneWidget,
+      );
+    });
+
+    // A different fact from a draft, and the reviewer needs to know which.
+    testWidgets('a submitted visit with no scorecard says that instead', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit(score: null));
+      expect(
+        find.text('No scorecard has been generated for this visit.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a measured dimension carries its figure, meter and word', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final availability = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-dimension-availability')),
+      );
+      expect(availability.title, 'Availability');
+      expect(availability.subtitle, 'On target');
+      expect(availability.semanticsLabel, contains('90 out of 100'));
+
+      final pricing = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-dimension-pricing')),
+      );
+      expect(pricing.subtitle, 'Below target');
+    });
+
+    // #93: absent is not nought. A zero would read as "you scored nothing on
+    // this" for something nobody was given a chance to do.
+    testWidgets('an unmeasured dimension is a dash, a hatch and a reason', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      expect(
+        find.byKey(const ValueKey<String>('visit-unmeasured-competitive')),
+        findsOneWidget,
+      );
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-dimension-competitive')),
+      );
+      expect(row.subtitle, 'Not measured');
+      expect(row.semanticsLabel, contains('not measured'));
+      expect(row.trailing, isNull);
+    });
+  });
+
+  group('what was captured', () {
+    testWidgets('each section keeps its glyph, its word and its findings', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final stock = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-section-stock')),
+      );
+      expect(stock.title, 'Stock');
+      expect(stock.subtitle, contains('1 flagged'));
+      expect(stock.subtitle, contains('2 captured'));
+      expect(stock.severity, SoftRowSeverity.watch);
+      expect(stock.severityLabel, 'Watch');
+      // `meta` is inside the row's excluded label, so the findings have to be
+      // said in the label or they are painted and announced nowhere.
+      expect(stock.semanticsLabel, contains('1 of 2 SKUs out of stock'));
+      expect(stock.semanticsLabel, contains('Cola 330ml'));
+    });
+
+    // A flagged risk is an in-store hazard; an execution gap is not.
+    testWidgets('a flagged risk is critical, everything else is watch', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final risks = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-section-risks')),
+      );
+      expect(risks.severity, SoftRowSeverity.critical);
+      expect(risks.severityLabel, 'Critical');
+    });
+
+    testWidgets('a section nobody opened says so and carries no severity', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final competitive = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-section-competitive')),
+      );
+      expect(competitive.subtitle, contains('Not captured'));
+      expect(competitive.severity, SoftRowSeverity.none);
+      expect(
+        competitive.semanticsLabel,
+        contains('Nothing was recorded in this section.'),
+      );
+    });
+
+    testWidgets('a cut findings list says it was cut', (tester) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(
+          sections: const <VisitSectionSummary>[
+            VisitSectionSummary(
+              key: 'stock',
+              count: 900,
+              flagged: 4,
+              findings: <String>['4 of 900 SKUs out of stock'],
+              truncated: true,
+            ),
+          ],
+        ),
+      );
+      expect(
+        find.text('Findings drawn from the first 500 rows.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('photos', () {
+    testWidgets('a thumbnail per photo, each labelled with what it is of', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      expect(find.byKey(const ValueKey<String>('visit-photo-p1')), findsOneWidget);
+      final thumb = tester.widget<TorchEvidenceThumb>(
+        find.byType(TorchEvidenceThumb),
+      );
+      expect(thumb.semanticLabel, 'Spar Rosebank, visibility, 09:05');
+    });
+
+    testWidgets('no photos is said in words — on a review it is a signal', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(
+          photoTotal: 0,
+          photos: const <VisitPhotoRef>[],
+        ),
+      );
+      expect(
+        find.text('No photos were captured on this visit.'),
+        findsOneWidget,
+      );
+      expect(find.byType(TorchEvidenceThumb), findsNothing);
+    });
+
+    testWidgets('a cut photo list never reads as everything captured', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit(photoTotal: 9));
+      expect(find.text('Showing 1 of 9'), findsOneWidget);
+    });
+
+    // unify §4: Veld renders no thumbnails. The figure list that replaces
+    // them is what a screen reader has always been given.
+    testWidgets('Veld draws the figure list instead of thumbnails', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(),
+        skin: TiqSkin.veld(),
+      );
+
+      expect(find.byType(TorchEvidenceThumb), findsNothing);
+      expect(find.byKey(const ValueKey<String>('visit-photo-p1')), findsOneWidget);
+      expect(find.text('09:05'), findsOneWidget);
+    });
+  });
+
+  group('fraud signals', () {
+    testWidgets('the risk figure, its band and one row per signal', (
+      tester,
+    ) async {
+      await pumpVisit(tester, detail: submittedVisit());
+
+      final figure = tester.widget<FigureSlot>(
+        find.byKey(const ValueKey<String>('visit-risk-figure')),
+      );
+      expect(figure.value, 72);
+      // ink-1, like the score: the mark and the word beside it carry the band.
+      expect(figure.color, TiqSkin.night().palette.ink1);
+      expect(find.text('High risk'), findsOneWidget);
+
+      final signal = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('visit-signal-photo_gps_divergence')),
+      );
+      expect(signal.title, contains('GPS tag is 500m'));
+      expect(signal.semanticsLabel, contains('photo_gps_divergence'));
+    });
+
+    testWidgets('a visit with no signals carries no fraud section', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(signals: const <FraudSignal>[]),
+      );
+      expect(find.byKey(const ValueKey<String>('visit-fraud')), findsNothing);
+    });
+
+    testWidgets('a draft carries no fraud section either', (tester) async {
+      await pumpVisit(tester, detail: draftVisit());
+      expect(find.byKey(const ValueKey<String>('visit-fraud')), findsNothing);
+    });
+  });
+
+  group('every control is operable by a screen reader', () {
+    testWidgets('the back control and the retry', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpVisit(tester, detail: submittedVisit());
+      expectEveryButtonActivatable(tester);
+
+      await pumpVisit(tester, failure: Exception('boom'));
+      expectEveryButtonActivatable(tester);
+
+      await pumpVisit(
+        tester,
+        failure: const VisitNotFoundException('v-missing'),
+        visitId: 'v-missing',
+      );
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+  });
+
+  group('the amber census, per phase × skin', () {
+    for (final skin in torchSkins) {
+      for (final phase in const <String>[
+        'submitted',
+        'draft',
+        'not-found',
+        'error',
+      ]) {
+        testWidgets('${skin.mode.name} · $phase', (tester) async {
+          await pumpVisit(
+            tester,
+            skin: skin,
+            size: const Size(400, 900),
+            detail: switch (phase) {
+              'draft' => draftVisit(),
+              'submitted' => submittedVisit(),
+              _ => null,
+            },
+            failure: switch (phase) {
+              'not-found' => const VisitNotFoundException('v-missing'),
+              'error' => Exception('boom'),
+              _ => null,
+            },
+          );
+
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'visit-review',
+            phase: phase,
+          );
+          // A review records no decision, so nothing on the route is armed —
+          // and with no nav there is no chrome grant either.
+          expect(census.objectCount, 0, reason: census.describe());
+        });
+      }
+    }
+  });
+
+  group('2.0× text and Afrikaans', () {
+    testWidgets('nothing overflows at 2.0× on a 320dp phone', (tester) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(
+          geofencePass: false,
+          pinDispute: const VisitPinDispute(
+            id: 'd1',
+            distanceM: 900,
+            status: 'pending',
+            note: 'The pin is on the depot round the back',
+          ),
+        ),
+        textScale: 2.0,
+        size: const Size(320, 5000),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the review reads in Afrikaans', (tester) async {
+      await pumpVisit(
+        tester,
+        detail: submittedVisit(),
+        locale: const Locale('af'),
+      );
+
+      expect(find.textContaining('Besoekhersiening'), findsWidgets);
+      expect(find.text('Die besoek'), findsOneWidget);
+      expect(find.text('Aangemeld'), findsOneWidget);
+      expect(find.text('Perfekte-winkel telling'), findsOneWidget);
+      expect(find.text('Hoe dit bepunt is'), findsOneWidget);
+      expect(find.text('Wat vasgelê is'), findsOneWidget);
+      expect(find.text('Bedrogseine'), findsOneWidget);
+      // And none of the English it replaced.
+      expect(find.text('The visit'), findsNothing);
+      expect(find.text('Perfect store score'), findsNothing);
+    });
   });
 }
