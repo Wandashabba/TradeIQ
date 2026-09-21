@@ -1,94 +1,32 @@
 import 'dart:ui' show PointerDeviceKind;
 
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/agent_state_glyph.dart';
 import 'package:tradeiq_app/core/widgets/basemap.dart';
-import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
-import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
-import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import 'overview_harness.dart';
 
-class _FakeAgentsRepository implements AgentsRepository {
-  _FakeAgentsRepository(this.agents, {this.truncated = false});
-  final List<AgentActivity> agents;
-  final bool truncated;
-
-  @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      AgentActivityPage(agents: agents, truncated: truncated);
-}
-
-/// Returns different agents depending on the requested territory — just
-/// enough to prove the map re-fits when the territory filter changes,
-/// without a full backend fake.
-class _TerritoryAwareAgentsRepository implements AgentsRepository {
-  _TerritoryAwareAgentsRepository(this.byTerritory);
-  final Map<String?, List<AgentActivity>> byTerritory;
-
-  @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      AgentActivityPage(agents: byTerritory[territoryId] ?? const [], truncated: false);
-}
-
-class _FailingAgentsRepository implements AgentsRepository {
-  @override
-  Future<AgentActivityPage> listActivity({
-    required DateTime from,
-    required DateTime to,
-    String? territoryId,
-  }) async =>
-      throw Exception('network down');
-}
-
-AgentActivity _agent({
-  required String id,
-  required String name,
-  required AgentState state,
-  String? currentOutlet,
-  DateTime? lastSeen,
-  List<AgentStop> stops = const [],
-}) =>
-    AgentActivity(
-      agentId: id,
-      name: name,
-      state: state,
-      currentOutletName: currentOutlet,
-      lastSeenAt: lastSeen,
-      stops: stops,
-    );
-
-AgentStop _stop(String outletName, {double lat = -26.10, double lng = 28.05}) =>
-    AgentStop(
-      visitId: 'v1',
-      outletId: 'o1',
-      outletName: outletName,
-      lat: lat,
-      lng: lng,
-      checkinTs: DateTime.now().subtract(const Duration(minutes: 20)),
-      inProgress: false,
-    );
+/// WHERE ARE MY AGENTS — the panel, on Torchlight.
+///
+/// Two halves that must never disagree: a map of last *confirmed* check-ins,
+/// and the list that keeps it honest by carrying every agent including the
+/// ones the map cannot place. In Veld there is no map at all and the list is
+/// the whole panel, which is what it always was for a screen reader.
 
 /// Hosts [child] at a width the test controls directly, so a test can drive
 /// exactly the sequence a real screen produces without depending on
-/// `ListView`'s cache-extent heuristics: first layout at zero width (a
-/// scrollable can lay a child out before it has real space — see the
-/// regression test below), then a later, real width once it "arrives".
+/// `ListView`'s cache-extent heuristics: a first layout at zero width (a
+/// scrollable can lay a child out before it has real space), then a later,
+/// real width once it "arrives".
 class _ResizingHost extends StatefulWidget {
   const _ResizingHost({required this.width, required this.child});
 
@@ -116,995 +54,657 @@ class _ResizingHostState extends State<_ResizingHost> {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(width: widget.width.value, height: 600, child: widget.child),
-      );
+    alignment: Alignment.topLeft,
+    child: SizedBox(
+      width: widget.width.value,
+      height: 600,
+      child: widget.child,
+    ),
+  );
 }
 
+Future<void> _pump(
+  WidgetTester tester, {
+  List<AgentActivity> agents = const <AgentActivity>[],
+  Map<String?, List<AgentActivity>>? agentsByTerritory,
+  bool truncated = false,
+  Object? agentsFailure,
+  List<Outlet> outlets = const <Outlet>[],
+  Object? outletsFailure,
+  List<Territory> territories = const <Territory>[],
+  TiqSkin? skin,
+  Size size = const Size(400, 1200),
+  Widget? host,
+}) => pumpOverview(
+  tester,
+  host ?? const SingleChildScrollView(child: AgentActivityPanel()),
+  skin: skin,
+  size: size,
+  overrides: overviewOverrides(
+    agents: agents,
+    agentsByTerritory: agentsByTerritory,
+    agentsTruncated: truncated,
+    agentsFailure: agentsFailure,
+    outlets: outlets,
+    outletsFailure: outletsFailure,
+    territories: territories,
+  ),
+);
+
+/// The filter change a manager makes a few hundred pixels above this panel.
+void _filterTo(WidgetTester tester, String? territoryId) {
+  ProviderScope.containerOf(
+    tester.element(find.byType(AgentActivityPanel)),
+  ).read(dashboardFilterProvider.notifier).set(
+    DashboardFilter(territoryId: territoryId),
+  );
+}
+
+List<AgentActivity> get _jhb => <AgentActivity>[
+  agent(
+    id: 'a1',
+    name: 'a@x.com',
+    state: AgentState.atStore,
+    currentOutlet: 'Spar',
+    stops: <AgentStop>[stop('Spar', lat: -26.10, lng: 28.05)],
+  ),
+  agent(
+    id: 'a2',
+    name: 'b@x.com',
+    state: AgentState.atStore,
+    currentOutlet: 'Checkers',
+    stops: <AgentStop>[stop('Checkers', lat: -26.14, lng: 28.09)],
+  ),
+];
+
+List<AgentActivity> get _capeTown => <AgentActivity>[
+  agent(
+    id: 'a3',
+    name: 'c@x.com',
+    state: AgentState.atStore,
+    currentOutlet: 'Waterfront',
+    stops: <AgentStop>[stop('Waterfront', lat: -33.90, lng: 18.42)],
+  ),
+  agent(
+    id: 'a4',
+    name: 'd@x.com',
+    state: AgentState.atStore,
+    currentOutlet: 'Canal Walk',
+    stops: <AgentStop>[stop('Canal Walk', lat: -33.89, lng: 18.51)],
+  ),
+];
+
 void main() {
-  testWidgets('renders an at-store agent with their outlet', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              lastSeen: DateTime.now().subtract(const Duration(minutes: 4)),
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('thabo@example.com'), findsOneWidget);
-    expect(find.textContaining('Sandton Spar'), findsOneWidget);
-    expect(find.textContaining('At store'), findsOneWidget);
-  });
-
-  testWidgets('renders an idle agent as not checked in', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(id: 'a2', name: 'sipho@example.com', state: AgentState.idle),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('No check-in'), findsOneWidget);
-  });
-
-  // No territory filter is active here, so the territory cannot be the
-  // reason the list is empty — the wording must not imply one. This
-  // replaces the old fixed-string assertion (`textContaining('No agents')`):
-  // that string no longer applies once the empty state names or excludes a
-  // territory, so asserting it here would just be testing stale copy.
-  testWidgets('shows an empty state when there are no agents', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('No field agents yet.'), findsOneWidget);
-  });
-
-  // The reported bug: a manager filtered to a territory nobody is assigned
-  // to, got a fixed "no agents" string, and filed it as broken. Naming the
-  // territory is what makes the empty state actionable.
-  testWidgets('names the filtered territory when the empty result is filtered', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
-        territoriesListProvider.overrideWith(
-          (ref) async => const [
-            Territory(id: 't1', name: 'Western Cspe', code: 'wc'),
-            Territory(id: 't2', name: 'Gauteng', code: 'gp'),
-          ],
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentActivityPanel)),
-    );
-    container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 't1'),
-        );
-    await tester.pumpAndSettle();
-
-    expect(find.text('No agents are assigned to Western Cspe.'), findsOneWidget);
-  });
-
-  // The id matches nothing in the loaded territory list (stale/deleted
-  // territory) — must fall back cleanly, never a blank, "null", or the raw
-  // id, which would read worse than the message this replaced.
-  testWidgets('falls back cleanly when the filtered id matches no territory', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
-        territoriesListProvider.overrideWith(
-          (ref) async => const [
-            Territory(id: 't1', name: 'Gauteng', code: 'gp'),
-          ],
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentActivityPanel)),
-    );
-    container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 'does-not-exist'),
-        );
-    await tester.pumpAndSettle();
-
-    expect(find.text('No agents match this territory filter.'), findsOneWidget);
-    expect(find.textContaining('null'), findsNothing);
-    expect(find.textContaining('does-not-exist'), findsNothing);
-  });
-
-  // A cut list must never read as the whole team. Without this notice a
-  // manager sees 200 rows and concludes that is everyone.
-  testWidgets('says so when the server had more agents than it returned', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository(
-            [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
-            truncated: true,
+  group('the list, which carries every agent', () {
+    testWidgets('an at-store agent reads state then store', (tester) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'thabo@example.com',
+            state: AgentState.atStore,
+            currentOutlet: 'Sandton Spar',
+            lastSeen: DateTime.now().subtract(const Duration(minutes: 4)),
           ),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
+        ],
+      );
 
-    expect(find.textContaining('first 200'), findsOneWidget);
-  });
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('agent-row-a1')),
+      );
+      expect(row.title, 'thabo@example.com');
+      expect(row.subtitle, 'At store · Sandton Spar');
+      // Every row leads with WHEN. A row that says only where reads as live,
+      // and this data is never live.
+      expect(row.semanticsLabel, contains('4 min'));
+    });
 
-  testWidgets('shows no truncation notice when the list is complete', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository(
-            [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
+    testWidgets('an idle agent says so, and carries no location line', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a2', name: 'sipho@example.com')],
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('agent-row-a2')),
+      );
+      expect(row.subtitle, 'No check-in');
+      expect(row.semanticsLabel, contains('no check-in today'));
+    });
+
+    testWidgets('an at-store agent with no outlet name says unknown store', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(id: 'a1', name: 'a@x.com', state: AgentState.atStore),
+        ],
+      );
+
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('agent-row-a1')),
+      );
+      expect(row.subtitle, contains('unknown store'));
+    });
+
+    testWidgets('a transiting agent names the store they left', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          AgentActivity(
+            agentId: 'a1',
+            name: 'a@x.com',
+            state: AgentState.inTransit,
+            stops: <AgentStop>[stop('Rosebank PnP')],
           ),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
+        ],
+      );
 
-    expect(find.textContaining('first 200'), findsNothing);
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('agent-row-a1')),
+      );
+      expect(row.subtitle, 'In transit · left Rosebank PnP');
+    });
+
+    testWidgets('each state keeps its own silhouette, not just a colour', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(id: 'a1', name: 'a@x.com', state: AgentState.atStore),
+          agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
+          agent(id: 'a3', name: 'c@x.com'),
+        ],
+      );
+
+      final painters = <Type>{};
+      for (final id in const <String>['a1', 'a2', 'a3']) {
+        final glyph = tester.widget<AgentStateGlyph>(
+          find.byKey(ValueKey<String>('agent-state-icon-$id')),
+        );
+        painters.add(glyphPainterTypeFor(glyph.state));
+      }
+      expect(painters, hasLength(3));
+    });
+
+    testWidgets('a cut list says so — it must never read as the whole team', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+        truncated: true,
+      );
+      expect(find.textContaining('first 200'), findsOneWidget);
+    });
+
+    testWidgets('a complete list carries no truncation notice', (tester) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+      );
+      expect(find.textContaining('first 200'), findsNothing);
+    });
   });
 
-  // State must never be carried by colour alone (#144's N4 rule). Each state
-  // has a distinct SHAPE — not a stock Material icon any more, see
-  // `core/widgets/agent_state_glyph.dart` — AND a text label.
-  //
-  // This replaces the old assertion, which compared `Icon.icon` values
-  // across `find.byType(Icon)`: state glyphs are no longer drawn with
-  // Material `Icon`s at all, so that check genuinely no longer applies to
-  // the current implementation rather than being weakened — it is swapped
-  // for the equivalent check against the new representation, distinct
-  // `CustomPainter` identity per state.
-  testWidgets('gives each state a distinct glyph shape, not just colour', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(id: 'a1', name: 'a@x.com', state: AgentState.atStore, currentOutlet: 'Spar'),
-            _agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
-            _agent(id: 'a3', name: 'c@x.com', state: AgentState.idle),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
+  group('the empty state names the reason it can', () {
+    testWidgets('no filter on: the territory cannot be the reason', (
+      tester,
+    ) async {
+      await _pump(tester);
+      expect(find.text('No field agents yet.'), findsOneWidget);
+    });
 
-    expect(find.byKey(const ValueKey<String>('agent-state-icon-a1')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-state-icon-a2')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-state-icon-a3')), findsOneWidget);
+    // The reported bug: a manager filtered to a territory nobody is assigned
+    // to, got a fixed "no agents" string, and filed it as broken.
+    testWidgets('a filtered empty result names the territory', (tester) async {
+      await _pump(
+        tester,
+        territories: const <Territory>[north, west],
+        agentsByTerritory: const <String?, List<AgentActivity>>{},
+      );
 
-    Type painterTypeFor(String key) => tester
-        .widget<CustomPaint>(
-          find.descendant(
-            of: find.byKey(ValueKey<String>(key)),
-            matching: find.byType(CustomPaint),
+      _filterTo(tester, 'ter-2');
+      await tester.pumpAndSettle();
+
+      expect(find.text('No agents are assigned to Western Cape.'), findsOneWidget);
+    });
+
+    // A stale or deleted territory: never a blank, "null", or the raw id,
+    // which would all read worse than the message this replaced.
+    testWidgets('an id that matches no territory falls back cleanly', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        territories: const <Territory>[north],
+        agentsByTerritory: const <String?, List<AgentActivity>>{},
+      );
+
+      _filterTo(tester, 'does-not-exist');
+      await tester.pumpAndSettle();
+
+      expect(find.text('No agents match this territory filter.'), findsOneWidget);
+      expect(find.textContaining('null'), findsNothing);
+      expect(find.textContaining('does-not-exist'), findsNothing);
+    });
+
+    testWidgets('a failed fetch offers a retry, not a raw exception', (
+      tester,
+    ) async {
+      await _pump(tester, agentsFailure: Exception('network down'));
+      expect(
+        find.byKey(const ValueKey<String>('agent-activity-retry')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Exception'), findsNothing);
+    });
+  });
+
+  group('the map', () {
+    testWidgets('plots a pin for an agent with a confirmed stop today', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            currentOutlet: 'Spar',
+            stops: <AgentStop>[stop('Spar')],
           ),
-        )
-        .painter!
-        .runtimeType;
+        ],
+      );
+      expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
+    });
 
-    final shapes = {
-      painterTypeFor('agent-state-icon-a1'),
-      painterTypeFor('agent-state-icon-a2'),
-      painterTypeFor('agent-state-icon-a3'),
-    };
-    // Three states rendered → three genuinely different painters, i.e.
-    // three different silhouettes — not the same shape recoloured three
-    // times.
-    expect(shapes.length, 3);
+    testWidgets('an idle agent gets no pin but still appears in the list', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(id: 'a1', name: 'a@x.com'),
+          agent(
+            id: 'a2',
+            name: 'b@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+        ],
+      );
+      expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsNothing);
+      expect(find.byKey(const ValueKey<String>('agent-row-a1')), findsOneWidget);
+    });
+
+    testWidgets('the line beneath says who is plotted and who is not', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+          agent(id: 'a2', name: 'b@x.com'),
+          agent(id: 'a3', name: 'c@x.com'),
+        ],
+      );
+      expect(
+        find.text('1 on the map · 2 not checked in today'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('neither stops nor outlets: no map, and words instead', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+      );
+      expect(find.byType(FlutterMap), findsNothing);
+      expect(
+        find.text('No outlets yet — add outlets to see them here.'),
+        findsOneWidget,
+      );
+      // And the list still carries the agent.
+      expect(find.byKey(const ValueKey<String>('agent-row-a1')), findsOneWidget);
+    });
+
+    testWidgets('the outlet base layer draws on a morning with no check-ins', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+        outlets: <Outlet>[outlet('o1', 'Spar'), outlet('o2', 'Checkers')],
+      );
+      expect(find.byType(FlutterMap), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outlet-base-pin-o1')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsNothing);
+    });
+
+    testWidgets('agent pins and outlet pins draw together', (tester) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+        ],
+        outlets: <Outlet>[outlet('o1', 'Spar')],
+      );
+      expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outlet-base-pin-o1')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the island keeps the basemap tint over its tiles', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+        ],
+      );
+      expect(find.byType(TiqNavyTint), findsOneWidget);
+      expect(find.byType(TiqBasemapLabels), findsOneWidget);
+    });
+
+    testWidgets('an outlet pin announces the shop, never its id', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+        outlets: <Outlet>[outlet('o1', 'Kasi Corner Spaza')],
+      );
+      final pin = find.byKey(const ValueKey<String>('outlet-base-pin-o1'));
+      final semantics = tester.widget<Semantics>(
+        find.descendant(of: pin, matching: find.byType(Semantics)).first,
+      );
+      expect(semantics.properties.label, 'Kasi Corner Spaza outlet');
+      expect(semantics.properties.label, isNot(contains('o1')));
+    });
+
+    testWidgets('a failed outlets fetch still leaves the agents on the map', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+        ],
+        outletsFailure: Exception('outlets down'),
+      );
+      expect(find.byType(FlutterMap), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
+    });
   });
 
-  testWidgets('shows the outlet a transiting agent left, from their stops', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.inTransit,
-              stops: [
-                AgentStop(
-                  visitId: 'v1',
-                  outletId: 'o1',
-                  outletName: 'Pick n Pay Hyper Boksburg North',
-                  lat: -26.0,
-                  lng: 28.0,
-                  checkinTs: DateTime.now().subtract(const Duration(hours: 1)),
-                  inProgress: false,
-                ),
-              ],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
+  group('Veld', () {
+    testWidgets('draws no map — the list is the whole panel', (tester) async {
+      await _pump(
+        tester,
+        skin: TiqSkin.veld(),
+        agents: <AgentActivity>[
+          agent(
+            id: 'a1',
+            name: 'a@x.com',
+            state: AgentState.atStore,
+            stops: <AgentStop>[stop('Spar')],
+          ),
+        ],
+        outlets: <Outlet>[outlet('o1', 'Spar')],
+      );
 
-    expect(
-      find.textContaining('left Pick n Pay Hyper Boksburg North'),
-      findsOneWidget,
-    );
+      expect(find.byType(FlutterMap), findsNothing);
+      expect(find.byKey(const ValueKey<String>('agent-row-a1')), findsOneWidget);
+      // And no "nothing to plot" apology either: in Veld there was never
+      // going to be a map, so there is nothing to explain away.
+      expect(
+        find.text('No outlets yet — add outlets to see them here.'),
+        findsNothing,
+      );
+    });
   });
 
-  testWidgets('falls back to "unknown store" for an at-store agent with no outlet name', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: null,
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
+  group('the camera', () {
+    // A scrollable can lay a child out before it has real space. flutter_map's
+    // own one-shot `initialCameraFit` commits to that pass and never recovers;
+    // `fitFor` is computed from the real measured size instead.
+    testWidgets('fits the agents even when the first layout is degenerate', (
+      tester,
+    ) async {
+      final width = ValueNotifier<double>(0);
+      addTearDown(width.dispose);
 
-    expect(find.textContaining('unknown store'), findsOneWidget);
+      await _pump(
+        tester,
+        agents: _jhb,
+        size: const Size(1000, 700),
+        host: _ResizingHost(
+          width: width,
+          child: const SingleChildScrollView(child: AgentActivityPanel()),
+        ),
+      );
+
+      // The real viewport "arrives" — the panel scrolls into view.
+      width.value = 900;
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FlutterMap), findsOneWidget);
+      final camera = MapCamera.of(tester.element(find.byType(MarkerLayer)));
+      // Both agents are within ~4km of (-26.12, 28.07) — a JHB-scale fit, not
+      // the whole-world view a degenerate first layout produces.
+      expect(camera.center.latitude, closeTo(-26.12, 1.0));
+      expect(camera.center.longitude, closeTo(28.07, 1.0));
+      expect(camera.zoom, greaterThan(8));
+    });
+
+    testWidgets('travels to a filter change rather than jumping there', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agentsByTerritory: <String?, List<AgentActivity>>{
+          null: _jhb,
+          'cpt': _capeTown,
+        },
+      );
+
+      final before = MapCamera.of(
+        tester.element(find.byType(MarkerLayer)),
+      ).center;
+      expect(before.latitude, closeTo(-26.12, 1.0));
+
+      _filterTo(tester, 'cpt');
+
+      // Let the refetch resolve — `skipLoadingOnReload` keeps the SAME map
+      // mounted throughout, so there is a continuous camera to animate rather
+      // than a fresh one seeded straight at the target — then sample partway
+      // through, well short of the travel's 320ms.
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+
+      final mid = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
+      expect(
+        mid.latitude,
+        allOf(lessThan(before.latitude), greaterThan(-33.895)),
+        reason:
+            'partway through the travel the camera must sit strictly between '
+            'the old and new territory, not already snapped to either one — '
+            'before=$before mid=$mid',
+      );
+
+      await tester.pumpAndSettle();
+      final after = MapCamera.of(tester.element(find.byType(MarkerLayer)));
+      expect(after.center.latitude, closeTo(-33.895, 1.0));
+      expect(after.center.longitude, closeTo(18.465, 1.0));
+      expect(after.zoom, greaterThan(8));
+    });
+
+    // flutter_map's OWN fit machinery — `initialCameraFit`, and the
+    // `onMapReady`/`MapController.fitCamera` fix that came before this one —
+    // both depend on flutter_map's internal camera size, which a live debug
+    // overlay on the running web build showed was still zero at the moment
+    // `onMapReady` fired. This proves none of it is wired up any more.
+    testWidgets('is computed by fitFor, not by flutter_map', (tester) async {
+      await _pump(tester, agents: _jhb);
+
+      final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+      expect(map.options.initialCameraFit, isNull);
+      expect(map.options.onMapReady, isNull);
+      expect(map.mapController, isNull);
+      // A sane JHB-scale value — not flutter_map's own built-in default
+      // (LatLng(50.5, 30.51), zoom 13), which is what would appear if nothing
+      // had wired a real centre into `initialCenter` at all.
+      expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
+      expect(map.options.initialZoom, inInclusiveRange(8, 16));
+    });
+
+    // The panel lives below the fold in a real scroll view: a manager
+    // reaching it scrolls with their mouse wheel, exactly as they would over
+    // any other panel. flutter_map's default interaction options treat that
+    // same wheel as a zoom gesture over the map, silently destroying the fit.
+    testWidgets('a mouse wheel over the map does not change its zoom', (
+      tester,
+    ) async {
+      await _pump(tester, agents: _jhb);
+
+      final before = MapCamera.of(
+        tester.element(find.byType(MarkerLayer)),
+      ).zoom;
+
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      pointer.hover(tester.getCenter(find.byType(FlutterMap)));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -300)));
+      await tester.pumpAndSettle();
+
+      final after = MapCamera.of(tester.element(find.byType(MarkerLayer))).zoom;
+      expect(
+        after,
+        before,
+        reason:
+            'a wheel scroll over the embedded map must pass through to the '
+            'page, not silently re-zoom (and so discard) the computed fit — '
+            'before=$before after=$after',
+      );
+    });
+
+    // The direct guard beside the behavioural one: this regresses loudly if a
+    // future edit to the map's `MapOptions` ever re-adds the flag.
+    testWidgets('scrollWheelZoom stays out of the interaction flags', (
+      tester,
+    ) async {
+      await _pump(tester, agents: _jhb);
+
+      final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+      expect(
+        map.options.interactionOptions.flags & InteractiveFlag.scrollWheelZoom,
+        0,
+        reason:
+            "the panel map lives inside the console's scrollable — a "
+            're-enabled scroll wheel would zoom the map instead of scrolling '
+            'the page around it',
+      );
+    });
   });
 
-  testWidgets('shows a Retry affordance when the fetch fails', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(_FailingAgentsRepository()),
-      ],
-    ));
-    await tester.pumpAndSettle();
+  group('every control is operable by a screen reader', () {
+    testWidgets('the section rule action and the retry', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+      );
+      expectEveryButtonActivatable(tester);
 
-    expect(find.text('Retry'), findsOneWidget);
+      await _pump(tester, agentsFailure: Exception('boom'));
+      expectEveryButtonActivatable(tester);
+      handle.dispose();
+    });
+
+    testWidgets('Open the map goes to the full-screen route', (tester) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('agent-activity-view-map')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('/agents/activity'), findsOneWidget);
+    });
   });
 
-  testWidgets('plots a pin for an agent with a confirmed stop today', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
-  });
-
-  // The list is what stops an agent with no confirmed stop from vanishing:
-  // they cannot be plotted, so the row is the only place they still appear.
-  testWidgets('an idle agent gets no pin but still appears in the list', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-            _agent(id: 'a2', name: 'sipho@example.com', state: AgentState.idle),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey<String>('agent-pin-a2')), findsNothing);
-    expect(find.text('sipho@example.com'), findsOneWidget);
-  });
-
-  testWidgets('the footer reports how many are plotted versus not', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Spar',
-              stops: [_stop('Spar')],
-            ),
-            _agent(
-              id: 'a2',
-              name: 'b@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Checkers',
-              stops: [_stop('Checkers')],
-            ),
-            _agent(id: 'a3', name: 'c@x.com', state: AgentState.idle),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('2 on the map · 1 not checked in today'), findsOneWidget);
-  });
-
-  // Genuinely nothing to draw: no confirmed stops AND no outlets (a
-  // brand-new tenant). This is the one case where the map legitimately
-  // cannot render — everywhere else, the outlet base layer keeps it up (see
-  // the regression tests below, which prove the map DOES still render when
-  // outlets exist but nobody has checked in — the bug this whole fix targets).
-  testWidgets('shows the "no outlets" message, and no map, when there are neither stops nor outlets', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(id: 'a1', name: 'a@x.com', state: AgentState.idle),
-            _agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsNothing);
-    expect(
-      find.textContaining('No outlets yet — add outlets to see them here.'),
-      findsOneWidget,
-    );
-  });
-
-  // The reported regression, guarded directly: nobody has checked in, but
-  // the tenant has outlets — the map must still render, with the outlets as
-  // a base layer, and NO agent pins (nobody has a confirmed stop to plot).
-  // This is the test that fails against the old list-only code, which hid
-  // the map entirely whenever `withStops` was empty.
-  testWidgets('shows the outlet base layer, with no agent pins, when nobody has checked in yet', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith(
-          (ref) async => const [
-            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
-            Outlet(id: 'o2', name: 'Rosebank Checkers', code: 'RC1', lat: -26.14, lng: 28.04),
-          ],
-        ),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(id: 'a1', name: 'a@x.com', state: AgentState.idle),
-            _agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o1')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o2')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsNothing);
-    expect(find.byKey(const ValueKey<String>('agent-pin-a2')), findsNothing);
-    // The footer still counts AGENTS, not outlets — two outlets on the map
-    // is not the same claim as "two agents checked in".
-    expect(find.text('0 on the map · 2 not checked in today'), findsOneWidget);
-  });
-
-  // Both layers together: an agent's own pin sits alongside the outlet base
-  // layer, and both remain visible — checking in does not hide the store
-  // network, it adds to it.
-  testWidgets('shows both agent pins and outlet pins together', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith(
-          (ref) async => const [
-            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
-            Outlet(id: 'o2', name: 'Rosebank Checkers', code: 'RC1', lat: -26.14, lng: 28.04),
-          ],
-        ),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o1')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o2')), findsOneWidget);
-  });
-
-  // The Tide Guide world (premium-ui sub3): the island map carries the same
-  // navy wash the trail map does, layered over the dark tiles so the panel
-  // reads as the same world at panel size.
-  testWidgets('the island map renders the navy tint over the tiles', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.descendant(
-        of: find.byType(FlutterMap),
-        matching: find.byType(TiqNavyTint),
-      ),
-      findsOneWidget,
-    );
-  });
-
-  // The glow treatment (premium-ui sub3): the state glyph — whose SHAPE set
-  // is unchanged, that contract is guarded above — now sits in white on a
-  // glowing blue lit-sphere disc, same gradient family as the trail pins.
-  // The highlight is offset away from centre, so the glyph sits on the deep
-  // core colour the contrast test below is pinned against.
-  testWidgets('agent pins are white glyphs on the glowing blue disc', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final pin = find.byKey(const ValueKey<String>('agent-pin-a1'));
-    final decoration = tester
-        .widget<AnimatedContainer>(
-          find.descendant(of: pin, matching: find.byType(AnimatedContainer)).first,
-        )
-        .decoration! as BoxDecoration;
-
-    final gradient = decoration.gradient! as RadialGradient;
-    expect(gradient.colors, const [Color(0xFF7CC0FF), Color(0xFF1F7AE0)]);
-    // The highlight sits away from centre — the glyph rests on the core.
-    expect(gradient.center, isNot(Alignment.center));
-
-    final border = decoration.border! as Border;
-    expect(border.top.color, Colors.white);
-    expect(border.top.width, inInclusiveRange(1.5, 2.0));
-
-    // The halo: 0 0 14 3 rgba(64,156,255,.55).
-    final halo = decoration.boxShadow!.single;
-    expect(halo.color.toARGB32(), const Color(0xFF409CFF).withValues(alpha: 0.55).toARGB32());
-    expect(halo.blurRadius, 14);
-    expect(halo.spreadRadius, 3);
-
-    final glyph = tester.widget<AgentStateGlyph>(
-      find.descendant(of: pin, matching: find.byType(AgentStateGlyph)),
-    );
-    expect(glyph.color, Colors.white);
-  });
-
-  // Guards this file's disc-core constant independently of the trail
-  // screen's identical check: the white glyph must clear the repo's 3:1 bar
-  // for graphical marks against the core it actually sits on.
-  test('white glyph clears 3:1 on the agent disc core', () {
-    expect(
-      contrastRatio(const Color(0xFF1F7AE0), Colors.white),
-      greaterThanOrEqualTo(3.0),
-    );
-  });
-
-  // The outlet base layer in the Tide Guide world: a dim navy-glow dot —
-  // still a plain dot (shape-distinct from the agent glyph discs, #144) and
-  // still strictly smaller than an agent pin, so it stays background.
-  testWidgets('outlet base pins are dim navy dots, subordinate to agent pins', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith(
-          (ref) async => const [
-            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
-          ],
-        ),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final outletPin = find.byKey(const ValueKey<String>('outlet-base-pin-o1'));
-    final decoration = tester
-        .widget<Container>(
-          find.descendant(of: outletPin, matching: find.byType(Container)).first,
-        )
-        .decoration! as BoxDecoration;
-
-    expect(decoration.color, const Color(0xFF39557E));
-    // The faint halo: 0 0 8 2 rgba(64,120,200,.35).
-    final halo = decoration.boxShadow!.single;
-    expect(halo.color.toARGB32(), const Color(0xFF4078C8).withValues(alpha: 0.35).toARGB32());
-    expect(halo.blurRadius, 8);
-    expect(halo.spreadRadius, 2);
-
-    // Subordinate by size: the outlet marker is strictly smaller than the
-    // agent marker, so the eye's first stop is always an agent.
-    final outletSize = tester.getSize(outletPin);
-    final agentSize = tester.getSize(find.byKey(const ValueKey<String>('agent-pin-a1')));
-    expect(outletSize.width, lessThan(agentSize.width));
-    expect(outletSize.height, lessThan(agentSize.height));
-  });
-
-  // An outlet-fetch failure is a thinner base layer, never a blank panel:
-  // the agent map — the panel's primary content — must still render.
-  testWidgets('still renders the map when the outlets fetch errors, as long as agents have stops', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => throw Exception('network down')),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'thabo@example.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Sandton Spar',
-              stops: [_stop('Sandton Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
-  });
-
-  // Regression test for the "map stuck at world zoom" bug: the panel lives
-  // inside DashboardShellScreen's ListView, below the fold on a typical
-  // screen — so it can be laid out once, with a degenerate viewport, before
-  // it is ever scrolled into view. flutter_map applies `initialCameraFit`
-  // exactly ONCE per State and never retries, so a bad first fit sticks even
-  // once the real viewport arrives.
-  //
-  // Pumping this inside an actual `ListView` and scrolling it into view does
-  // NOT reproduce the bug: flutter's sliver layout simply skips laying the
-  // panel out at all until it nears the viewport, so it never gets a
-  // degenerate first pass in a plain widget test. `_ResizingHost` reproduces
-  // the mechanism the bug actually depends on directly and deterministically
-  // — a first layout at zero width, then a later, real one — without relying
-  // on sliver caching internals a widget test can't reliably control.
-  testWidgets('camera fits the agents even when the first layout is degenerate', (tester) async {
-    final width = ValueNotifier<double>(0);
-    addTearDown(width.dispose);
-
-    await tester.pumpWidget(routedApp(
-      _ResizingHost(
-        width: width,
-        child: const Scaffold(body: AgentActivityPanel()),
-      ),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Spar',
-              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
-            ),
-            _agent(
-              id: 'a2',
-              name: 'b@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Checkers',
-              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
-            ),
-          ]),
-        ),
-      ],
-    ));
-
-    // First layout: zero width, before the data or the real viewport exist —
-    // this is the pass flutter_map's one-shot `initialCameraFit` must NOT be
-    // allowed to commit to.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    // The real viewport "arrives" — e.g. the panel scrolls into view.
-    width.value = 900;
-    await tester.pumpAndSettle();
-
-    expect(find.byType(FlutterMap), findsOneWidget);
-    final camera = MapCamera.of(tester.element(find.byType(MarkerLayer)));
-    // Both agents are within ~4km of (-26.12, 28.07) — a sane, JHB-scale fit,
-    // not the whole-world view a degenerate first layout produces.
-    expect(camera.center.latitude, closeTo(-26.12, 1.0));
-    expect(camera.center.longitude, closeTo(28.07, 1.0));
-    expect(camera.zoom, greaterThan(8));
-  });
-
-  // Same one-shot-fit failure as the degenerate-viewport test above, reached
-  // a different way: the dashboard's territory filter sits a few hundred
-  // pixels above this panel, and switching it is an ordinary click that
-  // re-fetches with different agents in a different place — with the
-  // panel's own size unchanged throughout. Without a coordinate fingerprint
-  // in the map's key, the camera would stay pointed at the old territory.
-  testWidgets('re-fits the camera when a territory-filter change moves the pins', (tester) async {
-    final jhb = [
-      _agent(
-        id: 'a1',
-        name: 'a@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Spar',
-        stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
-      ),
-      _agent(
-        id: 'a2',
-        name: 'b@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Checkers',
-        stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
-      ),
-    ];
-    final capeTown = [
-      _agent(
-        id: 'a3',
-        name: 'c@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Waterfront',
-        stops: [_stop('Waterfront', lat: -33.90, lng: 18.42)],
-      ),
-      _agent(
-        id: 'a4',
-        name: 'd@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Canal Walk',
-        stops: [_stop('Canal Walk', lat: -33.89, lng: 18.51)],
-      ),
-    ];
-
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
-    expect(before.latitude, closeTo(-26.12, 1.0));
-
-    // The territory-filter click: same provider, same panel size, a
-    // completely different set of coordinates.
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentActivityPanel)),
-    );
-    container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 'cpt'),
+  group('the panel emits no light', () {
+    testWidgets('no amber, in any skin, with pins on the map', (tester) async {
+      for (final skin in <TiqSkin>[
+        TiqSkin.night(),
+        TiqSkin.day(),
+        TiqSkin.veld(),
+      ]) {
+        await _pump(
+          tester,
+          skin: skin,
+          agents: _jhb,
+          outlets: <Outlet>[outlet('o1', 'Spar')],
         );
-    await tester.pumpAndSettle();
-
-    final after = MapCamera.of(tester.element(find.byType(MarkerLayer)));
-    expect(after.center.latitude, closeTo(-33.895, 1.0));
-    expect(after.center.longitude, closeTo(18.465, 1.0));
-    expect(after.zoom, greaterThan(8));
-  });
-
-  // Unit-level guard for the `fitFor` fix, as far as a widget test can reach
-  // it: flutter_map's OWN fit machinery — `initialCameraFit`, and the
-  // `onMapReady`/`MapController.fitCamera` fix that came before this one —
-  // both turned out to depend on flutter_map's internal camera size, which
-  // a live debug overlay on the running web build showed was still zero at
-  // the moment `onMapReady` fired. This proves none of that machinery is
-  // wired up any more: no `mapController`, no `onMapReady`, no
-  // `initialCameraFit` — just a plain, pre-computed `initialCenter`/
-  // `initialZoom` flutter_map applies unconditionally. It does NOT prove
-  // the web bug is fixed; that mechanism has no timing left to race, which
-  // is a different (stronger) claim this suite can actually make, but the
-  // browser is still the real verification.
-  testWidgets('computes the camera itself via fitFor, not flutter_map\'s own fit machinery', (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Spar',
-              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
-            ),
-            _agent(
-              id: 'a2',
-              name: 'b@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Checkers',
-              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-    expect(map.options.initialCameraFit, isNull);
-    expect(map.options.onMapReady, isNull);
-    expect(map.mapController, isNull);
-    // A sane, JHB-scale value — not flutter_map's own built-in default
-    // (LatLng(50.5, 30.51), zoom 13) that would appear if nothing had wired
-    // a real centre/zoom into `initialCenter`/`initialZoom` at all.
-    expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
-    expect(map.options.initialZoom, inInclusiveRange(8, 16));
-  });
-
-  // The panel lives below the fold in DashboardShellScreen's real ListView —
-  // a manager reaching it scrolls with their mouse wheel, exactly as they
-  // would over any other panel. flutter_map's default interactionOptions
-  // treat that same wheel as a zoom gesture over the map, silently
-  // destroying the fit `fitFor` computed. Reproduced here with a real
-  // ListView ancestor and a genuine PointerScrollEvent over the map's own
-  // rectangle — not just a unit check of the options object — because a
-  // test that could pass by accident is worse than none, given how many
-  // wrong diagnoses this bug has already absorbed.
-  testWidgets('a mouse wheel over the map does not change its zoom', (tester) async {
-    await tester.pumpWidget(routedApp(
-      Scaffold(body: ListView(children: const [AgentActivityPanel()])),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Spar',
-              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
-            ),
-            _agent(
-              id: 'a2',
-              name: 'b@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Checkers',
-              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).zoom;
-
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    final mapCenter = tester.getCenter(find.byType(FlutterMap));
-    pointer.hover(mapCenter);
-    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -300)));
-    await tester.pumpAndSettle();
-
-    final after = MapCamera.of(tester.element(find.byType(MarkerLayer))).zoom;
-    expect(
-      after,
-      before,
-      reason: 'a wheel scroll over the embedded map must pass through to the '
-          'page, not silently re-zoom (and so discard) the computed fit — '
-          'before=$before after=$after',
-    );
-  });
-
-  // Direct guard on the flags object itself, alongside the behavioural wheel
-  // test above — regresses loudly if a future edit to `_AgentMap`'s
-  // `MapOptions` ever re-adds `InteractiveFlag.scrollWheelZoom` (the exact
-  // mistake this panel's map history already paid for once).
-  testWidgets("scrollWheelZoom stays out of the panel map's interaction flags", (tester) async {
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _FakeAgentsRepository([
-            _agent(
-              id: 'a1',
-              name: 'a@x.com',
-              state: AgentState.atStore,
-              currentOutlet: 'Spar',
-              stops: [_stop('Spar')],
-            ),
-          ]),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-    expect(
-      map.options.interactionOptions.flags & InteractiveFlag.scrollWheelZoom,
-      0,
-      reason: 'the panel map lives inside the dashboard\'s scrollable — a '
-          're-enabled scroll wheel would zoom the map instead of scrolling '
-          'the page around it',
-    );
-  });
-
-  // The map used to remount via a coordinate-fingerprinted key on a
-  // territory-filter change, so the camera SNAPPED straight to the new fit.
-  // `_CameraDriver` now eases the same mounted map's camera there instead —
-  // this samples the camera mid-travel to prove it is actually animating,
-  // not just landing correctly (the pre-existing
-  // 're-fits the camera when a territory-filter change moves the pins' test
-  // above already proves the end state; this one proves the journey).
-  testWidgets('the camera travels toward a filter change instead of jumping there', (tester) async {
-    final jhb = [
-      _agent(
-        id: 'a1',
-        name: 'a@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Spar',
-        stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
-      ),
-      _agent(
-        id: 'a2',
-        name: 'b@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Checkers',
-        stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
-      ),
-    ];
-    final capeTown = [
-      _agent(
-        id: 'a3',
-        name: 'c@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Waterfront',
-        stops: [_stop('Waterfront', lat: -33.90, lng: 18.42)],
-      ),
-      _agent(
-        id: 'a4',
-        name: 'd@x.com',
-        state: AgentState.atStore,
-        currentOutlet: 'Canal Walk',
-        stops: [_stop('Canal Walk', lat: -33.89, lng: 18.51)],
-      ),
-    ];
-
-    await tester.pumpWidget(routedApp(
-      const Scaffold(body: AgentActivityPanel()),
-      overrides: [
-        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
-        agentsRepositoryProvider.overrideWithValue(
-          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
-        ),
-      ],
-    ));
-    await tester.pumpAndSettle();
-
-    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
-    expect(before.latitude, closeTo(-26.12, 1.0));
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AgentActivityPanel)),
-    );
-    container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 'cpt'),
+        // In transit borrowed the old palette's amber `warn`. It takes
+        // `chartNeutral` now: Burning Flame is emitted light and a list of
+        // eleven agents would be eleven of them.
+        expect(
+          agentStateInk(AgentState.inTransit, skin.palette),
+          skin.palette.chartNeutral,
         );
+      }
+    });
+  });
 
-    // Let the refetch resolve — `skipLoadingOnReload` keeps the SAME map
-    // mounted throughout (see `AgentActivityPanel`'s `AsyncSection`), so
-    // there is a continuous camera to animate rather than a fresh one
-    // seeded straight at the target — and the travel begin, then sample it
-    // partway through, well short of `Motion.slow`'s 420ms.
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 180));
-
-    final mid = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
-    expect(
-      mid.latitude,
-      allOf(lessThan(before.latitude), greaterThan(-33.895)),
-      reason: 'partway through the travel the camera must sit strictly '
-          'between the old and new territory, not already snapped to '
-          'either one — before=$before mid=$mid',
-    );
-
-    await tester.pumpAndSettle();
-    final after = MapCamera.of(tester.element(find.byType(MarkerLayer)));
-    expect(after.center.latitude, closeTo(-33.895, 1.0));
-    expect(after.center.longitude, closeTo(18.465, 1.0));
+  group('the section still names itself while it waits', () {
+    testWidgets('a pending fetch is a skeleton under a real rule', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
+      );
+      expect(find.text('Where are my agents'), findsOneWidget);
+      expect(find.byType(Skeleton), findsNothing);
+    });
   });
 }
