@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Tooltip;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../core/theme/tiq_colors.dart';
-import '../../../l10n/l10n.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_state_glyph.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../l10n/l10n.dart';
 import '../data/agent_locations_repository.dart';
 
 /// The live layer (#153 T1), shared by the dashboard's "Where are my agents"
@@ -21,23 +24,44 @@ import '../data/agent_locations_repository.dart';
 ///   [AgentLocationsPage.serverTime], so the time they are true AT is shown.
 /// - **Distinct from check-ins.** Live pins are rounded squares; the check-in
 ///   pins they sit beside are round discs.
+///
+/// ## Torchlight
+///
+/// Two things changed with the tokens and neither is cosmetic.
+///
+/// **In transit is no longer amber.** It borrowed the old palette's `warn`,
+/// and Torchlight has no amber warning: Burning Flame is emitted light and
+/// never a label (unify §4). It takes `chartNeutral` — the neutral data hue
+/// that exists precisely because it is a fill nobody reads as a verdict — and
+/// the road silhouette plus the word go on carrying the state, as they always
+/// did.
+///
+/// **The map geometry reads the Night palette in every skin.** The basemap is
+/// the same dark canvas whatever the console around it wears, so a pin paints
+/// Palladian on near-black rather than Veld's near-black ink on a near-black
+/// tile. `trail_map.dart` does the same, for the same reason.
+
+/// The palette every pin on the basemap paints from, whatever skin the console
+/// around it is wearing. See the class comment.
+TiqPalette get basemapPalette => TiqSkin.night().palette;
 
 /// Colour for a state — an extra, never the carrier.
 ///
-/// Near store has its own look rather than borrowing in transit's amber: amber
-/// would say "on the road", which a ping inside a store fence is not, and
-/// green would claim the store. It takes `ink2`, the strong neutral that
-/// clears text contrast in both themes, so it reads as a fresh reading that
-/// makes a weaker claim. Not sharing takes `ink3` — muted like stale, told
-/// apart from it by the padlock and the words.
-Color liveStateColor(LiveAgentState state, TiqColors colors) => switch (state) {
-  LiveAgentState.atStore => colors.good,
-  LiveAgentState.nearStore => colors.ink2,
-  LiveAgentState.inTransit => colors.warn,
-  LiveAgentState.stale => colors.ink3,
-  LiveAgentState.offline => colors.ink4,
-  LiveAgentState.notSharing => colors.ink3,
-};
+/// Near store has its own look rather than borrowing in transit's hue: it
+/// takes `ink2`, the strong neutral that clears text contrast in all three
+/// skins, so it reads as a fresh reading that makes a weaker claim. In transit
+/// takes `chartNeutral` (never amber — see the class comment). Stale and not
+/// sharing both take `ink3`, told apart by the padlock and the words, and
+/// offline takes `inkMute` because it is the state that claims least of all.
+Color liveStateColor(LiveAgentState state, TiqPalette palette) =>
+    switch (state) {
+      LiveAgentState.atStore => palette.good,
+      LiveAgentState.nearStore => palette.ink2,
+      LiveAgentState.inTransit => palette.chartNeutral,
+      LiveAgentState.stale => palette.ink3,
+      LiveAgentState.offline => palette.inkMute,
+      LiveAgentState.notSharing => palette.ink3,
+    };
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
@@ -130,12 +154,11 @@ List<Marker> liveAgentMarkers(List<AgentLocation> agents) => [
       ),
 ];
 
-/// One live position: a navy rounded-square badge with the state glyph, and a
+/// One live position: a rounded-square badge with the state glyph, and a
 /// label that starts with the age.
 ///
-/// Fixed literal colours, not theme tokens — like the trail pins, this sits on
-/// the dark basemap in both app themes. White on the badge's navy is well
-/// above 4.5:1.
+/// Night tokens in every skin, not the ambient ones — like the trail pins,
+/// this sits on the dark basemap whatever the console is wearing.
 class LiveAgentPin extends StatelessWidget {
   const LiveAgentPin({super.key, required this.agent});
 
@@ -144,10 +167,15 @@ class LiveAgentPin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final night = TiqSkin.night();
+    final p = night.palette;
     final description = liveAgentDescription(l10n, agent);
     return Semantics(
       label: l10n.liveLocationOf(description),
       excludeSemantics: true,
+      // The hover tooltip is a real affordance on the web console this panel
+      // is read on, and it is the only way to get the full sentence off a pin
+      // whose caption is one ellipsised line.
       child: Tooltip(
         message: description,
         child: Column(
@@ -157,14 +185,14 @@ class LiveAgentPin extends StatelessWidget {
               width: _badgeSize,
               height: _badgeSize,
               decoration: BoxDecoration(
-                color: const Color(0xFF0B1426),
+                color: p.ground,
                 borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: Colors.white, width: 1.5),
+                border: Border.all(color: p.ink1, width: 1.5),
               ),
               alignment: Alignment.center,
               child: LiveAgentStateGlyph(
                 state: agent.state,
-                color: Colors.white,
+                color: p.ink1,
                 size: 15,
               ),
             ),
@@ -172,7 +200,7 @@ class LiveAgentPin extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
-                color: const Color(0xE6050A16),
+                color: p.well,
                 borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
@@ -180,11 +208,7 @@ class LiveAgentPin extends StatelessWidget {
                 '${livePinStateText(l10n, agent)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFE6EEFF),
-                ),
+                style: night.text.meta.style(color: p.ink1),
               ),
             ),
           ],
@@ -198,14 +222,16 @@ class LiveAgentPin extends StatelessWidget {
 class LiveStateLegend extends StatelessWidget {
   const LiveStateLegend({super.key, this.onDark = false});
 
-  /// Drawn over the map's dark chrome rather than the console surface.
+  /// Drawn over the map's dark chrome rather than the console surface. The
+  /// legend then reads the basemap's own palette, exactly as the pins it
+  /// describes do.
   final bool onDark;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
-    final textColor = onDark ? const Color(0xFFD9E6FF) : colors.ink2;
+    final skin = onDark ? TiqSkin.night() : context.skin;
+    final palette = skin.palette;
     return Wrap(
       spacing: 14,
       runSpacing: 4,
@@ -217,13 +243,13 @@ class LiveStateLegend extends StatelessWidget {
             children: [
               LiveAgentStateGlyph(
                 state: state,
-                color: onDark ? textColor : liveStateColor(state, colors),
+                color: liveStateColor(state, palette),
                 size: 14,
               ),
               const SizedBox(width: 5),
               Text(
                 liveStateLabel(l10n, state),
-                style: TextStyle(fontSize: 12, color: textColor),
+                style: skin.text.meta.style(color: palette.ink2),
               ),
             ],
           ),
@@ -244,20 +270,19 @@ class LiveLocationsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final skin = context.skin;
     final value = ref.watch(liveAgentLocationsProvider);
     final page = value.value;
-    final colors = context.colors;
-    final small = TextStyle(fontSize: 12, color: colors.ink3);
+
+    TextStyle meta() => skin.text.meta.style(color: skin.palette.ink3);
 
     // Nothing to explain yet: one line, no legend. The legend describes pins,
     // and there are none until the first page lands.
     if (page == null) {
       return Text(
-        value.hasError
-            ? l10n.liveLocationFailed
-            : l10n.liveLocationLoading,
+        value.hasError ? l10n.liveLocationFailed : l10n.liveLocationLoading,
         key: const ValueKey('live-locations-status'),
-        style: small,
+        style: meta(),
       );
     }
 
@@ -266,45 +291,36 @@ class LiveLocationsSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          runSpacing: 2,
-          children: [
-            Text(
-              l10n.liveLocationHeading,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: colors.ink1,
-              ),
-            ),
-            Text(
-              l10n.liveLastUpdated(formatUpdatedAt(page.serverTime)),
-              key: const ValueKey('live-last-updated'),
-              style: small,
-            ),
-          ],
+        SectionRule(l10n.liveLocationHeading),
+        const SizedBox(height: TiqSpace.s3),
+        Text(
+          l10n.liveLastUpdated(formatUpdatedAt(page.serverTime)),
+          key: const ValueKey('live-last-updated'),
+          style: meta(),
         ),
-        const SizedBox(height: 2),
-        Text(l10n.liveLocationNote, style: small),
-        const SizedBox(height: 6),
+        const SizedBox(height: TiqSpace.s1),
+        Text(l10n.liveLocationNote, style: meta()),
+        const SizedBox(height: TiqSpace.s3),
         const LiveStateLegend(),
-        const SizedBox(height: 6),
+        const SizedBox(height: TiqSpace.s3),
         if (value.hasError)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: TiqSpace.s2),
             child: Text(
               l10n.liveCouldNotRefresh,
               key: const ValueKey('live-refresh-failed'),
-              style: small,
+              style: meta(),
             ),
           ),
-        for (final agent in page.agents) LiveAgentRow(agent: agent),
+        for (var i = 0; i < page.agents.length; i++)
+          LiveAgentRow(
+            agent: page.agents[i],
+            last: i == page.agents.length - 1,
+          ),
         if (page.truncated)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(l10n.liveFirst200, style: small),
+            padding: const EdgeInsets.only(top: TiqSpace.s2),
+            child: Text(l10n.liveFirst200, style: meta()),
           ),
       ],
     );
@@ -312,62 +328,38 @@ class LiveLocationsSection extends ConsumerWidget {
 }
 
 /// One agent: age, then state (glyph + word), then name and place.
+///
+/// A `SoftRow` in its compact density, which is what a console list row is.
+/// It is **not tappable** — there is no per-agent live destination to open —
+/// and the row's whole utterance is [liveAgentDescription], age first.
 class LiveAgentRow extends StatelessWidget {
-  const LiveAgentRow({super.key, required this.agent});
+  const LiveAgentRow({super.key, required this.agent, this.last = false});
 
   final AgentLocation agent;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
+    final skin = context.skin;
     final place = liveOutletPhrase(l10n, agent);
-    return Semantics(
+    return SoftRow(
       key: ValueKey('live-row-${agent.agentId}'),
-      label: liveAgentDescription(l10n, agent),
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 76,
-              child: Text(
-                liveAgeText(l10n, agent),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.ink1,
-                ),
-              ),
-            ),
-            LiveAgentStateGlyph(
-              state: agent.state,
-              color: liveStateColor(agent.state, colors),
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            SizedBox(
-              // Wide enough for the longest label, "Not sharing", on one line.
-              width: 84,
-              child: Text(
-                liveStateLabel(l10n, agent.state),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: colors.ink2),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                place.isEmpty ? agent.name : '${agent.name} · $place',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: colors.ink2),
-              ),
-            ),
-          ],
-        ),
+      density: SoftRowDensity.compact,
+      leading: LiveAgentStateGlyph(
+        state: agent.state,
+        color: liveStateColor(agent.state, skin.palette),
+        size: 16,
       ),
+      title: place.isEmpty ? agent.name : '${agent.name} · $place',
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: liveStateLabel(l10n, agent.state),
+      trailing: Text(
+        liveAgeText(l10n, agent),
+        style: skin.text.label.style(color: skin.palette.ink1),
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: liveAgentDescription(l10n, agent),
     );
   }
 }
