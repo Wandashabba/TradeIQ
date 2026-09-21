@@ -734,13 +734,17 @@ void main() {
       );
 
       expect(find.text('Uitvoeringsoorsig'), findsWidgets);
+      expect(find.text('Laaste 30 dae'), findsWidgets);
       expect(find.text('Benodig aandag'), findsOneWidget);
       expect(find.text('Waar ons teenoor die standaard staan'), findsOneWidget);
-      expect(find.text('Waar is my agente'), findsOneWidget);
-      expect(find.text('Laaste 30 dae'), findsWidgets);
       // And none of the English it replaced.
       expect(find.text('Execution overview'), findsNothing);
       expect(find.text('Needs attention'), findsNothing);
+
+      // Past the fold, where a half-translated route usually hides.
+      await scrollOverviewTo(tester, find.text('Waar is my agente'));
+      expect(find.text('Waar is my agente'), findsOneWidget);
+      expect(find.text('Where are my agents'), findsNothing);
     });
   });
 }

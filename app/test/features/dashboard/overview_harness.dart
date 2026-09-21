@@ -650,3 +650,20 @@ Future<void> scrollRailTo(WidgetTester tester, Finder finder) async {
   );
   await tester.pumpAndSettle();
 }
+
+/// Scroll the console body until [finder] is built and on screen.
+///
+/// The overview is a long scroll and its body is a lazy `ListView`: on a phone
+/// the agent panel genuinely is past the fold, and in Afrikaans it is further
+/// past it than in English. A test that pumped a 6000dp viewport to avoid the
+/// scroll would be testing a screen nobody has.
+Future<void> scrollOverviewTo(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isNotEmpty) return;
+  await tester.scrollUntilVisible(
+    finder,
+    300,
+    scrollable: find.byType(Scrollable).first,
+    maxScrolls: 40,
+  );
+  await tester.pumpAndSettle();
+}
