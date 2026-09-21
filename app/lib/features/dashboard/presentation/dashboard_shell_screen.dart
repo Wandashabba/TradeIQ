@@ -1130,15 +1130,26 @@ class _IndicatorRow extends StatelessWidget {
                 ? FigureState.lowSample
                 : FigureState.measured,
             textAlign: TextAlign.end,
+            // An em dash announced as "em dash" is not a sentence. The row's
+            // own label carries the whole reading, and this is the figure's
+            // half of it.
+            semanticsLabel: !measured
+                ? l10n.dashNoVisitsInWindow
+                : thin
+                ? '${numbers.format(value, unit: TiqUnit.percent, decimals: 1)}, '
+                      '${l10n.trendsSmallSample}'
+                : null,
           ),
           if (measured)
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            // Wraps rather than overflows: at 2.0x "Close to the standard"
+            // beside a 24dp mark is wider than a trailing column has.
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: TiqSpace.s1,
               children: <Widget>[
-                if (severityFor(status) != null) ...<Widget>[
+                if (severityFor(status) != null)
                   SeverityMark(kind: severityFor(status)!),
-                  const SizedBox(width: TiqSpace.s1),
-                ],
                 Text(
                   standingWord(l10n, status),
                   textAlign: TextAlign.end,
