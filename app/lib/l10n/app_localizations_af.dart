@@ -7902,4 +7902,259 @@ class AppLocalizationsAf extends AppLocalizations {
   ) {
     return '$agent, stop $ordinal, $outlet, $time';
   }
+
+  @override
+  String get dashOverviewTitle => 'Uitvoeringsoorsig';
+
+  @override
+  String get dashRefresh => 'Verfris elke paneel';
+
+  @override
+  String get dashFilters => 'Filters';
+
+  @override
+  String get dashAllTerritories => 'Alle gebiede';
+
+  @override
+  String get dashOneTerritory => 'Een gebied';
+
+  @override
+  String get dashTerritory => 'Gebied';
+
+  @override
+  String get dashTerritorySheetBody =>
+      'Elke syfer hieronder val binne hierdie keuse.';
+
+  @override
+  String get dashSelected => 'Gekies';
+
+  @override
+  String get dashRangeLast7 => 'Laaste 7 dae';
+
+  @override
+  String get dashRangeLast30 => 'Laaste 30 dae';
+
+  @override
+  String get dashRangeLast90 => 'Laaste 90 dae';
+
+  @override
+  String get dashRangeYtd => 'Jaar tot datum';
+
+  @override
+  String get dashRangeAll => 'Alle tyd';
+
+  @override
+  String get dashExecutionScore => 'Uitvoeringstelling';
+
+  @override
+  String dashExecutionScoreSupports(int target) {
+    return 'Geweeg S2–S8, alle winkels · teiken $target';
+  }
+
+  @override
+  String get dashScoreTrend => 'Uitvoeringstelling oor tyd';
+
+  @override
+  String get dashVsWindowBefore => 'teenoor die vorige venster';
+
+  @override
+  String get dashNeedsAttention => 'Benodig aandag';
+
+  @override
+  String get dashViewAllAlerts => 'Alle waarskuwings';
+
+  @override
+  String get dashCriticalAlerts => 'Kritieke waarskuwings oop';
+
+  @override
+  String get dashWarningAlerts => 'Waarskuwings wat erkenning afwag';
+
+  @override
+  String get dashTasksOpen => 'Take steeds oop';
+
+  @override
+  String get dashNothingOutstanding => 'Niks uitstaande nie';
+
+  @override
+  String get dashNoneAtCritical => 'Geen op kritieke prioriteit nie';
+
+  @override
+  String dashNAtCritical(int count) {
+    return '$count op kritieke prioriteit';
+  }
+
+  @override
+  String get dashSeverityCritical => 'Krities';
+
+  @override
+  String get dashSeverityWatch => 'Dophou';
+
+  @override
+  String get dashAgainstStandard => 'Waar ons teenoor die standaard staan';
+
+  @override
+  String get dashTickMarksTarget => 'Die merkie dui die teiken aan.';
+
+  @override
+  String get dashKpiOsa => 'Beskikbaarheid op rak';
+
+  @override
+  String get dashKpiOsaNote => 'Vloer 95% · teiken 97–99%';
+
+  @override
+  String get dashKpiPerfectStore => 'Perfekte-winkel koers';
+
+  @override
+  String get dashKpiPerfectStoreNote =>
+      'Gesond 80–90% · onder 70% is ’n uitvoeringsgaping';
+
+  @override
+  String get dashKpiPrice => 'Prysnakoming';
+
+  @override
+  String get dashKpiPriceNote => 'Binne toleransie van die aanbevole prys';
+
+  @override
+  String get dashKpiVisibility => 'Sigbaarheidsnakoming';
+
+  @override
+  String get dashKpiVisibilityNote => 'Planogram-drempel';
+
+  @override
+  String get dashKpiShareOfShelf => 'Rakaandeel';
+
+  @override
+  String get dashKpiShareOfShelfNote => 'Kategorie se billike aandeel';
+
+  @override
+  String get dashKpiWeighted => 'Geweegde verspreiding';
+
+  @override
+  String get dashKpiWeightedNote => 'Volume-geweeg';
+
+  @override
+  String get dashKpiNumeric => 'Numeriese verspreiding';
+
+  @override
+  String get dashKpiNumericNote => 'Winkels wat voorraad hou';
+
+  @override
+  String get dashStandingCritical => 'Onder die standaard';
+
+  @override
+  String get dashStandingWatch => 'Naby die standaard';
+
+  @override
+  String get dashStandingOnTarget => 'Op die standaard';
+
+  @override
+  String dashTargetIs(String target) {
+    return 'Teiken $target';
+  }
+
+  @override
+  String get dashDistribution => 'Perfekte-winkel verspreiding';
+
+  @override
+  String get dashHealthyBand =>
+      'Winkels volgens hul jongste bepunte besoek · gesonde band 80–90.';
+
+  @override
+  String dashBandOutlets(int count, String band) {
+    return '$count winkels wat $band behaal';
+  }
+
+  @override
+  String get dashByTerritory => 'Uitvoeringstelling per gebied';
+
+  @override
+  String get dashNoTerritories => 'Geen gebiede gedefinieer nie';
+
+  @override
+  String get dashNoTerritoriesBody =>
+      'Voeg ’n gebied by om tellings oor die veld te vergelyk.';
+
+  @override
+  String get dashNoTerritoryScores => 'Nog geen gebiedstellings nie';
+
+  @override
+  String get dashNoTerritoryScoresBody =>
+      'Tellings verskyn sodra besoeke in hierdie venster bepunt is.';
+
+  @override
+  String get dashAvailabilityByPeriod => 'Beskikbaarheid op rak per tydperk';
+
+  @override
+  String get dashWhereAgents => 'Waar is my agente';
+
+  @override
+  String get dashTodaysCheckIns =>
+      'Vandag se bevestigde aanmeldings. ’n Speld wys waar iemand aangemeld het, nie waar hulle nou is nie.';
+
+  @override
+  String get dashViewMap => 'Open die kaart';
+
+  @override
+  String get dashNoAgentsHeadline => 'Niemand om te wys nie';
+
+  @override
+  String get dashNoAgentsYet => 'Nog geen veldagente nie.';
+
+  @override
+  String get dashNoAgentsForFilter =>
+      'Geen agente pas by hierdie gebiedsfilter nie.';
+
+  @override
+  String dashNoAgentsIn(String name) {
+    return 'Geen agente is aan $name toegewys nie.';
+  }
+
+  @override
+  String get dashNoOutletsToPlot =>
+      'Nog geen winkels nie — voeg winkels by om hulle hier te sien.';
+
+  @override
+  String dashOnTheMap(int plotted, int notPlotted) {
+    return '$plotted op die kaart · $notPlotted het vandag nie aangemeld nie';
+  }
+
+  @override
+  String get dashFirst200Agents =>
+      'Wys die eerste 200 agente. Filter volgens gebied om te vernou.';
+
+  @override
+  String get dashNoCheckIn => 'Geen aanmelding nie';
+
+  @override
+  String get dashNoCheckInToday => 'geen aanmelding vandag nie';
+
+  @override
+  String get dashUnknownStore => 'onbekende winkel';
+
+  @override
+  String get dashInTransit => 'onderweg';
+
+  @override
+  String dashLeft(String outlet) {
+    return 'het $outlet verlaat';
+  }
+
+  @override
+  String dashOutletPin(String outlet) {
+    return '$outlet winkel';
+  }
+
+  @override
+  String get dashNoVisitsInWindow => 'Geen besoeke in hierdie venster nie';
+
+  @override
+  String get dashFirstRunHeadline => 'Nog niks op die boeke nie';
+
+  @override
+  String get dashFirstRunBody =>
+      'Voeg winkels en gebiede by, en hierdie konsole vul in soos besoeke ingedien en bepunt word.';
+
+  @override
+  String get dashStubCaveat =>
+      'Sigbaarheidsnakoming en rakaandeel kom uit die Fase-1 rekenaarvisie-stomp.';
 }

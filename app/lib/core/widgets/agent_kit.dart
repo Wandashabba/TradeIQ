@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/l10n.dart';
 import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
 import '../theme/lumen_glass.dart';
@@ -8,6 +7,9 @@ import 'agent_motion.dart';
 import 'glass.dart';
 import 'lumen_kit.dart';
 import '../theme/lumen_palette.dart';
+
+// See the note where `formatAgo` used to be defined, below.
+export '../format/relative_time.dart' show formatAgo;
 
 /// The field agent's widget kit.
 ///
@@ -495,16 +497,7 @@ class _ToggleTrack extends StatelessWidget {
   }
 }
 
-/// "2h ago" — a field agent does not want a timestamp, they want to know
-/// whether it was recent.
-///
-/// Pass the active [l10n] (`context.l10n`) on agent screens; without it the
-/// English copy is used (the manager console is not localised yet).
-String formatAgo(DateTime when, [AppLocalizations? l10n]) {
-  final l = l10n ?? englishLocalizations;
-  final d = DateTime.now().difference(when);
-  if (d.inSeconds < 60) return l.agoJustNow;
-  if (d.inMinutes < 60) return l.agoMinutes(d.inMinutes);
-  if (d.inHours < 24) return l.agoHours(d.inHours);
-  return l.agoDays(d.inDays);
-}
+// `formatAgo` moved to `core/format/relative_time.dart` when the dashboard
+// was migrated: a Torchlight screen has no business importing the Lumen kit to
+// read one string helper. It is re-exported at the top of this file so the
+// screens still on the old kit keep their `show formatAgo` import working.
