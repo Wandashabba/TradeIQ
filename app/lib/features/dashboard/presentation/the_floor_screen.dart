@@ -616,16 +616,24 @@ class _AvailabilityCard extends ConsumerWidget {
   /// The supporting figures, as one line of meta. Coverage and price
   /// compliance — the manager spec's own subordinates for this indicator.
   static String? _supports(FloorView view) {
+    // An unmeasured window has no supports to state: the tile is already
+    // saying "No visits in this window" under an em dash, and a line of
+    // zeros under that sentence is the scoreboard of zeros this screen
+    // exists to refuse.
+    if (view.phase != FloorPhase.measured) return null;
     final k = view.snapshot.current;
     final visited = k.outletsVisited;
     final total = k.outletsTotal;
-    final parts = <String>[
+    return <String>[
+      // Coverage needs a denominator to be a rate; without `totals` on the
+      // wire there is no honest percentage to print.
       if (visited != null && total != null && total > 0)
         'Coverage ${(visited * 100 / total).round()}%',
-      if (k.priceCompliancePct > 0)
-        'Price compliance ${k.priceCompliancePct.round()}%',
-    ];
-    return parts.isEmpty ? null : parts.join(' · ');
+      // Price compliance is printed whatever it is, including 0%. A measured
+      // zero renders zero — it is a finding, and suppressing it would be the
+      // one thing unify §4 says a figure may never do.
+      'Price compliance ${k.priceCompliancePct.round()}%',
+    ].join(' · ');
   }
 }
 
