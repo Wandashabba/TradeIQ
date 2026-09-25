@@ -155,6 +155,13 @@ class _TrendChartState extends State<TrendChart> {
       );
     }
 
+    // Nobody measured anything, in any series. There is no plot to draw: a
+    // scale invented from an empty set is a 0–1 axis across an empty grid,
+    // which is a picture of nothing dressed as a chart. The legend and its
+    // gap note are the whole of the information, and 208dp of ruled blank
+    // under them is not a second way of saying it.
+    if (!widget.series.any((s) => s.hasData)) return legend;
+
     final subject = _subject;
     final height = trendChartHeight(context);
     final readings = subject.readings;

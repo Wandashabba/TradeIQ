@@ -80,6 +80,44 @@ void main() {
     }, skip: !looking);
   }
 
+  // The edges of the series contract, in one frame: a single measured week
+  // with nothing either side of it (which cannot be a line, and gets a dot),
+  // and a run where nobody measured anything at all.
+  testWidgets('night: one measured week, and none at all', (tester) async {
+    await _pump(
+      tester,
+      skin: TiqSkin.night(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          TrendChart(
+            series: const <ChartSeries>[
+              ChartSeries(name: 'One week only', readings: _lonely),
+            ],
+            unit: TiqUnit.percent,
+            semanticsLabel: 'One measured week',
+            notMeasuredWord: 'Not measured',
+            dashedWord: 'dashed',
+            gapNote: '7 weeks not measured',
+          ),
+          const SizedBox(height: 32),
+          TrendChart(
+            series: const <ChartSeries>[
+              ChartSeries(name: 'Nothing measured', readings: _nothing),
+            ],
+            unit: TiqUnit.percent,
+            semanticsLabel: 'Nothing measured',
+            notMeasuredWord: 'Not measured',
+            dashedWord: 'dashed',
+            gapNote: '4 weeks not measured',
+          ),
+        ],
+      ),
+    );
+    await _shoot(tester, 'goldens/figure_trend_edges_night.png');
+  }, skip: !looking);
+
   // The two things a plot with a gutter and a value axis can break: a reader
   // at 2.0× whose tick labels are twice as wide, and an Afrikaans legend whose
   // words are longer than the English ones. Both in one frame.
@@ -134,6 +172,24 @@ const List<ChartReading> _gapped = <ChartReading>[
   ChartReading(label: 'W35', longLabel: '2026-W35', value: 71),
   ChartReading(label: 'W36', longLabel: '2026-W36', value: 79),
   ChartReading(label: 'W37', longLabel: '2026-W37', value: 83),
+];
+
+const List<ChartReading> _lonely = <ChartReading>[
+  ChartReading(label: 'W30', value: null),
+  ChartReading(label: 'W31', value: null),
+  ChartReading(label: 'W32', value: null),
+  ChartReading(label: 'W33', value: 66),
+  ChartReading(label: 'W34', value: null),
+  ChartReading(label: 'W35', value: null),
+  ChartReading(label: 'W36', value: null),
+  ChartReading(label: 'W37', value: null),
+];
+
+const List<ChartReading> _nothing = <ChartReading>[
+  ChartReading(label: 'W34', value: null),
+  ChartReading(label: 'W35', value: null),
+  ChartReading(label: 'W36', value: null),
+  ChartReading(label: 'W37', value: null),
 ];
 
 const List<ChartReading> _average = <ChartReading>[
