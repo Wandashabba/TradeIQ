@@ -116,6 +116,7 @@ class StatTile extends StatelessWidget {
     this.severity,
     this.subordinates,
     this.layout,
+    this.padding,
     this.strings = StatTileStrings.defaults,
     this.deltaStrings = DeltaStrings.defaults,
     this.onTap,
@@ -189,6 +190,17 @@ class StatTile extends StatelessWidget {
   /// Null measures the tile's own width and picks.
   final StatTileLayout? layout;
 
+  /// Overrides the density's own inset.
+  ///
+  /// The default is right for a tile inside a panel or wearing the lead
+  /// variant's severity outline: an outline needs something to be outside of.
+  /// It is wrong for a bare tile on the ground, where the shell has already
+  /// spent the gutter — there the inset is a second, invisible gutter that
+  /// pushes the eyebrow 16dp past every other left edge on the screen and
+  /// spends 32dp of fold on nothing. `EdgeInsets.zero` is the honest value in
+  /// that case, and the caller is the only one who knows which case it is in.
+  final EdgeInsetsGeometry? padding;
+
   final StatTileStrings strings;
   final DeltaStrings deltaStrings;
 
@@ -233,12 +245,14 @@ class StatTile extends StatelessWidget {
     );
   }
 
+  static double _insetFor(TiqSkin skin) => switch (skin.density) {
+    TiqDensity.console => 16.0,
+    TiqDensity.field => 20.0,
+    TiqDensity.veld => 24.0,
+  };
+
   Widget _build(BuildContext context, TiqSkin skin, StatTileLayout resolved) {
-    final padding = switch (skin.density) {
-      TiqDensity.console => 16.0,
-      TiqDensity.field => 20.0,
-      TiqDensity.veld => 24.0,
-    };
+    final resolvedPadding = padding ?? EdgeInsets.all(_insetFor(skin));
     final minHeight = switch (skin.density) {
       TiqDensity.console => 88.0,
       TiqDensity.field => 96.0,
@@ -306,7 +320,7 @@ class StatTile extends StatelessWidget {
 
     final tile = Container(
       constraints: BoxConstraints(minHeight: minHeight),
-      padding: EdgeInsets.all(padding),
+      padding: resolvedPadding,
       decoration: outlined
           ? BoxDecoration(
               borderRadius: BorderRadius.circular(skin.radii.chip),

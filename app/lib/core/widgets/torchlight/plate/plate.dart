@@ -355,40 +355,56 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
             child: const _Scrim(),
           ),
 
-          // 4. Provenance on the zone's first line, hero cluster at its foot.
+          // 4. The caption, and the hero cluster under it — both at the foot.
           //
           //    The zone is a hard box that stops just under the strip light,
           //    so the caption can never climb over it — which it did, at the
           //    200dp floor, when the zone was the declared 58% and the cluster
           //    needed more. The light is the boundary between picture and
-          //    text, and now it is drawn as one.
+          //    text, and it is drawn as one.
+          //
+          //    ## The caption is a line above the figure, not a lid on the zone
+          //
+          //    This used to be `spaceBetween` with a `Flexible` on each child,
+          //    which reads like "caption at the top, hero at the foot" and is
+          //    not what a Column does: two flex-1 children with nothing
+          //    inflexible between them take **half the zone each**. So a
+          //    17dp caption was handed 44dp on a 360×640 phone and the hero
+          //    cluster — which needs about 129 — was handed the other 44, and
+          //    the FittedBox below crushed a 56pt figure to 19dp. The screen's
+          //    hero rendered smaller than the supporting metric under it, and
+          //    the caption floated in the middle of the plate with a hole
+          //    beneath it. Both of those are exactly what the owner reported.
+          //
+          //    The caption is sized by its own content and sits [captionGap]
+          //    above the cluster; everything left over is the hero's. One line
+          //    at every scale now, because the zone does not grow with the
+          //    type and provenance is meta where the figure is the screen.
           Positioned(
             left: spec.textInset,
             right: spec.textInset,
-            bottom: TiqSpace.s5,
-            top: spec.textZoneTop + TiqSpace.s2,
+            bottom: TiqSpace.s4,
+            top: spec.textZoneTop,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
                 // The provenance caption, or the fallback's sentence in its
-                // place. Either way the top of the text-safe zone says what
-                // the reader is looking at — an uncaptioned band is the one
-                // state this component may not have.
-                if (hasPhotograph && widget.caption != null)
-                  Flexible(
-                    child: Text(
-                      widget.caption!,
-                      // The zone does not grow with the type, so the caption
-                      // gives up its second line before the hero gives up any
-                      // of its size: provenance is meta and the figure is the
-                      // screen.
-                      maxLines: large ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: skin.text.meta.style(color: skin.palette.ink3),
-                    ),
-                  )
-                else if (!hasPhotograph && widget.fallbackSentence != null)
+                // place. Either way the reader is told what they are looking
+                // at — an uncaptioned band is the one state this component may
+                // not have.
+                if (hasPhotograph && widget.caption != null) ...<Widget>[
+                  Text(
+                    widget.caption!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: skin.text.meta.style(color: skin.palette.ink3),
+                  ),
+                  SizedBox(height: spec.captionGap),
+                ] else if (!hasPhotograph &&
+                    widget.fallbackSentence != null) ...<Widget>[
+                  // The fallback has no photograph to be a caption ON, so it
+                  // is allowed the lines a sentence needs.
                   Flexible(
                     child: Text(
                       widget.fallbackSentence!,
@@ -396,9 +412,9 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
                       overflow: TextOverflow.ellipsis,
                       style: skin.text.meta.style(color: skin.palette.ink3),
                     ),
-                  )
-                else
-                  const SizedBox.shrink(),
+                  ),
+                  SizedBox(height: spec.captionGap),
+                ],
                 // `hero.figure` caps at 1.6x, then steps to the 56 compact
                 // face, and then — only then — scales down. That ladder is the
                 // spec's own, and this is its last rung: the FittedBox is not

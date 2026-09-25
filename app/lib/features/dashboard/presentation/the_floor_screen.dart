@@ -124,7 +124,11 @@ class _FloorFrame extends StatelessWidget {
         if (hasPlatePhoto)
           const TorchClaim.plateStripLight(TheFloorScreen.plateClaimId),
       ],
-      child: FloorScaffold(children: children),
+      // The plate — and the skeleton that draws its exact geometry — is the
+      // header and starts at the top edge. The error region is words, and
+      // words under a status bar are words nobody can read, so that one state
+      // keeps the shell's inset.
+      child: FloorScaffold(bleedTop: phase != 'error', children: children),
     );
   }
 }
@@ -162,9 +166,14 @@ class FloorScaffold extends StatelessWidget {
     required this.children,
     this.onSelectSlot,
     this.onStandingAction,
+    this.bleedTop = true,
   });
 
   final List<Widget> children;
+
+  /// Whether the body starts at the top edge. True for every state whose first
+  /// child is the plate; see [_FloorFrame].
+  final bool bleedTop;
 
   /// Overrides the console's own routing. Null is the real app: the bar goes
   /// where [consoleNavSelect] says, which is the only place it may go.
@@ -177,6 +186,13 @@ class FloorScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return TorchShell(
       profile: TorchShellProfile.console,
+      // The plate IS the header, so it starts at the top edge. Without this
+      // the shell's 24dp console inset put a band of ground above a
+      // photograph the design runs full-bleed, and spent 24dp of a 640dp fold
+      // on nothing. `PlateSpec.heightFor` has always measured the full
+      // viewport "including the status bar, because the plate runs full-bleed
+      // to the top edge" — this is the other half of that sentence.
+      bleedTop: bleedTop,
       navPill: TorchNavPill(
         slots: consoleNavSlots,
         activeIndex: ConsoleSlot.floor.index,
@@ -377,7 +393,12 @@ class _DecisionRowFor extends StatelessWidget {
       // component's own doc forbids. See the follow-up ticket.
       sparkline: null,
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      onTap: () {},
+      // `push`, not `go`: a decision is read on top of The Floor and the
+      // manager comes back to the same scroll offset, which is the behaviour
+      // `surface-manager.json` names. `FloorDecision.route` has carried
+      // "where tapping the row goes" since the model was written and nothing
+      // ever read it.
+      onTap: () => context.push(decision.route),
     );
   }
 }
@@ -401,7 +422,9 @@ class _MoreRow extends StatelessWidget {
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {},
+        // The full worklist. A row that announces itself as a button and then
+        // does nothing is worse than a line of text.
+        onTap: () => context.go('/tasks'),
         child: Container(
           constraints: BoxConstraints(minHeight: skin.space.tapTarget),
           padding: EdgeInsets.symmetric(
@@ -474,7 +497,17 @@ class _AvailabilityTile extends StatelessWidget {
             )
           : null,
       lead: true,
+      // On the ground, not in a panel: the shell has already spent the
+      // gutter, and the tile's own 16dp inset was a second invisible one that
+      // put this eyebrow 16dp right of the section rule below it and 16dp
+      // right of the hero above it. Three left edges on one screen, and 32dp
+      // of fold, for a box nobody can see.
+      padding: EdgeInsets.zero,
       subordinates: _supports(view),
+      // The hint has promised this since the tile was written; `onTap` is what
+      // makes the promise true. Without it the tile announced itself with a
+      // hint and no action.
+      onTap: () => context.go('/dashboard/overview'),
       semanticsHint: 'Opens the figures behind on-shelf availability',
     );
   }
@@ -658,7 +691,9 @@ class _PlateFor extends StatelessWidget {
           'Territory health',
           style: skin.text.label.style(color: skin.palette.ink2),
         ),
-        onHealthTap: () {},
+        // The decomposition: what the composite figure is made of. A
+        // composite number nobody can open is a number you cannot act on.
+        onHealthTap: () => context.go('/dashboard/overview'),
       ),
     );
   }
