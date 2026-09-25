@@ -79,7 +79,16 @@ class TorchShell extends StatelessWidget {
     this.band,
     this.scrollController,
     this.pinned,
+    this.bleedTop = false,
   }) : assert(
+         !bleedTop || header == null,
+         'A route with a header does not bleed its body to the top edge: the '
+         'header IS the top edge. bleedTop exists for the one shape that has '
+         'no header because its first child is the header — The Floor, whose '
+         'plate runs full-bleed and carries the territory and the week in its '
+         'own eyebrow.',
+       ),
+       assert(
          navPill == null || primary == null,
          'A tab root has no thumb zone and a screen with a primary commit '
          'action has no nav. The two bottom regions are alternatives, not '
@@ -163,6 +172,16 @@ class TorchShell extends StatelessWidget {
   /// and a band at 40% fit on any fold together.
   final Widget? pinned;
 
+  /// Drops the body's top padding so the first child starts at the top edge.
+  ///
+  /// Only legal on a route with no [header], and there is exactly one: The
+  /// Floor, whose plate is its header. The shell's 24dp console inset is right
+  /// for a body that begins with words and wrong for one that begins with a
+  /// photograph — it left a 24dp band of ground above a plate the design says
+  /// runs full-bleed to the top edge, which is 24dp of the fold spent on
+  /// nothing and a plate that visibly is not the header it claims to be.
+  final bool bleedTop;
+
   /// The share of the screen a [pinned] band may take. unify §4's header rule,
   /// applied to the one other thing that holds a place at the top.
   static const double pinnedBandFraction = 0.4;
@@ -195,7 +214,9 @@ class TorchShell extends StatelessWidget {
       gutter: gutter,
     );
 
-    final top = profile == TorchShellProfile.console
+    final top = bleedTop
+        ? 0.0
+        : profile == TorchShellProfile.console
         ? TiqSpace.s6
         : TiqSpace.s4;
     final headerBlock = <Widget>[

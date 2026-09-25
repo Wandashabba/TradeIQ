@@ -58,7 +58,12 @@ class DecisionRow extends StatelessWidget {
   /// The outlet name. Middle-truncated by construction.
   final String title;
 
-  /// Why it needs a decision, up to two lines.
+  /// Why it needs a decision, on **one** line.
+  ///
+  /// The list's job is scanning: outlet, reason, figure, down the left edge.
+  /// A reason that wraps costs a whole row of fold on the one screen that is
+  /// meant to show several of them — on a 360×640 phone the second line was
+  /// the difference between two visible decisions and one.
   final String reason;
 
   final SoftRowSeverity severity;
@@ -107,6 +112,7 @@ class DecisionRow extends StatelessWidget {
       title: title,
       titleTruncation: SoftRowTruncation.middle,
       subtitle: reason,
+      subtitleMaxLines: 1,
       meta: meta,
       severity: severity,
       severityLabel: severityLabel,

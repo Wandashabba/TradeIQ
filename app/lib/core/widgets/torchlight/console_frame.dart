@@ -17,6 +17,29 @@ import 'sheet.dart';
 /// Territories moved into Menu under OPERATE.
 enum ConsoleSlot { floor, work, ask, menu }
 
+/// WHERE EACH CONSOLE SLOT GOES. The one answer, for every console route.
+///
+/// Public because The Floor does not use [ConsoleFrame] — it has no app header
+/// and builds its own [TorchShell] so the plate can run full-bleed to the top
+/// edge — and a second copy of this switch is precisely how The Floor ended up
+/// with a nav pill wired to `(_) {}`. One bar, one destination list, one
+/// routing function; a route that draws its own chrome still calls this.
+///
+/// `go`, never `push`: a tab is a destination, not a page on top of the one
+/// the manager was reading.
+void consoleNavSelect(BuildContext context, int index) {
+  switch (ConsoleSlot.values[index]) {
+    case ConsoleSlot.floor:
+      context.go('/dashboard');
+    case ConsoleSlot.work:
+      context.go('/tasks');
+    case ConsoleSlot.ask:
+      context.go('/assistant');
+    case ConsoleSlot.menu:
+      showTorchMenuSheet(context);
+  }
+}
+
 /// The manager's four destinations, in the ruling's order.
 const List<TorchNavSlot> consoleNavSlots = <TorchNavSlot>[
   TorchNavSlot(
@@ -112,24 +135,11 @@ class ConsoleFrame extends StatelessWidget {
           navPill: TorchNavPill(
             slots: consoleNavSlots,
             activeIndex: active.index,
-            onSelect: (index) => _select(context, index),
+            onSelect: (index) => consoleNavSelect(context, index),
           ),
           children: children,
         ),
       ),
     );
-  }
-
-  static void _select(BuildContext context, int index) {
-    switch (ConsoleSlot.values[index]) {
-      case ConsoleSlot.floor:
-        context.go('/dashboard');
-      case ConsoleSlot.work:
-        context.go('/tasks');
-      case ConsoleSlot.ask:
-        context.go('/assistant');
-      case ConsoleSlot.menu:
-        showTorchMenuSheet(context);
-    }
   }
 }
