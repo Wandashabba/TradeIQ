@@ -392,11 +392,17 @@ abstract class AppLocalizations {
   /// **'You can still start a visit yourself.'**
   String get todayLoadErrorDetail;
 
-  /// No description provided for @todayNoRouteTitle.
+  /// Whole-screen empty state: nobody planned a route for this agent today. The agent surface names this headline word for word, and it is a whole-screen DISPLAY headline under the line-count fitting rule — at 40/600 the longer wording ran to two lines and took the fold with it.
   ///
   /// In en, this message translates to:
-  /// **'No route planned for today'**
+  /// **'No route today'**
   String get todayNoRouteTitle;
+
+  /// Whole-screen empty state: a plan EXISTS for today but has no stops on it. A distinct fact from having no plan at all, so it gets its own headline rather than sharing the no-plan one.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan is empty'**
+  String get todayEmptyPlanTitle;
 
   /// Shown when no beat plan exists for today.
   ///

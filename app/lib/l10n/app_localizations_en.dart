@@ -193,7 +193,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayLoadErrorDetail => 'You can still start a visit yourself.';
 
   @override
-  String get todayNoRouteTitle => 'No route planned for today';
+  String get todayNoRouteTitle => 'No route today';
+
+  @override
+  String get todayEmptyPlanTitle => 'Your plan is empty';
 
   @override
   String get todayNoPlanDetail =>

@@ -199,7 +199,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get todayLoadErrorDetail => 'Jy kan steeds self ’n besoek begin.';
 
   @override
-  String get todayNoRouteTitle => 'Geen roete vir vandag beplan nie';
+  String get todayNoRouteTitle => 'Geen roete vandag nie';
+
+  @override
+  String get todayEmptyPlanTitle => 'Jou plan is leeg';
 
   @override
   String get todayNoPlanDetail =>

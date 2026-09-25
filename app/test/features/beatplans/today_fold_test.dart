@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/location/location_sharing.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -122,6 +123,22 @@ Future<void> _pump(
   extraRoutes: <GoRoute>[
     GoRoute(path: '/audit', builder: (c, s) => const Text('picker')),
     GoRoute(path: '/audit/:outletId', builder: (c, s) => const Text('visit')),
+    GoRoute(path: '/my-work', builder: (c, s) => const Text('my work')),
+    GoRoute(path: '/map', builder: (c, s) => const Text('map')),
+    GoRoute(path: '/me', builder: (c, s) => const Text('me')),
+  ],
+);
+
+/// The same screen with no plan at all — the whole-screen empty state.
+Future<void> _pumpEmpty(WidgetTester tester) => pumpAgentScreen(
+  tester,
+  const TodayScreen(),
+  overrides: <Override>[
+    ...agentBaseOverrides(db: agentTestDb()),
+    todayRouteProvider.overrideWith((ref) async => null),
+  ],
+  extraRoutes: <GoRoute>[
+    GoRoute(path: '/audit', builder: (c, s) => const Text('picker')),
     GoRoute(path: '/my-work', builder: (c, s) => const Text('my work')),
     GoRoute(path: '/map', builder: (c, s) => const Text('map')),
     GoRoute(path: '/me', builder: (c, s) => const Text('me')),
@@ -267,6 +284,44 @@ void main() {
               '$what is under the nav pill on an agent\'s first session. The '
               'notice used to be a wall of text and this screen used to be '
               'the notice and nothing else.',
+        );
+      }
+    });
+
+    testWidgets('the empty state\'s action is a ghost at its natural width', (
+      tester,
+    ) async {
+      // A geometry assertion, so it belongs in the file that renders in the
+      // real face: "Pick a store to visit" set in the test font is wider than
+      // a 360dp phone, and a button clamped to the screen is not evidence
+      // either way.
+      await _pumpEmpty(tester);
+      final button = tester.getRect(find.byType(TorchSecondaryButton));
+      expect(
+        button.width,
+        lessThan(240),
+        reason:
+            'The empty-state grammar puts one secondary at its NATURAL width '
+            'on the gutter. Stretched across the screen a ghost reads as the '
+            'commit this state deliberately does not have. It measured '
+            '${button.width} on a 360dp phone.',
+      );
+      expect(button.left, lessThanOrEqualTo(TiqSpace.s5));
+    });
+
+    testWidgets('the empty state is one fold, drawing to action', (
+      tester,
+    ) async {
+      await _pumpEmpty(tester);
+      final fold = _fold(tester);
+      for (final (what, finder) in <(String, Finder)>[
+        ('the headline', find.text('No route today')),
+        ('the action', find.byType(TorchSecondaryButton)),
+      ]) {
+        expect(
+          tester.getRect(finder).bottom,
+          lessThanOrEqualTo(fold),
+          reason: '$what is below the fold on an empty day',
         );
       }
     });

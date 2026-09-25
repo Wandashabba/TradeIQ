@@ -409,8 +409,8 @@ void main() {
     });
 
     for (final (locale, headline) in <(Locale, String)>[
-      (const Locale('en'), 'No route planned for today'),
-      (const Locale('af'), 'Geen roete vir vandag beplan nie'),
+      (const Locale('en'), 'No route today'),
+      (const Locale('af'), 'Geen roete vandag nie'),
     ]) {
       testWidgets(
         'the shipped ${locale.languageCode} headline is on the ladder',
@@ -437,9 +437,7 @@ void main() {
         locale: const Locale('af'),
         textScale: 2.0,
       );
-      final text = tester.widget<Text>(
-        find.text('Geen roete vir vandag beplan nie'),
-      );
+      final text = tester.widget<Text>(find.text('Geen roete vandag nie'));
       expect(<double?>[40, 32, 26], contains(text.style!.fontSize));
     });
   });
@@ -449,7 +447,7 @@ void main() {
       tester,
     ) async {
       await _pump(tester, route: null);
-      expect(find.text('No route planned for today'), findsOneWidget);
+      expect(find.text('No route today'), findsOneWidget);
       expect(
         find.text(
           'No beat plan for today. You can still pick a store yourself.',
@@ -463,7 +461,9 @@ void main() {
       expect(find.byType(TorchSecondaryButton), findsOneWidget);
     });
 
-    testWidgets('an empty plan gets its own sentence', (tester) async {
+    testWidgets('an empty plan gets its own headline and its own sentence', (
+      tester,
+    ) async {
       await _pump(
         tester,
         route: const TodayRoute(
@@ -472,10 +472,24 @@ void main() {
           hasLocation: true,
         ),
       );
+      // A plan that exists and has no stops is not "no route today" — the
+      // surface names the two states separately, and so does the screen.
+      expect(find.text('Your plan is empty'), findsOneWidget);
+      expect(find.text('No route today'), findsNothing);
       expect(
         find.text('Today’s beat plan has no stops on it yet.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('and full width in Veld, where a small target is not one', (
+      tester,
+    ) async {
+      await _pump(tester, route: null, skin: SkinMode.veld);
+      final button = tester.getRect(find.byType(TorchSecondaryButton));
+      final screen = tester.getRect(find.byType(TodayFrame)).width;
+      final skin = agentSkinFor(SkinMode.veld);
+      expect(button.width, screen - skin.space.gutter * 2);
     });
 
     testWidgets('a load failure keeps the chrome and says what survived', (

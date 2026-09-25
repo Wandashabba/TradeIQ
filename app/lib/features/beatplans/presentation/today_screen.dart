@@ -117,8 +117,15 @@ class _Today extends ConsumerWidget {
               _TodayMessage(
                 // "No route today" is a fact about the plan, not about the
                 // agent — and an empty plan is a different fact again, so it
-                // gets its own sentence rather than the same one.
-                headline: l10n.todayNoRouteTitle,
+                // gets its own HEADLINE and not only its own sentence. The
+                // two used to share "No route planned for today", which is
+                // untrue of a plan that exists and has no stops on it, and
+                // which at display 40 under the fitting rule ran to two lines
+                // and took the fold with it. Both headlines here are the ones
+                // the agent surface names for these two states.
+                headline: route == null
+                    ? l10n.todayNoRouteTitle
+                    : l10n.todayEmptyPlanTitle,
                 body: route == null
                     ? l10n.todayNoPlanDetail
                     : l10n.todayEmptyPlanDetail,
@@ -763,10 +770,31 @@ class _TodayMessage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TorchSecondaryButton(label: actionLabel, onPressed: onAction),
-        ),
+        // LEFT-ALIGNED AT ITS NATURAL WIDTH, except in Veld.
+        //
+        // The empty-state grammar says "one secondary button, 56dp,
+        // left-aligned at its natural width", and Veld's own note says the
+        // secondary becomes full-width at 64dp because outdoors an
+        // intrinsic-width button is a small target. It was full width
+        // everywhere: a ghost action stretched across the screen reads as the
+        // commit this state deliberately does not have.
+        //
+        // `IntrinsicWidth` and not `Align(widthFactor:)`: the button's label
+        // sits in a `Center`, which expands to whatever width it is offered,
+        // so an Align around it still yields a full-width button. This is one
+        // button in a state with nothing else in it, not a row in a list.
+        if (skin.mode == SkinMode.veld)
+          TorchSecondaryButton(label: actionLabel, onPressed: onAction)
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: IntrinsicWidth(
+              child: TorchSecondaryButton(
+                label: actionLabel,
+                onPressed: onAction,
+              ),
+            ),
+          ),
       ],
     );
   }

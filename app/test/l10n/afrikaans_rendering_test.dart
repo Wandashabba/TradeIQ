@@ -72,7 +72,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Geen roete vir vandag beplan nie'), findsOneWidget);
+      expect(find.text('Geen roete vandag nie'), findsOneWidget);
       // The Torchlight sync chip, whose copy is shorter than the banner's
       // that used to say this ("Alles gestuur", not "Alles is gestuur") —
       // it is a chip in the header now, not a line in the body.
@@ -119,7 +119,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('No route planned for today'), findsOneWidget);
+      expect(find.text('No route today'), findsOneWidget);
       final heading = DateFormat('EEEE, d MMMM', 'en').format(DateTime.now());
       expect(find.text(heading), findsOneWidget);
     });
