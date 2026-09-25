@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/chart/chart.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/curve.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart'
     show FigureSlot, MetricKind;
 
@@ -391,6 +393,204 @@ void main() {
     test('an empty run does not divide by zero', () {
       final scale = niceScale(const <double>[]);
       expect(scale.step, greaterThan(0));
+    });
+  });
+
+  group('the curve may not invent a reading', () {
+    /// Every point the rendered path actually passes through, sampled finely
+    /// enough that an overshoot between two knots cannot hide between samples.
+    List<Offset> walk(Path path) {
+      final out = <Offset>[];
+      for (final metric in path.computeMetrics()) {
+        for (var d = 0.0; d <= metric.length; d += 0.5) {
+          final t = metric.getTangentForOffset(d);
+          if (t != null) out.add(t.position);
+        }
+      }
+      return out;
+    }
+
+    /// The knots' own bounds on the interval containing [x].
+    (double, double) bandAt(List<Offset> knots, double x) {
+      for (var i = 0; i < knots.length - 1; i++) {
+        if (x >= knots[i].dx - 1e-6 && x <= knots[i + 1].dx + 1e-6) {
+          return (
+            math.min(knots[i].dy, knots[i + 1].dy),
+            math.max(knots[i].dy, knots[i + 1].dy),
+          );
+        }
+      }
+      return (
+        knots.map((p) => p.dy).reduce(math.min),
+        knots.map((p) => p.dy).reduce(math.max),
+      );
+    }
+
+    // The shapes that break a naive spline: a local minimum, a local maximum,
+    // a plateau, a single spike, and a monotone run.
+    const runs = <(String, List<double>)>[
+      ('a dip', <double>[64, 61, 68, 66, 74, 71, 79, 83]),
+      ('a spike', <double>[10, 10, 10, 90, 10, 10, 10]),
+      ('a plateau then a rise', <double>[40, 40, 40, 40, 80]),
+      ('monotone up', <double>[1, 2, 3, 5, 8, 13]),
+      ('monotone down', <double>[99, 80, 61, 44, 20]),
+      ('a sawtooth', <double>[30, 62, 38, 71, 44, 66, 40, 58]),
+    ];
+
+    for (final (name, values) in runs) {
+      test('$name: the path never leaves the band its two readings bound', () {
+        final knots = <Offset>[
+          for (var i = 0; i < values.length; i++)
+            Offset(i * 40.0, 200 - values[i]),
+        ];
+        final sampled = walk(monotonePath(knots));
+        // Or the loop below passes by drawing nothing at all.
+        expect(sampled.length, greaterThan(knots.length * 10));
+        for (final p in sampled) {
+          final (low, high) = bandAt(knots, p.dx);
+          // Half a logical pixel of slack for the rasteriser's own arithmetic
+          // — an overshoot worth seeing is whole pixels, and a Catmull-Rom on
+          // 'a spike' misses this by more than forty.
+          expect(
+            p.dy,
+            inInclusiveRange(low - 0.5, high + 0.5),
+            reason:
+                '$name overshoots at x=${p.dx.toStringAsFixed(1)}: '
+                '${p.dy.toStringAsFixed(2)} is outside '
+                '[${low.toStringAsFixed(2)}, ${high.toStringAsFixed(2)}]. '
+                'A curve that leaves the band invents a week nobody measured.',
+          );
+        }
+      });
+    }
+
+    test('two readings are joined by the straight line between them', () {
+      final path = monotonePath(const <Offset>[Offset(0, 0), Offset(40, 20)]);
+      final sampled = walk(path);
+      expect(sampled.length, greaterThan(10));
+      for (final p in sampled) {
+        expect(p.dy, closeTo(p.dx / 2, 0.01));
+      }
+    });
+
+    test('one reading is a move and nothing else', () {
+      expect(monotonePath(const <Offset>[Offset(5, 5)]).computeMetrics(),
+          isEmpty);
+    });
+
+    test('no readings is an empty path', () {
+      expect(monotonePath(const <Offset>[]).computeMetrics(), isEmpty);
+    });
+  });
+
+  group('the plot has a frame', () {
+    TrendChartPainter painterFor({
+      ChartSeries? subject,
+      ChartThreshold? threshold,
+    }) => TrendChartPainter(
+      skin: TiqSkin.night(),
+      subject: subject ?? _subject(),
+      comparison: null,
+      threshold: threshold,
+      scrub: null,
+      unit: TiqUnit.percent,
+      decimals: null,
+      number: TiqNumber.en,
+      axisStyle: TiqSkin.night().text.axisLabel.style(),
+      figureStyle: TiqSkin.night().text.figureS.style(),
+      axisScale: 1,
+      textDirection: TextDirection.ltr,
+    );
+
+    test('a left gutter is reserved, and it is the widest tick label wide', () {
+      final painter = painterFor();
+      // Not a guess and not a constant: the old chart set hardcoded 38dp and
+      // clipped a four-digit axis. The value labels are measured.
+      expect(painter.gutter, greaterThan(TrendChartPainter.tickGap));
+      expect(painter.ticks.length, greaterThan(1));
+    });
+
+    test('the first and last readings sit inside the canvas, not on it', () {
+      final painter = painterFor();
+      const width = 320.0;
+      expect(painter.xFor(0, width), painter.gutter);
+      expect(
+        painter.xFor(_weeks.length - 1, width),
+        lessThan(width),
+        reason:
+            'The end dot is drawn at the last reading. A plot that runs to '
+            'the canvas edge draws half a dot.',
+      );
+    });
+
+    test('a single reading is centred rather than pinned to the left', () {
+      final painter = painterFor(
+        subject: _subject(const <ChartReading>[
+          ChartReading(label: 'W26', value: 40),
+        ]),
+      );
+      expect(painter.xFor(0, 320), closeTo(160, 40));
+    });
+
+    test('the thumb in the value gutter reads the first bucket', () {
+      final painter = painterFor();
+      expect(painter.indexAt(0, 320), 0);
+      expect(painter.indexAt(-50, 320), 0);
+      expect(painter.indexAt(999, 320), _weeks.length - 1);
+    });
+
+    test('a threshold outside the plot widens the scale rather than clipping',
+        () {
+      final painter = painterFor(
+        threshold: const ChartThreshold(value: 120, label: 'Target 120'),
+      );
+      expect(painter.scale.max, greaterThanOrEqualTo(120));
+    });
+  });
+
+  group('nothing measured is not a chart', () {
+    const empty = <ChartReading>[
+      ChartReading(label: 'W26', value: null),
+      ChartReading(label: 'W27', value: null),
+    ];
+
+    testWidgets('the plot is dropped and the legend carries it', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: _chart(
+          series: <ChartSeries>[_subject(empty)],
+          gapNote: '2 weke nie gemeet nie',
+        ),
+      );
+
+      // A `niceScale` of an empty set is 0 to 1, and drawing it is five
+      // gridlines and a baseline under an axis nobody measured.
+      expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .where((p) => p.painter is TrendChartPainter),
+        isEmpty,
+      );
+      expect(find.text('Gauteng North'), findsOneWidget);
+      expect(find.text('2 weke nie gemeet nie'), findsOneWidget);
+    });
+
+    testWidgets('a comparison with readings still draws', (tester) async {
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: _chart(series: <ChartSeries>[_subject(empty), _comparison]),
+      );
+
+      expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .where((p) => p.painter is TrendChartPainter),
+        isNotEmpty,
+      );
     });
   });
 }
