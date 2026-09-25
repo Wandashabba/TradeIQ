@@ -1323,6 +1323,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get locationNoticeSummary => 'Nothing is sent in the background.';
+
+  @override
+  String get locationNoticeExpand => 'Read what is shared';
+
+  @override
+  String get locationNoticeCollapse => 'Close this';
+
+  @override
   String get locationNoticeAcknowledge => 'I understand, share my location';
 
   @override

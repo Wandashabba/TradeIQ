@@ -1341,6 +1341,16 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get locationNoticeSummary =>
+      'Niks word in die agtergrond gestuur nie.';
+
+  @override
+  String get locationNoticeExpand => 'Lees wat gedeel word';
+
+  @override
+  String get locationNoticeCollapse => 'Maak dit toe';
+
+  @override
   String get locationNoticeAcknowledge => 'Ek verstaan, deel my ligging';
 
   @override

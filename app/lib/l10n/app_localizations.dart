@@ -2150,6 +2150,24 @@ abstract class AppLocalizations {
   /// **'Your manager can see which store you are at.\n\nWhile TradeIQ is open and you are signed in, it sends your location {minutes, plural, =1{every minute} other{every {minutes} minutes}}. Closing TradeIQ or signing out stops it. Nothing is sent in the background.'**
   String locationNoticeBody(int minutes);
 
+  /// The collapsed form of the location notice. It is the last sentence of locationNoticeBody, word for word: the one line that makes the notice honest stays on screen when the rest of it is folded away. Never reworded independently of the body.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent in the background.'**
+  String get locationNoticeSummary;
+
+  /// Location notice, collapsed: opens the full notice and the two answers in place.
+  ///
+  /// In en, this message translates to:
+  /// **'Read what is shared'**
+  String get locationNoticeExpand;
+
+  /// Location notice, expanded: folds it back to the one-line banner. The notice stays unanswered either way.
+  ///
+  /// In en, this message translates to:
+  /// **'Close this'**
+  String get locationNoticeCollapse;
+
   /// Location notice: the agent agrees to share their location while the app is open.
   ///
   /// In en, this message translates to:

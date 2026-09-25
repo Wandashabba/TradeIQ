@@ -1664,6 +1664,18 @@
       }
     }
   },
+  "locationNoticeSummary": "Nothing is sent in the background.",
+  "@locationNoticeSummary": {
+    "description": "The collapsed form of the location notice. It is the last sentence of locationNoticeBody, word for word: the one line that makes the notice honest stays on screen when the rest of it is folded away. Never reworded independently of the body."
+  },
+  "locationNoticeExpand": "Read what is shared",
+  "@locationNoticeExpand": {
+    "description": "Location notice, collapsed: opens the full notice and the two answers in place."
+  },
+  "locationNoticeCollapse": "Close this",
+  "@locationNoticeCollapse": {
+    "description": "Location notice, expanded: folds it back to the one-line banner. The notice stays unanswered either way."
+  },
   "locationNoticeAcknowledge": "I understand, share my location",
   "@locationNoticeAcknowledge": {
     "description": "Location notice: the agent agrees to share their location while the app is open."
