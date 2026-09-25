@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
@@ -298,6 +299,96 @@ class SyncImage extends ImageProvider<SyncImage> {
     return SyncImage(made!);
   }
 
+  /// THE SEEDED DEV DATA'S SHELF PHOTO, rebuilt pixel for pixel.
+  ///
+  /// `backend/scripts/seed/photos.ts` draws four shelves of randomly sized,
+  /// **randomly and fully coloured** product blocks from a mulberry32 PRNG —
+  /// the same generator and the same layout are reproduced here, so the
+  /// fixture is the photograph the owner was actually looking at when they
+  /// said the plate was a rainbow, and not a polite approximation of it.
+  ///
+  /// It is deliberately the worst case a plate can be handed: unlike a shop
+  /// shelf, every block is a fully saturated random colour.
+  static Future<SyncImage> seededShelf(
+    WidgetTester tester, {
+    int seed = 7,
+    int width = 160,
+    int height = 120,
+  }) async {
+    var a = (seed * 2654435761) & 0xFFFFFFFF;
+    double rnd() {
+      a = (a + 0x6d2b79f5) & 0xFFFFFFFF;
+      var t = a;
+      t = ((t ^ (t >>> 15)) * (t | 1)) & 0xFFFFFFFF;
+      t ^= (t + ((t ^ (t >>> 7)) * (t | 61))) & 0xFFFFFFFF;
+      return ((t ^ (t >>> 14)) & 0xFFFFFFFF) / 4294967296;
+    }
+
+    const rows = 4;
+    final made = await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final rowHeight = height / rows;
+      // The seed writes a raw RGB buffer: every pixel opaque, every edge hard.
+      // Reproduce that, or the antialiased edges of these rects come back
+      // part-transparent, the Night `well` shows through them, and the test
+      // would be measuring the ground's own colour cast instead of the plate's.
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+        Paint()
+          ..color = const Color(0xFFEBEBE4)
+          ..isAntiAlias = false,
+      );
+      for (var row = 0; row < rows; row++) {
+        var x = 0.0;
+        while (x < width) {
+          final blockWidth = 6 + (rnd() * 22).floor();
+          final colour = Color.fromARGB(
+            255,
+            (rnd() * 256).floor().clamp(0, 255),
+            (rnd() * 256).floor().clamp(0, 255),
+            (rnd() * 256).floor().clamp(0, 255),
+          );
+          final top = (row * rowHeight + rnd() * rowHeight * 0.35).floorToDouble();
+          final bottom = ((row + 1) * rowHeight).floorToDouble() - 4;
+          // The shelf board, the product, and the back of the shelf.
+          canvas
+            ..drawRect(
+              Rect.fromLTRB(
+                x,
+                (row * rowHeight).floorToDouble(),
+                x + blockWidth,
+                ((row + 1) * rowHeight).floorToDouble(),
+              ),
+              Paint()
+                ..color = const Color(0xFFEBEBE4)
+                ..isAntiAlias = false,
+            )
+            ..drawRect(
+              Rect.fromLTRB(top < bottom ? x : x, top, x + blockWidth - 1, bottom),
+              Paint()
+                ..color = colour
+                ..isAntiAlias = false,
+            )
+            ..drawRect(
+              Rect.fromLTRB(
+                x,
+                bottom,
+                x + blockWidth,
+                ((row + 1) * rowHeight).floorToDouble(),
+              ),
+              Paint()
+                ..color = const Color(0xFF463C32)
+                ..isAntiAlias = false,
+            );
+          x += blockWidth;
+        }
+      }
+      return recorder.endRecording().toImage(width, height);
+    });
+    return SyncImage(made!);
+  }
+
   @override
   Future<SyncImage> obtainKey(ImageConfiguration configuration) =>
       SynchronousFuture<SyncImage>(this);
@@ -530,6 +621,29 @@ String currentRoute(GoRouter router) =>
 /// be the same object. Requires `tester.ensureSemantics()`.
 Finder navSlot(String label) =>
     find.bySemanticsLabel(RegExp('^$label, tab [0-9]+ of [0-9]+\$'));
+
+/// The photograph the plate is actually painting, or null when it is drawing
+/// the fallback instead.
+///
+/// The plate paints through `DecorationImage` and not `Image`: only the
+/// decoration takes an arbitrary `ColorFilter`, and the plate's tone is a
+/// colour matrix. So "is there a photograph" is a question about the
+/// decoration, and — usefully — the same object carries the tone, which means
+/// one lookup answers both.
+DecorationImage? platedImage(WidgetTester tester) {
+  for (final box in tester.widgetList<DecoratedBox>(
+    find.descendant(
+      of: find.byType(TiqPlate),
+      matching: find.byType(DecoratedBox),
+    ),
+  )) {
+    final decoration = box.decoration;
+    if (decoration is BoxDecoration && decoration.image != null) {
+      return decoration.image;
+    }
+  }
+  return null;
+}
 
 /// Scroll The Floor until [finder] is built and on screen.
 ///
