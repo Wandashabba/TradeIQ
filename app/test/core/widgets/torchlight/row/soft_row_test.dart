@@ -138,9 +138,15 @@ void main() {
           critical.textInset(hasLeading: false),
           plain.textInset(hasLeading: false),
         );
-        // The lane is the dot's diameter plus its gap. It was 3 + s3 while
-        // the mark was a bar; the override makes it a dot and the dot is 8.
-        expect(plain.severityLane, TiqSpace.s2 + TiqSpace.s3);
+        // The lane is the dot's diameter plus its air: 8 + s2. It was 3 + s3
+        // while the mark was a bar — a dot is a smaller mark and wants less
+        // air, which also keeps the text's inset from the card's edge close
+        // to what the flush row's was from the screen's.
+        expect(plain.severityLane, TiqSpace.s2 + TiqSpace.s2);
+        expect(
+          SoftRowSpec.resolve(skin: TiqSkin.veld()).severityLane,
+          6 + TiqSpace.s3,
+        );
         expect(plain.markIsDot, isTrue);
         expect(
           SoftRowSpec.resolve(skin: TiqSkin.veld()).markIsDot,

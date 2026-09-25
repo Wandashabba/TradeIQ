@@ -202,10 +202,11 @@ void main() {
         find.byKey(const ValueKey<String>('schedule-next-run-s-active')),
         findsOneWidget,
       );
-      await scrollWorklistTo(
-        tester,
-        find.byKey(const ValueKey<String>('schedule-next-run-s-paused')),
-      );
+      // Read the first row's line BEFORE scrolling to the second. The list is
+      // lazy and the rows grew when they became cards, so scrolling far
+      // enough to build the paused row now unmounts the active one — a
+      // `widget<Text>` lookup afterwards finds nothing, which says nothing
+      // about where the line sits.
       expect(
         tester
             .widget<Text>(
@@ -215,6 +216,10 @@ void main() {
             )
             .data,
         'Next run 2026-09-21 09:00',
+      );
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('schedule-next-run-s-paused')),
       );
       expect(
         tester

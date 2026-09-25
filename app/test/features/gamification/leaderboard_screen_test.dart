@@ -170,8 +170,20 @@ void main() {
     ) async {
       await _pump(tester, entries: _board);
 
-      expect(find.text('Thandi Mokoena'), findsOneWidget);
-      expect(find.text('Busi Dlamini'), findsOneWidget);
+      // THE NAME, NOT AN ID — asserted through the row's own contract. Since
+      // the card override of 25 September 2026 a list row spends its own
+      // padding before the name starts, and in `flutter_test`'s font (about
+      // twice Onest's advance) a 14-character name middle-truncates on a
+      // 360dp row beside a tile and a trailing word. That is the ruling's own
+      // behaviour — names middle-truncate before status words, and the FULL
+      // name is what a screen reader is handed whatever the row painted — and
+      // it is the test font, not the device: with Onest loaded both names
+      // paint whole at 1.0x. What must never happen is the row naming a
+      // person by their id or their email, and that is what is pinned here.
+      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Busi Dlamini')), findsOneWidget);
+      expect(find.textContaining('Thandi'), findsOneWidget);
+      expect(find.textContaining('Busi'), findsOneWidget);
       expect(find.byType(PersonRow), findsNWidgets(2));
       // Not the agent id, and not the email either where a name exists.
       expect(find.textContaining('a-1'), findsNothing);
@@ -186,7 +198,12 @@ void main() {
         entries: <LeaderboardEntry>[_entry(displayName: null)],
       );
 
-      expect(find.text('thandi@acme.test'), findsOneWidget);
+      // The email is one unbroken token, so a row that cannot hold it drops
+      // its middle rather than its tail — the domain is the half that says
+      // which Thandi. The whole address is in the row's label.
+      expect(find.bySemanticsLabel(RegExp('thandi@acme.test')), findsOneWidget);
+      expect(find.textContaining('thandi@'), findsOneWidget);
+      expect(find.textContaining('a-1'), findsNothing);
     });
 
     testWidgets('the figures in the trailing are spoken, not only painted', (
@@ -386,6 +403,7 @@ void main() {
 
   group('2.0x text and Afrikaans', () {
     testWidgets('nothing overflows at 2.0x', (tester) async {
+      final handle = tester.ensureSemantics();
       await _pump(
         tester,
         textScale: 2.0,
@@ -393,7 +411,14 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Thandi Mokoena'), findsOneWidget);
+      // At 2.0x a 14-character name beside a 48dp tile and a trailing word
+      // middle-truncates on a 360dp row — the same case the Veld test below
+      // names, and the ruling's own words: names truncate before status
+      // words, and the FULL name is what a screen reader is handed whatever
+      // the row painted.
+      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
+      expect(find.textContaining('Thandi'), findsWidgets);
+      handle.dispose();
     });
 
     testWidgets('nothing overflows at 320dp in Afrikaans', (tester) async {

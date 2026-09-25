@@ -212,7 +212,12 @@ class SoftRowSpec {
         ? TiqSpace.s2 * (1 + (textScale - 1) / 2)
         : (veld ? 6.0 : 3.0);
     final barStrokeWidth = skin.depth.borderWidth;
-    final severityLane = barWidth + TiqSpace.s3;
+    // The lane is the mark plus its air. A dot is a smaller mark than a bar
+    // and wants less of it, which also keeps the text's inset from the card's
+    // edge close to what the flush row's was from the screen's — a card
+    // spends its own padding before the lane even starts, and every dp of
+    // that comes off the name.
+    final severityLane = barWidth + (markIsDot ? TiqSpace.s2 : TiqSpace.s3);
 
     final barHeight = markIsDot
         ? barWidth
@@ -277,7 +282,7 @@ class SoftRowSpec {
       // lead card and the section marker hang off.
       margin: isCard ? skin.space.gutter : 0.0,
       gapAfter: isCard && separates ? TiqSpace.s3 : 0.0,
-      horizontalPadding: isCard ? TiqSpace.s4 : skin.space.gutter,
+      horizontalPadding: isCard ? TiqSpace.s3 : skin.space.gutter,
       verticalPadding: verticalPadding,
       gap: gap,
       stackedGap: TiqSpace.s2,

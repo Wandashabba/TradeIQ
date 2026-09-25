@@ -31,12 +31,22 @@ void main() {
     ) async {
       await pumpMe(tester);
 
+      final handle = tester.ensureSemantics();
       final row = find.byKey(const ValueKey<String>('my-visit-v1'));
       expect(row, findsOneWidget);
+      // THE STORE, NAMED. Since the card override of 25 September 2026 a list
+      // row spends its own padding before the title starts, and a
+      // 17-character outlet name middle-truncates on a 360dp row in
+      // `flutter_test`'s font, which has about twice Onest's advance. That is
+      // the ruling's own behaviour — outlet names middle-truncate, and the
+      // FULL name is what a screen reader is handed whatever the row painted
+      // — so both halves are asserted rather than the painted string alone.
       expect(
-        find.descendant(of: row, matching: find.text('Kasi Corner Spaza')),
+        find.descendant(of: row, matching: find.textContaining('Kasi Cor')),
         findsOneWidget,
       );
+      expect(find.bySemanticsLabel(RegExp('Kasi Corner Spaza')), findsWidgets);
+      handle.dispose();
       // The meta line is one string built from three localised parts.
       expect(
         find.descendant(
