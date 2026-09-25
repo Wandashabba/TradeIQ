@@ -99,8 +99,20 @@ void main() {
         expect(text, isNot(contains('NEUTRAL ONE')));
         // A fall is signed as a fall: the sign is the direction's, never a
         // '+' beside a down triangle.
-        expect(text, contains('${minusSign}12.4%'));
+        // MOVED 25 September 2026: `Delta` prints an unsigned magnitude,
+        // because the triangle beside it is the sign. What this line was
+        // guarding — that a fall is never printed as a rise — is guarded
+        // better below, on the field the triangle is drawn from, and the
+        // formatter's own true-minus rule is pinned in `tiq_number_test`.
+        expect(text, contains('12.4%'));
         expect(text, isNot(contains('+12.4%')));
+        expect(text, isNot(contains('${minusSign}12.4%')));
+        expect(
+          tester
+              .widgetList<Delta>(find.byType(Delta))
+              .map((d) => d.data.direction),
+          contains(DeltaDirection.down),
+        );
 
         // Stat tiles are answer-only: there is no full view to send a reader
         // to, so a figure past the fold must still be reachable here.

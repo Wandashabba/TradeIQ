@@ -246,7 +246,17 @@ void main() {
         find.textContaining('from your last visit here (66)'),
         findsOneWidget,
       );
-      expect(find.text('+6'), findsOneWidget);
+      // MOVED 25 September 2026: the magnitude is unsigned.
+      //
+      // `Delta` printed the sign beside its own triangle until the owner read
+      // `▼ −19 pts` on The Floor and named the redundancy. The triangle is the
+      // sign — a shape that survives greyscale, a 1-bit render and a 40%
+      // backlit panel, where a three-pixel glyph does not. The pin that
+      // matters here is unchanged and is asserted right above: the delta is
+      // the difference of the two figures **as printed**, so it says 6 and
+      // never 7.
+      expect(find.text('6'), findsOneWidget);
+      expect(find.text('+6'), findsNothing);
     });
 
     testWidgets('no previous visit is a sentence, never a delta beside '
@@ -339,9 +349,19 @@ void main() {
       expect(find.text('71'), findsOneWidget, reason: 'the hero');
       expect(find.textContaining('from your last visit here (65)'),
           findsOneWidget);
-      expect(find.text('+6'), findsOneWidget, reason: '71 − 65 = 6');
-      expect(find.text('+7'), findsNothing,
+      // Moved with the unsigned magnitude — see the note above. The
+      // arithmetic this test is named for is untouched: 71 − 65 = 6, and a
+      // raw 6.8 rounding to 7 would still fail.
+      expect(find.text('6'), findsOneWidget, reason: '71 − 65 = 6');
+      expect(find.text('7'), findsNothing,
           reason: 'a delta that does not add up to the figures beside it');
+      // The direction is the triangle's, and it is still up.
+      expect(
+        tester.widget<Delta>(find.byKey(const ValueKey<String>('outcome-delta')))
+            .data
+            .direction,
+        DeltaDirection.up,
+      );
       expect(
         find.bySemanticsLabel(
           RegExp(r'Up 6 points from your last visit here \(65\)\.'),

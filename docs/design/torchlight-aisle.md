@@ -1002,6 +1002,33 @@ and the five text goldens.
 
 ---
 
+## 9d. What the card override pulled after it — 25 September 2026
+
+Three follow-ons the owner named looking at the finished Floor, recorded here
+because each one is a rule and not a tweak.
+
+**The delta's magnitude is unsigned.** `▼ −19 pts` says *down* twice and
+*points* once too often. The triangle is the sign; the unit is the caller's and
+comes off a score. Fixed in `Delta` itself rather than at the call site, so
+every screen in the product gets it, and the words move into the semantics
+sentence so nothing is carried by colour or shape alone. unify §1.17.
+
+**A row's reason ends on a clause.** A decision row's reason gets about 230dp
+on a 390dp phone — some 34 characters — and the server writes 55. A 379dp
+sentence does not fit a 390dp phone by any arrangement of the row, so the
+sentence gives: the trailing qualifier goes, at a clause boundary, never inside
+a word. `Planogram compliance under 50…` becomes `Planogram compliance under
+50%`. The budget is a stated constant and deliberately not measured — whether a
+finding keeps its qualifier is an editorial question, and an answer that
+differed between a 360dp phone and a 412dp one would be worse than one that is
+consistently edited.
+
+**A screen that can be scoped can be unscoped.** See unify §1.17. The short
+version: the control scopes every block or it is a lie; a block the client
+cannot scope is withheld with a sentence rather than shown unscoped under a
+scoped heading; and the way back to everything is one tap, offered only while
+something is filtered.
+
 ## 10. Adding a token
 
 1. **Check it is a token and not a value.** If it is used once, it is a value.

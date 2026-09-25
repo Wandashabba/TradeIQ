@@ -23,7 +23,6 @@ import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import '../../agents/data/agent_locations_repository.dart';
@@ -37,6 +36,7 @@ import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
+import 'dashboard_filters.dart';
 
 /// EXECUTION OVERVIEW — the manager's multi-panel console, in Torchlight.
 ///
@@ -146,7 +146,7 @@ class DashboardShellScreen extends ConsumerWidget {
       header: TorchAppHeader(
         title: l10n.dashOverviewTitle,
         facts: <String>[
-          _territoryFact(ref, l10n, filter.territoryId),
+          territoryFact(ref, l10n, filter.territoryId),
           rangeLabel(l10n, filter.range),
         ],
         // The header allows exactly one trailing control, and on a console
@@ -162,7 +162,7 @@ class DashboardShellScreen extends ConsumerWidget {
         ),
       ),
       children: <Widget>[
-        TorchBleed(extra: gutter * 2, child: const _DashboardFilters()),
+        TorchBleed(extra: gutter * 2, child: const DashboardFilters()),
         SizedBox(height: blockGap),
         if (phase == 'first-run')
           const _FirstRun()
@@ -188,157 +188,6 @@ class DashboardShellScreen extends ConsumerWidget {
     );
   }
 
-  /// The header's first fact: which territory the figures below are about.
-  static String _territoryFact(
-    WidgetRef ref,
-    AppLocalizations l10n,
-    String? territoryId,
-  ) {
-    if (territoryId == null) return l10n.dashAllTerritories;
-    return territoryName(ref, territoryId) ?? l10n.dashOneTerritory;
-  }
-}
-
-/// The window's own name, localised. `DashboardRange.label` is the wire-ish
-/// abbreviation the old pills wore; a fact line and a filter chip are read out
-/// loud, so they get words.
-String rangeLabel(AppLocalizations l10n, DashboardRange range) =>
-    switch (range) {
-      DashboardRange.last7 => l10n.dashRangeLast7,
-      DashboardRange.last30 => l10n.dashRangeLast30,
-      DashboardRange.last90 => l10n.dashRangeLast90,
-      DashboardRange.ytd => l10n.dashRangeYtd,
-      DashboardRange.allTime => l10n.dashRangeAll,
-    };
-
-/// A territory's name from the loaded list, or null when the list has not
-/// loaded, failed, or simply does not contain the id — a deleted or stale
-/// territory. Never the raw id: a uuid is not a name (unify §1.15).
-String? territoryName(WidgetRef ref, String id) =>
-    ref.watch(territoriesListProvider).maybeWhen(
-      data: (list) {
-        for (final t in list) {
-          if (t.id == id) return t.name;
-        }
-        return null;
-      },
-      orElse: () => null,
-    );
-
-// ═══════════════════════════════════════════════════════════════════════
-// Filters — one rail, above everything it scopes
-// ═══════════════════════════════════════════════════════════════════════
-
-/// One filter rail scoping every panel below it — the window and the
-/// territory.
-///
-/// A per-panel control would let two figures silently disagree about which
-/// slice of time they show, which is worse than no control at all. Selected is
-/// `lifted` + ink-1 border + tick + weight 700 — three channels, never amber,
-/// on any screen (unify §1.6).
-class _DashboardFilters extends ConsumerWidget {
-  const _DashboardFilters();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final filter = ref.watch(dashboardFilterProvider);
-    final territories = ref.watch(territoriesListProvider);
-
-    void update(DashboardFilter next) =>
-        ref.read(dashboardFilterProvider.notifier).set(next);
-
-    final selectedName = filter.territoryId == null
-        ? null
-        : territoryName(ref, filter.territoryId!);
-
-    return TorchFilterRail(
-      semanticsLabel: l10n.dashFilters,
-      chips: <Widget>[
-        for (final range in DashboardRange.values)
-          TorchFilterChip(
-            key: ValueKey<String>('range-${range.name}'),
-            label: rangeLabel(l10n, range),
-            selected: range == filter.range,
-            onSelected: () => update(filter.copyWith(range: range)),
-          ),
-        TorchFilterChip(
-          key: const ValueKey<String>('filter-territory'),
-          // Loading is a state, not a blank: the chip says "All territories"
-          // and is not selected, which is exactly what the screen is showing.
-          label:
-              selectedName ??
-              (filter.territoryId == null
-                  ? l10n.dashAllTerritories
-                  : l10n.dashOneTerritory),
-          selected: filter.territoryId != null,
-          onSelected: territories.hasValue
-              ? () => _pick(context, ref, filter)
-              : null,
-        ),
-      ],
-    );
-  }
-
-  /// The territory list is arbitrary-length, so it is a sheet of rows rather
-  /// than a `ChoiceRow` — unify §1.10 gives this product one modal container
-  /// and §18.1 is why a long list opens it.
-  Future<void> _pick(
-    BuildContext context,
-    WidgetRef ref,
-    DashboardFilter filter,
-  ) async {
-    final l10n = context.l10n;
-    final list = ref.read(territoriesListProvider).value ?? const <Territory>[];
-    final chosen = await showTorchSheet<String>(
-      context,
-      builder: (sheetContext) => TorchSheet(
-        title: l10n.dashTerritory,
-        subtitle: l10n.dashTerritorySheetBody,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SoftRow(
-              key: const ValueKey<String>('territory-option-all'),
-              density: SoftRowDensity.compact,
-              title: l10n.dashAllTerritories,
-              semanticsLabel: filter.territoryId == null
-                  ? '${l10n.dashAllTerritories}. ${l10n.dashSelected}'
-                  : null,
-              onTap: () => Navigator.of(sheetContext).pop(_allTerritories),
-            ),
-            for (var i = 0; i < list.length; i++)
-              SoftRow(
-                key: ValueKey<String>('territory-option-${list[i].id}'),
-                density: SoftRowDensity.compact,
-                title: list[i].name,
-                subtitle: list[i].code,
-                semanticsLabel: list[i].id == filter.territoryId
-                    ? '${list[i].name}. ${l10n.dashSelected}'
-                    : null,
-                separator: i == list.length - 1
-                    ? SoftRowSeparator.none
-                    : SoftRowSeparator.auto,
-                onTap: () => Navigator.of(sheetContext).pop(list[i].id),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (chosen == null) return;
-    ref
-        .read(dashboardFilterProvider.notifier)
-        .set(
-          chosen == _allTerritories
-              ? filter.copyWith(clearTerritory: true)
-              : filter.copyWith(territoryId: chosen),
-        );
-  }
-
-  /// The sheet's "all" answer. A null pop is a dismissal, so the clear
-  /// travels as a token — the same reason the old popup menu carried one.
-  static const String _allTerritories = '__all_territories__';
 }
 
 // ═══════════════════════════════════════════════════════════════════════

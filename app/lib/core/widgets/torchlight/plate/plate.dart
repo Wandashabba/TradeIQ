@@ -728,10 +728,19 @@ class PlateHeroCluster extends StatelessWidget {
     this.delta,
     this.healthLine,
     this.onHealthTap,
+    this.onEyebrowTap,
+    this.eyebrowSemanticLabel,
+    this.healthTrailing,
     this.semanticsLabel,
-  });
+  }) : assert(
+         onEyebrowTap == null || eyebrowSemanticLabel != null,
+         'PlateHeroCluster: a tappable eyebrow needs its own label. The '
+         'printed string is two facts joined by a separator; a control has to '
+         'say what pressing it does.',
+       );
 
-  /// `GAUTENG NORTH · WEEK 38`. Uppercased for display by the eyebrow role.
+  /// `GAUTENG NORTH · LAST 30 DAYS`. Uppercased for display by the eyebrow
+  /// role.
   final String eyebrow;
 
   /// The hero figure — a `FigureSlot` at `hero.figure`, fitted by the caller.
@@ -746,6 +755,34 @@ class PlateHeroCluster extends StatelessWidget {
   final Widget? healthLine;
 
   final VoidCallback? onHealthTap;
+
+  /// THE EYEBROW AS A CONTROL.
+  ///
+  /// The eyebrow already prints the two facts a scope control sets — which
+  /// territory, and over what window — so on a screen whose reference has no
+  /// filter chrome at all, the honest place to put the control is the words
+  /// that already say what it does. Null keeps the eyebrow a label.
+  ///
+  /// It is a real target: the line sits inside a `space.tapTarget` box and
+  /// announces itself as a button with [eyebrowSemanticLabel], because a
+  /// control a screen reader hears as a caption is a control that is not
+  /// there.
+  final VoidCallback? onEyebrowTap;
+
+  /// "All territories, last 30 days. Change the territory or the window."
+  /// Required with [onEyebrowTap].
+  final String? eyebrowSemanticLabel;
+
+  /// One thing at the trailing end of the **health line** — The Floor's way
+  /// back to all territories when one is chosen.
+  ///
+  /// It goes here and not beside the eyebrow because the health line is
+  /// already a [space.tapTarget]-tall row with nothing in its trailing half,
+  /// and the cluster above it is inside the plate's `FittedBox`: a second
+  /// 48dp row up there would make the whole cluster overflow the text zone
+  /// and the hero would render *smaller*, which is the defect
+  /// `floor_proportion_test.dart` exists to catch.
+  final Widget? healthTrailing;
 
   final String? semanticsLabel;
 
@@ -765,11 +802,10 @@ class PlateHeroCluster extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          eyebrow.toUpperCase(),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: skin.text.eyebrow.style(color: skin.palette.ink2),
+        _Eyebrow(
+          text: eyebrow,
+          onTap: onEyebrowTap,
+          semanticLabel: eyebrowSemanticLabel,
         ),
         const SizedBox(height: TiqSpace.s2),
         // THE FIGURE AND ITS DELTA SHARE A BASELINE — the pairing is the
@@ -804,19 +840,111 @@ class PlateHeroCluster extends StatelessWidget {
           ),
         if (healthLine != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s2),
-          if (onHealthTap == null)
-            healthLine!
-          else
-            _HealthTarget(onTap: onHealthTap!, child: healthLine!),
+          Row(
+            // MIN, AND NO `Flexible`. The cluster is laid out unbounded
+            // inside the plate's `FittedBox`, and a flex child under an
+            // unbounded main axis is a `RenderFlex` assertion, not a layout.
+            // Both children size to their content and the `FittedBox` is what
+            // brings the whole cluster back inside the plate.
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (onHealthTap == null)
+                healthLine!
+              else
+                _HealthTarget(onTap: onHealthTap!, child: healthLine!),
+              // A sibling and not a child: a button inside another button's
+              // gesture region is the defect the section rule was repaired
+              // for, in a third place.
+              if (healthTrailing != null) ...<Widget>[
+                const SizedBox(width: TiqSpace.s3),
+                healthTrailing!,
+              ],
+            ],
+          ),
         ],
       ],
     );
 
-    if (semanticsLabel == null) return cluster;
+    // THE EYEBROW'S TARGET, AS AN OVERLAY. See [_Eyebrow] for why it is not
+    // a box in the column. `Clip.none` is deliberate and unused — the band is
+    // [space.tapTarget] tall inside a cluster that is never shorter than its
+    // figure, so it has nothing to clip.
+    final withTarget = onEyebrowTap == null
+        ? cluster
+        : Stack(
+            children: <Widget>[
+              cluster,
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: skin.space.tapTarget,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onEyebrowTap,
+                  excludeFromSemantics: true,
+                ),
+              ),
+            ],
+          );
+
+    if (semanticsLabel == null) return withTarget;
     return Semantics(
       label: semanticsLabel,
       excludeSemantics: onHealthTap == null,
-      child: cluster,
+      child: withTarget,
+    );
+  }
+}
+
+/// The eyebrow line — a label, or a control wearing a label's clothes.
+///
+/// Untapped it is exactly what it was: two lines of `eyebrow` ink-2,
+/// ellipsised at the end. Given [onTap] it becomes a button, and **it grows by
+/// nothing**.
+///
+/// That last part is the whole design of this widget. The cluster this line
+/// sits in is wrapped in the plate's `FittedBox(scaleDown)`, so every dp added
+/// here is taken off the hero figure — a `ConstrainedBox(minHeight: 48)` round
+/// the words shrank a 66dp hero to 57dp, which is the exact failure
+/// `floor_proportion_test.dart` was written for. So the target is an overlay:
+/// the words keep their own height in the column and a transparent
+/// [space.tapTarget]-tall band is stacked over the top of the cluster, which
+/// covers the words, the gap under them and the top of the figure. The figure
+/// is not otherwise interactive and the reading is coherent — the number is
+/// this territory's score, and the band above and across it is how you change
+/// which territory that is.
+///
+/// The semantics node stays on the words, with [excludeFromSemantics] on the
+/// overlay, so a screen reader hears one button labelled with the sentence
+/// rather than a button and a caption saying the same thing twice.
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow({
+    required this.text,
+    required this.onTap,
+    required this.semanticLabel,
+  });
+
+  final String text;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final label = Text(
+      text.toUpperCase(),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: skin.text.eyebrow.style(color: skin.palette.ink2),
+    );
+    if (onTap == null) return label;
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: label,
     );
   }
 }

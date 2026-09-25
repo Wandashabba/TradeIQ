@@ -8,6 +8,7 @@ import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
+import '../../territories/data/territories_view.dart';
 import 'dashboard_repository.dart';
 
 /// THE FLOOR's view model.
@@ -48,6 +49,34 @@ enum FloorPhase {
 
   /// A real window with real visits.
   measured,
+}
+
+/// Whether the decision list below the figures is scoped to the chosen
+/// territory — and, when it is not, why not.
+///
+/// The figures come back scoped from the server (`GET /dashboard?territoryId`).
+/// The decision list cannot: `GET /alerts` and `GET /tasks` have no territory
+/// parameter, and the client's `Outlet` carries no territory either, so the
+/// membership has to come from `GET /territories/:id/coverage`. That is a
+/// second request, and a second request can fail on its own.
+///
+/// The failure is a **designed state and not a silent fallback**: a list of
+/// every territory's findings under an eyebrow that names one territory is a
+/// lie the reader cannot see, and an empty list is a different lie. So the
+/// list is withheld and the section says why, while the figures above it —
+/// which really were scoped, by the server — stay.
+enum FloorScope {
+  /// No territory chosen. Everything is in scope, which is the truth.
+  all,
+
+  /// A territory is chosen and the decision list is that territory's.
+  scoped,
+
+  /// A territory is chosen and its outlet list has not arrived yet.
+  pending,
+
+  /// A territory is chosen and its outlet list did not load.
+  failed,
 }
 
 /// One thing that needs somebody to decide something.
@@ -117,19 +146,124 @@ class FloorDecision {
   /// row with no reason is worse than a row that repeats itself.
   static String reasonWithout(String message, String outletName) {
     var out = _withoutAge(message);
-    if (outletName.isEmpty || !out.contains(outletName)) return out;
-    for (final joiner in const <String>[' at ', ' in ', ' for ', ' — ', ', ']) {
-      out = out.replaceAll('$joiner$outletName', '');
-    }
-    // A leading "Outlet: …" or "Outlet — …" form.
-    for (final joiner in const <String>[': ', ' — ', ' - ']) {
-      if (out.startsWith('$outletName$joiner')) {
-        out = out.substring(outletName.length + joiner.length);
+    if (outletName.isNotEmpty && out.contains(outletName)) {
+      for (final joiner in const <String>[
+        ' at ',
+        ' in ',
+        ' for ',
+        ' — ',
+        ', ',
+      ]) {
+        out = out.replaceAll('$joiner$outletName', '');
+      }
+      // A leading "Outlet: …" or "Outlet — …" form.
+      for (final joiner in const <String>[': ', ' — ', ' - ']) {
+        if (out.startsWith('$outletName$joiner')) {
+          out = out.substring(outletName.length + joiner.length);
+        }
       }
     }
-    final trimmed = out.trim();
-    return trimmed.isEmpty ? message : trimmed;
+    out = _tightened(out).trim();
+    if (out.isEmpty) return message;
+    return _withoutQualifier(out);
   }
+
+  /// THE BUDGET, IN CHARACTERS, AND WHY IT IS NOT MEASURED.
+  ///
+  /// A decision row's reason gets one line. On a 390dp phone that line is
+  /// about 230dp of Onest 14 after the card's gutter, its padding, the
+  /// severity lane, the gap and the age figure — call it 34 characters. The
+  /// messages the server writes run to 55, and a 379dp sentence does not fit
+  /// a 390dp phone by any arrangement of the row: the fix has to be the
+  /// sentence.
+  ///
+  /// Measured fitting is what [FigureSlot] and `SectionRule` do, and it is
+  /// deliberately **not** what happens here. Whether a reason keeps its
+  /// qualifier is an editorial question, and an editorial answer that changed
+  /// between a 360dp phone and a 412dp one — the same finding worded two ways
+  /// depending on the handset — would be worse than one that is consistently
+  /// edited. So the budget is a constant, it is stated, and it is the width
+  /// of the narrowest phone this product supports.
+  static const int reasonBudget = 34;
+
+  /// Spellings that cost the line and buy nothing.
+  ///
+  /// "percent" is nine characters of a word the `%` sign says in one, beside
+  /// a figure. The rest are the wire's own noise: a doubled space, a space
+  /// before a percent sign.
+  static String _tightened(String message) => message
+      .replaceAllMapped(
+        RegExp(r'(\d)\s*percent\b', caseSensitive: false),
+        (m) => '${m[1]}%',
+      )
+      .replaceAll(RegExp(r'\s+'), ' ');
+
+  /// THE TRAILING QUALIFIER — where, since when, how often.
+  ///
+  /// "Planogram compliance under 50% **on the main aisle**". "Price above the
+  /// published band **for the third week running**". The head of each is the
+  /// finding and the tail is a qualifier, and a row that shows
+  /// `Planogram compliance under 50…` has thrown away *more* than this does —
+  /// it stops inside a word and the reader cannot tell whether the number was
+  /// 50 or 500.
+  ///
+  /// It only fires when the sentence is over [reasonBudget], it cuts at a
+  /// clause boundary and never inside a word, and it stops the moment the
+  /// head fits or the head stops being a sentence. A finding that is one long
+  /// clause keeps all of it and ellipsises as before: this shortens the
+  /// common cases, it does not promise to shorten every case.
+  ///
+  /// No ellipsis is appended, for the same reason the outlet name and the
+  /// "(6 days)" leave no mark: the row is a summary of a finding whose full
+  /// text is one tap away, and a marker would spend the characters the trim
+  /// just bought.
+  static String _withoutQualifier(String reason) {
+    if (reason.length <= reasonBudget) return reason;
+    // A TRAILING PARENTHETICAL, WHEN THE LINE CANNOT AFFORD IT. The server
+    // writes "SKU 4412 price deviates 18% (threshold 10%)" — the finding is
+    // the deviation and the threshold is the rule that caught it, which is on
+    // the alert-rules screen. Under budget a parenthetical stays, because
+    // "(SKU 4412)" is a fact the row has nowhere else to put it.
+    var out = reason.replaceFirst(_trailingParenthetical, '').trimRight();
+    while (out.length > reasonBudget) {
+      final cut = _lastQualifier(out);
+      if (cut < 0) return out;
+      out = out.substring(0, cut).trimRight();
+    }
+    return out;
+  }
+
+  /// Where the last qualifier clause starts, or -1 when cutting there would
+  /// leave something that is not a finding any more.
+  ///
+  /// The head has to survive: below [_headFloor] characters the tail was
+  /// carrying the meaning, and "Price above the" is not a reason.
+  static int _lastQualifier(String reason) {
+    var best = -1;
+    for (final joiner in const <String>[
+      ' on ',
+      ' for ',
+      ' since ',
+      ' across ',
+      ' during ',
+      ' throughout ',
+      ' over ',
+      ' in ',
+      ' at ',
+      ' — ',
+      ', ',
+    ]) {
+      final index = reason.lastIndexOf(joiner);
+      if (index >= _headFloor && index > best) best = index;
+    }
+    return best;
+  }
+
+  /// Twenty characters is about "Shelf talker missing" — the shortest string
+  /// in this product that is still a finding.
+  static const int _headFloor = 20;
+
+  static final RegExp _trailingParenthetical = RegExp(r'\s*\([^()]*\)\s*$');
 
   /// A trailing "(6 days)" or "(14 hours)" is the row's **trailing figure**,
   /// printed a second time in the sentence. The column means one thing on
@@ -180,6 +314,8 @@ class FloorView {
     required this.snapshot,
     required this.decisions,
     required this.outletsTotal,
+    this.territoryId,
+    this.scope = FloorScope.all,
   });
 
   final FloorPhase phase;
@@ -187,8 +323,26 @@ class FloorView {
   /// `Gauteng North`, or `All territories` when nothing is filtered.
   final String territoryName;
 
-  /// `Week 38`. Uppercased by the eyebrow role, not here.
+  /// `Last 30 days`. Uppercased by the eyebrow role, not here.
+  ///
+  /// It says the window the figures were actually measured over. It used to
+  /// say `Week 38` whatever the filter held — and the filter has always been
+  /// shared with the overview, so a manager who set "Last 7 days" there came
+  /// back to a Floor whose figures were seven days old under a label naming a
+  /// calendar week. A label that does not follow its own control is worse
+  /// than no label.
   final String windowLabel;
+
+  /// The territory the screen is scoped to, or null for all of them. The id,
+  /// not the name: the name is for reading and this is for comparing.
+  final String? territoryId;
+
+  /// Whether [decisions] is genuinely scoped to [territoryId].
+  final FloorScope scope;
+
+  /// Whether the screen is showing a slice rather than everything. The
+  /// eyebrow says so and the way back is one tap.
+  bool get isFiltered => territoryId != null;
 
   final DashboardSnapshot snapshot;
 
@@ -221,28 +375,51 @@ class FloorView {
   bool get nothingNeedsADecision => decisions.isEmpty;
 }
 
-/// `Week 38` — ISO 8601 week number, which is what "week 38" means to everyone
-/// who has ever been handed a retail calendar.
-String isoWeekLabel(DateTime date) {
-  final thursday = DateTime(
-    date.year,
-    date.month,
-    date.day,
-  ).add(Duration(days: 4 - (date.weekday == 7 ? 7 : date.weekday)));
-  final firstThursday = DateTime(thursday.year, 1, 4);
-  final week =
-      1 +
-      (thursday.difference(firstThursday).inDays +
-              (firstThursday.weekday - 1)) ~/
-          7;
-  return 'Week $week';
-}
+/// THE WINDOW, IN THE WORDS OF THE CONTROL THAT SETS IT.
+///
+/// This was `isoWeekLabel(now)` — "Week 38", the ISO week number — and it was
+/// printed whatever [DashboardFilter.range] held. The range defaults to the
+/// last 30 days and is **shared with the overview**, so the eyebrow named a
+/// calendar week over figures measured across thirty days, and a manager who
+/// picked "Last 7 days" on the overview came back to a Floor that still said
+/// Week 38. Now that The Floor can change the window itself, a label that does
+/// not follow its own control would be a bug the reader cannot see.
+///
+/// English, like the rest of this screen's strings. When The Floor is
+/// localised these become `rangeLabel(l10n, range)`, which already exists.
+String windowLabelFor(DashboardRange range) => switch (range) {
+  DashboardRange.last7 => 'Last 7 days',
+  DashboardRange.last30 => 'Last 30 days',
+  DashboardRange.last90 => 'Last 90 days',
+  DashboardRange.ytd => 'Year to date',
+  DashboardRange.allTime => 'All time',
+};
 
 /// The merged, ranked decision list plus everything around it.
 final floorViewProvider = FutureProvider<FloorView>((ref) async {
   final snapshot = await ref.watch(dashboardSnapshotProvider.future);
   final filter = ref.watch(dashboardFilterProvider);
-  final now = ref.read(nowProvider)();
+
+  // WHICH OUTLETS ARE IN SCOPE.
+  //
+  // `GET /dashboard` takes a territoryId and the figures come back scoped.
+  // `GET /alerts` and `GET /tasks` do not take one, and the client's `Outlet`
+  // carries no territory column, so the membership has to come from the
+  // territory's own coverage. It is watched — not awaited — so a slow or
+  // broken coverage request leaves the figures on screen instead of taking
+  // the whole route to its error state; the list below says what happened.
+  final coverage = filter.territoryId == null
+      ? null
+      : ref.watch(territoryCoverageProvider(filter.territoryId!));
+  final scope = switch (coverage) {
+    null => FloorScope.all,
+    AsyncData<TerritoryCoverage>() => FloorScope.scoped,
+    AsyncError<TerritoryCoverage>() => FloorScope.failed,
+    _ => FloorScope.pending,
+  };
+  final inScope = <String>{
+    for (final o in coverage?.value?.outlets ?? const <Outlet>[]) o.id,
+  };
 
   // The outlet list is a base layer, never a blocker: a decision row with a
   // raw id is worse than one with a name and far better than no list at all.
@@ -302,7 +479,14 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
         visitId: t.visitId,
         evidencePhotoId: t.evidencePhotoId,
       ),
-  ]..sort(FloorDecision.compare);
+  ]
+    // A decision belongs to the chosen territory when its outlet does. An
+    // unassigned finding — `outletId` empty — belongs to no territory, so it
+    // is out of a territory's scope and in "all territories".
+    ..retainWhere(
+      (d) => scope != FloorScope.scoped || inScope.contains(d.outletId),
+    )
+    ..sort(FloorDecision.compare);
 
   final current = snapshot.current;
   final phase = current.hasNoOutlets
@@ -322,10 +506,15 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
   return FloorView(
     phase: phase,
     territoryName: territoryName,
-    windowLabel: isoWeekLabel(now),
+    windowLabel: windowLabelFor(filter.range),
     snapshot: snapshot,
-    decisions: decisions,
+    // Withheld rather than half-scoped: see [FloorScope].
+    decisions: scope == FloorScope.scoped || scope == FloorScope.all
+        ? decisions
+        : const <FloorDecision>[],
     outletsTotal: current.outletsTotal,
+    territoryId: filter.territoryId,
+    scope: scope,
   );
 });
 

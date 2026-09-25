@@ -119,15 +119,37 @@ Outlet outlet(String id, String name) =>
 // ── Fakes ─────────────────────────────────────────────────────────────
 
 class FakeDashboardRepository implements DashboardRepository {
-  FakeDashboardRepository({DashboardKpis? current, this.previous})
-    : current = current ?? kpis();
+  FakeDashboardRepository({
+    DashboardKpis? current,
+    this.previous,
+    this.byTerritory = const <String, DashboardKpis>{},
+  }) : current = current ?? kpis();
 
   final DashboardKpis current;
   final DashboardKpis? previous;
 
+  /// A territory's own figures, keyed by the id the filter carries.
+  ///
+  /// Without this a scoping test can only prove the *label* changed, which is
+  /// exactly the half-migration the scope control was added to end: the server
+  /// takes `territoryId` and returns different numbers, and a test that never
+  /// varies them cannot tell a rescoped screen from a relabelled one.
+  final Map<String, DashboardKpis> byTerritory;
+
   /// The console asks twice — this window and the one before it — and the
-  /// second answer is where a thin BASELINE comes from.
-  var _calls = 0;
+  /// second answer is where a thin BASELINE comes from. Counted per territory,
+  /// so changing the filter starts the pair again.
+  final Map<String?, int> _calls = <String?, int>{};
+
+  /// The answer already given for one exact request.
+  ///
+  /// A call counter alone is not enough once the filter can move: clearing a
+  /// territory re-asks the *same* question the screen opened with, the
+  /// counter is past one, and the fake hands back the baseline as though it
+  /// were this window — a fake that disagrees with itself, and a test that
+  /// fails for a reason that is not in the app. The same request gets the
+  /// same answer, which is what the server does.
+  final Map<String, DashboardKpis> _answered = <String, DashboardKpis>{};
 
   @override
   Future<DashboardKpis> fetchKpis({
@@ -135,10 +157,18 @@ class FakeDashboardRepository implements DashboardRepository {
     String? from,
     String? to,
   }) async {
-    _calls++;
-    if (_calls == 1) return current;
+    final key = '$territoryId|$from|$to';
+    final already = _answered[key];
+    if (already != null) return already;
+    final n = (_calls[territoryId] ?? 0) + 1;
+    _calls[territoryId] = n;
+    if (n == 1) {
+      final scoped =
+          (territoryId == null ? current : byTerritory[territoryId]) ?? current;
+      return _answered[key] = scoped;
+    }
     if (previous == null) throw StateError('no previous window');
-    return previous!;
+    return _answered[key] = previous!;
   }
 
   @override
@@ -209,17 +239,42 @@ class FakeOutletsRepository implements OutletsRepository {
 }
 
 class FakeTerritoriesRepository implements TerritoriesRepository {
-  FakeTerritoriesRepository([this.territories = const <Territory>[]]);
+  FakeTerritoriesRepository(
+    this.territories, {
+    this.coverage = const <String, List<Outlet>>{},
+    this.coverageFails = false,
+  });
 
   final List<Territory> territories;
+
+  /// Which outlets are in each territory. This is the only way a client can
+  /// know: `GET /alerts` and `GET /tasks` take no territory and the client's
+  /// `Outlet` carries no territory column, so the decision list is scoped
+  /// through `GET /territories/:id/coverage`.
+  final Map<String, List<Outlet>> coverage;
+
+  /// The second request can fail on its own, and The Floor has a designed
+  /// state for that rather than a half-scoped list.
+  final bool coverageFails;
 
   @override
   Future<PaginatedResponse<Territory>> listTerritories() async =>
       PaginatedResponse(data: territories, nextCursor: null);
 
   @override
-  Future<TerritoryCoverage> getCoverage(String id) async =>
-      throw UnimplementedError();
+  Future<TerritoryCoverage> getCoverage(String id) async {
+    if (coverageFails) throw StateError('coverage did not load');
+    final outlets = coverage[id];
+    if (outlets == null) throw UnimplementedError();
+    return TerritoryCoverage(
+      outletCount: outlets.length,
+      agentCount: 0,
+      outlets: outlets,
+      outletsVisited: outlets.length,
+      outletsTotal: outlets.length,
+      coverageRate: 100,
+    );
+  }
 
   @override
   Future<Territory> createTerritory({
@@ -414,6 +469,9 @@ List<Override> floorOverrides({
   List<TaskItem> tasks = const <TaskItem>[],
   List<Outlet> outlets = const <Outlet>[],
   List<Territory> territories = const <Territory>[],
+  Map<String, DashboardKpis> byTerritory = const <String, DashboardKpis>{},
+  Map<String, List<Outlet>> coverage = const <String, List<Outlet>>{},
+  bool coverageFails = false,
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
@@ -421,13 +479,21 @@ List<Override> floorOverrides({
   List<Override> extraOverrides = const <Override>[],
 }) => <Override>[
   dashboardRepositoryProvider.overrideWithValue(
-    FakeDashboardRepository(current: current, previous: previous),
+    FakeDashboardRepository(
+      current: current,
+      previous: previous,
+      byTerritory: byTerritory,
+    ),
   ),
   alertsRepositoryProvider.overrideWithValue(FakeAlertsRepository(alerts)),
   tasksAdminRepositoryProvider.overrideWithValue(FakeTasksRepository(tasks)),
   outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository(outlets)),
   territoriesRepositoryProvider.overrideWithValue(
-    FakeTerritoriesRepository(territories),
+    FakeTerritoriesRepository(
+      territories,
+      coverage: coverage,
+      coverageFails: coverageFails,
+    ),
   ),
   photosRepositoryProvider.overrideWithValue(
     FakePhotosRepository(bytes: photoBytes, fail: photosFail),
@@ -454,6 +520,9 @@ Future<void> pumpFloor(
   List<TaskItem> tasks = const <TaskItem>[],
   List<Outlet> outlets = const <Outlet>[],
   List<Territory> territories = const <Territory>[],
+  Map<String, DashboardKpis> byTerritory = const <String, DashboardKpis>{},
+  Map<String, List<Outlet>> coverage = const <String, List<Outlet>>{},
+  bool coverageFails = false,
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
@@ -480,6 +549,9 @@ Future<void> pumpFloor(
         tasks: tasks,
         outlets: outlets,
         territories: territories,
+        byTerritory: byTerritory,
+        coverage: coverage,
+        coverageFails: coverageFails,
         photoBytes: photoBytes,
         photosFail: photosFail,
         plateImage: plateImage,
@@ -494,10 +566,12 @@ Future<void> pumpFloor(
         ),
         child: Localizations(
           locale: locale,
-          delegates: const <LocalizationsDelegate<dynamic>>[
-            DefaultMaterialLocalizations.delegate,
-            DefaultWidgetsLocalizations.delegate,
-          ],
+          // THE APP'S OWN MESSAGES, not just Material's. The Floor's strings
+          // are English constants, but the scope sheet it opens is the
+          // overview's — one implementation, `dashboard_filters.dart` — and
+          // that one is localised. Without the delegate a tap on the eyebrow
+          // throws instead of opening.
+          delegates: appLocalizationsDelegates,
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: Theme(
@@ -536,6 +610,9 @@ Future<GoRouter> pumpFloorRoute(
   List<TaskItem> tasks = const <TaskItem>[],
   List<Outlet> outlets = const <Outlet>[],
   List<Territory> territories = const <Territory>[],
+  Map<String, DashboardKpis> byTerritory = const <String, DashboardKpis>{},
+  Map<String, List<Outlet>> coverage = const <String, List<Outlet>>{},
+  bool coverageFails = false,
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
@@ -583,6 +660,9 @@ Future<GoRouter> pumpFloorRoute(
         tasks: tasks,
         outlets: outlets,
         territories: territories,
+        byTerritory: byTerritory,
+        coverage: coverage,
+        coverageFails: coverageFails,
         photoBytes: photoBytes,
         photosFail: photosFail,
         plateImage: plateImage,
@@ -598,7 +678,14 @@ Future<GoRouter> pumpFloorRoute(
           data: MediaQuery.of(
             context,
           ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
+          // The same boundary [pumpFloor] carries, so the amber census can be
+          // taken of a screen that has a Navigator over it — which is the
+          // only way to census a sheet, and a sheet is exactly where the
+          // "every amber on the route beneath goes out" rule is checked.
+          child: RepaintBoundary(
+            key: const ValueKey<String>('amber-golden-boundary'),
+            child: child!,
+          ),
         ),
       ),
     ),
