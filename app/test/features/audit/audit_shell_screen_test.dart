@@ -379,6 +379,12 @@ void main() {
         find.text('Turn location on in your phone’s settings, then try again.'),
         findsOneWidget,
       );
+      // The reassurance closes the state at `meta`, under the reason and the
+      // fix. On a 360×640 phone the drawing, a display headline under the
+      // fitting rule, two paragraphs and a 160dp thumb zone are more than one
+      // fold — which is the geometry a real agent has, so it is one flick
+      // down rather than a shorter headline.
+      await scrollAgentTo(tester, find.textContaining('Nothing is lost'));
       expect(
         find.textContaining('Nothing is lost'),
         findsOneWidget,
@@ -421,6 +427,9 @@ void main() {
 
       expect(find.byType(CheckInRadar), findsNothing);
       expect(find.text('Could not start the visit'), findsOneWidget);
+      // Below the fold on a 360×640 phone, under the headline, the message
+      // and the error code — and still the last word of the state.
+      await scrollAgentTo(tester, find.textContaining('Nothing is lost'));
       expect(
         find.textContaining('Nothing is lost'),
         findsOneWidget,

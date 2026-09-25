@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -198,6 +199,61 @@ void main() {
     });
   });
 
+  // The anatomy the approved surface describes, measured rather than
+  // described: the day block's figure role, the Next-up card's meta voices,
+  // and the fact that the whole populated screen is one fold on the phone an
+  // agent actually carries.
+  group('the populated screen holds its declared anatomy', () {
+    testWidgets('the day block sets its count at figure.l, in mono', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final skin = agentSkinFor(SkinMode.night);
+      final figure = tester.widget<FigureSlot>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey<String>('day-block')),
+              matching: find.byType(FigureSlot),
+            )
+            .first,
+      );
+      expect(figure.role.name, 'figure.l');
+      expect(figure.role.size, 32);
+      expect(figure.role.isFigure, isTrue, reason: 'mono, with tnum');
+      // And its unit is the prose role beside it, not a second figure.
+      expect(
+        tester
+            .widget<Text>(find.text(' of 2 stores'))
+            .style!
+            .fontSize,
+        skin.text.titleM.size,
+      );
+    });
+
+    testWidgets('the Next-up meta line is the card\'s smallest voice', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final card = find.byKey(const ValueKey<String>('next-stop'));
+      final skin = agentSkinFor(SkinMode.night);
+
+      // The sequence: mono 16, not 22. It is a badge, not a headline.
+      final sequence = tester.widget<FigureSlot>(
+        find.descendant(of: card, matching: find.byType(FigureSlot)).first,
+      );
+      expect(sequence.role.name, 'figure.s');
+      expect(sequence.role.size, 16);
+
+      // The outlet name is the loudest thing in the card, and by a margin.
+      final name = tester.widget<Text>(
+        find.descendant(of: card, matching: find.text('Sunrise Spaza')),
+      );
+      expect(name.style!.fontSize, skin.text.titleL.size);
+      expect(name.style!.fontSize! > sequence.role.size, isTrue);
+    });
+
+  });
+
   group('distance is a figure or a sentence, never a guess', () {
     testWidgets('every distance goes through FigureSlot', (tester) async {
       await _pump(tester, route: _route());
@@ -247,12 +303,151 @@ void main() {
     });
   });
 
+  // unify §1.12 and the agent surface's empty-state grammar: display prose is
+  // keyed to LINE COUNT after layout — 1–2 lines stay at 40, 3 lines step to
+  // 32, 4 or more to 26, floor 26. It is the rule that lets a long Afrikaans
+  // headline have a defined shape instead of eating the screen, so it is
+  // pinned at every step rather than at the one the English copy happens to
+  // land on.
+  group('the empty-state headline follows the line-count fitting rule', () {
+    /// Resolve `displayFor` for [headline] inside a real agent skin at
+    /// [width], and hand back the role it chose.
+    Future<TiqTypeToken> roleFor(
+      WidgetTester tester,
+      String headline, {
+      double width = 360,
+      double textScale = 1.0,
+    }) async {
+      late TiqTypeToken role;
+      tester.view
+        ..physicalSize = Size(width, 640)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            agentSkinProvider.overrideWith(() => PinnedAgentSkin(SkinMode.night)),
+          ],
+          child: MediaQuery(
+            data: MediaQueryData(
+              size: Size(width, 640),
+              devicePixelRatio: 1.0,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: TorchlightRoute(
+                child: Builder(
+                  builder: (context) {
+                    role = displayFor(context, headline);
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return role;
+    }
+
+    // The strings below carry explicit line breaks. A headline never does —
+    // but the rule is about a LINE COUNT, and a test that reached that count
+    // by picking a string long enough to wrap would be testing the metrics of
+    // whichever font the test binding loaded rather than the rule. The
+    // English and Afrikaans strings the app actually ships are asserted
+    // underneath, against the ladder rather than against one step.
+    testWidgets('one line stays at display 40', (tester) async {
+      final role = await roleFor(tester, 'One');
+      expect(role.name, 'display');
+      expect(role.size, 40);
+    });
+
+    testWidgets('two lines stay at display 40', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo');
+      expect(role.name, 'display');
+      expect(role.size, 40);
+    });
+
+    testWidgets('three lines step to display.m 32', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo\nThree');
+      expect(role.name, 'display.m');
+      expect(role.size, 32);
+    });
+
+    testWidgets('four lines step to display.s 26, the floor', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo\nThree\nFour');
+      expect(role.name, 'display.s');
+      expect(role.size, 26);
+    });
+
+    testWidgets('and six lines are still 26 — 26 is the floor', (tester) async {
+      final role = await roleFor(tester, 'a\nb\nc\nd\ne\nf');
+      expect(role.size, 26);
+    });
+
+    testWidgets('there is no step between 40 and 32', (tester) async {
+      // The old helper stepped display → title.l → title.m and returned the
+      // first role that laid out in two lines, so a three-line headline came
+      // back at title.l 24 — smaller than the outlet name on the populated
+      // screen two blocks below it. The declared ladder is 40 / 32 / 26 and
+      // nothing else.
+      for (final headline in <String>[
+        'a',
+        'a\nb',
+        'a\nb\nc',
+        'a\nb\nc\nd',
+        'a\nb\nc\nd\ne',
+      ]) {
+        final role = await roleFor(tester, headline);
+        expect(
+          <double>[40, 32, 26],
+          contains(role.size),
+          reason: '"$headline" resolved to ${role.name} at ${role.size}',
+        );
+      }
+    });
+
+    for (final (locale, headline) in <(Locale, String)>[
+      (const Locale('en'), 'No route today'),
+      (const Locale('af'), 'Geen roete vandag nie'),
+    ]) {
+      testWidgets(
+        'the shipped ${locale.languageCode} headline is on the ladder',
+        (tester) async {
+          await _pump(tester, route: null, locale: locale);
+          final text = tester.widget<Text>(find.text(headline));
+          expect(
+            <double?>[40, 32, 26],
+            contains(text.style!.fontSize),
+            reason:
+                'the empty-state headline is display prose under the fitting '
+                'rule, never title.l and never a hand-picked size',
+          );
+        },
+      );
+    }
+
+    testWidgets('2.0x Afrikaans still resolves to a declared step', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        route: null,
+        locale: const Locale('af'),
+        textScale: 2.0,
+      );
+      final text = tester.widget<Text>(find.text('Geen roete vandag nie'));
+      expect(<double?>[40, 32, 26], contains(text.style!.fontSize));
+    });
+  });
+
   group('the states that are not a route', () {
     testWidgets('no plan is a fact about the plan, and names the next action', (
       tester,
     ) async {
       await _pump(tester, route: null);
-      expect(find.text('No route planned for today'), findsOneWidget);
+      expect(find.text('No route today'), findsOneWidget);
       expect(
         find.text(
           'No beat plan for today. You can still pick a store yourself.',
@@ -266,7 +461,9 @@ void main() {
       expect(find.byType(TorchSecondaryButton), findsOneWidget);
     });
 
-    testWidgets('an empty plan gets its own sentence', (tester) async {
+    testWidgets('an empty plan gets its own headline and its own sentence', (
+      tester,
+    ) async {
       await _pump(
         tester,
         route: const TodayRoute(
@@ -275,10 +472,24 @@ void main() {
           hasLocation: true,
         ),
       );
+      // A plan that exists and has no stops is not "no route today" — the
+      // surface names the two states separately, and so does the screen.
+      expect(find.text('Your plan is empty'), findsOneWidget);
+      expect(find.text('No route today'), findsNothing);
       expect(
         find.text('Today’s beat plan has no stops on it yet.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('and full width in Veld, where a small target is not one', (
+      tester,
+    ) async {
+      await _pump(tester, route: null, skin: SkinMode.veld);
+      final button = tester.getRect(find.byType(TorchSecondaryButton));
+      final screen = tester.getRect(find.byType(TodayFrame)).width;
+      final skin = agentSkinFor(SkinMode.veld);
+      expect(button.width, screen - skin.space.gutter * 2);
     });
 
     testWidgets('a load failure keeps the chrome and says what survived', (

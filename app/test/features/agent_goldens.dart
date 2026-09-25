@@ -63,6 +63,11 @@ Future<List<GoldenLine>> measureAgentFrame(
   if (header.evaluate().isNotEmpty) {
     final h = tester.widget<TorchAppHeader>(header.first);
     add('header.trailing', h.trailing == null ? 'none' : 'skin-cycle');
+    // WHERE the sync chip is, not only that it exists. The shell's anatomy
+    // pins it right of the title row; it spent a release in the flag-chip
+    // wrap, where it took a 48dp row plus a 16dp gap of its own on every
+    // agent screen and nothing measured said so.
+    add('header.status', h.status == null ? 'none' : 'title-row');
     add('header.chips', h.flagChips.length);
     add('header.height', tester.getRect(header.first).height.round());
   }

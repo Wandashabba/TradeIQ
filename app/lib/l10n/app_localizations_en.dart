@@ -193,7 +193,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayLoadErrorDetail => 'You can still start a visit yourself.';
 
   @override
-  String get todayNoRouteTitle => 'No route planned for today';
+  String get todayNoRouteTitle => 'No route today';
+
+  @override
+  String get todayEmptyPlanTitle => 'Your plan is empty';
 
   @override
   String get todayNoPlanDetail =>
@@ -1321,6 +1324,15 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return 'Your manager can see which store you are at.\n\nWhile TradeIQ is open and you are signed in, it sends your location $_temp0. Closing TradeIQ or signing out stops it. Nothing is sent in the background.';
   }
+
+  @override
+  String get locationNoticeSummary => 'Nothing is sent in the background.';
+
+  @override
+  String get locationNoticeExpand => 'Read what is shared';
+
+  @override
+  String get locationNoticeCollapse => 'Close this';
 
   @override
   String get locationNoticeAcknowledge => 'I understand, share my location';

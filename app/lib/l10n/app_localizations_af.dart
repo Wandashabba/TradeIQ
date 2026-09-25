@@ -199,7 +199,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get todayLoadErrorDetail => 'Jy kan steeds self ’n besoek begin.';
 
   @override
-  String get todayNoRouteTitle => 'Geen roete vir vandag beplan nie';
+  String get todayNoRouteTitle => 'Geen roete vandag nie';
+
+  @override
+  String get todayEmptyPlanTitle => 'Jou plan is leeg';
 
   @override
   String get todayNoPlanDetail =>
@@ -1339,6 +1342,16 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return 'Jou bestuurder kan sien by watter winkel jy is.\n\nTerwyl TradeIQ oop is en jy ingeteken is, stuur dit $_temp0 jou ligging. As jy TradeIQ toemaak of uitteken, stop dit. Niks word in die agtergrond gestuur nie.';
   }
+
+  @override
+  String get locationNoticeSummary =>
+      'Niks word in die agtergrond gestuur nie.';
+
+  @override
+  String get locationNoticeExpand => 'Lees wat gedeel word';
+
+  @override
+  String get locationNoticeCollapse => 'Maak dit toe';
 
   @override
   String get locationNoticeAcknowledge => 'Ek verstaan, deel my ligging';

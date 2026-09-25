@@ -192,7 +192,7 @@ class MeFrame extends ConsumerWidget {
           // for why the window is absent rather than added.
           facts: <String>[l10n.meAllTime],
           trailing: skinCycleIconButton(context, ref),
-          flagChips: const <Widget>[TorchSyncChip()],
+          status: const TorchSyncChip(),
         ),
         navPill: TorchNavPill(
           slots: TodayFrame.slotsIn(

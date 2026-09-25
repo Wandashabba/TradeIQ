@@ -96,8 +96,17 @@ class BackgroundLocationBanner extends ConsumerWidget {
       BackgroundTrackingStep.off => SoftRow(
         key: const ValueKey<String>('background-location-off'),
         form: SoftRowForm.standalone,
+        // COMPACT — the kit's banner density. These three faces are standing
+        // statements under the header on every agent screen, stacked under
+        // the foreground one, and at standard density with a `body` second
+        // line the pair took 166dp off the top of the fold before the screen
+        // said anything of its own.
+        density: SoftRowDensity.compact,
         title: l10n.backgroundLocationOfferTitle,
-        subtitle: l10n.backgroundLocationOfferSubtitle,
+        meta: Text(l10n.backgroundLocationOfferSubtitle),
+        semanticsLabel:
+            '${l10n.backgroundLocationOfferTitle}. '
+            '${l10n.backgroundLocationOfferSubtitle}',
         leading: Icon(
           Icons.route_outlined,
           size: MarkScale.glyph(context, 20),
@@ -115,8 +124,12 @@ class BackgroundLocationBanner extends ConsumerWidget {
       BackgroundTrackingStep.outsideHours => SoftRow(
         key: const ValueKey<String>('background-location-paused'),
         form: SoftRowForm.standalone,
+        density: SoftRowDensity.compact,
         title: l10n.backgroundLocationOutsideHoursTitle,
-        subtitle: l10n.backgroundLocationOutsideHoursSubtitle(hours.start),
+        meta: Text(l10n.backgroundLocationOutsideHoursSubtitle(hours.start)),
+        semanticsLabel:
+            '${l10n.backgroundLocationOutsideHoursTitle}. '
+            '${l10n.backgroundLocationOutsideHoursSubtitle(hours.start)}',
         leading: Icon(
           Icons.schedule_outlined,
           size: MarkScale.glyph(context, 20),
@@ -126,8 +139,12 @@ class BackgroundLocationBanner extends ConsumerWidget {
       BackgroundTrackingStep.running => SoftRow(
         key: const ValueKey<String>('background-location-active'),
         form: SoftRowForm.standalone,
+        density: SoftRowDensity.compact,
         title: l10n.backgroundLocationActiveTitle,
-        subtitle: l10n.backgroundLocationActiveSubtitle,
+        meta: Text(l10n.backgroundLocationActiveSubtitle),
+        semanticsLabel:
+            '${l10n.backgroundLocationActiveTitle}. '
+            '${l10n.backgroundLocationActiveSubtitle}',
         leading: Icon(
           Icons.route,
           size: MarkScale.glyph(context, 20),
@@ -138,12 +155,15 @@ class BackgroundLocationBanner extends ConsumerWidget {
       ),
     };
 
+    // The gap goes BELOW, not above. Above, the last banner sat flush against
+    // the first block of the screen's own body — a standing statement welded
+    // to the day block, with all the air stacked on the other side of it.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         inset ? skin.space.gutter : 0,
-        TiqSpace.s3,
-        inset ? skin.space.gutter : 0,
         0,
+        inset ? skin.space.gutter : 0,
+        TiqSpace.s4,
       ),
       child: child,
     );

@@ -117,8 +117,15 @@ class _Today extends ConsumerWidget {
               _TodayMessage(
                 // "No route today" is a fact about the plan, not about the
                 // agent — and an empty plan is a different fact again, so it
-                // gets its own sentence rather than the same one.
-                headline: l10n.todayNoRouteTitle,
+                // gets its own HEADLINE and not only its own sentence. The
+                // two used to share "No route planned for today", which is
+                // untrue of a plan that exists and has no stops on it, and
+                // which at display 40 under the fitting rule ran to two lines
+                // and took the fold with it. Both headlines here are the ones
+                // the agent surface names for these two states.
+                headline: route == null
+                    ? l10n.todayNoRouteTitle
+                    : l10n.todayEmptyPlanTitle,
                 body: route == null
                     ? l10n.todayNoPlanDetail
                     : l10n.todayEmptyPlanDetail,
@@ -144,9 +151,14 @@ class TodayFrame extends ConsumerWidget {
     required this.phase,
     required this.hasNextStop,
     required this.children,
+    this.routeName,
   });
 
   final String phase;
+
+  /// The plan's own name — "Tembisa run" — which joins the date on the
+  /// header's one fact line. Null on every state that has no plan to name.
+  final String? routeName;
 
   /// Whether there is a store to check into. It decides both the claim set
   /// and whether the circle is the expected next move — one boolean, so the
@@ -237,12 +249,23 @@ class TodayFrame extends ConsumerWidget {
         profile: TorchShellProfile.agent,
         header: TorchAppHeader(
           title: l10n.todayTitle,
-          facts: <String>[formatDayHeading(context, DateTime.now())],
+          // ONE compact fact line: the date and the route's name, middot
+          // joined and read as a sentence. "Donderdag 18 September · Tembisa
+          // run" is what the approved header says, and the plan's name is the
+          // second half of the only question this screen answers.
+          facts: <String>[
+            formatDayHeading(context, DateTime.now()),
+            if (routeName != null && routeName!.isNotEmpty) routeName!,
+          ],
           // Exactly one trailing icon button, and on a tab root that one is
           // the skin cycle (unify §1.2). The sync chip is not an icon button
-          // and does not compete for the slot — it is a flag chip.
+          // and does not compete for the slot — it is pinned right of the
+          // title on the title row, which is the shell's own anatomy. It used
+          // to go in the flag-chip wrap, where it took a 48dp row plus a 16dp
+          // gap of its own under the date: 64dp of a 640dp fold, every
+          // session, to say "All sent".
+          status: const TorchSyncChip(),
           trailing: skinCycleIconButton(context, ref),
-          flagChips: const <Widget>[TorchSyncChip()],
         ),
         navPill: TorchNavPill(
           slots: slotsIn(
@@ -317,6 +340,7 @@ class _Route extends ConsumerWidget {
     return TodayFrame(
       phase: route.isComplete ? 'route-done' : 'loaded',
       hasNextStop: next != null,
+      routeName: route.planName,
       children: <Widget>[
         _DayBlock(route: route),
         const SizedBox(height: TiqSpace.s7),
@@ -398,6 +422,7 @@ class _DayBlock extends StatelessWidget {
       label: l10n.todayRouteSemantics(done, route.total, route.remaining),
       excludeSemantics: true,
       child: Container(
+        key: const ValueKey<String>('day-block'),
         padding: const EdgeInsets.all(TiqSpace.s4),
         decoration: BoxDecoration(
           color: skin.palette.surface,
@@ -503,27 +528,32 @@ class _NextUpCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // The meta line, at the sizes the surface declares: the sequence in
+          // mono 16 and the distance in the small mono role beside it. It was
+          // `figure.m` (22) over `figure.s` (16) — a sequence number set
+          // larger than the day block's unit and nearly as large as the store
+          // name it belongs to.
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: TiqSpace.s3,
-            runSpacing: TiqSpace.s2,
+            spacing: TiqSpace.s2,
+            runSpacing: TiqSpace.s1,
             children: <Widget>[
               _SequenceFigure(sequence: stop.sequence),
-              _DistanceFigure(stop: stop, role: skin.text.figureS),
+              _DistanceFigure(stop: stop, role: skin.text.axisLabel),
             ],
           ),
-          const SizedBox(height: TiqSpace.s4),
+          const SizedBox(height: TiqSpace.s3),
           Text(
             stop.outlet.name,
             maxLines: 2,
             style: skin.text.titleL.style(color: skin.palette.ink1),
           ),
-          const SizedBox(height: TiqSpace.s2),
+          const SizedBox(height: TiqSpace.s1),
           Text(
             stop.outlet.code,
             style: skin.text.monoIdent.style(color: skin.palette.ink3),
           ),
-          const SizedBox(height: TiqSpace.s5),
+          const SizedBox(height: TiqSpace.s4),
           // THE SCREEN'S AMBER. A primary on a tab root lives in the BODY,
           // never in a thumb zone the nav already occupies.
           TorchPrimaryButton(
@@ -612,7 +642,8 @@ class _SequenceTile extends StatelessWidget {
   }
 }
 
-/// `03` in mono, for the next-up card's top line.
+/// `03` in mono 16, for the next-up card's meta line. The surface says 16/500
+/// here; it is the card's smallest voice, not its loudest.
 class _SequenceFigure extends StatelessWidget {
   const _SequenceFigure({required this.sequence});
 
@@ -623,7 +654,7 @@ class _SequenceFigure extends StatelessWidget {
     final skin = context.skin;
     return FigureSlot(
       value: sequence,
-      role: skin.text.figureM,
+      role: skin.text.figureS,
       semanticsLabel: context.l10n.todayStopNumber('$sequence'),
     );
   }
@@ -739,10 +770,31 @@ class _TodayMessage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TorchSecondaryButton(label: actionLabel, onPressed: onAction),
-        ),
+        // LEFT-ALIGNED AT ITS NATURAL WIDTH, except in Veld.
+        //
+        // The empty-state grammar says "one secondary button, 56dp,
+        // left-aligned at its natural width", and Veld's own note says the
+        // secondary becomes full-width at 64dp because outdoors an
+        // intrinsic-width button is a small target. It was full width
+        // everywhere: a ghost action stretched across the screen reads as the
+        // commit this state deliberately does not have.
+        //
+        // `IntrinsicWidth` and not `Align(widthFactor:)`: the button's label
+        // sits in a `Center`, which expands to whatever width it is offered,
+        // so an Align around it still yields a full-width button. This is one
+        // button in a state with nothing else in it, not a row in a list.
+        if (skin.mode == SkinMode.veld)
+          TorchSecondaryButton(label: actionLabel, onPressed: onAction)
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: IntrinsicWidth(
+              child: TorchSecondaryButton(
+                label: actionLabel,
+                onPressed: onAction,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -750,32 +802,43 @@ class _TodayMessage extends StatelessWidget {
 
 /// The display fitting rule, keyed to LINE COUNT after layout.
 ///
-/// unify §1.12: 1–2 lines stay at display, 3 lines step down, 4 or more step
-/// down again, with a floor. Display prose was the one type role with no
-/// fitting rule, and an Afrikaans headline at 2.0× ate the screen.
+/// unify §1.12 and the agent surface's empty-state grammar: **1–2 lines stay
+/// at 40, 3 lines step to 32, 4 or more to 26, floor 26.** Display prose was
+/// the one type role with no fitting rule while `hero.figure` had one keyed to
+/// glyph count, and an Afrikaans headline at 2.0× ate the screen.
 ///
-/// This is the cheap half of it — a measurement of the string against the
-/// gutter at the live scaler. It lives here rather than in the type scale
-/// because only whole-screen states use it.
+/// ## What this used to do, and why it was not the rule
+///
+/// It stepped *display → title.l → title.m*, returning the first role that
+/// laid out in two lines or fewer. Two things were wrong with that. The scale
+/// it stepped through was 40 → 24 → 16, not the declared 40 → 32 → 26: a
+/// three-line Afrikaans headline landed at `title.l`, which is the role an
+/// outlet name wears inside a card, so the screen's one headline was set
+/// smaller than the store name two blocks under it. And it was keyed to "does
+/// this role fit in two lines", which is a search, not the rule — the rule
+/// counts the lines the *display* role takes and picks the step from that
+/// count, so the same string always resolves to the same size no matter which
+/// roles happen to exist between them.
+///
+/// The measurement is against the body's own width at the live scaler, and it
+/// lives here rather than in the type scale because only whole-screen states
+/// use it.
 TiqTypeToken displayFor(BuildContext context, String headline) {
   final skin = context.skin;
   final width = MediaQuery.sizeOf(context).width - skin.space.gutter * 2;
   final scaler = MediaQuery.textScalerOf(context);
-  for (final role in <TiqTypeToken>[
-    skin.text.display,
-    skin.text.titleL,
-    skin.text.titleM,
-  ]) {
-    final painter = TextPainter(
-      text: TextSpan(text: headline, style: role.style()),
-      textDirection: TextDirection.ltr,
-      textScaler: scaler,
-    )..layout(maxWidth: width);
-    final lines = painter.computeLineMetrics().length;
-    painter.dispose();
-    if (lines <= 2) return role;
-  }
-  return skin.text.titleM;
+  final painter = TextPainter(
+    text: TextSpan(text: headline, style: skin.text.display.style()),
+    textDirection: Directionality.of(context),
+    textScaler: scaler,
+  )..layout(maxWidth: width);
+  final lines = painter.computeLineMetrics().length;
+  painter.dispose();
+  return switch (lines) {
+    <= 2 => skin.text.display,
+    3 => skin.text.displayM,
+    _ => skin.text.displayS,
+  };
 }
 
 /// The skeleton: the real geometry, empty. Not a spinner, and not a `well`
