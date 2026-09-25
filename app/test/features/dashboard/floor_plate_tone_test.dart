@@ -163,12 +163,17 @@ void main() {
           (plate.top + spec.stripLightY - spec.bloomHeight).floor() - 2;
       expect(bottom, greaterThan(top + 8), reason: 'no clean band to sample');
 
+      // Inset past the card's corners. The plate has been a rounded card
+      // since 25 September 2026, and its corner pixels are the photograph
+      // antialiased against the ground — a blend of two colours, which reads
+      // as a colour cast that is not on the plate. The radius is the exact
+      // inset that clears it, and 300dp of a 360dp band is still a band.
       final sample = await _sample(
         tester,
         top: top,
         bottom: bottom,
-        left: plate.left.ceil() + 1,
-        right: plate.right.floor() - 1,
+        left: (plate.left + spec.radius).ceil() + 1,
+        right: (plate.right - spec.radius).floor() - 1,
       );
 
       expect(
