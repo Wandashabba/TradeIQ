@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
 import '../../visits/data/visit_detail_repository.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
@@ -139,43 +142,45 @@ class _FloorFrame extends StatelessWidget {
 /// header's single trailing slot on a tab root, and this route has no header
 /// to put it in. On The Floor it belongs in the Menu destination, which is
 /// where the manager's overflow lives — see the follow-up for the Menu sheet.
+///
+/// ## The nav is the console's nav, not a copy of it
+///
+/// This frame exists because The Floor cannot use [ConsoleFrame] — it has no
+/// app header, and the plate has to run full-bleed to the top edge. What it
+/// must **not** do is own a second copy of the bar. It did: a private slot
+/// list, `activeIndex: 0`, `onSelect: onSelectSlot ?? (_) {}` with no caller
+/// ever passing `onSelectSlot`, and `onPressed: () {}` on the circle. The
+/// manager's home screen shipped with four destinations and a standing action
+/// that pressed, buzzed, scaled to 0.98 and did nothing — the one defect a
+/// widget test of the pill in isolation can never see.
+///
+/// So the slots come from [consoleNavSlots] and the press goes through
+/// [consoleNavSelect], exactly as every other console route's do.
 class FloorScaffold extends StatelessWidget {
-  const FloorScaffold({super.key, required this.children, this.onSelectSlot});
+  const FloorScaffold({
+    super.key,
+    required this.children,
+    this.onSelectSlot,
+    this.onStandingAction,
+  });
 
   final List<Widget> children;
 
-  /// Null in a test that is pumping the body alone.
+  /// Overrides the console's own routing. Null is the real app: the bar goes
+  /// where [consoleNavSelect] says, which is the only place it may go.
   final ValueChanged<int>? onSelectSlot;
 
-  /// Floor · Work · Ask · Menu. Four slots, because five do not fit the 360dp
-  /// arithmetic; Territories and the rest live behind Menu.
-  static const List<TorchNavSlot> slots = <TorchNavSlot>[
-    TorchNavSlot(
-      icon: Icons.inventory_2_outlined,
-      activeIcon: Icons.inventory_2,
-      label: 'Floor',
-    ),
-    TorchNavSlot(
-      icon: Icons.checklist_outlined,
-      activeIcon: Icons.checklist,
-      label: 'Work',
-    ),
-    TorchNavSlot(
-      icon: Icons.forum_outlined,
-      activeIcon: Icons.forum,
-      label: 'Ask',
-    ),
-    TorchNavSlot(icon: Icons.menu, activeIcon: Icons.menu_open, label: 'Menu'),
-  ];
+  /// Overrides what the `+` circle opens. Null is the real app.
+  final VoidCallback? onStandingAction;
 
   @override
   Widget build(BuildContext context) {
     return TorchShell(
       profile: TorchShellProfile.console,
       navPill: TorchNavPill(
-        slots: slots,
-        activeIndex: 0,
-        onSelect: onSelectSlot ?? (_) {},
+        slots: consoleNavSlots,
+        activeIndex: ConsoleSlot.floor.index,
+        onSelect: onSelectSlot ?? (index) => consoleNavSelect(context, index),
       ),
       navCircle: TorchNavCircle(
         claimId: TheFloorScreen.navCircleClaimId,
@@ -189,9 +194,72 @@ class FloorScaffold extends StatelessWidget {
         expectedIcon: Icons.add,
         semanticLabel: 'Raise a task or assign a visit',
         expectedSemanticLabel: 'Raise a task or assign a visit',
-        onPressed: () {},
+        onPressed:
+            onStandingAction ?? () => showFloorStandingAction(context),
       ),
       children: children,
+    );
+  }
+}
+
+/// THE STANDING ACTION'S TWO VERBS.
+///
+/// The circle's own label has always promised "Raise a task or assign a
+/// visit", and `surface-manager.json` says in as many words that tapping it
+/// opens exactly that pair. It opened nothing. A circle that names two verbs
+/// and performs neither is worse than no circle: it teaches a manager that
+/// the chrome on this screen is decoration.
+///
+/// One sheet, two rows, both to destinations that already exist. It is
+/// deliberately *not* a third nav destination and deliberately not a form:
+/// raising a task from a blank page is not a thing this product does — a task
+/// is raised against a finding, and the finding is on the Work queue.
+///
+/// **Amber: none.** A menu commits nothing, and while it is up every amber on
+/// the route beneath goes out (unify §1.10).
+Future<void> showFloorStandingAction(BuildContext context) {
+  return showTorchSheet<void>(
+    context,
+    builder: (sheetContext) => const FloorStandingActionSheet(),
+  );
+}
+
+/// The sheet's body — public so a test can pump it without a scrim.
+class FloorStandingActionSheet extends StatelessWidget {
+  const FloorStandingActionSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    void leaveFor(String route) {
+      Navigator.of(context).pop();
+      context.go(route);
+    }
+
+    return TorchSheet(
+      title: 'Raise a task or assign a visit',
+      subtitle: 'Two ways to put somebody on a problem.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SoftRow(
+            key: const ValueKey<String>('floor-standing-raise-task'),
+            density: SoftRowDensity.compact,
+            title: 'Raise a task',
+            subtitle: 'Against a finding on the work queue',
+            trailing: const SoftRowChevron(),
+            onTap: () => leaveFor('/tasks'),
+          ),
+          SoftRow(
+            key: const ValueKey<String>('floor-standing-assign-visit'),
+            density: SoftRowDensity.compact,
+            title: 'Assign a visit',
+            subtitle: 'Send an agent to an outlet today',
+            trailing: const SoftRowChevron(),
+            onTap: () => leaveFor('/dispatch'),
+          ),
+        ],
+      ),
     );
   }
 }

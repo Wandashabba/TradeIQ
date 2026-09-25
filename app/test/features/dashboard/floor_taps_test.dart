@@ -108,6 +108,13 @@ void main() {
         find.byKey(const ValueKey<String>('menu-sign-out')),
         findsOneWidget,
       );
+
+      // Put the sheet away before the test ends: `TorchSheets` counts open
+      // sheets process-wide so it can refuse a second one, and a sheet left
+      // standing when the tree is torn down makes the NEXT test's sheet the
+      // illegal second.
+      await tester.tapAt(const Offset(180, 8));
+      await tester.pumpAndSettle();
       handle.dispose();
     });
 
@@ -146,6 +153,11 @@ void main() {
         find.byKey(const ValueKey<String>('floor-standing-assign-visit')),
         findsOneWidget,
       );
+
+      // See the menu test: an open sheet at teardown is the next test's
+      // illegal second sheet.
+      await tester.tapAt(const Offset(180, 8));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('choosing Assign a visit leaves for dispatch', (tester) async {
