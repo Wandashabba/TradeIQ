@@ -137,6 +137,60 @@ void main() {
     });
   });
 
+  group('the retired systems have no call sites under lib/features', () {
+    // The ledger counts hardcoded *values*. This counts hardcoded *systems*:
+    // a screen can be token-clean and still be built out of Lumen Glass, and
+    // the import is the thing that says which. The five sources below are all
+    // `@Deprecated` and all still registered, so nothing breaks when one is
+    // imported — which is exactly why it needs a test rather than a compiler
+    // error.
+    //
+    // A file that appears here is a screen that has not been migrated,
+    // whatever its style count says. The list is empty, and the point of the
+    // test is that it stays empty: the next feature to reach for the old kit
+    // fails on the PR that adds it.
+    const retired = <String>[
+      'core/widgets/agent_kit.dart',
+      'core/widgets/agent_scaffold.dart',
+      'core/widgets/glass.dart',
+      'core/widgets/glass_page_scaffold.dart',
+      'core/widgets/lumen_kit.dart',
+      'core/widgets/manager_scaffold.dart',
+      'core/theme/lumen_glass.dart',
+      'core/theme/lumen_palette.dart',
+      'core/theme/tiq_colors.dart',
+      'core/theme/app_colors.dart',
+      'core/theme/status_pill_colors.dart',
+    ];
+
+    test('no feature imports the Lumen kit or a deprecated colour source', () {
+      final offenders = <String>[];
+      for (final file in features
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        final source = file.readAsStringSync();
+        for (final retiredPath in retired) {
+          // Feature files reach core through a relative path, so the tail of
+          // it is what identifies the import.
+          final tail = retiredPath.split('/').last;
+          final folder = retiredPath.split('/')[1];
+          if (RegExp("import '[^']*/$folder/$tail'").hasMatch(source)) {
+            offenders.add('${file.path}: $retiredPath');
+          }
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'These feature files are built on a retired system. Torchlight '
+            'type inside violet glass panes is neither system — migrate the '
+            'screen rather than half of it:\n${offenders.join('\n')}',
+      );
+    });
+  });
+
   group('the scanner itself', () {
     // A guard that cannot fail is not a guard. These run the detector over
     // known-bad and known-good source so a refactor that quietly breaks a

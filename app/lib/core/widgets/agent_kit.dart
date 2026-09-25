@@ -8,9 +8,6 @@ import 'glass.dart';
 import 'lumen_kit.dart';
 import '../theme/lumen_palette.dart';
 
-// See the note where `formatAgo` used to be defined, below.
-export '../format/relative_time.dart' show formatAgo;
-
 /// The field agent's widget kit.
 ///
 /// The manager's console optimises for density: many things, read at a glance,
@@ -497,7 +494,7 @@ class _ToggleTrack extends StatelessWidget {
   }
 }
 
-// `formatAgo` moved to `core/format/relative_time.dart` when the dashboard
-// was migrated: a Torchlight screen has no business importing the Lumen kit to
-// read one string helper. It is re-exported at the top of this file so the
-// screens still on the old kit keep their `show formatAgo` import working.
+// `formatAgo` moved to `core/format/relative_time.dart` when the dashboard was
+// migrated, and the re-export that kept the old import working went when the
+// last three screens were repointed at it. Nothing under `lib/features/**`
+// imports this file any more.

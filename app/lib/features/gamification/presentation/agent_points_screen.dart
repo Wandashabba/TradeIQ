@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../l10n/l10n.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
-import '../../../core/widgets/agent_kit.dart' show formatAgo;
+import '../../../core/format/relative_time.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
