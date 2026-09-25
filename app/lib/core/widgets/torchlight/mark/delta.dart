@@ -164,6 +164,12 @@ class DeltaStrings {
 /// * **Direction and verdict are two fields.** The triangle is
 ///   [DeltaData.direction]; the colour is [DeltaData.sentiment]; neither is
 ///   derived from the other.
+/// * **The magnitude is unsigned** (owner, 25 September 2026). The triangle is
+///   the sign. `▼ −19` said "down" twice — once in a shape that survives
+///   greyscale, a 1-bit render and a 40%-backlit panel, and once in a glyph
+///   three pixels wide that does not. The unit is the caller's: on a score
+///   `▼ 19` is the whole reading, and `pts` is a word the figure beside it
+///   already implies.
 ///
 /// Use [DeltaSlot] rather than this widget directly unless you have already
 /// run [DeltaRule].
@@ -209,19 +215,28 @@ class Delta extends StatelessWidget {
         !compact) {
       magnitude = Text(strings.noChange, style: metaStyle);
     } else {
-      final size = data.magnitude!.abs();
       magnitude = FigureSlot(
-        // The magnitude arrives unsigned; the sign is the direction's. A fall
-        // printed "+12.4%" beside a down triangle said two things at once.
-        value: data.direction == DeltaDirection.down ? -size : size,
+        // UNSIGNED, ALWAYS — the triangle beside it is the sign.
+        //
+        // This printed `−19` beside a down triangle until 25 September 2026,
+        // on the argument that "the sign is the arithmetic and the triangle
+        // is the reading". The owner read `▼ −19 pts` on The Floor and said
+        // what the argument missed: the two marks say one thing, and a reader
+        // who has already taken the direction off a 1-bit silhouette does not
+        // then need it spelled in a glyph that is easy to miss and easy to
+        // mistake for a dash. A redundancy in a mark whose whole job is
+        // direction is not belt-and-braces, it is two voices.
+        //
+        // The magnitude has always arrived unsigned ([DeltaData.magnitude] is
+        // documented "the size of the movement, unsigned"), so this is the
+        // component printing the field it was given rather than re-deriving a
+        // sign the triangle already carries. Colour is still not the only
+        // signal — the shape is, and [semanticsLabel] carries the direction
+        // word for anything that reads.
+        value: data.magnitude!.abs(),
         role: compact ? skin.text.monoIdent : skin.text.figureS,
         unit: data.unit,
         decimals: data.decimals,
-        // Signed, because the sign is the arithmetic and the triangle is the
-        // reading. A rounds-to-zero magnitude prints unsigned — the formatter
-        // already refuses to claim a movement that did not happen — and so
-        // does a flat one.
-        signed: data.direction != DeltaDirection.flat,
         color: ink,
       );
     }

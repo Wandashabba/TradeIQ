@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
@@ -14,10 +15,13 @@ import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../territories/data/territories_view.dart';
 import '../../trends/data/trends_repository.dart';
 import '../../visits/data/visit_detail_repository.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
+import 'dashboard_filters.dart';
 import 'first_run_board.dart';
 
 /// THE FLOOR — the manager's home.
@@ -355,14 +359,15 @@ class _Floor extends ConsumerWidget {
 /// The count goes with the line. It was never the thing the marker was for:
 /// the list says how many it is not showing in words, at the foot, where a
 /// manager who wants the number is already looking.
-class _NeedsADecision extends StatelessWidget {
+class _NeedsADecision extends ConsumerWidget {
   const _NeedsADecision({required this.view});
 
   final FloorView view;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
+    final note = _note();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -373,17 +378,57 @@ class _NeedsADecision extends StatelessWidget {
         const Eyebrow('Needs a decision'),
         // The empty state keeps its sentence: a marker with nothing under it
         // is the one case where the screen has to say what the absence means.
-        if (view.nothingNeedsADecision) ...<Widget>[
+        // With a territory chosen there are four different absences and they
+        // are four different sentences — "nothing here" and "I could not find
+        // out" are not the same fact, which is unify §4 applied to a list
+        // rather than to a figure.
+        if (note != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s3),
-          Text(
-            'Everything triaged.',
-            style: skin.text.body.style(color: skin.palette.ink2),
-          ),
+          Text(note, style: skin.text.body.style(color: skin.palette.ink2)),
         ],
+        // THE WAY BACK IS ONE TAP. A screen that can be scoped and not
+        // unscoped is a trap, and the state that needs the exit is exactly
+        // the state that shows it: a filtered list with nothing in it.
+        if (view.isFiltered && view.nothingNeedsADecision)
+          TorchTertiaryButton(
+            key: const ValueKey<String>('floor-clear-territory'),
+            label: 'Show all territories',
+            onPressed: () => clearFloorTerritory(ref),
+          ),
+        // The coverage request is the only thing that failed, so the retry is
+        // the coverage request — not the route, whose figures are fine.
+        if (view.scope == FloorScope.failed)
+          TorchTertiaryButton(
+            key: const ValueKey<String>('floor-retry-scope'),
+            label: 'Retry loading this territory’s outlets',
+            onPressed: () =>
+                ref.invalidate(territoryCoverageProvider(view.territoryId!)),
+          ),
       ],
     );
   }
+
+  /// One sentence per absence, or null when there is a list to read instead.
+  String? _note() => switch (view.scope) {
+    FloorScope.pending => 'Finding the outlets in ${view.territoryName}…',
+    FloorScope.failed =>
+      'The outlet list for ${view.territoryName} did not load, so these '
+          'decisions are not shown. The figures above are still this '
+          'territory’s.',
+    _ when !view.nothingNeedsADecision => null,
+    _ when view.isFiltered =>
+      'Nothing needs a decision in ${view.territoryName} over '
+          '${view.windowLabel.toLowerCase()}.',
+    _ => 'Everything triaged.',
+  };
 }
+
+/// Back to every territory, from anywhere on The Floor.
+void clearFloorTerritory(WidgetRef ref) => applyTerritory(
+  ref,
+  ref.read(dashboardFilterProvider),
+  allTerritoriesToken,
+);
 
 class _DecisionList extends ConsumerWidget {
   const _DecisionList({required this.view});
@@ -691,6 +736,17 @@ class _FloorPlate extends ConsumerWidget {
       view: view,
       image: image,
       caption: caption.isEmpty ? null : caption,
+      // THE SCOPE CONTROL, AND IT IS THE WORDS THAT WERE ALREADY THERE.
+      //
+      // The eyebrow prints the territory and the window — exactly the two
+      // things the control sets — so the reference's "no filter chrome" and
+      // "a manager can change territory from home" are the same object rather
+      // than a trade. Nothing new is painted; the line grows a 48dp box and a
+      // button node. The sheet behind it is the overview's own: the same
+      // `TorchFilterRail` and the same territory rows, from
+      // `dashboard_filters.dart`.
+      onScopeTap: () => showDashboardScope(context, ref),
+      onClearTerritory: view.isFiltered ? () => clearFloorTerritory(ref) : null,
     );
   }
 
@@ -722,11 +778,21 @@ class _PlateFor extends StatelessWidget {
     required this.view,
     required this.image,
     required this.caption,
+    this.onScopeTap,
+    this.onClearTerritory,
   });
 
   final FloorView view;
   final ImageProvider<Object>? image;
   final String? caption;
+
+  /// Opens the scope sheet. Null in a test that pumps the plate alone.
+  final VoidCallback? onScopeTap;
+
+  /// Back to all territories in one tap. Null when nothing is filtered —
+  /// a Clear that clears nothing is chrome, and this screen has none to
+  /// spare.
+  final VoidCallback? onClearTerritory;
 
   @override
   Widget build(BuildContext context) {
@@ -763,6 +829,24 @@ class _PlateFor extends StatelessWidget {
       semanticLabel: caption,
       hero: PlateHeroCluster(
         eyebrow: '${view.territoryName} · ${view.windowLabel}',
+        onEyebrowTap: onScopeTap,
+        // The printed line is two facts joined by a separator, which a screen
+        // reader spells as a caption. The control has to say what it does.
+        eyebrowSemanticLabel: onScopeTap == null
+            ? null
+            : '${view.territoryName}, ${view.windowLabel}. '
+                  'Change the territory or the window.',
+        // THE WAY BACK, ON THE ONE ROW THAT HAS SPACE FOR IT. It appears only
+        // when a territory is chosen: a Clear that clears nothing is chrome,
+        // and this screen has none to spare.
+        healthTrailing: onClearTerritory == null
+            ? null
+            : TorchTertiaryButton(
+                key: const ValueKey<String>('floor-plate-clear-territory'),
+                label: 'All territories',
+                semanticLabel: 'Show all territories',
+                onPressed: onClearTerritory,
+              ),
         figure: FigureSlot(
           value: measured ? current.executionScore : null,
           role: spec.figureRole,
@@ -819,7 +903,18 @@ class _PlateFor extends StatelessWidget {
                       ? TiqSentiment.bad
                       : TiqSentiment.neutral,
                   magnitude: delta.change!.abs(),
-                  unit: TiqUnit.worded('pts'),
+                  // NO UNIT. `▼ −19 pts` was the running screen and the owner
+                  // read all three of its parts as one: the triangle says
+                  // down, so the minus is the same word twice (fixed in
+                  // `Delta` itself, for every screen), and `pts` is the unit
+                  // of a score printed beside a score — the figure above it
+                  // has no suffix either, because a territory-health number
+                  // is not measured in anything else. The reading is `▼ 19`.
+                  //
+                  // The word is not lost, it moves to where a unit belongs on
+                  // a mark this small: the semantics label below says "points"
+                  // in a sentence, so nothing that reads the screen has to
+                  // infer it from a triangle.
                 ),
           figureState: figureState,
           sampling: FigureSampling(
@@ -829,6 +924,12 @@ class _PlateFor extends StatelessWidget {
           ),
           compact: true,
           noComparisonNote: measured ? 'no window before this one' : null,
+          // Direction word, magnitude, unit, baseline, verdict — in that
+          // order, which is `Delta`'s own contract for this string. Colour is
+          // never the only carrier and now neither is the triangle.
+          semanticsLabel: delta.change == null
+              ? null
+              : _heroDeltaSentence(context, delta.change!),
         ),
         healthLine: Text(
           'Territory health',
@@ -839,6 +940,28 @@ class _PlateFor extends StatelessWidget {
         onHealthTap: () => context.go('/dashboard/overview'),
       ),
     );
+  }
+
+  /// "Down 19 points against the window before, which is bad."
+  ///
+  /// Direction word, magnitude, unit, baseline, verdict — [Delta]'s own
+  /// stated order for this string. It exists because the printed mark is now
+  /// a triangle and a bare number: the word "points" and the word "bad" are
+  /// both in here, so neither the unit nor the verdict is carried by a
+  /// colour or by a shape alone.
+  static String _heroDeltaSentence(BuildContext context, double change) {
+    final size = change.abs();
+    // The same figure the mark prints, in the reader's own locale: `Delta`
+    // passes no `decimals`, so the formatter keeps up to one place and drops a
+    // trailing zero, and `TiqNumber.of` is what makes 1,5 a comma in
+    // Afrikaans rather than a format string's full stop.
+    final magnitude = TiqNumber.of(context).format(size);
+    if (change > -0.05 && change < 0.05) {
+      return 'Level against the window before.';
+    }
+    final up = change >= 0.05;
+    return '${up ? 'Up' : 'Down'} $magnitude points against the window '
+        'before, which is ${up ? 'good' : 'bad'}.';
   }
 }
 

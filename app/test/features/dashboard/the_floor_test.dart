@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -237,7 +238,30 @@ void main() {
       // carries the shape instead.
       expect(find.byType(Meter), findsNothing);
       expect(find.textContaining('vs the window before'), findsNothing);
-      expect(find.textContaining('pts'), findsWidgets, reason: 'the HERO\'s');
+      // THE PIN MOVED, AND IT MOVED BECAUSE THE UNIT DID.
+      //
+      // This used to assert `pts` was on screen, as the proof that the hero
+      // still had a delta after the lead card lost its own. The owner then
+      // read the running hero — `▼ −19 pts` — and cut both redundancies: the
+      // minus, because the triangle is the sign (fixed in `Delta` itself, for
+      // every screen), and `pts`, because a territory-health score is not
+      // measured in anything else and the figure above it carries no suffix
+      // either. So the thing this line is really for — "the hero kept its
+      // delta" — is asserted as the delta, and the unit is asserted where it
+      // went: into the sentence a screen reader gets.
+      expect(
+        find.descendant(
+          of: find.byType(PlateHeroCluster),
+          matching: find.byType(Delta),
+        ),
+        findsOneWidget,
+        reason: 'the HERO still carries a delta',
+      );
+      expect(
+        find.textContaining('pts'),
+        findsNothing,
+        reason: 'the unit is noise beside a score',
+      );
     });
 
     testWidgets('a row with no timestamp renders an em dash, not a zero', (
@@ -539,9 +563,27 @@ void main() {
       // 56,9 in Afrikaans — a comma, from the locale, never a format string.
       expect(find.textContaining('56,9'), findsWidgets);
       expect(find.textContaining('56.9'), findsNothing);
-      // And the true minus on the hero's delta, never a hyphen.
-      expect(find.textContaining('\u221219'), findsWidgets);
-      expect(find.textContaining('-19'), findsNothing);
+      // AND NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
+      //
+      // This pinned the true minus (U+2212, never a hyphen) on `−19`. The
+      // minus is gone: the triangle beside it already says "down", and the
+      // owner read the two together as one word said twice. The rule the pin
+      // was protecting — *this app never prints ASCII hyphen-minus where it
+      // means a minus sign* — is not weakened, it is asserted on the whole
+      // screen instead of on one figure, which is strictly stronger: after
+      // this change nothing on The Floor may carry a hyphen before a digit.
+      expect(find.textContaining('19'), findsWidgets);
+      expect(find.textContaining('\u221219'), findsNothing);
+      for (final t in tester.widgetList<Text>(find.byType(Text))) {
+        expect(
+          RegExp(r'-\d').hasMatch(t.data ?? ''),
+          isFalse,
+          reason: '"${t.data}" carries an ASCII hyphen before a digit',
+        );
+      }
+      // The true minus itself is still the app's minus, and
+      // `tiq_number_test.dart` is where that is pinned at the formatter.
+      expect(minusSign, '\u2212');
     });
   });
 }

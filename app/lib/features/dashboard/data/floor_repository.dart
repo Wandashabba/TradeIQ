@@ -8,6 +8,7 @@ import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
+import '../../territories/data/territories_view.dart';
 import 'dashboard_repository.dart';
 
 /// THE FLOOR's view model.
@@ -48,6 +49,34 @@ enum FloorPhase {
 
   /// A real window with real visits.
   measured,
+}
+
+/// Whether the decision list below the figures is scoped to the chosen
+/// territory — and, when it is not, why not.
+///
+/// The figures come back scoped from the server (`GET /dashboard?territoryId`).
+/// The decision list cannot: `GET /alerts` and `GET /tasks` have no territory
+/// parameter, and the client's `Outlet` carries no territory either, so the
+/// membership has to come from `GET /territories/:id/coverage`. That is a
+/// second request, and a second request can fail on its own.
+///
+/// The failure is a **designed state and not a silent fallback**: a list of
+/// every territory's findings under an eyebrow that names one territory is a
+/// lie the reader cannot see, and an empty list is a different lie. So the
+/// list is withheld and the section says why, while the figures above it —
+/// which really were scoped, by the server — stay.
+enum FloorScope {
+  /// No territory chosen. Everything is in scope, which is the truth.
+  all,
+
+  /// A territory is chosen and the decision list is that territory's.
+  scoped,
+
+  /// A territory is chosen and its outlet list has not arrived yet.
+  pending,
+
+  /// A territory is chosen and its outlet list did not load.
+  failed,
 }
 
 /// One thing that needs somebody to decide something.
@@ -180,6 +209,8 @@ class FloorView {
     required this.snapshot,
     required this.decisions,
     required this.outletsTotal,
+    this.territoryId,
+    this.scope = FloorScope.all,
   });
 
   final FloorPhase phase;
@@ -187,8 +218,26 @@ class FloorView {
   /// `Gauteng North`, or `All territories` when nothing is filtered.
   final String territoryName;
 
-  /// `Week 38`. Uppercased by the eyebrow role, not here.
+  /// `Last 30 days`. Uppercased by the eyebrow role, not here.
+  ///
+  /// It says the window the figures were actually measured over. It used to
+  /// say `Week 38` whatever the filter held — and the filter has always been
+  /// shared with the overview, so a manager who set "Last 7 days" there came
+  /// back to a Floor whose figures were seven days old under a label naming a
+  /// calendar week. A label that does not follow its own control is worse
+  /// than no label.
   final String windowLabel;
+
+  /// The territory the screen is scoped to, or null for all of them. The id,
+  /// not the name: the name is for reading and this is for comparing.
+  final String? territoryId;
+
+  /// Whether [decisions] is genuinely scoped to [territoryId].
+  final FloorScope scope;
+
+  /// Whether the screen is showing a slice rather than everything. The
+  /// eyebrow says so and the way back is one tap.
+  bool get isFiltered => territoryId != null;
 
   final DashboardSnapshot snapshot;
 
@@ -221,28 +270,51 @@ class FloorView {
   bool get nothingNeedsADecision => decisions.isEmpty;
 }
 
-/// `Week 38` — ISO 8601 week number, which is what "week 38" means to everyone
-/// who has ever been handed a retail calendar.
-String isoWeekLabel(DateTime date) {
-  final thursday = DateTime(
-    date.year,
-    date.month,
-    date.day,
-  ).add(Duration(days: 4 - (date.weekday == 7 ? 7 : date.weekday)));
-  final firstThursday = DateTime(thursday.year, 1, 4);
-  final week =
-      1 +
-      (thursday.difference(firstThursday).inDays +
-              (firstThursday.weekday - 1)) ~/
-          7;
-  return 'Week $week';
-}
+/// THE WINDOW, IN THE WORDS OF THE CONTROL THAT SETS IT.
+///
+/// This was `isoWeekLabel(now)` — "Week 38", the ISO week number — and it was
+/// printed whatever [DashboardFilter.range] held. The range defaults to the
+/// last 30 days and is **shared with the overview**, so the eyebrow named a
+/// calendar week over figures measured across thirty days, and a manager who
+/// picked "Last 7 days" on the overview came back to a Floor that still said
+/// Week 38. Now that The Floor can change the window itself, a label that does
+/// not follow its own control would be a bug the reader cannot see.
+///
+/// English, like the rest of this screen's strings. When The Floor is
+/// localised these become `rangeLabel(l10n, range)`, which already exists.
+String windowLabelFor(DashboardRange range) => switch (range) {
+  DashboardRange.last7 => 'Last 7 days',
+  DashboardRange.last30 => 'Last 30 days',
+  DashboardRange.last90 => 'Last 90 days',
+  DashboardRange.ytd => 'Year to date',
+  DashboardRange.allTime => 'All time',
+};
 
 /// The merged, ranked decision list plus everything around it.
 final floorViewProvider = FutureProvider<FloorView>((ref) async {
   final snapshot = await ref.watch(dashboardSnapshotProvider.future);
   final filter = ref.watch(dashboardFilterProvider);
-  final now = ref.read(nowProvider)();
+
+  // WHICH OUTLETS ARE IN SCOPE.
+  //
+  // `GET /dashboard` takes a territoryId and the figures come back scoped.
+  // `GET /alerts` and `GET /tasks` do not take one, and the client's `Outlet`
+  // carries no territory column, so the membership has to come from the
+  // territory's own coverage. It is watched — not awaited — so a slow or
+  // broken coverage request leaves the figures on screen instead of taking
+  // the whole route to its error state; the list below says what happened.
+  final coverage = filter.territoryId == null
+      ? null
+      : ref.watch(territoryCoverageProvider(filter.territoryId!));
+  final scope = switch (coverage) {
+    null => FloorScope.all,
+    AsyncData<TerritoryCoverage>() => FloorScope.scoped,
+    AsyncError<TerritoryCoverage>() => FloorScope.failed,
+    _ => FloorScope.pending,
+  };
+  final inScope = <String>{
+    for (final o in coverage?.value?.outlets ?? const <Outlet>[]) o.id,
+  };
 
   // The outlet list is a base layer, never a blocker: a decision row with a
   // raw id is worse than one with a name and far better than no list at all.
@@ -302,7 +374,14 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
         visitId: t.visitId,
         evidencePhotoId: t.evidencePhotoId,
       ),
-  ]..sort(FloorDecision.compare);
+  ]
+    // A decision belongs to the chosen territory when its outlet does. An
+    // unassigned finding — `outletId` empty — belongs to no territory, so it
+    // is out of a territory's scope and in "all territories".
+    ..retainWhere(
+      (d) => scope != FloorScope.scoped || inScope.contains(d.outletId),
+    )
+    ..sort(FloorDecision.compare);
 
   final current = snapshot.current;
   final phase = current.hasNoOutlets
@@ -322,10 +401,15 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
   return FloorView(
     phase: phase,
     territoryName: territoryName,
-    windowLabel: isoWeekLabel(now),
+    windowLabel: windowLabelFor(filter.range),
     snapshot: snapshot,
-    decisions: decisions,
+    // Withheld rather than half-scoped: see [FloorScope].
+    decisions: scope == FloorScope.scoped || scope == FloorScope.all
+        ? decisions
+        : const <FloorDecision>[],
     outletsTotal: current.outletsTotal,
+    territoryId: filter.territoryId,
+    scope: scope,
   );
 });
 
