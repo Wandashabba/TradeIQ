@@ -903,20 +903,33 @@ class _SectionRow extends StatelessWidget {
     return SoftRow(
       key: ValueKey<String>(entry.tileKey),
       title: entry.label,
-      subtitle: detail,
       leading: SectionStateGlyph(state: state, required_: showRequired),
-      // The REQUIRED badge sits under the name. Crimson at the outlined
-      // commitment level plus a silhouette plus the word — a standing fact
-      // about the row, and never carried by the hue alone.
-      meta: showRequired
-          ? Align(
+      // The detail sits at META, not at body. The surface says "name at
+      // title.m wrapping to 2, detail at meta 12 with figures in mono" — it
+      // was a `body` 15 subtitle, a second prose voice under every rung of an
+      // eight-rung ladder, which is 15dp a row an agent scrolls past nine
+      // times a store.
+      //
+      // The REQUIRED badge sits beneath it, under the name. Crimson at the
+      // outlined commitment level plus a silhouette plus the word — a
+      // standing fact about the row, and never carried by the hue alone.
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(detail),
+          if (showRequired) ...<Widget>[
+            const SizedBox(height: TiqSpace.s2),
+            Align(
               alignment: AlignmentDirectional.centerStart,
               child: StatusChip(
                 level: StatusLevel.watch,
                 label: l10n.visitRequiredToSubmitBadge,
               ),
-            )
-          : null,
+            ),
+          ],
+        ],
+      ),
       trailing: entry.onTap == null ? null : const SoftRowChevron(),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: l10n.visitSectionSemantics(

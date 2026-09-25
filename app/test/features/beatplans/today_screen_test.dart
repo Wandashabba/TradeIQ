@@ -199,6 +199,61 @@ void main() {
     });
   });
 
+  // The anatomy the approved surface describes, measured rather than
+  // described: the day block's figure role, the Next-up card's meta voices,
+  // and the fact that the whole populated screen is one fold on the phone an
+  // agent actually carries.
+  group('the populated screen holds its declared anatomy', () {
+    testWidgets('the day block sets its count at figure.l, in mono', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final skin = agentSkinFor(SkinMode.night);
+      final figure = tester.widget<FigureSlot>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey<String>('day-block')),
+              matching: find.byType(FigureSlot),
+            )
+            .first,
+      );
+      expect(figure.role.name, 'figure.l');
+      expect(figure.role.size, 32);
+      expect(figure.role.isFigure, isTrue, reason: 'mono, with tnum');
+      // And its unit is the prose role beside it, not a second figure.
+      expect(
+        tester
+            .widget<Text>(find.text(' of 2 stores'))
+            .style!
+            .fontSize,
+        skin.text.titleM.size,
+      );
+    });
+
+    testWidgets('the Next-up meta line is the card\'s smallest voice', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final card = find.byKey(const ValueKey<String>('next-stop'));
+      final skin = agentSkinFor(SkinMode.night);
+
+      // The sequence: mono 16, not 22. It is a badge, not a headline.
+      final sequence = tester.widget<FigureSlot>(
+        find.descendant(of: card, matching: find.byType(FigureSlot)).first,
+      );
+      expect(sequence.role.name, 'figure.s');
+      expect(sequence.role.size, 16);
+
+      // The outlet name is the loudest thing in the card, and by a margin.
+      final name = tester.widget<Text>(
+        find.descendant(of: card, matching: find.text('Sunrise Spaza')),
+      );
+      expect(name.style!.fontSize, skin.text.titleL.size);
+      expect(name.style!.fontSize! > sequence.role.size, isTrue);
+    });
+
+  });
+
   group('distance is a figure or a sentence, never a guess', () {
     testWidgets('every distance goes through FigureSlot', (tester) async {
       await _pump(tester, route: _route());

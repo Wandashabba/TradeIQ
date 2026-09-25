@@ -121,8 +121,20 @@ class OutboxRow extends StatelessWidget {
     return SoftRow(
       density: SoftRowDensity.tall,
       title: title,
-      subtitle: sentence,
-      meta: _MetaLine(size: size, ageLine: ageLine),
+      // The reason and the size/age are BOTH meta. The surface declares this
+      // row as "label at title.m 16/600 ...; beneath, meta 12 ink-3" — one
+      // name and one quiet voice under it, not a `body` 15 sentence and then
+      // a meta line, which is two second voices and a third type size on a
+      // row that repeats down a queue of two hundred.
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(sentence),
+          const SizedBox(height: TiqSpace.s1),
+          _MetaLine(size: size, ageLine: ageLine),
+        ],
+      ),
       leading: RowMarkTile(mark: _mark, tone: _tone),
       trailing: _Trailing(word: stateWord, tappable: _tappable),
       severity: state == OutboxState.stuck

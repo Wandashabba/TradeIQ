@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -186,5 +190,39 @@ Future<void> dragAgentUp(WidgetTester tester, {double by = 240}) async {
   await tester.drag(find.byType(Scrollable).first, Offset(0, -by));
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 20));
+  }
+}
+
+/// Load the app's real typefaces into the test binding.
+///
+/// ## Why a fold test cannot use the test font
+///
+/// `flutter_test` renders every glyph in its own fixed-advance test font,
+/// which is deliberately nothing like Onest: it is wider, so every label wraps
+/// sooner and every screen measures taller. That is exactly right for a test
+/// that asserts a role, a token or a count, and exactly wrong for one that
+/// asserts a HEIGHT — a fold is a fact about the typeface the app ships, and
+/// Onest and JetBrains Mono are bundled precisely so that fact is knowable.
+///
+/// So the tests that measure whether something fits the phone load the real
+/// fonts first. Call it from `setUpAll`. It is a binding-wide change, so a
+/// file that calls it should be a file whose assertions are about geometry.
+Future<void> loadAgentFonts() async {
+  for (final (family, assets) in <(String, List<String>)>[
+    ('Onest', <String>['assets/fonts/Onest-Variable.ttf']),
+    ('JetBrains Mono', <String>[
+      'assets/fonts/JetBrainsMono-Regular.ttf',
+      'assets/fonts/JetBrainsMono-Medium.ttf',
+      'assets/fonts/JetBrainsMono-SemiBold.ttf',
+      'assets/fonts/JetBrainsMono-Bold.ttf',
+    ]),
+  ]) {
+    final loader = FontLoader(family);
+    for (final asset in assets) {
+      loader.addFont(
+        File(asset).readAsBytes().then((b) => ByteData.view(b.buffer)),
+      );
+    }
+    await loader.load();
   }
 }

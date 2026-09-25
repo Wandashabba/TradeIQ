@@ -254,7 +254,12 @@ class _Facts extends StatelessWidget {
             for (final fact in facts)
               Text(
                 fact,
-                style: skin.text.body.style(color: p.ink2),
+                // `label`, the subtitle's declared role, in Veld as in Night
+                // and Day — where Veld's own scale sets it at 16/600. It was
+                // `body`, which is the role a paragraph wears: a stacked
+                // Veld fact line was the one place in the app where a
+                // subtitle outranked the subtitle role.
+                style: skin.text.label.style(color: p.ink2),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

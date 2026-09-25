@@ -415,6 +415,7 @@ class _DayBlock extends StatelessWidget {
       label: l10n.todayRouteSemantics(done, route.total, route.remaining),
       excludeSemantics: true,
       child: Container(
+        key: const ValueKey<String>('day-block'),
         padding: const EdgeInsets.all(TiqSpace.s4),
         decoration: BoxDecoration(
           color: skin.palette.surface,
