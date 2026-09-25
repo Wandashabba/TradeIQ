@@ -885,6 +885,7 @@ PersonRow(name: ..., role: ..., outlet: ...)  // #399/#400 — never an id
 | Rule | Where it lives |
 |---|---|
 | 56 / 64 / 80, collapsing to 64 in Veld | `SoftRowSpec.minHeight` |
+| a card's margin is the gutter and its gap is s3; a Veld row has neither | `SoftRowSpec.margin` / `.gapAfter` |
 | content starts at the same inset with or without a severity bar | `SoftRowSpec.severityLane`, always reserved |
 | pressed = `lifted` fill **and** an `edgeControl` edge **and** scale 0.98 **and** the tick haptic — the card *gains* the edge, Veld's flush row *doubles* its rule | `SoftRowSpec.resolve(pressed: true)` |
 | critical = solid bar, watch = outlined bar, both plus a word | `SoftRowSpec.barFill` / `barStroke` + `severityLabel` |

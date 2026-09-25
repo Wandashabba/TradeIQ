@@ -8,7 +8,8 @@ import 'soft_row.dart';
 /// The manager's "needs a decision" list item: one outlet that needs somebody
 /// to do something, with the reason and the number that proves it.
 ///
-/// A configuration of [SoftRow] at `tall` density. It contributes four
+/// A configuration of [SoftRow] at `compact` density (see the note on the
+/// density below). It contributes four
 /// choices and no pixels of its own:
 ///
 /// * the **severity bar**, at the two commitment levels the system has, with
