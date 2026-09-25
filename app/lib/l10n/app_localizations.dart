@@ -13245,6 +13245,462 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Client questions · {template}'**
   String visitReviewClientQuestions(String template);
+
+  /// Fallback name of the full-screen artifact route, for a tool this build has not heard of. A server that shipped ahead of the app is normal, not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get artifactTitleView;
+
+  /// Screen-reader label for the back control, which returns to the conversation with its transcript and scroll position intact.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Ask TradeIQ'**
+  String get artifactBackToAsk;
+
+  /// The back control on a deep link, which has no conversation to return to.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to The Floor'**
+  String get artifactBackToFloor;
+
+  /// Section heading over the controls that steer the artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get artifactFilters;
+
+  /// Reverts the last filter change. Hidden rather than disabled when there is nothing to undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get artifactUndo;
+
+  /// Block label over the period chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get artifactPeriod;
+
+  /// A period the artifact can be re-run over.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get artifactPeriodToday;
+
+  /// A period the artifact can be re-run over.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get artifactPeriodYesterday;
+
+  /// A period the artifact can be re-run over.
+  ///
+  /// In en, this message translates to:
+  /// **'Last week'**
+  String get artifactPeriodLastWeek;
+
+  /// A period the artifact can be re-run over.
+  ///
+  /// In en, this message translates to:
+  /// **'Month to date'**
+  String get artifactPeriodMonthToDate;
+
+  /// A period the artifact can be re-run over.
+  ///
+  /// In en, this message translates to:
+  /// **'Year to date'**
+  String get artifactPeriodYearToDate;
+
+  /// A period kind this build does not recognise. Named neutrally rather than guessed at.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected period'**
+  String get artifactPeriodSelected;
+
+  /// Opens the date-range picker for a custom period.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick dates'**
+  String get artifactPickDates;
+
+  /// The chosen custom period, on the chip that chose it.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} to {to}'**
+  String artifactCustomRange(String from, String to);
+
+  /// Title of the date-range picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom period'**
+  String get artifactCustomPeriod;
+
+  /// Block label over the bucket-size chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Granularity'**
+  String get artifactGranularity;
+
+  /// One bucket per day.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get artifactDaily;
+
+  /// One bucket per week.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get artifactWeekly;
+
+  /// Block label over the comparison chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with'**
+  String get artifactCompareWith;
+
+  /// No comparison series at all.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get artifactCompareNone;
+
+  /// Compare against the equally long window before this one.
+  ///
+  /// In en, this message translates to:
+  /// **'The period before'**
+  String get artifactComparePreviousPeriod;
+
+  /// Compare against the same calendar window a year back.
+  ///
+  /// In en, this message translates to:
+  /// **'Same period last year'**
+  String get artifactCompareLastYear;
+
+  /// Compare against a second territory.
+  ///
+  /// In en, this message translates to:
+  /// **'Another territory'**
+  String get artifactCompareTerritory;
+
+  /// A comparison kind this build does not recognise.
+  ///
+  /// In en, this message translates to:
+  /// **'Compared'**
+  String get artifactCompared;
+
+  /// The comparison series' name in the legend, where the server sent none. A legend never names a line it cannot name.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparison'**
+  String get artifactComparison;
+
+  /// Block label over the territory picker, and the picker's own label.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get artifactTerritory;
+
+  /// The unscoped territory choice. Nothing selected is a state, and here it has a name.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole business'**
+  String get artifactWholeBusiness;
+
+  /// Subtitle of the territory picker's sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Every figure in this view is scoped to this choice.'**
+  String get artifactTerritorySheetBody;
+
+  /// Said while the territory list is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading territories…'**
+  String get artifactTerritoriesLoading;
+
+  /// The artifact still works unscoped, so a failed territory list is a missing control rather than a broken screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Territories are unavailable — showing the whole business.'**
+  String get artifactTerritoriesUnavailable;
+
+  /// Empty state inside the territory picker's sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories yet'**
+  String get artifactNoTerritoriesHeadline;
+
+  /// Body of the no-territories state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a territory to scope this view to part of the business.'**
+  String get artifactNoTerritoriesBody;
+
+  /// Why the territory picker is dead for a moment.
+  ///
+  /// In en, this message translates to:
+  /// **'The last change is still being applied.'**
+  String get artifactBusyReason;
+
+  /// Says what a control costs, because the honest answer is surprising: it is a re-query, so it neither spends a turn nor changes the answer above it in the conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing a filter re-runs the same query. It does not ask the assistant again.'**
+  String get artifactRerunsTheQuery;
+
+  /// The route's one commit.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as a PDF'**
+  String get artifactExportPdf;
+
+  /// The export's busy label. The words stay on the button while it works — a spinner in their place leaves a screen reader announcing an unlabelled button.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get artifactPreparing;
+
+  /// Why the export is disabled mid-refine: exporting now would produce a report of neither state.
+  ///
+  /// In en, this message translates to:
+  /// **'The figures are still being replaced.'**
+  String get artifactExportBlocked;
+
+  /// Says what the exported document contains.
+  ///
+  /// In en, this message translates to:
+  /// **'The chart as an image, every figure as text you can select.'**
+  String get artifactExportNote;
+
+  /// A transient export failure — a dismissed share sheet, a platform that refused once.
+  ///
+  /// In en, this message translates to:
+  /// **'That view could not be exported. Please try again.'**
+  String get artifactExportFailed;
+
+  /// An export that has nothing to share to. It fails identically on every retry, so telling the user to try again would send them round a loop.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting is not available in this build of the app. Reload the page — if it keeps happening, the build needs replacing.'**
+  String get artifactExportUnavailable;
+
+  /// Whole-screen state when the artifact will not load.
+  ///
+  /// In en, this message translates to:
+  /// **'That view could not be opened'**
+  String get artifactCouldNotOpenHeadline;
+
+  /// Body of the could-not-open state, where the server gave no words of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'It may have been removed, or it belongs to a tool you do not have.'**
+  String get artifactCouldNotOpenBody;
+
+  /// Announced while the figures are being replaced, so the dimming is not the only channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying the change…'**
+  String get artifactRefining;
+
+  /// Empty state for a pillar view with nothing in it.
+  ///
+  /// In en, this message translates to:
+  /// **'No figures were returned for this period'**
+  String get artifactNoFiguresHeadline;
+
+  /// Body of the no-figures state — what to actually do about it.
+  ///
+  /// In en, this message translates to:
+  /// **'Widen the period, or clear the territory filter.'**
+  String get artifactNoFiguresBody;
+
+  /// Empty state where a table twin has no rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to tabulate'**
+  String get artifactNothingToTabulate;
+
+  /// Stands where a percentage change would be, when the server declined to compute one rather than inventing it.
+  ///
+  /// In en, this message translates to:
+  /// **'no baseline'**
+  String get artifactNoBaseline;
+
+  /// The applied-filters sentence when there are none.
+  ///
+  /// In en, this message translates to:
+  /// **'No filters applied.'**
+  String get artifactNoFilters;
+
+  /// The custom period, inside the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} to {to}'**
+  String artifactRangeInWords(String from, String to);
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'daily buckets'**
+  String get artifactDailyBuckets;
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'weekly buckets'**
+  String get artifactWeeklyBuckets;
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'one territory'**
+  String get artifactOneTerritory;
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'compared with the period before'**
+  String get artifactComparedPreviousPeriod;
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'compared with the same period last year'**
+  String get artifactComparedLastYear;
+
+  /// Part of the applied-filters sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'compared with another territory'**
+  String get artifactComparedTerritory;
+
+  /// Part of a view's subtitle, naming its bucket size.
+  ///
+  /// In en, this message translates to:
+  /// **'By day'**
+  String get artifactByDay;
+
+  /// Part of a view's subtitle, naming its bucket size.
+  ///
+  /// In en, this message translates to:
+  /// **'By week'**
+  String get artifactByWeek;
+
+  /// Part of a view's subtitle, naming what it is compared with.
+  ///
+  /// In en, this message translates to:
+  /// **'vs {label}'**
+  String artifactVersus(String label);
+
+  /// Fallback name of a ranked-bars view whose server title is absent.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking'**
+  String get artifactTitleRanking;
+
+  /// Name of a stat-tiles view.
+  ///
+  /// In en, this message translates to:
+  /// **'Key figures'**
+  String get artifactTitleKeyFigures;
+
+  /// Fallback name of a trend view whose metric this build does not know.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get artifactTitleTrend;
+
+  /// Name of the sales pillar view.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales figures'**
+  String get artifactTitleSalesFigures;
+
+  /// Name of the stock pillar view.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock figures'**
+  String get artifactTitleStockFigures;
+
+  /// Name of the visibility pillar view.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility figures'**
+  String get artifactTitleVisibilityFigures;
+
+  /// Name of the competition pillar view.
+  ///
+  /// In en, this message translates to:
+  /// **'Competition figures'**
+  String get artifactTitleCompetitionFigures;
+
+  /// The honest fallback where the pillar is unknown: the row stores tool arguments, which carry no pillar.
+  ///
+  /// In en, this message translates to:
+  /// **'Figures'**
+  String get artifactTitleFigures;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales performance'**
+  String get artifactToolSalesPerformance;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'SKU movement'**
+  String get artifactToolSkuMovement;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock levels'**
+  String get artifactToolStockLevels;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of shelf'**
+  String get artifactToolShareOfShelf;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility compliance'**
+  String get artifactToolVisibility;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Competitor activity'**
+  String get artifactToolCompetitor;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get artifactToolVisits;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Flagged visits'**
+  String get artifactToolFlaggedVisits;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent scorecard'**
+  String get artifactToolAgentScorecard;
+
+  /// The name of the tool behind this artifact.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get artifactToolTrend;
 }
 
 class _AppLocalizationsDelegate

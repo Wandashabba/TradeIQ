@@ -8332,4 +8332,250 @@ class AppLocalizationsEn extends AppLocalizations {
   String visitReviewClientQuestions(String template) {
     return 'Client questions · $template';
   }
+
+  @override
+  String get artifactTitleView => 'View';
+
+  @override
+  String get artifactBackToAsk => 'Back to Ask TradeIQ';
+
+  @override
+  String get artifactBackToFloor => 'Back to The Floor';
+
+  @override
+  String get artifactFilters => 'Filters';
+
+  @override
+  String get artifactUndo => 'Undo';
+
+  @override
+  String get artifactPeriod => 'Period';
+
+  @override
+  String get artifactPeriodToday => 'Today';
+
+  @override
+  String get artifactPeriodYesterday => 'Yesterday';
+
+  @override
+  String get artifactPeriodLastWeek => 'Last week';
+
+  @override
+  String get artifactPeriodMonthToDate => 'Month to date';
+
+  @override
+  String get artifactPeriodYearToDate => 'Year to date';
+
+  @override
+  String get artifactPeriodSelected => 'Selected period';
+
+  @override
+  String get artifactPickDates => 'Pick dates';
+
+  @override
+  String artifactCustomRange(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get artifactCustomPeriod => 'Custom period';
+
+  @override
+  String get artifactGranularity => 'Granularity';
+
+  @override
+  String get artifactDaily => 'Daily';
+
+  @override
+  String get artifactWeekly => 'Weekly';
+
+  @override
+  String get artifactCompareWith => 'Compare with';
+
+  @override
+  String get artifactCompareNone => 'None';
+
+  @override
+  String get artifactComparePreviousPeriod => 'The period before';
+
+  @override
+  String get artifactCompareLastYear => 'Same period last year';
+
+  @override
+  String get artifactCompareTerritory => 'Another territory';
+
+  @override
+  String get artifactCompared => 'Compared';
+
+  @override
+  String get artifactComparison => 'Comparison';
+
+  @override
+  String get artifactTerritory => 'Territory';
+
+  @override
+  String get artifactWholeBusiness => 'The whole business';
+
+  @override
+  String get artifactTerritorySheetBody =>
+      'Every figure in this view is scoped to this choice.';
+
+  @override
+  String get artifactTerritoriesLoading => 'Loading territories…';
+
+  @override
+  String get artifactTerritoriesUnavailable =>
+      'Territories are unavailable — showing the whole business.';
+
+  @override
+  String get artifactNoTerritoriesHeadline => 'No territories yet';
+
+  @override
+  String get artifactNoTerritoriesBody =>
+      'Add a territory to scope this view to part of the business.';
+
+  @override
+  String get artifactBusyReason => 'The last change is still being applied.';
+
+  @override
+  String get artifactRerunsTheQuery =>
+      'Changing a filter re-runs the same query. It does not ask the assistant again.';
+
+  @override
+  String get artifactExportPdf => 'Export as a PDF';
+
+  @override
+  String get artifactPreparing => 'Preparing…';
+
+  @override
+  String get artifactExportBlocked => 'The figures are still being replaced.';
+
+  @override
+  String get artifactExportNote =>
+      'The chart as an image, every figure as text you can select.';
+
+  @override
+  String get artifactExportFailed =>
+      'That view could not be exported. Please try again.';
+
+  @override
+  String get artifactExportUnavailable =>
+      'Exporting is not available in this build of the app. Reload the page — if it keeps happening, the build needs replacing.';
+
+  @override
+  String get artifactCouldNotOpenHeadline => 'That view could not be opened';
+
+  @override
+  String get artifactCouldNotOpenBody =>
+      'It may have been removed, or it belongs to a tool you do not have.';
+
+  @override
+  String get artifactRefining => 'Applying the change…';
+
+  @override
+  String get artifactNoFiguresHeadline =>
+      'No figures were returned for this period';
+
+  @override
+  String get artifactNoFiguresBody =>
+      'Widen the period, or clear the territory filter.';
+
+  @override
+  String get artifactNothingToTabulate => 'Nothing to tabulate';
+
+  @override
+  String get artifactNoBaseline => 'no baseline';
+
+  @override
+  String get artifactNoFilters => 'No filters applied.';
+
+  @override
+  String artifactRangeInWords(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get artifactDailyBuckets => 'daily buckets';
+
+  @override
+  String get artifactWeeklyBuckets => 'weekly buckets';
+
+  @override
+  String get artifactOneTerritory => 'one territory';
+
+  @override
+  String get artifactComparedPreviousPeriod =>
+      'compared with the period before';
+
+  @override
+  String get artifactComparedLastYear =>
+      'compared with the same period last year';
+
+  @override
+  String get artifactComparedTerritory => 'compared with another territory';
+
+  @override
+  String get artifactByDay => 'By day';
+
+  @override
+  String get artifactByWeek => 'By week';
+
+  @override
+  String artifactVersus(String label) {
+    return 'vs $label';
+  }
+
+  @override
+  String get artifactTitleRanking => 'Ranking';
+
+  @override
+  String get artifactTitleKeyFigures => 'Key figures';
+
+  @override
+  String get artifactTitleTrend => 'Trend';
+
+  @override
+  String get artifactTitleSalesFigures => 'Sales figures';
+
+  @override
+  String get artifactTitleStockFigures => 'Stock figures';
+
+  @override
+  String get artifactTitleVisibilityFigures => 'Visibility figures';
+
+  @override
+  String get artifactTitleCompetitionFigures => 'Competition figures';
+
+  @override
+  String get artifactTitleFigures => 'Figures';
+
+  @override
+  String get artifactToolSalesPerformance => 'Sales performance';
+
+  @override
+  String get artifactToolSkuMovement => 'SKU movement';
+
+  @override
+  String get artifactToolStockLevels => 'Stock levels';
+
+  @override
+  String get artifactToolShareOfShelf => 'Share of shelf';
+
+  @override
+  String get artifactToolVisibility => 'Visibility compliance';
+
+  @override
+  String get artifactToolCompetitor => 'Competitor activity';
+
+  @override
+  String get artifactToolVisits => 'Visits';
+
+  @override
+  String get artifactToolFlaggedVisits => 'Flagged visits';
+
+  @override
+  String get artifactToolAgentScorecard => 'Agent scorecard';
+
+  @override
+  String get artifactToolTrend => 'Trend';
 }

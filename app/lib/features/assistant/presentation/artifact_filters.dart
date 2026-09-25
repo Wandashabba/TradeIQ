@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show DateTimeRange, showDateRangePicker;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../l10n/l10n.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/artifact_repository.dart';
 
@@ -20,26 +20,31 @@ import '../data/artifact_repository.dart';
 /// There is no model call, so a drag costs a query rather than three seconds
 /// and a paid turn.
 ///
-/// **Every control is labelled for a screen reader**, and the period buttons
-/// carry `selected` state rather than relying on the fill to say which one is
-/// on.
+/// **Selected has one vocabulary.** A chosen period, granularity or comparison
+/// is a `TorchFilterChip`: lifted fill, a 1px ink-1 border, a tick and weight
+/// 700 — three channels, never amber, on any screen (unify §1.6). The old
+/// controls said "where you are" with an accent rim, which is a hue doing a
+/// state's job.
+///
+/// **Every control is labelled for a screen reader**, and the chips carry
+/// `selected` rather than relying on the fill to say which one is on.
 
 /// The period vocabulary, taken verbatim from what the practitioner filters by
 /// daily. Not a superset: adding "last 7 days" because it seems useful would
 /// put a period in this menu with no counterpart in the model's vocabulary, and
 /// the two surfaces would disagree about what "recently" means.
-const _periods = <(String, String)>[
-  ('today', 'Today'),
-  ('yesterday', 'Yesterday'),
-  ('previous_week', 'Last week'),
-  ('mtd', 'Month to date'),
-  ('ytd', 'Year to date'),
+const List<String> artifactPeriods = <String>[
+  'today',
+  'yesterday',
+  'previous_week',
+  'mtd',
+  'ytd',
 ];
 
-const _comparisons = <(String?, String)>[
-  (null, 'None'),
-  ('previous_period', 'The period before'),
-  ('same_period_last_year', 'Same period last year'),
+const List<String?> artifactComparisons = <String?>[
+  null,
+  'previous_period',
+  'same_period_last_year',
 ];
 
 /// Which controls each view-spec type offers.
@@ -73,6 +78,26 @@ const Map<String, Set<ArtifactControl>> artifactControls = {
 
 enum ArtifactControl { period, interval, territory, comparison }
 
+/// The period's name in the reader's own language.
+String artifactPeriodLabel(AppLocalizations l10n, String kind) =>
+    switch (kind) {
+      'today' => l10n.artifactPeriodToday,
+      'yesterday' => l10n.artifactPeriodYesterday,
+      'previous_week' => l10n.artifactPeriodLastWeek,
+      'mtd' => l10n.artifactPeriodMonthToDate,
+      'ytd' => l10n.artifactPeriodYearToDate,
+      _ => l10n.artifactPeriodSelected,
+    };
+
+String artifactComparisonLabel(AppLocalizations l10n, String? kind) =>
+    switch (kind) {
+      'previous_period' => l10n.artifactComparePreviousPeriod,
+      'same_period_last_year' => l10n.artifactCompareLastYear,
+      'territory' => l10n.artifactCompareTerritory,
+      null || '' => l10n.artifactCompareNone,
+      _ => l10n.artifactCompared,
+    };
+
 class ArtifactFilters extends ConsumerWidget {
   const ArtifactFilters({
     super.key,
@@ -81,8 +106,6 @@ class ArtifactFilters extends ConsumerWidget {
     required this.busy,
     required this.onApply,
     required this.onUndo,
-    this.exporting = false,
-    this.onExport,
   });
 
   final ArtifactDetail detail;
@@ -90,13 +113,6 @@ class ArtifactFilters extends ConsumerWidget {
   final bool busy;
   final ValueChanged<Map<String, dynamic>> onApply;
   final VoidCallback onUndo;
-
-  /// True while a PDF is being built.
-  final bool exporting;
-
-  /// Null hides the control entirely — there is no point offering an export on
-  /// a surface that cannot produce one.
-  final VoidCallback? onExport;
 
   Set<ArtifactControl> get _offered =>
       artifactControls[detail.type] ?? const {ArtifactControl.period};
@@ -119,136 +135,6 @@ class ArtifactFilters extends ConsumerWidget {
     return next;
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final offered = _offered;
-
-    return PanelCard(
-      title: 'Filters',
-      trailing: detail.canUndo
-          ? TextButton(
-              // Hidden rather than disabled at the bottom of the stack: a
-              // control that never does anything teaches people to ignore it.
-              onPressed: busy ? null : onUndo,
-              child: const Text('Undo'),
-            )
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (offered.contains(ArtifactControl.period))
-            FilterSection(
-              label: 'Period',
-              child: _PeriodControl(
-                period: _period,
-                busy: busy,
-                onChanged: (period) => onApply(_with('period', period)),
-              ),
-            ),
-          if (offered.contains(ArtifactControl.interval))
-            FilterSection(
-              label: 'Granularity',
-              child: _ChoiceRow(
-                options: const [('day', 'Daily'), ('week', 'Weekly')],
-                selected: params['interval'] is String
-                    ? params['interval'] as String
-                    : 'day',
-                busy: busy,
-                onChanged: (value) => onApply(_with('interval', value)),
-              ),
-            ),
-          if (offered.contains(ArtifactControl.comparison))
-            FilterSection(
-              label: 'Compare with',
-              child: _ChoiceRow(
-                options: [
-                  for (final (kind, label) in _comparisons) (kind ?? '', label),
-                ],
-                selected: _selectedComparison,
-                busy: busy,
-                onChanged: (value) => onApply(
-                  _with('compareTo', value.isEmpty ? null : {'kind': value}),
-                ),
-              ),
-            ),
-          if (offered.contains(ArtifactControl.territory))
-            FilterSection(
-              label: 'Territory',
-              child: _TerritoryControl(
-                selected: params['territoryId'] is String
-                    ? params['territoryId'] as String
-                    : null,
-                busy: busy,
-                onChanged: (id) => onApply(_with('territoryId', id)),
-              ),
-            ),
-          Text(
-            // Says what a control costs, because the honest answer is
-            // surprising: this is a re-query, not another question put to the
-            // assistant, so it neither spends a turn nor changes the answer
-            // above it in the conversation.
-            'Changing a filter re-runs the same query. It does not ask the '
-            'assistant again.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.4,
-              color: context.colors.ink3,
-            ),
-          ),
-          if (onExport != null) ...[
-            const SizedBox(height: 14),
-            // Glass: the panel's one action is the dark action pill. The words
-            // stay on it while it works — a spinner in their place would leave
-            // a screen reader announcing an unlabelled button.
-            if (context.colors.glass)
-              GlassPrimaryButton(
-                key: const ValueKey('artifact-export-pdf'),
-                onPressed: exporting || busy ? null : onExport,
-                icon: exporting
-                    ? Icons.hourglass_top
-                    : Icons.picture_as_pdf_outlined,
-                label: exporting ? 'Preparing…' : 'Export PDF',
-                height: 44,
-                sweep: false,
-              )
-            else
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                key: const ValueKey('artifact-export-pdf'),
-                // Disabled mid-refine on purpose: exporting what is on screen
-                // while the figures underneath are being replaced would produce
-                // a report of neither state.
-                onPressed: exporting || busy ? null : onExport,
-                icon: exporting
-                    ? const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      )
-                    : const Icon(Icons.picture_as_pdf_outlined, size: 15),
-                label: Text(
-                  exporting ? 'Preparing…' : 'Export PDF',
-                  style: const TextStyle(fontSize: 12.5),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'The chart as an image, every figure as text you can select.',
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.4,
-                color: context.colors.ink3,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   String get _selectedComparison {
     final compareTo = params['compareTo'];
     if (compareTo is Map<String, dynamic> && compareTo['kind'] is String) {
@@ -256,6 +142,119 @@ class ArtifactFilters extends ConsumerWidget {
     }
     return '';
   }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final offered = _offered;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(
+          l10n.artifactFilters,
+          // Hidden rather than disabled when there is nothing to undo: a
+          // control that never does anything teaches people to ignore it.
+          action: detail.canUndo
+              ? SectionRuleAction(
+                  l10n.artifactUndo,
+                  key: const ValueKey<String>('artifact-undo'),
+                  onTap: busy ? () {} : onUndo,
+                )
+              : null,
+        ),
+        const SizedBox(height: TiqSpace.s4),
+        if (offered.contains(ArtifactControl.period))
+          _Group(
+            label: l10n.artifactPeriod,
+            child: _PeriodControl(
+              period: _period,
+              busy: busy,
+              onChanged: (period) => onApply(_with('period', period)),
+            ),
+          ),
+        if (offered.contains(ArtifactControl.interval))
+          _Group(
+            label: l10n.artifactGranularity,
+            child: _ChipRow(
+              semanticsLabel: l10n.artifactGranularity,
+              options: <(String, String)>[
+                ('day', l10n.artifactDaily),
+                ('week', l10n.artifactWeekly),
+              ],
+              selected: params['interval'] is String
+                  ? params['interval'] as String
+                  : 'day',
+              busy: busy,
+              onChanged: (value) => onApply(_with('interval', value)),
+            ),
+          ),
+        if (offered.contains(ArtifactControl.comparison))
+          _Group(
+            label: l10n.artifactCompareWith,
+            child: _ChipRow(
+              semanticsLabel: l10n.artifactCompareWith,
+              options: <(String, String)>[
+                for (final kind in artifactComparisons)
+                  (kind ?? '', artifactComparisonLabel(l10n, kind)),
+              ],
+              selected: _selectedComparison,
+              busy: busy,
+              onChanged: (value) => onApply(
+                _with('compareTo', value.isEmpty ? null : {'kind': value}),
+              ),
+            ),
+          ),
+        if (offered.contains(ArtifactControl.territory))
+          _Group(
+            label: l10n.artifactTerritory,
+            child: _TerritoryControl(
+              selected: params['territoryId'] is String
+                  ? params['territoryId'] as String
+                  : null,
+              busy: busy,
+              onChanged: (id) => onApply(_with('territoryId', id)),
+            ),
+          ),
+        Text(
+          // Says what a control costs, because the honest answer is
+          // surprising: this is a re-query, not another question put to the
+          // assistant, so it neither spends a turn nor changes the answer
+          // above it in the conversation.
+          l10n.artifactRerunsTheQuery,
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+      ],
+    );
+  }
+}
+
+/// One control and the block label above it.
+///
+/// An eyebrow, which unify §1.17 allows as a block label inside a panel — the
+/// filters are one block and these name its parts. A full section rule per
+/// control would be four rules in a 300dp rail.
+class _Group extends StatelessWidget {
+  const _Group({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: TiqSpace.s5),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Eyebrow(label),
+        const SizedBox(height: TiqSpace.s3),
+        child,
+      ],
+    ),
+  );
 }
 
 /// The period vocabulary plus a real date range.
@@ -275,58 +274,39 @@ class _PeriodControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final l10n = context.l10n;
     final custom = _kind == 'custom';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ChoiceRow(
-          options: _periods,
-          selected: custom ? '' : _kind,
-          busy: busy,
-          onChanged: (kind) => onChanged({'kind': kind}),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: busy ? null : () => _pickRange(context),
-          icon: const Icon(Icons.date_range_outlined, size: 15),
-          label: Text(
-            custom ? '${period['from']} → ${period['to']}' : 'Pick dates',
-            // A chosen range is a pair of dates — figures, so mono in glass.
-            style: colors.glass && custom
-                ? LumenGlass.figure(
-                    size: 12,
-                    weight: FontWeight.w500,
-                    color: context.lumen.accentInk,
-                  )
-                : const TextStyle(fontSize: 12),
-          ),
-          style: colors.glass
-              // Glass: a pill-glass button, rimmed in the accent once a custom
-              // range is the one in force — the same "where you are" mark the
-              // selected period pill wears.
-              ? OutlinedButton.styleFrom(
-                  foregroundColor: custom
-                      ? context.lumen.accentInk
-                      : context.lumen.ink,
-                  backgroundColor: context.lumen.pillFill,
-                  side: BorderSide(
-                    color: custom ? context.lumen.accent : context.lumen.pillRim,
-                  ),
-                )
-              : OutlinedButton.styleFrom(
-                  foregroundColor: custom ? colors.ink1 : colors.ink2,
-                  side: BorderSide(
-                    color: custom ? colors.brand : colors.lineStrong,
-                  ),
-                ),
+    return _ChipRow(
+      semanticsLabel: l10n.artifactPeriod,
+      options: <(String, String)>[
+        for (final kind in artifactPeriods)
+          (kind, artifactPeriodLabel(l10n, kind)),
+        // The picker is a chip in the same rail rather than a button beside
+        // it: it chooses a period like the other five, and a chosen range is
+        // as selected as "Month to date" is.
+        (
+          'custom',
+          custom
+              ? l10n.artifactCustomRange('${period['from']}', '${period['to']}')
+              : l10n.artifactPickDates,
         ),
       ],
+      selected: custom ? 'custom' : _kind,
+      busy: busy,
+      // The date picker is the one Material control left on a Torchlight
+      // route, for the reason §18.9 gives: the kit has no calendar, a date is
+      // the one value nobody should have to type, and building one for two
+      // call sites would be a component nobody else reviewed.
+      reselectable: const <String>{'custom'},
+      onChanged: (kind) => kind == 'custom'
+          ? _pickRange(context)
+          : onChanged(<String, dynamic>{'kind': kind}),
     );
   }
 
   Future<void> _pickRange(BuildContext context) async {
+    final l10n = context.l10n;
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
@@ -335,10 +315,10 @@ class _PeriodControl extends StatelessWidget {
       firstDate: DateTime(now.year - 5),
       lastDate: now,
       initialDateRange: _currentRange(now),
-      helpText: 'Custom period',
+      helpText: l10n.artifactCustomPeriod,
     );
     if (picked == null) return;
-    onChanged({
+    onChanged(<String, dynamic>{
       'kind': 'custom',
       // The server takes whole calendar days, `YYYY-MM-DD`, and treats `to` as
       // inclusive. Sending a timestamp would be rejected by the schema.
@@ -360,95 +340,49 @@ class _PeriodControl extends StatelessWidget {
       '${date.day.toString().padLeft(2, '0')}';
 }
 
-/// A row of mutually exclusive options.
+/// A rail of mutually exclusive options.
 ///
-/// `Semantics.selected` carries the state, so a screen reader announces which
-/// option is on rather than leaving it to the fill colour — the bar the a11y
-/// work in #144 set.
-class _ChoiceRow extends StatelessWidget {
-  const _ChoiceRow({
+/// The selected chip carries the tick, the weight and the `selected` flag, so
+/// a screen reader announces which option is on rather than leaving it to the
+/// fill.
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({
+    required this.semanticsLabel,
     required this.options,
     required this.selected,
     required this.busy,
     required this.onChanged,
+    this.reselectable = const <String>{},
   });
 
+  final String semanticsLabel;
   final List<(String, String)> options;
   final String selected;
   final bool busy;
   final ValueChanged<String> onChanged;
 
+  /// Options that stay pressable while they are the selected one, because
+  /// pressing them does something other than select — the date picker.
+  final Set<String> reselectable;
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
+    return TorchFilterRail(
+      semanticsLabel: semanticsLabel,
+      chips: <Widget>[
         for (final (value, label) in options)
-          Semantics(
+          TorchFilterChip(
+            key: ValueKey<String>('artifact-filter-$value'),
+            label: label,
             selected: value == selected,
-            button: true,
-            child: InkWell(
-              key: ValueKey('artifact-filter-$value'),
-              onTap: busy || value == selected ? null : () => onChanged(value),
-              borderRadius: BorderRadius.circular(999),
-              child: colors.glass
-                  ? _glassPill(context, label, value == selected)
-                  : Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: value == selected
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border.all(
-                    color: value == selected ? colors.brand : colors.line,
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: value == selected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: value == selected ? colors.ink1 : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
+            onSelected:
+                busy || (value == selected && !reselectable.contains(value))
+                ? null
+                : () => onChanged(value),
           ),
       ],
     );
   }
-}
-
-/// One option as a glass pill. Unselected is barely-there glass; the selected
-/// option is the bright pill with the accent rim that means "where you are",
-/// in the accent ink at a heavier weight — so it reads without the fill, and
-/// `Semantics.selected` above says so to a screen reader.
-Widget _glassPill(BuildContext context, String label, bool on) {
-  final lumen = context.lumen;
-  return GlassPane(
-    kind: GlassKind.pill,
-    radius: 999,
-    shadow: on,
-    fillColor: on ? null : lumen.tileFill,
-    rimColor: on ? lumen.accent : lumen.pillRim,
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-        color: on ? lumen.accentInk : lumen.inkMuted,
-      ),
-    ),
-  );
 }
 
 /// Territory scope, from the tenant's own list.
@@ -457,6 +391,11 @@ Widget _glassPill(BuildContext context, String label, bool on) {
 /// `territoryId` param means — the service translates it to the free-text code
 /// that outlets carry. Passing an outlet's code straight through would match
 /// nothing and answer "no data" for a territory that is full of it.
+///
+/// A picker rather than a chip rail: a territory list is forty long, which is
+/// exactly the case §18.1 built `TorchPickerField` for. It offers the name a
+/// person says out loud with the code beneath it in the identifier face — a
+/// picker that offers uuids is a picker nobody can use.
 class _TerritoryControl extends ConsumerWidget {
   const _TerritoryControl({
     required this.selected,
@@ -468,46 +407,57 @@ class _TerritoryControl extends ConsumerWidget {
   final bool busy;
   final ValueChanged<String?> onChanged;
 
+  /// The "no scope" answer. A null pop from the sheet is a dismissal, so the
+  /// clear travels as a token.
+  static const String wholeBusiness = '__whole_business__';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
+    final l10n = context.l10n;
+    final skin = context.skin;
 
     return ref
         .watch(territoriesListProvider)
         .when(
           loading: () => Text(
-            'Loading territories…',
-            style: TextStyle(fontSize: 12, color: colors.ink3),
+            l10n.artifactTerritoriesLoading,
+            style: skin.text.meta.style(color: skin.palette.ink3),
           ),
           // The artifact still works unscoped, so a failed territory list is a
           // missing control, not a broken screen.
           error: (_, _) => Text(
-            'Territories are unavailable — showing the whole business.',
-            style: TextStyle(fontSize: 12, color: colors.ink3),
+            l10n.artifactTerritoriesUnavailable,
+            style: skin.text.meta.style(color: skin.palette.ink3),
           ),
-          data: (territories) => DropdownButtonFormField<String?>(
-            initialValue: territories.any((t) => t.id == selected)
-                ? selected
-                : null,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              isDense: true,
-              border: OutlineInputBorder(),
-              labelText: 'Territory',
-            ),
-            style: TextStyle(fontSize: 12.5, color: colors.ink1),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('Whole business'),
+          data: (territories) => TorchPickerField<String>(
+            key: const ValueKey<String>('artifact-territory'),
+            label: l10n.artifactTerritory,
+            options: <PickerOption<String>>[
+              PickerOption<String>(
+                value: wholeBusiness,
+                label: l10n.artifactWholeBusiness,
               ),
               for (final territory in territories)
-                DropdownMenuItem<String?>(
+                PickerOption<String>(
                   value: territory.id,
-                  child: Text('${territory.name} (${territory.code})'),
+                  label: territory.name,
+                  identifier: territory.code,
                 ),
             ],
-            onChanged: busy ? null : onChanged,
+            value: territories.any((t) => t.id == selected)
+                ? selected
+                : wholeBusiness,
+            // Nothing selected is a state, and here it has a name: the whole
+            // business. The trough never holds a grey instruction.
+            notChosenLine: l10n.artifactWholeBusiness,
+            sheetSubtitle: l10n.artifactTerritorySheetBody,
+            emptyHeadline: l10n.artifactNoTerritoriesHeadline,
+            emptyBody: l10n.artifactNoTerritoriesBody,
+            enabled: !busy,
+            disabledReason: busy ? l10n.artifactBusyReason : null,
+            onChanged: busy
+                ? null
+                : (id) => onChanged(id == wholeBusiness ? null : id),
           ),
         );
   }
@@ -518,57 +468,35 @@ class _TerritoryControl extends ConsumerWidget {
 /// Reachable by link, so this screen cannot assume the reader saw the question
 /// that produced it — "a chart with no visible date range is a support ticket
 /// waiting to happen".
-String describeParamsInWords(Map<String, dynamic> params) {
+String describeParamsInWords(AppLocalizations l10n, Map<String, dynamic> params) {
   final parts = <String>[];
 
   final period = params['period'];
   if (period is Map<String, dynamic>) {
     final kind = period['kind'];
-    parts.add(switch (kind) {
-      'today' => 'Today',
-      'yesterday' => 'Yesterday',
-      'previous_week' => 'Last week',
-      'mtd' => 'Month to date',
-      'ytd' => 'Year to date',
-      'custom' => '${period['from']} to ${period['to']}',
-      _ => 'Selected period',
-    });
+    parts.add(
+      kind == 'custom'
+          ? l10n.artifactRangeInWords('${period['from']}', '${period['to']}')
+          : artifactPeriodLabel(l10n, kind is String ? kind : ''),
+    );
   }
 
   final interval = params['interval'];
-  if (interval == 'day') parts.add('daily buckets');
-  if (interval == 'week') parts.add('weekly buckets');
+  if (interval == 'day') parts.add(l10n.artifactDailyBuckets);
+  if (interval == 'week') parts.add(l10n.artifactWeeklyBuckets);
 
-  if (params['territoryId'] is String) parts.add('one territory');
+  if (params['territoryId'] is String) parts.add(l10n.artifactOneTerritory);
 
   final compareTo = params['compareTo'];
   if (compareTo is Map<String, dynamic>) {
-    parts.add(switch (compareTo['kind']) {
-      'previous_period' => 'compared with the period before',
-      'same_period_last_year' => 'compared with the same period last year',
-      'territory' => 'compared with another territory',
-      _ => 'compared',
+    final kind = compareTo['kind'];
+    parts.add(switch (kind) {
+      'previous_period' => l10n.artifactComparedPreviousPeriod,
+      'same_period_last_year' => l10n.artifactComparedLastYear,
+      'territory' => l10n.artifactComparedTerritory,
+      _ => l10n.artifactCompared,
     });
   }
 
-  return parts.isEmpty ? 'No filters applied.' : '${parts.join(' · ')}.';
-}
-
-/// A PanelCard-friendly wrapper used by the filter panel.
-class FilterSection extends StatelessWidget {
-  const FilterSection({super.key, required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [SectionLabel(label), const SizedBox(height: 6), child],
-      ),
-    );
-  }
+  return parts.isEmpty ? l10n.artifactNoFilters : '${parts.join(' · ')}.';
 }
