@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/human_error.dart';
-import 'package:tradeiq_app/core/widgets/worklist.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 DioException _dio({
@@ -163,40 +162,12 @@ void main() {
       );
     });
 
-    testWidgets('the manager console stays English on an Afrikaans device', (
-      tester,
-    ) async {
-      // AsyncSection is the console's shared error surface. It calls the
-      // helper without an AppLocalizations, so it keeps the English copy the
-      // console has always had even when the device language is Afrikaans.
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('af'),
-          supportedLocales: appSupportedLocales,
-          localizationsDelegates: appLocalizationsDelegates,
-          home: Scaffold(
-            body: AsyncSection<List<int>>(
-              value: AsyncValue.error(
-                _dio(type: DioExceptionType.connectionError),
-                StackTrace.current,
-              ),
-              label: 'alerts',
-              onRetry: () {},
-              builder: (_) => const SizedBox.shrink(),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text(
-          'Failed to load alerts. Could not reach the server. '
-          'Check your connection and try again.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Kon nie die bediener'), findsNothing);
-    });
+    // REMOVED WITH `AsyncSection`. The case it guarded was that the console's
+    // shared error surface kept its English copy on an Afrikaans device,
+    // because it called `humanErrorMessage` without an `AppLocalizations`.
+    // That is no longer the product's position — the manager console is fully
+    // Afrikaans, and every migrated surface reports a failure through
+    // `TorchErrorMessage.sanitise`, which its caller localises. The helper's
+    // own Afrikaans behaviour is still asserted directly above.
   });
 }

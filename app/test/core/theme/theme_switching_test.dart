@@ -6,7 +6,6 @@ import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/theme_mode_controller.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_scaffold.dart';
-import 'package:tradeiq_app/core/widgets/manager_scaffold.dart';
 
 class FakeThemeModeStore implements ThemeModeStore {
   FakeThemeModeStore([this.stored]);
@@ -58,67 +57,10 @@ void main() {
     expect(ctx.colors, same(TiqColors.light));
   });
 
-  Widget managerApp(ThemeModeStore store) {
-    // Router hoisted OUTSIDE the Consumer so a theme rebuild never recreates it.
-    final router = GoRouter(
-      initialLocation: '/screen',
-      routes: [
-        GoRoute(
-          path: '/screen',
-          builder: (context, state) =>
-              const ManagerScaffold(title: 'T', body: SizedBox()),
-        ),
-      ],
-    );
-    return ProviderScope(
-      overrides: [themeModeStoreProvider.overrideWithValue(store)],
-      child: Consumer(
-        builder: (context, ref, _) => MaterialApp.router(
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
-          themeMode: ref.watch(themeModeProvider),
-          routerConfig: router,
-        ),
-      ),
-    );
-  }
-
-  testWidgets(
-    'theme-toggle flips the console between the dark and light planes '
-    'and persists the choice',
-    (tester) async {
-      final store = FakeThemeModeStore();
-      await tester.pumpWidget(managerApp(store));
-      await tester.pumpAndSettle();
-
-      Color? plane() =>
-          tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
-
-      // default flipped by the 2026-07-24 premium-ui redesign
-      expect(plane(), TiqColors.light.plane);
-      expect(find.byTooltip('Switch to dark theme'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('theme-toggle')));
-      await tester.pumpAndSettle();
-
-      expect(plane(), TiqColors.night.plane);
-      expect(store.stored, ThemeMode.dark); // persisted
-      expect(find.byTooltip('Switch to light theme'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('theme-toggle')));
-      await tester.pumpAndSettle();
-
-      expect(plane(), TiqColors.light.plane);
-      expect(store.stored, ThemeMode.light);
-    },
-  );
-
-  testWidgets('a persisted light mode restores on startup', (tester) async {
-    await tester.pumpWidget(managerApp(FakeThemeModeStore(ThemeMode.light)));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
-      TiqColors.light.plane,
-    );
-  });
+  // THE TWO CONSOLE CASES WENT WITH `ManagerScaffold`. They asserted that the
+  // theme toggle flipped the console's plane and persisted the choice. Both
+  // halves are still owned and still tested: the Torchlight menu sheet's theme
+  // row is covered by `menu_sheet_test.dart`, and the toggle and its
+  // persistence by `theme_mode_controller_test.dart`. What is gone is the
+  // shell that used to carry the control, not the behaviour.
 }

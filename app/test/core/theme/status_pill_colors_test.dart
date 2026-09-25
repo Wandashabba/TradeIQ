@@ -54,7 +54,9 @@ void main() {
       '0xFFA52A2A',
     ];
     const consumers = [
-      'lib/core/widgets/delta_pill.dart',
+      // `delta_pill.dart` left this list with the widget: unify §2 deletes
+      // DeltaChip, DeltaPill and TileDelta.text in favour of one Delta that
+      // draws its triangle as a path, and the file is gone.
       'lib/core/widgets/agent_kit.dart',
       'lib/features/beatplans/presentation/today_screen.dart',
     ];
