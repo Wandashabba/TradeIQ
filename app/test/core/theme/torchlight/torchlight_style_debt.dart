@@ -27,25 +27,22 @@
 //   flutter test test/core/theme/torchlight/torchlight_lint_test.dart
 // and paste the map it prints.
 //
-// WHERE THIS STOPS, AND WHY. The four rows below are not leftover debt in
+// WHERE THIS STOPS, AND WHY. The three rows below are not leftover debt in
 // screens that have already moved. They ARE the app's last un-migrated
-// screens — the same four files that still import GlassPane, LumenGlass,
+// screens — the same three files that still import GlassPane, LumenGlass,
 // LumenPalette, AppColors and TiqColors:
 //
-//   visit_detail_screen.dart      a live route (app_router.dart:452)
 //   artifact_screen.dart          a live route (app_router.dart:361)
 //   artifact_filters.dart         built by artifact_screen.dart
 //   expanded_views.dart           built by artifact_screen.dart
 //
 // The dashboard shell and the live location layer came off this map together
-// when the execution overview was migrated (32 and 13). They went as a pair
-// because the layer is a shared component: the trail map draws its squares
-// and so did the dashboard's "Where are my agents" panel, and moving it
-// without the screen that used it would have restyled an unmigrated screen
-// mid-flight. Neither row was converted in place — each left the map with its
-// screen, which is the only score a finished migration should have.
+// when the execution overview was migrated (32 and 13); the manager's visit
+// review followed (17). None of the three was converted in place — each left
+// the map with its screen, which is the only score a finished migration
+// should have.
 //
-// Most of the thirty-eight that remain are a bare `TextStyle(` at a size the
+// Most of the twenty-one that remain are a bare `TextStyle(` at a size the
 // Torchlight scale does not have — 10.5, 11.5 and 12.5 are not members of it,
 // and where a size does exist (12 is `meta`, 13 is `label`, 14 is `body`) the
 // role carries a line-height and a tracking these call sites do not set. The
@@ -58,15 +55,14 @@
 // that is still painted in Lumen Glass, and half-migrating one would put
 // Torchlight type inside violet glass panes, which is neither system. Each
 // row leaves this map with its screen. The map empties when the last of the
-// four is migrated, and not before — the same ordering GlassPane is deleted
+// three is migrated, and not before — the same ordering GlassPane is deleted
 // under.
 const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/presentation/artifact_filters.dart': 9,
   'assistant/presentation/artifact_screen.dart': 6,
   'assistant/view_specs/expanded_views.dart': 6,
-  'visits/presentation/visit_detail_screen.dart': 17,
 };
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 38;
+const int torchlightStyleDebtTotal = 21;
