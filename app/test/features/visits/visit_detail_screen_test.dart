@@ -15,6 +15,10 @@ import 'visit_harness.dart';
 /// Every status is a word beside its mark; no finding rides on colour alone.
 /// Unknown is never zero. A deep link keeps its way out.
 
+/// The one photograph in the fixture. Its wall-clock rendering depends on the
+/// reader's zone, so every assertion about it is computed from this.
+final DateTime _photoTakenAt = DateTime.utc(2026, 9, 14, 7, 5);
+
 void main() {
   group('the frame', () {
     testWidgets('names the outlet, the visit and the agent', (tester) async {
@@ -392,7 +396,13 @@ void main() {
       final thumb = tester.widget<TorchEvidenceThumb>(
         find.byType(TorchEvidenceThumb),
       );
-      expect(thumb.semanticLabel, 'Spar Rosebank, visibility, 09:05');
+      // Computed, never pinned: the screen renders the photo's time in the
+      // reader's own zone, and a hardcoded '09:05' is a test that passes in
+      // Johannesburg and fails on a UTC runner.
+      expect(
+        thumb.semanticLabel,
+        'Spar Rosebank, visibility, ${clockOf(_photoTakenAt.toLocal())}',
+      );
     });
 
     testWidgets('no photos is said in words — on a review it is a signal', (
@@ -436,7 +446,7 @@ void main() {
         find.byKey(const ValueKey<String>('visit-photo-p1')),
       );
       expect(find.byKey(const ValueKey<String>('visit-photo-p1')), findsOneWidget);
-      expect(find.text('09:05'), findsOneWidget);
+      expect(find.text(clockOf(_photoTakenAt.toLocal())), findsOneWidget);
     });
   });
 
