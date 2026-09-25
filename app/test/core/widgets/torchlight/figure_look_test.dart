@@ -79,6 +79,37 @@ void main() {
       await _shoot(tester, 'goldens/figure_ranked_$name.png');
     }, skip: !looking);
   }
+
+  // The two things a plot with a gutter and a value axis can break: a reader
+  // at 2.0× whose tick labels are twice as wide, and an Afrikaans legend whose
+  // words are longer than the English ones. Both in one frame.
+  testWidgets('night: 2.0x, in Afrikaans', (tester) async {
+    await _pump(
+      tester,
+      skin: TiqSkin.night(),
+      textScale: 2,
+      locale: const Locale('af'),
+      child: TrendChart(
+        series: <ChartSeries>[
+          const ChartSeries(name: 'Gauteng-Noord', readings: _run),
+          const ChartSeries(
+            name: 'Kliëntgemiddeld',
+            role: ChartSeriesRole.comparison,
+            readings: _average,
+          ),
+        ],
+        unit: TiqUnit.percent,
+        semanticsLabel: 'Uitvoeringstelling, agt weke',
+        notMeasuredWord: 'Nie gemeet nie',
+        dashedWord: 'gestippel',
+        threshold: const ChartThreshold(
+          value: 75,
+          label: 'Gekonfigureerde standaard 75',
+        ),
+      ),
+    );
+    await _shoot(tester, 'goldens/figure_trend_af_2x.png');
+  }, skip: !looking);
 }
 
 // ── The fixtures ──────────────────────────────────────────────────────
@@ -251,6 +282,8 @@ Future<void> _pump(
   WidgetTester tester, {
   required TiqSkin skin,
   required Widget child,
+  double textScale = 1,
+  Locale locale = const Locale('en'),
 }) async {
   const size = Size(390, 844);
   tester.view
@@ -261,18 +294,24 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.torchlight(skin),
-      locale: const Locale('en'),
+      locale: locale,
       supportedLocales: appSupportedLocales,
       localizationsDelegates: appLocalizationsDelegates,
       debugShowCheckedModeBanner: false,
       home: Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          data: MediaQuery.of(context).copyWith(
+            disableAnimations: true,
+            textScaler: TextScaler.linear(textScale),
+          ),
           child: MotionBudgetScope(
             budget: MotionBudget.frozen,
             child: RepaintBoundary(
               key: _boundary,
-              child: ColoredBox(
+              // A Material, or every Text outside one is struck through with
+              // the framework's yellow "no Material ancestor" underline and
+              // the images are a picture of that rather than of the figures.
+              child: Material(
                 color: skin.palette.ground,
                 child: SizedBox.fromSize(
                   size: size,

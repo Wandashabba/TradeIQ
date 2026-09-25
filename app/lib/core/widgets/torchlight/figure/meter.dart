@@ -216,9 +216,19 @@ class MeterPainter extends CustomPainter {
     final f = fraction;
     if (f != null && f > 0) {
       final width = (size.width * f).clamp(minimumFill, size.width);
-      final fill = RRect.fromRectAndRadius(
+      // **Square at the origin, rounded at the data end.** A fill rounded on
+      // all four corners is a lozenge floating in a track, and at a 34%
+      // reading on a 4dp track it is a capsule — which is what made the meter
+      // read as a toy progress bar rather than as a gauge. A gauge's fill
+      // starts flush against the scale's zero and is shaped only where the
+      // measurement ends. A fill shorter than it is tall keeps square corners
+      // at both ends, because rounding a 2×4 nub turns a near-zero reading
+      // into a bubble.
+      final end = width <= trackHeight ? Radius.zero : radius;
+      final fill = RRect.fromRectAndCorners(
         Rect.fromLTWH(0, top, width, trackHeight),
-        radius,
+        topRight: end,
+        bottomRight: end,
       );
       if (state == MeterState.lowSample) {
         // Outline, not a solid. A shape distinction, because a thin sample is
@@ -239,6 +249,19 @@ class MeterPainter extends CustomPainter {
     if (t != null) {
       // 2dp wide, the full track height, breaking the top edge by 2dp.
       final x = (size.width * t).clamp(1.0, size.width - 1);
+      // Where the fill runs under the tick, the **track** shows through on
+      // either side of it — a 1dp gap, not a stroke. A stroke around a mark is
+      // data-weight ink that is not data, and at 4dp it would swallow the
+      // tick; the gap is how a real index mark reads, with the scale visible
+      // beside it. Only punched where there is a solid fill to punch, so an
+      // empty track's outline is left whole.
+      final filled = state == MeterState.filled && f != null && f > 0;
+      if (filled && size.width * f > x - 2) {
+        canvas.drawRect(
+          Rect.fromLTWH(x - 2, top, 4, trackHeight),
+          Paint()..color = _trackFill(p),
+        );
+      }
       canvas.drawRect(
         Rect.fromLTWH(x - 1, top - 2, 2, trackHeight + 2),
         Paint()..color = p.ink1,
