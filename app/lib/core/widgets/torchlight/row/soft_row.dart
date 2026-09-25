@@ -115,7 +115,7 @@ class SoftRow extends StatefulWidget {
   final SoftRowDensity density;
   final SoftRowTruncation titleTruncation;
 
-  /// The reason line, `body` in ink-2. Up to two lines.
+  /// The reason line, `body` in ink-2. Up to [subtitleMaxLines] lines.
   final String? subtitle;
 
   /// How many lines the reason may take before it ellipses.
