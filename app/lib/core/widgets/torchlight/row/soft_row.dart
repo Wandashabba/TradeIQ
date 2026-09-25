@@ -16,16 +16,22 @@ export 'soft_row_spec.dart';
 /// this file exists to settle are the four things every one of those lists was
 /// getting differently:
 ///
-/// **1. What identifies a row.** Not a fill. `#141D27` on `#0B1017` is 1.12:1
-/// — one quantisation level on a 6-bit panel at 40% backlight, which is the
-/// panel a field agent actually has — so a list of rows identified by their
-/// fill is a page of floating text with no tap affordance. Unify §1.3 rules:
-/// a **list row** is flush, radius 0, and separated by a 1px rule inset to the
-/// text edge; a **standalone row** is radius 14 on a `surface` fill with a 1px
-/// `edgeStructure` outline. The rule's colour is not a parameter — it is
-/// `edgeStructure` (3.73:1) between tappable rows because 1.4.11 wants a
-/// perceivable boundary around a UI component, and `hairline` between
-/// non-tappable ones because there it is decoration.
+/// **1. What identifies a row.** A **card**: radius 22 on a `surface` fill,
+/// no outline, with a gap of ground to the next one. Unify §1.3 ruled the
+/// opposite — flush, radius 0, a 1px rule inset to the text edge — and the
+/// owner overruled it on 25 September 2026 after looking at the running
+/// screens twice ("I hate this box style"; "it's still very boxy and I don't
+/// need that"). The override is recorded in `docs/design/spec/unify.md` §1.3
+/// and in `docs/design/torchlight-aisle.md`; the reasoning the ruling was
+/// built on is not thrown away, it is answered: `surface` on `ground` is
+/// 1.49:1, so the card is **not** identified by its fill alone — it is
+/// identified by its silhouette, which is what a radius is, and the press
+/// still adds a real `edgeControl` edge on top of the fill step.
+/// A **standalone row** keeps radius 14, `surface` and its 1px
+/// `edgeStructure` outline. **Veld keeps the flush row**: radius 0, no fill,
+/// a 2px rule — a soft translucent row on white under glare stops reading as
+/// a row. The rule's colour is still not a parameter: `edgeStructure`
+/// (3.73:1) between tappable rows, `hairline` between non-tappable ones.
 ///
 /// **2. Where content starts.** At a fixed inset, whether or not a severity
 /// bar is drawn. The bar's lane is reserved either way, so a list where three
@@ -345,7 +351,7 @@ class _SoftRowState extends State<SoftRow> {
               ? null
               : Align(
                   alignment: AlignmentDirectional.centerStart,
-                  child: _SeverityBar(spec: spec),
+                  child: _SeverityMark(spec: spec),
                 ),
         ),
         if (hasLeading) ...<Widget>[
@@ -379,8 +385,12 @@ class _SoftRowState extends State<SoftRow> {
                 // they belong to rather than under the severity lane.
                 Padding(
                   padding: EdgeInsetsDirectional.only(
+                    // Measured from inside the card: the margin and the
+                    // card's own padding are already spent by the time this
+                    // Padding is laid out.
                     start:
                         spec.textInset(hasLeading: hasLeading) -
+                        spec.margin -
                         spec.horizontalPadding,
                   ),
                   child: actions,
@@ -410,14 +420,29 @@ class _SoftRowState extends State<SoftRow> {
         ? decorated
         : Transform.scale(scale: scale, child: decorated);
 
+    // THE CARD'S AIR. The margin is the row's own inset from whatever holds
+    // it, and the gap under it is what separates one card from the next —
+    // ground, not a line. Both are zero on a flush row.
+    final inset = spec.margin == 0 && spec.gapAfter == 0
+        ? scaled
+        : Padding(
+            padding: EdgeInsets.fromLTRB(
+              spec.margin,
+              0,
+              spec.margin,
+              spec.gapAfter,
+            ),
+            child: scaled,
+          );
+
     if (spec.separatorColour == null || spec.separatorWidth == 0) {
-      return scaled;
+      return inset;
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        scaled,
+        inset,
         // Inset to the text edge, which is what makes a stack of these read as
         // a column of text with a fine rule under each entry rather than as a
         // table with a full-bleed border.
@@ -435,9 +460,15 @@ class _SoftRowState extends State<SoftRow> {
   }
 }
 
-/// The 3px bar, at two commitment levels and never amber.
-class _SeverityBar extends StatelessWidget {
-  const _SeverityBar({required this.spec});
+/// The severity mark, at two commitment levels and never amber.
+///
+/// A **dot** on a card and a **bar** on Veld's flush row. The two commitment
+/// levels are the same crimson at both, and what separates them is the
+/// silhouette — filled for critical, a ring for watch — plus the word the
+/// caller passes as `severityLabel`, which is what survives greyscale,
+/// deuteranopia, glare and a screen reader.
+class _SeverityMark extends StatelessWidget {
+  const _SeverityMark({required this.spec});
 
   final SoftRowSpec spec;
 
@@ -450,7 +481,8 @@ class _SeverityBar extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: solid,
-          // Watch is a stroke around an empty channel, not the critical bar at
+          shape: spec.markIsDot ? BoxShape.circle : BoxShape.rectangle,
+          // Watch is a stroke around an empty mark, not the critical one at
           // 40% opacity: opacity is banned as a state channel, and an alpha
           // step is a state the CI contrast walk cannot see.
           border: spec.barStroke == null

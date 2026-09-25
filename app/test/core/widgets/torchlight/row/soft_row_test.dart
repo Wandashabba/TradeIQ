@@ -64,17 +64,41 @@ void main() {
       }
     });
 
-    test('a list row is flush and radius 0; a standalone row is radius 14 on '
-        'surface with an edgeStructure outline', () {
+    /// OWNER OVERRIDE, 25 September 2026. This test used to pin unify §1.3's
+    /// flush list row — `radius 0`, no fill, a 1px rule — and it pinned it
+    /// correctly. The owner overruled the ruling after looking at the running
+    /// screens twice ("I hate this box style"; "it's still very boxy and I
+    /// don't need that"), so the pin moves to the values the override
+    /// declares rather than being deleted: radius 22, `surface`, no resting
+    /// outline, a gap of ground instead of a rule. Veld's flush row is
+    /// asserted below, because the exception is the part most likely to be
+    /// "fixed" back by somebody reading unify §1.3 alone.
+    test('a list row is a radius-22 card on surface with no outline; a '
+        'standalone row is radius 14 with an edgeStructure outline', () {
       final skin = TiqSkin.night();
       final list = SoftRowSpec.resolve(skin: skin);
-      expect(list.radius, 0);
+      expect(list.radius, 22);
       expect(
         list.fill,
-        isNull,
-        reason: 'a list row is transparent over ground',
+        skin.palette.surface,
+        reason: 'the card carries the declared composited hex, not an opacity',
       );
-      expect(list.outline, isNull);
+      expect(list.outline, isNull, reason: 'a card has no resting border');
+      expect(list.margin, TiqSpace.s4);
+      expect(list.gapAfter, TiqSpace.s3);
+      expect(
+        list.separatorColour,
+        isNull,
+        reason: 'ground separates two cards; a rule between them is the table '
+            'look the card grammar leaves behind',
+      );
+
+      final veld = SoftRowSpec.resolve(skin: TiqSkin.veld());
+      expect(veld.radius, 0, reason: 'Veld keeps the flush row');
+      expect(veld.fill, isNull);
+      expect(veld.margin, 0);
+      expect(veld.gapAfter, 0);
+      expect(veld.separatorWidth, 2);
 
       final standalone = SoftRowSpec.resolve(
         skin: skin,
@@ -114,14 +138,43 @@ void main() {
           critical.textInset(hasLeading: false),
           plain.textInset(hasLeading: false),
         );
-        expect(plain.severityLane, 3 + TiqSpace.s3);
+        // The lane is the dot's diameter plus its gap. It was 3 + s3 while
+        // the mark was a bar; the override makes it a dot and the dot is 8.
+        expect(plain.severityLane, TiqSpace.s2 + TiqSpace.s3);
+        expect(plain.markIsDot, isTrue);
+        expect(
+          SoftRowSpec.resolve(skin: TiqSkin.veld()).markIsDot,
+          isFalse,
+          reason: 'Veld keeps the bar, because it keeps the flush row',
+        );
       },
     );
   });
 
-  group('separation — the rule and who gets which one', () {
-    testWidgets('a tappable row is separated by edgeStructure', (tester) async {
+  group('separation — ground on a card, a rule in Veld', () {
+    testWidgets('a card is separated by ground, and paints no rule at all', (
+      tester,
+    ) async {
       final skin = TiqSkin.night();
+      await pumpRow(
+        tester,
+        skin: skin,
+        child: SoftRow(title: 'Kasi Corner Spaza', onTap: () {}),
+      );
+      expect(
+        _separatorColours(tester),
+        isEmpty,
+        reason:
+            'a line between two objects that already have edges is the table '
+            'look the card grammar exists to leave behind',
+      );
+      expect(SoftRowSpec.resolve(skin: skin).gapAfter, TiqSpace.s3);
+    });
+
+    testWidgets('a tappable Veld row is separated by edgeStructure', (
+      tester,
+    ) async {
+      final skin = TiqSkin.veld();
       await pumpRow(
         tester,
         skin: skin,
@@ -130,26 +183,34 @@ void main() {
       expect(_separatorColours(tester), contains(skin.palette.edgeStructure));
     });
 
-    testWidgets('a non-tappable row is separated by the decorative hairline', (
-      tester,
-    ) async {
-      final skin = TiqSkin.night();
+    testWidgets('a non-tappable Veld row is separated by the decorative '
+        'hairline', (tester) async {
+      final skin = TiqSkin.veld();
       await pumpRow(
         tester,
         skin: skin,
         child: const SoftRow(title: 'Kasi Corner Spaza'),
       );
       expect(_separatorColours(tester), contains(skin.palette.hairline));
+      // The resolved token, not the painted pixel: Veld declares `hairline`
+      // and `edgeStructure` as the same #1B2632 — "every hairline a 2px
+      // border" is its own ruling — so a paint comparison cannot tell the two
+      // apart there, and the choice the row makes still has to be the right
+      // one for the skins where they differ.
       expect(
-        _separatorColours(tester),
-        isNot(contains(skin.palette.edgeStructure)),
+        SoftRowSpec.resolve(skin: skin, tappable: false).separatorColour,
+        skin.palette.hairline,
+      );
+      expect(
+        SoftRowSpec.resolve(skin: skin).separatorColour,
+        skin.palette.edgeStructure,
       );
     });
 
-    testWidgets('the rule is inset to the text edge, not full bleed', (
+    testWidgets('the Veld rule is inset to the text edge, not full bleed', (
       tester,
     ) async {
-      final skin = TiqSkin.night();
+      final skin = TiqSkin.veld();
       await pumpRow(
         tester,
         skin: skin,
@@ -170,10 +231,12 @@ void main() {
       );
     });
 
-    testWidgets('the last row in a group draws no rule', (tester) async {
+    testWidgets('the last row in a group draws no rule and holds no gap', (
+      tester,
+    ) async {
       await pumpRow(
         tester,
-        skin: TiqSkin.night(),
+        skin: TiqSkin.veld(),
         child: SoftRow(
           title: 'Kasi Corner Spaza',
           separator: SoftRowSeparator.none,
@@ -181,25 +244,46 @@ void main() {
         ),
       );
       expect(_separatorColours(tester), isEmpty);
+      expect(
+        SoftRowSpec.resolve(
+          skin: TiqSkin.night(),
+          separated: false,
+        ).gapAfter,
+        0,
+        reason: 'the last card in a group is followed by the screen, not by '
+            'a gap it holds open itself',
+      );
     });
   });
 
   group('pressed — two channels, not one', () {
-    test('the fill steps to lifted AND the rule steps to 2px edgeControl', () {
+    test('a card\'s fill steps to lifted AND it gains an edgeControl edge', () {
       final skin = TiqSkin.night();
       final resting = SoftRowSpec.resolve(skin: skin);
       final pressed = SoftRowSpec.resolve(skin: skin, pressed: true);
 
       expect(pressed.fill, skin.palette.lifted);
+      expect(resting.outline, isNull);
       expect(
-        pressed.separatorColour,
+        pressed.outline,
         skin.palette.edgeControl,
         reason:
-            'lifted on the Night well is 1.49:1 — invisible on a cheap panel '
-            'at 40% backlight. The edge is the channel that carries the press.',
+            'lifted on the Night surface is a small step — invisible on a '
+            'cheap panel at 40% backlight. The edge is the channel that '
+            'carries the press, and a card with no resting border gains one '
+            'rather than thickening one.',
       );
-      expect(pressed.separatorWidth, resting.separatorWidth * 2);
+      expect(pressed.outlineWidth, 1);
       expect(pressed.pressScale, 0.98);
+    });
+
+    test('Veld\'s flush row still steps its rule to 2px edgeControl', () {
+      final skin = TiqSkin.veld();
+      final resting = SoftRowSpec.resolve(skin: skin);
+      final pressed = SoftRowSpec.resolve(skin: skin, pressed: true);
+      expect(pressed.fill, skin.palette.lifted);
+      expect(pressed.separatorColour, skin.palette.edgeControl);
+      expect(pressed.separatorWidth, resting.separatorWidth * 2);
     });
 
     test('the standalone outline steps the same way', () {
@@ -289,7 +373,9 @@ void main() {
         await tester.pump();
         expect(find.byType(Transform), findsNothing);
         expect(_decorationFills(tester), contains(skin.palette.lifted));
-        expect(_separatorColours(tester), contains(skin.palette.edgeControl));
+        // The edge is the other channel, and on a card it is the border the
+        // press adds rather than a rule under it.
+        expect(_borderColours(tester), contains(skin.palette.edgeControl));
         await gesture.up();
         await tester.pump();
       },
@@ -827,6 +913,16 @@ List<Color> _separatorColours(WidgetTester tester) => tester
       ),
     )
     .map((b) => b.color)
+    .toList();
+
+List<Color?> _borderColours(WidgetTester tester) => tester
+    .widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(SoftRow),
+        matching: find.byType(DecoratedBox),
+      ),
+    )
+    .map((b) => (b.decoration as BoxDecoration).border?.top.color)
     .toList();
 
 List<Color?> _decorationFills(WidgetTester tester) => tester

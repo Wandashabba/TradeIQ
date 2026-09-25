@@ -150,6 +150,7 @@ class TiqRadii {
     required this.chip,
     required this.control,
     required this.panel,
+    required this.card,
     required this.plate,
   });
 
@@ -165,6 +166,16 @@ class TiqRadii {
   /// The instrument panel, forms, sheets.
   final double panel;
 
+  /// THE CARD — a list row a person acts on, and the one block that carries a
+  /// figure with it.
+  ///
+  /// Owner override, 25 September 2026: the flush list row of unify §1.3 is
+  /// replaced by a soft rounded card. See `docs/design/torchlight-aisle.md`.
+  /// It is a *bigger* radius than [panel] on purpose — a panel is a container
+  /// and a card is an object, and the mockup the owner signed off reads the
+  /// two apart by exactly this number.
+  final double card;
+
   /// Photographic plates.
   final double plate;
 
@@ -174,7 +185,8 @@ class TiqRadii {
     chip: 6,
     control: 10,
     panel: 14,
-    plate: 20,
+    card: 22,
+    plate: 28,
   );
 
   /// Veld squares everything off: a radius is a soft cue, and Veld has none.
@@ -183,6 +195,7 @@ class TiqRadii {
     chip: 0,
     control: 0,
     panel: 0,
+    card: 0,
     plate: 0,
   );
 
@@ -197,6 +210,7 @@ class TiqRadii {
     chip: lerpDouble(chip, other.chip, t)!,
     control: lerpDouble(control, other.control, t)!,
     panel: lerpDouble(panel, other.panel, t)!,
+    card: lerpDouble(card, other.card, t)!,
     plate: lerpDouble(plate, other.plate, t)!,
   );
 }
