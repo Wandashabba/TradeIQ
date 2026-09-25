@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -244,6 +245,147 @@ void main() {
       // 1.2 km in English is 1,2 km in Afrikaans, and that is the one
       // formatter's job rather than the screen's.
       expect(find.textContaining('1,2'), findsWidgets);
+    });
+  });
+
+  // unify §1.12 and the agent surface's empty-state grammar: display prose is
+  // keyed to LINE COUNT after layout — 1–2 lines stay at 40, 3 lines step to
+  // 32, 4 or more to 26, floor 26. It is the rule that lets a long Afrikaans
+  // headline have a defined shape instead of eating the screen, so it is
+  // pinned at every step rather than at the one the English copy happens to
+  // land on.
+  group('the empty-state headline follows the line-count fitting rule', () {
+    /// Resolve `displayFor` for [headline] inside a real agent skin at
+    /// [width], and hand back the role it chose.
+    Future<TiqTypeToken> roleFor(
+      WidgetTester tester,
+      String headline, {
+      double width = 360,
+      double textScale = 1.0,
+    }) async {
+      late TiqTypeToken role;
+      tester.view
+        ..physicalSize = Size(width, 640)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            agentSkinProvider.overrideWith(() => PinnedAgentSkin(SkinMode.night)),
+          ],
+          child: MediaQuery(
+            data: MediaQueryData(
+              size: Size(width, 640),
+              devicePixelRatio: 1.0,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: TorchlightRoute(
+                child: Builder(
+                  builder: (context) {
+                    role = displayFor(context, headline);
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return role;
+    }
+
+    // The strings below carry explicit line breaks. A headline never does —
+    // but the rule is about a LINE COUNT, and a test that reached that count
+    // by picking a string long enough to wrap would be testing the metrics of
+    // whichever font the test binding loaded rather than the rule. The
+    // English and Afrikaans strings the app actually ships are asserted
+    // underneath, against the ladder rather than against one step.
+    testWidgets('one line stays at display 40', (tester) async {
+      final role = await roleFor(tester, 'One');
+      expect(role.name, 'display');
+      expect(role.size, 40);
+    });
+
+    testWidgets('two lines stay at display 40', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo');
+      expect(role.name, 'display');
+      expect(role.size, 40);
+    });
+
+    testWidgets('three lines step to display.m 32', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo\nThree');
+      expect(role.name, 'display.m');
+      expect(role.size, 32);
+    });
+
+    testWidgets('four lines step to display.s 26, the floor', (tester) async {
+      final role = await roleFor(tester, 'One\nTwo\nThree\nFour');
+      expect(role.name, 'display.s');
+      expect(role.size, 26);
+    });
+
+    testWidgets('and six lines are still 26 — 26 is the floor', (tester) async {
+      final role = await roleFor(tester, 'a\nb\nc\nd\ne\nf');
+      expect(role.size, 26);
+    });
+
+    testWidgets('there is no step between 40 and 32', (tester) async {
+      // The old helper stepped display → title.l → title.m and returned the
+      // first role that laid out in two lines, so a three-line headline came
+      // back at title.l 24 — smaller than the outlet name on the populated
+      // screen two blocks below it. The declared ladder is 40 / 32 / 26 and
+      // nothing else.
+      for (final headline in <String>[
+        'a',
+        'a\nb',
+        'a\nb\nc',
+        'a\nb\nc\nd',
+        'a\nb\nc\nd\ne',
+      ]) {
+        final role = await roleFor(tester, headline);
+        expect(
+          <double>[40, 32, 26],
+          contains(role.size),
+          reason: '"$headline" resolved to ${role.name} at ${role.size}',
+        );
+      }
+    });
+
+    for (final (locale, headline) in <(Locale, String)>[
+      (const Locale('en'), 'No route planned for today'),
+      (const Locale('af'), 'Geen roete vir vandag beplan nie'),
+    ]) {
+      testWidgets(
+        'the shipped ${locale.languageCode} headline is on the ladder',
+        (tester) async {
+          await _pump(tester, route: null, locale: locale);
+          final text = tester.widget<Text>(find.text(headline));
+          expect(
+            <double?>[40, 32, 26],
+            contains(text.style!.fontSize),
+            reason:
+                'the empty-state headline is display prose under the fitting '
+                'rule, never title.l and never a hand-picked size',
+          );
+        },
+      );
+    }
+
+    testWidgets('2.0x Afrikaans still resolves to a declared step', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        route: null,
+        locale: const Locale('af'),
+        textScale: 2.0,
+      );
+      final text = tester.widget<Text>(
+        find.text('Geen roete vir vandag beplan nie'),
+      );
+      expect(<double?>[40, 32, 26], contains(text.style!.fontSize));
     });
   });
 

@@ -88,7 +88,7 @@ void main() {
       });
     });
 
-    test('every skin declares the same sixteen roles', () {
+    test('every skin declares the same eighteen roles', () {
       final names = skins.values
           .map((s) => s.text.all.map((t) => t.name).join(','))
           .toSet();
@@ -97,7 +97,7 @@ void main() {
         hasLength(1),
         reason: 'A skin is a value set, not a different scale.',
       );
-      expect(names.single.split(','), hasLength(16));
+      expect(names.single.split(','), hasLength(18));
     });
   });
 

@@ -750,32 +750,43 @@ class _TodayMessage extends StatelessWidget {
 
 /// The display fitting rule, keyed to LINE COUNT after layout.
 ///
-/// unify §1.12: 1–2 lines stay at display, 3 lines step down, 4 or more step
-/// down again, with a floor. Display prose was the one type role with no
-/// fitting rule, and an Afrikaans headline at 2.0× ate the screen.
+/// unify §1.12 and the agent surface's empty-state grammar: **1–2 lines stay
+/// at 40, 3 lines step to 32, 4 or more to 26, floor 26.** Display prose was
+/// the one type role with no fitting rule while `hero.figure` had one keyed to
+/// glyph count, and an Afrikaans headline at 2.0× ate the screen.
 ///
-/// This is the cheap half of it — a measurement of the string against the
-/// gutter at the live scaler. It lives here rather than in the type scale
-/// because only whole-screen states use it.
+/// ## What this used to do, and why it was not the rule
+///
+/// It stepped *display → title.l → title.m*, returning the first role that
+/// laid out in two lines or fewer. Two things were wrong with that. The scale
+/// it stepped through was 40 → 24 → 16, not the declared 40 → 32 → 26: a
+/// three-line Afrikaans headline landed at `title.l`, which is the role an
+/// outlet name wears inside a card, so the screen's one headline was set
+/// smaller than the store name two blocks under it. And it was keyed to "does
+/// this role fit in two lines", which is a search, not the rule — the rule
+/// counts the lines the *display* role takes and picks the step from that
+/// count, so the same string always resolves to the same size no matter which
+/// roles happen to exist between them.
+///
+/// The measurement is against the body's own width at the live scaler, and it
+/// lives here rather than in the type scale because only whole-screen states
+/// use it.
 TiqTypeToken displayFor(BuildContext context, String headline) {
   final skin = context.skin;
   final width = MediaQuery.sizeOf(context).width - skin.space.gutter * 2;
   final scaler = MediaQuery.textScalerOf(context);
-  for (final role in <TiqTypeToken>[
-    skin.text.display,
-    skin.text.titleL,
-    skin.text.titleM,
-  ]) {
-    final painter = TextPainter(
-      text: TextSpan(text: headline, style: role.style()),
-      textDirection: TextDirection.ltr,
-      textScaler: scaler,
-    )..layout(maxWidth: width);
-    final lines = painter.computeLineMetrics().length;
-    painter.dispose();
-    if (lines <= 2) return role;
-  }
-  return skin.text.titleM;
+  final painter = TextPainter(
+    text: TextSpan(text: headline, style: skin.text.display.style()),
+    textDirection: Directionality.of(context),
+    textScaler: scaler,
+  )..layout(maxWidth: width);
+  final lines = painter.computeLineMetrics().length;
+  painter.dispose();
+  return switch (lines) {
+    <= 2 => skin.text.display,
+    3 => skin.text.displayM,
+    _ => skin.text.displayS,
+  };
 }
 
 /// The skeleton: the real geometry, empty. Not a spinner, and not a `well`

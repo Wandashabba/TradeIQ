@@ -135,6 +135,8 @@ class TiqType {
     required this.heroFigure,
     required this.heroFigureCompact,
     required this.display,
+    required this.displayM,
+    required this.displayS,
     required this.figureL,
     required this.figureM,
     required this.figureS,
@@ -157,8 +159,24 @@ class TiqType {
   /// 4–6 glyphs.
   final TiqTypeToken heroFigureCompact;
 
-  /// 7+ glyphs, and the empty-state headline.
+  /// 7+ glyphs, and the empty-state headline at one or two lines.
   final TiqTypeToken display;
+
+  /// The display role's **three lines** step (unify §1.12).
+  ///
+  /// Display prose was the one type role with no fitting rule while
+  /// `hero.figure` had one keyed to glyph count. It is now keyed to LINE
+  /// COUNT after layout: 1–2 lines stay at [display] (40), 3 lines step to
+  /// this (32), 4 or more to [displayS] (26), which is the floor.
+  ///
+  /// These are declared members of the scale rather than a `copyWith` at the
+  /// call site, because a size that only exists inside one screen's helper is
+  /// a size no contrast walk, no render sampler and no text-scale cap ever
+  /// sees. `displayFor` in the empty-state grammar picks between the three.
+  final TiqTypeToken displayM;
+
+  /// The display role's **four-or-more lines** step, and its floor.
+  final TiqTypeToken displayS;
 
   /// Stat tiles.
   final TiqTypeToken figureL;
@@ -204,6 +222,8 @@ class TiqType {
     heroFigure,
     heroFigureCompact,
     display,
+    displayM,
+    displayS,
     figureL,
     figureM,
     figureS,
@@ -250,6 +270,24 @@ class TiqType {
     weight: _w6,
     height: 1.00,
     trackingPercent: -1.5,
+  );
+
+  static const TiqTypeToken _displayM = TiqTypeToken(
+    name: 'display.m',
+    kind: TiqTypeKind.prose,
+    size: 32,
+    weight: _w6,
+    height: 1.05,
+    trackingPercent: -1.0,
+  );
+
+  static const TiqTypeToken _displayS = TiqTypeToken(
+    name: 'display.s',
+    kind: TiqTypeKind.prose,
+    size: 26,
+    weight: _w6,
+    height: 1.15,
+    trackingPercent: -0.5,
   );
 
   static const TiqTypeToken _figureL = TiqTypeToken(
@@ -345,6 +383,8 @@ class TiqType {
     heroFigure: _heroFigure,
     heroFigureCompact: _heroFigureCompact,
     display: _display,
+    displayM: _displayM,
+    displayS: _displayS,
     figureL: _figureL,
     figureM: _figureM,
     figureS: _figureS,
@@ -384,6 +424,8 @@ class TiqType {
     heroFigure: _heroFigure,
     heroFigureCompact: _heroFigureCompact,
     display: _display,
+    displayM: _displayM,
+    displayS: _displayS,
     figureL: _figureL,
     figureM: _figureM,
     figureS: _figureS,
@@ -446,6 +488,21 @@ class TiqType {
       weight: _w7,
       height: 1.05,
       trackingPercent: -1.0,
+    ),
+    displayM: TiqTypeToken(
+      name: 'display.m',
+      kind: TiqTypeKind.prose,
+      size: 32,
+      weight: _w7,
+      height: 1.10,
+      trackingPercent: -0.5,
+    ),
+    displayS: TiqTypeToken(
+      name: 'display.s',
+      kind: TiqTypeKind.prose,
+      size: 26,
+      weight: _w7,
+      height: 1.20,
     ),
     figureL: TiqTypeToken(
       name: 'figure.l',
