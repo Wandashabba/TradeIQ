@@ -185,11 +185,28 @@ void main() {
     ) async {
       await pump(tester, repo: FakeSchedulesRepository());
 
-      expect(find.widgetWithText(SectionRule, 'Active'), findsOneWidget);
+            // MOVED 25 September 2026 — the owner made The Floor's grammar global.
+      // The section marker is words on the ground, uppercase and
+      // letter-spaced, with no line across the screen. The string itself is
+      // still sentence case; the shout is presentation, so a screen reader
+      // is handed the sentence. See `section_rule.dart` and unify §1.17.
+      expect(
+        find.descendant(
+          of: find.byType(SectionRule),
+          matching: find.textContaining('ACTIVE · '),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Coverage by outlet'), findsOneWidget);
       // Past the fold on a 360dp phone, which is where it genuinely is.
       await scrollWorklistTo(tester, find.text('Sales by SKU'));
-      expect(find.widgetWithText(SectionRule, 'Off'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SectionRule),
+          matching: find.textContaining('OFF · '),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Sales by SKU'), findsOneWidget);
     });
 

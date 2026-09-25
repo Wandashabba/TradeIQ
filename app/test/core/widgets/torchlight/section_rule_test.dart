@@ -11,34 +11,70 @@ import 'torch_harness.dart';
 
 void main() {
   group('section rule', () {
-    testWidgets('is the name, sentence case, on a rule', (tester) async {
+    // MOVED 25 September 2026. These four asserted the marker was sentence
+    // case on a rule and that "NEEDS A DECISION" was the thing the component
+    // replaced. The owner looked at the finished Floor — whose one marker is
+    // exactly that uppercase kicker, on the ground, with no line — and said to
+    // make its design global. unify §1.17's "every other screen keeps the
+    // knocked-out rule; this is not a licence to delete it" is the sentence
+    // that was overridden; §1.17 now records the override.
+    //
+    // The half that did NOT move is asserted harder below: the **string** is
+    // still sentence case, because the uppercase is presentation. A call site
+    // that shouts in the data reaches a screen reader that spells it out, a
+    // search index and the PDF exporter, and the component still asserts
+    // against it.
+    testWidgets('is the name, uppercase, on the ground', (tester) async {
       await pumpTorch(
         tester,
         skin: TiqSkin.night(),
         child: const SectionRule('Needs a decision'),
       );
 
-      expect(find.text('Needs a decision'), findsOneWidget);
-      expect(find.text('NEEDS A DECISION'), findsNothing);
+      expect(find.text('NEEDS A DECISION'), findsOneWidget);
+      expect(find.text('Needs a decision'), findsNothing);
+      // No line across the screen. The gap of ground between cards is the
+      // boundary now, and a rule drawn across it is the "one more box" the
+      // owner objected to twice.
+      expect(
+        find.descendant(
+          of: find.byType(SectionRule),
+          matching: find.byType(ColoredBox),
+        ),
+        findsNothing,
+      );
     });
 
-    testWidgets('a count rides inside the same knock-out, in mono', (
+    testWidgets('the string stays sentence case, and it is asserted', (
       tester,
     ) async {
+      // The shout is presentation. A call site that puts it in the data is a
+      // call site whose string reaches a screen reader, and this is the guard.
+      await pumpTorch(
+        tester,
+        skin: TiqSkin.night(),
+        child: const SectionRule('NEEDS A DECISION'),
+      );
+      expect(tester.takeException(), isAssertionError);
+    });
+
+    testWidgets('a count rides in the marker’s own words', (tester) async {
       await pumpTorch(
         tester,
         skin: TiqSkin.night(),
         child: const SectionRule('Needs a decision', count: 5),
       );
 
-      expect(find.text('Needs a decision'), findsOneWidget);
-      // Through FigureSlot, like every other figure: a count set in the prose
-      // face beside a column of mono numbers is the inconsistency the one
-      // formatter exists to end.
-      expect(find.text('5'), findsOneWidget);
+      // Not a separate mono figure beside the words — that is the "count
+      // chip" the override names — and not dropped either: it is how many are
+      // in the section, which is exactly what a manager deciding whether to
+      // open it is reading.
+      expect(find.text('NEEDS A DECISION · 5'), findsOneWidget);
     });
 
-    testWidgets('an empty section keeps its rule and says why', (tester) async {
+    testWidgets('an empty section keeps its marker and says why', (
+      tester,
+    ) async {
       await pumpTorch(
         tester,
         skin: TiqSkin.night(),
@@ -50,7 +86,7 @@ void main() {
 
       // A section that vanishes when empty makes a manager think the feature
       // is gone.
-      expect(find.text('Needs a decision'), findsOneWidget);
+      expect(find.text('NEEDS A DECISION'), findsOneWidget);
       expect(find.text('Everything triaged.'), findsOneWidget);
     });
 
@@ -159,7 +195,7 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Needs a decision'), findsOneWidget);
+      expect(find.text('NEEDS A DECISION · 12'), findsOneWidget);
     });
 
     testWidgets('Afrikaans wraps the same way', (tester) async {

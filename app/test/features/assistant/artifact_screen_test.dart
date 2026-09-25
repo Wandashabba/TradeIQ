@@ -596,7 +596,7 @@ void main() {
         locale: const Locale('af'),
       );
 
-      expect(find.text('Filters'), findsOneWidget);
+      expect(find.text('Filters'.toUpperCase()), findsOneWidget);
       expect(find.text('Vandag'), findsWidgets);
       expect(find.text('Daagliks'), findsOneWidget);
       expect(find.text('Voer uit as ’n PDF'), findsOneWidget);

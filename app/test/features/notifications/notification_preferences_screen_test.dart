@@ -232,7 +232,7 @@ void main() {
       await _pump(tester, repository, role: 'manager');
 
       expect(find.text('Notifications'), findsWidgets);
-      expect(find.text('Push notifications'), findsOneWidget);
+      expect(find.text('Push notifications'.toUpperCase()), findsOneWidget);
       for (final label in <String>[
         'Alerts',
         'Tasks assigned to you',

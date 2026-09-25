@@ -172,7 +172,7 @@ void main() {
   group('open pin reports', () {
     testWidgets('are silent when there are none', (tester) async {
       await _pump(tester, outlets: _outlets);
-      expect(find.text('Open pin reports'), findsNothing);
+      expect(find.textContaining('Open pin reports'.toUpperCase()), findsNothing);
     });
 
     testWidgets('name the agent and how far they stood', (tester) async {
@@ -182,7 +182,7 @@ void main() {
         disputes: <PinDispute>[_dispute()],
       );
 
-      expect(find.text('Open pin reports'), findsOneWidget);
+      expect(find.textContaining('Open pin reports'.toUpperCase()), findsOneWidget);
       expect(
         find.text('Thandi Mokoena stood 8.4 km away'),
         findsOneWidget,
@@ -210,7 +210,7 @@ void main() {
 
       // A manager who cannot reach the disputes endpoint still needs the
       // store list underneath it.
-      expect(find.text('Open pin reports'), findsNothing);
+      expect(find.textContaining('Open pin reports'.toUpperCase()), findsNothing);
       expect(find.text('Test Hypermarket'), findsOneWidget);
     });
   });
@@ -297,7 +297,7 @@ void main() {
       );
       expect(find.text('Winkels'), findsWidgets);
       expect(find.text('Geen koördinate op rekord nie'), findsOneWidget);
-      expect(find.text('Oop pen-verslae'), findsOneWidget);
+      expect(find.textContaining('Oop pen-verslae'.toUpperCase()), findsOneWidget);
       // The severity word lives in the row's spoken label, which is where it
       // has to be legible too.
       final row = tester.widget<SoftRow>(

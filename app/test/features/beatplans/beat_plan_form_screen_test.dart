@@ -291,7 +291,7 @@ void main() {
     testWidgets('Afrikaans has no English left on it', (tester) async {
       await _pump(tester, locale: const Locale('af'));
       expect(find.text('Nuwe besoekplan'), findsWidgets);
-      expect(find.text('Die dag'), findsOneWidget);
+      expect(find.text('Die dag'.toUpperCase()), findsOneWidget);
       expect(find.text('Plannaam'), findsOneWidget);
       expect(find.text('The day'), findsNothing);
     });

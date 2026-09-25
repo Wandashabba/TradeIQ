@@ -89,7 +89,7 @@ void main() {
     );
     expect(find.text('Promo Check'), findsOneWidget);
     expect(find.textContaining('Asked on every visit'), findsOneWidget);
-    expect(find.text('Promo stand'), findsOneWidget);
+    expect(find.text('Promo stand'.toUpperCase()), findsOneWidget);
     expect(find.text('Is the promo stand up?'), findsOneWidget);
     expect(find.text('Promo facings'), findsOneWidget);
     expect(find.text('Required'), findsOneWidget);

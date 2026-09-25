@@ -133,7 +133,7 @@ void main() {
     testWidgets('they are grouped by the three verbs', (tester) async {
       await pumpMenu(tester);
       for (final name in <String>['Operate', 'Insight', 'Configure']) {
-        expect(find.text(name), findsOneWidget);
+        expect(find.text(name.toUpperCase()), findsOneWidget);
       }
     });
 
@@ -236,9 +236,9 @@ void main() {
       await pumpMenu(tester, locale: const Locale('af'));
 
       expect(find.text('Kieslys'), findsOneWidget);
-      expect(find.text('Bedryf'), findsOneWidget);
-      expect(find.text('Insig'), findsOneWidget);
-      expect(find.text('Stel op'), findsOneWidget);
+      expect(find.text('Bedryf'.toUpperCase()), findsOneWidget);
+      expect(find.text('Insig'.toUpperCase()), findsOneWidget);
+      expect(find.text('Stel op'.toUpperCase()), findsOneWidget);
       expect(find.text('Die Vloer'), findsOneWidget);
       // The English words are nowhere on an Afrikaans screen.
       for (final english in <String>[

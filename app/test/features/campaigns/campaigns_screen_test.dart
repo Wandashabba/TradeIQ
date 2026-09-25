@@ -125,8 +125,8 @@ void main() {
 
       expect(find.byType(TorchSheet), findsOneWidget);
       expect(repo.calls, containsAll(<String>['compliance:c1', 'roi:c1']));
-      expect(find.text('Coverage'), findsOneWidget);
-      expect(find.text('Compliance'), findsOneWidget);
+      expect(find.text('Coverage'.toUpperCase()), findsOneWidget);
+      expect(find.text('Compliance'.toUpperCase()), findsOneWidget);
 
       // Figures through the one formatter: a percent sign, never a
       // `toStringAsFixed` and never an en_US group mark.
@@ -134,7 +134,7 @@ void main() {
       expect(find.textContaining('88.5', findRichText: true), findsOneWidget);
 
       await scrollSheetTo(tester, find.byType(CampaignReturnView));
-      expect(find.text('Return'), findsOneWidget);
+      expect(find.text('Return'.toUpperCase()), findsOneWidget);
       expect(find.byType(CampaignReturnView), findsOneWidget);
     });
 
@@ -145,7 +145,7 @@ void main() {
       await tester.tap(find.text('Summer Push'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Coverage'), findsOneWidget);
+      expect(find.text('Coverage'.toUpperCase()), findsOneWidget);
       expect(keyed('return-error'), findsOneWidget);
       // Sanitised: the exception's own text never reaches a screenshot.
       expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
@@ -170,7 +170,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 700));
 
-      expect(find.text('Coverage'), findsOneWidget);
+      expect(find.text('Coverage'.toUpperCase()), findsOneWidget);
       expect(keyed('return-loading'), findsOneWidget);
     });
   });

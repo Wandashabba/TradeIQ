@@ -124,7 +124,7 @@ void main() {
       // None of the panels render at all — a scoreboard of noughts is the
       // thing this state exists to avoid.
       expect(find.byKey(const ValueKey<String>('kpi-execution-score')), findsNothing);
-      expect(find.text('Where are my agents'), findsNothing);
+      expect(find.text('Where are my agents'.toUpperCase()), findsNothing);
     });
   });
 
@@ -336,7 +336,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Perfect-store distribution'), findsOneWidget);
+      expect(find.textContaining('Perfect-store distribution'.toUpperCase()), findsOneWidget);
       final band = tester.widget<SoftRow>(
         find.byKey(const ValueKey<String>('band-80–100')),
       );
@@ -347,7 +347,7 @@ void main() {
       'no bands at all hides the panel — five zero bars is not a measurement',
       (tester) async {
         await _pump(tester, current: kpis());
-        expect(find.text('Perfect-store distribution'), findsNothing);
+        expect(find.textContaining('Perfect-store distribution'.toUpperCase()), findsNothing);
       },
     );
   });
@@ -735,16 +735,19 @@ void main() {
 
       expect(find.text('Uitvoeringsoorsig'), findsWidgets);
       expect(find.text('Laaste 30 dae'), findsWidgets);
-      expect(find.text('Benodig aandag'), findsOneWidget);
-      expect(find.text('Waar ons teenoor die standaard staan'), findsOneWidget);
+      expect(find.text('Benodig aandag'.toUpperCase()), findsOneWidget);
+      expect(find.text('Waar ons teenoor die standaard staan'.toUpperCase()), findsOneWidget);
       // And none of the English it replaced.
       expect(find.text('Execution overview'), findsNothing);
       expect(find.text('Needs attention'), findsNothing);
 
       // Past the fold, where a half-translated route usually hides.
-      await scrollOverviewTo(tester, find.text('Waar is my agente'));
-      expect(find.text('Waar is my agente'), findsOneWidget);
-      expect(find.text('Where are my agents'), findsNothing);
+      await scrollOverviewTo(
+        tester,
+        find.text('Waar is my agente'.toUpperCase()),
+      );
+      expect(find.text('Waar is my agente'.toUpperCase()), findsOneWidget);
+      expect(find.text('Where are my agents'.toUpperCase()), findsNothing);
     });
   });
 }

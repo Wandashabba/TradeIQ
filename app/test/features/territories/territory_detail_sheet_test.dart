@@ -378,7 +378,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Veldagente'), findsOneWidget);
+      expect(find.textContaining('Veldagente'.toUpperCase()), findsOneWidget);
       expect(find.text('Kies eers ’n veldagent.'), findsOneWidget);
       expect(find.text('Nie meer aktief nie'), findsOneWidget);
       expect(find.text('Field agents'), findsNothing);

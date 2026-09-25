@@ -396,7 +396,7 @@ void main() {
       expect(row.stateWord, 'Held');
       expect(row.sentence, 'Held until you sign in');
       expect(find.text('Needs you'), findsNothing);
-      expect(find.text('Waiting to send'), findsOneWidget);
+      expect(find.textContaining('Waiting to send'.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('signed out while a flush runs: still held, never sending', (

@@ -565,7 +565,7 @@ void main() {
         ),
       );
 
-      await scrollOpsTo(tester, find.text('Change history'));
+      await scrollOpsTo(tester, find.textContaining('Change history'.toUpperCase()));
       expect(find.textContaining('Pin moved from'), findsOneWidget);
       expect(
         find.textContaining("from an agent's recorded position"),
@@ -597,7 +597,7 @@ void main() {
         ),
       );
 
-      await scrollOpsTo(tester, find.text('Change history'));
+      await scrollOpsTo(tester, find.textContaining('Change history'.toUpperCase()));
       expect(find.textContaining('not recorded'), findsOneWidget);
       expect(find.textContaining('0.00000'), findsNothing);
     });
@@ -689,9 +689,15 @@ void main() {
         ),
         locale: const Locale('af'),
       );
-      expect(find.text('Hierdie winkel'), findsOneWidget);
-      await _reveal(tester, find.text('Afgekeurde inklokke'));
-      expect(find.text('Afgekeurde inklokke'), findsOneWidget);
+      expect(find.text('Hierdie winkel'.toUpperCase()), findsOneWidget);
+      await _reveal(
+        tester,
+        find.textContaining('Afgekeurde inklokke'.toUpperCase()),
+      );
+      expect(
+        find.textContaining('Afgekeurde inklokke'.toUpperCase()),
+        findsOneWidget,
+      );
       expect(find.text('This store'), findsNothing);
     });
 

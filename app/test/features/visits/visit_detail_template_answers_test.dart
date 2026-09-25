@@ -80,7 +80,7 @@ void main() {
           find.byKey(const ValueKey<String>('visit-template-tpl-1')),
           findsOneWidget,
         );
-        expect(find.text('Client questions · Promo Check'), findsOneWidget);
+        expect(find.text('Client questions · Promo Check'.toUpperCase()), findsOneWidget);
 
         // Labels resolved from the schema, answers in words.
         final standUp = tester.widget<SoftRow>(_rowFor('standUp'));
@@ -183,12 +183,12 @@ void main() {
       ),
     );
 
-    expect(find.text('Kliëntvrae · Promo Check'), findsOneWidget);
+    expect(find.text('Kliëntvrae · Promo Check'.toUpperCase()), findsOneWidget);
     expect(find.textContaining('Beantwoord teen v2'), findsOneWidget);
     final standUp = tester.widget<SoftRow>(_rowFor('standUp'));
     expect(standUp.title, contains('(verpligtend)'));
     expect(standUp.semanticsLabel, contains('Ja'));
-    expect(find.text('Client questions · Promo Check'), findsNothing);
+    expect(find.text('Client questions · Promo Check'.toUpperCase()), findsNothing);
   });
 
   test('parses templateResponses from GET /visits/:id', () {

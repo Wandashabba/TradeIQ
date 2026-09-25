@@ -573,12 +573,15 @@ void main() {
       );
 
       expect(find.textContaining('Besoekhersiening'), findsWidgets);
-      expect(find.text('Die besoek'), findsOneWidget);
+      expect(find.text('Die besoek'.toUpperCase()), findsOneWidget);
       expect(find.text('Aangemeld'), findsOneWidget);
-      expect(find.text('Perfekte-winkel telling'), findsOneWidget);
-      expect(find.text('Hoe dit bepunt is'), findsOneWidget);
-      expect(find.text('Wat vasgelê is'), findsOneWidget);
-      expect(find.text('Bedrogseine'), findsOneWidget);
+      expect(find.text('Perfekte-winkel telling'.toUpperCase()), findsOneWidget);
+      expect(find.text('Hoe dit bepunt is'.toUpperCase()), findsOneWidget);
+      expect(
+        find.textContaining('Wat vasgelê is'.toUpperCase()),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Bedrogseine'.toUpperCase()), findsOneWidget);
       // And none of the English it replaced.
       expect(find.text('The visit'), findsNothing);
       expect(find.text('Perfect store score'), findsNothing);

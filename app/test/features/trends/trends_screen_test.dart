@@ -147,9 +147,9 @@ void main() {
     testWidgets('three series, each with a chart and a legend', (tester) async {
       await _pump(tester);
 
-      expect(find.text('Scorecard trend'), findsOneWidget);
-      expect(find.text('Availability trend'), findsOneWidget);
-      expect(find.text('Perfect store trend'), findsOneWidget);
+      expect(find.text('Scorecard trend'.toUpperCase()), findsOneWidget);
+      expect(find.text('Availability trend'.toUpperCase()), findsOneWidget);
+      expect(find.text('Perfect store trend'.toUpperCase()), findsOneWidget);
       expect(find.byType(TrendChart), findsNWidgets(3));
       // The legend is not optional: TrendChart builds one from the series it
       // was handed, so a caller cannot ship a chart without a key.
@@ -449,7 +449,7 @@ void main() {
       await _compare(tester);
 
       expect(
-        find.text('Gauteng North against the client average'),
+        find.text('Gauteng North against the client average'.toUpperCase()),
         findsOneWidget,
       );
 
@@ -459,7 +459,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Western Cape against the client average'),
+        find.text('Western Cape against the client average'.toUpperCase()),
         findsOneWidget,
       );
       // Selection is a word on the row, never a fill: a list of fifteen fills
@@ -819,14 +819,14 @@ void main() {
       await _pump(tester, locale: const Locale('af'));
 
       expect(find.text('Tendense'), findsWidgets);
-      expect(find.text('Telkaart-tendens'), findsOneWidget);
+      expect(find.text('Telkaart-tendens'.toUpperCase()), findsOneWidget);
       await scrollRailTo(
         tester,
         find.byType(TorchFilterRail).first,
         find.byKey(const ValueKey<String>('trend-daterange')),
       );
       expect(find.text('Bediener se verstek'), findsOneWidget);
-      expect(find.text('Scorecard trend'), findsNothing);
+      expect(find.text('Scorecard trend'.toUpperCase()), findsNothing);
     });
 
     testWidgets('Afrikaans, comparing territories', (tester) async {

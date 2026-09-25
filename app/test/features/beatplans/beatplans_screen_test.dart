@@ -426,14 +426,20 @@ void main() {
     testWidgets('the list is Afrikaans throughout', (tester) async {
       await _pumpList(tester, locale: const Locale('af'));
       expect(find.text('Besoekplanne'), findsWidgets);
-      expect(find.text('Planne'), findsOneWidget);
+      expect(find.textContaining('Planne'.toUpperCase()), findsOneWidget);
       expect(find.textContaining('Gemis'), findsWidgets);
       expect(find.text('Beat plans'), findsNothing);
     });
 
     testWidgets('the detail is Afrikaans throughout', (tester) async {
       await _pumpDetail(tester, locale: const Locale('af'));
-      expect(find.text('Stoppe'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SectionRule),
+          matching: find.textContaining('Stoppe'.toUpperCase()),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('1 van 2 stoppe'), findsOneWidget);
       expect(find.text('Stops'), findsNothing);
     });
