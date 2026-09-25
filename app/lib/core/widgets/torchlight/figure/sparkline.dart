@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../mark/severity_mark.dart';
+import 'curve.dart';
 
 /// THE 64×20 SLOT.
 ///
@@ -136,14 +137,21 @@ class SparklinePainter extends CustomPainter {
       return Offset(x, inset + h * (1 - t));
     }
 
-    final path = Path()..moveTo(at(0).dx, at(0).dy);
-    for (var i = 1; i < points.length; i++) {
-      final o = at(i);
-      path.lineTo(o.dx, o.dy);
-    }
+    // A monotone cubic, not a polyline: eight readings in 64dp is eight hard
+    // corners, and a shape whose job is *which way this has been going* should
+    // read as a movement rather than as a sawtooth. Monotone because the curve
+    // may not invent a peak — see `curve.dart`; the extrema of this path are
+    // the extrema of the series.
+    final path = monotonePath(<Offset>[
+      for (var i = 0; i < points.length; i++) at(i),
+    ]);
 
     canvas.drawPath(
-      path,
+      // Trimmed short of the end dot, so the dot sits in a gap rather than on
+      // top of the stroke. The usual fix is a 2dp ring in the surface colour,
+      // which this painter cannot draw: a sparkline rides an arbitrary row and
+      // does not know what is behind it. A gap is true on any ground.
+      trimEnd(path, dotRadius + 0.75),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
