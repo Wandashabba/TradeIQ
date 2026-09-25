@@ -691,7 +691,7 @@ class _TemplateAnswers extends StatelessWidget {
         // A question hidden by its condition was never put to the agent.
         if (field.isVisible(given))
           _AnswerRow(
-            key: ValueKey<String>('visit-template-answer-${field.id}'),
+            rowKey: ValueKey<String>('visit-template-answer-${field.id}'),
             label: field.label,
             value: _answerText(l10n, field, given),
             missing: !field.isAnswered(given),
@@ -699,7 +699,7 @@ class _TemplateAnswers extends StatelessWidget {
           ),
       for (final entry in orphans)
         _AnswerRow(
-          key: ValueKey<String>('visit-template-answer-${entry.key}'),
+          rowKey: ValueKey<String>('visit-template-answer-${entry.key}'),
           label: l10n.visitAnswerOrphan(entry.key),
           value: _plain(l10n, entry.value),
           missing: false,
@@ -788,12 +788,16 @@ class _TemplateAnswers extends StatelessWidget {
 
 class _AnswerRow extends StatelessWidget {
   const _AnswerRow({
-    super.key,
+    required this.rowKey,
     required this.label,
     required this.value,
     required this.missing,
     required this.required,
   });
+
+  /// Carried onto the `SoftRow` itself rather than onto this wrapper, so a
+  /// test that finds the row by key gets the row.
+  final Key rowKey;
 
   final String label;
   final String value;
@@ -801,7 +805,6 @@ class _AnswerRow extends StatelessWidget {
 
   /// Whether the template blocks a submit on this question. A required
   /// question left unanswered is a different fact from an optional one.
-  // ignore: avoid_positional_boolean_parameters
   final bool required;
 
   @override
@@ -809,6 +812,7 @@ class _AnswerRow extends StatelessWidget {
     final l10n = context.l10n;
     final skin = context.skin;
     return SoftRow(
+      key: rowKey,
       density: SoftRowDensity.standard,
       title: required ? l10n.visitRequiredQuestion(label) : label,
       trailing: Text(
