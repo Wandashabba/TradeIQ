@@ -941,7 +941,7 @@ void main() {
     testWidgets('Afrikaans has no English left on it', (tester) async {
       await _pump(tester, locale: const Locale('af'));
       expect(find.text('Verkoopsteikens'), findsWidgets);
-      expect(find.text('Teenoor teiken'), findsOneWidget);
+      expect(find.text('Teenoor teiken'.toUpperCase()), findsOneWidget);
       expect(find.text('September 2026'), findsOneWidget);
       expect(find.text('Against target'), findsNothing);
     });

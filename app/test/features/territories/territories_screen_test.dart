@@ -334,7 +334,7 @@ void main() {
       );
 
       expect(find.text('Gebiede'), findsWidgets);
-      expect(find.text('Alle gebiede'), findsOneWidget);
+      expect(find.textContaining('Alle gebiede'.toUpperCase()), findsOneWidget);
       // A hardcoded English string inside an Afrikaans screen is a defect.
       expect(find.text('Territories'), findsNothing);
       expect(tester.takeException(), isNull);

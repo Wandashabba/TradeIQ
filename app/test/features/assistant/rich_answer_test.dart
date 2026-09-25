@@ -273,7 +273,7 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.text('Sources'), findsOneWidget);
+      expect(find.textContaining('Sources'.toUpperCase()), findsOneWidget);
       expect(find.text('iol.co.za'), findsOneWidget);
       expect(find.text('Shoprite launches new stores'), findsOneWidget);
     });
@@ -306,7 +306,7 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.text('Sources'), findsOneWidget);
+      expect(find.textContaining('Sources'.toUpperCase()), findsOneWidget);
       expect(find.text('statssa.gov.za'), findsOneWidget);
       expect(find.textContaining('Released 19 Aug 2026'), findsOneWidget);
     });
@@ -464,10 +464,13 @@ void main() {
       final callout = find.byType(AskCallout);
       expect(callout, findsOneWidget);
       expect(tester.widget<AskCallout>(callout).kicker, 'What explains it');
-      // A section rule in sentence case — never an uppercase eyebrow, and
-      // never a warn-washed box that reads as a warning.
-      expect(find.text('What explains it'), findsOneWidget);
-      expect(find.text('WHAT EXPLAINS IT'), findsNothing);
+      // Uppercase and letter-spaced since 25 September 2026 — the owner
+      // made The Floor's marker the app's. What this line still holds is
+      // the half that did not move: the callout's kicker is the marker and
+      // not a warn-washed box that reads as a warning. The kicker's own
+      // string is asserted sentence case two lines above.
+      expect(find.text('WHAT EXPLAINS IT'), findsOneWidget);
+      expect(find.text('What explains it'), findsNothing);
       expect(
         screenText(tester),
         contains('The 500ml was out of stock at 5 outlets.'),
@@ -486,7 +489,7 @@ void main() {
       expect(find.byType(AskCallout), findsOneWidget);
       expect(tester.widget<AskCallout>(find.byType(AskCallout)).kicker, isNull);
       // The rule takes its standing name.
-      expect(find.text('What explains it'), findsOneWidget);
+      expect(find.text('What explains it'.toUpperCase()), findsOneWidget);
       expect(screenText(tester), contains('Cola ran out at 5 outlets.'));
     });
   });

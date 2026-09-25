@@ -229,9 +229,9 @@ void main() {
         ('the date and the route name', find.textContaining('Tembisa run')),
         ('the sync chip', find.text('All sent')),
         ('the day block', find.byKey(const ValueKey<String>('day-block'))),
-        ('the route figure', find.text('4')),
+        ('the route figure', find.text('4'.toUpperCase())),
         ('the stores left', find.text('5 left')),
-        ('the Next up rule', find.text('Next up')),
+        ('the Next up rule', find.textContaining('Next up'.toUpperCase())),
         ('the next store', find.text('Kasi Corner Spaza')),
         ('its code', find.text('KC-0412')),
         (
@@ -254,9 +254,9 @@ void main() {
       await _pump(tester);
       // The section rule beneath the card is visible, so the screen reads as
       // a day rather than as a single card with something under it.
-      expect(find.text('The rest of the day'), findsOneWidget);
+      expect(find.text('The rest of the day'.toUpperCase()), findsOneWidget);
       expect(
-        tester.getRect(find.text('The rest of the day')).top,
+        tester.getRect(find.text('The rest of the day'.toUpperCase())).top,
         lessThan(_fold(tester)),
       );
     });

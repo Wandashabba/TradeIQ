@@ -77,7 +77,7 @@ void main() {
       );
 
       expect(find.text('Verslagskedules'), findsOneWidget);
-      expect(find.text('Aktief'), findsWidgets);
+      expect(find.textContaining('Aktief'.toUpperCase()), findsWidgets);
       expect(find.text('Weekliks'), findsWidgets);
       expect(find.text('Loop nou'), findsWidgets);
       expect(find.text('Wys ontvangers'), findsWidgets);
@@ -124,7 +124,7 @@ void main() {
       );
 
       expect(find.text('Ouditsjablone'), findsWidgets);
-      expect(find.text('In veldoudits gebruik'), findsOneWidget);
+      expect(find.text('In veldoudits gebruik'.toUpperCase()), findsOneWidget);
       expect(find.text('Gebruik in oudits'), findsWidgets);
 
       expect(find.text('Audit templates'), findsNothing);
@@ -179,7 +179,7 @@ void main() {
       );
 
       expect(find.text('Webhake'), findsWidgets);
-      expect(find.text('Eindpunte'), findsOneWidget);
+      expect(find.textContaining('Eindpunte'.toUpperCase()), findsOneWidget);
       expect(find.text('Voeg ’n eindpunt by'), findsWidgets);
 
       expect(find.text('Webhooks'), findsNothing);

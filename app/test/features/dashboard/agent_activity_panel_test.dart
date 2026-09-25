@@ -703,7 +703,7 @@ void main() {
         tester,
         agents: <AgentActivity>[agent(id: 'a1', name: 'a@x.com')],
       );
-      expect(find.text('Where are my agents'), findsOneWidget);
+      expect(find.text('Where are my agents'.toUpperCase()), findsOneWidget);
       expect(find.byType(Skeleton), findsNothing);
     });
   });

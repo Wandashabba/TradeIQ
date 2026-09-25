@@ -61,10 +61,11 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final text = screenText(tester);
-      // Sentence case on a knocked-out rule — the same grammar as the
-      // callout, and never the uppercase eyebrow the old build used.
-      expect(text, contains('Sources'));
-      expect(text, isNot(contains('SOURCES')));
+      // Uppercase, letter-spaced, on the ground — the same grammar as the
+      // callout, and the same grammar as every other screen since
+      // 25 September 2026. The count rides in the words: `SOURCES · 2`.
+      expect(text, contains('SOURCES'));
+      expect(text, isNot(contains('\nSources')));
       expect(text, contains('iol.co.za'));
       expect(text, contains('Shoprite launches new stores in Gauteng'));
       expect(text, contains('news24.com'));

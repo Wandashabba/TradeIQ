@@ -275,10 +275,10 @@ void main() {
     ) async {
       await _pump(tester);
 
-      await _scrollTo(tester, find.text('Today’s route'));
-      expect(find.text('Today’s route'), findsOneWidget);
-      await _scrollTo(tester, find.text('The rest of your patch'));
-      expect(find.text('The rest of your patch'), findsOneWidget);
+      await _scrollTo(tester, find.textContaining('Today’s route'.toUpperCase()));
+      expect(find.textContaining('Today’s route'.toUpperCase()), findsOneWidget);
+      await _scrollTo(tester, find.textContaining('The rest of your patch'.toUpperCase()));
+      expect(find.textContaining('The rest of your patch'.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('no plan still lists the patch, and says the route is empty', (
@@ -647,10 +647,10 @@ void main() {
       // An overflow is an exception, and an exception fails the test — so the
       // assertion here is that the frame built at all, plus that the list is
       // still the list.
-      await _scrollTo(tester, find.text('Today’s route'));
-      expect(find.text('Today’s route'), findsOneWidget);
-      await _scrollTo(tester, find.text('The rest of your patch'));
-      expect(find.text('The rest of your patch'), findsOneWidget);
+      await _scrollTo(tester, find.textContaining('Today’s route'.toUpperCase()));
+      expect(find.textContaining('Today’s route'.toUpperCase()), findsOneWidget);
+      await _scrollTo(tester, find.textContaining('The rest of your patch'.toUpperCase()));
+      expect(find.textContaining('The rest of your patch'.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('Afrikaans says the states in Afrikaans', (tester) async {
@@ -659,7 +659,7 @@ void main() {
       expect(find.text('Kaart'), findsWidgets);
       await _scrollTo(tester, find.text('Vandag besoek'));
       expect(find.text('Vandag besoek'), findsWidgets);
-      expect(find.text('Vandag se roete'), findsOneWidget);
+      expect(find.textContaining('Vandag se roete'.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('Afrikaans at 2.0× still builds every row', (tester) async {

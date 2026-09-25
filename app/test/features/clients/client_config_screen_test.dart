@@ -386,7 +386,7 @@ void main() {
       await _pump(tester);
       await open(tester);
       expect(keyed('timezone-option-Africa/Johannesburg'), findsOneWidget);
-      expect(find.text('Suggested'), findsOneWidget);
+      expect(find.text('Suggested'.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('a manager finds a zone by searching, and it is saved', (

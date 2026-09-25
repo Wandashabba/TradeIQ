@@ -258,8 +258,19 @@ void main() {
 
     testWidgets('the section rule counts what will be raised', (tester) async {
       await _pump(tester);
-      expect(find.text('This will raise'), findsOneWidget);
-      expect(find.text('2'), findsWidgets);
+      expect(find.textContaining('This will raise'.toUpperCase()), findsOneWidget);
+            // MOVED 25 September 2026 — the owner made The Floor's grammar global.
+      // The section marker is words on the ground, uppercase and
+      // letter-spaced, with no line across the screen. The string itself is
+      // still sentence case; the shout is presentation, so a screen reader
+      // is handed the sentence. See `section_rule.dart` and unify §1.17.
+      // The count is in the marker's words now — `THIS WILL RAISE · 2` —
+      // rather than a mono figure beside them. It is the same information
+      // and this still fails if the gate miscounts.
+      expect(
+        find.textContaining('THIS WILL RAISE · 2'),
+        findsOneWidget,
+      );
     });
   });
 

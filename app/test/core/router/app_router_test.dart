@@ -1009,7 +1009,9 @@ void main() {
 
       await tester.tap(row);
       await tester.pumpAndSettle();
-      expect(find.text('October Sprint'), findsOneWidget);
+      // `my_contests_screen.dart` makes the contest's own name a section
+      // marker, so it sets uppercase since 25 September 2026.
+      expect(find.textContaining('October Sprint'.toUpperCase()), findsOneWidget);
 
       // The row pushes, so back is the record the agent came from — not the
       // leaderboard they never saw, and not Today.
@@ -1030,7 +1032,7 @@ void main() {
       await tester.tap(back);
       await tester.pumpAndSettle();
       expect(find.byType(MyRecordScreen), findsOneWidget);
-      expect(find.text('October Sprint'), findsNothing);
+      expect(find.textContaining('October Sprint'.toUpperCase()), findsNothing);
     });
 
     testWidgets('a manager has no Contests action: /today is not theirs', (
@@ -1072,7 +1074,7 @@ void main() {
       // where there is no name to show yet. Asserting the generic string here
       // would have quietly passed on a spinner.
       expect(find.byType(ContestStandingsScreen), findsOneWidget);
-      expect(find.text('October Sprint'), findsOneWidget);
+      expect(find.textContaining('October Sprint'), findsOneWidget);
 
       // The point of the route: the agents on it, NAMED — not listed by the
       // agent id the API sorts them on. The board is a lazy list under the

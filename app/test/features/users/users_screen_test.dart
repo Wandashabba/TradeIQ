@@ -160,7 +160,12 @@ void main() {
     testWidgets('the section rule counts what it is showing', (tester) async {
       await _pump(tester);
       expect(find.byType(SectionRule), findsOneWidget);
-      expect(find.text('2'), findsWidgets);
+            // MOVED 25 September 2026 — the owner made The Floor's grammar global.
+      // The section marker is words on the ground, uppercase and
+      // letter-spaced, with no line across the screen. The string itself is
+      // still sentence case; the shout is presentation, so a screen reader
+      // is handed the sentence. See `section_rule.dart` and unify §1.17.
+      expect(find.textContaining('· 2'), findsOneWidget);
     });
   });
 

@@ -109,7 +109,12 @@ void main() {
     testWidgets('the section rule counts what it is showing', (tester) async {
       await _pump(tester);
       expect(find.byType(SectionRule), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
+            // MOVED 25 September 2026 — the owner made The Floor's grammar global.
+      // The section marker is words on the ground, uppercase and
+      // letter-spaced, with no line across the screen. The string itself is
+      // still sentence case; the shout is presentation, so a screen reader
+      // is handed the sentence. See `section_rule.dart` and unify §1.17.
+      expect(find.textContaining('· 4'), findsOneWidget);
     });
 
     testWidgets('a status is a word and a silhouette, never a hue alone', (
@@ -172,7 +177,7 @@ void main() {
       await _pump(tester);
       await scrollConsoleTo(tester, keyed('contest-c-active'));
 
-      await tester.tap(find.text('October Sprint'));
+      await tester.tap(find.textContaining('October Sprint'));
       await tester.pumpAndSettle();
       await scrollConsoleTo(tester, find.text('Aisha Patel'));
       expect(find.text('Aisha Patel'), findsOneWidget);
@@ -237,7 +242,7 @@ void main() {
       // Sanitised: never the exception's own text, which one day carries a
       // host name into a screenshot in a WhatsApp group.
       expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
-      expect(find.text('October Sprint'), findsOneWidget);
+      expect(find.textContaining('October Sprint'), findsOneWidget);
       await settleToasts(tester);
     });
   });

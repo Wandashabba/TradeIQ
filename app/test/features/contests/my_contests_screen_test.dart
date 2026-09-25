@@ -76,10 +76,10 @@ void main() {
       await _pump(tester);
 
       expect(find.text('Contests'), findsOneWidget);
-      expect(find.text('Running now'), findsOneWidget);
+      expect(find.text('Running now'.toUpperCase()), findsOneWidget);
       expect(
-        tester.getTopLeft(find.text('October Sprint')).dy,
-        lessThan(tester.getTopLeft(find.text('Running now')).dy + 2000),
+        tester.getTopLeft(find.textContaining('October Sprint'.toUpperCase())).dy,
+        lessThan(tester.getTopLeft(find.text('Running now'.toUpperCase())).dy + 2000),
       );
 
       expect(find.text('3 days left'), findsOneWidget);
@@ -87,9 +87,16 @@ void main() {
       expect(find.text('R500 voucher'), findsOneWidget);
       expect(find.text('Submitted visits · Closed tasks'), findsOneWidget);
 
-      // The section marker is the knocked-out rule at title.m in sentence
-      // case — never the uppercase kicker the eyebrow used to be.
-      expect(find.text('RUNNING NOW'), findsNothing);
+      // MOVED 25 September 2026 — the owner made The Floor's grammar global.
+      // The section marker is words on the ground, uppercase and
+      // letter-spaced, with no line across the screen. The string itself is
+      // still sentence case; the shout is presentation, so a screen reader
+      // is handed the sentence. See `section_rule.dart` and unify §1.17.
+      // This asserted the opposite until today: the marker WAS the
+      // knocked-out rule in sentence case and the uppercase kicker was the
+      // thing it replaced. The owner reversed it looking at The Floor.
+      expect(find.textContaining('RUNNING NOW'), findsOneWidget);
+      expect(find.text('Running now'), findsNothing);
       expect(find.byType(SectionRule), findsWidgets);
     });
 
@@ -259,12 +266,12 @@ void main() {
       await _pump(tester, locale: const Locale('af'));
 
       expect(find.text('Kompetisies'), findsOneWidget);
-      expect(find.text('Loop nou'), findsOneWidget);
+      expect(find.text('Loop nou'.toUpperCase()), findsOneWidget);
       expect(find.text('Nog 3 dae'), findsOneWidget);
       expect(find.text('Prys'), findsOneWidget);
       expect(find.text('Wat tel'), findsOneWidget);
       // An English string inside an Afrikaans screen is a defect.
-      expect(find.text('Running now'), findsNothing);
+      expect(find.text('Running now'.toUpperCase()), findsNothing);
       expect(find.text('Prize'), findsNothing);
 
       await _scrollTo(tester, _keyed('contest-me-c-active'));

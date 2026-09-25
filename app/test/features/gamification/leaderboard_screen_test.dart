@@ -251,7 +251,7 @@ void main() {
     ) async {
       await _pump(tester, entries: <LeaderboardEntry>[..._board, _unmeasured]);
 
-      expect(find.text('Not ranked yet'), findsWidgets);
+      expect(find.textContaining('Not ranked yet'.toUpperCase()), findsWidgets);
       expect(
         find.byKey(const ValueKey<String>('leaderboard-unranked-note')),
         findsOneWidget,
