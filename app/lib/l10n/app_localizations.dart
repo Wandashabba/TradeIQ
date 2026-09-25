@@ -12849,6 +12849,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.'**
   String get dashStubCaveat;
+
+  /// The name of the manager's supervisory view of one visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit review'**
+  String get visitReviewTitle;
+
+  /// Screen-reader label for the back control. Named for where it goes, never "Back".
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the list you came from'**
+  String get visitBackToList;
+
+  /// The back control on a deep link, which has nothing to pop to. Losing this escape strands a reviewer on a screen with no exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to The Floor'**
+  String get visitBackToFloor;
+
+  /// Header flag: the visit was never submitted, which is why half this screen is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfinished'**
+  String get visitInProgress;
+
+  /// The check-in was further from the store than the geofence allows. A measurement, not a verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the fence'**
+  String get visitOutsideFence;
+
+  /// The check-in was within the geofence.
+  ///
+  /// In en, this message translates to:
+  /// **'Inside the fence'**
+  String get visitInsideFence;
+
+  /// Header flag and fact value: the visit fell outside the fence because the store's own coordinates are disputed (#386).
+  ///
+  /// In en, this message translates to:
+  /// **'The agent reported the pin is wrong'**
+  String get visitPinReported;
+
+  /// Section heading over who went where and when.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit'**
+  String get visitTheVisit;
+
+  /// Fact label: when the visit started.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in'**
+  String get visitCheckedIn;
+
+  /// Qualifies the check-in time, so it is never read as a server timestamp.
+  ///
+  /// In en, this message translates to:
+  /// **'From the phone\'s own clock'**
+  String get visitDeviceClock;
+
+  /// Fact label: when the visit was sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get visitSubmitted;
+
+  /// The submitted time of a visit that has not been submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get visitNotYet;
+
+  /// How long the agent was at the store, between check-in and submit.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} minutes on site'**
+  String visitMinutesOnSite(int minutes);
+
+  /// Fact label: how far the check-in was from the outlet's pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance from the store'**
+  String get visitGeofence;
+
+  /// Said in words where there is no measured distance. A nought would read as a perfect check-in.
+  ///
+  /// In en, this message translates to:
+  /// **'No distance was recorded'**
+  String get visitNoDistance;
+
+  /// Fact label for a disputed outlet pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get visitPin;
+
+  /// A pin dispute that was accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin was moved'**
+  String get visitPinMoved;
+
+  /// A pin dispute that was accepted, and by whom.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin was moved by {name}'**
+  String visitPinMovedBy(String name);
+
+  /// A pin dispute that was rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin was kept'**
+  String get visitPinKept;
+
+  /// A pin dispute that was rejected, and by whom.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin was kept by {name}'**
+  String visitPinKeptBy(String name);
+
+  /// A pin dispute nobody has answered yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for review'**
+  String get visitPinWaiting;
+
+  /// Section heading over the score and its band.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect store score'**
+  String get visitScoreHeading;
+
+  /// Headline where a visit has no scorecard.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scored'**
+  String get visitNotScored;
+
+  /// Why a draft has no score.
+  ///
+  /// In en, this message translates to:
+  /// **'The score is calculated when the visit is submitted.'**
+  String get visitScoredOnSubmit;
+
+  /// Why a submitted visit has no score. A different fact from a draft, and the reviewer needs to know which.
+  ///
+  /// In en, this message translates to:
+  /// **'No scorecard has been generated for this visit.'**
+  String get visitNoScorecard;
+
+  /// A rating band this build does not recognise. Never guessed at, and never given a severity.
+  ///
+  /// In en, this message translates to:
+  /// **'Unbanded'**
+  String get visitUnbanded;
+
+  /// The score meter's spoken value.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} out of 100, target {target}'**
+  String visitScoreMeterSemantics(int value, int target);
+
+  /// Section heading over the six dimensions.
+  ///
+  /// In en, this message translates to:
+  /// **'How it was scored'**
+  String get visitHowScored;
+
+  /// A dimension at or above the visit's target.
+  ///
+  /// In en, this message translates to:
+  /// **'On target'**
+  String get visitOnTarget;
+
+  /// A dimension under the visit's target.
+  ///
+  /// In en, this message translates to:
+  /// **'Below target'**
+  String get visitBelowTarget;
+
+  /// Which version of the template the agent answered.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered against v{version}'**
+  String visitAnsweredVersion(int version);
+
+  /// Said when the template has moved on since the visit, so a label that no longer matches the question is not read as the question.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered against v{version} · the template is now v{current}, and the labels below come from the current version'**
+  String visitAnsweredOlderVersion(int version, int current);
+
+  /// An answer whose question has since been removed. Kept rather than dropped: it is still something the agent recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} (no longer in the template)'**
+  String visitAnswerOrphan(String field);
+
+  /// A template question that blocks a submit.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} (required)'**
+  String visitRequiredQuestion(String label);
+
+  /// The client template's own score.
+  ///
+  /// In en, this message translates to:
+  /// **'Template score {score} of {max}'**
+  String visitTemplateScore(String score, String max);
+
+  /// Keeps two different scores from being read as one.
+  ///
+  /// In en, this message translates to:
+  /// **'The template score is the client\'s own measure. It is not part of the perfect store score.'**
+  String get visitTemplateScoreNote;
+
+  /// Headline where a template carries no answers.
+  ///
+  /// In en, this message translates to:
+  /// **'No answers were recorded'**
+  String get visitNoAnswersHeadline;
+
+  /// Body of the no-answers state.
+  ///
+  /// In en, this message translates to:
+  /// **'The template was attached to this visit and nothing was filled in.'**
+  String get visitNoAnswersBody;
+
+  /// A template photo question. The app does not capture template photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Not captured in the app'**
+  String get visitNotCaptured;
+
+  /// A template question the agent left blank.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered'**
+  String get visitNotAnswered;
+
+  /// A true answer to a template question.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get visitYes;
+
+  /// A false answer to a template question.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get visitNo;
+
+  /// Section heading over the five capture sections.
+  ///
+  /// In en, this message translates to:
+  /// **'What was captured'**
+  String get visitWhatWasCaptured;
+
+  /// Said where a section holds nothing at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was captured'**
+  String get visitNothingCaptured;
+
+  /// Visibility is captured or it is not; there is no meaningful count of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured'**
+  String get visitCaptured;
+
+  /// How many rows a capture section holds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 captured} other{{count} captured}}'**
+  String visitNCaptured(int count);
+
+  /// A capture section with nothing flagged.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get visitClear;
+
+  /// How many rows in a capture section were flagged.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 flagged} other{{count} flagged}}'**
+  String visitNFlagged(int count);
+
+  /// A capture section the agent never opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Not captured'**
+  String get visitNotCapturedSection;
+
+  /// A section that was captured and raised nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No findings.'**
+  String get visitNoFindings;
+
+  /// A section the agent never opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was recorded in this section.'**
+  String get visitNothingRecorded;
+
+  /// Said when the server cut the rows it derived findings from, so a short list never reads as the whole section.
+  ///
+  /// In en, this message translates to:
+  /// **'Findings drawn from the first 500 rows.'**
+  String get visitFindingsTruncated;
+
+  /// The word beside a critical severity bar. The bar is crimson; the word is the channel that survives greyscale and a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical'**
+  String get visitSeverityCritical;
+
+  /// The word beside a watch severity bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch'**
+  String get visitSeverityWatch;
+
+  /// Section heading over the visit's photographs.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get visitPhotos;
+
+  /// Said in words. On a fraud review this absence is itself a signal.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos were captured on this visit.'**
+  String get visitNoPhotos;
+
+  /// Said when the photo list is cut, so it never reads as everything that was captured.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total}'**
+  String visitShowingOf(int shown, int total);
+
+  /// What a thumbnail is of, in words. A picture with no label is a picture a screen reader cannot report.
+  ///
+  /// In en, this message translates to:
+  /// **'{outlet}, {section}, {time}'**
+  String visitPhotoSemantics(String outlet, String section, String time);
+
+  /// Section heading over the fraud detector's output.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraud signals'**
+  String get visitFraudSignals;
+
+  /// The risk figure's scale.
+  ///
+  /// In en, this message translates to:
+  /// **'of 100'**
+  String get visitRiskOfHundred;
+
+  /// The risk figure and its band as one utterance.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk {value} out of 100. {band}.'**
+  String visitRiskSemantics(int value, String band);
+
+  /// Whole-screen state for a visit id that resolves to nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'This visit is not here'**
+  String get visitNotFoundHeadline;
+
+  /// Body of the not-found state.
+  ///
+  /// In en, this message translates to:
+  /// **'It does not exist, or it belongs to another client.'**
+  String get visitNotFoundBody;
+
+  /// The way on from the not-found state.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to alerts'**
+  String get visitBackToAlerts;
+
+  /// The reviewed visit's score and its band as one utterance, so a reader never hears the figure without the verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} out of 100. {band}.'**
+  String visitReviewScoreSemantics(int value, String band);
+
+  /// Section heading over the answers to the client's own audit template (#122), on the manager's visit review.
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions · {template}'**
+  String visitReviewClientQuestions(String template);
 }
 
 class _AppLocalizationsDelegate

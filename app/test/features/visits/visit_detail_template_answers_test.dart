@@ -1,177 +1,222 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
-import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
-import 'package:tradeiq_app/features/visits/presentation/visit_detail_screen.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
-// The manager's view of a visit's answers to the client template (#122).
-const _schema = {
-  'sections': [
-    {
+import 'visit_harness.dart';
+
+/// THE MANAGER'S VIEW OF A VISIT'S ANSWERS to the client's audit template
+/// (#122): each answer under the question the template asked, the version the
+/// answers belong to, and the template's own score kept apart from the
+/// perfect-store one.
+
+const Map<String, dynamic> _schema = <String, dynamic>{
+  'sections': <Map<String, dynamic>>[
+    <String, dynamic>{
       'id': 'promo',
       'title': 'Promo stand',
-      'fields': [
-        {'id': 'standUp', 'label': 'Is the promo stand up?', 'type': 'boolean', 'weight': 5, 'required': true},
-        {
+      'fields': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'standUp',
+          'label': 'Is the promo stand up?',
+          'type': 'boolean',
+          'weight': 5,
+          'required': true,
+        },
+        <String, dynamic>{
           'id': 'facings',
           'label': 'Promo facings',
           'type': 'number',
           'weight': 5,
-          'visibleIf': {'field': 'standUp', 'equals': true},
+          'visibleIf': <String, dynamic>{'field': 'standUp', 'equals': true},
         },
-        {'id': 'comment', 'label': 'Anything else?', 'type': 'text'},
-        {
+        <String, dynamic>{
+          'id': 'comment',
+          'label': 'Anything else?',
+          'type': 'text',
+        },
+        <String, dynamic>{
           'id': 'hiddenWhenUp',
           'label': 'Why is it down?',
           'type': 'text',
-          'visibleIf': {'field': 'standUp', 'equals': false},
+          'visibleIf': <String, dynamic>{'field': 'standUp', 'equals': false},
         },
       ],
     },
   ],
 };
 
-VisitDetail _visit({List<VisitTemplateAnswers> responses = const []}) => VisitDetail(
-  id: 'v1',
-  status: 'submitted',
-  outlet: const VisitOutletRef(id: 'o1', name: 'Spar Rosebank', code: 'SPR-001', channelType: 'supermarket'),
-  agent: const VisitAgentRef(id: 'a1', email: 'thandi@acme.test'),
-  checkinTs: DateTime.utc(2026, 9, 14, 7),
-  submittedAtClient: DateTime.utc(2026, 9, 14, 7, 14),
-  geofencePass: true,
-  distanceM: 12,
-  score: null,
-  sections: const [],
-  photoTotal: 0,
-  photos: const [],
-  riskScore: 0,
-  signals: const [],
-  templateResponses: responses,
-);
-
-const _answers = VisitTemplateAnswers(
+const VisitTemplateAnswers _answers = VisitTemplateAnswers(
   templateId: 'tpl-1',
   templateName: 'Promo Check',
   templateVersion: 2,
   currentVersion: 3,
   schema: _schema,
-  answers: {'standUp': true, 'facings': 4, 'retired': 'old answer'},
+  answers: <String, dynamic>{
+    'standUp': true,
+    'facings': 4,
+    'retired': 'old answer',
+  },
 );
 
-class _Repo implements VisitDetailRepository {
-  _Repo(this.detail);
-  final VisitDetail detail;
-
-  @override
-  Future<VisitDetail> fetch(String visitId) async => detail;
-}
-
-Widget _app(VisitDetail detail, ThemeData theme) => ProviderScope(
-  overrides: [visitDetailRepositoryProvider.overrideWithValue(_Repo(detail))],
-  child: MaterialApp.router(
-    theme: theme,
-    routerConfig: GoRouter(
-      initialLocation: '/visits/v1',
-      routes: [
-        GoRoute(
-          path: '/visits/:id',
-          builder: (context, state) =>
-              VisitDetailScreen(visitId: state.pathParameters['id']!),
-        ),
-      ],
-    ),
-  ),
-);
-
-void _tall(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1200, 3200);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-}
-
-Finder _ci(String text) =>
-    find.textContaining(RegExp(RegExp.escape(text), caseSensitive: false));
+Finder _rowFor(String field) =>
+    find.byKey(ValueKey<String>('visit-template-answer-$field'));
 
 void main() {
-  for (final (name, theme) in [('light', AppTheme.light), ('night', AppTheme.dark)]) {
-    group('$name theme', () {
-      testWidgets('shows each answer under the question the template asked', (
+  for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+    group(skin.mode.name, () {
+      testWidgets('each answer sits under the question the template asked', (
         tester,
       ) async {
-        _tall(tester);
-        await tester.pumpWidget(_app(_visit(responses: [_answers]), theme()));
-        await tester.pumpAndSettle();
+        await pumpVisit(
+          tester,
+          skin: skin,
+          detail: submittedVisit(
+            templateResponses: const <VisitTemplateAnswers>[_answers],
+          ),
+        );
 
-        final panel = find.byKey(const ValueKey('visit-template-tpl-1'));
-        expect(panel, findsOneWidget);
-        expect(tester.widget(panel), isA<PanelCard>());
-        expect(_ci('Client questions · Promo Check'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('visit-template-tpl-1')),
+          findsOneWidget,
+        );
+        expect(find.text('Client questions · Promo Check'), findsOneWidget);
 
         // Labels resolved from the schema, answers in words.
-        expect(find.text('Is the promo stand up? (required)'), findsOneWidget);
-        expect(find.text('Yes'), findsOneWidget);
-        expect(find.text('Promo facings'), findsOneWidget);
-        expect(find.text('4'), findsOneWidget);
-        expect(find.text('Anything else?'), findsOneWidget);
-        expect(find.text('Not answered'), findsOneWidget);
+        final standUp = tester.widget<SoftRow>(_rowFor('standUp'));
+        expect(standUp.title, 'Is the promo stand up? (required)');
+        expect(standUp.semanticsLabel, contains('Yes'));
+
+        final facings = tester.widget<SoftRow>(_rowFor('facings'));
+        expect(facings.title, 'Promo facings');
+        expect(facings.semanticsLabel, contains('4'));
+
+        final comment = tester.widget<SoftRow>(_rowFor('comment'));
+        expect(comment.semanticsLabel, contains('Not answered'));
+
         // A question the agent was never shown is not listed as unanswered.
-        expect(find.text('Why is it down?'), findsNothing);
-        // An answer to a question the template no longer has is still shown.
-        expect(find.text('retired (no longer in the template)'), findsOneWidget);
-        expect(find.text('old answer'), findsOneWidget);
+        expect(_rowFor('hiddenWhenUp'), findsNothing);
 
-        // Which version the answers belong to, when the template moved on.
+        // An answer to a question the template no longer has is still shown:
+        // it is still something the agent recorded.
+        final orphan = tester.widget<SoftRow>(_rowFor('retired'));
+        expect(orphan.title, 'retired (no longer in the template)');
+        expect(orphan.semanticsLabel, contains('old answer'));
+      });
+
+      testWidgets('says which version the answers belong to', (tester) async {
+        await pumpVisit(
+          tester,
+          skin: skin,
+          detail: submittedVisit(
+            templateResponses: const <VisitTemplateAnswers>[_answers],
+          ),
+        );
+
         expect(find.textContaining('Answered against v2'), findsOneWidget);
-        expect(find.textContaining('template now v3'), findsOneWidget);
+        expect(find.textContaining('the template is now v3'), findsOneWidget);
       });
 
-      testWidgets('the template’s own score is shown here, apart from the perfect store score', (
-        tester,
-      ) async {
-        _tall(tester);
-        await tester.pumpWidget(_app(_visit(responses: [_answers]), theme()));
-        await tester.pumpAndSettle();
+      testWidgets(
+        "the template's own score is shown here, apart from the perfect store "
+        'score',
+        (tester) async {
+          await pumpVisit(
+            tester,
+            skin: skin,
+            detail: submittedVisit(
+              templateResponses: const <VisitTemplateAnswers>[_answers],
+            ),
+          );
 
-        expect(find.byKey(const ValueKey('visit-template-score')), findsOneWidget);
-        expect(_ci('Template score 10 / 10'), findsOneWidget);
-        expect(find.textContaining('not part of the perfect store score'), findsOneWidget);
+          expect(
+            find.byKey(const ValueKey<String>('visit-template-score')),
+            findsOneWidget,
+          );
+          expect(find.text('Template score 10 of 10'), findsOneWidget);
+          expect(
+            find.textContaining('not part of the perfect store score'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets('no template answers: no section at all', (tester) async {
+        await pumpVisit(tester, skin: skin, detail: submittedVisit());
+
+        expect(
+          find.byKey(const ValueKey<String>('visit-template-tpl-1')),
+          findsNothing,
+        );
+        expect(find.textContaining('Client questions'), findsNothing);
       });
 
-      testWidgets('no template answers: no panel', (tester) async {
-        _tall(tester);
-        await tester.pumpWidget(_app(_visit(), theme()));
-        await tester.pumpAndSettle();
+      testWidgets('a template with nothing filled in says so', (tester) async {
+        await pumpVisit(
+          tester,
+          skin: skin,
+          detail: submittedVisit(
+            templateResponses: const <VisitTemplateAnswers>[
+              VisitTemplateAnswers(
+                templateId: 'tpl-1',
+                templateName: 'Promo Check',
+                templateVersion: 1,
+                currentVersion: 1,
+                schema: <String, dynamic>{'sections': <Object>[]},
+                answers: <String, dynamic>{},
+              ),
+            ],
+          ),
+        );
 
-        expect(find.byKey(const ValueKey('visit-template-tpl-1')), findsNothing);
-        expect(_ci('Client questions'), findsNothing);
+        expect(find.text('No answers were recorded'), findsOneWidget);
       });
     });
   }
 
+  testWidgets('the answers read in Afrikaans', (tester) async {
+    await pumpVisit(
+      tester,
+      locale: const Locale('af'),
+      detail: submittedVisit(
+        templateResponses: const <VisitTemplateAnswers>[_answers],
+      ),
+    );
+
+    expect(find.text('Kliëntvrae · Promo Check'), findsOneWidget);
+    expect(find.textContaining('Beantwoord teen v2'), findsOneWidget);
+    final standUp = tester.widget<SoftRow>(_rowFor('standUp'));
+    expect(standUp.title, contains('(verpligtend)'));
+    expect(standUp.semanticsLabel, contains('Ja'));
+    expect(find.text('Client questions · Promo Check'), findsNothing);
+  });
+
   test('parses templateResponses from GET /visits/:id', () {
-    final detail = VisitDetail.fromJson({
+    final detail = VisitDetail.fromJson(<String, dynamic>{
       'id': 'v1',
       'status': 'submitted',
-      'outlet': {'id': 'o1', 'name': 'Spar', 'code': 'S1', 'channelType': 'supermarket'},
-      'agent': {'id': 'a1', 'email': 'a@b.test'},
+      'outlet': <String, dynamic>{
+        'id': 'o1',
+        'name': 'Spar',
+        'code': 'S1',
+        'channelType': 'supermarket',
+      },
+      'agent': <String, dynamic>{'id': 'a1', 'email': 'a@b.test'},
       'checkinTs': '2026-09-14T07:00:00.000Z',
       'submittedAtClient': null,
-      'geofence': {'pass': true, 'distanceM': 3},
+      'geofence': <String, dynamic>{'pass': true, 'distanceM': 3},
       'score': null,
       'sections': <Object>[],
-      'photos': {'total': 0, 'items': <Object>[]},
-      'fraud': {'riskScore': 0, 'signals': <Object>[]},
-      'templateResponses': [
-        {
+      'photos': <String, dynamic>{'total': 0, 'items': <Object>[]},
+      'fraud': <String, dynamic>{'riskScore': 0, 'signals': <Object>[]},
+      'templateResponses': <Map<String, dynamic>>[
+        <String, dynamic>{
           'templateId': 'tpl-1',
           'templateName': 'Promo Check',
           'templateVersion': 1,
           'currentVersion': 2,
           'schema': _schema,
-          'answers': {'standUp': false},
+          'answers': <String, dynamic>{'standUp': false},
           'recordedAt': '2026-09-14T07:10:00.000Z',
         },
       ],
@@ -181,16 +226,16 @@ void main() {
     expect(r.templateName, 'Promo Check');
     expect(r.templateVersion, 1);
     expect(r.answeredOlderVersion, isTrue);
-    expect(r.answers, {'standUp': false});
+    expect(r.answers, <String, dynamic>{'standUp': false});
     expect(r.recordedAt, DateTime.utc(2026, 9, 14, 7, 10));
   });
 
   test('a payload without templateResponses parses to none', () {
-    final detail = VisitDetail.fromJson({
+    final detail = VisitDetail.fromJson(<String, dynamic>{
       'id': 'v1',
       'status': 'in_progress',
-      'outlet': {'id': 'o1', 'name': 'Spar', 'code': 'S1'},
-      'agent': {'id': 'a1', 'email': 'a@b.test'},
+      'outlet': <String, dynamic>{'id': 'o1', 'name': 'Spar', 'code': 'S1'},
+      'agent': <String, dynamic>{'id': 'a1', 'email': 'a@b.test'},
       'checkinTs': '2026-09-14T07:00:00.000Z',
     });
     expect(detail.templateResponses, isEmpty);
