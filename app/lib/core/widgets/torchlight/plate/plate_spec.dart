@@ -43,17 +43,26 @@ class PlateSpec {
 
   /// The fold budget, as one expression.
   ///
-  /// `min(clamp(0.44 × vh, 200, 360), vh − 440)`. The second term is the one
+  /// `min(clamp(0.40 × vh, 200, 312), vh − 440)`. The second term is the one
   /// that matters: 440dp is what the rest of the screen needs to keep its
-  /// promise of two full decision rows, and a plate that takes more of the
-  /// fold than that has stopped arguing with the list and started replacing
-  /// it.
+  /// promise of the decision rows, and a plate that takes more of the fold
+  /// than that has stopped arguing with the list and started replacing it.
+  ///
+  /// **The proportion moved from 0.44/360 to 0.40/312 on 25 September 2026.**
+  /// The plate became an inset card on that date (the owner's reference), and
+  /// a card also spends the shell's top inset and a gap beneath itself, so
+  /// the same fraction bought a bigger object. On a 390×844 phone the old
+  /// numbers left room for two decision rows above the nav; the owner's
+  /// reference shows three. 312 is what is left once three decision cards,
+  /// the lead card, the section marker, the block gaps and the nav pill have
+  /// taken theirs on an 844dp phone — measured in Onest, not guessed, by
+  /// `floor_proportion_test.dart`, which fails if it stops being true.
   ///
   /// [viewportHeight] is the height the plate may draw into — the full
-  /// viewport on a phone, including the status bar, because the plate runs
-  /// full-bleed to the top edge.
+  /// viewport on a phone, because the arithmetic below it is the whole
+  /// screen's.
   static double heightFor(double viewportHeight) {
-    final proportional = (viewportHeight * 0.44).clamp(200.0, 360.0);
+    final proportional = (viewportHeight * 0.40).clamp(200.0, 312.0);
     final afterTheList = viewportHeight - 440.0;
     return math.min(proportional, afterTheList);
   }
@@ -127,7 +136,11 @@ class PlateSpec {
           : skin.text.heroFigure,
       textInset: skin.space.gutter,
       captionGap: TiqSpace.s2,
-      radius: skin.radii.rule,
+      // THE PLATE IS A CARD (owner override, 25 September 2026). It used to
+      // run full-bleed to the top edge at radius 0; the reference the owner
+      // signed off insets it and rounds it hard, and the radius is the same
+      // number the rest of the screen's cards are cut from, one step up.
+      radius: skin.radii.plate,
     );
   }
 

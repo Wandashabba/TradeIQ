@@ -236,7 +236,15 @@ void main() {
         users: _roster,
       );
 
-      expect(find.text('Thandi Mokoena'), findsOneWidget);
+      // THE AGENT, NOT A UUID. Since the card override of 25 September 2026
+      // a list row spends its own padding before the title starts, and in
+      // `flutter_test`'s font — about twice Onest's advance — a
+      // 14-character name middle-truncates on a 360dp row. That is the
+      // ruling's own behaviour, and the FULL name is what a screen reader is
+      // handed whatever the row painted; what may never happen is a database
+      // id in a person's place.
+      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
+      expect(find.textContaining('Thandi'), findsOneWidget);
       expect(find.textContaining('v-1'), findsNothing);
       expect(find.byType(PersonRow), findsOneWidget);
     });
@@ -392,8 +400,8 @@ void main() {
         users: _roster,
       );
 
-      expect(find.text('Thandi Mokoena'), findsOneWidget);
-      expect(find.text('Busi Dlamini'), findsNothing);
+      expect(find.textContaining('Thandi'), findsOneWidget);
+      expect(find.textContaining('Busi'), findsNothing);
     });
 
     testWidgets('the decided list is one chip away, and nothing is hidden', (
@@ -414,8 +422,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Busi Dlamini'), findsOneWidget);
-      expect(find.text('Thandi Mokoena'), findsNothing);
+      expect(find.textContaining('Busi'), findsOneWidget);
+      expect(find.textContaining('Thandi'), findsNothing);
     });
 
     testWidgets('a decided row names who ruled and the score they saw', (
@@ -746,7 +754,7 @@ void main() {
       // reviews.
       await _pump(tester, open: <FlaggedVisit>[_visit()], users: _roster);
 
-      expect(find.text('Thandi Mokoena'), findsOneWidget);
+      expect(find.textContaining('Thandi'), findsOneWidget);
     });
   });
 

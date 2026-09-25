@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -50,13 +51,18 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
         expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-        // The dominant metric and its supports as meta.
+        // The dominant metric and its supports as ONE line of meta. The
+        // subordinates are rates, not denominators: "Coverage 79%", not
+        // "Coverage 33 of 42 outlets · 42 visits". The card is a reading and
+        // the denominators are provenance, one tap away.
         expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
-        expect(find.textContaining('Coverage 33 of 42 outlets'), findsOneWidget);
+        expect(find.textContaining('Coverage 79%'), findsOneWidget);
 
-        // The knocked-out section rule.
-        expect(find.byType(SectionRule), findsOneWidget);
-        expect(find.text('Needs a decision'), findsOneWidget);
+        // The section marker: words on the ground, no rule and no count
+        // (owner override, 25 September 2026). `Eyebrow` uppercases for
+        // display and keeps the sentence-case string in its semantics.
+        expect(find.byType(SectionRule), findsNothing);
+        expect(find.text('NEEDS A DECISION'), findsOneWidget);
 
         // Worst first.
         expect(find.byType(DecisionRow), findsNWidgets(2));
@@ -114,12 +120,12 @@ void main() {
       expect(find.text('and 11 more need a decision'), findsOneWidget);
     });
 
-    testWidgets('nothing needs a decision keeps the rule and says so', (
+    testWidgets('nothing needs a decision keeps the marker and says so', (
       tester,
     ) async {
       await pumpFloor(tester, const TheFloorScreen());
 
-      expect(find.text('Needs a decision'), findsOneWidget);
+      expect(find.text('NEEDS A DECISION'), findsOneWidget);
       expect(find.text('Everything triaged.'), findsOneWidget);
       expect(find.byType(DecisionRow), findsNothing);
     });
@@ -195,16 +201,43 @@ void main() {
     });
 
     testWidgets('a thin BASELINE also drops the delta', (tester) async {
+      // The HERO's baseline, because the hero is where the screen's one
+      // delta lives: the lead card's delta line went with the owner's
+      // reference, and the rule it was demonstrating did not.
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        current: kpis(execution: 73, executionSample: 18),
+        // The window before it scored nothing at all.
+        previous: kpis(execution: 92, executionSample: 0),
+      );
+
+      expect(find.textContaining('73'), findsWidgets);
+      expect(
+        find.textContaining('not compared'),
+        findsWidgets,
+        reason:
+            'a delta computed against an empty window is a verdict with no '
+            'evidence, and the reader has to be told it was withheld',
+      );
+    });
+
+    testWidgets('the lead card carries no delta line and no meter', (
+      tester,
+    ) async {
       await pumpFloor(
         tester,
         const TheFloorScreen(),
         current: kpis(osa: 61, osaSample: 240),
-        // The window before it counted one row.
-        previous: kpis(osa: 80, osaSample: 1),
+        previous: kpis(osa: 64, osaSample: 240),
       );
 
-      expect(find.textContaining('61'), findsWidgets);
-      expect(find.textContaining('not compared'), findsWidgets);
+      // Owner override, 25 September 2026. Both were saying the figure a
+      // second time under a hero that is already the headline; the sparkline
+      // carries the shape instead.
+      expect(find.byType(Meter), findsNothing);
+      expect(find.textContaining('vs the window before'), findsNothing);
+      expect(find.textContaining('pts'), findsWidgets, reason: 'the HERO\'s');
     });
 
     testWidgets('a row with no timestamp renders an em dash, not a zero', (
@@ -230,9 +263,10 @@ void main() {
 
   group('the plate', () {
     testWidgets(
-      "draws the photograph of the first decision row's outlet, captioned "
-      'with it',
+      "draws the photograph of the first decision row's outlet, attributed "
+      'to it',
       (tester) async {
+        final handle = tester.ensureSemantics();
         final image = await SyncImage.solid(tester);
         await pumpFloor(
           tester,
@@ -249,9 +283,23 @@ void main() {
         final painted = platedImage(tester);
         expect(painted, isNotNull, reason: 'no photograph on the plate');
         expect(painted!.colorFilter, TiqPlate.tone);
-        // Visible provenance: the picture is a named specimen, so the figure
-        // above the list is visibly about the territory and not about a shop.
-        expect(find.text('Kasi Corner Spaza'), findsWidgets);
+        // PROVENANCE, IN THE SEMANTICS. It used to print on the plate's first
+        // line; the owner's reference of 25 September 2026 has no caption, so
+        // the specimen is named where a reader of the screen still gets it
+        // and a looker at the screen is not handed a second line of type over
+        // a photograph. The picture is still a named specimen, so the figure
+        // above the list is still visibly about the territory.
+        expect(
+          find.text('Kasi Corner Spaza'),
+          findsNothing,
+          reason: 'no printed caption',
+        );
+        expect(
+          find.bySemanticsLabel(RegExp('Kasi Corner Spaza')),
+          findsWidgets,
+          reason: 'an unattributed photograph is an assertion',
+        );
+        handle.dispose();
       },
     );
 
@@ -404,21 +452,24 @@ void main() {
 
       // The rest is past the fold on a 360x640 phone, which is correct — the
       // guarantee at 2.0x degrades to one full row, by declaration.
-      await scrollFloorTo(tester, find.byType(SectionRule));
-      expect(find.byType(SectionRule), findsOneWidget);
+      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
+      expect(find.text('NEEDS A DECISION'), findsOneWidget);
       await scrollFloorTo(tester, find.byType(DecisionRow).first);
       expect(find.byType(DecisionRow), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the section rule drops below its name rather than striking '
-        'through it', (tester) async {
+    testWidgets('the section marker wraps rather than clipping', (
+      tester,
+    ) async {
       await pumpFloor(tester, const TheFloorScreen(), textScale: 2.0);
 
-      await scrollFloorTo(tester, find.byType(SectionRule));
-      // At 1.0x the rule runs through the line; at 2.0x the name wraps and the
-      // rule drops beneath the text block rather than striking through it.
-      expect(find.text('Needs a decision'), findsOneWidget);
+      // The marker is words on the ground now, and at 2.0x it takes the two
+      // lines the eyebrow role allows rather than being cut. The rule it
+      // replaced had its own drop-below-the-name behaviour; that component
+      // still has it, and `section_rule_test.dart` still asserts it.
+      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
+      expect(find.text('NEEDS A DECISION'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
@@ -426,7 +477,7 @@ void main() {
   group('the fold budget', () {
     test('a 360x640 phone keeps room for two full decision rows', () {
       final height = PlateSpec.heightFor(640);
-      expect(height, 200, reason: 'min(clamp(0.44*640,200,360), 640-440)');
+      expect(height, 200, reason: 'min(clamp(0.40*640,200,320), 640-440)');
       expect(
         640 - height,
         greaterThanOrEqualTo(440),
@@ -445,8 +496,13 @@ void main() {
       expect(spec.height, 96);
     });
 
-    test('a tall phone caps the plate at 360', () {
-      expect(PlateSpec.heightFor(1200), 360);
+    test('a tall phone caps the plate at 312', () {
+      // 360 until 25 September 2026. The plate became an inset card, which
+      // also spends the shell's top inset and a gap beneath itself, so the
+      // same fraction bought a bigger object and the list lost the third row
+      // the owner's reference shows. See `PlateSpec.heightFor`.
+      expect(PlateSpec.heightFor(1200), 312);
+      expect(PlateSpec.heightFor(844), 312);
     });
 
     test('Veld draws no plate at all', () {
@@ -469,12 +525,23 @@ void main() {
         locale: const Locale('af'),
         current: kpis(osa: 61.5, execution: 72),
         previous: kpis(osa: 80.5, execution: 91),
+        // A row, so there is a figure on screen that still has a decimal
+        // place: the rates are whole numbers by declaration now, and a test
+        // about decimal separators needs a decimal to separate. 56.9 hours
+        // before the pinned clock.
+        alerts: <AlertItem>[
+          alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 16, 9, 6)),
+        ],
+        outlets: twoOutlets,
       );
 
       expect(tester.takeException(), isNull);
-      // 61,5 in Afrikaans — a comma, from the locale, never a format string.
-      expect(find.textContaining('61,5'), findsWidgets);
-      expect(find.textContaining('61.5'), findsNothing);
+      // 56,9 in Afrikaans — a comma, from the locale, never a format string.
+      expect(find.textContaining('56,9'), findsWidgets);
+      expect(find.textContaining('56.9'), findsNothing);
+      // And the true minus on the hero's delta, never a hyphen.
+      expect(find.textContaining('\u221219'), findsWidgets);
+      expect(find.textContaining('-19'), findsNothing);
     });
   });
 }

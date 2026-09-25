@@ -38,11 +38,21 @@ void main() {
 
   group('the fold budget', () {
     test('is one expression, and it is the second term that bites', () {
-      // 0.44 x 640 = 281.6, clamped to [200, 360] = 281.6.
+      // 0.40 x 640 = 256, clamped to [200, 312] = 256.
       // 640 - 440 = 200. The list wins.
       expect(PlateSpec.heightFor(640), 200);
-      // A tall phone: 0.44 x 892 = 392.5 -> clamped to 360; 892-440 = 452.
-      expect(PlateSpec.heightFor(892), 360);
+      // A tall phone: 0.40 x 892 = 356.8 -> clamped to the 312 CEILING;
+      // 892-440 = 452, so the ceiling wins.
+      //
+      // The ceiling was 360 against a 0.44 proportion until 25 September
+      // 2026. The plate became an inset card that day, and a card spends the
+      // shell's top inset and a gap beneath itself as well as its own height
+      // — so the same fraction bought a bigger object and the list lost the
+      // third decision card the owner's reference shows. 312 is what is left
+      // on an 844dp phone once three cards, the lead card, the marker, the
+      // gaps and the nav pill have taken theirs, measured in Onest by
+      // `floor_proportion_test.dart`.
+      expect(PlateSpec.heightFor(892), 312);
       // A short one: 600-440 = 160, under the 200 floor.
       expect(PlateSpec.heightFor(600), 160);
     });
@@ -122,8 +132,9 @@ void main() {
         'vh=720.0  form=photographic  height=280.0  stripLightY=106.4  '
             'bloom=48.0  scrim=52%  zoneTop=134.4  figure=hero.figure  '
             'inset=20.0',
-        'vh=892.0  form=photographic  height=360.0  stripLightY=136.8  '
-            'bloom=48.0  scrim=52%  zoneTop=172.8  figure=hero.figure  '
+        // 360 until the plate became a card; see the fold-budget test above.
+        'vh=892.0  form=photographic  height=312.0  stripLightY=118.6  '
+            'bloom=48.0  scrim=52%  zoneTop=149.8  figure=hero.figure  '
             'inset=20.0',
       ]);
     });

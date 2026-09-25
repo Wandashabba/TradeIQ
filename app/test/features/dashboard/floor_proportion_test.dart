@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/stat_tile.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../agent_harness.dart';
 import 'floor_harness.dart';
 
 /// THE HIERARCHY, AS MEASURED PIXELS.
@@ -29,6 +30,13 @@ import 'floor_harness.dart';
 /// Nothing failed, because every test here asked whether a widget was present.
 /// These ask how big it is.
 void main() {
+  // THE FOLD IS A FACT ABOUT THE TYPEFACE. `flutter_test`'s own font is
+  // wider than Onest, so every label wraps sooner and every screen measures
+  // TALLER in it — which is the right default for a test about a role or a
+  // count and the wrong one for a file whose every assertion is a height.
+  // The row counts below are the counts on the device because of this line.
+  setUpAll(loadAgentFonts);
+
   final outlets = <Outlet>[
     outlet('o1', 'Corner Express Parkhurst'),
     outlet('o2', 'Shoprite Klipspruit Mall'),
@@ -142,44 +150,53 @@ void main() {
     });
   });
 
-  group('the plate is the header', () {
-    testWidgets('it starts at the top edge, with no band of ground above it', (
+  group('the plate is a card', () {
+    testWidgets('it is inset from the top edge and from both gutters', (
       tester,
     ) async {
       await pump(tester, const Size(360, 640));
+      final plate = tester.getRect(find.byType(TiqPlate));
+      final skin = TiqSkin.night();
+
+      // PIN MOVED, 25 September 2026: this was `top == 0`, and it was right
+      // while the plate ran full-bleed and was the screen's top edge. The
+      // owner's reference makes it an inset rounded card, so the shell's own
+      // console inset is the air above it — 24dp, measured — and a card hard
+      // against the status bar would be a card with one edge missing.
       expect(
-        tester.getRect(find.byType(TiqPlate)).top,
-        0,
+        plate.top,
+        24,
         reason:
-            'The Floor has no app header because the plate is one. 24dp of '
-            'ground above it is a plate that is visibly not the header it '
-            'claims to be, and 24dp of a 640dp fold.',
+            'the console shell inset. A card starts below it; a band started '
+            'at 0.',
       );
+      expect(plate.left, skin.space.gutter);
+      expect(plate.right, 360 - skin.space.gutter);
     });
 
-    testWidgets('the caption sits on the hero, not in a hole above it', (
+    testWidgets('it carries no printed caption; the provenance is spoken', (
       tester,
     ) async {
+      final handle = tester.ensureSemantics();
       await pump(tester, const Size(412, 915));
 
-      // The provenance caption: the plate's own naming of the specimen, not
-      // the decision row that happens to carry the same outlet.
-      final caption = tester.getRect(
+      // PIN MOVED, 25 September 2026: this used to measure the gap between
+      // the printed provenance caption and the hero cluster. The owner's
+      // reference has no caption line, so what is asserted now is that it is
+      // gone from the paint and still present for anything that reads the
+      // screen — an unattributed photograph is an assertion either way.
+      expect(
         find.descendant(
           of: find.byType(TiqPlate),
           matching: find.text('Corner Express Parkhurst'),
         ),
+        findsNothing,
       );
-      final cluster = tester.getRect(find.byType(PlateHeroCluster));
-      final skin = TiqSkin.night();
-      final gap = cluster.top - caption.bottom;
-
-      expect(gap, closeTo(TiqSpace.s2, 1), reason: 'caption gap is $gap');
       expect(
-        caption.height,
-        lessThan(skin.text.meta.size * 2),
-        reason: 'the provenance caption is one line, never two',
+        find.bySemanticsLabel(RegExp('Corner Express Parkhurst')),
+        findsWidgets,
       );
+      handle.dispose();
     });
   });
 
@@ -193,49 +210,58 @@ void main() {
       // eyebrow, the last line of supports, the rule and the first row — the
       // marks on the screen.
       final plate = tester.getRect(find.byType(TiqPlate));
-      final eyebrow = tester.getRect(find.text('ON-SHELF AVAILABILITY'));
-      final supports = tester.getRect(
-        find.textContaining('Coverage 33 of 42 outlets'),
-      );
-      final rule = tester.getRect(find.byType(SectionRule));
+      final card = tester.getRect(find.byType(TorchCard));
+      final marker = tester.getRect(find.text('NEEDS A DECISION'));
       final row = tester.getRect(find.byType(DecisionRow).first);
 
+      // Card to card, now that the blocks have edges a reader can see: the
+      // gaps used to be measured between marks because the blocks were
+      // invisible, and a card's own edge is the mark.
       expect(
-        eyebrow.top - plate.bottom,
-        TiqSpace.s6,
-        reason: 'the plate to the lead tile',
+        card.top - plate.bottom,
+        TiqSpace.s4,
+        reason: 'the plate card to the lead card',
       );
       expect(
-        rule.top - supports.bottom,
-        TiqSpace.s6,
-        reason: 'the lead tile to the rule — this was s6 plus a 16dp inset',
+        marker.top - card.bottom,
+        TiqSpace.s4,
+        reason: 'the lead card to the section marker',
       );
       expect(
-        row.top - rule.bottom,
-        TiqSpace.s5,
-        reason: 'the rule to the first decision',
+        row.top - marker.bottom,
+        TiqSpace.s3,
+        reason: 'the marker to the first decision card',
       );
     });
 
-    testWidgets('the lead tile hangs off the same gutter as everything else', (
-      tester,
-    ) async {
+    testWidgets('every card hangs off the same gutter', (tester) async {
       await pump(tester, const Size(360, 640));
 
-      final gutter = tester.getRect(find.byType(SectionRule)).left;
+      final gutter = tester.getRect(find.text('NEEDS A DECISION')).left;
+      expect(tester.getRect(find.byType(TiqPlate)).left, gutter);
+      expect(tester.getRect(find.byType(TorchCard)).left, gutter);
+      // The decision list is bled out to the screen's edges and each card
+      // puts its own edge back on the gutter line, which is the whole reason
+      // the row's margin is the gutter and not a number of its own.
       expect(
-        tester.getRect(find.text('ON-SHELF AVAILABILITY')).left,
+        tester
+            .getRect(
+              find
+                  .descendant(
+                    of: find.byType(DecisionRow).first,
+                    matching: find.byType(DecoratedBox),
+                  )
+                  .first,
+            )
+            .left,
         gutter,
-        reason:
-            'the tile carried a 16dp inset of its own inside a shell that had '
-            'already spent the gutter, so its eyebrow sat 16dp right of every '
-            'other left edge on the screen',
+        reason: 'a card that starts 4dp off every other left edge is a card '
+            'somebody will notice and nobody can explain',
       );
-      expect(tester.getRect(find.byType(PlateHeroCluster)).left, gutter);
     });
   });
 
-  group('the decision rows are compact', () {
+  group('the decision cards are compact', () {
     testWidgets('the reason takes one line, not two', (tester) async {
       await pump(tester, const Size(360, 640));
 
@@ -256,26 +282,53 @@ void main() {
       );
     });
 
-    testWidgets('more than one of them is above the nav on a tall phone', (
-      tester,
-    ) async {
-      await pump(tester, const Size(412, 915));
+    /// THE COUNT THE OWNER'S REFERENCE SHOWS, AT THE SIZE THEY LOOKED AT IT.
+    ///
+    /// Three rows on a 390x844 phone is the measurement the plate's fold
+    /// budget was cut to (0.44/360 down to 0.40/320) and the reason the
+    /// decision row dropped from the 80dp tall density to compact. It is the
+    /// first thing a layout change eats, so it fails CI rather than a review.
+    ///
+    /// Measured in Onest and JetBrains Mono (see `setUpAll` above), because
+    /// a fold is a fact about the typeface the app ships. The pictures are in
+    /// `floor_look_test.dart`.
+    for (final (name, size, atLeast) in <(String, Size, int)>[
+      ('390x844 phone', Size(390, 844), 3),
+      ('412x915 phone', Size(412, 915), 3),
+      ('360x640 phone', Size(360, 640), 2),
+    ]) {
+      testWidgets('$atLeast of them clear the nav on a $name', (tester) async {
+        await pump(tester, size);
 
-      final fold = tester.getRect(find.byType(TorchNavPill)).top;
-      final visible = <int>[];
-      for (var i = 0; i < tester.widgetList(find.byType(DecisionRow)).length; i++) {
-        if (tester.getRect(find.byType(DecisionRow).at(i)).bottom <= fold) {
-          visible.add(i);
+        final fold = tester.getRect(find.byType(TorchNavPill)).top;
+        final visible = <int>[];
+        for (
+          var i = 0;
+          i < tester.widgetList(find.byType(DecisionRow)).length;
+          i++
+        ) {
+          // The CARD's painted box, not the row widget's: the row's rect
+          // includes the gap of ground it holds under itself, and a gap is
+          // not something that has to be above the fold.
+          final card = tester.getRect(
+            find
+                .descendant(
+                  of: find.byType(DecisionRow).at(i),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first,
+          );
+          if (card.bottom <= fold) visible.add(i);
         }
-      }
-      expect(
-        visible.length,
-        greaterThanOrEqualTo(2),
-        reason:
-            'only ${visible.length} decision row(s) clear the nav. The screen '
-            'answers "what is broken and who is fixing it" — one row is a '
-            'headline, not a list.',
-      );
-    });
+        expect(
+          visible.length,
+          greaterThanOrEqualTo(atLeast),
+          reason:
+              'only ${visible.length} decision card(s) clear the nav on a '
+              '$name. The screen answers what is broken and who is fixing '
+              'it — one row is a headline, not a list.',
+        );
+      });
+    }
   });
 }

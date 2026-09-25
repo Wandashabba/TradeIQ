@@ -139,16 +139,23 @@ void main() {
       }
     });
 
-    test('the pill radius is gone and four materials remain', () {
+    test('the pill radius is gone and five materials remain', () {
       expect(TiqRadii.lit.chip, 6);
       expect(TiqRadii.lit.control, 10);
       expect(TiqRadii.lit.panel, 14);
-      expect(TiqRadii.lit.plate, 20);
+      // `card` 22 and `plate` 28 arrived with the owner's card override of
+      // 25 September 2026 (torchlight-aisle §9c): a list row a person acts
+      // on, and the plate that stopped being a full-bleed band. A panel is a
+      // container and a card is an object, and the mockup reads the two
+      // apart by exactly this difference.
+      expect(TiqRadii.lit.card, 22);
+      expect(TiqRadii.lit.plate, 28);
       expect(TiqRadii.lit.rule, 0);
       for (final r in <double>[
         TiqRadii.lit.chip,
         TiqRadii.lit.control,
         TiqRadii.lit.panel,
+        TiqRadii.lit.card,
         TiqRadii.lit.plate,
       ]) {
         expect(

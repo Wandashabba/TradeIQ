@@ -293,11 +293,17 @@ Veld is **single-density by construction**: `TiqSkin.veld()` takes no density
 argument, so `Veld × Console` has no spelling. A manager who opens the app
 outdoors gets Veld, and that is correct — outdoors nobody is doing analysis.
 
-**Radii — four materials, four radii.** `rule` 0 (rules and dividers), `chip` 6
+**Radii — five materials, five radii.** `rule` 0 (rules and dividers), `chip` 6
 (chips, outlined pills, ladder glyph tiles), `control` 10 (buttons, thumbnails),
-`panel` 14 (the instrument panel, forms, sheets), `plate` 20 (photographic
+`panel` 14 (the instrument panel, forms, sheets), `card` 22 (a list row a
+person acts on, and the one figure block beside it), `plate` 28 (photographic
 plates). An input is a trough: `radii.input` is 10 at the **bottom** corners and
 0 at the top — a trough holds at the bottom. Veld squares everything to 0.
+
+`card` and the bigger `plate` arrived with the owner's override of 25 September
+2026 — see [the card override](#9c-the-card-override-25-september-2026). A
+panel is a container and a card is an object, and the mockup the owner signed
+off reads the two apart by exactly that difference.
 
 **The 999 pill radius is gone.** It existed only for the active-tab pill, which
 no longer exists. If you cannot name which of the four materials a surface is,
@@ -769,7 +775,8 @@ landed; screens adopt it one feature folder at a time, behind a green suite.
 ```dart
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
-// A list row — flush, radius 0, separated by a 1px rule inset to the text edge.
+// A list row — a CARD: radius 22, `surface` fill, no outline, an s5 margin
+// and an s3 gap of ground to the next one. Veld keeps the flush form.
 SoftRow(
   density: SoftRowDensity.standard,        // compact 56 / standard 64 / tall 80
   title: outlet.name,
@@ -841,11 +848,13 @@ activate.
 and it makes `onTap` unreachable. A row that is *off* but still editable — an
 inactive alert rule — carries the word, not the flag.
 
-The rule's **colour is not a parameter**: `edgeStructure` (3.73:1) between
+`SoftRowSeparator` has two members — `auto` and `none` — and `none` means
+"last in the group", not "a different line". On a card `auto` is the **gap of
+ground** under it; in Veld, where the row is still flush, it is the rule, and
+the rule's **colour is not a parameter**: `edgeStructure` (3.73:1) between
 tappable rows because 1.4.11 wants a perceivable boundary around a UI
-component, `hairline` between non-tappable ones because there it is decoration.
-`SoftRowSeparator` therefore has two members — `auto` and `none` — and `none`
-means "last in the group", not "a different line".
+component, `hairline` between non-tappable ones because there it is
+decoration.
 
 ### The four configurations
 
@@ -876,8 +885,9 @@ PersonRow(name: ..., role: ..., outlet: ...)  // #399/#400 — never an id
 | Rule | Where it lives |
 |---|---|
 | 56 / 64 / 80, collapsing to 64 in Veld | `SoftRowSpec.minHeight` |
+| a card's margin is the gutter and its gap is s3; a Veld row has neither | `SoftRowSpec.margin` / `.gapAfter` |
 | content starts at the same inset with or without a severity bar | `SoftRowSpec.severityLane`, always reserved |
-| pressed = `lifted` fill **and** a 2px `edgeControl` rule **and** scale 0.98 **and** the tick haptic | `SoftRowSpec.resolve(pressed: true)` |
+| pressed = `lifted` fill **and** an `edgeControl` edge **and** scale 0.98 **and** the tick haptic — the card *gains* the edge, Veld's flush row *doubles* its rule | `SoftRowSpec.resolve(pressed: true)` |
 | critical = solid bar, watch = outlined bar, both plus a word | `SoftRowSpec.barFill` / `barStroke` + `severityLabel` |
 | the trailing column drops beneath the text rather than squeezing the title | measured in `_RenderSoftRowContent`, never guessed from the text scale |
 | a name middle-truncates; the full name is what a screen reader gets | `MiddleTruncatedText` + the row's `Semantics` label |
@@ -920,6 +930,75 @@ nobody declared — is caught by the amber census, which walks the real pixels f
 the property that matters most.
 
 Regenerate with `UPDATE_ROW_GOLDENS=1 flutter test`, and read the diff.
+
+---
+
+## 9c. The card override — 25 September 2026
+
+**The owner overruled unify §1.3, and the owner wins.**
+
+unify §1.3 ruled that a **list row** is flush, radius 0, no fill, separated by
+a 1px rule inset to the text edge, and it named the alternative — rounded
+outlined rows — as the "uniform rounded cards" anti-slop failure. That ruling
+is now overridden for the list form.
+
+What happened, in order. The owner saw the first design and said *"I hate this
+box style"*. The soft-row grammar they signed off in the mockup — and the
+reference apps they picked it from — is a **soft rounded row**: a generous
+radius, a subtle translucent-looking fill, no border, and air between rows.
+After #458 they looked at The Floor again and said *"it's still very boxy and I
+don't need that"*, and then sent a reference image with the instruction *"this
+is the exact look I'm looking for, roundness — make it exactly as it is on this
+image."*
+
+### What the override changes
+
+| | unify §1.3 | Now |
+|---|---|---|
+| list row geometry | flush, radius 0 | radius `TiqRadii.card` = **22** |
+| list row fill | none | `surface`, the declared composited hex — never an opacity |
+| list row border | none, a 1px rule *under* it | **none**, and none under it either |
+| separation | a 1px rule inset to the text edge | a **gap of ground**, s3 |
+| the row's own inset | none; the screen bleeds the list | an s5 margin, so a bled list's cards sit on the screen's one gutter line |
+| severity mark | a 3px bar down the leading edge | a **dot**, 8dp, at the same lane |
+| press | fill steps **and** the rule doubles to 2px `edgeControl` | fill steps **and** the card *gains* a 1px `edgeControl` edge |
+
+**Veld is the exception and keeps its own rules**: radius 0, no fill, 2px
+`#1B2632` borders, the 6px bar. A soft translucent row on white under glare
+stops reading as a row at all, and that is the whole reason Veld exists.
+
+Two other objects came with it, on the same screen and the same day:
+`TiqRadii.plate` 20 → **28**, because the plate stopped being a full-bleed band
+and became an inset card; and `TorchCard`
+(`core/widgets/torchlight/card.dart`), which is the same material for the one
+figure block that sits beside a list.
+
+### The anti-slop concern, answered rather than ignored
+
+The ruling was not wrong about the failure mode. Uniform rounded cards, applied
+to everything, are the house style of every dashboard nobody remembers. So the
+grammar is scoped:
+
+* **Cards are for lists of things a person acts on** — decisions, alerts,
+  tasks, stops, outbox items — and for the one figure block that sends them
+  there. That is it.
+* **Nothing else gains a radius because of this.** A panel is still 14, a chip
+  is still 6, a section marker is still words on the ground, and a block of
+  prose is still a block of prose.
+* **It is one grammar, everywhere it applies.** A list that is soft on The
+  Floor and flush on Alerts is worse than either, so the change is in
+  `SoftRowSpec` and every list form in the app moved with it.
+* The device-floor argument behind the ruling still holds and is still
+  answered: `surface` on `ground` is 1.49:1, so a card is **not** identified by
+  its fill. It is identified by its silhouette — which is what a radius is —
+  and the press still puts a real `edgeControl` edge on top of the fill step.
+
+### Where it is recorded
+
+`docs/design/spec/unify.md` §1.3 carries the same note, so a reader who starts
+from the ruling finds the override before they "fix" it back. The pins are
+`soft_row_test.dart` (the card's declared values, and Veld's flush exception)
+and the five text goldens.
 
 ---
 
