@@ -149,9 +149,7 @@ class SectionStateGlyph extends StatelessWidget {
     final tile = MarkScale.tile(context);
     final glyph = MarkScale.glyph(context, 16);
     final borderWidth = required_ ? 2.0 : skin.depth.borderWidth;
-    final borderColor = required_
-        ? skin.palette.ink1
-        : skin.palette.edgeControl;
+    final borderColor = required_ ? skin.palette.ink1 : skin.palette.edgeControl;
 
     final box = Container(
       width: tile,

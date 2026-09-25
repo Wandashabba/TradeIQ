@@ -85,10 +85,8 @@ class FlagKindToken {
     return switch (kind) {
       FlagKind.outOfFence => neutral('Out of fence', MarkShape.flagBrokenRing),
       FlagKind.forReview => neutral('For review', MarkShape.flagEyeBarred),
-      FlagKind.unfinished => neutral(
-        'Unfinished',
-        MarkShape.flagThreeQuarterArc,
-      ),
+      FlagKind.unfinished =>
+        neutral('Unfinished', MarkShape.flagThreeQuarterArc),
       FlagKind.skipped => neutral('Skipped', MarkShape.flagStruckRing),
       FlagKind.held => neutral('Held', MarkShape.heldSquare),
       FlagKind.noGps => neutral('No GPS', MarkShape.flagPinWithGap),
@@ -159,7 +157,10 @@ class FlagChip extends StatelessWidget {
     final skin = context.skin;
     final token = FlagKindToken.of(skin, kind);
     final word = label ?? token.word;
-    final detailParts = <String>[?detail, if (cleared) clearedWord];
+    final detailParts = <String>[
+      ?detail,
+      if (cleared) clearedWord,
+    ];
     return TiqChip(
       shape: token.shape,
       label: word,

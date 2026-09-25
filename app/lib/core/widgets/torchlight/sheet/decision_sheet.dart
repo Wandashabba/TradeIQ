@@ -145,7 +145,9 @@ class _DecisionSheetState extends State<DecisionSheet> {
       // A sheet is an untabbed route: two grants in Night, one on a light
       // ground. This one spends exactly one, on the safe path.
       claims: <TorchClaim>[
-        TorchPrimaryButton.claim(widget.stale ? 'check-in-again' : 'carry-on'),
+        TorchPrimaryButton.claim(
+          widget.stale ? 'check-in-again' : 'carry-on',
+        ),
       ],
       child: TorchSheetSwap(
         paneKey: _confirming ? 'confirm' : 'decide',

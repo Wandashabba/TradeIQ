@@ -84,8 +84,7 @@ class Skeleton extends StatefulWidget {
   State<Skeleton> createState() => _SkeletonState();
 }
 
-class _SkeletonState extends State<Skeleton>
-    with SingleTickerProviderStateMixin {
+class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
   // Constructed in `initState`, not lazily in `build`. A ticker created after
   // `didChangeDependencies` makes the vsync mixin resolve `TickerMode` on its
   // way out instead, which is an ancestor lookup on a deactivated element —
@@ -318,9 +317,7 @@ class SkeletonShell extends StatelessWidget {
               : null,
           border: outlined
               ? Border.all(color: edge, width: width)
-              : Border(
-                  bottom: BorderSide(color: edge, width: width),
-                ),
+              : Border(bottom: BorderSide(color: edge, width: width)),
         ),
         padding: EdgeInsets.symmetric(
           horizontal: outlined ? skin.space.gutter : 0,
@@ -338,7 +335,11 @@ class SkeletonShell extends StatelessWidget {
 /// Three rows and no more when it is a **pagination** skeleton at the foot of
 /// a list; a full screen's worth when the list is arriving for the first time.
 class SkeletonRows extends StatelessWidget {
-  const SkeletonRows({super.key, this.count = 4, this.rowHeight});
+  const SkeletonRows({
+    super.key,
+    this.count = 4,
+    this.rowHeight,
+  });
 
   final int count;
 
