@@ -259,7 +259,7 @@ class AgentMapFrame extends ConsumerWidget {
               if (storeCount != null) l10n.mapStoresFact(storeCount!),
             ],
             trailing: skinCycleIconButton(context, ref),
-            flagChips: const <Widget>[TorchSyncChip()],
+            status: const TorchSyncChip(),
           ),
           navPill: TorchNavPill(
             slots: TodayFrame.slotsIn(

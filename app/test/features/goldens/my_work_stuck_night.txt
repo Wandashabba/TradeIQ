@@ -11,6 +11,7 @@ row.min = 64.0
 target.min = 48.0
 motion = on
 header.trailing = skin-cycle
+header.status = none
 header.chips = 0
 header.height = 96
 nav.pill = present

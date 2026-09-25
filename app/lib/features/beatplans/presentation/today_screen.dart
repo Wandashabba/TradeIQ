@@ -144,9 +144,14 @@ class TodayFrame extends ConsumerWidget {
     required this.phase,
     required this.hasNextStop,
     required this.children,
+    this.routeName,
   });
 
   final String phase;
+
+  /// The plan's own name — "Tembisa run" — which joins the date on the
+  /// header's one fact line. Null on every state that has no plan to name.
+  final String? routeName;
 
   /// Whether there is a store to check into. It decides both the claim set
   /// and whether the circle is the expected next move — one boolean, so the
@@ -237,12 +242,23 @@ class TodayFrame extends ConsumerWidget {
         profile: TorchShellProfile.agent,
         header: TorchAppHeader(
           title: l10n.todayTitle,
-          facts: <String>[formatDayHeading(context, DateTime.now())],
+          // ONE compact fact line: the date and the route's name, middot
+          // joined and read as a sentence. "Donderdag 18 September · Tembisa
+          // run" is what the approved header says, and the plan's name is the
+          // second half of the only question this screen answers.
+          facts: <String>[
+            formatDayHeading(context, DateTime.now()),
+            if (routeName != null && routeName!.isNotEmpty) routeName!,
+          ],
           // Exactly one trailing icon button, and on a tab root that one is
           // the skin cycle (unify §1.2). The sync chip is not an icon button
-          // and does not compete for the slot — it is a flag chip.
+          // and does not compete for the slot — it is pinned right of the
+          // title on the title row, which is the shell's own anatomy. It used
+          // to go in the flag-chip wrap, where it took a 48dp row plus a 16dp
+          // gap of its own under the date: 64dp of a 640dp fold, every
+          // session, to say "All sent".
+          status: const TorchSyncChip(),
           trailing: skinCycleIconButton(context, ref),
-          flagChips: const <Widget>[TorchSyncChip()],
         ),
         navPill: TorchNavPill(
           slots: slotsIn(
@@ -317,6 +333,7 @@ class _Route extends ConsumerWidget {
     return TodayFrame(
       phase: route.isComplete ? 'route-done' : 'loaded',
       hasNextStop: next != null,
+      routeName: route.planName,
       children: <Widget>[
         _DayBlock(route: route),
         const SizedBox(height: TiqSpace.s7),
@@ -503,27 +520,32 @@ class _NextUpCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // The meta line, at the sizes the surface declares: the sequence in
+          // mono 16 and the distance in the small mono role beside it. It was
+          // `figure.m` (22) over `figure.s` (16) — a sequence number set
+          // larger than the day block's unit and nearly as large as the store
+          // name it belongs to.
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: TiqSpace.s3,
-            runSpacing: TiqSpace.s2,
+            spacing: TiqSpace.s2,
+            runSpacing: TiqSpace.s1,
             children: <Widget>[
               _SequenceFigure(sequence: stop.sequence),
-              _DistanceFigure(stop: stop, role: skin.text.figureS),
+              _DistanceFigure(stop: stop, role: skin.text.axisLabel),
             ],
           ),
-          const SizedBox(height: TiqSpace.s4),
+          const SizedBox(height: TiqSpace.s3),
           Text(
             stop.outlet.name,
             maxLines: 2,
             style: skin.text.titleL.style(color: skin.palette.ink1),
           ),
-          const SizedBox(height: TiqSpace.s2),
+          const SizedBox(height: TiqSpace.s1),
           Text(
             stop.outlet.code,
             style: skin.text.monoIdent.style(color: skin.palette.ink3),
           ),
-          const SizedBox(height: TiqSpace.s5),
+          const SizedBox(height: TiqSpace.s4),
           // THE SCREEN'S AMBER. A primary on a tab root lives in the BODY,
           // never in a thumb zone the nav already occupies.
           TorchPrimaryButton(
@@ -612,7 +634,8 @@ class _SequenceTile extends StatelessWidget {
   }
 }
 
-/// `03` in mono, for the next-up card's top line.
+/// `03` in mono 16, for the next-up card's meta line. The surface says 16/500
+/// here; it is the card's smallest voice, not its loudest.
 class _SequenceFigure extends StatelessWidget {
   const _SequenceFigure({required this.sequence});
 
@@ -623,7 +646,7 @@ class _SequenceFigure extends StatelessWidget {
     final skin = context.skin;
     return FigureSlot(
       value: sequence,
-      role: skin.text.figureM,
+      role: skin.text.figureS,
       semanticsLabel: context.l10n.todayStopNumber('$sequence'),
     );
   }

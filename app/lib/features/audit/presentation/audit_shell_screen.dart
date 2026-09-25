@@ -719,10 +719,12 @@ class VisitFrame extends StatelessWidget {
         header: TorchAppHeader(
           title: title,
           facts: facts,
-          flagChips: <Widget>[
-            if (showSyncChip) const TorchSyncChip(),
-            ...flags,
-          ],
+          // The sync chip is pinned to the title row, not dropped into the
+          // flag wrap: it is a fact about the phone rather than about this
+          // visit, and in the wrap it took a 48dp row of its own under the
+          // outlet's subtitle on every screen of a visit.
+          status: showSyncChip ? const TorchSyncChip() : null,
+          flagChips: flags,
         ),
         // Not a tab root, so the cycle sits at the leading end of the thumb
         // zone — on every screen here including the ones with no primary.

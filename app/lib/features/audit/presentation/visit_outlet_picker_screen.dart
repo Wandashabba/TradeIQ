@@ -176,7 +176,7 @@ class _PickerFrame extends ConsumerWidget {
             semanticLabel: l10n.navToday,
             onPressed: () => context.go('/today'),
           ),
-          flagChips: const <Widget>[TorchSyncChip()],
+          status: const TorchSyncChip(),
         ),
         // Not a tab root, so the skin cycle sits at the leading end of the
         // thumb zone. Never a screen without it — Veld has to be reachable

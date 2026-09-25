@@ -7,10 +7,11 @@ import 'chip_wrap.dart';
 
 /// THE HEADER. No `AppBar`, no elevation, no fill that changes on scroll.
 ///
-/// A region on the ground colour, gutter-aligned, carrying at most four things:
-/// a back button, a title, a line of facts, and **exactly one** trailing icon
-/// button — which is why [trailing] is typed as a single [TorchIconButton] and
-/// not as a list. On a tab root that one button is the skin cycle.
+/// A region on the ground colour, gutter-aligned, carrying at most five
+/// things: a back button, a title, the sync chip pinned right of the title
+/// row, a line of facts, and **exactly one** trailing icon button — which is
+/// why [trailing] is typed as a single [TorchIconButton] and not as a list. On
+/// a tab root that one button is the skin cycle.
 ///
 /// ## Everything here is capped, and that is what makes the 40% rule true
 ///
@@ -21,6 +22,8 @@ import 'chip_wrap.dart';
 /// * the **title** wraps to two lines and then truncates;
 /// * the **facts** line is capped at two lines and then tail-truncates (an
 ///   Afrikaans subtitle at 2.0× was measured taking 130dp of a 640dp viewport);
+/// * the **sync chip** sits on the title row rather than in the chip wrap, so
+///   the one thing every agent screen carries costs no row of its own;
 /// * the **flag chips** stop after two rows and hand the rest to an expander;
 /// * and the header scrolls with the body, so an *expanded* chip list — the one
 ///   state the caps deliberately do not cover — simply scrolls.
@@ -42,6 +45,7 @@ class TorchAppHeader extends StatefulWidget {
     this.facts = const <String>[],
     this.back,
     this.trailing,
+    this.status,
     this.flagChips = const <Widget>[],
     this.moreLabel = _defaultMore,
     this.fewerLabel = 'Show fewer',
@@ -60,6 +64,23 @@ class TorchAppHeader extends StatefulWidget {
 
   /// **Exactly one**, or none. On a tab root this is the skin cycle.
   final TorchIconButton? trailing;
+
+  /// The sync chip, **pinned right of the title row** at its intrinsic width
+  /// and top-aligned — the agent shell's own anatomy, and the one thing
+  /// besides the title and the trailing icon button that belongs on that row.
+  ///
+  /// It is not a flag chip and it must not be passed as one. A flag chip is a
+  /// fact about the record the screen is showing; the sync chip is a fact
+  /// about the phone, it is on every agent screen, and putting it in the wrap
+  /// gave it a 48dp row of its own beneath the date — 64dp of a 640dp fold
+  /// spent saying "All sent", every session, on the screen whose whole job is
+  /// to answer where am I going.
+  ///
+  /// The title and the chip share a [Wrap], so a long state ("12 held on this
+  /// phone") beside a long title at 2.0× drops the chip to a run of its own
+  /// instead of squeezing either one. The decision is made on the laid-out
+  /// width, never on a text-scale threshold (unify §4).
+  final Widget? status;
 
   /// Flag chips. The chips themselves are the mark set's component; this is the
   /// slot they go in, and the two-row cap and the expander are the header's.
@@ -125,30 +146,47 @@ class _TorchAppHeaderState extends State<TorchAppHeader> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
-                child: Semantics(
-                  header: true,
-                  // A NODE, not an annotation. Without `container` this is a
-                  // bare annotation that merges into the nearest enclosing
-                  // node — and the nearest enclosing node is the back button's
-                  // own, because that is a non-container annotation too and
-                  // the two are siblings under a plain Column. The result was
-                  // one control labelled "Back to welcome\nSign in": a reader
-                  // heard the way out and the name of the screen as a single
-                  // button, on every Torchlight route that has a back arrow.
-                  container: true,
-                  child: Text(
-                    widget.title,
-                    style: skin.text.titleL.style(color: p.ink1),
-                    // Two lines, then the tail goes. The third line is what
-                    // pushes an Afrikaans header at 2.0× past the 40%
-                    // ceiling — 60dp of a 640dp fold — and that arithmetic is
-                    // asserted in chrome_scale_test.dart rather than trusted.
-                    // (Middle truncation, which reads better on a name than a
-                    // tail does, arrives with the person row in Phase 3; it is
-                    // a text-layout primitive, not a header feature.)
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                // A WRAP, not a Row, and measured rather than guessed. The
+                // sync chip sits beside the title when the two fit on one
+                // line and drops to a run of its own when they do not —
+                // which at 2.0× in Afrikaans is the difference between
+                // "Vandag" and "Va…". unify §4 forbids collapsing on a
+                // text-scale threshold; this collapses on the laid-out width,
+                // like the nav pill's labels and the tile grid.
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  spacing: skin.space.intraBlock,
+                  runSpacing: TiqSpace.s2,
+                  children: <Widget>[
+                    Semantics(
+                      header: true,
+                      // A NODE, not an annotation. Without `container` this
+                      // is a bare annotation that merges into the nearest
+                      // enclosing node — and the nearest enclosing node is
+                      // the back button's own, because that is a
+                      // non-container annotation too and the two are siblings
+                      // under a plain Column. The result was one control
+                      // labelled "Back to welcome\nSign in": a reader heard
+                      // the way out and the name of the screen as a single
+                      // button, on every Torchlight route with a back arrow.
+                      container: true,
+                      child: Text(
+                        widget.title,
+                        style: skin.text.titleL.style(color: p.ink1),
+                        // Two lines, then the tail goes. The third line is
+                        // what pushes an Afrikaans header at 2.0× past the
+                        // 40% ceiling — 60dp of a 640dp fold — and that
+                        // arithmetic is asserted in chrome_scale_test.dart
+                        // rather than trusted. (Middle truncation, which
+                        // reads better on a name than a tail does, arrives
+                        // with the person row in Phase 3; it is a text-layout
+                        // primitive, not a header feature.)
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    ?widget.status,
+                  ],
                 ),
               ),
               if (widget.trailing != null) ...<Widget>[
