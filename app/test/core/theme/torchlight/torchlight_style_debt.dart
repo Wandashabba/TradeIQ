@@ -30,7 +30,7 @@
 // AND IT STOPPED. The map below is empty, and that is the whole point: every
 // row left this ledger with the screen it described rather than being zeroed
 // in place, and a file that leaves may not come back — an unlisted file may
-// not have a violation at all. The last four groups took the last of them:
+// not carry a violation at all. The last three groups took the last of them:
 //
 //   dashboard_shell_screen.dart   32   the execution overview
 //   live_location_layer.dart      13   shared with the agent trail map
@@ -39,22 +39,17 @@
 //   artifact_filters.dart          9   its controls
 //   expanded_views.dart            6   its charts and its table twin
 //
-// An empty map is not a weaker guard than a full one. The ratchet's second
-// rule does the work now: a file that is not listed here may not carry a
-// hardcoded colour, palette or text style, and none of them is. The next
-// hardcoded `TextStyle(` anywhere under `lib/features/**` fails this test on
-// the PR that adds it, with nowhere to hide.
+// An empty map is not a weaker guard than a full one — it is a stricter one.
+// The ratchet's second rule does the work now: a file that is not listed here
+// may not carry a hardcoded colour, palette or text style, and none of them
+// is. The next bare `TextStyle(` anywhere under `lib/features/**` fails this
+// test on the PR that adds it, with nowhere to hide.
 //
 // Leave the map here rather than deleting the file. A ledger that has reached
 // zero is the only proof the arithmetic ever closed, and the test that reads
-// it is the guard that keeps it there.
-// The one row below is the manager's visit review, which is in flight on its
-// own branch and leaves this map with its own screen. When that lands, this
-// map is empty.
-const Map<String, int> torchlightStyleDebt = <String, int>{
-  'visits/presentation/visit_detail_screen.dart': 17,
-};
+// it is what keeps it there.
+const Map<String, int> torchlightStyleDebt = <String, int>{};
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 17;
+const int torchlightStyleDebtTotal = 0;

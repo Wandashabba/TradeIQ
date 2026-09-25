@@ -10964,6 +10964,374 @@
   "@dashStubCaveat": {
     "description": "A caveat under the console, so two derived figures are never read as measured ones."
   },
+  "visitReviewTitle": "Visit review",
+  "@visitReviewTitle": {
+    "description": "The name of the manager's supervisory view of one visit."
+  },
+  "visitBackToList": "Back to the list you came from",
+  "@visitBackToList": {
+    "description": "Screen-reader label for the back control. Named for where it goes, never \"Back\"."
+  },
+  "visitBackToFloor": "Back to The Floor",
+  "@visitBackToFloor": {
+    "description": "The back control on a deep link, which has nothing to pop to. Losing this escape strands a reviewer on a screen with no exit."
+  },
+  "visitInProgress": "Unfinished",
+  "@visitInProgress": {
+    "description": "Header flag: the visit was never submitted, which is why half this screen is empty."
+  },
+  "visitOutsideFence": "Outside the fence",
+  "@visitOutsideFence": {
+    "description": "The check-in was further from the store than the geofence allows. A measurement, not a verdict."
+  },
+  "visitInsideFence": "Inside the fence",
+  "@visitInsideFence": {
+    "description": "The check-in was within the geofence."
+  },
+  "visitPinReported": "The agent reported the pin is wrong",
+  "@visitPinReported": {
+    "description": "Header flag and fact value: the visit fell outside the fence because the store's own coordinates are disputed (#386)."
+  },
+  "visitTheVisit": "The visit",
+  "@visitTheVisit": {
+    "description": "Section heading over who went where and when."
+  },
+  "visitCheckedIn": "Checked in",
+  "@visitCheckedIn": {
+    "description": "Fact label: when the visit started."
+  },
+  "visitDeviceClock": "From the phone's own clock",
+  "@visitDeviceClock": {
+    "description": "Qualifies the check-in time, so it is never read as a server timestamp."
+  },
+  "visitSubmitted": "Submitted",
+  "@visitSubmitted": {
+    "description": "Fact label: when the visit was sent."
+  },
+  "visitNotYet": "Not yet",
+  "@visitNotYet": {
+    "description": "The submitted time of a visit that has not been submitted."
+  },
+  "visitMinutesOnSite": "{minutes} minutes on site",
+  "@visitMinutesOnSite": {
+    "description": "How long the agent was at the store, between check-in and submit.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "visitGeofence": "Distance from the store",
+  "@visitGeofence": {
+    "description": "Fact label: how far the check-in was from the outlet's pin."
+  },
+  "visitNoDistance": "No distance was recorded",
+  "@visitNoDistance": {
+    "description": "Said in words where there is no measured distance. A nought would read as a perfect check-in."
+  },
+  "visitPin": "Pin",
+  "@visitPin": {
+    "description": "Fact label for a disputed outlet pin."
+  },
+  "visitPinMoved": "The pin was moved",
+  "@visitPinMoved": {
+    "description": "A pin dispute that was accepted."
+  },
+  "visitPinMovedBy": "The pin was moved by {name}",
+  "@visitPinMovedBy": {
+    "description": "A pin dispute that was accepted, and by whom.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "visitPinKept": "The pin was kept",
+  "@visitPinKept": {
+    "description": "A pin dispute that was rejected."
+  },
+  "visitPinKeptBy": "The pin was kept by {name}",
+  "@visitPinKeptBy": {
+    "description": "A pin dispute that was rejected, and by whom.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "visitPinWaiting": "Waiting for review",
+  "@visitPinWaiting": {
+    "description": "A pin dispute nobody has answered yet."
+  },
+  "visitScoreHeading": "Perfect store score",
+  "@visitScoreHeading": {
+    "description": "Section heading over the score and its band."
+  },
+  "visitNotScored": "Not scored",
+  "@visitNotScored": {
+    "description": "Headline where a visit has no scorecard."
+  },
+  "visitScoredOnSubmit": "The score is calculated when the visit is submitted.",
+  "@visitScoredOnSubmit": {
+    "description": "Why a draft has no score."
+  },
+  "visitNoScorecard": "No scorecard has been generated for this visit.",
+  "@visitNoScorecard": {
+    "description": "Why a submitted visit has no score. A different fact from a draft, and the reviewer needs to know which."
+  },
+  "visitUnbanded": "Unbanded",
+  "@visitUnbanded": {
+    "description": "A rating band this build does not recognise. Never guessed at, and never given a severity."
+  },
+  "visitScoreMeterSemantics": "{value} out of 100, target {target}",
+  "@visitScoreMeterSemantics": {
+    "description": "The score meter's spoken value.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "visitHowScored": "How it was scored",
+  "@visitHowScored": {
+    "description": "Section heading over the six dimensions."
+  },
+  "visitOnTarget": "On target",
+  "@visitOnTarget": {
+    "description": "A dimension at or above the visit's target."
+  },
+  "visitBelowTarget": "Below target",
+  "@visitBelowTarget": {
+    "description": "A dimension under the visit's target."
+  },
+  "visitAnsweredVersion": "Answered against v{version}",
+  "@visitAnsweredVersion": {
+    "description": "Which version of the template the agent answered.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "visitAnsweredOlderVersion": "Answered against v{version} · the template is now v{current}, and the labels below come from the current version",
+  "@visitAnsweredOlderVersion": {
+    "description": "Said when the template has moved on since the visit, so a label that no longer matches the question is not read as the question.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "current": {
+        "type": "int"
+      }
+    }
+  },
+  "visitAnswerOrphan": "{field} (no longer in the template)",
+  "@visitAnswerOrphan": {
+    "description": "An answer whose question has since been removed. Kept rather than dropped: it is still something the agent recorded.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "visitRequiredQuestion": "{label} (required)",
+  "@visitRequiredQuestion": {
+    "description": "A template question that blocks a submit.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "visitTemplateScore": "Template score {score} of {max}",
+  "@visitTemplateScore": {
+    "description": "The client template's own score.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "visitTemplateScoreNote": "The template score is the client's own measure. It is not part of the perfect store score.",
+  "@visitTemplateScoreNote": {
+    "description": "Keeps two different scores from being read as one."
+  },
+  "visitNoAnswersHeadline": "No answers were recorded",
+  "@visitNoAnswersHeadline": {
+    "description": "Headline where a template carries no answers."
+  },
+  "visitNoAnswersBody": "The template was attached to this visit and nothing was filled in.",
+  "@visitNoAnswersBody": {
+    "description": "Body of the no-answers state."
+  },
+  "visitNotCaptured": "Not captured in the app",
+  "@visitNotCaptured": {
+    "description": "A template photo question. The app does not capture template photos."
+  },
+  "visitNotAnswered": "Not answered",
+  "@visitNotAnswered": {
+    "description": "A template question the agent left blank."
+  },
+  "visitYes": "Yes",
+  "@visitYes": {
+    "description": "A true answer to a template question."
+  },
+  "visitNo": "No",
+  "@visitNo": {
+    "description": "A false answer to a template question."
+  },
+  "visitWhatWasCaptured": "What was captured",
+  "@visitWhatWasCaptured": {
+    "description": "Section heading over the five capture sections."
+  },
+  "visitNothingCaptured": "Nothing was captured",
+  "@visitNothingCaptured": {
+    "description": "Said where a section holds nothing at all."
+  },
+  "visitCaptured": "Captured",
+  "@visitCaptured": {
+    "description": "Visibility is captured or it is not; there is no meaningful count of it."
+  },
+  "visitNCaptured": "{count, plural, =1{1 captured} other{{count} captured}}",
+  "@visitNCaptured": {
+    "description": "How many rows a capture section holds.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitClear": "Clear",
+  "@visitClear": {
+    "description": "A capture section with nothing flagged."
+  },
+  "visitNFlagged": "{count, plural, =1{1 flagged} other{{count} flagged}}",
+  "@visitNFlagged": {
+    "description": "How many rows in a capture section were flagged.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitNotCapturedSection": "Not captured",
+  "@visitNotCapturedSection": {
+    "description": "A capture section the agent never opened."
+  },
+  "visitNoFindings": "No findings.",
+  "@visitNoFindings": {
+    "description": "A section that was captured and raised nothing."
+  },
+  "visitNothingRecorded": "Nothing was recorded in this section.",
+  "@visitNothingRecorded": {
+    "description": "A section the agent never opened."
+  },
+  "visitFindingsTruncated": "Findings drawn from the first 500 rows.",
+  "@visitFindingsTruncated": {
+    "description": "Said when the server cut the rows it derived findings from, so a short list never reads as the whole section."
+  },
+  "visitSeverityCritical": "Critical",
+  "@visitSeverityCritical": {
+    "description": "The word beside a critical severity bar. The bar is crimson; the word is the channel that survives greyscale and a screen reader."
+  },
+  "visitSeverityWatch": "Watch",
+  "@visitSeverityWatch": {
+    "description": "The word beside a watch severity bar."
+  },
+  "visitPhotos": "Photos",
+  "@visitPhotos": {
+    "description": "Section heading over the visit's photographs."
+  },
+  "visitNoPhotos": "No photos were captured on this visit.",
+  "@visitNoPhotos": {
+    "description": "Said in words. On a fraud review this absence is itself a signal."
+  },
+  "visitShowingOf": "Showing {shown} of {total}",
+  "@visitShowingOf": {
+    "description": "Said when the photo list is cut, so it never reads as everything that was captured.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "visitPhotoSemantics": "{outlet}, {section}, {time}",
+  "@visitPhotoSemantics": {
+    "description": "What a thumbnail is of, in words. A picture with no label is a picture a screen reader cannot report.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      },
+      "section": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "visitFraudSignals": "Fraud signals",
+  "@visitFraudSignals": {
+    "description": "Section heading over the fraud detector's output."
+  },
+  "visitRiskOfHundred": "of 100",
+  "@visitRiskOfHundred": {
+    "description": "The risk figure's scale."
+  },
+  "visitRiskSemantics": "Risk {value} out of 100. {band}.",
+  "@visitRiskSemantics": {
+    "description": "The risk figure and its band as one utterance.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "visitNotFoundHeadline": "This visit is not here",
+  "@visitNotFoundHeadline": {
+    "description": "Whole-screen state for a visit id that resolves to nothing."
+  },
+  "visitNotFoundBody": "It does not exist, or it belongs to another client.",
+  "@visitNotFoundBody": {
+    "description": "Body of the not-found state."
+  },
+  "visitBackToAlerts": "Back to alerts",
+  "@visitBackToAlerts": {
+    "description": "The way on from the not-found state."
+  },
+  "visitReviewScoreSemantics": "{value} out of 100. {band}.",
+  "@visitReviewScoreSemantics": {
+    "description": "The reviewed visit's score and its band as one utterance, so a reader never hears the figure without the verdict.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "visitReviewClientQuestions": "Client questions · {template}",
+  "@visitReviewClientQuestions": {
+    "description": "Section heading over the answers to the client's own audit template (#122), on the manager's visit review.",
+    "placeholders": {
+      "template": {
+        "type": "String"
+      }
+    }
+  },
   "artifactTitleView": "View",
   "@artifactTitleView": {
     "description": "Fallback name of the full-screen artifact route, for a tool this build has not heard of. A server that shipped ahead of the app is normal, not an error."

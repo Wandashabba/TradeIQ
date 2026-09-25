@@ -8086,6 +8086,254 @@ class AppLocalizationsEn extends AppLocalizations {
       'Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.';
 
   @override
+  String get visitReviewTitle => 'Visit review';
+
+  @override
+  String get visitBackToList => 'Back to the list you came from';
+
+  @override
+  String get visitBackToFloor => 'Back to The Floor';
+
+  @override
+  String get visitInProgress => 'Unfinished';
+
+  @override
+  String get visitOutsideFence => 'Outside the fence';
+
+  @override
+  String get visitInsideFence => 'Inside the fence';
+
+  @override
+  String get visitPinReported => 'The agent reported the pin is wrong';
+
+  @override
+  String get visitTheVisit => 'The visit';
+
+  @override
+  String get visitCheckedIn => 'Checked in';
+
+  @override
+  String get visitDeviceClock => 'From the phone\'s own clock';
+
+  @override
+  String get visitSubmitted => 'Submitted';
+
+  @override
+  String get visitNotYet => 'Not yet';
+
+  @override
+  String visitMinutesOnSite(int minutes) {
+    return '$minutes minutes on site';
+  }
+
+  @override
+  String get visitGeofence => 'Distance from the store';
+
+  @override
+  String get visitNoDistance => 'No distance was recorded';
+
+  @override
+  String get visitPin => 'Pin';
+
+  @override
+  String get visitPinMoved => 'The pin was moved';
+
+  @override
+  String visitPinMovedBy(String name) {
+    return 'The pin was moved by $name';
+  }
+
+  @override
+  String get visitPinKept => 'The pin was kept';
+
+  @override
+  String visitPinKeptBy(String name) {
+    return 'The pin was kept by $name';
+  }
+
+  @override
+  String get visitPinWaiting => 'Waiting for review';
+
+  @override
+  String get visitScoreHeading => 'Perfect store score';
+
+  @override
+  String get visitNotScored => 'Not scored';
+
+  @override
+  String get visitScoredOnSubmit =>
+      'The score is calculated when the visit is submitted.';
+
+  @override
+  String get visitNoScorecard =>
+      'No scorecard has been generated for this visit.';
+
+  @override
+  String get visitUnbanded => 'Unbanded';
+
+  @override
+  String visitScoreMeterSemantics(int value, int target) {
+    return '$value out of 100, target $target';
+  }
+
+  @override
+  String get visitHowScored => 'How it was scored';
+
+  @override
+  String get visitOnTarget => 'On target';
+
+  @override
+  String get visitBelowTarget => 'Below target';
+
+  @override
+  String visitAnsweredVersion(int version) {
+    return 'Answered against v$version';
+  }
+
+  @override
+  String visitAnsweredOlderVersion(int version, int current) {
+    return 'Answered against v$version · the template is now v$current, and the labels below come from the current version';
+  }
+
+  @override
+  String visitAnswerOrphan(String field) {
+    return '$field (no longer in the template)';
+  }
+
+  @override
+  String visitRequiredQuestion(String label) {
+    return '$label (required)';
+  }
+
+  @override
+  String visitTemplateScore(String score, String max) {
+    return 'Template score $score of $max';
+  }
+
+  @override
+  String get visitTemplateScoreNote =>
+      'The template score is the client\'s own measure. It is not part of the perfect store score.';
+
+  @override
+  String get visitNoAnswersHeadline => 'No answers were recorded';
+
+  @override
+  String get visitNoAnswersBody =>
+      'The template was attached to this visit and nothing was filled in.';
+
+  @override
+  String get visitNotCaptured => 'Not captured in the app';
+
+  @override
+  String get visitNotAnswered => 'Not answered';
+
+  @override
+  String get visitYes => 'Yes';
+
+  @override
+  String get visitNo => 'No';
+
+  @override
+  String get visitWhatWasCaptured => 'What was captured';
+
+  @override
+  String get visitNothingCaptured => 'Nothing was captured';
+
+  @override
+  String get visitCaptured => 'Captured';
+
+  @override
+  String visitNCaptured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count captured',
+      one: '1 captured',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitClear => 'Clear';
+
+  @override
+  String visitNFlagged(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count flagged',
+      one: '1 flagged',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitNotCapturedSection => 'Not captured';
+
+  @override
+  String get visitNoFindings => 'No findings.';
+
+  @override
+  String get visitNothingRecorded => 'Nothing was recorded in this section.';
+
+  @override
+  String get visitFindingsTruncated =>
+      'Findings drawn from the first 500 rows.';
+
+  @override
+  String get visitSeverityCritical => 'Critical';
+
+  @override
+  String get visitSeverityWatch => 'Watch';
+
+  @override
+  String get visitPhotos => 'Photos';
+
+  @override
+  String get visitNoPhotos => 'No photos were captured on this visit.';
+
+  @override
+  String visitShowingOf(int shown, int total) {
+    return 'Showing $shown of $total';
+  }
+
+  @override
+  String visitPhotoSemantics(String outlet, String section, String time) {
+    return '$outlet, $section, $time';
+  }
+
+  @override
+  String get visitFraudSignals => 'Fraud signals';
+
+  @override
+  String get visitRiskOfHundred => 'of 100';
+
+  @override
+  String visitRiskSemantics(int value, String band) {
+    return 'Risk $value out of 100. $band.';
+  }
+
+  @override
+  String get visitNotFoundHeadline => 'This visit is not here';
+
+  @override
+  String get visitNotFoundBody =>
+      'It does not exist, or it belongs to another client.';
+
+  @override
+  String get visitBackToAlerts => 'Back to alerts';
+
+  @override
+  String visitReviewScoreSemantics(int value, String band) {
+    return '$value out of 100. $band.';
+  }
+
+  @override
+  String visitReviewClientQuestions(String template) {
+    return 'Client questions · $template';
+  }
+
+  @override
   String get artifactTitleView => 'View';
 
   @override
