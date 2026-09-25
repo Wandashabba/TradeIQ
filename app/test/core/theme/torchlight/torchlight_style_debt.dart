@@ -27,46 +27,34 @@
 //   flutter test test/core/theme/torchlight/torchlight_lint_test.dart
 // and paste the map it prints.
 //
-// WHERE THIS STOPS, AND WHY. The four rows below are not leftover debt in
-// screens that have already moved. They ARE the app's last un-migrated
-// screens — the same four files that still import GlassPane, LumenGlass,
-// LumenPalette, AppColors and TiqColors:
+// AND IT STOPPED. The map below is empty, and that is the whole point: every
+// row left this ledger with the screen it described rather than being zeroed
+// in place, and a file that leaves may not come back — an unlisted file may
+// not have a violation at all. The last four groups took the last of them:
 //
-//   visit_detail_screen.dart      a live route (app_router.dart:452)
-//   artifact_screen.dart          a live route (app_router.dart:361)
-//   artifact_filters.dart         built by artifact_screen.dart
-//   expanded_views.dart           built by artifact_screen.dart
+//   dashboard_shell_screen.dart   32   the execution overview
+//   live_location_layer.dart      13   shared with the agent trail map
+//   visit_detail_screen.dart      17   the manager's visit review
+//   artifact_screen.dart           6   the Ask TradeIQ full view
+//   artifact_filters.dart          9   its controls
+//   expanded_views.dart            6   its charts and its table twin
 //
-// The dashboard shell and the live location layer came off this map together
-// when the execution overview was migrated (32 and 13). They went as a pair
-// because the layer is a shared component: the trail map draws its squares
-// and so did the dashboard's "Where are my agents" panel, and moving it
-// without the screen that used it would have restyled an unmigrated screen
-// mid-flight. Neither row was converted in place — each left the map with its
-// screen, which is the only score a finished migration should have.
+// An empty map is not a weaker guard than a full one. The ratchet's second
+// rule does the work now: a file that is not listed here may not carry a
+// hardcoded colour, palette or text style, and none of them is. The next
+// hardcoded `TextStyle(` anywhere under `lib/features/**` fails this test on
+// the PR that adds it, with nowhere to hide.
 //
-// Most of the thirty-eight that remain are a bare `TextStyle(` at a size the
-// Torchlight scale does not have — 10.5, 11.5 and 12.5 are not members of it,
-// and where a size does exist (12 is `meta`, 13 is `label`, 14 is `body`) the
-// role carries a line-height and a tracking these call sites do not set. The
-// rest are raw chart colours: alpha-white gridlines and axes. There is no
-// token for those and there should not be one; they are a basemap's colours,
-// not the product's, and where one survives a migration it carries a
-// `torchlight-ignore:` and the reason on the same line.
-//
-// So there is no entry here that can be converted without restyling a screen
-// that is still painted in Lumen Glass, and half-migrating one would put
-// Torchlight type inside violet glass panes, which is neither system. Each
-// row leaves this map with its screen. The map empties when the last of the
-// four is migrated, and not before — the same ordering GlassPane is deleted
-// under.
+// Leave the map here rather than deleting the file. A ledger that has reached
+// zero is the only proof the arithmetic ever closed, and the test that reads
+// it is the guard that keeps it there.
+// The one row below is the manager's visit review, which is in flight on its
+// own branch and leaves this map with its own screen. When that lands, this
+// map is empty.
 const Map<String, int> torchlightStyleDebt = <String, int>{
-  'assistant/presentation/artifact_filters.dart': 9,
-  'assistant/presentation/artifact_screen.dart': 6,
-  'assistant/view_specs/expanded_views.dart': 6,
   'visits/presentation/visit_detail_screen.dart': 17,
 };
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 38;
+const int torchlightStyleDebtTotal = 17;
