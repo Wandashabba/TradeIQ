@@ -243,7 +243,12 @@ void main() {
         );
 
         expect(find.byType(PlateFallback), findsNothing);
-        expect(find.byType(Image), findsWidgets);
+        // The photograph is painted as a `DecorationImage` rather than an
+        // `Image`, because that is the only slot that takes an arbitrary
+        // `ColorFilter` — and it is carrying the plate's tone.
+        final painted = platedImage(tester);
+        expect(painted, isNotNull, reason: 'no photograph on the plate');
+        expect(painted!.colorFilter, TiqPlate.tone);
         // Visible provenance: the picture is a named specimen, so the figure
         // above the list is visibly about the territory and not about a shop.
         expect(find.text('Kasi Corner Spaza'), findsWidgets);

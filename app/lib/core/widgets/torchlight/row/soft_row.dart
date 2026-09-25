@@ -81,6 +81,7 @@ class SoftRow extends StatefulWidget {
     this.density = SoftRowDensity.standard,
     this.titleTruncation = SoftRowTruncation.end,
     this.subtitle,
+    this.subtitleMaxLines = 2,
     this.meta,
     this.leading,
     this.trailing,
@@ -114,8 +115,17 @@ class SoftRow extends StatefulWidget {
   final SoftRowDensity density;
   final SoftRowTruncation titleTruncation;
 
-  /// The reason line, `body` in ink-2. Up to two lines.
+  /// The reason line, `body` in ink-2. Up to [subtitleMaxLines] lines.
   final String? subtitle;
+
+  /// How many lines the reason may take before it ellipses.
+  ///
+  /// Two by default, because a distance, an address or a held note often needs
+  /// them. **One** for a list whose job is scanning: a manager's decision list
+  /// is read down the left edge, and a second reason line costs a whole row of
+  /// fold on the screen that is supposed to show several. unify §1.3's "tall,
+  /// two meta lines" is the subtitle plus [meta], not two lines of subtitle.
+  final int subtitleMaxLines;
 
   /// The second meta line, in `meta`/ink-3 by default — a `Text` passed here
   /// inherits that role, and a `FigureSlot` passed here keeps its own, which
@@ -287,6 +297,7 @@ class _SoftRowState extends State<SoftRow> {
       title: widget.title,
       truncation: widget.titleTruncation,
       subtitle: widget.subtitle,
+      subtitleMaxLines: widget.subtitleMaxLines,
       meta: widget.meta,
       spec: spec,
       titleInk: widget.enabled ? spec.titleInk : disabledInk,
@@ -525,6 +536,7 @@ class _TextColumn extends StatelessWidget {
     required this.title,
     required this.truncation,
     required this.subtitle,
+    required this.subtitleMaxLines,
     required this.meta,
     required this.spec,
     required this.titleInk,
@@ -535,6 +547,7 @@ class _TextColumn extends StatelessWidget {
   final String title;
   final SoftRowTruncation truncation;
   final String? subtitle;
+  final int subtitleMaxLines;
   final Widget? meta;
   final SoftRowSpec spec;
   final Color titleInk;
@@ -563,7 +576,7 @@ class _TextColumn extends StatelessWidget {
           Text(
             subtitle!,
             style: spec.subtitleStyle.style(color: subtitleInk),
-            maxLines: 2,
+            maxLines: subtitleMaxLines,
             overflow: TextOverflow.ellipsis,
           ),
         ],

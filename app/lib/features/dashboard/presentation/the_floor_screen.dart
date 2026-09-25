@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
 import '../../visits/data/visit_detail_repository.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
@@ -121,7 +124,11 @@ class _FloorFrame extends StatelessWidget {
         if (hasPlatePhoto)
           const TorchClaim.plateStripLight(TheFloorScreen.plateClaimId),
       ],
-      child: FloorScaffold(children: children),
+      // The plate — and the skeleton that draws its exact geometry — is the
+      // header and starts at the top edge. The error region is words, and
+      // words under a status bar are words nobody can read, so that one state
+      // keeps the shell's inset.
+      child: FloorScaffold(bleedTop: phase != 'error', children: children),
     );
   }
 }
@@ -139,43 +146,57 @@ class _FloorFrame extends StatelessWidget {
 /// header's single trailing slot on a tab root, and this route has no header
 /// to put it in. On The Floor it belongs in the Menu destination, which is
 /// where the manager's overflow lives — see the follow-up for the Menu sheet.
+///
+/// ## The nav is the console's nav, not a copy of it
+///
+/// This frame exists because The Floor cannot use [ConsoleFrame] — it has no
+/// app header, and the plate has to run full-bleed to the top edge. What it
+/// must **not** do is own a second copy of the bar. It did: a private slot
+/// list, `activeIndex: 0`, `onSelect: onSelectSlot ?? (_) {}` with no caller
+/// ever passing `onSelectSlot`, and `onPressed: () {}` on the circle. The
+/// manager's home screen shipped with four destinations and a standing action
+/// that pressed, buzzed, scaled to 0.98 and did nothing — the one defect a
+/// widget test of the pill in isolation can never see.
+///
+/// So the slots come from [consoleNavSlots] and the press goes through
+/// [consoleNavSelect], exactly as every other console route's do.
 class FloorScaffold extends StatelessWidget {
-  const FloorScaffold({super.key, required this.children, this.onSelectSlot});
+  const FloorScaffold({
+    super.key,
+    required this.children,
+    this.onSelectSlot,
+    this.onStandingAction,
+    this.bleedTop = true,
+  });
 
   final List<Widget> children;
 
-  /// Null in a test that is pumping the body alone.
+  /// Whether the body starts at the top edge. True for every state whose first
+  /// child is the plate; see [_FloorFrame].
+  final bool bleedTop;
+
+  /// Overrides the console's own routing. Null is the real app: the bar goes
+  /// where [consoleNavSelect] says, which is the only place it may go.
   final ValueChanged<int>? onSelectSlot;
 
-  /// Floor · Work · Ask · Menu. Four slots, because five do not fit the 360dp
-  /// arithmetic; Territories and the rest live behind Menu.
-  static const List<TorchNavSlot> slots = <TorchNavSlot>[
-    TorchNavSlot(
-      icon: Icons.inventory_2_outlined,
-      activeIcon: Icons.inventory_2,
-      label: 'Floor',
-    ),
-    TorchNavSlot(
-      icon: Icons.checklist_outlined,
-      activeIcon: Icons.checklist,
-      label: 'Work',
-    ),
-    TorchNavSlot(
-      icon: Icons.forum_outlined,
-      activeIcon: Icons.forum,
-      label: 'Ask',
-    ),
-    TorchNavSlot(icon: Icons.menu, activeIcon: Icons.menu_open, label: 'Menu'),
-  ];
+  /// Overrides what the `+` circle opens. Null is the real app.
+  final VoidCallback? onStandingAction;
 
   @override
   Widget build(BuildContext context) {
     return TorchShell(
       profile: TorchShellProfile.console,
+      // The plate IS the header, so it starts at the top edge. Without this
+      // the shell's 24dp console inset put a band of ground above a
+      // photograph the design runs full-bleed, and spent 24dp of a 640dp fold
+      // on nothing. `PlateSpec.heightFor` has always measured the full
+      // viewport "including the status bar, because the plate runs full-bleed
+      // to the top edge" — this is the other half of that sentence.
+      bleedTop: bleedTop,
       navPill: TorchNavPill(
-        slots: slots,
-        activeIndex: 0,
-        onSelect: onSelectSlot ?? (_) {},
+        slots: consoleNavSlots,
+        activeIndex: ConsoleSlot.floor.index,
+        onSelect: onSelectSlot ?? (index) => consoleNavSelect(context, index),
       ),
       navCircle: TorchNavCircle(
         claimId: TheFloorScreen.navCircleClaimId,
@@ -189,9 +210,72 @@ class FloorScaffold extends StatelessWidget {
         expectedIcon: Icons.add,
         semanticLabel: 'Raise a task or assign a visit',
         expectedSemanticLabel: 'Raise a task or assign a visit',
-        onPressed: () {},
+        onPressed:
+            onStandingAction ?? () => showFloorStandingAction(context),
       ),
       children: children,
+    );
+  }
+}
+
+/// THE STANDING ACTION'S TWO VERBS.
+///
+/// The circle's own label has always promised "Raise a task or assign a
+/// visit", and `surface-manager.json` says in as many words that tapping it
+/// opens exactly that pair. It opened nothing. A circle that names two verbs
+/// and performs neither is worse than no circle: it teaches a manager that
+/// the chrome on this screen is decoration.
+///
+/// One sheet, two rows, both to destinations that already exist. It is
+/// deliberately *not* a third nav destination and deliberately not a form:
+/// raising a task from a blank page is not a thing this product does — a task
+/// is raised against a finding, and the finding is on the Work queue.
+///
+/// **Amber: none.** A menu commits nothing, and while it is up every amber on
+/// the route beneath goes out (unify §1.10).
+Future<void> showFloorStandingAction(BuildContext context) {
+  return showTorchSheet<void>(
+    context,
+    builder: (sheetContext) => const FloorStandingActionSheet(),
+  );
+}
+
+/// The sheet's body — public so a test can pump it without a scrim.
+class FloorStandingActionSheet extends StatelessWidget {
+  const FloorStandingActionSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    void leaveFor(String route) {
+      Navigator.of(context).pop();
+      context.go(route);
+    }
+
+    return TorchSheet(
+      title: 'Raise a task or assign a visit',
+      subtitle: 'Two ways to put somebody on a problem.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SoftRow(
+            key: const ValueKey<String>('floor-standing-raise-task'),
+            density: SoftRowDensity.compact,
+            title: 'Raise a task',
+            subtitle: 'Against a finding on the work queue',
+            trailing: const SoftRowChevron(),
+            onTap: () => leaveFor('/tasks'),
+          ),
+          SoftRow(
+            key: const ValueKey<String>('floor-standing-assign-visit'),
+            density: SoftRowDensity.compact,
+            title: 'Assign a visit',
+            subtitle: 'Send an agent to an outlet today',
+            trailing: const SoftRowChevron(),
+            onTap: () => leaveFor('/dispatch'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -309,7 +393,12 @@ class _DecisionRowFor extends StatelessWidget {
       // component's own doc forbids. See the follow-up ticket.
       sparkline: null,
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      onTap: () {},
+      // `push`, not `go`: a decision is read on top of The Floor and the
+      // manager comes back to the same scroll offset, which is the behaviour
+      // `surface-manager.json` names. `FloorDecision.route` has carried
+      // "where tapping the row goes" since the model was written and nothing
+      // ever read it.
+      onTap: () => context.push(decision.route),
     );
   }
 }
@@ -333,7 +422,9 @@ class _MoreRow extends StatelessWidget {
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {},
+        // The full worklist. A row that announces itself as a button and then
+        // does nothing is worse than a line of text.
+        onTap: () => context.go('/tasks'),
         child: Container(
           constraints: BoxConstraints(minHeight: skin.space.tapTarget),
           padding: EdgeInsets.symmetric(
@@ -406,7 +497,17 @@ class _AvailabilityTile extends StatelessWidget {
             )
           : null,
       lead: true,
+      // On the ground, not in a panel: the shell has already spent the
+      // gutter, and the tile's own 16dp inset was a second invisible one that
+      // put this eyebrow 16dp right of the section rule below it and 16dp
+      // right of the hero above it. Three left edges on one screen, and 32dp
+      // of fold, for a box nobody can see.
+      padding: EdgeInsets.zero,
       subordinates: _supports(view),
+      // The hint has promised this since the tile was written; `onTap` is what
+      // makes the promise true. Without it the tile announced itself with a
+      // hint and no action.
+      onTap: () => context.go('/dashboard/overview'),
       semanticsHint: 'Opens the figures behind on-shelf availability',
     );
   }
@@ -590,7 +691,9 @@ class _PlateFor extends StatelessWidget {
           'Territory health',
           style: skin.text.label.style(color: skin.palette.ink2),
         ),
-        onHealthTap: () {},
+        // The decomposition: what the composite figure is made of. A
+        // composite number nobody can open is a number you cannot act on.
+        onHealthTap: () => context.go('/dashboard/overview'),
       ),
     );
   }
