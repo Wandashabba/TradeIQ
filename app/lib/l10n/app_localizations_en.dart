@@ -528,13 +528,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visitSectionOutletInfo => 'Outlet info';
 
   @override
-  String get visitSectionStock => 'Stock';
+  String get visitSectionStock => 'Stock & availability';
 
   @override
-  String get visitSectionVisibility => 'Visibility';
+  String get visitSectionVisibility => 'Visibility & display';
 
   @override
-  String get visitSectionPricing => 'Pricing';
+  String get visitSectionPricing => 'Pricing & promotions';
 
   @override
   String get visitSectionCompetitive => 'Competitive';
@@ -1626,9 +1626,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'All your work is sent. Double-tap to see it.';
 
   @override
-  String visitClientQuestions(String template) {
-    return 'Client questions · $template';
-  }
+  String get visitClientQuestions => 'The client’s questions';
 
   @override
   String get visitReadFailedTitle => 'This visit could not be read.';
@@ -1719,8 +1717,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String visitScoreSemantics(int value, String band) {
-    return '$value out of 100. $band.';
+  String visitScoreSemantics(String name) {
+    return '$name, not yet available. Worked out when the visit sends.';
   }
 
   @override
@@ -7832,6 +7830,260 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return '$agent, stop $ordinal, $outlet, $time';
   }
+
+  @override
+  String get dashOverviewTitle => 'Execution overview';
+
+  @override
+  String get dashRefresh => 'Refresh every panel';
+
+  @override
+  String get dashFilters => 'Filters';
+
+  @override
+  String get dashAllTerritories => 'All territories';
+
+  @override
+  String get dashOneTerritory => 'One territory';
+
+  @override
+  String get dashTerritory => 'Territory';
+
+  @override
+  String get dashTerritorySheetBody =>
+      'Every figure below is scoped to this choice.';
+
+  @override
+  String get dashSelected => 'Selected';
+
+  @override
+  String get dashRangeLast7 => 'Last 7 days';
+
+  @override
+  String get dashRangeLast30 => 'Last 30 days';
+
+  @override
+  String get dashRangeLast90 => 'Last 90 days';
+
+  @override
+  String get dashRangeYtd => 'Year to date';
+
+  @override
+  String get dashRangeAll => 'All time';
+
+  @override
+  String get dashExecutionScore => 'Execution score';
+
+  @override
+  String dashExecutionScoreSupports(int target) {
+    return 'Weighted S2–S8, all outlets · target $target';
+  }
+
+  @override
+  String get dashScoreTrend => 'Execution score over time';
+
+  @override
+  String get dashVsWindowBefore => 'vs the window before';
+
+  @override
+  String get dashNeedsAttention => 'Needs attention';
+
+  @override
+  String get dashViewAllAlerts => 'All alerts';
+
+  @override
+  String get dashCriticalAlerts => 'Critical alerts open';
+
+  @override
+  String get dashWarningAlerts => 'Warnings awaiting acknowledgement';
+
+  @override
+  String get dashTasksOpen => 'Tasks still open';
+
+  @override
+  String get dashNothingOutstanding => 'Nothing outstanding';
+
+  @override
+  String get dashNoneAtCritical => 'None at critical priority';
+
+  @override
+  String dashNAtCritical(int count) {
+    return '$count at critical priority';
+  }
+
+  @override
+  String get dashSeverityCritical => 'Critical';
+
+  @override
+  String get dashSeverityWatch => 'Watch';
+
+  @override
+  String get dashAgainstStandard => 'Where we sit against the standard';
+
+  @override
+  String get dashTickMarksTarget => 'The tick marks the target.';
+
+  @override
+  String get dashKpiOsa => 'On-shelf availability';
+
+  @override
+  String get dashKpiOsaNote => 'Floor 95% · target 97–99%';
+
+  @override
+  String get dashKpiPerfectStore => 'Perfect-store rate';
+
+  @override
+  String get dashKpiPerfectStoreNote =>
+      'Healthy 80–90% · below 70% is an execution gap';
+
+  @override
+  String get dashKpiPrice => 'Price compliance';
+
+  @override
+  String get dashKpiPriceNote => 'Within tolerance of the recommended price';
+
+  @override
+  String get dashKpiVisibility => 'Visibility compliance';
+
+  @override
+  String get dashKpiVisibilityNote => 'Planogram threshold';
+
+  @override
+  String get dashKpiShareOfShelf => 'Share of shelf';
+
+  @override
+  String get dashKpiShareOfShelfNote => 'Category fair share';
+
+  @override
+  String get dashKpiWeighted => 'Weighted distribution';
+
+  @override
+  String get dashKpiWeightedNote => 'Volume-weighted';
+
+  @override
+  String get dashKpiNumeric => 'Numeric distribution';
+
+  @override
+  String get dashKpiNumericNote => 'Outlets stocking';
+
+  @override
+  String get dashStandingCritical => 'Below the standard';
+
+  @override
+  String get dashStandingWatch => 'Close to the standard';
+
+  @override
+  String get dashStandingOnTarget => 'On the standard';
+
+  @override
+  String dashTargetIs(String target) {
+    return 'Target $target';
+  }
+
+  @override
+  String get dashDistribution => 'Perfect-store distribution';
+
+  @override
+  String get dashHealthyBand =>
+      'Outlets by their latest scored visit · healthy band 80–90.';
+
+  @override
+  String dashBandOutlets(int count, String band) {
+    return '$count outlets scoring $band';
+  }
+
+  @override
+  String get dashByTerritory => 'Execution score by territory';
+
+  @override
+  String get dashNoTerritories => 'No territories defined';
+
+  @override
+  String get dashNoTerritoriesBody =>
+      'Add a territory to compare scores across the field.';
+
+  @override
+  String get dashNoTerritoryScores => 'No territory scores yet';
+
+  @override
+  String get dashNoTerritoryScoresBody =>
+      'Scores appear once visits in this window have been scored.';
+
+  @override
+  String get dashAvailabilityByPeriod => 'On-shelf availability by period';
+
+  @override
+  String get dashWhereAgents => 'Where are my agents';
+
+  @override
+  String get dashTodaysCheckIns =>
+      'Today’s confirmed check-ins. A pin is where somebody checked in, not where they are now.';
+
+  @override
+  String get dashViewMap => 'Open the map';
+
+  @override
+  String get dashNoAgentsHeadline => 'Nobody to show';
+
+  @override
+  String get dashNoAgentsYet => 'No field agents yet.';
+
+  @override
+  String get dashNoAgentsForFilter => 'No agents match this territory filter.';
+
+  @override
+  String dashNoAgentsIn(String name) {
+    return 'No agents are assigned to $name.';
+  }
+
+  @override
+  String get dashNoOutletsToPlot =>
+      'No outlets yet — add outlets to see them here.';
+
+  @override
+  String dashOnTheMap(int plotted, int notPlotted) {
+    return '$plotted on the map · $notPlotted not checked in today';
+  }
+
+  @override
+  String get dashFirst200Agents =>
+      'Showing the first 200 agents. Filter by territory to narrow.';
+
+  @override
+  String get dashNoCheckIn => 'No check-in';
+
+  @override
+  String get dashNoCheckInToday => 'no check-in today';
+
+  @override
+  String get dashUnknownStore => 'unknown store';
+
+  @override
+  String get dashInTransit => 'in transit';
+
+  @override
+  String dashLeft(String outlet) {
+    return 'left $outlet';
+  }
+
+  @override
+  String dashOutletPin(String outlet) {
+    return '$outlet outlet';
+  }
+
+  @override
+  String get dashNoVisitsInWindow => 'No visits in this window';
+
+  @override
+  String get dashFirstRunHeadline => 'Nothing on the books yet';
+
+  @override
+  String get dashFirstRunBody =>
+      'Add outlets and territories, and this console fills in as visits are submitted and scored.';
+
+  @override
+  String get dashStubCaveat =>
+      'Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.';
 
   @override
   String get visitReviewTitle => 'Visit review';

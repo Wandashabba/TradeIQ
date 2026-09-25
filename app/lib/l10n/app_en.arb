@@ -10614,6 +10614,356 @@
       }
     }
   },
+  "dashOverviewTitle": "Execution overview",
+  "@dashOverviewTitle": {
+    "description": "The title of the manager's multi-panel console at /dashboard/overview."
+  },
+  "dashRefresh": "Refresh every panel",
+  "@dashRefresh": {
+    "description": "Screen-reader label for the header's refetch button. It refetches all panels together so none can disagree with another."
+  },
+  "dashFilters": "Filters",
+  "@dashFilters": {
+    "description": "Label for the filter rail that scopes every panel on the execution overview."
+  },
+  "dashAllTerritories": "All territories",
+  "@dashAllTerritories": {
+    "description": "The unfiltered territory choice."
+  },
+  "dashOneTerritory": "One territory",
+  "@dashOneTerritory": {
+    "description": "The territory chip's label while the territory list has not loaded, so it can still say that a filter is on without naming it."
+  },
+  "dashTerritory": "Territory",
+  "@dashTerritory": {
+    "description": "Title of the sheet that chooses which territory the console is scoped to."
+  },
+  "dashTerritorySheetBody": "Every figure below is scoped to this choice.",
+  "@dashTerritorySheetBody": {
+    "description": "Subtitle of the territory sheet."
+  },
+  "dashSelected": "Selected",
+  "@dashSelected": {
+    "description": "Announced first in a picker row's label, because a tick is silence to a screen reader."
+  },
+  "dashRangeLast7": "Last 7 days",
+  "@dashRangeLast7": {
+    "description": "A window the console's figures are measured over."
+  },
+  "dashRangeLast30": "Last 30 days",
+  "@dashRangeLast30": {
+    "description": "A window the console's figures are measured over."
+  },
+  "dashRangeLast90": "Last 90 days",
+  "@dashRangeLast90": {
+    "description": "A window the console's figures are measured over."
+  },
+  "dashRangeYtd": "Year to date",
+  "@dashRangeYtd": {
+    "description": "A window the console's figures are measured over."
+  },
+  "dashRangeAll": "All time",
+  "@dashRangeAll": {
+    "description": "The unbounded window. It has no previous period, so it shows no deltas at all."
+  },
+  "dashExecutionScore": "Execution score",
+  "@dashExecutionScore": {
+    "description": "The console's headline figure."
+  },
+  "dashExecutionScoreSupports": "Weighted S2–S8, all outlets · target {target}",
+  "@dashExecutionScoreSupports": {
+    "description": "The supporting line under the execution score.",
+    "placeholders": {
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "dashScoreTrend": "Execution score over time",
+  "@dashScoreTrend": {
+    "description": "Heading for the execution score's trend chart and its table twin."
+  },
+  "dashVsWindowBefore": "vs the window before",
+  "@dashVsWindowBefore": {
+    "description": "What a delta on this console is measured against — the like-for-like window, complete days on both sides."
+  },
+  "dashNeedsAttention": "Needs attention",
+  "@dashNeedsAttention": {
+    "description": "Section heading over the open alert and task counts."
+  },
+  "dashViewAllAlerts": "All alerts",
+  "@dashViewAllAlerts": {
+    "description": "The needs-attention section's ghost action, into the alerts worklist."
+  },
+  "dashCriticalAlerts": "Critical alerts open",
+  "@dashCriticalAlerts": {
+    "description": "Row title: open alerts at critical severity."
+  },
+  "dashWarningAlerts": "Warnings awaiting acknowledgement",
+  "@dashWarningAlerts": {
+    "description": "Row title: open alerts below critical severity."
+  },
+  "dashTasksOpen": "Tasks still open",
+  "@dashTasksOpen": {
+    "description": "Row title: tasks that are not closed."
+  },
+  "dashNothingOutstanding": "Nothing outstanding",
+  "@dashNothingOutstanding": {
+    "description": "The detail line on a needs-attention row whose count is a measured zero. The row still renders its 0."
+  },
+  "dashNoneAtCritical": "None at critical priority",
+  "@dashNoneAtCritical": {
+    "description": "The detail line when no open task is at critical priority."
+  },
+  "dashNAtCritical": "{count} at critical priority",
+  "@dashNAtCritical": {
+    "description": "The detail line counting open tasks at critical priority.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashSeverityCritical": "Critical",
+  "@dashSeverityCritical": {
+    "description": "The word beside a critical severity bar. The bar is crimson; the word is the channel that survives greyscale and a screen reader."
+  },
+  "dashSeverityWatch": "Watch",
+  "@dashSeverityWatch": {
+    "description": "The word beside a watch severity bar."
+  },
+  "dashAgainstStandard": "Where we sit against the standard",
+  "@dashAgainstStandard": {
+    "description": "Section heading over the seven indicators and their published targets."
+  },
+  "dashTickMarksTarget": "The tick marks the target.",
+  "@dashTickMarksTarget": {
+    "description": "Explains the meter's target tick above the indicator list."
+  },
+  "dashKpiOsa": "On-shelf availability",
+  "@dashKpiOsa": {
+    "description": "Indicator name."
+  },
+  "dashKpiOsaNote": "Floor 95% · target 97–99%",
+  "@dashKpiOsaNote": {
+    "description": "The published standard for on-shelf availability."
+  },
+  "dashKpiPerfectStore": "Perfect-store rate",
+  "@dashKpiPerfectStore": {
+    "description": "Indicator name."
+  },
+  "dashKpiPerfectStoreNote": "Healthy 80–90% · below 70% is an execution gap",
+  "@dashKpiPerfectStoreNote": {
+    "description": "The published standard for the perfect-store rate."
+  },
+  "dashKpiPrice": "Price compliance",
+  "@dashKpiPrice": {
+    "description": "Indicator name."
+  },
+  "dashKpiPriceNote": "Within tolerance of the recommended price",
+  "@dashKpiPriceNote": {
+    "description": "The standard for price compliance."
+  },
+  "dashKpiVisibility": "Visibility compliance",
+  "@dashKpiVisibility": {
+    "description": "Indicator name."
+  },
+  "dashKpiVisibilityNote": "Planogram threshold",
+  "@dashKpiVisibilityNote": {
+    "description": "The standard for visibility compliance."
+  },
+  "dashKpiShareOfShelf": "Share of shelf",
+  "@dashKpiShareOfShelf": {
+    "description": "Indicator name."
+  },
+  "dashKpiShareOfShelfNote": "Category fair share",
+  "@dashKpiShareOfShelfNote": {
+    "description": "The standard for share of shelf."
+  },
+  "dashKpiWeighted": "Weighted distribution",
+  "@dashKpiWeighted": {
+    "description": "Indicator name."
+  },
+  "dashKpiWeightedNote": "Volume-weighted",
+  "@dashKpiWeightedNote": {
+    "description": "The standard for weighted distribution."
+  },
+  "dashKpiNumeric": "Numeric distribution",
+  "@dashKpiNumeric": {
+    "description": "Indicator name."
+  },
+  "dashKpiNumericNote": "Outlets stocking",
+  "@dashKpiNumericNote": {
+    "description": "The standard for numeric distribution."
+  },
+  "dashStandingCritical": "Below the standard",
+  "@dashStandingCritical": {
+    "description": "An indicator more than ten points under its target."
+  },
+  "dashStandingWatch": "Close to the standard",
+  "@dashStandingWatch": {
+    "description": "An indicator within ten points of its target but not on it."
+  },
+  "dashStandingOnTarget": "On the standard",
+  "@dashStandingOnTarget": {
+    "description": "An indicator at or above its target."
+  },
+  "dashTargetIs": "Target {target}",
+  "@dashTargetIs": {
+    "description": "The standard a figure is read against, already formatted by the locale formatter.",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "dashDistribution": "Perfect-store distribution",
+  "@dashDistribution": {
+    "description": "Section heading over the score-band counts."
+  },
+  "dashHealthyBand": "Outlets by their latest scored visit · healthy band 80–90.",
+  "@dashHealthyBand": {
+    "description": "Explains what the score-band counts are counting."
+  },
+  "dashBandOutlets": "{count} outlets scoring {band}",
+  "@dashBandOutlets": {
+    "description": "Screen-reader label for one score band's row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "dashByTerritory": "Execution score by territory",
+  "@dashByTerritory": {
+    "description": "Section heading over the per-territory score list."
+  },
+  "dashNoTerritories": "No territories defined",
+  "@dashNoTerritories": {
+    "description": "Empty state when the tenant has no territories at all."
+  },
+  "dashNoTerritoriesBody": "Add a territory to compare scores across the field.",
+  "@dashNoTerritoriesBody": {
+    "description": "Body of the no-territories empty state."
+  },
+  "dashNoTerritoryScores": "No territory scores yet",
+  "@dashNoTerritoryScores": {
+    "description": "Empty state when territories exist but no summary overlaps them. A settled answer, never a loader."
+  },
+  "dashNoTerritoryScoresBody": "Scores appear once visits in this window have been scored.",
+  "@dashNoTerritoryScoresBody": {
+    "description": "Body of the no-territory-scores empty state."
+  },
+  "dashAvailabilityByPeriod": "On-shelf availability by period",
+  "@dashAvailabilityByPeriod": {
+    "description": "Heading for the availability trend chart and its table twin."
+  },
+  "dashWhereAgents": "Where are my agents",
+  "@dashWhereAgents": {
+    "description": "Section heading over the agent map and list."
+  },
+  "dashTodaysCheckIns": "Today’s confirmed check-ins. A pin is where somebody checked in, not where they are now.",
+  "@dashTodaysCheckIns": {
+    "description": "Explains what the agent map plots, so a pin is never read as a live position."
+  },
+  "dashViewMap": "Open the map",
+  "@dashViewMap": {
+    "description": "The agent section's ghost action, into the full-screen activity map."
+  },
+  "dashNoAgentsHeadline": "Nobody to show",
+  "@dashNoAgentsHeadline": {
+    "description": "Headline of the agent panel's empty state."
+  },
+  "dashNoAgentsYet": "No field agents yet.",
+  "@dashNoAgentsYet": {
+    "description": "Body of the agent empty state when no territory filter is on, so the filter cannot be the reason."
+  },
+  "dashNoAgentsForFilter": "No agents match this territory filter.",
+  "@dashNoAgentsForFilter": {
+    "description": "Body of the agent empty state when a territory is filtered but its name is not known."
+  },
+  "dashNoAgentsIn": "No agents are assigned to {name}.",
+  "@dashNoAgentsIn": {
+    "description": "Body of the agent empty state, naming the filtered territory.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashNoOutletsToPlot": "No outlets yet — add outlets to see them here.",
+  "@dashNoOutletsToPlot": {
+    "description": "Said in words when there is nothing at all to draw on the map, rather than drawing an empty one."
+  },
+  "dashOnTheMap": "{plotted} on the map · {notPlotted} not checked in today",
+  "@dashOnTheMap": {
+    "description": "Says who is plotted and who is not, so the map never reads as the whole team.",
+    "placeholders": {
+      "plotted": {
+        "type": "int"
+      },
+      "notPlotted": {
+        "type": "int"
+      }
+    }
+  },
+  "dashFirst200Agents": "Showing the first 200 agents. Filter by territory to narrow.",
+  "@dashFirst200Agents": {
+    "description": "Said when the agent page is truncated, so a cut list never reads as the whole team."
+  },
+  "dashNoCheckIn": "No check-in",
+  "@dashNoCheckIn": {
+    "description": "The check-in state of an agent who has not checked in today."
+  },
+  "dashNoCheckInToday": "no check-in today",
+  "@dashNoCheckInToday": {
+    "description": "The age column for an agent who has never been seen today."
+  },
+  "dashUnknownStore": "unknown store",
+  "@dashUnknownStore": {
+    "description": "Stands in where an agent is at a store whose name the page did not carry."
+  },
+  "dashInTransit": "in transit",
+  "@dashInTransit": {
+    "description": "Stands in where an agent is on the road and no previous store is known."
+  },
+  "dashLeft": "left {outlet}",
+  "@dashLeft": {
+    "description": "Where an agent in transit was last confirmed.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "dashOutletPin": "{outlet} outlet",
+  "@dashOutletPin": {
+    "description": "Screen-reader label for one outlet dot on the base layer of the agent map.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      }
+    }
+  },
+  "dashNoVisitsInWindow": "No visits in this window",
+  "@dashNoVisitsInWindow": {
+    "description": "The sentence that goes with an em dash. An absence, never a nought."
+  },
+  "dashFirstRunHeadline": "Nothing on the books yet",
+  "@dashFirstRunHeadline": {
+    "description": "Whole-screen state for a tenant with no outlets at all. Not a scoreboard of noughts."
+  },
+  "dashFirstRunBody": "Add outlets and territories, and this console fills in as visits are submitted and scored.",
+  "@dashFirstRunBody": {
+    "description": "Body of the first-run state."
+  },
+  "dashStubCaveat": "Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.",
+  "@dashStubCaveat": {
+    "description": "A caveat under the console, so two derived figures are never read as measured ones."
+  },
   "visitReviewTitle": "Visit review",
   "@visitReviewTitle": {
     "description": "The name of the manager's supervisory view of one visit."
@@ -10733,18 +11083,6 @@
   "@visitUnbanded": {
     "description": "A rating band this build does not recognise. Never guessed at, and never given a severity."
   },
-  "visitScoreSemantics": "{value} out of 100. {band}.",
-  "@visitScoreSemantics": {
-    "description": "The score and its band as one utterance, so a reader never hears the figure without the verdict.",
-    "placeholders": {
-      "value": {
-        "type": "int"
-      },
-      "band": {
-        "type": "String"
-      }
-    }
-  },
   "visitScoreMeterSemantics": "{value} out of 100, target {target}",
   "@visitScoreMeterSemantics": {
     "description": "The score meter's spoken value.",
@@ -10768,15 +11106,6 @@
   "visitBelowTarget": "Below target",
   "@visitBelowTarget": {
     "description": "A dimension under the visit's target."
-  },
-  "visitClientQuestions": "Client questions · {template}",
-  "@visitClientQuestions": {
-    "description": "Section heading over the answers to the client's own audit template (#122).",
-    "placeholders": {
-      "template": {
-        "type": "String"
-      }
-    }
   },
   "visitAnsweredVersion": "Answered against v{version}",
   "@visitAnsweredVersion": {
@@ -10906,26 +11235,6 @@
   "visitFindingsTruncated": "Findings drawn from the first 500 rows.",
   "@visitFindingsTruncated": {
     "description": "Said when the server cut the rows it derived findings from, so a short list never reads as the whole section."
-  },
-  "visitSectionStock": "Stock",
-  "@visitSectionStock": {
-    "description": "A capture section."
-  },
-  "visitSectionVisibility": "Visibility",
-  "@visitSectionVisibility": {
-    "description": "A capture section."
-  },
-  "visitSectionPricing": "Pricing",
-  "@visitSectionPricing": {
-    "description": "A capture section."
-  },
-  "visitSectionCompetitive": "Competitive",
-  "@visitSectionCompetitive": {
-    "description": "A capture section."
-  },
-  "visitSectionRisks": "Risks",
-  "@visitSectionRisks": {
-    "description": "A capture section. A flagged risk is an in-store hazard rather than an execution gap."
   },
   "visitSeverityCritical": "Critical",
   "@visitSeverityCritical": {

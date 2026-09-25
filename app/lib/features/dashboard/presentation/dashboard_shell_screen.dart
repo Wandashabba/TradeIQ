@@ -1,51 +1,98 @@
-import 'dart:math' as math;
-
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/motion_budget.dart';
 import '../../../core/format/period_label.dart';
+import '../../../core/format/relative_time.dart';
 import '../../../core/geo/mercator_fit.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_kit.dart' show formatAgo;
-import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
+import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_state_glyph.dart';
 import '../../../core/widgets/basemap.dart';
-import '../../../core/widgets/charts.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/delta_pill.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/pill_segment.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/figure/chart/chart.dart';
+import '../../../core/widgets/torchlight/figure/sparkline.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../agents/data/agent_locations_repository.dart';
 import '../../agents/data/agents_repository.dart';
 import '../../agents/presentation/live_location_layer.dart';
 import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
+import '../../sales_targets/data/sales_targets_repository.dart';
+import '../../sales_targets/presentation/sales_attainment_panel.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
-import '../../sales_targets/data/sales_targets_repository.dart';
-import '../../sales_targets/presentation/sales_attainment_panel.dart';
-import '../../../core/theme/lumen_palette.dart';
 
-/// The manager's morning screen. It answers one question — *what is broken, and
-/// who is fixing it?* — so the execution score and the alerts dragging it down
-/// sit side by side rather than a scroll apart.
+/// EXECUTION OVERVIEW — the manager's multi-panel console, in Torchlight.
+///
+/// The Floor (`/dashboard`) is the home and answers *what is broken, and who
+/// is fixing it?* on one fold. This route answers the other half — *how are we
+/// doing, and against what?* — and holds the four panels The Floor
+/// deliberately did not absorb: the score and its trend, the indicators
+/// against their published standards, the score by territory, and where the
+/// agents are.
+///
+/// ```text
+///   Execution overview                                   [ ⟳ ]
+///   Gauteng North · last 30 days
+///   (7 days)(30 days)(90 days)(Year to date)(All time) | (Gauteng North)
+///   ── Execution score ─────────────────────────────────
+///   EXECUTION SCORE                                  72,4
+///   ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁│▁▁▁▁▁   ▲ 1,8 vs the window before
+///   ── Needs attention 3 ───────────────────────────────
+///   ▌ Critical alerts open                              4
+///   ── Where we sit against the standard ───────────────
+///   ── Execution score by territory ────────────────────
+///   ── On-shelf availability ───────────────────────────
+///   ── Where are my agents ─────────────────────────────
+///   [ nav pill ]
+/// ```
+///
+/// ## The amber, counted
+///
+/// A tab root reached from the Menu, so the nav's active tab is slot 1 and the
+/// content has one grant left. **Every phase declines it.** There is no commit
+/// action on this route — nothing here is armed — the chart-focus rung is
+/// declined for the reason the trends screen declines it (three plots on one
+/// route is three focus objects asking, and the budget is counted per route
+/// rather than per viewport), the selected filter chip is `lifted` like every
+/// other selected chip in the product, and every severity on the screen is
+/// crimson at two commitment levels with a word beside it. Night: 1. Day and
+/// Veld: 0. On every phase.
+///
+/// ## Unknown is not zero
+///
+/// `GET /dashboard` answers with figures whatever it was asked, so a window
+/// with no visits in it comes back as a wall of confident noughts. `totals` is
+/// the only thing that can tell those apart from eight real zeros, and it is
+/// what this screen branches on: no outlets at all is a first-run tenant, a
+/// tenant with outlets and no visits renders em dashes, the unit suppressed,
+/// no deltas and a sentence in words. A measured `0` renders `0` and keeps its
+/// place.
+///
+/// ## Veld
+///
+/// Veld draws no plot and no map (unify §4). Both trend panels fall back to
+/// their `TableTwin` — which is also what a screen reader and a printer get —
+/// and the agent panel falls back to its list, which was always the half that
+/// kept the map honest.
 class DashboardShellScreen extends ConsumerWidget {
   const DashboardShellScreen({super.key});
-
-  /// Below this the two-column rows stack. Matches the console's rail
-  /// breakpoint so the layout never fights the nav.
-  static const _wide = 1080.0;
 
   /// Refetches every panel together.
   ///
@@ -56,7 +103,7 @@ class DashboardShellScreen extends ConsumerWidget {
   /// [dashboardFilterProvider] is deliberately excluded — it holds the
   /// manager's filter selection rather than server data, and resetting it here
   /// would silently throw away what they asked to see.
-  static Future<void> _refresh(WidgetRef ref) async {
+  static Future<void> refresh(WidgetRef ref) async {
     ref.invalidate(dashboardByTerritoryProvider);
     ref.invalidate(scorecardsTrendProvider);
     ref.invalidate(perfectStoreTrendProvider);
@@ -67,563 +114,679 @@ class DashboardShellScreen extends ConsumerWidget {
     ref.invalidate(agentActivityTodayProvider);
     ref.invalidate(liveAgentLocationsProvider);
     ref.invalidate(currentMonthAttainmentProvider);
-    // Awaited last so the progress indicator tracks the headline number; the
-    // rest refetch in parallel behind it.
+    // Awaited last so the caller tracks the headline number; the rest refetch
+    // in parallel behind it.
     ref.invalidate(dashboardSnapshotProvider);
     await ref.read(dashboardSnapshotProvider.future);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final snapshot = ref.watch(dashboardSnapshotProvider);
-    final glass = context.colors.glass;
-    final bands = snapshot.maybeWhen(
-      data: (snap) => snap.current.scoreBands,
-      orElse: () => const <ScoreBand>[],
+    final filter = ref.watch(dashboardFilterProvider);
+    final gutter = context.skin.space.gutter;
+    final blockGap = context.skin.space.blockGap;
+
+    // Resolved once, from the view model, per declared phase — never from a
+    // figure that happens to be 0.
+    final phase = snapshot.when(
+      loading: () => 'loading',
+      error: (_, _) => 'error',
+      data: (snap) => snap.current.hasNoOutlets
+          ? 'first-run'
+          : snap.current.measuredSomething
+          ? 'loaded'
+          : 'window-empty',
     );
 
-    return ManagerScaffold(
-      title: 'Execution overview',
-      // Managers are on Flutter web, where pull-to-refresh is neither obvious
-      // nor comfortable with a mouse — so the gesture below is the shortcut and
-      // this button is the actual affordance.
-      actions: [
-        IconButton(
+    return ConsoleFrame(
+      phase: phase,
+      active: ConsoleSlot.menu,
+      header: TorchAppHeader(
+        title: l10n.dashOverviewTitle,
+        facts: <String>[
+          _territoryFact(ref, l10n, filter.territoryId),
+          rangeLabel(l10n, filter.range),
+        ],
+        // The header allows exactly one trailing control, and on a console
+        // route the one worth having is the refetch — the same choice Alerts
+        // and Territories made, for the same reason. Managers are on Flutter
+        // web, where a pull-to-refresh gesture is neither obvious nor
+        // comfortable with a mouse.
+        trailing: TorchIconButton(
           key: const ValueKey<String>('dashboard-refresh'),
-          icon: const Icon(Icons.refresh, size: 18),
-          tooltip: 'Refresh',
-          onPressed: () => _refresh(ref),
+          icon: Icons.refresh,
+          semanticLabel: l10n.dashRefresh,
+          onPressed: () => refresh(ref),
+        ),
+      ),
+      children: <Widget>[
+        TorchBleed(extra: gutter * 2, child: const _DashboardFilters()),
+        SizedBox(height: blockGap),
+        if (phase == 'first-run')
+          const _FirstRun()
+        else ...<Widget>[
+          _ExecutionScoreSection(snapshot: snapshot),
+          SizedBox(height: blockGap),
+          const _NeedsAttentionSection(),
+          SizedBox(height: blockGap),
+          _StandardsSection(snapshot: snapshot),
+          SizedBox(height: blockGap),
+          _DistributionSection(snapshot: snapshot),
+          const _TerritorySection(),
+          SizedBox(height: blockGap),
+          const _AvailabilitySection(),
+          SizedBox(height: blockGap),
+          const AgentActivityPanel(),
+          SizedBox(height: blockGap),
+          const SalesAttainmentPanel(),
+          SizedBox(height: blockGap),
+          const _StubCaveat(),
+        ],
+      ],
+    );
+  }
+
+  /// The header's first fact: which territory the figures below are about.
+  static String _territoryFact(
+    WidgetRef ref,
+    AppLocalizations l10n,
+    String? territoryId,
+  ) {
+    if (territoryId == null) return l10n.dashAllTerritories;
+    return territoryName(ref, territoryId) ?? l10n.dashOneTerritory;
+  }
+}
+
+/// The window's own name, localised. `DashboardRange.label` is the wire-ish
+/// abbreviation the old pills wore; a fact line and a filter chip are read out
+/// loud, so they get words.
+String rangeLabel(AppLocalizations l10n, DashboardRange range) =>
+    switch (range) {
+      DashboardRange.last7 => l10n.dashRangeLast7,
+      DashboardRange.last30 => l10n.dashRangeLast30,
+      DashboardRange.last90 => l10n.dashRangeLast90,
+      DashboardRange.ytd => l10n.dashRangeYtd,
+      DashboardRange.allTime => l10n.dashRangeAll,
+    };
+
+/// A territory's name from the loaded list, or null when the list has not
+/// loaded, failed, or simply does not contain the id — a deleted or stale
+/// territory. Never the raw id: a uuid is not a name (unify §1.15).
+String? territoryName(WidgetRef ref, String id) =>
+    ref.watch(territoriesListProvider).maybeWhen(
+      data: (list) {
+        for (final t in list) {
+          if (t.id == id) return t.name;
+        }
+        return null;
+      },
+      orElse: () => null,
+    );
+
+// ═══════════════════════════════════════════════════════════════════════
+// Filters — one rail, above everything it scopes
+// ═══════════════════════════════════════════════════════════════════════
+
+/// One filter rail scoping every panel below it — the window and the
+/// territory.
+///
+/// A per-panel control would let two figures silently disagree about which
+/// slice of time they show, which is worse than no control at all. Selected is
+/// `lifted` + ink-1 border + tick + weight 700 — three channels, never amber,
+/// on any screen (unify §1.6).
+class _DashboardFilters extends ConsumerWidget {
+  const _DashboardFilters();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final filter = ref.watch(dashboardFilterProvider);
+    final territories = ref.watch(territoriesListProvider);
+
+    void update(DashboardFilter next) =>
+        ref.read(dashboardFilterProvider.notifier).set(next);
+
+    final selectedName = filter.territoryId == null
+        ? null
+        : territoryName(ref, filter.territoryId!);
+
+    return TorchFilterRail(
+      semanticsLabel: l10n.dashFilters,
+      chips: <Widget>[
+        for (final range in DashboardRange.values)
+          TorchFilterChip(
+            key: ValueKey<String>('range-${range.name}'),
+            label: rangeLabel(l10n, range),
+            selected: range == filter.range,
+            onSelected: () => update(filter.copyWith(range: range)),
+          ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-territory'),
+          // Loading is a state, not a blank: the chip says "All territories"
+          // and is not selected, which is exactly what the screen is showing.
+          label:
+              selectedName ??
+              (filter.territoryId == null
+                  ? l10n.dashAllTerritories
+                  : l10n.dashOneTerritory),
+          selected: filter.territoryId != null,
+          onSelected: territories.hasValue
+              ? () => _pick(context, ref, filter)
+              : null,
         ),
       ],
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= _wide;
-          return RefreshIndicator(
-            onRefresh: () => _refresh(ref),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const _FilterBar(),
-                const SizedBox(height: 12),
-                _TwoColumn(
-                  wide: wide,
-                  leftFlex: 19,
-                  rightFlex: 10,
-                  left: _ExecutionScorePanel(snapshot: snapshot),
-                  right: const _NeedsAttentionPanel(),
-                ),
-                const SizedBox(height: 12),
-                // Lumen Glass reports distance from the published standard
-                // rather than raw numbers — each KPI against its target tick.
-                if (glass)
-                  _BenchmarkPanel(snapshot: snapshot)
-                else
-                  _KpiStrip(snapshot: snapshot),
-                const SizedBox(height: 12),
-                if (glass) ...[
-                  // What a manager acts on is how many doors sit in which
-                  // band, not the average. Hidden until the server sends it.
-                  if (bands.isNotEmpty)
-                    _TwoColumn(
-                      wide: wide,
-                      leftFlex: 1,
-                      rightFlex: 1,
-                      left: _DistributionPanel(bands: bands),
-                      right: const _TerritoryPanel(),
-                    )
-                  else
-                    const _TerritoryPanel(),
-                  const SizedBox(height: 12),
-                  const _AvailabilityPanel(),
-                ] else
-                  const _TwoColumn(
-                    wide: true,
-                    leftFlex: 1,
-                    rightFlex: 1,
-                    left: _TerritoryPanel(),
-                    right: _AvailabilityPanel(),
-                  ),
-                const SizedBox(height: 12),
-                const AgentActivityPanel(),
-                const SizedBox(height: 12),
-                // This month's sell-in (orders) against target (#119).
-                const SalesAttainmentPanel(),
-                const SizedBox(height: 12),
-                const _StubCaveat(),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
-}
 
-/// Lays two panels side by side when there's width, stacked when there isn't.
-class _TwoColumn extends StatelessWidget {
-  const _TwoColumn({
-    required this.wide,
-    required this.left,
-    required this.right,
-    required this.leftFlex,
-    required this.rightFlex,
-  });
-
-  final bool wide;
-  final Widget left;
-  final Widget right;
-  final int leftFlex;
-  final int rightFlex;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!wide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [left, const SizedBox(height: 12), right],
-      );
-    }
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: leftFlex, child: left),
-          const SizedBox(width: 12),
-          Expanded(flex: rightFlex, child: right),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Hero — execution score + its trend
-// ═══════════════════════════════════════════════════════════════════════
-
-class _ExecutionScorePanel extends ConsumerStatefulWidget {
-  const _ExecutionScorePanel({required this.snapshot});
-
-  final AsyncValue<DashboardSnapshot> snapshot;
-
-  @override
-  ConsumerState<_ExecutionScorePanel> createState() =>
-      _ExecutionScorePanelState();
-}
-
-class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
-    with AutomaticKeepAliveClientMixin {
-  /// Flipped on the panel's first data build — a during-build write,
-  /// deliberately not setState: nothing rendered depends on it until a LATER
-  /// build (a filter change remounting the row through the loading arm),
-  /// which must come up entrance-free. This State outlives those remounts,
-  /// so the latch survives where the animated subtree does not.
-  bool _entered = false;
-
-  /// The latch's storage guarantee. The dashboard body is a lazy ListView
-  /// whose sliver DISPOSES children scrolled past its cache extent — without
-  /// keep-alive, a scroll to the bottom and back would take this State (and
-  /// the latch) with it, replaying the entire entrance. Keeping the panel
-  /// alive also preserves the hero chart's completed draw-in and the pill's
-  /// settled entrance, so scrolling back restores the settled screen instead
-  /// of re-performing it. Cheap: this pins one text-and-one-chart row, not
-  /// the heavy map panel (a separate ListView child, untouched).
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final snapshot = widget.snapshot;
-    final trend = ref.watch(scorecardsTrendProvider);
-    final colors = context.colors;
-
-    if (colors.glass) return _glassPanel(snapshot, trend);
-
-    return PanelCard(
-      title: 'Execution score',
-      subtitle: 'Weighted S2–S8, all outlets',
-      padded: false,
-      // The screen's one "glass" card: the score is the product's headline
-      // number, and the wash is what makes it read as the headline. Theme
-      // slots, not spec hexes: light carries the spec's `#F2F7FF → #FFFFFF`
-      // + `#DBE7FA` border, dark a navy wash its own ink1 stays readable on
-      // (the hard-coded light wash once made the dark score ~1.1:1 —
-      // dashboard test 'dark theme: the hero score…' pins the fix).
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [colors.heroWash, colors.surface1],
-      ),
-      borderColor: colors.heroBorder,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+  /// The territory list is arbitrary-length, so it is a sheet of rows rather
+  /// than a `ChoiceRow` — unify §1.10 gives this product one modal container
+  /// and §18.1 is why a long list opens it.
+  Future<void> _pick(
+    BuildContext context,
+    WidgetRef ref,
+    DashboardFilter filter,
+  ) async {
+    final l10n = context.l10n;
+    final list = ref.read(territoriesListProvider).value ?? const <Territory>[];
+    final chosen = await showTorchSheet<String>(
+      context,
+      builder: (sheetContext) => TorchSheet(
+        title: l10n.dashTerritory,
+        subtitle: l10n.dashTerritorySheetBody,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
-          children: [
-            snapshot.when(
-              loading: () => const _InlineLoader(height: 44),
-              error: (err, _) => _InlineError(
-                message: 'Could not load KPIs',
-                onRetry: () => ref.invalidate(dashboardSnapshotProvider),
-              ),
-              data: (snap) {
-                final animate = !_entered;
-                _entered = true;
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    // The headline figure counts up to its value ONCE. Not a
-                    // flourish: it makes the number the thing the eye lands on
-                    // first, which is the whole point of a hero figure.
-                    _HeroScore(
-                      key: const ValueKey('kpi-execution-score'),
-                      value: snap.current.executionScore,
-                      animate: animate,
-                    ),
-                    const SizedBox(width: 12),
-                    // Measured against the like-for-like window before this
-                    // one, complete days on both sides (#365, see
-                    // DashboardRange.window) — the same comparison every tile below makes, so the whole
-                    // screen is answering one question consistently. Tone
-                    // follows the sign: the snapshot carries no other verdict
-                    // to wire. The entrance wrap lives HERE, not inside
-                    // DeltaPill — the pill is shared chrome and other screens
-                    // may not want entrance motion.
-                    switch (snap.of((k) => k.executionScore)) {
-                      final d when d.hasDelta => OneShotEntrance.pill(
-                        enabled: animate,
-                        child: DeltaPill(
-                          delta: d.change!,
-                          tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
-                        ),
-                      ),
-                      _ => const SizedBox.shrink(),
-                    },
-                  ],
-                );
-              },
+          children: <Widget>[
+            SoftRow(
+              key: const ValueKey<String>('territory-option-all'),
+              density: SoftRowDensity.compact,
+              title: l10n.dashAllTerritories,
+              semanticsLabel: filter.territoryId == null
+                  ? '${l10n.dashAllTerritories}. ${l10n.dashSelected}'
+                  : null,
+              onTap: () => Navigator.of(sheetContext).pop(_allTerritories),
             ),
-            const SizedBox(height: 10),
-            trend.when(
-              loading: () => const _InlineLoader(height: 208),
-              error: (err, _) => _InlineError(
-                message: 'Could not load the score trend',
-                onRetry: () => ref.invalidate(scorecardsTrendProvider),
+            for (var i = 0; i < list.length; i++)
+              SoftRow(
+                key: ValueKey<String>('territory-option-${list[i].id}'),
+                density: SoftRowDensity.compact,
+                title: list[i].name,
+                subtitle: list[i].code,
+                semanticsLabel: list[i].id == filter.territoryId
+                    ? '${list[i].name}. ${l10n.dashSelected}'
+                    : null,
+                separator: i == list.length - 1
+                    ? SoftRowSeparator.none
+                    : SoftRowSeparator.auto,
+                onTap: () => Navigator.of(sheetContext).pop(list[i].id),
               ),
-              data: (points) => LineChart(
-                points: [
-                  for (final p in points)
-                    (label: formatPeriodLabel(p.period), value: p.value),
-                ],
-                target: 75,
-                seriesName: 'Execution score',
-                lineWidth: 2.5,
-                gradientFill: true,
-              ),
-            ),
           ],
         ),
       ),
     );
+    if (chosen == null) return;
+    ref
+        .read(dashboardFilterProvider.notifier)
+        .set(
+          chosen == _allTerritories
+              ? filter.copyWith(clearTerritory: true)
+              : filter.copyWith(territoryId: chosen),
+        );
   }
-}
 
-extension on _ExecutionScorePanelState {
-  /// The execution score on Lumen Glass's one dark pane: the kicker, the 56px
-  /// figure with its delta against the previous window, and the trend drawn in
-  /// light over the glass.
-  Widget _glassPanel(
-    AsyncValue<DashboardSnapshot> snapshot,
-    AsyncValue<List<TrendPoint>> trend,
-  ) {
-    return GlassPane(
-      kind: GlassKind.dark,
-      radius: LumenGlass.radiusHero,
-      padding: const EdgeInsets.all(22),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned(
-            top: -110,
-            right: -90,
-            child: GlassBloom(diameter: 250, strength: 0.45),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Kicker(
-                'Execution score · weighted S2–S8',
-                color: LumenGlass.onDarkMuted,
-              ),
-              const SizedBox(height: 10),
-              snapshot.when(
-                loading: () =>
-                    const _OnDarkPane(child: _InlineLoader(height: 56)),
-                error: (err, _) => _OnDarkPane(
-                  child: _InlineError(
-                    message: 'Could not load KPIs',
-                    onRetry: () => ref.invalidate(dashboardSnapshotProvider),
-                  ),
-                ),
-                data: (snap) {
-                  final animate = !_entered;
-                  _entered = true;
-                  return Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 14,
-                    runSpacing: 6,
-                    children: [
-                      _HeroScore(
-                        key: const ValueKey('kpi-execution-score'),
-                        value: snap.current.executionScore,
-                        animate: animate,
-                      ),
-                      switch (snap.of((k) => k.executionScore)) {
-                        final d when d.hasDelta => OneShotEntrance.pill(
-                          enabled: animate,
-                          child: DeltaPill(
-                            delta: d.change!,
-                            tone: d.change! < 0
-                                ? DeltaTone.bad
-                                : DeltaTone.good,
-                          ),
-                        ),
-                        _ => const SizedBox.shrink(),
-                      },
-                      const Text(
-                        'vs. the window before · target 75.0',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: LumenGlass.onDarkMuted,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              _OnDarkPane(
-                child: trend.when(
-                  loading: () => const _InlineLoader(height: 208),
-                  error: (err, _) => _InlineError(
-                    message: 'Could not load the score trend',
-                    onRetry: () => ref.invalidate(scorecardsTrendProvider),
-                  ),
-                  data: (points) => LineChart(
-                    points: [
-                      for (final p in points)
-                        (label: formatPeriodLabel(p.period), value: p.value),
-                    ],
-                    target: 75,
-                    seriesName: 'Execution score',
-                    lineWidth: 2.4,
-                    gradientFill: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Re-themes a subtree for the dark glass pane. The console's charts and
-/// inline states read the ambient palette, and in light that palette's inks
-/// would be dark on dark — so beneath the pane they get the instrument
-/// palette, with the chart line in the handoff's #CFC7FF.
-class _OnDarkPane extends StatelessWidget {
-  const _OnDarkPane({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final base = AppTheme.dark();
-    return Theme(
-      data: base.copyWith(
-        extensions: [
-          TiqColors.dark.copyWith(
-            series1: LumenGlass.chartLine,
-            brand: LumenGlass.accentLight, // lumen-sweep: keep
-            grid: const Color(0x1AFFFFFF), // lumen-sweep: keep
-            axis: const Color(0x33FFFFFF), // lumen-sweep: keep
-            ink3: const Color(0xB3FFFFFF), // lumen-sweep: keep
-            ink4: const Color(0x80FFFFFF), // lumen-sweep: keep
-          ),
-        ],
-      ),
-      child: DefaultTextStyle.merge(
-        style: const TextStyle(color: Colors.white),
-        child: child,
-      ),
-    );
-  }
-}
-
-/// The hero figure. Counts 0 → value over ~600ms ease-out exactly once — on
-/// the panel's first data build — then renders as plain text for the rest of
-/// the session, so refreshes and filter changes swap the number without
-/// re-performing it. Under reduced motion there is no tween at all: the final
-/// figure IS the first frame.
-class _HeroScore extends StatefulWidget {
-  const _HeroScore({super.key, required this.value, required this.animate});
-
-  final double value;
-
-  /// Whether this mount is the entrance. Latched at mount (see State): a
-  /// rebuild mid-count-up cannot cut the animation short, and a remount after
-  /// the entrance epoch renders statically.
-  final bool animate;
-
-  @override
-  State<_HeroScore> createState() => _HeroScoreState();
-}
-
-class _HeroScoreState extends State<_HeroScore> {
-  late final bool _entrance = widget.animate;
-
-  /// Set when the count-up completes; from then on the tween is gone from the
-  /// tree entirely, so a later value change (a refresh landing new data into
-  /// this same State) renders directly instead of animating toward it.
-  bool _done = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = context.colors.glass
-        // On the dark pane: 56px white with the accent's glow behind it.
-        ? LumenGlass.hero(size: 56, color: Colors.white).copyWith(
-            shadows: const [Shadow(color: Color(0x8CB5ABFC), blurRadius: 38)],
-          )
-        : TextStyle(
-            fontSize: 31,
-            height: 1.0,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            color: context.colors.ink1,
-          );
-
-    if (_done || !_entrance) {
-      return Text(widget.value.toStringAsFixed(1), style: style);
-    }
-    if (reduceMotion(context)) {
-      // The entrance moment is consumed, not deferred: flipping reduced
-      // motion off later must not perform the count-up mid-session.
-      _done = true;
-      return Text(widget.value.toStringAsFixed(1), style: style);
-    }
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: widget.value),
-      duration: Motion.countUp,
-      curve: Curves.easeOutCubic,
-      onEnd: () => setState(() => _done = true),
-      builder: (context, v, _) => Text(v.toStringAsFixed(1), style: style),
-    );
-  }
+  /// The sheet's "all" answer. A null pop is a dismissal, so the clear
+  /// travels as a token — the same reason the old popup menu carried one.
+  static const String _allTerritories = '__all_territories__';
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Needs attention — the cause, next to the score
+// The execution score, and its trend
 // ═══════════════════════════════════════════════════════════════════════
 
-class _NeedsAttentionPanel extends ConsumerWidget {
-  const _NeedsAttentionPanel();
+/// The client's published execution-score standard. A figure is never read
+/// without the line it is measured against.
+const double executionScoreTarget = 75;
+
+class _ExecutionScoreSection extends ConsumerStatefulWidget {
+  const _ExecutionScoreSection({required this.snapshot});
+
+  final AsyncValue<DashboardSnapshot> snapshot;
+
+  @override
+  ConsumerState<_ExecutionScoreSection> createState() =>
+      _ExecutionScoreSectionState();
+}
+
+class _ExecutionScoreSectionState
+    extends ConsumerState<_ExecutionScoreSection> {
+  bool _asTable = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final trend = ref.watch(scorecardsTrendProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.dashExecutionScore),
+        const SizedBox(height: TiqSpace.s4),
+        widget.snapshot.when(
+          loading: () => Skeleton(
+            label: l10n.dashExecutionScore,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonShell(height: 96),
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: l10n.dashExecutionScore,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('kpi-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(dashboardSnapshotProvider),
+              ),
+            ),
+          ),
+          data: (snap) => _ScoreTile(snapshot: snap),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        _TrendPanel(
+          heading: l10n.dashScoreTrend,
+          seriesName: l10n.dashExecutionScore,
+          provider: scorecardsTrendProvider,
+          // A mean of weighted scores, so n >= 3 — not a rate.
+          kind: MetricKind.average,
+          threshold: ChartThreshold(
+            value: executionScoreTarget,
+            label: l10n.trendsTarget,
+          ),
+          asTable: _asTable,
+          onViewChanged: (v) => setState(() => _asTable = v),
+          async: trend,
+          chartKey: const ValueKey<String>('dashboard-score-chart'),
+          tableKey: const ValueKey<String>('dashboard-score-table'),
+        ),
+      ],
+    );
+  }
+}
+
+/// The headline figure: the execution score, its distance from the published
+/// standard, and the like-for-like movement.
+///
+/// No count-up. The spec deleted it in Phase 1: the figure is present at first
+/// paint, which removes the horizontal jitter of a delta beside a growing
+/// digit count and the heaviest frame sequence on a cold start.
+class _ScoreTile extends StatelessWidget {
+  const _ScoreTile({required this.snapshot});
+
+  final DashboardSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final current = snapshot.current;
+    final measured = current.measuredSomething;
+    final delta = snapshot.of((k) => k.executionScore);
+    final status = againstStandard(
+      current.executionScore,
+      executionScoreTarget,
+    );
+
+    return StatCluster(
+      semanticsLabel: l10n.dashExecutionScore,
+      tiles: <StatTile>[
+        StatTile(
+          key: const ValueKey<String>('kpi-execution-score'),
+          eyebrow: l10n.dashExecutionScore,
+          // A window with no visits is an absence, not a score of nought.
+          value: measured ? current.executionScore : null,
+          decimals: 1,
+          noDataReason: measured ? null : l10n.dashNoVisitsInWindow,
+          sampling: FigureSampling(
+            kind: MetricKind.average,
+            n: current.sampleSizes.executionScore,
+            baselineN: snapshot.previous?.sampleSizes.executionScore,
+          ),
+          meter: MeterData(
+            value: measured ? current.executionScore : null,
+            target: executionScoreTarget,
+          ),
+          delta: measured ? deltaFor(l10n, delta) : null,
+          lead: true,
+          severity: measured ? severityFor(status) : null,
+          subordinates: l10n.dashExecutionScoreSupports(
+            executionScoreTarget.round(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One series, as a chart or as its table twin — the same two-chip toggle the
+/// trends screen carries, and for the same reasons: the plot's only other way
+/// in is a horizontal drag-scrub, which a screen reader cannot perform and a
+/// printed page does not carry.
+class _TrendPanel extends ConsumerWidget {
+  const _TrendPanel({
+    required this.heading,
+    required this.seriesName,
+    required this.provider,
+    required this.kind,
+    required this.asTable,
+    required this.onViewChanged,
+    required this.async,
+    required this.chartKey,
+    required this.tableKey,
+    this.unit = TiqUnit.none,
+    this.threshold,
+  });
+
+  final String heading;
+  final String seriesName;
+  final FutureProvider<List<TrendPoint>> provider;
+  final MetricKind kind;
+  final TiqUnit unit;
+  final ChartThreshold? threshold;
+  final bool asTable;
+  final ValueChanged<bool> onViewChanged;
+  final AsyncValue<List<TrendPoint>> async;
+  final Key chartKey;
+  final Key tableKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final alerts = ref.watch(alertsListProvider);
-    final tasks = ref.watch(tasksListProvider);
+    final l10n = context.l10n;
+    // Veld draws no chart, so the toggle would be a control with one working
+    // position. The table is simply what Veld shows.
+    final veld = context.skin.mode == SkinMode.veld;
 
-    return PanelCard(
-      title: 'Needs attention',
-      padded: false,
-      trailing: TextButton(
-        onPressed: () => context.go('/alerts'),
-        child: const Text('View all'),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          alerts.when(
-            loading: () => const _InlineLoader(height: 60),
-            error: (err, _) => _InlineError(
-              message: 'Could not load alerts',
-              onRetry: () => ref.invalidate(alertsListProvider),
-            ),
-            data: (list) {
-              final open = list.where((a) => !a.acknowledged).toList();
-              final critical = open
-                  .where((a) => a.severity == 'critical')
-                  .length;
-              final warning = open.length - critical;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AttentionRow(
-                    key: const ValueKey('attention-critical-alerts'),
-                    count: critical,
-                    title: 'Critical alerts open',
-                    meta: _metricBreakdown(
-                      open.where((a) => a.severity == 'critical'),
-                    ),
-                    level: StatusLevel.critical,
-                    onTap: () => context.go('/alerts'),
-                  ),
-                  AttentionRow(
-                    key: const ValueKey('attention-warning-alerts'),
-                    count: warning,
-                    title: 'Warnings awaiting acknowledgement',
-                    meta: warning == 0
-                        ? 'Nothing outstanding'
-                        : _metricBreakdown(
-                            open.where((a) => a.severity != 'critical'),
-                          ),
-                    level: StatusLevel.warning,
-                    onTap: () => context.go('/alerts'),
-                  ),
-                ],
-              );
-            },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(heading),
+        const SizedBox(height: TiqSpace.s3),
+        if (!veld) ...<Widget>[
+          _ViewToggle(
+            heading: heading,
+            asTable: asTable,
+            onChanged: onViewChanged,
           ),
-          tasks.when(
-            loading: () => const _InlineLoader(height: 30),
-            error: (err, _) => _InlineError(
-              message: 'Could not load tasks',
-              onRetry: () => ref.invalidate(tasksListProvider),
+          const SizedBox(height: TiqSpace.s4),
+        ],
+        async.when(
+          loading: () => Skeleton(
+            label: heading,
+            slowLine: l10n.torchStillFetching,
+            child: SkeletonShell(
+              height: veld ? 120 : trendChartHeight(context),
             ),
-            // GET /tasks has no dueAt, so an "SLA breach" count is not
-            // computable client-side. Report what we can actually stand behind.
-            data: (list) {
-              final open = list.where((t) => t.status != 'closed').toList();
-              final critical = open
-                  .where((t) => t.priority == 'critical')
-                  .length;
-              return AttentionRow(
-                key: const ValueKey('attention-open-tasks'),
-                count: open.length,
-                title: 'Tasks still open',
-                meta: critical == 0
-                    ? 'None at critical priority'
-                    : '$critical at critical priority',
-                level: critical > 0 ? StatusLevel.warning : StatusLevel.neutral,
-                onTap: () => context.go('/tasks'),
-                showDivider: false,
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: heading,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: ValueKey<String>('$heading-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(provider),
+              ),
+            ),
+          ),
+          data: (points) {
+            if (points.isEmpty) {
+              // Not "every bucket scored 0" — `/trends/*` omits an empty
+              // bucket rather than sending one, so nothing in this window was
+              // measured at all.
+              return EmptyState(
+                scope: EmptyScope.inPanel,
+                headline: l10n.trendsEmptyHeadline,
+                body: l10n.trendsEmptyBody,
               );
-            },
+            }
+            final series = ChartSeries(
+              name: seriesName,
+              readings: <ChartReading>[
+                for (final p in points)
+                  ChartReading(
+                    label: formatPeriodLabel(p.period),
+                    longLabel: p.period,
+                    value: p.value,
+                    sampleSize: p.count <= 0 ? null : p.count,
+                  ),
+              ],
+            );
+            if (veld || asTable) {
+              return TableTwin(
+                key: tableKey,
+                series: <ChartSeries>[series],
+                unit: unit,
+                decimals: 1,
+                periodHeading: l10n.trendsPeriod,
+                notMeasuredWord: l10n.trendsNotMeasured,
+                sampleKind: kind,
+                lowSampleWord: l10n.trendsSmallSample,
+                semanticsLabel: heading,
+              );
+            }
+            return TrendChart(
+              key: chartKey,
+              series: <ChartSeries>[series],
+              unit: unit,
+              decimals: 1,
+              threshold: threshold,
+              semanticsLabel: l10n.trendsChartHint(heading, points.length),
+              notMeasuredWord: l10n.trendsNotMeasured,
+              dashedWord: l10n.trendsDashed,
+              sampleKind: kind,
+              lowSampleWord: l10n.trendsSmallSample,
+              scrubHint: l10n.trendsScrubHint,
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Chart or table. Two filter chips, which is the one selected vocabulary in
+/// this system.
+class _ViewToggle extends StatelessWidget {
+  const _ViewToggle({
+    required this.heading,
+    required this.asTable,
+    required this.onChanged,
+  });
+
+  final String heading;
+  final bool asTable;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TorchFilterRail(
+        semanticsLabel: l10n.trendsViewAs,
+        chips: <Widget>[
+          TorchFilterChip(
+            key: ValueKey<String>('$heading-view-chart'),
+            label: l10n.trendsAsChart,
+            selected: !asTable,
+            onSelected: () => onChanged(false),
+          ),
+          TorchFilterChip(
+            key: ValueKey<String>('$heading-view-table'),
+            label: l10n.trendsAsTable,
+            selected: asTable,
+            onSelected: () => onChanged(true),
           ),
         ],
       ),
     );
   }
+}
 
-  static String _metricBreakdown(Iterable<AlertItem> alerts) {
-    if (alerts.isEmpty) return 'Nothing outstanding';
+// ═══════════════════════════════════════════════════════════════════════
+// Needs attention — the cause, under the score
+// ═══════════════════════════════════════════════════════════════════════
+
+class _NeedsAttentionSection extends ConsumerWidget {
+  const _NeedsAttentionSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final alerts = ref.watch(alertsListProvider);
+    final tasks = ref.watch(tasksListProvider);
+    final gutter = context.skin.space.gutter;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(
+          l10n.dashNeedsAttention,
+          action: SectionRuleAction(
+            l10n.dashViewAllAlerts,
+            key: const ValueKey<String>('needs-attention-view-all'),
+            onTap: () => context.go('/alerts'),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s4),
+        TorchBleed(
+          extra: gutter * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              alerts.when(
+                loading: () => Skeleton(
+                  label: l10n.dashCriticalAlerts,
+                  slowLine: l10n.torchStillFetching,
+                  child: const SkeletonRows(count: 2, rowHeight: 64),
+                ),
+                error: (error, _) => TorchErrorRegion(
+                  name: l10n.dashCriticalAlerts,
+                  child: ErrorState(
+                    scope: ErrorScope.inline,
+                    message: TorchErrorMessage.sanitise(error),
+                    action: TorchTertiaryButton(
+                      key: const ValueKey<String>('alerts-retry'),
+                      label: l10n.torchTryAgain,
+                      onPressed: () => ref.invalidate(alertsListProvider),
+                    ),
+                  ),
+                ),
+                data: (list) => _alertRows(context, l10n, list),
+              ),
+              tasks.when(
+                loading: () => Skeleton(
+                  label: l10n.dashTasksOpen,
+                  slowLine: l10n.torchStillFetching,
+                  child: const SkeletonRows(count: 1, rowHeight: 64),
+                ),
+                error: (error, _) => TorchErrorRegion(
+                  name: l10n.dashTasksOpen,
+                  child: ErrorState(
+                    scope: ErrorScope.inline,
+                    message: TorchErrorMessage.sanitise(error),
+                    action: TorchTertiaryButton(
+                      key: const ValueKey<String>('tasks-retry'),
+                      label: l10n.torchTryAgain,
+                      onPressed: () => ref.invalidate(tasksListProvider),
+                    ),
+                  ),
+                ),
+                data: (list) => _taskRow(context, l10n, list),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _alertRows(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<AlertItem> list,
+  ) {
+    final open = list.where((a) => !a.acknowledged).toList();
+    final critical = open.where((a) => a.severity == 'critical').toList();
+    final warnings = open.where((a) => a.severity != 'critical').toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _AttentionRow(
+          rowKey: const ValueKey<String>('attention-critical-alerts'),
+          title: l10n.dashCriticalAlerts,
+          count: critical.length,
+          detail: _metricBreakdown(l10n, critical),
+          // Crimson at two commitment levels, plus the silhouette the bar
+          // draws, plus the word — never the hue alone.
+          severity: critical.isEmpty
+              ? SoftRowSeverity.none
+              : SoftRowSeverity.critical,
+          severityLabel: l10n.dashSeverityCritical,
+          onTap: () => context.go('/alerts'),
+        ),
+        _AttentionRow(
+          rowKey: const ValueKey<String>('attention-warning-alerts'),
+          title: l10n.dashWarningAlerts,
+          count: warnings.length,
+          detail: warnings.isEmpty
+              ? l10n.dashNothingOutstanding
+              : _metricBreakdown(l10n, warnings),
+          severity: warnings.isEmpty
+              ? SoftRowSeverity.none
+              : SoftRowSeverity.watch,
+          severityLabel: l10n.dashSeverityWatch,
+          onTap: () => context.go('/alerts'),
+        ),
+      ],
+    );
+  }
+
+  Widget _taskRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<TaskItem> list,
+  ) {
+    final open = list.where((t) => t.status != 'closed').toList();
+    final critical = open.where((t) => t.priority == 'critical').length;
+    return _AttentionRow(
+      rowKey: const ValueKey<String>('attention-open-tasks'),
+      title: l10n.dashTasksOpen,
+      count: open.length,
+      // GET /tasks has no dueAt, so an "SLA breach" count is not computable
+      // client-side. Report what we can actually stand behind.
+      detail: critical == 0
+          ? l10n.dashNoneAtCritical
+          : l10n.dashNAtCritical(critical),
+      severity: critical > 0 ? SoftRowSeverity.watch : SoftRowSeverity.none,
+      severityLabel: l10n.dashSeverityWatch,
+      last: true,
+      onTap: () => context.go('/tasks'),
+    );
+  }
+
+  static String _metricBreakdown(
+    AppLocalizations l10n,
+    List<AlertItem> alerts,
+  ) {
+    if (alerts.isEmpty) return l10n.dashNothingOutstanding;
     final counts = <String, int>{};
     for (final a in alerts) {
       counts[a.metric] = (counts[a.metric] ?? 0) + 1;
@@ -634,39 +797,88 @@ class _NeedsAttentionPanel extends ConsumerWidget {
   }
 }
 
+/// One counted thing that needs a manager, as a row.
+///
+/// A measured zero renders `0` and keeps its place — an all-zero list is a
+/// finding, not an empty state, and a row that vanished when its count reached
+/// nought would make a manager think the check had stopped running.
+class _AttentionRow extends StatelessWidget {
+  const _AttentionRow({
+    required this.rowKey,
+    required this.title,
+    required this.count,
+    required this.detail,
+    required this.severity,
+    required this.severityLabel,
+    required this.onTap,
+    this.last = false,
+  });
+
+  final Key rowKey;
+  final String title;
+  final int count;
+  final String detail;
+  final SoftRowSeverity severity;
+  final String severityLabel;
+  final VoidCallback onTap;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final armed = severity != SoftRowSeverity.none;
+    return SoftRow(
+      key: rowKey,
+      density: SoftRowDensity.tall,
+      title: title,
+      subtitle: detail,
+      severity: severity,
+      severityLabel: armed ? severityLabel : null,
+      trailing: FigureSlot(
+        value: count,
+        role: skin.text.figureM,
+        unit: TiqUnit.none,
+        state: FigureState.measured,
+        textAlign: TextAlign.end,
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      onTap: onTap,
+      semanticsLabel: <String>[
+        title,
+        '$count',
+        if (armed) severityLabel,
+        detail,
+      ].join('. '),
+    );
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
-// KPI strip
+// Where we sit against the standard
 // ═══════════════════════════════════════════════════════════════════════
 
-/// One KPI, in the order the console reads them.
-typedef _Kpi = ({
-  String label,
+/// One KPI and the standard it is judged by.
+///
+/// On-shelf availability and the perfect-store band are published industry
+/// reference points (the design handoff sources them); the rest are the
+/// handoff's internal standards. Each is drawn as a tick on the row's meter,
+/// so a figure is never read without the line it is measured against.
+typedef _Indicator = ({
+  String id,
   double Function(DashboardKpis) read,
-  String note,
+  int? Function(DashboardSampleSizes) sample,
+  double target,
 });
 
-const _kpis = <_Kpi>[
-  (label: 'On-shelf availability', read: _osa, note: 'of all SKU checks'),
-  (
-    label: 'Perfect-store rate',
-    read: _perfect,
-    note: 'outlets passing every gate',
-  ),
-  (label: 'Price compliance', read: _price, note: 'within tolerance of RRP'),
-  (
-    label: 'Visibility compliance',
-    read: _visibility,
-    note: 'planogram threshold',
-  ),
-  (label: 'Share of shelf', read: _sos, note: 'vs. observed competitors'),
-  (label: 'Weighted distribution', read: _weighted, note: 'volume-weighted'),
-  (label: 'Numeric distribution', read: _numeric, note: 'outlets stocking'),
+const List<_Indicator> _indicators = <_Indicator>[
+  (id: 'osa', read: _osa, sample: _nOsa, target: 95),
+  (id: 'perfect', read: _perfect, sample: _nPerfect, target: 80),
+  (id: 'price', read: _price, sample: _nPrice, target: 95),
+  (id: 'visibility', read: _visibility, sample: _nVisibility, target: 80),
+  (id: 'sos', read: _sos, sample: _nSos, target: 33),
+  (id: 'weighted', read: _weighted, sample: _nWeighted, target: 85),
+  (id: 'numeric', read: _numeric, sample: _nNumeric, target: 85),
 ];
-
-/// The one KPI figure format — one decimal, a trailing percent. Shared by the
-/// static string and the count-up so the sweeping number and its final value
-/// are always the same shape.
-String _fmtPct(num v) => '${v.toStringAsFixed(1)}%';
 
 double _osa(DashboardKpis k) => k.osaPct;
 double _perfect(DashboardKpis k) => k.perfectStoreRate;
@@ -676,313 +888,596 @@ double _sos(DashboardKpis k) => k.shareOfShelf;
 double _weighted(DashboardKpis k) => k.weightedDistribution;
 double _numeric(DashboardKpis k) => k.numericDistribution;
 
-class _KpiStrip extends ConsumerStatefulWidget {
-  const _KpiStrip({required this.snapshot});
+int? _nOsa(DashboardSampleSizes s) => s.osaPct;
+int? _nPerfect(DashboardSampleSizes s) => s.perfectStoreRate;
+int? _nPrice(DashboardSampleSizes s) => s.priceCompliancePct;
+int? _nVisibility(DashboardSampleSizes s) => s.visibilityCompliancePct;
+int? _nSos(DashboardSampleSizes s) => s.shareOfShelf;
+int? _nWeighted(DashboardSampleSizes s) => s.weightedDistribution;
+int? _nNumeric(DashboardSampleSizes s) => s.numericDistribution;
+
+String indicatorLabel(AppLocalizations l10n, String id) => switch (id) {
+  'osa' => l10n.dashKpiOsa,
+  'perfect' => l10n.dashKpiPerfectStore,
+  'price' => l10n.dashKpiPrice,
+  'visibility' => l10n.dashKpiVisibility,
+  'sos' => l10n.dashKpiShareOfShelf,
+  'weighted' => l10n.dashKpiWeighted,
+  _ => l10n.dashKpiNumeric,
+};
+
+String indicatorNote(AppLocalizations l10n, String id) => switch (id) {
+  'osa' => l10n.dashKpiOsaNote,
+  'perfect' => l10n.dashKpiPerfectStoreNote,
+  'price' => l10n.dashKpiPriceNote,
+  'visibility' => l10n.dashKpiVisibilityNote,
+  'sos' => l10n.dashKpiShareOfShelfNote,
+  'weighted' => l10n.dashKpiWeightedNote,
+  _ => l10n.dashKpiNumericNote,
+};
+
+/// On the standard, within ten points of it, or breaching it.
+StatusLevel againstStandard(double value, double target) => value >= target
+    ? StatusLevel.onTarget
+    : value >= target - 10
+    ? StatusLevel.watch
+    : StatusLevel.critical;
+
+/// The severity mark a standing maps onto. `onTarget` is not a severity, so it
+/// draws no mark at all rather than a green one — a verdict is only ever
+/// crimson in this system.
+SeverityMarkKind? severityFor(StatusLevel level) => switch (level) {
+  StatusLevel.critical => SeverityMarkKind.critical,
+  StatusLevel.watch => SeverityMarkKind.watch,
+  _ => null,
+};
+
+String standingWord(AppLocalizations l10n, StatusLevel level) =>
+    switch (level) {
+      StatusLevel.critical => l10n.dashStandingCritical,
+      StatusLevel.watch => l10n.dashStandingWatch,
+      _ => l10n.dashStandingOnTarget,
+    };
+
+/// The movement against the like-for-like window before this one (#365).
+///
+/// `direction` is the shape and `sentiment` is the colour, and neither is
+/// derived from the other. These seven are all rates where up is good, so the
+/// mapping is stated once here rather than guessed per call site.
+DeltaData? deltaFor(AppLocalizations l10n, KpiDelta delta) {
+  if (!delta.hasDelta) return null;
+  final change = delta.change!;
+  return DeltaData(
+    direction: change > 0
+        ? DeltaDirection.up
+        : change < 0
+        ? DeltaDirection.down
+        : DeltaDirection.flat,
+    sentiment: change > 0
+        ? TiqSentiment.good
+        : change < 0
+        ? TiqSentiment.bad
+        : TiqSentiment.neutral,
+    magnitude: change.abs(),
+    unit: TiqUnit.worded('pts'),
+    decimals: 1,
+    comparedTo: l10n.dashVsWindowBefore,
+  );
+}
+
+class _StandardsSection extends ConsumerWidget {
+  const _StandardsSection({required this.snapshot});
 
   final AsyncValue<DashboardSnapshot> snapshot;
 
   @override
-  ConsumerState<_KpiStrip> createState() => _KpiStripState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final gutter = context.skin.space.gutter;
 
-class _KpiStripState extends ConsumerState<_KpiStrip>
-    with AutomaticKeepAliveClientMixin {
-  /// Same first-data-build latch as the hero panel: pills enter once, and a
-  /// filter change remounting the strip comes up entrance-free.
-  bool _entered = false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.dashAgainstStandard),
+        const SizedBox(height: TiqSpace.s3),
+        Padding(
+          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+          child: Text(
+            l10n.dashTickMarksTarget,
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
+            ),
+          ),
+        ),
+        snapshot.when(
+          loading: () => Skeleton(
+            label: l10n.dashAgainstStandard,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonRows(count: 4, rowHeight: 80),
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: l10n.dashAgainstStandard,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('standards-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(dashboardSnapshotProvider),
+              ),
+            ),
+          ),
+          data: (snap) => TorchBleed(
+            extra: gutter * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (var i = 0; i < _indicators.length; i++)
+                  _IndicatorRow(
+                    indicator: _indicators[i],
+                    snapshot: snap,
+                    // `/trends` serves three series and no more (#95). The
+                    // other indicators have no history endpoint, so they get
+                    // no sparkline — a fabricated shape would be the most
+                    // confident-looking lie on the screen.
+                    series: _series(ref, _indicators[i].id),
+                    last: i == _indicators.length - 1,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  /// Same storage guarantee as [_ExecutionScorePanelState.wantKeepAlive]:
-  /// the ListView's sliver would otherwise dispose this State — latches and
-  /// all — on a scroll past the cache extent, replaying the entrance on the
-  /// way back. Seven text tiles and two sparklines; cheap to pin.
-  @override
-  bool get wantKeepAlive => true;
-
-  /// Sparklines latch per label, separately from [_entered]: their trend
-  /// providers can resolve a frame or two AFTER the snapshot, and by then the
-  /// strip-level latch has already flipped — a shared flag would silently
-  /// cancel their fade. A label re-entering after a filter change is already
-  /// in the set, so nothing replays.
-  final Set<String> _sparkEntered = {};
-
-  /// A sparkline is only drawn where a real history series exists.
-  ///
-  /// `/trends` serves three series and no more (#95). The other five KPIs have
-  /// no history endpoint, so they get no sparkline — a fabricated shape would be
-  /// the most confident-looking lie on the screen.
-  List<double>? _series(String label) {
+  static List<double>? _series(WidgetRef ref, String id) {
     List<double>? read(AsyncValue<List<TrendPoint>> v) => v.maybeWhen(
       data: (points) =>
-          points.length < 2 ? null : [for (final p in points) p.value],
+          points.length < 2 ? null : <double>[for (final p in points) p.value],
       orElse: () => null,
     );
-
-    return switch (label) {
-      'On-shelf availability' => read(ref.watch(availabilityTrendProvider)),
-      'Perfect-store rate' => read(ref.watch(perfectStoreTrendProvider)),
+    return switch (id) {
+      'osa' => read(ref.watch(availabilityTrendProvider)),
+      'perfect' => read(ref.watch(perfectStoreTrendProvider)),
       _ => null,
     };
   }
+}
+
+/// One indicator, its standard, its movement and its shape.
+class _IndicatorRow extends StatelessWidget {
+  const _IndicatorRow({
+    required this.indicator,
+    required this.snapshot,
+    required this.series,
+    required this.last,
+  });
+
+  final _Indicator indicator;
+  final DashboardSnapshot snapshot;
+  final List<double>? series;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final snapshot = widget.snapshot;
-    final colors = context.colors;
-    return PanelCard(
-      title: 'Key indicators',
-      subtitle: 'Change vs. the window before',
-      padded: false,
-      child: snapshot.when(
-        loading: () => const _InlineLoader(height: 90),
-        error: (err, _) => _InlineError(message: 'Could not load KPIs: $err'),
-        data: (snap) {
-          final tiles = [
-            for (final k in _kpis)
-              (
-                k.label,
-                _fmtPct(k.read(snap.current)),
-                k.note,
-                snap.of(k.read),
-                k.read(snap.current),
-              ),
-          ];
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final current = snapshot.current;
+    final measured = current.measuredSomething;
+    final value = indicator.read(current);
+    final label = indicatorLabel(l10n, indicator.id);
+    final n = indicator.sample(current.sampleSizes);
+    final sampling = FigureSampling(
+      kind: MetricKind.rate,
+      n: n,
+      baselineN: snapshot.previous == null
+          ? null
+          : indicator.sample(snapshot.previous!.sampleSizes),
+    );
+    final thin = measured && sampling.isLowSample;
+    final status = againstStandard(value, indicator.target);
+    final numbers = TiqNumber.of(context);
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // Latched INSIDE the layout builder, not in the data arm above:
-              // this closure re-runs on a constraints-only relayout without a
-              // fresh data build, and a stale `animate` captured on the
-              // entrance frame would replay the pills when a breakpoint
-              // change remounts the tiles.
-              final animate = !_entered;
-              _entered = true;
+    // A delta never stands beside nothing, and never beside a figure this
+    // thin: unify line 271 removes it for a low sample and for a thin
+    // baseline alike.
+    final delta = measured && !thin
+        ? deltaFor(l10n, snapshot.of(indicator.read))
+        : null;
 
-              final columns = constraints.maxWidth >= 1120
-                  ? 4
-                  : constraints.maxWidth >= 620
-                  ? 3
-                  : 2;
-
-              // Chunk into rows and let each row divide the full width, so a
-              // short final row fills instead of leaving a ragged empty cell.
-              final rows = <List<(String, String, String, KpiDelta, double)>>[];
-              for (var i = 0; i < tiles.length; i += columns) {
-                rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
-              }
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var r = 0; r < rows.length; r++)
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (var c = 0; c < rows[r].length; c++)
-                            Expanded(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(
-                                      color: c == rows[r].length - 1
-                                          ? Colors.transparent
-                                          : colors.line,
-                                    ),
-                                    bottom: BorderSide(
-                                      color: r == rows.length - 1
-                                          ? Colors.transparent
-                                          : colors.line,
-                                    ),
-                                  ),
-                                ),
-                                child: StatTile(
-                                  key: ValueKey('kpi-${rows[r][c].$1}'),
-                                  label: rows[r][c].$1,
-                                  value: rows[r][c].$2,
-                                  note: rows[r][c].$3,
-                                  // The figure counts up to its value once, on
-                                  // this first data build — the spec's motion
-                                  // table wants stat-tile numbers to sweep like
-                                  // the hero score. Same `animate` epoch as the
-                                  // pill below, so a reload remounting the tile
-                                  // comes up sweep-free (latched at mount).
-                                  countUpValue: rows[r][c].$5,
-                                  countUpFormat: _fmtPct,
-                                  animateCountUp: animate,
-                                  // Measured against the like-for-like window
-                                  // before this one (#365) — a second real request, not
-                                  // an invented baseline. Null when there is
-                                  // nothing to compare to (all-time has no
-                                  // "before"), and the tile then shows no pill.
-                                  delta: rows[r][c].$4.hasDelta
-                                      ? rows[r][c].$4.change
-                                      : null,
-                                  animateDelta: animate,
-                                  spark: switch (_series(rows[r][c].$1)) {
-                                    final values? => OneShotEntrance(
-                                      // Set.add IS the latch: true only the
-                                      // first time this label's series
-                                      // actually renders, false on every
-                                      // later build or remount.
-                                      enabled: _sparkEntered.add(rows[r][c].$1),
-                                      // Staggered by flat tile position, so
-                                      // the strip reads left-to-right.
-                                      delay: Motion.stagger * (r * columns + c),
-                                      child: Sparkline(
-                                        values: values,
-                                        width: null,
-                                        gradient: true,
-                                      ),
-                                    ),
-                                    _ => null,
-                                  },
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            },
-          );
-        },
+    return SoftRow(
+      key: ValueKey<String>('kpi-${indicator.id}'),
+      density: SoftRowDensity.tall,
+      title: label,
+      subtitle: indicatorNote(l10n, indicator.id),
+      // A severity bar would be four crimson bars on one list; the standing
+      // is carried by the meter's tick, by the word in the trailing column
+      // and by the mark beside it instead.
+      meta: Row(
+        children: <Widget>[
+          Expanded(
+            child: Meter(
+              value: measured ? value : null,
+              target: indicator.target,
+              state: !measured
+                  ? MeterState.missing
+                  : thin
+                  ? MeterState.lowSample
+                  : MeterState.filled,
+            ),
+          ),
+          if (series != null) ...<Widget>[
+            const SizedBox(width: TiqSpace.s3),
+            Sparkline(points: series!, severity: severityFor(status)),
+          ],
+        ],
       ),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          FigureSlot(
+            value: measured ? value : null,
+            role: skin.text.figureM,
+            unit: measured ? TiqUnit.percent : TiqUnit.none,
+            decimals: 1,
+            state: !measured
+                ? FigureState.missing
+                : thin
+                ? FigureState.lowSample
+                : FigureState.measured,
+            textAlign: TextAlign.end,
+            // An em dash announced as "em dash" is not a sentence. The row's
+            // own label carries the whole reading, and this is the figure's
+            // half of it.
+            semanticsLabel: !measured
+                ? l10n.dashNoVisitsInWindow
+                : thin
+                ? '${numbers.format(value, unit: TiqUnit.percent, decimals: 1)}, '
+                      '${l10n.trendsSmallSample}'
+                : null,
+          ),
+          if (measured)
+            // Wraps rather than overflows: at 2.0x "Close to the standard"
+            // beside a 24dp mark is wider than a trailing column has.
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: TiqSpace.s1,
+              children: <Widget>[
+                if (severityFor(status) != null)
+                  SeverityMark(kind: severityFor(status)!),
+                Text(
+                  standingWord(l10n, status),
+                  textAlign: TextAlign.end,
+                  style: skin.text.meta.style(color: skin.palette.ink3),
+                ),
+              ],
+            ),
+          if (measured && delta != null)
+            DeltaSlot(
+              data: delta,
+              figureState: thin
+                  ? FigureState.lowSample
+                  : FigureState.measured,
+              sampling: sampling,
+            ),
+        ],
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      // `meta` sits inside the row's excluded label, so the meter and the
+      // sparkline are silent to a reader. The whole reading goes here.
+      semanticsLabel: <String>[
+        label,
+        if (!measured)
+          l10n.dashNoVisitsInWindow
+        else ...<String>[
+          numbers.format(value, unit: TiqUnit.percent, decimals: 1),
+          if (thin) l10n.trendsSmallSample,
+          standingWord(l10n, status),
+          l10n.dashTargetIs(
+            numbers.format(indicator.target, unit: TiqUnit.percent),
+          ),
+        ],
+        indicatorNote(l10n, indicator.id),
+      ].join('. '),
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Territory bars + availability columns
+// Perfect-store distribution
 // ═══════════════════════════════════════════════════════════════════════
 
-class _TerritoryPanel extends ConsumerWidget {
-  const _TerritoryPanel();
+/// How many outlets sit in each perfect-store band, by their latest scored
+/// visit — doors, not visits.
+///
+/// Rows and meters, not columns: a bar chart does not render in Veld and this
+/// is a comparison of five counted categories, which is a list of five rows in
+/// every skin. The panel is hidden when the server sends no bands at all —
+/// five zero-height bars would be a picture of a field that does not exist,
+/// which is not the same thing as five measured noughts.
+class _DistributionSection extends StatelessWidget {
+  const _DistributionSection({required this.snapshot});
+
+  final AsyncValue<DashboardSnapshot> snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final bands = snapshot.maybeWhen(
+      data: (snap) => snap.current.scoreBands,
+      orElse: () => const <ScoreBand>[],
+    );
+    if (bands.isEmpty) return const SizedBox.shrink();
+
+    final total = bands.fold<int>(0, (sum, b) => sum + b.outlets);
+    final most = bands.fold<int>(0, (m, b) => m > b.outlets ? m : b.outlets);
+    final gutter = context.skin.space.gutter;
+    final skin = context.skin;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.dashDistribution, count: total),
+        const SizedBox(height: TiqSpace.s3),
+        Padding(
+          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+          child: Text(
+            l10n.dashHealthyBand,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ),
+        TorchBleed(
+          extra: gutter * 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var i = 0; i < bands.length; i++)
+                SoftRow(
+                  key: ValueKey<String>('band-${bands[i].label}'),
+                  density: SoftRowDensity.compact,
+                  title: bands[i].label,
+                  meta: Meter(
+                    value: bands[i].outlets.toDouble(),
+                    maximum: most == 0 ? 1 : most.toDouble(),
+                  ),
+                  trailing: FigureSlot(
+                    value: bands[i].outlets,
+                    role: skin.text.figureS,
+                    unit: TiqUnit.none,
+                    state: FigureState.measured,
+                    textAlign: TextAlign.end,
+                  ),
+                  separator: i == bands.length - 1
+                      ? SoftRowSeparator.none
+                      : SoftRowSeparator.auto,
+                  semanticsLabel: l10n.dashBandOutlets(
+                    bands[i].outlets,
+                    bands[i].label,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SizedBox(height: skin.space.blockGap),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Execution score by territory
+// ═══════════════════════════════════════════════════════════════════════
+
+class _TerritorySection extends ConsumerWidget {
+  const _TerritorySection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final territories = ref.watch(territoriesListProvider);
+    final gutter = context.skin.space.gutter;
 
-    return PanelCard(
-      title: 'Execution score by territory',
-      subtitle: 'Target 75',
-      child: territories.when(
-        loading: () => const _InlineLoader(height: 140),
-        error: (err, _) => _InlineError(
-          message: 'Could not load territories',
-          onRetry: () => ref.invalidate(territoriesListProvider),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(l10n.dashByTerritory),
+        const SizedBox(height: TiqSpace.s3),
+        Padding(
+          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+          child: Text(
+            l10n.dashTargetIs(executionScoreTarget.round().toString()),
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
+            ),
+          ),
         ),
-        data: (list) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Red below target is a *threshold status*, not a second series —
-            // so it is labelled here and never carried by colour alone.
-            // Glass draws each bar in its status word's colour with the
-            // target tick on it, so the legend's job is done in the bars.
-            if (!context.colors.glass) ...[
-              BarChart.legend(),
-              const SizedBox(height: 8),
-            ],
-            _TerritoryScoreBars(territories: list),
-          ],
+        territories.when(
+          loading: () => Skeleton(
+            label: l10n.dashByTerritory,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonRows(count: 3, rowHeight: 64),
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: l10n.dashByTerritory,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('territories-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(territoriesListProvider),
+              ),
+            ),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return EmptyState(
+                scope: EmptyScope.inPanel,
+                headline: l10n.dashNoTerritories,
+                body: l10n.dashNoTerritoriesBody,
+              );
+            }
+            return TorchBleed(
+              extra: gutter * 2,
+              child: _TerritoryScores(territories: list),
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 }
 
-/// The panel's two settled-but-nothing-to-plot states: no territories at all,
-/// and territories with no scores yet. Both are *answers*, so neither may
-/// render as a loader (#222).
-class _TerritoryPlaceholder extends StatelessWidget {
-  const _TerritoryPlaceholder(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 24),
-    child: Center(
-      child: Text(
-        message,
-        style: TextStyle(fontSize: 12, color: context.colors.ink3),
-      ),
-    ),
-  );
-}
-
-/// Fetches every territory's KPIs in a single `GET /dashboard/by-territory`
-/// call — see #97.
-class _TerritoryScoreBars extends ConsumerWidget {
-  const _TerritoryScoreBars({required this.territories});
+/// Every territory's KPIs in a single `GET /dashboard/by-territory` call —
+/// see #97.
+class _TerritoryScores extends ConsumerWidget {
+  const _TerritoryScores({required this.territories});
 
   final List<Territory> territories;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (territories.isEmpty) {
-      return _TerritoryPlaceholder('No territories defined');
-    }
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final byTerritory = ref.watch(dashboardByTerritoryProvider);
 
-    final byTerritoryAsync = ref.watch(dashboardByTerritoryProvider);
-
-    return byTerritoryAsync.when(
-      loading: () => const _InlineLoader(height: 140),
+    return byTerritory.when(
+      loading: () => Skeleton(
+        label: l10n.dashByTerritory,
+        slowLine: l10n.torchStillFetching,
+        child: const SkeletonRows(count: 3, rowHeight: 64),
+      ),
       // An error must never render as a loader: a spinner reads as "still
-      // loading" and never recovers. Say what failed and offer the way back,
-      // like every sibling panel.
-      error: (_, _) => _InlineError(
-        message: 'Could not load territory scores',
-        onRetry: () => ref.invalidate(dashboardByTerritoryProvider),
+      // loading" and never recovers (#222).
+      error: (error, _) => TorchErrorRegion(
+        name: l10n.dashByTerritory,
+        child: ErrorState(
+          scope: ErrorScope.inline,
+          message: TorchErrorMessage.sanitise(error),
+          action: TorchTertiaryButton(
+            key: const ValueKey<String>('territory-scores-retry'),
+            label: l10n.torchTryAgain,
+            onPressed: () => ref.invalidate(dashboardByTerritoryProvider),
+          ),
+        ),
       ),
       data: (summaries) {
-        final byId = {for (final s in summaries) s.territoryId: s};
-        final points = <ChartPoint>[
+        final byId = <String, TerritoryDashboardKpis>{
+          for (final s in summaries) s.territoryId: s,
+        };
+        final scored = <({String name, double value})>[
           for (final t in territories)
             if (byId[t.id] != null)
-              (label: t.name, value: byId[t.id]!.kpis.executionScore),
+              (name: t.name, value: byId[t.id]!.kpis.executionScore),
         ];
         // Territories exist but no summary overlaps them — a real backend
         // state, not a pending fetch. The future already completed, so a
-        // loader here would spin forever (#222); same rule as the error arm.
-        if (points.isEmpty) {
-          return _TerritoryPlaceholder('No territory scores yet');
+        // loader here would spin forever (#222); the same rule as the error
+        // arm above.
+        if (scored.isEmpty) {
+          return EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: l10n.dashNoTerritoryScores,
+            body: l10n.dashNoTerritoryScoresBody,
+          );
         }
-        points.sort((a, b) => b.value.compareTo(a.value));
-        if (context.colors.glass) return _GlassTerritoryBars(points: points);
-        return BarChart(points: points, target: 75);
+        // Worst first, always: a ranked comparison a manager reads to decide
+        // where to go is read from the top.
+        scored.sort((a, b) => a.value.compareTo(b.value));
+        final numbers = TiqNumber.of(context);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var i = 0; i < scored.length; i++)
+              _territoryRow(
+                context,
+                l10n,
+                skin,
+                numbers,
+                scored[i],
+                i == scored.length - 1,
+              ),
+          ],
+        );
       },
+    );
+  }
+
+  Widget _territoryRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    TiqSkin skin,
+    TiqNumber numbers,
+    ({String name, double value}) entry,
+    bool last,
+  ) {
+    final status = againstStandard(entry.value, executionScoreTarget);
+    return SoftRow(
+      key: ValueKey<String>('territory-score-${entry.name}'),
+      density: SoftRowDensity.tall,
+      title: entry.name,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: standingWord(l10n, status),
+      meta: Meter(value: entry.value, target: executionScoreTarget),
+      trailing: FigureSlot(
+        value: entry.value,
+        role: skin.text.figureS,
+        unit: TiqUnit.none,
+        decimals: 1,
+        state: FigureState.measured,
+        textAlign: TextAlign.end,
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        entry.name,
+        numbers.format(entry.value, decimals: 1),
+        standingWord(l10n, status),
+        l10n.dashTargetIs(executionScoreTarget.round().toString()),
+      ].join('. '),
     );
   }
 }
 
-class _AvailabilityPanel extends ConsumerWidget {
-  const _AvailabilityPanel();
+// ═══════════════════════════════════════════════════════════════════════
+// On-shelf availability by period
+// ═══════════════════════════════════════════════════════════════════════
+
+class _AvailabilitySection extends ConsumerStatefulWidget {
+  const _AvailabilitySection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final availability = ref.watch(availabilityTrendProvider);
+  ConsumerState<_AvailabilitySection> createState() =>
+      _AvailabilitySectionState();
+}
 
-    return PanelCard(
-      title: 'On-shelf availability',
-      subtitle: 'By period',
-      child: availability.when(
-        loading: () => const _InlineLoader(height: 208),
-        error: (err, _) => _InlineError(
-          message: 'Could not load availability',
-          onRetry: () => ref.invalidate(availabilityTrendProvider),
-        ),
-        data: (points) => ColumnChart(
-          points: [
-            for (final p in points)
-              (label: formatPeriodLabel(p.period), value: p.value),
-          ],
-          valueSuffix: '%',
-          seriesName: 'On-shelf availability',
-        ),
-      ),
+class _AvailabilitySectionState extends ConsumerState<_AvailabilitySection> {
+  bool _asTable = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return _TrendPanel(
+      heading: l10n.dashAvailabilityByPeriod,
+      seriesName: l10n.dashKpiOsa,
+      provider: availabilityTrendProvider,
+      kind: MetricKind.rate,
+      unit: TiqUnit.percent,
+      threshold: ChartThreshold(value: 95, label: l10n.trendsTarget),
+      asTable: _asTable,
+      onViewChanged: (v) => setState(() => _asTable = v),
+      async: ref.watch(availabilityTrendProvider),
+      chartKey: const ValueKey<String>('dashboard-availability-chart'),
+      tableKey: const ValueKey<String>('dashboard-availability-table'),
     );
   }
 }
@@ -991,15 +1486,11 @@ class _AvailabilityPanel extends ConsumerWidget {
 // Where are my agents — today's confirmed stops
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Below this the map and list sit side by side; below it they stack. Same
-/// reasoning as [DashboardShellScreen._wide] — this panel is rendered at the
-/// dashboard's full content width, not inside a [_TwoColumn], so it earns its
-/// own constant rather than reusing that private one across classes.
+/// Below this the map and list sit side by side; below it they stack.
 const _panelWide = 1080.0;
 
 /// Fixed so the map never dominates a screen whose real subject is the
-/// execution score above it. Tall enough to place a handful of pins usefully,
-/// short enough to still read as "one panel among several".
+/// execution score above it.
 const _mapHeight = 260.0;
 
 /// The panel's fixed fallback/single-pin zoom — close enough to read
@@ -1007,87 +1498,75 @@ const _mapHeight = 260.0;
 /// `onMapReady` `move()` fallback so the two never drift apart.
 const _mapZoom = 11.0;
 
-/// Label and colour for one agent state — the single source both the list
-/// rows and the map pins read from, so the two halves of the panel can never
-/// quietly disagree about what a state looks like. Colour is never the only
-/// carrier (#144): every state also gets a distinct [AgentStateGlyph] shape
-/// (`core/widgets/agent_state_glyph.dart`) and a word.
-({String label, Color color}) _agentStateVisual(
-  AgentState state,
-  TiqColors colors,
-) => switch (state) {
-  AgentState.atStore => (label: 'At store', color: colors.good),
-  AgentState.inTransit => (label: 'In transit', color: colors.warn),
-  AgentState.idle => (label: 'No check-in', color: colors.ink4),
-};
-
 /// This agent's most recent confirmed stop. Sorts defensively rather than
 /// trusting `stops` to already be in order, for the same reason
-/// [AgentActivity.lastOutletName] does: a caller-trusted ordering that
-/// silently breaks would place the pin at a confidently wrong spot with no
-/// throw and no signal. Callers must only pass agents with `stops.isNotEmpty`.
+/// [AgentActivity.lastOutletName] does. Callers must only pass agents with
+/// `stops.isNotEmpty`.
 AgentStop _latestStop(AgentActivity agent) {
-  final sorted = [...agent.stops]
+  final sorted = <AgentStop>[...agent.stops]
     ..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
   return sorted.last;
 }
 
-/// The empty-state copy for [AgentActivityPanel] when the filtered page has
-/// zero agents. An empty list with no explanation reads as "the app is
-/// broken" — which is exactly what got reported here: a manager filtered to
-/// a territory nobody happens to be assigned to, the query was correct, and
-/// the fixed string gave them no way to tell the two apart. Naming the
-/// territory turns a dead end into something actionable; when no filter is
-/// active, the territory cannot be the reason, so the wording does not
-/// imply one.
+/// The word for a check-in state. Colour is never the carrier (#144) — every
+/// state also gets its own [AgentStateGlyph] silhouette.
+String agentStateWord(AppLocalizations l10n, AgentState state) =>
+    switch (state) {
+      AgentState.atStore => l10n.liveStateAtStore,
+      AgentState.inTransit => l10n.liveStateInTransit,
+      AgentState.idle => l10n.dashNoCheckIn,
+    };
+
+/// The ink for a check-in state, from the tokens. In transit is
+/// `chartNeutral` and never amber: Burning Flame is emitted light, and a list
+/// of eleven agents would be eleven of them.
+Color agentStateInk(AgentState state, TiqPalette palette) => switch (state) {
+  AgentState.atStore => palette.good,
+  AgentState.inTransit => palette.chartNeutral,
+  AgentState.idle => palette.inkMute,
+};
+
+/// The empty-state copy when the filtered page has zero agents.
 ///
-/// [DashboardFilter.territoryId] is a Territory *id* — the client-facing
-/// contract every dashboard endpoint shares (see
-/// `dashboard.service.ts`'s `getDashboardSummary` comment on the backend),
-/// not a name, so the name has to come from [territoriesListProvider] —
-/// which is async and can still be loading or errored, and even once loaded
-/// may simply not contain the id (a
-/// deleted or stale territory). Every one of those cases falls back to
-/// wording that names no territory: a blank, "null", or the raw id would
-/// all be worse than the message this replaced.
-String _emptyActivityMessage(WidgetRef ref, String? territoryId) {
-  if (territoryId == null) return 'No field agents yet.';
-
-  final territories = ref.watch(territoriesListProvider);
-  final name = territories.maybeWhen(
-    data: (list) {
-      for (final t in list) {
-        if (t.id == territoryId) return t.name;
-      }
-      return null;
-    },
-    orElse: () => null,
-  );
-
+/// An empty list with no explanation reads as "the app is broken" — which is
+/// exactly what got reported here: a manager filtered to a territory nobody
+/// happens to be assigned to, the query was correct, and the fixed string gave
+/// them no way to tell the two apart. Naming the territory turns a dead end
+/// into something actionable; when no filter is active the territory cannot be
+/// the reason, so the wording does not imply one. A territory the list has not
+/// loaded, or no longer contains, falls back to wording that names none — a
+/// blank, "null" or a raw id would all be worse.
+String emptyActivityMessage(
+  WidgetRef ref,
+  AppLocalizations l10n,
+  String? territoryId,
+) {
+  if (territoryId == null) return l10n.dashNoAgentsYet;
+  final name = territoryName(ref, territoryId);
   return name == null
-      ? 'No agents match this territory filter.'
-      : 'No agents are assigned to $name.';
+      ? l10n.dashNoAgentsForFilter
+      : l10n.dashNoAgentsIn(name);
 }
 
-/// Map + compact list, side by side — the map is the hero, the list is what
-/// keeps it honest.
+/// Map + compact list — the map is the hero, the list is what keeps it honest.
 ///
 /// Pins mark the last *confirmed* check-in, never a live position (#153 is
 /// T0 — there is no heartbeat to plot). An agent with no stops today gets no
-/// pin; the list is the only reason they do not simply vanish from the
-/// panel, and the footer line beneath the map says how many that is.
+/// pin; the list is the only reason they do not simply vanish from the panel,
+/// and the line beneath the map says how many that is.
 ///
-/// The map is ALWAYS present once there is anything at all to draw. It used
-/// to disappear entirely whenever nobody had checked in yet, leaving only the
-/// list and a "View map" button that led nowhere useful — reported as "the
-/// map is not showing". Now the tenant's outlets (`outletsListProvider`) form
-/// a base layer of muted place pins under the agent glyphs, so a manager
-/// always sees their store network; agent pins layer on top as people check
-/// in. `outletsListProvider` is NOT territory-scoped — it returns every
-/// outlet in the tenant regardless of `dashboardFilterProvider`, so a
-/// territory-filtered view can show more outlets than the (scoped) agents
-/// beside them. Acceptable for a base layer: the outlets are real, just not
-/// narrowed the way the agent list is.
+/// The map is ALWAYS present once there is anything at all to draw. It used to
+/// disappear entirely whenever nobody had checked in yet, leaving only the
+/// list and a "View map" button that led nowhere useful — reported as "the map
+/// is not showing". The tenant's outlets form a base layer of muted place pins
+/// under the agent glyphs, so a manager always sees their store network.
+/// `outletsListProvider` is NOT territory-scoped, so a territory-filtered view
+/// can show more outlets than the (scoped) agents beside them. Acceptable for
+/// a base layer: the outlets are real, just not narrowed the way the agent
+/// list is.
+///
+/// **Veld draws no map at all** (unify §4). The list is the replacement, which
+/// is what it always was for a screen reader.
 ///
 /// Public rather than private so the widget test can pump it on its own.
 class AgentActivityPanel extends ConsumerWidget {
@@ -1095,89 +1574,110 @@ class AgentActivityPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final gutter = skin.space.gutter;
     final activity = ref.watch(agentActivityTodayProvider);
     final filter = ref.watch(dashboardFilterProvider);
-    // `maybeWhen` rather than `AsyncSection`/`.when`: outlets are a base
-    // layer, not the panel's primary data. A slow or failed outlet fetch
-    // must never blank the whole panel or block the agent map — it just
-    // means the base layer is thinner (or absent) until the fetch lands.
+    // `maybeWhen` rather than `.when`: outlets are a base layer, not the
+    // panel's primary data. A slow or failed outlet fetch must never blank
+    // the whole panel or block the agent map.
     final outlets = ref
         .watch(outletsListProvider)
         .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
-    // The live layer (#153 T1) — a layer, like the outlets: it never blanks the
-    // panel or blocks the check-in map. `.value` keeps the last positions on
-    // screen while a poll is in flight, so pins do not blink every 30 seconds.
-    final livePositions = [
+    // The live layer (#153 T1) — a layer, like the outlets. `.value` keeps the
+    // last positions on screen while a poll is in flight, so pins do not blink
+    // every 30 seconds.
+    final livePositions = <AgentLocation>[
       for (final a
           in ref.watch(liveAgentLocationsProvider).value?.agents ??
               const <AgentLocation>[])
         if (a.hasPosition) a,
     ];
 
-    return PanelCard(
-      title: 'Where are my agents',
-      subtitle: "Today's check-ins",
-      padded: false,
-      trailing: TextButton(
-        key: const ValueKey<String>('agent-activity-view-map'),
-        onPressed: () => context.go('/agents/activity'),
-        child: const Text('View map'),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-        child: AsyncSection<AgentActivityPage>(
-          value: activity,
-          label: 'agent activity',
-          onRetry: () => ref.invalidate(agentActivityTodayProvider),
-          // A territory-filter change re-runs this provider (it watches
-          // `dashboardFilterProvider`) — without this, that reload would
-          // flash the whole panel back to the loading spinner, tearing the
-          // map down and rebuilding it fresh once the new page lands. That
-          // would make `_AgentMap`'s camera-easing a snap in practice: there
-          // would be nothing continuously mounted left to animate. Keeping
-          // the last page on screen during the refetch is what lets
-          // `_CameraDriver` travel the SAME map to the new fit instead.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(
+          l10n.dashWhereAgents,
+          action: SectionRuleAction(
+            l10n.dashViewMap,
+            key: const ValueKey<String>('agent-activity-view-map'),
+            onTap: () => context.go('/agents/activity'),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        Padding(
+          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+          child: Text(
+            l10n.dashTodaysCheckIns,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ),
+        activity.when(
           skipLoadingOnReload: true,
-          builder: (page) {
+          loading: () => Skeleton(
+            label: l10n.dashWhereAgents,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonRows(count: 3, rowHeight: 64),
+          ),
+          error: (error, _) => TorchErrorRegion(
+            name: l10n.dashWhereAgents,
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('agent-activity-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () => ref.invalidate(agentActivityTodayProvider),
+              ),
+            ),
+          ),
+          data: (page) {
             if (page.agents.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(_emptyActivityMessage(ref, filter.territoryId)),
+              return EmptyState(
+                scope: EmptyScope.inPanel,
+                headline: l10n.dashNoAgentsHeadline,
+                body: emptyActivityMessage(ref, l10n, filter.territoryId),
               );
             }
 
-            final withStops = [
+            final withStops = <AgentActivity>[
               for (final a in page.agents)
                 if (a.stops.isNotEmpty) a,
             ];
             final notPlotted = page.agents.length - withStops.length;
-            final list = _AgentList(agents: page.agents);
-            // The map can draw as long as there is EITHER a checked-in agent
-            // OR an outlet to place — a base layer of stores is still a map
-            // worth showing on a quiet morning. Only a brand-new tenant with
-            // neither has genuinely nothing to plot.
+            final list = TorchBleed(
+              extra: gutter * 2,
+              child: _AgentList(agents: page.agents),
+            );
+            // Veld draws no map. Everywhere else the map draws as long as
+            // there is EITHER a checked-in agent OR an outlet to place — a
+            // base layer of stores is still a map worth showing on a quiet
+            // morning.
             final hasMapContent =
-                withStops.isNotEmpty ||
-                outlets.isNotEmpty ||
-                livePositions.isNotEmpty;
+                skin.mode != SkinMode.veld &&
+                (withStops.isNotEmpty ||
+                    outlets.isNotEmpty ||
+                    livePositions.isNotEmpty);
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!hasMapContent) ...[
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (!hasMapContent) ...<Widget>[
                   // Nothing to plot at all: a grey, empty map would look
                   // broken rather than honest, so the list carries the panel
                   // alone and says in words why there is nothing to draw.
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'No outlets yet — add outlets to see them here.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.ink3,
+                  if (skin.mode != SkinMode.veld)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: TiqSpace.s3),
+                      child: Text(
+                        l10n.dashNoOutletsToPlot,
+                        style: skin.text.meta.style(color: skin.palette.ink3),
                       ),
                     ),
-                  ),
                   list,
                 ] else
                   LayoutBuilder(
@@ -1194,16 +1694,20 @@ class AgentActivityPanel extends ConsumerWidget {
                       if (!wide) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [map, const SizedBox(height: 10), list],
+                          children: <Widget>[
+                            map,
+                            const SizedBox(height: TiqSpace.s4),
+                            list,
+                          ],
                         );
                       }
                       return SizedBox(
                         height: _mapHeight,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                          children: <Widget>[
                             Expanded(flex: 2, child: map),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: TiqSpace.s4),
                             Expanded(
                               flex: 1,
                               child: SingleChildScrollView(child: list),
@@ -1213,42 +1717,39 @@ class AgentActivityPanel extends ConsumerWidget {
                       );
                     },
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: TiqSpace.s3),
                 // Says who is plotted and who is not in one line, so the map
-                // can never quietly read as "the whole team" when some
-                // agents have no confirmed stop to draw.
+                // can never quietly read as "the whole team" when some agents
+                // have no confirmed stop to draw.
                 Text(
-                  '${withStops.length} on the map · $notPlotted not checked in today',
-                  style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                  l10n.dashOnTheMap(withStops.length, notPlotted),
+                  style: skin.text.meta.style(color: skin.palette.ink3),
                 ),
                 // Never let a cut list read as the whole team. A manager who
                 // cannot see an agent concludes they did not work, not that
                 // the list ran out.
                 if (page.truncated)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: TiqSpace.s2),
                     child: Text(
-                      'Showing the first 200 agents. Filter by territory to narrow.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.ink3,
-                      ),
+                      l10n.dashFirst200Agents,
+                      style: skin.text.meta.style(color: skin.palette.ink3),
                     ),
                   ),
-                const SizedBox(height: 14),
+                SizedBox(height: skin.space.blockGap),
                 const LiveLocationsSection(),
               ],
             );
           },
         ),
-      ),
+      ],
     );
   }
 }
 
-/// The compact list half of the panel — every agent, idle ones included.
-/// Unchanged behaviour from the list-only panel; it is what stops an agent
-/// with no stops from vanishing when the map cannot place them.
+/// The compact list half of the panel — every agent, idle ones included. It is
+/// what stops an agent with no stops from vanishing when the map cannot place
+/// them, and in Veld it is the whole panel.
 class _AgentList extends StatelessWidget {
   const _AgentList({required this.agents});
 
@@ -1259,27 +1760,79 @@ class _AgentList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [for (final agent in agents) _AgentRow(agent: agent)],
+      children: <Widget>[
+        for (var i = 0; i < agents.length; i++)
+          _AgentRow(agent: agents[i], last: i == agents.length - 1),
+      ],
+    );
+  }
+}
+
+/// One agent, one row.
+///
+/// Every row leads with WHEN, not just where. A row that says "Sandton Spar"
+/// with no age reads as live; this data is never live, and the age is the only
+/// thing that keeps the row honest.
+class _AgentRow extends ConsumerWidget {
+  const _AgentRow({required this.agent, required this.last});
+
+  final AgentActivity agent;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final word = agentStateWord(l10n, agent.state);
+
+    // Idle carries no location line: the age column already reads "no
+    // check-in today", and repeating that fact here would say the same thing
+    // twice in exactly the row where space is tightest.
+    final secondLine = switch (agent.state) {
+      AgentState.atStore => '$word · ${agent.currentOutletName ?? l10n.dashUnknownStore}',
+      AgentState.inTransit =>
+        '$word · ${agent.lastOutletName == null ? l10n.dashInTransit : l10n.dashLeft(agent.lastOutletName!)}',
+      AgentState.idle => word,
+    };
+    final age = agent.lastSeenAt == null
+        ? l10n.dashNoCheckInToday
+        : formatAgo(agent.lastSeenAt!, l10n);
+
+    return SoftRow(
+      key: ValueKey<String>('agent-row-${agent.agentId}'),
+      density: SoftRowDensity.compact,
+      leading: AgentStateGlyph(
+        key: ValueKey<String>('agent-state-icon-${agent.agentId}'),
+        state: agent.state,
+        color: agentStateInk(agent.state, skin.palette),
+        size: 16,
+      ),
+      title: agent.name,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: secondLine,
+      trailing: Text(
+        age,
+        style: skin.text.meta.style(color: skin.palette.ink3),
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: '${agent.name}, $secondLine, $age',
     );
   }
 }
 
 /// The map half — one pin per agent with at least one confirmed stop today,
 /// placed at their latest one, over a base layer of the tenant's outlets. No
-/// polylines here: the drill-in trail map (`agent_trail_screen.dart`) carries
-/// the day's route, this one only answers "where are they now" (as of their
-/// last check-in) — and, on a quiet day with no check-ins yet, "where is my
-/// store network at all".
+/// polylines here: the drill-in trail map carries the day's route, this one
+/// only answers "where are they now" (as of their last check-in).
 ///
-/// Caller (`AgentActivityPanel`) guarantees at least one of [agentsWithStops]
-/// or [outlets] is non-empty before constructing this — `fitFor` asserts a
-/// non-empty point list, and there is nothing this widget could sensibly draw
-/// with neither.
+/// Caller guarantees at least one of [agentsWithStops], [outlets] or [live] is
+/// non-empty before constructing this — `fitFor` asserts a non-empty point
+/// list, and there is nothing this widget could sensibly draw with neither.
 class _AgentMap extends StatelessWidget {
   const _AgentMap({
     required this.agentsWithStops,
     required this.outlets,
-    this.live = const [],
+    this.live = const <AgentLocation>[],
   });
 
   /// Must all have `stops.isNotEmpty` — callers filter before constructing.
@@ -1288,67 +1841,48 @@ class _AgentMap extends StatelessWidget {
   /// Live positions (#153 T1). Must all have `hasPosition`.
   final List<AgentLocation> live;
 
-  /// The tenant's outlets, unfiltered by territory — see
-  /// [AgentActivityPanel]'s doc comment on why that is acceptable for a base
-  /// layer.
+  /// The tenant's outlets, unfiltered by territory.
   final List<Outlet> outlets;
 
   @override
   Widget build(BuildContext context) {
-    final agentPoints = [
+    final agentPoints = <LatLng>[
       for (final a in agentsWithStops)
         LatLng(_latestStop(a).lat, _latestStop(a).lng),
     ];
-    final outletPoints = [for (final o in outlets) LatLng(o.lat, o.lng)];
+    final outletPoints = <LatLng>[for (final o in outlets) LatLng(o.lat, o.lng)];
     // Agents are the priority signal, but a fit that includes nearby stores
     // too is harmless — and when nobody has checked in yet, the outlets are
-    // the ONLY points there are to fit against.
-    // Live positions move every poll. Fitting the camera to them would drag
-    // the map out from under a manager every 30 seconds, so they decide the
-    // fit only when there is nothing else to fit to.
+    // the ONLY points there are to fit against. Live positions move every
+    // poll; fitting the camera to them would drag the map out from under a
+    // manager every 30 seconds, so they decide the fit only when there is
+    // nothing else to fit to.
     final points = agentPoints.isEmpty && outletPoints.isEmpty
-        ? [for (final a in live) LatLng(a.lat!, a.lng!)]
-        : [...agentPoints, ...outletPoints];
+        ? <LatLng>[for (final a in live) LatLng(a.lat!, a.lng!)]
+        : <LatLng>[...agentPoints, ...outletPoints];
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      // This panel lives inside DashboardShellScreen's ListView, below the
-      // fold on a typical screen — a scrollable can lay a child out before it
-      // is ever scrolled into view, sometimes on a transient pass with a
-      // zero or unbounded size. The LayoutBuilder + degenerate guard below
-      // exist for that: skip the map entirely rather than mount it against a
-      // viewport it can't use.
+      borderRadius: BorderRadius.circular(context.skin.radii.panel),
+      // This panel lives below the fold on a typical screen — a scrollable can
+      // lay a child out before it is ever scrolled into view, sometimes on a
+      // transient pass with a zero or unbounded size. The LayoutBuilder plus
+      // the degenerate guard below exist for that: skip the map entirely
+      // rather than mount it against a viewport it can't use.
       //
       // The centre/zoom are computed OURSELVES, by `fitFor` — not by
       // flutter_map's own `CameraFit.bounds`/`initialCameraFit`, and not by
-      // calling `fitCamera` from `onMapReady` either. Both of those depend
-      // on flutter_map's own internal camera size, which — confirmed against
-      // the running web build, with a live debug overlay reading correct
-      // points, a real bounds `CameraFit`, and a non-degenerate widget
-      // viewport already measured here — was STILL zero at the moment
-      // `onMapReady` fired, silently producing a near-world zoom centred
-      // nowhere near the data. `fitFor` uses the real pixel `size` this
-      // `LayoutBuilder` already has in hand and plain Web Mercator maths
-      // (see core/geo/mercator_fit.dart), so there is no flutter_map camera
-      // state left to race — the result is handed to flutter_map as plain
-      // `initialCenter`/`initialZoom`, values it applies synchronously and
-      // unconditionally on every mount.
+      // calling `fitCamera` from `onMapReady` either. Both of those depend on
+      // flutter_map's own internal camera size, which — confirmed against the
+      // running web build — was STILL zero at the moment `onMapReady` fired,
+      // silently producing a near-world zoom centred nowhere near the data.
+      // `fitFor` uses the real pixel `size` this `LayoutBuilder` already has
+      // in hand and plain Web Mercator maths (core/geo/mercator_fit.dart), so
+      // there is no flutter_map camera state left to race.
       //
-      // The key is now SIZE ONLY, not a fingerprint of the plotted
-      // coordinates: a genuine size change (the panel's real first layout
-      // once scrolled into view, or a later resize) still mounts a fresh
-      // State — flutter_map creates a brand new internal controller, which
-      // seeds its camera fresh from that mount's `initialCenter`/
-      // `initialZoom`, exactly as before. A moved set of pins (a
-      // territory-filter change, same size) no longer remounts anything:
-      // `_CameraDriver` below drives the SAME map's camera to the new
-      // `fitFor` target as an eased `MapController.move()` instead, so the
-      // camera travels rather than snaps. `fitFor` is still the only source
-      // of truth for WHERE the camera ends up; only how it gets there
-      // changed. (The stale-controller trap the `onMapReady` version of
-      // this fix had — see git history — still does not apply: nothing
-      // here holds `mapController:` on `FlutterMap` itself, so
-      // `map.mapController` stays null, as the tests pin down.)
+      // The key is SIZE ONLY, not a fingerprint of the plotted coordinates: a
+      // genuine size change still mounts a fresh State, while a moved set of
+      // pins (a territory-filter change, same size) is travelled to by
+      // `_CameraDriver` on the SAME map instead of snapping.
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -1371,38 +1905,27 @@ class _AgentMap extends StatelessWidget {
             options: MapOptions(
               initialCenter: center,
               initialZoom: zoom,
-              // Correctness fix, not a preference — do NOT restore the
-              // missing flag. This map is a passenger inside
-              // DashboardShellScreen's ListView, not a full-screen map like
-              // agent_trail_screen.dart: a manager reaching this
-              // below-the-fold panel scrolls the page with their mouse
-              // wheel, exactly as they would over any other panel. flutter_map's
-              // default interactionOptions treat that same wheel as a zoom
-              // gesture — so the wheel that was meant to keep scrolling the
-              // page instead zooms the map AND silently destroys the fit
-              // `fitFor` computed, leaving a manager staring at empty ocean
-              // with no idea why. Drag, pinch, and double-tap zoom all stay
-              // on; only the wheel is disabled, because the wheel is the one
-              // gesture this map cannot own without breaking the page around
-              // it.
+              // Correctness fix, not a preference — do NOT restore the missing
+              // flag. This map is a passenger inside a scroll view, not a
+              // full-screen map: a manager reaching this below-the-fold panel
+              // scrolls the page with their mouse wheel. flutter_map's default
+              // interaction options treat that same wheel as a zoom gesture —
+              // so the wheel that was meant to keep scrolling the page instead
+              // zooms the map AND silently destroys the fit `fitFor` computed.
+              // Drag, pinch and double-tap zoom all stay on.
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.scrollWheelZoom,
               ),
             ),
-            children: [
+            children: <Widget>[
               const TiqTileLayer(),
-              // The navy wash that makes the island the same Tide Guide
-              // world as the full-screen trail map — between the tiles and
-              // the markers so pins stay at full brightness.
               const TiqNavyTint(),
-              // Place names ride above the tint so the wash cannot mute them.
               const TiqBasemapLabels(),
               MarkerLayer(
-                // Outlets first, agents last: marker paint order follows
-                // list order, so a checked-in agent standing at (or near) an
-                // outlet is never hidden underneath that outlet's base-layer
-                // dot.
-                markers: [
+                // Outlets first, agents last: marker paint order follows list
+                // order, so a checked-in agent standing at (or near) an outlet
+                // is never hidden underneath that outlet's base-layer dot.
+                markers: <Marker>[
                   for (final o in outlets)
                     Marker(
                       point: LatLng(o.lat, o.lng),
@@ -1430,12 +1953,9 @@ class _AgentMap extends StatelessWidget {
               const TiqBasemapAttribution(),
               // Not a visual layer — a headless widget living inside the
               // `FlutterMap` subtree purely so it can reach
-              // `MapController.of(context)`, the map's own INTERNAL
-              // controller (we deliberately never pass `mapController:`
-              // above, which is what keeps `map.mapController` null for the
-              // regression test). It compares this build's `fitFor` target
-              // against the previous one and, when they differ, eases the
-              // SAME map's camera across via `.move()` instead of a snap.
+              // `MapController.of(context)`, the map's own INTERNAL controller
+              // (we deliberately never pass `mapController:` above, which is
+              // what keeps `map.mapController` null for the regression test).
               _CameraDriver(target: (center, zoom)),
             ],
           );
@@ -1445,16 +1965,10 @@ class _AgentMap extends StatelessWidget {
   }
 }
 
-/// Drives one mounted [FlutterMap]'s camera toward each new `fitFor` target
-/// as an eased travel rather than a snap, when [target] changes under an
-/// unchanged `FlutterMap` key (a territory-filter change moving the pins,
-/// not a real resize). See `_AgentMap`'s doc comment for why this is safe
-/// against the `onMapReady`/`mapController` timing bug this file's history
-/// already paid for: this never touches `FlutterMap.mapController`,
-/// `initialCameraFit`, or `onMapReady` — it only calls the public
-/// `MapController.of(context)`/`.move()` API from a descendant already
-/// inside the map's own subtree, after the map has already mounted with a
-/// correct `fitFor`-computed `initialCenter`/`initialZoom`.
+/// Drives one mounted [FlutterMap]'s camera toward each new `fitFor` target as
+/// an eased travel rather than a snap, when [target] changes under an
+/// unchanged `FlutterMap` key (a territory-filter change moving the pins, not
+/// a real resize).
 ///
 /// Renders nothing — [build] returns [SizedBox.shrink].
 class _CameraDriver extends StatefulWidget {
@@ -1476,12 +1990,14 @@ class _CameraDriverState extends State<_CameraDriver>
   @override
   void initState() {
     super.initState();
-    // The map has ALREADY mounted with `initialCenter`/`initialZoom` equal
-    // to `widget.target` at this point (see `_AgentMap`) — nothing to
-    // travel on first build, only on a later target change.
-    _controller = AnimationController(vsync: this, duration: Motion.slow)
-      ..addListener(_onTick);
-    _eased = CurvedAnimation(parent: _controller, curve: Motion.enter);
+    // The map has ALREADY mounted with `initialCenter`/`initialZoom` equal to
+    // `widget.target` at this point — nothing to travel on first build, only
+    // on a later target change.
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..addListener(_onTick);
+    _eased = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
   }
 
   @override
@@ -1492,7 +2008,10 @@ class _CameraDriverState extends State<_CameraDriver>
 
   void _travelTo((LatLng, double) target) {
     final controller = MapController.of(context);
-    if (reduceMotion(context)) {
+    // The one motion switch in the system: reduce-motion, Veld and power save
+    // all resolve into `MotionBudget.still`, and a still frame moves the
+    // camera rather than travelling it.
+    if (MotionBudget.of(context).still) {
       controller.move(target.$1, target.$2);
       return;
     }
@@ -1534,14 +2053,9 @@ class _CameraDriverState extends State<_CameraDriver>
 /// marker must be just as unmistakably NOT a person's state. [AgentStateGlyph]
 /// draws a literal storefront for [AgentState.atStore]; reusing anything
 /// storefront-shaped for an outlet would recreate exactly the confusion #144
-/// already cost this feature twice. So this is a plain small dot with a
-/// hollow centre — a place marker's silhouette, not a state's — sized and
-/// coloured to read as quiet background context: an agent glyph should
-/// always be the eye's first stop.
-///
-/// Stateless, unlike [_AgentMapPin] — a base layer of outlets is not an
-/// interactive affordance the way an agent's live state is, so there is
-/// nothing here worth a hover response.
+/// already cost this feature twice. So this is a plain small dot with a hollow
+/// centre — a place marker's silhouette, not a state's — in the basemap's own
+/// quiet ink so an agent glyph is always the eye's first stop.
 class _OutletBasePin extends StatelessWidget {
   const _OutletBasePin({super.key, required this.outlet});
 
@@ -1549,8 +2063,10 @@ class _OutletBasePin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = basemapPalette;
     return Semantics(
-      label: '${outlet.name} outlet',
+      label: l10n.dashOutletPin(outlet.name),
       excludeSemantics: true,
       child: Center(
         child: Container(
@@ -1559,27 +2075,18 @@ class _OutletBasePin extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            // A dim navy from the same family as the basemap's tint —
-            // deliberately muted, with only a faint glow, next to the agent
-            // pins' bright glowing discs, so this reads as background
-            // rather than competing for attention.
-            color: const Color(0xFF39557E),
-            boxShadow: [
-              BoxShadow(
-                // rgba(64,120,200,.35) — a quieter, dimmer blue than the
-                // agent pins' rgba(64,156,255,.55) halo.
-                color: const Color(0xFF4078C8).withValues(alpha: 0.35),
-                blurRadius: 8,
-                spreadRadius: 2,
-              ),
-            ],
+            // Quiet next to the agent pins, and no glow: the basemap is the
+            // one place in this product with a paint budget it can lose, and a
+            // shadow per outlet is a shadow per outlet.
+            color: p.lifted,
+            border: Border.all(color: p.edgeStructure),
           ),
           child: Container(
             width: 4,
             height: 4,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: p.ink1,
             ),
           ),
         ),
@@ -1592,363 +2099,41 @@ class _OutletBasePin extends StatelessWidget {
 ///
 /// Deliberately not numbered like the trail screen's stops — this map shows
 /// one point per agent, not a sequence, so a plain state glyph says more than
-/// an ordinal would.
-///
-/// Stateful only to track hover: the disc lifts a couple of pixels under the
-/// mouse, a real affordance on a web console driven with a pointer.  Gated
-/// on [reduceMotion] like every other transition in this file.
-class _AgentMapPin extends StatefulWidget {
+/// an ordinal would. Night tokens in every skin, like every other pin on the
+/// basemap.
+class _AgentMapPin extends StatelessWidget {
   const _AgentMapPin({super.key, required this.agent});
 
   final AgentActivity agent;
 
   @override
-  State<_AgentMapPin> createState() => _AgentMapPinState();
-}
-
-class _AgentMapPinState extends State<_AgentMapPin> {
-  bool _hovering = false;
-
-  @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final agent = widget.agent;
-    final visual = _agentStateVisual(agent.state, colors);
+    final l10n = context.l10n;
+    final p = basemapPalette;
     final stop = _latestStop(agent);
-    final lift = _hovering ? 3.0 : 0.0;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: Semantics(
-        label: '${agent.name}, ${visual.label}, ${stop.outletName}',
-        excludeSemantics: true,
-        child: AnimatedContainer(
-          duration: reduceMotion(context) ? Duration.zero : Motion.fast,
-          curve: Motion.enter,
-          transform: Matrix4.translationValues(0, -lift, 0),
-          transformAlignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            // The glowing lit-sphere disc, same recipe as
-            // agent_trail_screen.dart's _StopPin at panel scale: the small
-            // highlight is pushed to the top-left so the glyph sits on the
-            // deep core — the colour the white glyph is contrast-guarded
-            // against (≥3:1, this panel's own test). The glow is STATIC
-            // here: the trail's breathing loop is the design's only looping
-            // animation, and this below-the-fold island earns none.
-            gradient: const RadialGradient(
-              center: Alignment(-0.4, -0.5),
-              radius: 1.0,
-              colors: [Color(0xFF7CC0FF), Color(0xFF1F7AE0)],
-              stops: [0.0, 0.75],
-            ),
-            border: Border.all(color: Colors.white, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                // rgba(64,156,255,.55) — the trail pins' glow blue, halo
-                // scaled down with the disc.
-                color: const Color(0xFF409CFF).withValues(alpha: 0.55),
-                blurRadius: 14,
-                spreadRadius: 3,
-              ),
-            ],
-          ),
-          child: Center(
-            child: AgentStateGlyph(
-              state: agent.state,
-              // White on the deep core for every state: on this disc the
-              // per-state colours would be near-invisible, and colour was
-              // never the carrier anyway — the SHAPE is the state (#144),
-              // exactly as on the white disc this replaces.
-              color: Colors.white,
-              size: 16,
-              pulse: true,
-            ),
+    return Semantics(
+      label:
+          '${agent.name}, ${agentStateWord(l10n, agent.state)}, '
+          '${stop.outletName}',
+      excludeSemantics: true,
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: p.surface,
+          border: Border.all(color: p.ink1, width: 1.5),
+        ),
+        child: Center(
+          child: AgentStateGlyph(
+            state: agent.state,
+            // The SHAPE is the state (#144); on a 30dp disc over a dark
+            // basemap the per-state inks are near-invisible and colour was
+            // never the carrier anyway.
+            color: p.ink1,
+            size: 16,
           ),
         ),
       ),
-    );
-  }
-}
-
-/// One agent, one line.
-///
-/// Every row leads with WHEN, not just where. A row that says "Sandton Spar"
-/// with no age reads as live; this data is never live, and the age is the
-/// only thing that keeps the row honest.
-///
-/// Stateful only to track hover/press: a subtle surface change under the
-/// mouse and on press, the same web-console affordance the map pins get.
-/// Purely visual — the row has no `onTap` action of its own today — and
-/// gated on [reduceMotion] like every other transition in this file.
-class _AgentRow extends StatefulWidget {
-  const _AgentRow({required this.agent});
-
-  final AgentActivity agent;
-
-  @override
-  State<_AgentRow> createState() => _AgentRowState();
-}
-
-class _AgentRowState extends State<_AgentRow> {
-  bool _hovering = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final agent = widget.agent;
-    final colors = context.colors;
-    final visual = _agentStateVisual(agent.state, colors);
-    final (label, color) = (visual.label, visual.color);
-
-    // Idle carries no location line: the age column already reads "no
-    // check-in today", and repeating that fact here would say the same thing
-    // twice in exactly the row where space is tightest.
-    final secondLine = switch (agent.state) {
-      AgentState.atStore =>
-        '$label · ${agent.currentOutletName ?? 'unknown store'}',
-      AgentState.inTransit =>
-        '$label · ${agent.lastOutletName == null ? 'in transit' : 'left ${agent.lastOutletName}'}',
-      AgentState.idle => label,
-    };
-
-    final background = _pressed
-        ? colors.surface3
-        : _hovering
-        ? colors.surface2
-        : Colors.transparent;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() {
-        _hovering = false;
-        _pressed = false;
-      }),
-      child: Listener(
-        onPointerDown: (_) => setState(() => _pressed = true),
-        onPointerUp: (_) => setState(() => _pressed = false),
-        onPointerCancel: (_) => setState(() => _pressed = false),
-        child: Semantics(
-          label: '${agent.name}, $secondLine, ${_age(agent.lastSeenAt)}',
-          // The row underneath is three live Text widgets, each of which
-          // would otherwise contribute its own implicit semantics node —
-          // without this a screen reader announces the curated label, then
-          // reads the name, status line and age again on the next three
-          // swipes.
-          excludeSemantics: true,
-          child: AnimatedContainer(
-            duration: reduceMotion(context) ? Duration.zero : Motion.fast,
-            curve: Motion.enter,
-            color: background,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Row(
-              children: [
-                AgentStateGlyph(
-                  key: ValueKey<String>('agent-state-icon-${agent.agentId}'),
-                  state: agent.state,
-                  color: color,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // `name` falls back to an email — one unbroken token —
-                      // when the agent has no display name, and outlet
-                      // names run long, so both lines must ellipsize rather
-                      // than paint past their bound; the age column stays
-                      // unbounded since it must never be the thing that
-                      // gets clipped.
-                      Text(
-                        agent.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        secondLine,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: colors.ink3),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  _age(agent.lastSeenAt),
-                  style: TextStyle(fontSize: 12, color: colors.ink3),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// How stale this row is, in words. Delegates to the same [formatAgo] every
-/// other "time since" line in the app uses (`agent_scaffold.dart`,
-/// `my_work_screen.dart`, `audit_shell_screen.dart`) — a second bucketing
-/// implementation here would silently drift from that wording. Only the
-/// "never checked in" case is specific to this panel.
-String _age(DateTime? at) => at == null ? 'no check-in today' : formatAgo(at);
-
-// ═══════════════════════════════════════════════════════════════════════
-// Filters — one row, above everything it scopes
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Sentinel for the "All territories" menu entry. A null [PopupMenuItem] value
-/// would be swallowed as a cancel, so the null filter travels as this token and
-/// is mapped back to `clearTerritory` at selection.
-const _allTerritoriesValue = '__all_territories__';
-
-class _FilterBar extends ConsumerWidget {
-  const _FilterBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final filter = ref.watch(dashboardFilterProvider);
-    final territories = ref.watch(territoriesListProvider);
-
-    void update(DashboardFilter next) =>
-        ref.read(dashboardFilterProvider.notifier).set(next);
-
-    final territoryDropdown = territories.maybeWhen(
-      data: (list) {
-        // Territories are an arbitrary-length list, so this is a pill-STYLED
-        // menu trigger, not a segmented pill row. It wears the inactive
-        // range-pill look (surface1 + hairline + radiusPill) so it reads as a
-        // control that shares the bar's idiom.
-        var selectedLabel = 'All territories';
-        for (final t in list) {
-          if (t.id == filter.territoryId) {
-            selectedLabel = t.name;
-            break;
-          }
-        }
-        return PopupMenuButton<String>(
-          key: const ValueKey('filter-territory'),
-          // PopupMenuButton treats a null selected value as a cancel, so the
-          // "All territories" option carries a sentinel rather than null; it is
-          // mapped back to clearTerritory below. The provider wiring is
-          // unchanged.
-          initialValue: filter.territoryId ?? _allTerritoriesValue,
-          tooltip: 'Filter by territory',
-          color: colors.surface2,
-          onSelected: (v) => update(
-            v == _allTerritoriesValue
-                ? filter.copyWith(clearTerritory: true)
-                : filter.copyWith(territoryId: v),
-          ),
-          itemBuilder: (context) => [
-            PopupMenuItem<String>(
-              value: _allTerritoriesValue,
-              child: Text(
-                'All territories',
-                style: TextStyle(fontSize: 12.5, color: colors.ink1),
-              ),
-            ),
-            for (final t in list)
-              PopupMenuItem<String>(
-                value: t.id,
-                child: Text(
-                  t.name,
-                  style: TextStyle(fontSize: 12.5, color: colors.ink1),
-                ),
-              ),
-          ],
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: colors.surface1,
-              border: Border.all(color: colors.line),
-              borderRadius: BorderRadius.circular(AppColors.radiusPill),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  selectedLabel,
-                  style: TextStyle(fontSize: 12.5, color: colors.ink2),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.expand_more, size: 18, color: colors.ink2),
-              ],
-            ),
-          ),
-        );
-      },
-      orElse: () => const SizedBox.shrink(),
-    );
-
-    final filters = Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 10,
-      runSpacing: 6,
-      children: [
-        const SectionLabel('Territory'),
-        territoryDropdown,
-        const SizedBox(width: 4),
-        // The window is what makes every delta on this screen possible: without
-        // a bounded range there is no previous period, and every arrow would be
-        // invented. "All" is offered, and honestly shows no arrows at all.
-        _RangeControl(
-          key: const ValueKey('filter-daterange'),
-          selected: filter.range,
-          onChanged: (r) => update(filter.copyWith(range: r)),
-        ),
-      ],
-    );
-
-    // One glass bar scopes everything beneath it — never a filter in a panel.
-    if (colors.glass) {
-      return GlassPane(
-        radius: LumenGlass.radiusControl,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: filters,
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      ),
-      child: filters,
-    );
-  }
-}
-
-class _RangeControl extends StatelessWidget {
-  const _RangeControl({
-    super.key,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final DashboardRange selected;
-  final ValueChanged<DashboardRange> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final r in DashboardRange.values)
-          PillSegment(
-            key: ValueKey('range-${r.name}'),
-            label: r.label,
-            selected: r == selected,
-            onTap: () => onChanged(r),
-          ),
-      ],
     );
   }
 }
@@ -1957,376 +2142,32 @@ class _RangeControl extends StatelessWidget {
 // Shared bits
 // ═══════════════════════════════════════════════════════════════════════
 
+/// A brand-new tenant: nothing on the books at all. Not a scoreboard of
+/// noughts — a tenant with no outlets has not performed badly, it has not
+/// started.
+class _FirstRun extends StatelessWidget {
+  const _FirstRun();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return EmptyState(
+      headline: l10n.dashFirstRunHeadline,
+      body: l10n.dashFirstRunBody,
+      drawing: EmptyDrawing.shelf,
+    );
+  }
+}
+
 class _StubCaveat extends StatelessWidget {
   const _StubCaveat();
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
     return Text(
-      'Visibility compliance and share of shelf are derived from the Phase-1 '
-      'computer-vision stub — see docs/architecture/stubs-and-interfaces.md.',
-      style: TextStyle(fontSize: 11, color: context.colors.ink3),
-    );
-  }
-}
-
-class _InlineLoader extends StatelessWidget {
-  const _InlineLoader({required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: const Center(
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.message, this.onRetry});
-
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-      child: Row(
-        children: [
-          const StatusChip(label: 'Error', level: StatusLevel.critical),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 12, color: context.colors.ink2),
-            ),
-          ),
-          if (onRetry != null)
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Lumen Glass — against the published standard
-// ═══════════════════════════════════════════════════════════════════════
-
-/// One KPI and the standard it is judged by.
-///
-/// On-shelf availability and the perfect-store band are published industry
-/// reference points (the design handoff sources them); the rest are the
-/// handoff's internal standards. They are drawn as a tick on each bar so a
-/// figure is never read without the line it is measured against.
-typedef _Benchmark = ({
-  String label,
-  double Function(DashboardKpis) read,
-  double target,
-  String note,
-});
-
-const _benchmarks = <_Benchmark>[
-  (
-    label: 'On-shelf availability',
-    read: _osa,
-    target: 95,
-    note: 'Floor 95% · target 97–99%',
-  ),
-  (
-    label: 'Perfect-store rate',
-    read: _perfect,
-    target: 80,
-    note: 'Healthy 80–90% · below 70% is an execution gap',
-  ),
-  (
-    label: 'Price compliance',
-    read: _price,
-    target: 95,
-    note: 'Within tolerance of RRP',
-  ),
-  (
-    label: 'Visibility compliance',
-    read: _visibility,
-    target: 80,
-    note: 'Planogram threshold',
-  ),
-  (
-    label: 'Share of shelf',
-    read: _sos,
-    target: 33,
-    note: 'Category fair share',
-  ),
-  (
-    label: 'Weighted distribution',
-    read: _weighted,
-    target: 85,
-    note: 'Volume-weighted',
-  ),
-];
-
-/// On the standard, within ten points of it, or breaching it.
-LumenStatus _againstStandard(double value, double target) => value >= target
-    ? LumenStatus.good
-    : value >= target - 10
-    ? LumenStatus.warn
-    : LumenStatus.crit;
-
-class _BenchmarkPanel extends StatelessWidget {
-  const _BenchmarkPanel({required this.snapshot});
-
-  final AsyncValue<DashboardSnapshot> snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    return PanelCard(
-      title: 'Where we sit against the standard',
-      subtitle: 'Tick marks the target',
-      child: snapshot.when(
-        loading: () => const _InlineLoader(height: 120),
-        error: (err, _) => const _InlineError(message: 'Could not load KPIs'),
-        data: (snap) => LayoutBuilder(
-          builder: (context, box) {
-            final columns = box.maxWidth >= 900
-                ? 3
-                : box.maxWidth >= 560
-                ? 2
-                : 1;
-            const gap = 28.0;
-            final width = (box.maxWidth - gap * (columns - 1)) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: 18,
-              children: [
-                for (final b in _benchmarks)
-                  SizedBox(
-                    width: width,
-                    child: _BenchmarkCell(
-                      benchmark: b,
-                      value: b.read(snap.current),
-                      delta: snap.of(b.read),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _BenchmarkCell extends StatelessWidget {
-  const _BenchmarkCell({
-    required this.benchmark,
-    required this.value,
-    required this.delta,
-  });
-
-  final _Benchmark benchmark;
-  final double value;
-  final KpiDelta delta;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _againstStandard(value, benchmark.target);
-    final ink = status.swatchOf(context.colors).ink;
-    return Column(
-      key: ValueKey('benchmark-${benchmark.label}'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                benchmark.label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: context.lumen.ink,
-                ),
-              ),
-            ),
-            LumenStatusPill(status: status),
-            const SizedBox(width: 9),
-            Text(
-              _fmtPct(value),
-              style: LumenGlass.figure(size: 14, color: ink),
-            ),
-            if (delta.hasDelta) ...[
-              const SizedBox(width: 7),
-              DeltaPill(
-                delta: delta.change!,
-                tone: delta.change! < 0 ? DeltaTone.bad : DeltaTone.good,
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-        BenchmarkBar(
-          value: value,
-          target: benchmark.target,
-          status: status,
-          height: 8,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          benchmark.note,
-          style: TextStyle(fontSize: 10.5, color: context.lumen.inkMuted),
-        ),
-      ],
-    );
-  }
-}
-
-/// How many outlets sit in each perfect-store band, by their latest scored
-/// visit — five columns, each coloured by the band it counts.
-class _DistributionPanel extends StatelessWidget {
-  const _DistributionPanel({required this.bands});
-
-  final List<ScoreBand> bands;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final most = bands.fold<int>(0, (m, b) => math.max(m, b.outlets));
-    final total = bands.fold<int>(0, (sum, b) => sum + b.outlets);
-
-    return PanelCard(
-      title: 'Perfect-store distribution',
-      subtitle: '$total outlets · healthy band 80–90',
-      child: SizedBox(
-        height: 190,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final band in bands)
-              Expanded(
-                child: Semantics(
-                  label: '${band.outlets} outlets scoring ${band.label}',
-                  excludeSemantics: true,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${band.outlets}',
-                          style: LumenGlass.figure(
-                            size: 12,
-                            color: _bandStatus(band).swatchOf(colors).ink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(
-                            begin: 0,
-                            end: most == 0 ? 0 : band.outlets / most,
-                          ),
-                          duration: reduceMotion(context)
-                              ? Duration.zero
-                              : Motion.slow,
-                          curve: Motion.enter,
-                          builder: (context, t, _) => Container(
-                            height: math.max(2, 118 * t),
-                            decoration: BoxDecoration(
-                              color: _bandStatus(band).swatchOf(colors).fill,
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
-                                bottom: Radius.circular(3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          band.label,
-                          style: LumenGlass.figure(
-                            size: 10,
-                            color: context.lumen.inkMuted,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static LumenStatus _bandStatus(ScoreBand band) => band.minScore >= 80
-      ? LumenStatus.good
-      : band.minScore >= 70
-      ? LumenStatus.warn
-      : LumenStatus.crit;
-}
-
-/// Each territory's execution score against the 75 target.
-class _GlassTerritoryBars extends StatelessWidget {
-  const _GlassTerritoryBars({required this.points});
-
-  final List<ChartPoint> points;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Column(
-      children: [
-        for (final p in points)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 96,
-                  child: Text(
-                    p.label,
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.lumen.inkMuted,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: BenchmarkBar(
-                    value: p.value,
-                    target: 75,
-                    status: _againstStandard(p.value, 75),
-                    height: 15,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 38,
-                  child: Text(
-                    p.value.toStringAsFixed(1),
-                    style: LumenGlass.figure(
-                      size: 12,
-                      color: _againstStandard(p.value, 75).swatchOf(colors).ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
+      context.l10n.dashStubCaveat,
+      style: skin.text.meta.style(color: skin.palette.ink3),
     );
   }
 }

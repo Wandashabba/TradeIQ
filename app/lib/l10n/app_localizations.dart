@@ -932,25 +932,25 @@ abstract class AppLocalizations {
   /// **'Outlet info'**
   String get visitSectionOutletInfo;
 
-  /// A capture section.
+  /// Audit section S2 name.
   ///
   /// In en, this message translates to:
-  /// **'Stock'**
+  /// **'Stock & availability'**
   String get visitSectionStock;
 
-  /// A capture section.
+  /// Audit sections S3/S4 name.
   ///
   /// In en, this message translates to:
-  /// **'Visibility'**
+  /// **'Visibility & display'**
   String get visitSectionVisibility;
 
-  /// A capture section.
+  /// Audit section S5 name.
   ///
   /// In en, this message translates to:
-  /// **'Pricing'**
+  /// **'Pricing & promotions'**
   String get visitSectionPricing;
 
-  /// A capture section.
+  /// Audit section S6 name.
   ///
   /// In en, this message translates to:
   /// **'Competitive'**
@@ -962,7 +962,7 @@ abstract class AppLocalizations {
   /// **'Team capability'**
   String get visitSectionCapability;
 
-  /// A capture section. A flagged risk is an in-store hazard rather than an execution gap.
+  /// Audit section S8 name.
   ///
   /// In en, this message translates to:
   /// **'Risks'**
@@ -2648,11 +2648,11 @@ abstract class AppLocalizations {
   /// **'All your work is sent. Double-tap to see it.'**
   String get syncChipAllSentSemantics;
 
-  /// Section heading over the answers to the client's own audit template (#122).
+  /// Name of the client-questions row when the client's own template could not be loaded, so its real name is unknown.
   ///
   /// In en, this message translates to:
-  /// **'Client questions · {template}'**
-  String visitClientQuestions(String template);
+  /// **'The client’s questions'**
+  String get visitClientQuestions;
 
   /// Headline when the visit hub cannot read its own progress.
   ///
@@ -2786,11 +2786,11 @@ abstract class AppLocalizations {
   /// **'Captured, {done} of {total}. {blocking} sections still needed.'**
   String visitReadinessSemantics(int done, int total, int blocking);
 
-  /// The score and its band as one utterance, so a reader never hears the figure without the verdict.
+  /// Screen-reader label for the score row on the visit hub. It is not focusable as a button — the score is a result, not a form.
   ///
   /// In en, this message translates to:
-  /// **'{value} out of 100. {band}.'**
-  String visitScoreSemantics(int value, String band);
+  /// **'{name}, not yet available. Worked out when the visit sends.'**
+  String visitScoreSemantics(String name);
 
   /// Screen-reader label for one section row on the visit hub: the name, then the state word, then the one-line detail.
   ///
@@ -12393,6 +12393,462 @@ abstract class AppLocalizations {
     String outlet,
     String time,
   );
+
+  /// The title of the manager's multi-panel console at /dashboard/overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution overview'**
+  String get dashOverviewTitle;
+
+  /// Screen-reader label for the header's refetch button. It refetches all panels together so none can disagree with another.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh every panel'**
+  String get dashRefresh;
+
+  /// Label for the filter rail that scopes every panel on the execution overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get dashFilters;
+
+  /// The unfiltered territory choice.
+  ///
+  /// In en, this message translates to:
+  /// **'All territories'**
+  String get dashAllTerritories;
+
+  /// The territory chip's label while the territory list has not loaded, so it can still say that a filter is on without naming it.
+  ///
+  /// In en, this message translates to:
+  /// **'One territory'**
+  String get dashOneTerritory;
+
+  /// Title of the sheet that chooses which territory the console is scoped to.
+  ///
+  /// In en, this message translates to:
+  /// **'Territory'**
+  String get dashTerritory;
+
+  /// Subtitle of the territory sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Every figure below is scoped to this choice.'**
+  String get dashTerritorySheetBody;
+
+  /// Announced first in a picker row's label, because a tick is silence to a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get dashSelected;
+
+  /// A window the console's figures are measured over.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get dashRangeLast7;
+
+  /// A window the console's figures are measured over.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get dashRangeLast30;
+
+  /// A window the console's figures are measured over.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 90 days'**
+  String get dashRangeLast90;
+
+  /// A window the console's figures are measured over.
+  ///
+  /// In en, this message translates to:
+  /// **'Year to date'**
+  String get dashRangeYtd;
+
+  /// The unbounded window. It has no previous period, so it shows no deltas at all.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get dashRangeAll;
+
+  /// The console's headline figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution score'**
+  String get dashExecutionScore;
+
+  /// The supporting line under the execution score.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted S2–S8, all outlets · target {target}'**
+  String dashExecutionScoreSupports(int target);
+
+  /// Heading for the execution score's trend chart and its table twin.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution score over time'**
+  String get dashScoreTrend;
+
+  /// What a delta on this console is measured against — the like-for-like window, complete days on both sides.
+  ///
+  /// In en, this message translates to:
+  /// **'vs the window before'**
+  String get dashVsWindowBefore;
+
+  /// Section heading over the open alert and task counts.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention'**
+  String get dashNeedsAttention;
+
+  /// The needs-attention section's ghost action, into the alerts worklist.
+  ///
+  /// In en, this message translates to:
+  /// **'All alerts'**
+  String get dashViewAllAlerts;
+
+  /// Row title: open alerts at critical severity.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical alerts open'**
+  String get dashCriticalAlerts;
+
+  /// Row title: open alerts below critical severity.
+  ///
+  /// In en, this message translates to:
+  /// **'Warnings awaiting acknowledgement'**
+  String get dashWarningAlerts;
+
+  /// Row title: tasks that are not closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks still open'**
+  String get dashTasksOpen;
+
+  /// The detail line on a needs-attention row whose count is a measured zero. The row still renders its 0.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing outstanding'**
+  String get dashNothingOutstanding;
+
+  /// The detail line when no open task is at critical priority.
+  ///
+  /// In en, this message translates to:
+  /// **'None at critical priority'**
+  String get dashNoneAtCritical;
+
+  /// The detail line counting open tasks at critical priority.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} at critical priority'**
+  String dashNAtCritical(int count);
+
+  /// The word beside a critical severity bar. The bar is crimson; the word is the channel that survives greyscale and a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical'**
+  String get dashSeverityCritical;
+
+  /// The word beside a watch severity bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch'**
+  String get dashSeverityWatch;
+
+  /// Section heading over the seven indicators and their published targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Where we sit against the standard'**
+  String get dashAgainstStandard;
+
+  /// Explains the meter's target tick above the indicator list.
+  ///
+  /// In en, this message translates to:
+  /// **'The tick marks the target.'**
+  String get dashTickMarksTarget;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'On-shelf availability'**
+  String get dashKpiOsa;
+
+  /// The published standard for on-shelf availability.
+  ///
+  /// In en, this message translates to:
+  /// **'Floor 95% · target 97–99%'**
+  String get dashKpiOsaNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store rate'**
+  String get dashKpiPerfectStore;
+
+  /// The published standard for the perfect-store rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Healthy 80–90% · below 70% is an execution gap'**
+  String get dashKpiPerfectStoreNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Price compliance'**
+  String get dashKpiPrice;
+
+  /// The standard for price compliance.
+  ///
+  /// In en, this message translates to:
+  /// **'Within tolerance of the recommended price'**
+  String get dashKpiPriceNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility compliance'**
+  String get dashKpiVisibility;
+
+  /// The standard for visibility compliance.
+  ///
+  /// In en, this message translates to:
+  /// **'Planogram threshold'**
+  String get dashKpiVisibilityNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of shelf'**
+  String get dashKpiShareOfShelf;
+
+  /// The standard for share of shelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Category fair share'**
+  String get dashKpiShareOfShelfNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted distribution'**
+  String get dashKpiWeighted;
+
+  /// The standard for weighted distribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume-weighted'**
+  String get dashKpiWeightedNote;
+
+  /// Indicator name.
+  ///
+  /// In en, this message translates to:
+  /// **'Numeric distribution'**
+  String get dashKpiNumeric;
+
+  /// The standard for numeric distribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets stocking'**
+  String get dashKpiNumericNote;
+
+  /// An indicator more than ten points under its target.
+  ///
+  /// In en, this message translates to:
+  /// **'Below the standard'**
+  String get dashStandingCritical;
+
+  /// An indicator within ten points of its target but not on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Close to the standard'**
+  String get dashStandingWatch;
+
+  /// An indicator at or above its target.
+  ///
+  /// In en, this message translates to:
+  /// **'On the standard'**
+  String get dashStandingOnTarget;
+
+  /// The standard a figure is read against, already formatted by the locale formatter.
+  ///
+  /// In en, this message translates to:
+  /// **'Target {target}'**
+  String dashTargetIs(String target);
+
+  /// Section heading over the score-band counts.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store distribution'**
+  String get dashDistribution;
+
+  /// Explains what the score-band counts are counting.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets by their latest scored visit · healthy band 80–90.'**
+  String get dashHealthyBand;
+
+  /// Screen-reader label for one score band's row.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} outlets scoring {band}'**
+  String dashBandOutlets(int count, String band);
+
+  /// Section heading over the per-territory score list.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution score by territory'**
+  String get dashByTerritory;
+
+  /// Empty state when the tenant has no territories at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No territories defined'**
+  String get dashNoTerritories;
+
+  /// Body of the no-territories empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a territory to compare scores across the field.'**
+  String get dashNoTerritoriesBody;
+
+  /// Empty state when territories exist but no summary overlaps them. A settled answer, never a loader.
+  ///
+  /// In en, this message translates to:
+  /// **'No territory scores yet'**
+  String get dashNoTerritoryScores;
+
+  /// Body of the no-territory-scores empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Scores appear once visits in this window have been scored.'**
+  String get dashNoTerritoryScoresBody;
+
+  /// Heading for the availability trend chart and its table twin.
+  ///
+  /// In en, this message translates to:
+  /// **'On-shelf availability by period'**
+  String get dashAvailabilityByPeriod;
+
+  /// Section heading over the agent map and list.
+  ///
+  /// In en, this message translates to:
+  /// **'Where are my agents'**
+  String get dashWhereAgents;
+
+  /// Explains what the agent map plots, so a pin is never read as a live position.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s confirmed check-ins. A pin is where somebody checked in, not where they are now.'**
+  String get dashTodaysCheckIns;
+
+  /// The agent section's ghost action, into the full-screen activity map.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the map'**
+  String get dashViewMap;
+
+  /// Headline of the agent panel's empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody to show'**
+  String get dashNoAgentsHeadline;
+
+  /// Body of the agent empty state when no territory filter is on, so the filter cannot be the reason.
+  ///
+  /// In en, this message translates to:
+  /// **'No field agents yet.'**
+  String get dashNoAgentsYet;
+
+  /// Body of the agent empty state when a territory is filtered but its name is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'No agents match this territory filter.'**
+  String get dashNoAgentsForFilter;
+
+  /// Body of the agent empty state, naming the filtered territory.
+  ///
+  /// In en, this message translates to:
+  /// **'No agents are assigned to {name}.'**
+  String dashNoAgentsIn(String name);
+
+  /// Said in words when there is nothing at all to draw on the map, rather than drawing an empty one.
+  ///
+  /// In en, this message translates to:
+  /// **'No outlets yet — add outlets to see them here.'**
+  String get dashNoOutletsToPlot;
+
+  /// Says who is plotted and who is not, so the map never reads as the whole team.
+  ///
+  /// In en, this message translates to:
+  /// **'{plotted} on the map · {notPlotted} not checked in today'**
+  String dashOnTheMap(int plotted, int notPlotted);
+
+  /// Said when the agent page is truncated, so a cut list never reads as the whole team.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first 200 agents. Filter by territory to narrow.'**
+  String get dashFirst200Agents;
+
+  /// The check-in state of an agent who has not checked in today.
+  ///
+  /// In en, this message translates to:
+  /// **'No check-in'**
+  String get dashNoCheckIn;
+
+  /// The age column for an agent who has never been seen today.
+  ///
+  /// In en, this message translates to:
+  /// **'no check-in today'**
+  String get dashNoCheckInToday;
+
+  /// Stands in where an agent is at a store whose name the page did not carry.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown store'**
+  String get dashUnknownStore;
+
+  /// Stands in where an agent is on the road and no previous store is known.
+  ///
+  /// In en, this message translates to:
+  /// **'in transit'**
+  String get dashInTransit;
+
+  /// Where an agent in transit was last confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'left {outlet}'**
+  String dashLeft(String outlet);
+
+  /// Screen-reader label for one outlet dot on the base layer of the agent map.
+  ///
+  /// In en, this message translates to:
+  /// **'{outlet} outlet'**
+  String dashOutletPin(String outlet);
+
+  /// The sentence that goes with an em dash. An absence, never a nought.
+  ///
+  /// In en, this message translates to:
+  /// **'No visits in this window'**
+  String get dashNoVisitsInWindow;
+
+  /// Whole-screen state for a tenant with no outlets at all. Not a scoreboard of noughts.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on the books yet'**
+  String get dashFirstRunHeadline;
+
+  /// Body of the first-run state.
+  ///
+  /// In en, this message translates to:
+  /// **'Add outlets and territories, and this console fills in as visits are submitted and scored.'**
+  String get dashFirstRunBody;
+
+  /// A caveat under the console, so two derived figures are never read as measured ones.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.'**
+  String get dashStubCaveat;
 
   /// The name of the manager's supervisory view of one visit.
   ///
