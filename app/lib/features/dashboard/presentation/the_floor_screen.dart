@@ -367,7 +367,10 @@ class _NeedsADecision extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const Eyebrow('Needs a decision', maxLines: 1),
+        // Two lines, which is the eyebrow role's own allowance: at 2.0× in
+        // Afrikaans a one-line marker would ellipsise, and half a section
+        // marker is worse than a marker that wraps.
+        const Eyebrow('Needs a decision'),
         // The empty state keeps its sentence: a marker with nothing under it
         // is the one case where the screen has to say what the absence means.
         if (view.nothingNeedsADecision) ...<Widget>[
