@@ -507,7 +507,7 @@ class _Score extends StatelessWidget {
         const SizedBox(height: TiqSpace.s4),
         Semantics(
           container: true,
-          label: l10n.visitScoreSemantics(score.weightedTotal.round(), word),
+          label: l10n.visitReviewScoreSemantics(score.weightedTotal.round(), word),
           excludeSemantics: true,
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.end,
@@ -712,7 +712,7 @@ class _TemplateAnswers extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SectionRule(l10n.visitClientQuestions(answers.templateName)),
+        SectionRule(l10n.visitReviewClientQuestions(answers.templateName)),
         const SizedBox(height: TiqSpace.s3),
         Text(
           answers.answeredOlderVersion

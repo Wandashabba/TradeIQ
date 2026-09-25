@@ -317,7 +317,10 @@ void main() {
       final stock = tester.widget<SoftRow>(
         find.byKey(const ValueKey<String>('visit-section-stock')),
       );
-      expect(stock.title, 'Stock');
+      // The section's name is the agent's own — the manager and the agent
+      // call a capture section the same thing, which is what reusing the key
+      // is for.
+      expect(stock.title, 'Stock & availability');
       expect(stock.subtitle, contains('1 flagged'));
       expect(stock.subtitle, contains('2 captured'));
       expect(stock.severity, SoftRowSeverity.watch);
@@ -428,6 +431,10 @@ void main() {
       );
 
       expect(find.byType(TorchEvidenceThumb), findsNothing);
+      await scrollVisitTo(
+        tester,
+        find.byKey(const ValueKey<String>('visit-photo-p1')),
+      );
       expect(find.byKey(const ValueKey<String>('visit-photo-p1')), findsOneWidget);
       expect(find.text('09:05'), findsOneWidget);
     });

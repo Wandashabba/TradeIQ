@@ -2184,5 +2184,7 @@
   "visitRiskSemantics": "Risiko {value} uit 100. {band}.",
   "visitNotFoundHeadline": "Hierdie besoek is nie hier nie",
   "visitNotFoundBody": "Dit bestaan nie, of dit behoort aan ’n ander kliënt.",
-  "visitBackToAlerts": "Terug na waarskuwings"
+  "visitBackToAlerts": "Terug na waarskuwings",
+  "visitReviewScoreSemantics": "{value} uit 100. {band}.",
+  "visitReviewClientQuestions": "Kliëntvrae · {template}"
 }

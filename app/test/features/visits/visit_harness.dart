@@ -330,3 +330,20 @@ class VisitDetailScreenFinder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => VisitDetailScreen(visitId: id);
 }
+
+/// Scroll the review until [finder] is built and on screen.
+///
+/// The body is a lazy `ListView` and the review is a long one — in Veld, where
+/// every row is taller and the gutters are wider, the photo list genuinely is
+/// past the fold. A test that pumped a 6000dp viewport to avoid the scroll
+/// would be testing a screen nobody has.
+Future<void> scrollVisitTo(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isNotEmpty) return;
+  await tester.scrollUntilVisible(
+    finder,
+    300,
+    scrollable: find.byType(Scrollable).first,
+    maxScrolls: 40,
+  );
+  await tester.pumpAndSettle();
+}

@@ -11310,5 +11310,26 @@
   "visitBackToAlerts": "Back to alerts",
   "@visitBackToAlerts": {
     "description": "The way on from the not-found state."
+  },
+  "visitReviewScoreSemantics": "{value} out of 100. {band}.",
+  "@visitReviewScoreSemantics": {
+    "description": "The reviewed visit's score and its band as one utterance, so a reader never hears the figure without the verdict.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "visitReviewClientQuestions": "Client questions · {template}",
+  "@visitReviewClientQuestions": {
+    "description": "Section heading over the answers to the client's own audit template (#122), on the manager's visit review.",
+    "placeholders": {
+      "template": {
+        "type": "String"
+      }
+    }
   }
 }

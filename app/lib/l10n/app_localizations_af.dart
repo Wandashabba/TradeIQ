@@ -8396,4 +8396,14 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitBackToAlerts => 'Terug na waarskuwings';
+
+  @override
+  String visitReviewScoreSemantics(int value, String band) {
+    return '$value uit 100. $band.';
+  }
+
+  @override
+  String visitReviewClientQuestions(String template) {
+    return 'Kliëntvrae · $template';
+  }
 }

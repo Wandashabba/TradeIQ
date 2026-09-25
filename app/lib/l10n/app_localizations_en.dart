@@ -8322,4 +8322,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitBackToAlerts => 'Back to alerts';
+
+  @override
+  String visitReviewScoreSemantics(int value, String band) {
+    return '$value out of 100. $band.';
+  }
+
+  @override
+  String visitReviewClientQuestions(String template) {
+    return 'Client questions · $template';
+  }
 }

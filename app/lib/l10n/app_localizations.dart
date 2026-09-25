@@ -13233,6 +13233,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to alerts'**
   String get visitBackToAlerts;
+
+  /// The reviewed visit's score and its band as one utterance, so a reader never hears the figure without the verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} out of 100. {band}.'**
+  String visitReviewScoreSemantics(int value, String band);
+
+  /// Section heading over the answers to the client's own audit template (#122), on the manager's visit review.
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions · {template}'**
+  String visitReviewClientQuestions(String template);
 }
 
 class _AppLocalizationsDelegate
