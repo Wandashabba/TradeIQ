@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
@@ -13,7 +14,9 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 /// Everything The Floor's tests need to stand a screen up without a server.
 ///
@@ -308,6 +311,44 @@ class SyncImage extends ImageProvider<SyncImage> {
 
 // ── The pump ──────────────────────────────────────────────────────────
 
+/// The fake world The Floor is stood up in, as a list a second pump can reuse.
+///
+/// Split out of [pumpFloor] so the router-backed pump below runs against the
+/// same repositories rather than a second, subtly different set of them.
+List<Override> floorOverrides({
+  DashboardKpis? current,
+  DashboardKpis? previous,
+  List<AlertItem> alerts = const <AlertItem>[],
+  List<TaskItem> tasks = const <TaskItem>[],
+  List<Outlet> outlets = const <Outlet>[],
+  List<Territory> territories = const <Territory>[],
+  Uint8List? photoBytes,
+  bool photosFail = false,
+  ImageProvider<Object>? plateImage,
+  DateTime? now,
+  List<Override> extraOverrides = const <Override>[],
+}) => <Override>[
+  dashboardRepositoryProvider.overrideWithValue(
+    FakeDashboardRepository(current: current, previous: previous),
+  ),
+  alertsRepositoryProvider.overrideWithValue(FakeAlertsRepository(alerts)),
+  tasksAdminRepositoryProvider.overrideWithValue(FakeTasksRepository(tasks)),
+  outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository(outlets)),
+  territoriesRepositoryProvider.overrideWithValue(
+    FakeTerritoriesRepository(territories),
+  ),
+  photosRepositoryProvider.overrideWithValue(
+    FakePhotosRepository(bytes: photoBytes, fail: photosFail),
+  ),
+  // The plate's image seam. A decoded frame rather than an HTTP round
+  // trip: `Image.memory` decodes on the engine's clock, and the frame the
+  // amber census measures would otherwise arrive after the assertion.
+  if (plateImage != null)
+    plateImageResolverProvider.overrideWithValue((ref, photoId) => plateImage),
+  nowProvider.overrideWithValue(() => now ?? DateTime.utc(2026, 9, 18, 18)),
+  ...extraOverrides,
+];
+
 /// A 360×640 phone, Night × Console, with the clock pinned.
 ///
 /// The regional manager on a phone is the common case, so it is the default
@@ -340,37 +381,19 @@ Future<void> pumpFloor(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: <Override>[
-        dashboardRepositoryProvider.overrideWithValue(
-          FakeDashboardRepository(current: current, previous: previous),
-        ),
-        alertsRepositoryProvider.overrideWithValue(
-          FakeAlertsRepository(alerts),
-        ),
-        tasksAdminRepositoryProvider.overrideWithValue(
-          FakeTasksRepository(tasks),
-        ),
-        outletsRepositoryProvider.overrideWithValue(
-          FakeOutletsRepository(outlets),
-        ),
-        territoriesRepositoryProvider.overrideWithValue(
-          FakeTerritoriesRepository(territories),
-        ),
-        photosRepositoryProvider.overrideWithValue(
-          FakePhotosRepository(bytes: photoBytes, fail: photosFail),
-        ),
-        // The plate's image seam. A decoded frame rather than an HTTP round
-        // trip: `Image.memory` decodes on the engine's clock, and the frame the
-        // amber census measures would otherwise arrive after the assertion.
-        if (plateImage != null)
-          plateImageResolverProvider.overrideWithValue(
-            (ref, photoId) => plateImage,
-          ),
-        nowProvider.overrideWithValue(
-          () => now ?? DateTime.utc(2026, 9, 18, 18),
-        ),
-        ...extraOverrides,
-      ],
+      overrides: floorOverrides(
+        current: current,
+        previous: previous,
+        alerts: alerts,
+        tasks: tasks,
+        outlets: outlets,
+        territories: territories,
+        photoBytes: photoBytes,
+        photosFail: photosFail,
+        plateImage: plateImage,
+        now: now,
+        extraOverrides: extraOverrides,
+      ),
       child: MediaQuery(
         data: MediaQueryData(
           size: size,
@@ -405,6 +428,108 @@ Future<void> pumpFloor(
   await tester.pumpAndSettle();
 }
 
+
+/// THE FLOOR INSIDE A ROUTER, so a press can be asserted on where it went.
+///
+/// [pumpFloor] stands the screen up on its own, which is right for everything
+/// about what it draws and wrong for everything about what it *does*: a nav
+/// slot's whole job is to change the route, and a screen with no router around
+/// it cannot fail that. The stub destinations are deliberately empty screens —
+/// what is under test is The Floor's chrome, not `/tasks`.
+Future<GoRouter> pumpFloorRoute(
+  WidgetTester tester, {
+  DashboardKpis? current,
+  DashboardKpis? previous,
+  List<AlertItem> alerts = const <AlertItem>[],
+  List<TaskItem> tasks = const <TaskItem>[],
+  List<Outlet> outlets = const <Outlet>[],
+  List<Territory> territories = const <Territory>[],
+  Uint8List? photoBytes,
+  bool photosFail = false,
+  ImageProvider<Object>? plateImage,
+  TiqSkin? skin,
+  Size size = const Size(360, 640),
+  double textScale = 1.0,
+  DateTime? now,
+  List<Override> extraOverrides = const <Override>[],
+}) async {
+  tester.view
+    ..physicalSize = size
+    ..devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final resolved = skin ?? TiqSkin.night();
+
+  Widget stub(String name) => Center(child: Text('STUB $name'));
+
+  final router = GoRouter(
+    initialLocation: '/dashboard',
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) => const TheFloorScreen(),
+      ),
+      for (final route in const <String>[
+        '/tasks',
+        '/assistant',
+        '/dispatch',
+        '/alerts',
+        '/outlets',
+        '/account/password',
+      ])
+        GoRoute(path: route, builder: (context, state) => stub(route)),
+    ],
+  );
+  addTearDown(router.dispose);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: floorOverrides(
+        current: current,
+        previous: previous,
+        alerts: alerts,
+        tasks: tasks,
+        outlets: outlets,
+        territories: territories,
+        photoBytes: photoBytes,
+        photosFail: photosFail,
+        plateImage: plateImage,
+        now: now,
+        extraOverrides: extraOverrides,
+      ),
+      child: MaterialApp.router(
+        routerConfig: router,
+        theme: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
+        localizationsDelegates: appLocalizationsDelegates,
+        supportedLocales: appSupportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return router;
+}
+
+/// Where the router currently is. `GoRouter.location` is deprecated and the
+/// replacement is three hops deep, so it is spelled once here.
+String currentRoute(GoRouter router) =>
+    router.routerDelegate.currentConfiguration.uri.path;
+
+/// One nav slot, by the word it *says* rather than the word it prints.
+///
+/// In a widget test the fallback font has square glyphs, every nav label
+/// measures wider than its slot, and [TorchNavPill] correctly drops the whole
+/// bar to icon-only. The printed labels are therefore absent by design, and
+/// the spoken ones are the only handle on a slot — which is the right handle
+/// anyway: the tab a screen reader announces and the tab a thumb lands on must
+/// be the same object. Requires `tester.ensureSemantics()`.
+Finder navSlot(String label) =>
+    find.bySemanticsLabel(RegExp('^$label, tab [0-9]+ of [0-9]+\$'));
 
 /// Scroll The Floor until [finder] is built and on screen.
 ///
