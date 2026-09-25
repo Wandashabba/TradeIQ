@@ -11,7 +11,7 @@ import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
-import '../../../core/widgets/agent_kit.dart';
+import '../../../core/format/relative_time.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';

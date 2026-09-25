@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../l10n/l10n.dart';
 import '../auth/session_controller.dart';
+import '../format/relative_time.dart';
 import '../l10n/app_language_controller.dart';
 import '../sync/sync_status.dart';
 import '../theme/lumen_glass.dart';
