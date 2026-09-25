@@ -193,10 +193,11 @@ class SoftRowSpec {
     // flush by ruling.
     final isCard = !veld && !isStandalone;
 
-    // 3px, and 6px in Veld where a 3px mark is a smudge in glare. The severity
-    // LANE — the mark plus its gap — is reserved whether or not a mark is
-    // drawn, which is manager's alignment rule and the reason a list of rows
-    // reads as one column instead of two indented at random.
+    // THE SEVERITY MARK. The LANE — the mark plus its air — is reserved
+    // whether or not a mark is drawn, which is manager's alignment rule and
+    // the reason a list of rows reads as one column instead of two indented
+    // at random. Veld's bar is 6px rather than 3, because a 3px mark is a
+    // smudge in glare.
     //
     // OWNER OVERRIDE, 25 September 2026: on a card the mark is a **dot**, not
     // a bar. A 3px bar is the silhouette of a flush row's left edge; inside a
