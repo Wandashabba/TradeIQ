@@ -32,6 +32,7 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 DashboardKpis kpis({
   double osa = 61,
   double execution = 72,
+  double priceCompliance = 0,
   int? osaSample = 240,
   int? executionSample = 18,
   int visits = 42,
@@ -42,7 +43,7 @@ DashboardKpis kpis({
   weightedDistribution: 0,
   osaPct: osa,
   executionScore: execution,
-  priceCompliancePct: 0,
+  priceCompliancePct: priceCompliance,
   visibilityCompliancePct: 0,
   shareOfShelf: 0,
   perfectStoreRate: 0,

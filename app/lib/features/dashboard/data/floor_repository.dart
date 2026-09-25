@@ -101,6 +101,52 @@ class FloorDecision {
   double? ageHoursAt(DateTime now) =>
       raisedAt == null ? null : now.difference(raisedAt!).inMinutes / 60.0;
 
+  /// THE REASON, WITHOUT THE OUTLET NAME IN IT.
+  ///
+  /// The server writes a message meant to stand on its own — "Kalahari Cola
+  /// 2L out of stock at SaveMor Glenwood (6 days)" — and on this row the
+  /// outlet name is already the title, one line above. Repeating it spends
+  /// the reason's only line on a word the reader has just read, and on a
+  /// 390dp card that is the difference between a sentence that ends and one
+  /// that stops inside "days".
+  ///
+  /// Conservative by construction: it strips the name only where the name
+  /// appears verbatim with a joining word in front of it ("at", "in", "for",
+  /// "—", ","), and hands the message back untouched otherwise. A reason
+  /// that would be left empty or meaningless keeps the original, because a
+  /// row with no reason is worse than a row that repeats itself.
+  static String reasonWithout(String message, String outletName) {
+    var out = _withoutAge(message);
+    if (outletName.isEmpty || !out.contains(outletName)) return out;
+    for (final joiner in const <String>[' at ', ' in ', ' for ', ' — ', ', ']) {
+      out = out.replaceAll('$joiner$outletName', '');
+    }
+    // A leading "Outlet: …" or "Outlet — …" form.
+    for (final joiner in const <String>[': ', ' — ', ' - ']) {
+      if (out.startsWith('$outletName$joiner')) {
+        out = out.substring(outletName.length + joiner.length);
+      }
+    }
+    final trimmed = out.trim();
+    return trimmed.isEmpty ? message : trimmed;
+  }
+
+  /// A trailing "(6 days)" or "(14 hours)" is the row's **trailing figure**,
+  /// printed a second time in the sentence. The column means one thing on
+  /// every row — how long this has been broken — so the sentence does not
+  /// need to say it, and on a 390dp card that parenthetical is what pushes
+  /// the reason past the end of its line.
+  ///
+  /// Only a duration comes out: "(SKU 4412)" and "(third week running)" are
+  /// facts the figure does not carry.
+  static final RegExp _age = RegExp(
+    r'\s*\((?:about\s+)?\d+\s*(?:m|h|d|min|mins|minute|minutes|hour|hours|day|days|week|weeks|month|months)\)\s*$',
+    caseSensitive: false,
+  );
+
+  static String _withoutAge(String message) =>
+      message.replaceFirst(_age, '').trimRight();
+
   /// Worst first: critical before watch before unmarked, and within a level
   /// the one that has been broken longest.
   static int compare(FloorDecision a, FloorDecision b) {
@@ -228,7 +274,7 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
         kind: DecisionKind.alert,
         outletId: a.outletId ?? '',
         outletName: nameFor(a.outletId),
-        reason: a.message,
+        reason: FloorDecision.reasonWithout(a.message, nameFor(a.outletId)),
         severity: a.severity == 'critical'
             ? SoftRowSeverity.critical
             : SoftRowSeverity.watch,
@@ -244,7 +290,7 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
         kind: DecisionKind.task,
         outletId: t.outletId,
         outletName: nameFor(t.outletId),
-        reason: t.requiredFix,
+        reason: FloorDecision.reasonWithout(t.requiredFix, nameFor(t.outletId)),
         // `normal` is still on the list — it is not "fine", and a bar-less row
         // in this system means fine and nothing else.
         severity: t.priority == 'critical'
@@ -282,7 +328,6 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
     outletsTotal: current.outletsTotal,
   );
 });
-
 
 /// How a photo id becomes something the plate can draw.
 ///

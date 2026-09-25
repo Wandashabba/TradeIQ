@@ -214,8 +214,9 @@ String rangeLabel(AppLocalizations l10n, DashboardRange range) =>
 /// A territory's name from the loaded list, or null when the list has not
 /// loaded, failed, or simply does not contain the id — a deleted or stale
 /// territory. Never the raw id: a uuid is not a name (unify §1.15).
-String? territoryName(WidgetRef ref, String id) =>
-    ref.watch(territoriesListProvider).maybeWhen(
+String? territoryName(WidgetRef ref, String id) => ref
+    .watch(territoriesListProvider)
+    .maybeWhen(
       data: (list) {
         for (final t in list) {
           if (t.id == id) return t.name;
@@ -1160,9 +1161,7 @@ class _IndicatorRow extends StatelessWidget {
           if (measured && delta != null)
             DeltaSlot(
               data: delta,
-              figureState: thin
-                  ? FigureState.lowSample
-                  : FigureState.measured,
+              figureState: thin ? FigureState.lowSample : FigureState.measured,
               sampling: sampling,
             ),
         ],
@@ -1543,9 +1542,7 @@ String emptyActivityMessage(
 ) {
   if (territoryId == null) return l10n.dashNoAgentsYet;
   final name = territoryName(ref, territoryId);
-  return name == null
-      ? l10n.dashNoAgentsForFilter
-      : l10n.dashNoAgentsIn(name);
+  return name == null ? l10n.dashNoAgentsForFilter : l10n.dashNoAgentsIn(name);
 }
 
 /// Map + compact list — the map is the hero, the list is what keeps it honest.
@@ -1789,7 +1786,8 @@ class _AgentRow extends ConsumerWidget {
     // check-in today", and repeating that fact here would say the same thing
     // twice in exactly the row where space is tightest.
     final secondLine = switch (agent.state) {
-      AgentState.atStore => '$word · ${agent.currentOutletName ?? l10n.dashUnknownStore}',
+      AgentState.atStore =>
+        '$word · ${agent.currentOutletName ?? l10n.dashUnknownStore}',
       AgentState.inTransit =>
         '$word · ${agent.lastOutletName == null ? l10n.dashInTransit : l10n.dashLeft(agent.lastOutletName!)}',
       AgentState.idle => word,
@@ -1850,7 +1848,9 @@ class _AgentMap extends StatelessWidget {
       for (final a in agentsWithStops)
         LatLng(_latestStop(a).lat, _latestStop(a).lng),
     ];
-    final outletPoints = <LatLng>[for (final o in outlets) LatLng(o.lat, o.lng)];
+    final outletPoints = <LatLng>[
+      for (final o in outlets) LatLng(o.lat, o.lng),
+    ];
     // Agents are the priority signal, but a fit that includes nearby stores
     // too is harmless — and when nobody has checked in yet, the outlets are
     // the ONLY points there are to fit against. Live positions move every
@@ -2084,10 +2084,7 @@ class _OutletBasePin extends StatelessWidget {
           child: Container(
             width: 4,
             height: 4,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: p.ink1,
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: p.ink1),
           ),
         ),
       ),

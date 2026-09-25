@@ -256,8 +256,7 @@ class Delta extends StatelessWidget {
               ],
             ),
           ),
-          if (data.comparedTo != null)
-            Text(data.comparedTo!, style: metaStyle),
+          if (data.comparedTo != null) Text(data.comparedTo!, style: metaStyle),
         ],
       ),
     );
@@ -283,6 +282,7 @@ class DeltaSlot extends StatelessWidget {
     this.sampling = FigureSampling.unknown,
     this.strings = DeltaStrings.defaults,
     this.compact = false,
+    this.noComparisonNote,
     this.semanticsLabel,
   });
 
@@ -291,6 +291,18 @@ class DeltaSlot extends StatelessWidget {
   final FigureSampling sampling;
   final DeltaStrings strings;
   final bool compact;
+
+  /// What to say where a figure is real and there is **no comparison window
+  /// at all** — the first window on the books, or a comparison request that
+  /// did not come back.
+  ///
+  /// Null keeps the default, which is nothing: a slot inside a column of
+  /// notes must not promise a delta it will not have. A layout that pairs the
+  /// figure and the delta on one baseline — the plate's hero cluster — passes
+  /// a sentence instead, because there the absence is a hole where the
+  /// mockup's `▼ 19` sits, and a hole is not an answer.
+  final String? noComparisonNote;
+
   final String? semanticsLabel;
 
   @override
@@ -310,7 +322,13 @@ class DeltaSlot extends StatelessWidget {
         semanticsLabel: semanticsLabel,
       ),
       // Nothing. Not a gap held open, not a skeleton: a slot that will have no
-      // delta must not promise one.
+      // delta must not promise one. A caller that has paired the figure with
+      // this slot on one baseline says so in words instead — but never beside
+      // an em dash, where there is nothing to have moved.
+      DeltaSuppression.noData when noComparisonNote != null => Text(
+        noComparisonNote!,
+        style: metaStyle,
+      ),
       DeltaSuppression.nullFigure ||
       DeltaSuppression.noData => const SizedBox.shrink(),
       DeltaSuppression.lowSample => Text(

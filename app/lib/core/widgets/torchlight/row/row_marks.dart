@@ -99,13 +99,17 @@ class RowMarkTile extends StatelessWidget {
     );
     return semanticLabel == null
         ? ExcludeSemantics(child: tile)
-        : Semantics(label: semanticLabel, child: ExcludeSemantics(child: tile));
+        : Semantics(
+            label: semanticLabel,
+            child: ExcludeSemantics(child: tile),
+          );
   }
 
   /// A meaning-bearing glyph scales with the text — unify §1.5's 16 → 32 pair
   /// — and is clamped so it never outgrows the 48dp tile that holds it.
   static double _glyphExtent(BuildContext context) {
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     return math.min(16.0 * scaler.scale(1.0).clamp(1.0, 2.0), 32.0);
   }
 }
@@ -167,10 +171,17 @@ class _MarkPainter extends CustomPainter {
 
     switch (mark) {
       case RowMark.square:
-        canvas.drawRect(Rect.fromCenter(center: centre, width: r * 1.6, height: r * 1.6), fill);
+        canvas.drawRect(
+          Rect.fromCenter(center: centre, width: r * 1.6, height: r * 1.6),
+          fill,
+        );
       case RowMark.hollowSquare:
         canvas.drawRect(
-          Rect.fromCenter(center: centre, width: r * 1.6, height: r * 1.6).deflate(stroke / 2),
+          Rect.fromCenter(
+            center: centre,
+            width: r * 1.6,
+            height: r * 1.6,
+          ).deflate(stroke / 2),
           line,
         );
       case RowMark.dots:
@@ -213,14 +224,22 @@ class _MarkPainter extends CustomPainter {
         final w = r * 0.8;
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(center: centre.translate(-w / 2, 0), width: w * 1.3, height: w),
+            Rect.fromCenter(
+              center: centre.translate(-w / 2, 0),
+              width: w * 1.3,
+              height: w,
+            ),
             Radius.circular(w / 2),
           ),
           line,
         );
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(center: centre.translate(w / 2, 0), width: w * 1.3, height: w),
+            Rect.fromCenter(
+              center: centre.translate(w / 2, 0),
+              width: w * 1.3,
+              height: w,
+            ),
             Radius.circular(w / 2),
           ),
           line,

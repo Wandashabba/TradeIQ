@@ -84,7 +84,7 @@ void main() {
         reason: 'the card carries the declared composited hex, not an opacity',
       );
       expect(list.outline, isNull, reason: 'a card has no resting border');
-      expect(list.margin, TiqSpace.s4);
+      expect(list.margin, skin.space.gutter);
       expect(list.gapAfter, TiqSpace.s3);
       expect(
         list.separatorColour,

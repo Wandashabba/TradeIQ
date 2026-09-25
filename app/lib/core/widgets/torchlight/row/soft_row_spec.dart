@@ -271,11 +271,11 @@ class SoftRowSpec {
       tappable: tappable,
       pressed: pressed,
       minHeight: minHeight,
-      // The card's own air. On a list that has been bled out to the screen
-      // edges this is the gutter line; a row inside something that has
-      // already spent a gutter adds no second one, which is why the value is
-      // s4 and not the gutter itself.
-      margin: isCard ? TiqSpace.s4 : 0.0,
+      // The card's own air, and it is the screen's one gutter: a list is bled
+      // out to the screen edges by its screen (`TorchBleed`), so the card's
+      // margin is what puts its edge back on the same line the plate, the
+      // lead card and the section marker hang off.
+      margin: isCard ? skin.space.gutter : 0.0,
       gapAfter: isCard && separates ? TiqSpace.s3 : 0.0,
       horizontalPadding: isCard ? TiqSpace.s4 : skin.space.gutter,
       verticalPadding: verticalPadding,

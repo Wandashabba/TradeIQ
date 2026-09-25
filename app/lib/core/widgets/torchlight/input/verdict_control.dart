@@ -188,9 +188,7 @@ class _VerdictControlState<T> extends State<VerdictControl<T>> {
                 consequence: option.consequence,
               ),
           ],
-          onChanged: enabled
-              ? (value) => setState(() => _value = value)
-              : null,
+          onChanged: enabled ? (value) => setState(() => _value = value) : null,
         ),
         const SizedBox(height: TiqSpace.s5),
         TorchTextField(

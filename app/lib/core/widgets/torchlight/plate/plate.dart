@@ -17,11 +17,15 @@ export 'plate_spec.dart';
 ///
 /// Four things are load-bearing and none of them are decoration:
 ///
-/// 1. **The photograph is a specimen, not a mood.** It carries a provenance
-///    caption at the top of the text-safe zone naming the outlet and the
-///    capture time, so a figure printed over a picture of one named store is
-///    visibly a figure about the territory with a specimen beside it. Without
-///    the caption the plate is a lie told in the product's own voice.
+/// 1. **The photograph is a specimen, not a mood.** It is attributed to the
+///    outlet and the capture time, so a figure printed over a picture of one
+///    named store is visibly a figure about the territory with a specimen
+///    beside it. That attribution used to be a printed [caption] on the first
+///    line of the text-safe zone. **Owner override, 25 September 2026:** the
+///    reference the owner signed off has no caption line, so The Floor passes
+///    the provenance as [semanticLabel] only — the attribution survives for a
+///    screen reader and for the image's own node, and the printed line is
+///    gone. The parameter stays for the states that still print one.
 /// 2. **One strip light, allocated.** The line and its bloom are one object,
 ///    and whether it is lit is [TorchScope]'s answer, not this widget's. In
 ///    Day the claim is denied on a light ground and the light becomes a 2px
@@ -315,124 +319,132 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
     return SizedBox(
       height: spec.height,
       width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          // 1. The specimen, or the drawing that admits there is none.
-          Semantics(
-            label: hasPhotograph
-                ? (widget.semanticLabel ?? 'Shelf photograph')
-                : 'Generated shelf illustration',
-            image: true,
-            child: _Frame(
-              image: _imageFailed ? null : widget.image,
-              sentence: widget.fallbackSentence,
-              tone: widget.tone,
-              still: still,
-              width: MediaQuery.sizeOf(context).width,
-              devicePixelRatio: widget.devicePixelRatio,
-              onFailed: () {
-                if (!_imageFailed && mounted) {
-                  // After the frame: a decode error can arrive during build.
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => _imageFailed = true);
-                  });
-                }
-              },
+      // THE CARD'S CORNERS. `Clip.antiAlias` and not `antiAliasWithSaveLayer`:
+      // the paint budget forbids a `saveLayer`, and a rounded-rect clip is a
+      // clip on the canvas, not a layer. Everything the plate paints — the
+      // photograph, the strip light, the scrim — is inside it, so the card
+      // has one silhouette rather than a rounded frame with square contents.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(spec.radius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            // 1. The specimen, or the drawing that admits there is none.
+            Semantics(
+              label: hasPhotograph
+                  ? (widget.semanticLabel ?? 'Shelf photograph')
+                  : 'Generated shelf illustration',
+              image: true,
+              child: _Frame(
+                image: _imageFailed ? null : widget.image,
+                sentence: widget.fallbackSentence,
+                tone: widget.tone,
+                still: still,
+                width: MediaQuery.sizeOf(context).width,
+                devicePixelRatio: widget.devicePixelRatio,
+                onFailed: () {
+                  if (!_imageFailed && mounted) {
+                    // After the frame: a decode error can arrive during build.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _imageFailed = true);
+                    });
+                  }
+                },
+              ),
             ),
-          ),
 
-          // 2. The strip light: one object, line plus bloom, allocated.
-          _StripLight(spec: spec, lit: lit, still: still),
+            // 2. The strip light: one object, line plus bloom, allocated.
+            _StripLight(spec: spec, lit: lit, still: still),
 
-          // 3. The text-safe zone. A bottom-up scrim is what makes the ink on
-          //    a photograph a measured pairing rather than a gamble.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: spec.textZoneHeight,
-            child: const _Scrim(),
-          ),
+            // 3. The text-safe zone. A bottom-up scrim is what makes the ink on
+            //    a photograph a measured pairing rather than a gamble.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: spec.textZoneHeight,
+              child: const _Scrim(),
+            ),
 
-          // 4. The caption, and the hero cluster under it — both at the foot.
-          //
-          //    The zone is a hard box that stops just under the strip light,
-          //    so the caption can never climb over it — which it did, at the
-          //    200dp floor, when the zone was the declared 58% and the cluster
-          //    needed more. The light is the boundary between picture and
-          //    text, and it is drawn as one.
-          //
-          //    ## The caption is a line above the figure, not a lid on the zone
-          //
-          //    This used to be `spaceBetween` with a `Flexible` on each child,
-          //    which reads like "caption at the top, hero at the foot" and is
-          //    not what a Column does: two flex-1 children with nothing
-          //    inflexible between them take **half the zone each**. So a
-          //    17dp caption was handed 44dp on a 360×640 phone and the hero
-          //    cluster — which needs about 129 — was handed the other 44, and
-          //    the FittedBox below crushed a 56pt figure to 19dp. The screen's
-          //    hero rendered smaller than the supporting metric under it, and
-          //    the caption floated in the middle of the plate with a hole
-          //    beneath it. Both of those are exactly what the owner reported.
-          //
-          //    The caption is sized by its own content and sits [captionGap]
-          //    above the cluster; everything left over is the hero's. One line
-          //    at every scale now, because the zone does not grow with the
-          //    type and provenance is meta where the figure is the screen.
-          Positioned(
-            left: spec.textInset,
-            right: spec.textInset,
-            bottom: TiqSpace.s4,
-            top: spec.textZoneTop,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                // The provenance caption, or the fallback's sentence in its
-                // place. Either way the reader is told what they are looking
-                // at — an uncaptioned band is the one state this component may
-                // not have.
-                if (hasPhotograph && widget.caption != null) ...<Widget>[
-                  Text(
-                    widget.caption!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: skin.text.meta.style(color: skin.palette.ink3),
-                  ),
-                  SizedBox(height: spec.captionGap),
-                ] else if (!hasPhotograph &&
-                    widget.fallbackSentence != null) ...<Widget>[
-                  // The fallback has no photograph to be a caption ON, so it
-                  // is allowed the lines a sentence needs.
-                  Flexible(
-                    child: Text(
-                      widget.fallbackSentence!,
-                      maxLines: large ? 2 : 3,
+            // 4. The caption, and the hero cluster under it — both at the foot.
+            //
+            //    The zone is a hard box that stops just under the strip light,
+            //    so the caption can never climb over it — which it did, at the
+            //    200dp floor, when the zone was the declared 58% and the cluster
+            //    needed more. The light is the boundary between picture and
+            //    text, and it is drawn as one.
+            //
+            //    ## The caption is a line above the figure, not a lid on the zone
+            //
+            //    This used to be `spaceBetween` with a `Flexible` on each child,
+            //    which reads like "caption at the top, hero at the foot" and is
+            //    not what a Column does: two flex-1 children with nothing
+            //    inflexible between them take **half the zone each**. So a
+            //    17dp caption was handed 44dp on a 360×640 phone and the hero
+            //    cluster — which needs about 129 — was handed the other 44, and
+            //    the FittedBox below crushed a 56pt figure to 19dp. The screen's
+            //    hero rendered smaller than the supporting metric under it, and
+            //    the caption floated in the middle of the plate with a hole
+            //    beneath it. Both of those are exactly what the owner reported.
+            //
+            //    The caption is sized by its own content and sits [captionGap]
+            //    above the cluster; everything left over is the hero's. One line
+            //    at every scale now, because the zone does not grow with the
+            //    type and provenance is meta where the figure is the screen.
+            Positioned(
+              left: spec.textInset,
+              right: spec.textInset,
+              bottom: TiqSpace.s4,
+              top: spec.textZoneTop,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  // The provenance caption, or the fallback's sentence in its
+                  // place. Either way the reader is told what they are looking
+                  // at — an uncaptioned band is the one state this component may
+                  // not have.
+                  if (hasPhotograph && widget.caption != null) ...<Widget>[
+                    Text(
+                      widget.caption!,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: skin.text.meta.style(color: skin.palette.ink3),
                     ),
+                    SizedBox(height: spec.captionGap),
+                  ] else if (!hasPhotograph &&
+                      widget.fallbackSentence != null) ...<Widget>[
+                    // The fallback has no photograph to be a caption ON, so it
+                    // is allowed the lines a sentence needs.
+                    Flexible(
+                      child: Text(
+                        widget.fallbackSentence!,
+                        maxLines: large ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: skin.text.meta.style(color: skin.palette.ink3),
+                      ),
+                    ),
+                    SizedBox(height: spec.captionGap),
+                  ],
+                  // `hero.figure` caps at 1.6x, then steps to the 56 compact
+                  // face, and then — only then — scales down. That ladder is the
+                  // spec's own, and this is its last rung: the FittedBox is not
+                  // a shortcut past the measured fitting in `FigureSlot`, it is
+                  // that fitting's documented floor. It wraps the whole cluster
+                  // so the eyebrow, the figure and the delta keep their sizes
+                  // relative to one another instead of drifting apart.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.bottomLeft,
+                      child: widget.hero,
+                    ),
                   ),
-                  SizedBox(height: spec.captionGap),
                 ],
-                // `hero.figure` caps at 1.6x, then steps to the 56 compact
-                // face, and then — only then — scales down. That ladder is the
-                // spec's own, and this is its last rung: the FittedBox is not
-                // a shortcut past the measured fitting in `FigureSlot`, it is
-                // that fitting's documented floor. It wraps the whole cluster
-                // so the eyebrow, the figure and the delta keep their sizes
-                // relative to one another instead of drifting apart.
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.bottomLeft,
-                    child: widget.hero,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -737,6 +749,15 @@ class PlateHeroCluster extends StatelessWidget {
 
   final String? semanticsLabel;
 
+  /// Whether the delta drops under the figure instead of standing beside it.
+  /// 1.6× is `hero.figure`'s own cap — above it the figure has stopped
+  /// growing and everything beside it has not.
+  static bool _stacks(BuildContext context) =>
+      (MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling).scale(
+        1.0,
+      ) >=
+      1.6;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -751,14 +772,36 @@ class PlateHeroCluster extends StatelessWidget {
           style: skin.text.eyebrow.style(color: skin.palette.ink2),
         ),
         const SizedBox(height: TiqSpace.s2),
-        // The figure and its delta share a baseline. A `Wrap` and not a `Row`
-        // so the delta falls under the figure at 2.0x rather than squeezing it.
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: TiqSpace.s3,
-          runSpacing: TiqSpace.s1,
-          children: <Widget>[figure, ?delta],
-        ),
+        // THE FIGURE AND ITS DELTA SHARE A BASELINE — the pairing is the
+        // point of a hero: a number, and whether it is moving.
+        //
+        // A `Row` with `CrossAxisAlignment.baseline` under 1.6×, so the
+        // delta sits on the digits' own baseline rather than on the bottom of
+        // the figure's line box, which is a descender lower and reads as a
+        // second line. At 1.6× and above it is a `Wrap`, so the delta falls
+        // *under* the figure rather than squeezing it — that was the whole
+        // reason the Wrap was here, and it is still right at the top of the
+        // scale.
+        if (_stacks(context))
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: TiqSpace.s3,
+            runSpacing: TiqSpace.s1,
+            children: <Widget>[figure, ?delta],
+          )
+        else
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Flexible(child: figure),
+              if (delta != null) ...<Widget>[
+                const SizedBox(width: TiqSpace.s3),
+                Flexible(child: delta!),
+              ],
+            ],
+          ),
         if (healthLine != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s2),
           if (onHealthTap == null)

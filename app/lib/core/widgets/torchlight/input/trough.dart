@@ -342,11 +342,13 @@ class TroughRulePainter extends CustomPainter {
 /// the moment it took focus: a light nobody declared, on every route with a
 /// field. The trough's own [TroughRulePainter] is the only rule it has.
 InputDecoration troughDecoration({String? hintText, TextStyle? hintStyle}) =>
-    InputDecoration.collapsed(hintText: hintText, hintStyle: hintStyle)
-        .copyWith(
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          focusedErrorBorder: InputBorder.none,
-        );
+    InputDecoration.collapsed(
+      hintText: hintText,
+      hintStyle: hintStyle,
+    ).copyWith(
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+    );

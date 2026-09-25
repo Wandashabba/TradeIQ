@@ -6,13 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/figure/sparkline.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
-import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
+import '../../trends/data/trends_repository.dart';
 import '../../visits/data/visit_detail_repository.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
@@ -25,18 +27,28 @@ import 'first_run_board.dart';
 /// that was not has been cut.
 ///
 /// ```text
-///   PLATE            a real shelf, one strip of light, the hero figure on it
-///   ── ground ──
-///   OSA              the one dominant metric, its supports as meta
-///   Needs a decision 5      the knocked-out section rule
-///   ▌ Outlet name          worst first, five and then a count
-///   ▌ …
+///   ╭───────────────╮  the plate: a real shelf, one strip of light,
+///   │ ──────        │  the hero figure and its delta on it
+///   │ 72 ▼19        │
+///   ╰───────────────╯
+///   ╭───────────────╮  the one dominant metric: label, figure,
+///   │ OSA 61%   /\/ │  one line of facts, a sparkline
+///   ╰───────────────╯
+///   NEEDS A DECISION   words on the ground, no rule and no count
+///   ╭───────────────╮  worst first, five and then a count
+///   │ • Outlet  48h │
+///   ╰───────────────╯
+///   ╭───────────────╮
 ///   [ nav pill ] ( + )
 /// ```
 ///
-/// No cards. No shadows. Nothing centred. Separation is whitespace, mass and
-/// rhythm, because a fill or a line under 2:1 is invisible on a cheap panel in
-/// daylight.
+/// **Cards, since 25 September 2026.** unify §1.3 ruled every list row flush
+/// and this screen's blocks bare on the ground; the owner overruled it twice
+/// looking at the running screen ("I hate this box style"; "it's still very
+/// boxy and I don't need that") and the grammar is now a soft card at radius
+/// 22 with a gap of ground between. The override is recorded in
+/// `docs/design/spec/unify.md` §1.3 and `docs/design/torchlight-aisle.md`.
+/// Still true: no shadows, nothing centred, no gradient inside a list row.
 ///
 /// ## The two ambers, counted
 ///
@@ -124,11 +136,12 @@ class _FloorFrame extends StatelessWidget {
         if (hasPlatePhoto)
           const TorchClaim.plateStripLight(TheFloorScreen.plateClaimId),
       ],
-      // The plate — and the skeleton that draws its exact geometry — is the
-      // header and starts at the top edge. The error region is words, and
-      // words under a status bar are words nobody can read, so that one state
-      // keeps the shell's inset.
-      child: FloorScaffold(bleedTop: phase != 'error', children: children),
+      // THE PLATE IS A CARD AND NO LONGER THE TOP EDGE. It ran full-bleed to
+      // y=0 until 25 September 2026, and `bleedTop` is what took the shell's
+      // 24dp console inset away to let it. The owner's reference insets the
+      // plate and rounds it, so the inset comes back for every state — a card
+      // hard against the status bar is a card with one edge missing.
+      child: FloorScaffold(bleedTop: false, children: children),
     );
   }
 }
@@ -136,11 +149,12 @@ class _FloorFrame extends StatelessWidget {
 /// The scroll frame: [TorchShell] in its console profile, with the manager's
 /// four nav slots and the standing action beside them.
 ///
-/// The Floor carries **no app header**. The plate is the header: it runs
-/// full-bleed to the top edge and its eyebrow names the territory and the
-/// week, which is everything a title bar would have said. A 56dp title row
-/// above a photograph that already says where you are is the fold spent
-/// twice.
+/// The Floor carries **no app header**. The plate is the header: its eyebrow
+/// names the territory and the week, which is everything a title bar would
+/// have said. A 56dp title row above a photograph that already says where you
+/// are is the fold spent twice. (It used to run full-bleed to the top edge as
+/// well; since 25 September 2026 it is an inset card and the shell's own
+/// console inset is the air above it.)
 ///
 /// The consequence is named rather than hidden: the skin cycle lives in the
 /// header's single trailing slot on a tab root, and this route has no header
@@ -210,8 +224,7 @@ class FloorScaffold extends StatelessWidget {
         expectedIcon: Icons.add,
         semanticLabel: 'Raise a task or assign a visit',
         expectedSemanticLabel: 'Raise a task or assign a visit',
-        onPressed:
-            onStandingAction ?? () => showFloorStandingAction(context),
+        onPressed: onStandingAction ?? () => showFloorStandingAction(context),
       ),
       children: children,
     );
@@ -291,41 +304,74 @@ class _Floor extends ConsumerWidget {
     final hasPhoto = subject?.evidencePhotoId != null;
     final measured = view.phase == FloorPhase.measured;
 
-    // `TorchShell` gutter-pads its children; a `SoftRow` and the plate pad
-    // themselves. Exactly two children opt back out to the screen's edges
-    // rather than un-padding the shell for everything — see [_Bleed].
+    // `TorchShell` gutter-pads its children, and every block on this screen
+    // hangs off that one line: the plate card, the lead card, the section
+    // marker and — through its own margin — every decision card. The list is
+    // the one child that opts back out to the screen's edges, because a
+    // `SoftRow` owns its own gutter; see [TorchBleed].
     return _FloorFrame(
       phase: measured ? 'loaded' : 'window-empty',
       hasPlatePhoto: hasPhoto,
       children: <Widget>[
-        // 1. THE PLATE — full-bleed.
-        TorchBleed(
-          extra: context.skin.space.gutter * 2,
-          child: _FloorPlate(view: view),
-        ),
-        const SizedBox(height: TiqSpace.s6),
-
-        // 2. THE ONE DOMINANT METRIC, on the ground.
-        _AvailabilityTile(view: view),
-
-        // s6 and not s8 above the rule: on a phone the 40dp of deliberate
-        // nothing cost half a decision row, and it survives only at >= 600dp.
-        const SizedBox(height: TiqSpace.s6),
-
-        // 3. THE SECTION RULE.
-        SectionRule(
-          'Needs a decision',
-          count: view.decisions.isEmpty ? null : view.decisions.length,
-          emptyLine: view.nothingNeedsADecision ? 'Everything triaged.' : null,
-        ),
+        // 1. THE PLATE — an inset, rounded card.
+        _FloorPlate(view: view),
         const SizedBox(height: TiqSpace.s5),
 
-        // 4. THE DECISION ROWS — worst first, and out to the edges because a
-        //    row owns its own gutter and draws its rule inset to the text.
+        // 2. THE ONE DOMINANT METRIC, as one card: figure, label, one line of
+        //    supporting facts, and a sparkline at the trailing edge.
+        _AvailabilityCard(view: view),
+        const SizedBox(height: TiqSpace.s5),
+
+        // 3. THE SECTION MARKER — words on the ground. No rule, no count.
+        _NeedsADecision(view: view),
+        const SizedBox(height: TiqSpace.s3),
+
+        // 4. THE DECISION CARDS — worst first, out to the edges because each
+        //    card carries the gutter as its own margin.
         TorchBleed(
           extra: context.skin.space.gutter * 2,
           child: _DecisionList(view: view),
         ),
+      ],
+    );
+  }
+}
+
+/// `NEEDS A DECISION`, as words rather than as a rule.
+///
+/// **Owner override, 25 September 2026.** unify §1.17 says a screen-level
+/// section marker is the knocked-out rule at `title.m` in sentence case, and
+/// [SectionRule] is that component. The reference the owner signed off has no
+/// rule and no count on this screen — a line across the screen is one more
+/// box on a screen they have twice asked to be less boxy — so The Floor's one
+/// marker is the uppercase kicker on the ground. Every other screen keeps the
+/// rule; this is not a licence to delete it.
+///
+/// The count goes with the line. It was never the thing the marker was for:
+/// the list says how many it is not showing in words, at the foot, where a
+/// manager who wants the number is already looking.
+class _NeedsADecision extends StatelessWidget {
+  const _NeedsADecision({required this.view});
+
+  final FloorView view;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Eyebrow('Needs a decision', maxLines: 1),
+        // The empty state keeps its sentence: a marker with nothing under it
+        // is the one case where the screen has to say what the absence means.
+        if (view.nothingNeedsADecision) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            'Everything triaged.',
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ],
       ],
     );
   }
@@ -442,17 +488,38 @@ class _MoreRow extends StatelessWidget {
   }
 }
 
-/// On-shelf availability, and the figures that support it as meta.
+/// ON-SHELF AVAILABILITY — one card, four things in it.
 ///
-/// One dominant metric, not a grid: the manager reads one number here and the
-/// rest of the instrument is one line beneath it.
-class _AvailabilityTile extends StatelessWidget {
-  const _AvailabilityTile({required this.view});
+/// The label, the figure, one line of supporting facts, and a sparkline at
+/// the trailing edge. Nothing else.
+///
+/// **What this replaced, and why.** The tile shipped as four stacked
+/// elements: the eyebrow, the figure at near-hero size, a full-width meter,
+/// a delta line ("▼ −0.3 pts vs the window before") and a coverage line. That
+/// is five reads for a metric the hero above it is already the headline for,
+/// and on a 390dp phone it cost the fold a whole decision row. The owner's
+/// reference has a card with four things in it, and the two that went are the
+/// two that were saying the figure twice:
+///
+/// * **the meter** — a full-width bar of the same percentage the figure has
+///   already printed, at a size that made it the loudest object under the
+///   plate;
+/// * **the delta line** — a movement on a supporting metric, printed in a
+///   sentence, under a hero whose own delta is the screen's one movement.
+///   The sparkline carries the shape instead, which is what a shape is for.
+///
+/// The supporting facts move to the spec's own subordinates —
+/// "Coverage 79% · Price compliance 91%" — rather than the raw denominators
+/// ("Coverage 33 of 42 outlets · 42 visits"), because the card is a reading
+/// and the denominators are provenance. They are one tap away, where the
+/// figure's own trend is.
+class _AvailabilityCard extends ConsumerWidget {
+  const _AvailabilityCard({required this.view});
 
   final FloorView view;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = view.snapshot;
     final current = snapshot.current;
     final measured = view.phase == FloorPhase.measured;
@@ -460,13 +527,30 @@ class _AvailabilityTile extends StatelessWidget {
     final baselineN = snapshot.previous?.sampleSizes.osaPct;
     final delta = snapshot.of((k) => k.osaPct);
 
-    return StatTile(
+    // THE SHAPE OF THE LAST FEW PERIODS. `/trends/availability` is the series
+    // the overview already draws; the sparkline is the same data at 64×20.
+    // A failure or an empty series drops the cell — `Sparkline` renders
+    // nothing under two points, and a fabricated shape is the one thing its
+    // own doc forbids.
+    final trend = ref
+        .watch(availabilityTrendProvider)
+        .maybeWhen(
+          data: (points) => points.map((p) => p.value).toList(),
+          orElse: () => const <double>[],
+        );
+
+    final tile = StatTile(
       eyebrow: 'On-shelf availability',
       // A window with no visits is an absence, not a score of zero. The
       // server's `totals` is what says which, and it is the only thing that
       // can: eight genuine zeros look exactly like eight missing ones.
       value: measured ? current.osaPct : null,
       unit: TiqUnit.percent,
+      // The design asks for a whole-number rate here, as it does for the
+      // hero. The server sends no `decimals` for this metric; the screen
+      // declares the precision the design specifies rather than rounding
+      // inside the widget.
+      decimals: 0,
       noDataReason: measured ? null : 'No visits in this window',
       sampling: FigureSampling(
         kind: MetricKind.rate,
@@ -476,32 +560,13 @@ class _AvailabilityTile extends StatelessWidget {
         // inference from this window's.
         baselineN: baselineN,
       ),
-      meter: MeterData(value: measured ? current.osaPct : null),
-      delta: measured && delta.hasDelta
-          ? DeltaData(
-              direction: delta.change! > 0
-                  ? DeltaDirection.up
-                  : delta.change! < 0
-                  ? DeltaDirection.down
-                  : DeltaDirection.flat,
-              // Severity, never amber: availability falling is bad and
-              // availability rising is good, and neither is a light source.
-              sentiment: delta.change! > 0
-                  ? TiqSentiment.good
-                  : delta.change! < 0
-                  ? TiqSentiment.bad
-                  : TiqSentiment.neutral,
-              magnitude: delta.change!.abs(),
-              unit: TiqUnit.worded('pts'),
-              comparedTo: 'vs the window before',
-            )
-          : null,
       lead: true,
-      // On the ground, not in a panel: the shell has already spent the
-      // gutter, and the tile's own 16dp inset was a second invisible one that
-      // put this eyebrow 16dp right of the section rule below it and 16dp
-      // right of the hero above it. Three left edges on one screen, and 32dp
-      // of fold, for a box nobody can see.
+      // Stacked, not eyebrow-left-figure-right: the reference reads label,
+      // figure, facts down the card's leading edge, and the trailing edge
+      // belongs to the sparkline.
+      layout: StatTileLayout.vertical,
+      // The card has already spent its inset; the tile's own would be a
+      // second, invisible one.
       padding: EdgeInsets.zero,
       subordinates: _supports(view),
       // The hint has promised this since the tile was written; `onTap` is what
@@ -510,16 +575,47 @@ class _AvailabilityTile extends StatelessWidget {
       onTap: () => context.go('/dashboard/overview'),
       semanticsHint: 'Opens the figures behind on-shelf availability',
     );
+
+    return TorchCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          Expanded(child: tile),
+          if (measured && trend.length >= 2) ...<Widget>[
+            const SizedBox(width: TiqSpace.s4),
+            Padding(
+              // On the figure's baseline rather than the card's: a shape
+              // floating level with the label reads as decoration.
+              padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+              child: Sparkline(
+                points: trend,
+                // The last dot takes the metric's own verdict, never amber:
+                // a falling availability is bad and a rising one is good.
+                severity: !delta.hasDelta
+                    ? null
+                    : delta.change! < 0
+                    ? SeverityMarkKind.watch
+                    : SeverityMarkKind.onTarget,
+                semanticsLabel: null,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-  /// The supporting figures, as meta. Coverage and the visit count — the two
-  /// numbers that say whether the headline is worth believing.
+  /// The supporting figures, as one line of meta. Coverage and price
+  /// compliance — the manager spec's own subordinates for this indicator.
   static String? _supports(FloorView view) {
     final k = view.snapshot.current;
+    final visited = k.outletsVisited;
+    final total = k.outletsTotal;
     final parts = <String>[
-      if (k.outletsVisited != null && k.outletsTotal != null)
-        'Coverage ${k.outletsVisited} of ${k.outletsTotal} outlets',
-      if (k.visits != null) '${k.visits} visits',
+      if (visited != null && total != null && total > 0)
+        'Coverage ${(visited * 100 / total).round()}%',
+      if (k.priceCompliancePct > 0)
+        'Price compliance ${k.priceCompliancePct.round()}%',
     ];
     return parts.isEmpty ? null : parts.join(' · ');
   }
@@ -565,6 +661,11 @@ class _FloorPlate extends ConsumerWidget {
               );
 
     final outletName = subject?.outletName;
+    // THE PROVENANCE. It used to print on the plate's first line; the
+    // reference the owner signed off has no caption, so it is carried as the
+    // image's semantic label instead — the specimen is still named for
+    // anything that reads the screen, and the plate is still a photograph of
+    // one identified shop rather than an anonymous mood.
     final caption = <String>[
       ?outletName,
       if (captureTime != null) _shortTimestamp(captureTime),
@@ -635,7 +736,8 @@ class _PlateFor extends StatelessWidget {
       claimId: TheFloorScreen.plateClaimId,
       viewportHeight: viewportHeight,
       image: image,
-      caption: caption,
+      // Null, not the string: the provenance is in [semanticLabel] below.
+      caption: null,
       // Never a stock image and never a gradient pretending to be a
       // photograph: a drawing that is visibly a drawing, and a sentence.
       fallbackSentence: view.plateSubject == null
@@ -653,32 +755,56 @@ class _PlateFor extends StatelessWidget {
             skin.text.heroFigureCompact,
             skin.text.display,
           ],
+          // A TERRITORY-HEALTH SCORE IS A WHOLE NUMBER. It is 73 on the
+          // scorecard, 73 in the answer, 73 in the report — and it was 72.9
+          // here, because with no declared precision `TiqNumber` keeps one
+          // place and the server sends a double. The precision is a property
+          // of the metric, so the screen declares it; the formatter still
+          // prints whatever the server says the moment `decimals` reaches the
+          // wire for this figure, and nothing rounds inside the widget.
+          decimals: 0,
           state: figureState,
           semanticsLabel: measured
               ? null
               : 'Territory health, no visits in this window',
         ),
-        // Severity-coloured, never amber. `DeltaSlot` also removes it outright
-        // beside a missing figure or a thin sample — a delta never stands
-        // beside nothing, and a delta off a thin baseline is a number
-        // pretending to be a movement.
+        // THE HERO'S DELTA — the half of the hero that says whether the
+        // number is moving, and the half that was missing from the running
+        // screen. Severity-coloured, never amber.
+        //
+        // It was absent for one reason and would have gone absent for a
+        // second. First, the screen only built a `DeltaData` when
+        // `KpiDelta.hasDelta` was true, and that getter is false for a change
+        // under 0.05 *and* for the case that actually bites: `previous` is
+        // null whenever the comparison window does not exist or its request
+        // did not come back, which is every All-time filter and every flaky
+        // morning. `DeltaSlot` then renders nothing, and the hero stands
+        // alone. Second, a movement of 0.02 pts is a real comparison and it
+        // was being thrown away rather than printed flat.
+        //
+        // So: a delta is built whenever there is a window to compare against,
+        // flat included, and the no-comparison case says so in words on the
+        // figure's own baseline instead of leaving the hole the mockup fills
+        // with `▼ 19`. The suppressed cases keep their own sentences —
+        // `DeltaSlot` still removes the delta outright beside an em dash,
+        // because a delta never stands beside nothing.
         delta: DeltaSlot(
-          data: delta.hasDelta
-              ? DeltaData(
-                  direction: delta.change! > 0
+          data: delta.change == null
+              ? null
+              : DeltaData(
+                  direction: delta.change! >= 0.05
                       ? DeltaDirection.up
-                      : delta.change! < 0
+                      : delta.change! <= -0.05
                       ? DeltaDirection.down
                       : DeltaDirection.flat,
-                  sentiment: delta.change! > 0
+                  sentiment: delta.change! >= 0.05
                       ? TiqSentiment.good
-                      : delta.change! < 0
+                      : delta.change! <= -0.05
                       ? TiqSentiment.bad
                       : TiqSentiment.neutral,
                   magnitude: delta.change!.abs(),
                   unit: TiqUnit.worded('pts'),
-                )
-              : null,
+                ),
           figureState: figureState,
           sampling: FigureSampling(
             kind: MetricKind.score,
@@ -686,6 +812,7 @@ class _PlateFor extends StatelessWidget {
             baselineN: baselineN,
           ),
           compact: true,
+          noComparisonNote: measured ? 'no window before this one' : null,
         ),
         healthLine: Text(
           'Territory health',
@@ -710,21 +837,26 @@ class _FloorSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // The skeleton is the real geometry, empty — not a spinner, and not a
-        // `well` block at 1.12:1 that nobody can see.
-        SizedBox(
-          height: height < 200 ? 96 : height,
-          child: ColoredBox(color: skin.palette.edgeStructure),
-        ),
-        const SizedBox(height: TiqSpace.s6),
-        for (var i = 0; i < 3; i++) ...<Widget>[
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: skin.space.gutter),
-            child: SizedBox(
-              height: TiqSpace.s5,
-              child: ColoredBox(color: skin.palette.edgeStructure),
-            ),
+        // `well` block at 1.12:1 that nobody can see. Real geometry now means
+        // the card's corners too: a square block that resolves into a rounded
+        // one is a layout shift dressed as a loading state.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: skin.palette.edgeStructure,
+            borderRadius: BorderRadius.circular(skin.radii.plate),
           ),
-          const SizedBox(height: TiqSpace.s6),
+          child: SizedBox(height: height < 200 ? 96 : height),
+        ),
+        const SizedBox(height: TiqSpace.s5),
+        for (var i = 0; i < 3; i++) ...<Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: skin.palette.edgeStructure,
+              borderRadius: BorderRadius.circular(skin.radii.card),
+            ),
+            child: const SizedBox(height: TiqSpace.s9),
+          ),
+          const SizedBox(height: TiqSpace.s3),
         ],
       ],
     );

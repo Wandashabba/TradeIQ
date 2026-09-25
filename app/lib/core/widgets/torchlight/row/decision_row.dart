@@ -97,7 +97,8 @@ class DecisionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     // The sparkline drops first at 2.0×, then the figure moves onto its own
     // line — and the second half of that is the row's own layout, not a rule
     // written here. Veld drops it too: a 64×20 grey zigzag is under 9:1 by
@@ -108,7 +109,15 @@ class DecisionRow extends StatelessWidget {
         scaler.scale(1.0) < 1.6;
 
     return SoftRow(
-      density: SoftRowDensity.tall,
+      // COMPACT, NOT TALL. unify §1.3 puts a decision row at the 80dp tall
+      // density, and the reason it gives is "two meta lines". This row has
+      // one: the reason went to a single line in #458, so the premise for the
+      // tall density went with it, and the 80dp floor was holding open 11dp
+      // of air per row that the card grammar now spends as a gap between
+      // cards instead — where it is visible. Measured at 390×844 with Onest
+      // loaded, the row is ~69dp of content either way; what the change buys
+      // is the third decision above the nav pill.
+      density: SoftRowDensity.compact,
       title: title,
       titleTruncation: SoftRowTruncation.middle,
       subtitle: reason,

@@ -114,9 +114,7 @@ class OutboxRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = payloadBytes == null
-        ? null
-        : PayloadSize.of(payloadBytes!);
+    final size = payloadBytes == null ? null : PayloadSize.of(payloadBytes!);
 
     return SoftRow(
       density: SoftRowDensity.tall,
@@ -261,17 +259,9 @@ class PayloadSize {
   factory PayloadSize.of(int bytes) {
     final safe = bytes < 0 ? 0 : bytes;
     if (safe < 1024 * 1024) {
-      return PayloadSize(
-        value: (safe / 1024).ceil(),
-        unit: 'kB',
-        decimals: 0,
-      );
+      return PayloadSize(value: (safe / 1024).ceil(), unit: 'kB', decimals: 0);
     }
-    return PayloadSize(
-      value: safe / (1024 * 1024),
-      unit: 'MB',
-      decimals: 1,
-    );
+    return PayloadSize(value: safe / (1024 * 1024), unit: 'MB', decimals: 1);
   }
 
   final num value;

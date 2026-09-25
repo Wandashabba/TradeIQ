@@ -605,12 +605,19 @@ class _TextColumn extends StatelessWidget {
           ),
         if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
           SizedBox(height: TiqSpace.s1),
-          Text(
-            subtitle!,
-            style: spec.subtitleStyle.style(color: subtitleInk),
-            maxLines: subtitleMaxLines,
-            overflow: TextOverflow.ellipsis,
-          ),
+          if (subtitleMaxLines == 1)
+            // A one-line reason gives up at a word, not in the middle of one.
+            WordTruncatedText(
+              subtitle!,
+              style: spec.subtitleStyle.style(color: subtitleInk),
+            )
+          else
+            Text(
+              subtitle!,
+              style: spec.subtitleStyle.style(color: subtitleInk),
+              maxLines: subtitleMaxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
         ],
         if (meta != null) ...<Widget>[
           SizedBox(height: TiqSpace.s1),
@@ -623,6 +630,96 @@ class _TextColumn extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+/// A one-line label that gives up at a **word**, not inside one.
+///
+/// `TextOverflow.ellipsis` cuts at the last glyph that fits, which on a
+/// decision row produced
+/// `Kalahari Cola 2L out of stock at SaveMor Glenwood (6 day…` — a sentence
+/// that stops inside "days" and leaves the reader guessing at a number. The
+/// last word is the one most likely to be carrying the fact, so if it cannot
+/// be shown whole it is not shown at all: the ellipsis lands after the last
+/// complete word, where a person can read up to it and know that what follows
+/// is more of the same sentence rather than half of a figure.
+///
+/// The full string is always what a screen reader gets: the row's `Semantics`
+/// label carries it, and this widget only paints.
+///
+/// A single word longer than the line is the one case that still cuts inside
+/// a word — there is nothing else to do with it, and it is a URL or a German
+/// compound rather than a reason.
+class WordTruncatedText extends StatelessWidget {
+  const WordTruncatedText(this.text, {super.key, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final direction = Directionality.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => Text(
+        _fit(text, constraints.maxWidth, scaler, direction),
+        style: style,
+        maxLines: 1,
+        softWrap: false,
+        // The backstop, for the long-single-word case the search cannot help.
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  bool _fits(
+    String candidate,
+    double maxWidth,
+    TextScaler scaler,
+    TextDirection direction,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: candidate, style: style),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout(maxWidth: maxWidth);
+    final overflows = painter.didExceedMaxLines || painter.width > maxWidth;
+    painter.dispose();
+    return !overflows;
+  }
+
+  String _fit(
+    String source,
+    double maxWidth,
+    TextScaler scaler,
+    TextDirection direction,
+  ) {
+    if (!maxWidth.isFinite || source.isEmpty) return source;
+    if (_fits(source, maxWidth, scaler, direction)) return source;
+
+    final words = source.split(' ');
+    if (words.length < 2) return source;
+
+    // Binary search on how many whole words survive. At most ~4 layouts for a
+    // twelve-word reason, and only on the rows that actually overflow.
+    var low = 1;
+    var high = words.length - 1;
+    String? best;
+    while (low <= high) {
+      final keep = (low + high) ~/ 2;
+      final candidate = '${words.take(keep).join(' ')}…';
+      if (_fits(candidate, maxWidth, scaler, direction)) {
+        best = candidate;
+        low = keep + 1;
+      } else {
+        high = keep - 1;
+      }
+    }
+    // Not even the first word fits: hand it back whole and let the ellipsis
+    // do what it can.
+    return best ?? source;
   }
 }
 
