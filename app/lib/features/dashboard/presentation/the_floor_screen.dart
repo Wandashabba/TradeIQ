@@ -315,12 +315,17 @@ class _Floor extends ConsumerWidget {
       children: <Widget>[
         // 1. THE PLATE — an inset, rounded card.
         _FloorPlate(view: view),
-        const SizedBox(height: TiqSpace.s5),
+        // s4 between blocks, and it is arithmetic rather than taste: at s5
+        // the third decision card crossed the nav pill on an 844dp phone by
+        // five pixels. A card has its own edge, so the air between two of
+        // them reads as more than the same number between two bare columns
+        // did.
+        const SizedBox(height: TiqSpace.s4),
 
         // 2. THE ONE DOMINANT METRIC, as one card: figure, label, one line of
         //    supporting facts, and a sparkline at the trailing edge.
         _AvailabilityCard(view: view),
-        const SizedBox(height: TiqSpace.s5),
+        const SizedBox(height: TiqSpace.s4),
 
         // 3. THE SECTION MARKER — words on the ground. No rule, no count.
         _NeedsADecision(view: view),

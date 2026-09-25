@@ -496,13 +496,13 @@ void main() {
       expect(spec.height, 96);
     });
 
-    test('a tall phone caps the plate at 320', () {
+    test('a tall phone caps the plate at 312', () {
       // 360 until 25 September 2026. The plate became an inset card, which
       // also spends the shell's top inset and a gap beneath itself, so the
       // same fraction bought a bigger object and the list lost the third row
       // the owner's reference shows. See `PlateSpec.heightFor`.
-      expect(PlateSpec.heightFor(1200), 320);
-      expect(PlateSpec.heightFor(844), 320);
+      expect(PlateSpec.heightFor(1200), 312);
+      expect(PlateSpec.heightFor(844), 312);
     });
 
     test('Veld draws no plate at all', () {

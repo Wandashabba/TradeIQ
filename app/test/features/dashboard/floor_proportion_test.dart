@@ -6,11 +6,11 @@ import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/stat_tile.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../agent_harness.dart';
 import 'floor_harness.dart';
 
 /// THE HIERARCHY, AS MEASURED PIXELS.
@@ -30,6 +30,13 @@ import 'floor_harness.dart';
 /// Nothing failed, because every test here asked whether a widget was present.
 /// These ask how big it is.
 void main() {
+  // THE FOLD IS A FACT ABOUT THE TYPEFACE. `flutter_test`'s own font is
+  // wider than Onest, so every label wraps sooner and every screen measures
+  // TALLER in it — which is the right default for a test about a role or a
+  // count and the wrong one for a file whose every assertion is a height.
+  // The row counts below are the counts on the device because of this line.
+  setUpAll(loadAgentFonts);
+
   final outlets = <Outlet>[
     outlet('o1', 'Corner Express Parkhurst'),
     outlet('o2', 'Shoprite Klipspruit Mall'),
@@ -212,12 +219,12 @@ void main() {
       // invisible, and a card's own edge is the mark.
       expect(
         card.top - plate.bottom,
-        TiqSpace.s5,
+        TiqSpace.s4,
         reason: 'the plate card to the lead card',
       );
       expect(
         marker.top - card.bottom,
-        TiqSpace.s5,
+        TiqSpace.s4,
         reason: 'the lead card to the section marker',
       );
       expect(
@@ -237,7 +244,16 @@ void main() {
       // puts its own edge back on the gutter line, which is the whole reason
       // the row's margin is the gutter and not a number of its own.
       expect(
-        tester.getRect(find.byType(DecisionRow).first).left,
+        tester
+            .getRect(
+              find
+                  .descendant(
+                    of: find.byType(DecisionRow).first,
+                    matching: find.byType(DecoratedBox),
+                  )
+                  .first,
+            )
+            .left,
         gutter,
         reason: 'a card that starts 4dp off every other left edge is a card '
             'somebody will notice and nobody can explain',
@@ -273,9 +289,8 @@ void main() {
     /// decision row dropped from the 80dp tall density to compact. It is the
     /// first thing a layout change eats, so it fails CI rather than a review.
     ///
-    /// These run in the test font, which is wider than Onest and therefore
-    /// measures TALLER — so a count that holds here holds on the device. The
-    /// pictures rendered in the real typeface are in
+    /// Measured in Onest and JetBrains Mono (see `setUpAll` above), because
+    /// a fold is a fact about the typeface the app ships. The pictures are in
     /// `floor_look_test.dart`.
     for (final (name, size, atLeast) in <(String, Size, int)>[
       ('390x844 phone', Size(390, 844), 3),
@@ -292,9 +307,18 @@ void main() {
           i < tester.widgetList(find.byType(DecisionRow)).length;
           i++
         ) {
-          if (tester.getRect(find.byType(DecisionRow).at(i)).bottom <= fold) {
-            visible.add(i);
-          }
+          // The CARD's painted box, not the row widget's: the row's rect
+          // includes the gap of ground it holds under itself, and a gap is
+          // not something that has to be above the fold.
+          final card = tester.getRect(
+            find
+                .descendant(
+                  of: find.byType(DecisionRow).at(i),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first,
+          );
+          if (card.bottom <= fold) visible.add(i);
         }
         expect(
           visible.length,
