@@ -149,13 +149,15 @@ void main() {
     // whatever its style count says. The list is empty, and the point of the
     // test is that it stays empty: the next feature to reach for the old kit
     // fails on the PR that adds it.
+    // `glass_page_scaffold.dart` and `manager_scaffold.dart` are not listed
+    // because they no longer exist — an import of a deleted file is a compiler
+    // error, which is a better guard than this one. What stays here is every
+    // retired system that is still ON DISK and therefore still importable.
     const retired = <String>[
       'core/widgets/agent_kit.dart',
       'core/widgets/agent_scaffold.dart',
       'core/widgets/glass.dart',
-      'core/widgets/glass_page_scaffold.dart',
       'core/widgets/lumen_kit.dart',
-      'core/widgets/manager_scaffold.dart',
       'core/theme/lumen_glass.dart',
       'core/theme/lumen_palette.dart',
       'core/theme/tiq_colors.dart',

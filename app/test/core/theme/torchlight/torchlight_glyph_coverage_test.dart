@@ -179,9 +179,10 @@ void main() {
     /// **Delta** that draws its triangle as a path — at which point the
     /// ledger empties and this becomes the flat ban it wants to be.
     const ledger = <String, int>{
-      // Replaced by Delta (unify §2: "the three existing widgets are
-      // deleted"), Phase 1 item 5.
-      'core/widgets/delta_pill.dart': 2,
+      // `delta_pill.dart` came OFF this ledger by being deleted, which is
+      // what unify §2 asked for: DeltaChip, DeltaPill and TileDelta.text are
+      // replaced by one Delta that draws its triangle as a path. Two of the
+      // five typed triangles went with it.
       'features/assistant/view_specs/rich_figures.dart': 2,
       // Replaced when the exporter draws the mark instead of setting it.
       'features/assistant/export/artifact_pdf.dart': 1,
