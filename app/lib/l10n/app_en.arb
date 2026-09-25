@@ -10963,5 +10963,330 @@
   "dashStubCaveat": "Visibility compliance and share of shelf are derived from the Phase-1 computer-vision stub.",
   "@dashStubCaveat": {
     "description": "A caveat under the console, so two derived figures are never read as measured ones."
+  },
+  "artifactTitleView": "View",
+  "@artifactTitleView": {
+    "description": "Fallback name of the full-screen artifact route, for a tool this build has not heard of. A server that shipped ahead of the app is normal, not an error."
+  },
+  "artifactBackToAsk": "Back to Ask TradeIQ",
+  "@artifactBackToAsk": {
+    "description": "Screen-reader label for the back control, which returns to the conversation with its transcript and scroll position intact."
+  },
+  "artifactBackToFloor": "Back to The Floor",
+  "@artifactBackToFloor": {
+    "description": "The back control on a deep link, which has no conversation to return to."
+  },
+  "artifactFilters": "Filters",
+  "@artifactFilters": {
+    "description": "Section heading over the controls that steer the artifact."
+  },
+  "artifactUndo": "Undo",
+  "@artifactUndo": {
+    "description": "Reverts the last filter change. Hidden rather than disabled when there is nothing to undo."
+  },
+  "artifactPeriod": "Period",
+  "@artifactPeriod": {
+    "description": "Block label over the period chips."
+  },
+  "artifactPeriodToday": "Today",
+  "@artifactPeriodToday": {
+    "description": "A period the artifact can be re-run over."
+  },
+  "artifactPeriodYesterday": "Yesterday",
+  "@artifactPeriodYesterday": {
+    "description": "A period the artifact can be re-run over."
+  },
+  "artifactPeriodLastWeek": "Last week",
+  "@artifactPeriodLastWeek": {
+    "description": "A period the artifact can be re-run over."
+  },
+  "artifactPeriodMonthToDate": "Month to date",
+  "@artifactPeriodMonthToDate": {
+    "description": "A period the artifact can be re-run over."
+  },
+  "artifactPeriodYearToDate": "Year to date",
+  "@artifactPeriodYearToDate": {
+    "description": "A period the artifact can be re-run over."
+  },
+  "artifactPeriodSelected": "Selected period",
+  "@artifactPeriodSelected": {
+    "description": "A period kind this build does not recognise. Named neutrally rather than guessed at."
+  },
+  "artifactPickDates": "Pick dates",
+  "@artifactPickDates": {
+    "description": "Opens the date-range picker for a custom period."
+  },
+  "artifactCustomRange": "{from} to {to}",
+  "@artifactCustomRange": {
+    "description": "The chosen custom period, on the chip that chose it.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "artifactCustomPeriod": "Custom period",
+  "@artifactCustomPeriod": {
+    "description": "Title of the date-range picker."
+  },
+  "artifactGranularity": "Granularity",
+  "@artifactGranularity": {
+    "description": "Block label over the bucket-size chips."
+  },
+  "artifactDaily": "Daily",
+  "@artifactDaily": {
+    "description": "One bucket per day."
+  },
+  "artifactWeekly": "Weekly",
+  "@artifactWeekly": {
+    "description": "One bucket per week."
+  },
+  "artifactCompareWith": "Compare with",
+  "@artifactCompareWith": {
+    "description": "Block label over the comparison chips."
+  },
+  "artifactCompareNone": "None",
+  "@artifactCompareNone": {
+    "description": "No comparison series at all."
+  },
+  "artifactComparePreviousPeriod": "The period before",
+  "@artifactComparePreviousPeriod": {
+    "description": "Compare against the equally long window before this one."
+  },
+  "artifactCompareLastYear": "Same period last year",
+  "@artifactCompareLastYear": {
+    "description": "Compare against the same calendar window a year back."
+  },
+  "artifactCompareTerritory": "Another territory",
+  "@artifactCompareTerritory": {
+    "description": "Compare against a second territory."
+  },
+  "artifactCompared": "Compared",
+  "@artifactCompared": {
+    "description": "A comparison kind this build does not recognise."
+  },
+  "artifactComparison": "Comparison",
+  "@artifactComparison": {
+    "description": "The comparison series' name in the legend, where the server sent none. A legend never names a line it cannot name."
+  },
+  "artifactTerritory": "Territory",
+  "@artifactTerritory": {
+    "description": "Block label over the territory picker, and the picker's own label."
+  },
+  "artifactWholeBusiness": "The whole business",
+  "@artifactWholeBusiness": {
+    "description": "The unscoped territory choice. Nothing selected is a state, and here it has a name."
+  },
+  "artifactTerritorySheetBody": "Every figure in this view is scoped to this choice.",
+  "@artifactTerritorySheetBody": {
+    "description": "Subtitle of the territory picker's sheet."
+  },
+  "artifactTerritoriesLoading": "Loading territories…",
+  "@artifactTerritoriesLoading": {
+    "description": "Said while the territory list is in flight."
+  },
+  "artifactTerritoriesUnavailable": "Territories are unavailable — showing the whole business.",
+  "@artifactTerritoriesUnavailable": {
+    "description": "The artifact still works unscoped, so a failed territory list is a missing control rather than a broken screen."
+  },
+  "artifactNoTerritoriesHeadline": "No territories yet",
+  "@artifactNoTerritoriesHeadline": {
+    "description": "Empty state inside the territory picker's sheet."
+  },
+  "artifactNoTerritoriesBody": "Add a territory to scope this view to part of the business.",
+  "@artifactNoTerritoriesBody": {
+    "description": "Body of the no-territories state."
+  },
+  "artifactBusyReason": "The last change is still being applied.",
+  "@artifactBusyReason": {
+    "description": "Why the territory picker is dead for a moment."
+  },
+  "artifactRerunsTheQuery": "Changing a filter re-runs the same query. It does not ask the assistant again.",
+  "@artifactRerunsTheQuery": {
+    "description": "Says what a control costs, because the honest answer is surprising: it is a re-query, so it neither spends a turn nor changes the answer above it in the conversation."
+  },
+  "artifactExportPdf": "Export as a PDF",
+  "@artifactExportPdf": {
+    "description": "The route's one commit."
+  },
+  "artifactPreparing": "Preparing…",
+  "@artifactPreparing": {
+    "description": "The export's busy label. The words stay on the button while it works — a spinner in their place leaves a screen reader announcing an unlabelled button."
+  },
+  "artifactExportBlocked": "The figures are still being replaced.",
+  "@artifactExportBlocked": {
+    "description": "Why the export is disabled mid-refine: exporting now would produce a report of neither state."
+  },
+  "artifactExportNote": "The chart as an image, every figure as text you can select.",
+  "@artifactExportNote": {
+    "description": "Says what the exported document contains."
+  },
+  "artifactExportFailed": "That view could not be exported. Please try again.",
+  "@artifactExportFailed": {
+    "description": "A transient export failure — a dismissed share sheet, a platform that refused once."
+  },
+  "artifactExportUnavailable": "Exporting is not available in this build of the app. Reload the page — if it keeps happening, the build needs replacing.",
+  "@artifactExportUnavailable": {
+    "description": "An export that has nothing to share to. It fails identically on every retry, so telling the user to try again would send them round a loop."
+  },
+  "artifactCouldNotOpenHeadline": "That view could not be opened",
+  "@artifactCouldNotOpenHeadline": {
+    "description": "Whole-screen state when the artifact will not load."
+  },
+  "artifactCouldNotOpenBody": "It may have been removed, or it belongs to a tool you do not have.",
+  "@artifactCouldNotOpenBody": {
+    "description": "Body of the could-not-open state, where the server gave no words of its own."
+  },
+  "artifactRefining": "Applying the change…",
+  "@artifactRefining": {
+    "description": "Announced while the figures are being replaced, so the dimming is not the only channel."
+  },
+  "artifactNoFiguresHeadline": "No figures were returned for this period",
+  "@artifactNoFiguresHeadline": {
+    "description": "Empty state for a pillar view with nothing in it."
+  },
+  "artifactNoFiguresBody": "Widen the period, or clear the territory filter.",
+  "@artifactNoFiguresBody": {
+    "description": "Body of the no-figures state — what to actually do about it."
+  },
+  "artifactNothingToTabulate": "Nothing to tabulate",
+  "@artifactNothingToTabulate": {
+    "description": "Empty state where a table twin has no rows."
+  },
+  "artifactNoBaseline": "no baseline",
+  "@artifactNoBaseline": {
+    "description": "Stands where a percentage change would be, when the server declined to compute one rather than inventing it."
+  },
+  "artifactNoFilters": "No filters applied.",
+  "@artifactNoFilters": {
+    "description": "The applied-filters sentence when there are none."
+  },
+  "artifactRangeInWords": "{from} to {to}",
+  "@artifactRangeInWords": {
+    "description": "The custom period, inside the applied-filters sentence.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "artifactDailyBuckets": "daily buckets",
+  "@artifactDailyBuckets": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactWeeklyBuckets": "weekly buckets",
+  "@artifactWeeklyBuckets": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactOneTerritory": "one territory",
+  "@artifactOneTerritory": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactComparedPreviousPeriod": "compared with the period before",
+  "@artifactComparedPreviousPeriod": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactComparedLastYear": "compared with the same period last year",
+  "@artifactComparedLastYear": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactComparedTerritory": "compared with another territory",
+  "@artifactComparedTerritory": {
+    "description": "Part of the applied-filters sentence."
+  },
+  "artifactByDay": "By day",
+  "@artifactByDay": {
+    "description": "Part of a view's subtitle, naming its bucket size."
+  },
+  "artifactByWeek": "By week",
+  "@artifactByWeek": {
+    "description": "Part of a view's subtitle, naming its bucket size."
+  },
+  "artifactVersus": "vs {label}",
+  "@artifactVersus": {
+    "description": "Part of a view's subtitle, naming what it is compared with.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "artifactTitleRanking": "Ranking",
+  "@artifactTitleRanking": {
+    "description": "Fallback name of a ranked-bars view whose server title is absent."
+  },
+  "artifactTitleKeyFigures": "Key figures",
+  "@artifactTitleKeyFigures": {
+    "description": "Name of a stat-tiles view."
+  },
+  "artifactTitleTrend": "Trend",
+  "@artifactTitleTrend": {
+    "description": "Fallback name of a trend view whose metric this build does not know."
+  },
+  "artifactTitleSalesFigures": "Sales figures",
+  "@artifactTitleSalesFigures": {
+    "description": "Name of the sales pillar view."
+  },
+  "artifactTitleStockFigures": "Stock figures",
+  "@artifactTitleStockFigures": {
+    "description": "Name of the stock pillar view."
+  },
+  "artifactTitleVisibilityFigures": "Visibility figures",
+  "@artifactTitleVisibilityFigures": {
+    "description": "Name of the visibility pillar view."
+  },
+  "artifactTitleCompetitionFigures": "Competition figures",
+  "@artifactTitleCompetitionFigures": {
+    "description": "Name of the competition pillar view."
+  },
+  "artifactTitleFigures": "Figures",
+  "@artifactTitleFigures": {
+    "description": "The honest fallback where the pillar is unknown: the row stores tool arguments, which carry no pillar."
+  },
+  "artifactToolSalesPerformance": "Sales performance",
+  "@artifactToolSalesPerformance": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolSkuMovement": "SKU movement",
+  "@artifactToolSkuMovement": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolStockLevels": "Stock levels",
+  "@artifactToolStockLevels": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolShareOfShelf": "Share of shelf",
+  "@artifactToolShareOfShelf": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolVisibility": "Visibility compliance",
+  "@artifactToolVisibility": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolCompetitor": "Competitor activity",
+  "@artifactToolCompetitor": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolVisits": "Visits",
+  "@artifactToolVisits": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolFlaggedVisits": "Flagged visits",
+  "@artifactToolFlaggedVisits": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolAgentScorecard": "Agent scorecard",
+  "@artifactToolAgentScorecard": {
+    "description": "The name of the tool behind this artifact."
+  },
+  "artifactToolTrend": "Trend",
+  "@artifactToolTrend": {
+    "description": "The name of the tool behind this artifact."
   }
 }

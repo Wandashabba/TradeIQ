@@ -8157,4 +8157,251 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get dashStubCaveat =>
       'Sigbaarheidsnakoming en rakaandeel kom uit die Fase-1 rekenaarvisie-stomp.';
+
+  @override
+  String get artifactTitleView => 'Aansig';
+
+  @override
+  String get artifactBackToAsk => 'Terug na Vra TradeIQ';
+
+  @override
+  String get artifactBackToFloor => 'Terug na Die Vloer';
+
+  @override
+  String get artifactFilters => 'Filters';
+
+  @override
+  String get artifactUndo => 'Ontdoen';
+
+  @override
+  String get artifactPeriod => 'Tydperk';
+
+  @override
+  String get artifactPeriodToday => 'Vandag';
+
+  @override
+  String get artifactPeriodYesterday => 'Gister';
+
+  @override
+  String get artifactPeriodLastWeek => 'Verlede week';
+
+  @override
+  String get artifactPeriodMonthToDate => 'Maand tot datum';
+
+  @override
+  String get artifactPeriodYearToDate => 'Jaar tot datum';
+
+  @override
+  String get artifactPeriodSelected => 'Gekose tydperk';
+
+  @override
+  String get artifactPickDates => 'Kies datums';
+
+  @override
+  String artifactCustomRange(String from, String to) {
+    return '$from tot $to';
+  }
+
+  @override
+  String get artifactCustomPeriod => 'Pasgemaakte tydperk';
+
+  @override
+  String get artifactGranularity => 'Korrelgrootte';
+
+  @override
+  String get artifactDaily => 'Daagliks';
+
+  @override
+  String get artifactWeekly => 'Weekliks';
+
+  @override
+  String get artifactCompareWith => 'Vergelyk met';
+
+  @override
+  String get artifactCompareNone => 'Geen';
+
+  @override
+  String get artifactComparePreviousPeriod => 'Die vorige tydperk';
+
+  @override
+  String get artifactCompareLastYear => 'Dieselfde tydperk verlede jaar';
+
+  @override
+  String get artifactCompareTerritory => '’n Ander gebied';
+
+  @override
+  String get artifactCompared => 'Vergelyk';
+
+  @override
+  String get artifactComparison => 'Vergelyking';
+
+  @override
+  String get artifactTerritory => 'Gebied';
+
+  @override
+  String get artifactWholeBusiness => 'Die hele besigheid';
+
+  @override
+  String get artifactTerritorySheetBody =>
+      'Elke syfer in hierdie aansig val binne hierdie keuse.';
+
+  @override
+  String get artifactTerritoriesLoading => 'Laai gebiede…';
+
+  @override
+  String get artifactTerritoriesUnavailable =>
+      'Gebiede is nie beskikbaar nie — wys die hele besigheid.';
+
+  @override
+  String get artifactNoTerritoriesHeadline => 'Nog geen gebiede nie';
+
+  @override
+  String get artifactNoTerritoriesBody =>
+      'Voeg ’n gebied by om hierdie aansig tot ’n deel van die besigheid te beperk.';
+
+  @override
+  String get artifactBusyReason => 'Die laaste verandering word nog toegepas.';
+
+  @override
+  String get artifactRerunsTheQuery =>
+      'Om ’n filter te verander laat dieselfde navraag weer loop. Dit vra nie die assistent weer nie.';
+
+  @override
+  String get artifactExportPdf => 'Voer uit as ’n PDF';
+
+  @override
+  String get artifactPreparing => 'Berei voor…';
+
+  @override
+  String get artifactExportBlocked => 'Die syfers word nog vervang.';
+
+  @override
+  String get artifactExportNote =>
+      'Die grafiek as ’n beeld, elke syfer as teks wat jy kan kies.';
+
+  @override
+  String get artifactExportFailed =>
+      'Daardie aansig kon nie uitgevoer word nie. Probeer asseblief weer.';
+
+  @override
+  String get artifactExportUnavailable =>
+      'Uitvoer is nie in hierdie bou van die app beskikbaar nie. Herlaai die bladsy — as dit aanhou, moet die bou vervang word.';
+
+  @override
+  String get artifactCouldNotOpenHeadline =>
+      'Daardie aansig kon nie oopgemaak word nie';
+
+  @override
+  String get artifactCouldNotOpenBody =>
+      'Dit is dalk verwyder, of dit behoort aan ’n instrument wat jy nie het nie.';
+
+  @override
+  String get artifactRefining => 'Pas die verandering toe…';
+
+  @override
+  String get artifactNoFiguresHeadline =>
+      'Geen syfers is vir hierdie tydperk teruggegee nie';
+
+  @override
+  String get artifactNoFiguresBody =>
+      'Verbreed die tydperk, of maak die gebiedsfilter skoon.';
+
+  @override
+  String get artifactNothingToTabulate => 'Niks om te tabuleer nie';
+
+  @override
+  String get artifactNoBaseline => 'geen basislyn';
+
+  @override
+  String get artifactNoFilters => 'Geen filters toegepas nie.';
+
+  @override
+  String artifactRangeInWords(String from, String to) {
+    return '$from tot $to';
+  }
+
+  @override
+  String get artifactDailyBuckets => 'daaglikse bakke';
+
+  @override
+  String get artifactWeeklyBuckets => 'weeklikse bakke';
+
+  @override
+  String get artifactOneTerritory => 'een gebied';
+
+  @override
+  String get artifactComparedPreviousPeriod =>
+      'vergelyk met die vorige tydperk';
+
+  @override
+  String get artifactComparedLastYear =>
+      'vergelyk met dieselfde tydperk verlede jaar';
+
+  @override
+  String get artifactComparedTerritory => 'vergelyk met ’n ander gebied';
+
+  @override
+  String get artifactByDay => 'Per dag';
+
+  @override
+  String get artifactByWeek => 'Per week';
+
+  @override
+  String artifactVersus(String label) {
+    return 'teenoor $label';
+  }
+
+  @override
+  String get artifactTitleRanking => 'Rangorde';
+
+  @override
+  String get artifactTitleKeyFigures => 'Kernsyfers';
+
+  @override
+  String get artifactTitleTrend => 'Tendens';
+
+  @override
+  String get artifactTitleSalesFigures => 'Verkoopsyfers';
+
+  @override
+  String get artifactTitleStockFigures => 'Voorraadsyfers';
+
+  @override
+  String get artifactTitleVisibilityFigures => 'Sigbaarheidsyfers';
+
+  @override
+  String get artifactTitleCompetitionFigures => 'Mededingingsyfers';
+
+  @override
+  String get artifactTitleFigures => 'Syfers';
+
+  @override
+  String get artifactToolSalesPerformance => 'Verkoopsprestasie';
+
+  @override
+  String get artifactToolSkuMovement => 'SKU-beweging';
+
+  @override
+  String get artifactToolStockLevels => 'Voorraadvlakke';
+
+  @override
+  String get artifactToolShareOfShelf => 'Rakaandeel';
+
+  @override
+  String get artifactToolVisibility => 'Sigbaarheidsnakoming';
+
+  @override
+  String get artifactToolCompetitor => 'Mededinger-aktiwiteit';
+
+  @override
+  String get artifactToolVisits => 'Besoeke';
+
+  @override
+  String get artifactToolFlaggedVisits => 'Gemerkte besoeke';
+
+  @override
+  String get artifactToolAgentScorecard => 'Agent-telkaart';
+
+  @override
+  String get artifactToolTrend => 'Tendens';
 }
