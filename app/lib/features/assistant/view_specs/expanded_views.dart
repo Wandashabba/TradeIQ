@@ -1,15 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../core/design/tiq_number.dart';
 import '../../../core/format/period_label.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/charts.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/delta_pill.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/figure/chart/chart.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/artifact_repository.dart';
 import '../data/chat_controller.dart';
 import 'artifact_table.dart';
@@ -22,13 +21,19 @@ import 'view_spec_registry.dart';
 /// headline figure and nothing else, because a date picker in every chat bubble
 /// is exactly the crowding to avoid. Everything that got left out lives here —
 /// the full chart, the comparison as a second series, and the **table twin**
-/// `charts.dart` already mandates, so no value is reachable only by hovering.
+/// the design system already mandates, so no value is reachable only by
+/// hovering.
 ///
 /// Two of the four specs get a purpose-built expansion; the other two fall back
 /// to their inline card. That is not a stub: an `outlet_map` is already the
 /// whole answer at any size, and inventing a table twin for a scatter of pins
 /// would be a table of coordinates nobody asked for. What Expanded adds for
 /// those is the filter controls, the route and the export.
+///
+/// **Amber: none.** The chart-focus rung is real and this view declines it, for
+/// the reason the chart kit declines it everywhere: the subject is carried by
+/// weight, by a solid stroke against a dashed one and by the legend's word.
+/// The one lit object on this route is the export, and it is the route's.
 Widget expandedArtifactView(BuildContext context, ArtifactDetail artifact) {
   switch (artifact.type) {
     case 'trend_chart':
@@ -62,7 +67,7 @@ class TrendExpandedView extends StatefulWidget {
 class _TrendExpandedViewState extends State<TrendExpandedView> {
   bool _asTable = false;
 
-  static const Set<String> _percentMetrics = {
+  static const Set<String> _percentMetrics = <String>{
     'availability',
     'perfect_store',
     'share_of_shelf',
@@ -70,12 +75,12 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
 
   Map<String, dynamic> get _data {
     final data = widget.artifact.data;
-    return data is Map<String, dynamic> ? data : const {};
+    return data is Map<String, dynamic> ? data : const <String, dynamic>{};
   }
 
   Map<String, dynamic> get _comparison {
     final value = _data['comparison'];
-    return value is Map<String, dynamic> ? value : const {};
+    return value is Map<String, dynamic> ? value : const <String, dynamic>{};
   }
 
   String? get _comparisonLabel {
@@ -83,64 +88,103 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
     return label is String && label.isNotEmpty ? label : null;
   }
 
-  /// Points for the chart. The table takes the same rows through
+  /// Readings for the chart. The table takes the same rows through
   /// [artifactTableFor], so the two cannot disagree about a value — only about
   /// how it is drawn.
-  List<ChartPoint> _pointsFrom(dynamic raw) {
-    if (raw is! List) return const [];
-    final points = <ChartPoint>[];
+  ///
+  /// A row whose value is not a finite number becomes a **null reading**, not a
+  /// dropped one: `/trends` omits an empty bucket and the chart breaks its
+  /// stroke across the gap, which is the honest drawing of a week nobody
+  /// measured. Interpolating across it draws a trend that was never observed.
+  List<ChartReading> _readingsFrom(dynamic raw) {
+    if (raw is! List) return const <ChartReading>[];
+    final readings = <ChartReading>[];
     for (final row in raw) {
       if (row is! Map<String, dynamic>) continue;
       final value = row['value'];
-      if (value is! num || !value.isFinite) continue;
       final period = row['period'];
-      points.add((
-        label: formatPeriodLabel(period is String ? period : ''),
-        value: value.toDouble(),
-      ));
+      final label = period is String ? period : '';
+      readings.add(
+        ChartReading(
+          label: formatPeriodLabel(label),
+          longLabel: label.isEmpty ? null : label,
+          value: value is num && value.isFinite ? value.toDouble() : null,
+        ),
+      );
     }
-    return points;
+    return readings;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final metric = _data['metric'];
-    final title = expandedArtifactTitle(widget.artifact);
-    final suffix = metric is String && _percentMetrics.contains(metric)
-        ? '%'
-        : '';
-    final points = _pointsFrom(_data['points']);
-    final comparison = _pointsFrom(_comparison['points']);
-    final subtitle = expandedArtifactSubtitle(widget.artifact);
+    final title = expandedArtifactTitle(context, widget.artifact);
+    final unit = metric is String && _percentMetrics.contains(metric)
+        ? TiqUnit.percent
+        : TiqUnit.none;
+    final readings = _readingsFrom(_data['points']);
+    final comparison = _readingsFrom(_comparison['points']);
+    final subtitle = expandedArtifactSubtitle(context, widget.artifact);
+    // Veld draws no plot (unify §4), so the toggle would be a control with one
+    // working position. The table is simply what Veld shows.
+    final veld = skin.mode == SkinMode.veld;
+    final measured = readings.any((r) => r.value != null);
 
-    return PanelCard(
-      title: title,
-      subtitle: subtitle,
-      // The toggle is not decoration: a chart that is the only way to read a
-      // value fails anyone using a screen reader, printing it, or checking an
-      // exact figure.
-      trailing: ChartTableToggle(
-        asTable: _asTable,
-        onChanged: (value) => setState(() => _asTable = value),
-      ),
-      child: points.isEmpty
-          ? const EmptyState(
-              message: 'No data in range',
-              hint: 'Trends fill in as visits are submitted and scored.',
-            )
-          : _asTable
-          ? ArtifactTableView(table: artifactTableFor(widget.artifact))
-          : LineChart(
-              points: points,
-              comparison: comparison,
-              seriesName: title,
-              comparisonName: _comparisonLabel ?? '',
-              // The same dashed reference line the chat card draws, so
-              // expanding a card does not restyle the line being read.
-              dashedComparison: true,
-              valueSuffix: suffix,
-              height: 300,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(title),
+        if (subtitle != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            subtitle,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
+        const SizedBox(height: TiqSpace.s4),
+        if (!measured)
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: l10n.trendsEmptyHeadline,
+            body: l10n.trendsEmptyBody,
+          )
+        else ...<Widget>[
+          // Not decoration: a chart that is the only way to read a value fails
+          // anyone using a screen reader, printing it, or checking an exact
+          // figure.
+          if (!veld) ...<Widget>[
+            ChartTableToggle(
+              asTable: _asTable,
+              onChanged: (value) => setState(() => _asTable = value),
             ),
+            const SizedBox(height: TiqSpace.s4),
+          ],
+          if (veld || _asTable)
+            ArtifactTableView(table: artifactTableFor(widget.artifact))
+          else
+            TrendChart(
+              key: const ValueKey<String>('artifact-trend-chart'),
+              series: <ChartSeries>[
+                ChartSeries(name: title, readings: readings),
+                if (comparison.isNotEmpty)
+                  ChartSeries(
+                    name: _comparisonLabel ?? l10n.artifactComparison,
+                    role: ChartSeriesRole.comparison,
+                    readings: comparison,
+                  ),
+              ],
+              unit: unit,
+              decimals: 1,
+              semanticsLabel: l10n.trendsChartHint(title, readings.length),
+              notMeasuredWord: l10n.trendsNotMeasured,
+              dashedWord: l10n.trendsDashed,
+              scrubHint: l10n.trendsScrubHint,
+            ),
+        ],
+      ],
     );
   }
 }
@@ -148,7 +192,7 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
 /// A pillar's figures as a table — value, baseline, and the delta column.
 ///
 /// The inline card already shows the movement beside each figure; what this
-/// adds is the **baseline itself**, which a pill cannot carry. "Up 5.1" and
+/// adds is the **baseline itself**, which a delta cannot carry. "Up 5.1" and
 /// "88.0 → 93.1" answer different questions, and the second is the one that
 /// replaces exporting both periods and lining them up in a spreadsheet.
 class PillarExpandedView extends StatelessWidget {
@@ -158,17 +202,33 @@ class PillarExpandedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final table = artifactTableFor(artifact);
+    final subtitle = expandedArtifactSubtitle(context, artifact);
 
-    return PanelCard(
-      title: expandedArtifactTitle(artifact),
-      subtitle: expandedArtifactSubtitle(artifact),
-      child: table == null || table.isEmpty
-          ? const EmptyState(
-              message: 'No figures were returned for this period',
-              hint: 'Widen the period, or clear the territory filter.',
-            )
-          : ArtifactTableView(table: table),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(expandedArtifactTitle(context, artifact)),
+        if (subtitle != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Text(
+            subtitle,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
+        const SizedBox(height: TiqSpace.s4),
+        if (table == null || table.isEmpty)
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: l10n.artifactNoFiguresHeadline,
+            body: l10n.artifactNoFiguresBody,
+          )
+        else
+          ArtifactTableView(table: table),
+      ],
     );
   }
 }
@@ -187,44 +247,52 @@ class ArtifactTableView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final l10n = context.l10n;
     final table = this.table;
     if (table == null || table.isEmpty) {
-      return const EmptyState(message: 'Nothing to tabulate');
+      return EmptyState(
+        scope: EmptyScope.inPanel,
+        headline: l10n.artifactNothingToTabulate,
+      );
     }
 
     // A delta column plus a comparison column does not fit a phone, and a table
     // that wraps its figures is not a table. It takes the width it has, and
     // scrolls sideways below the width its columns need.
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: constraints.maxWidth < (table.compared ? 480 : 260)
-              ? (table.compared ? 480 : 260)
-              : constraints.maxWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < table.columns.length; i++)
-                      Expanded(
-                        flex: i == 0 ? 3 : 2,
-                        child: SectionLabel(table.columns[i]),
-                      ),
-                  ],
+      builder: (context, constraints) {
+        final needed = table.compared ? 480.0 : 260.0;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: constraints.maxWidth < needed ? needed : constraints.maxWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: TiqSpace.s2),
+                  child: Row(
+                    children: <Widget>[
+                      for (var i = 0; i < table.columns.length; i++)
+                        Expanded(
+                          flex: i == 0 ? 3 : 2,
+                          child: Eyebrow(table.columns[i]),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              for (final row in table.rows)
-                _TableRow(row: row, table: table, colors: colors),
-            ],
+                for (var i = 0; i < table.rows.length; i++)
+                  _TableRow(
+                    row: table.rows[i],
+                    table: table,
+                    last: i == table.rows.length - 1,
+                  ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -233,121 +301,126 @@ class _TableRow extends StatelessWidget {
   const _TableRow({
     required this.row,
     required this.table,
-    required this.colors,
+    required this.last,
   });
 
   final ArtifactTableRow row;
   final ArtifactTable table;
-  final TiqColors colors;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    if (colors.glass) return _glass(context.lumen);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.line)),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < table.columns.length; i++)
-            Expanded(
-              flex: i == 0 ? 3 : 2,
-              child: i < row.cells.length
-                  ? Text(
-                      row.cells[i],
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: i == 1 ? FontWeight.w600 : FontWeight.w400,
-                        color: i == 0
-                            ? colors.ink2
-                            : (i == 1 ? colors.ink1 : colors.ink3),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    )
-                  : _Change(row: row, colors: colors),
-            ),
-        ],
+    final skin = context.skin;
+    final p = skin.palette;
+    return Semantics(
+      container: true,
+      label: <String>[
+        ...row.cells,
+        if (row.cells.length < table.columns.length) _changeInWords(context),
+      ].join('. '),
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: TiqSpace.s3),
+        decoration: BoxDecoration(
+          // A non-tappable row takes the decorative hairline; the 3:1
+          // edge-structure rule is for rows a thumb can open.
+          border: last
+              ? null
+              : Border(
+                  bottom: BorderSide(
+                    color: p.hairline,
+                    width: skin.depth.borderWidth,
+                  ),
+                ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            for (var i = 0; i < table.columns.length; i++)
+              Expanded(
+                flex: i == 0 ? 3 : 2,
+                child: i < row.cells.length
+                    ? Text(
+                        row.cells[i],
+                        // The label is prose; every other column is a figure,
+                        // and a figure is set in the mono face so the columns
+                        // align by glyph.
+                        style: i == 0
+                            ? skin.text.body.style(color: p.ink2)
+                            : (i == 1 ? skin.text.figureS : skin.text.meta)
+                                  .style(color: i == 1 ? p.ink1 : p.ink3),
+                      )
+                    : _Change(row: row),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  /// Glass: a white-rim divider — the pane's own lit edge, not a grey rule —
-  /// and every figure in JetBrains Mono, so the columns align by glyph.
-  Widget _glass(LumenPalette lumen) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: lumen.white(0xB3))),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < table.columns.length; i++)
-            Expanded(
-              flex: i == 0 ? 3 : 2,
-              child: i < row.cells.length
-                  ? Text(
-                      row.cells[i],
-                      style: i == 0
-                          ? TextStyle(fontSize: 12.5, color: lumen.ink)
-                          : LumenGlass.figure(
-                              size: i == 1 ? 12.5 : 12,
-                              color: i == 1 ? lumen.ink : lumen.inkMuted,
-                              weight: i == 1
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                    )
-                  : _Change(row: row, colors: colors),
-            ),
-        ],
-      ),
-    );
+  String _changeInWords(BuildContext context) {
+    final delta = row.delta;
+    if (delta == null) return context.l10n.trendsNotMeasured;
+    final pct = row.deltaPct;
+    final numbers = TiqNumber.of(context);
+    return <String>[
+      numbers.format(delta, signed: true),
+      if (pct != null) formatChangePct(pct, number: numbers),
+    ].join(', ');
   }
 }
 
+/// The change column: the drawn triangle and the percentage beside it.
 class _Change extends StatelessWidget {
-  const _Change({required this.row, required this.colors});
+  const _Change({required this.row});
 
   final ArtifactTableRow row;
-  final TiqColors colors;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
     final delta = row.delta;
+    // A delta never stands beside nothing: no movement means no mark at all,
+    // and the em dash says the comparison was not made.
     if (delta == null) {
       return Text(
-        '—',
-        style: colors.glass
-            ? LumenGlass.figure(size: 12, color: context.lumen.inkMuted)
-            : TextStyle(fontSize: 12.5, color: colors.ink3),
+        emDash,
+        style: skin.text.figureS.style(color: skin.palette.ink3),
       );
     }
-    return Row(
-      children: [
-        DeltaPill(
-          delta: delta,
-          tone: delta < 0 ? DeltaTone.bad : DeltaTone.good,
-        ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            // "n/a" rather than a percentage the server refused to invent.
-            row.deltaPct == null
-                ? 'n/a'
-                : formatChangePct(
-                    row.deltaPct!,
-                    number: TiqNumber.of(context),
-                  ),
-            style: colors.glass
-                ? LumenGlass.figure(
-                    size: 11.5,
-                    weight: FontWeight.w400,
-                    color: context.lumen.inkMuted,
-                  )
-                : TextStyle(fontSize: 11.5, color: colors.ink3),
-            overflow: TextOverflow.ellipsis,
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: TiqSpace.s2,
+      children: <Widget>[
+        DeltaSlot(
+          data: DeltaData(
+            direction: delta > 0
+                ? DeltaDirection.up
+                : delta < 0
+                ? DeltaDirection.down
+                : DeltaDirection.flat,
+            // Direction is the shape and sentiment is the colour, and neither
+            // is derived from the other. These figures are all "more is
+            // better" pillar metrics, which is stated here once.
+            sentiment: delta > 0
+                ? TiqSentiment.good
+                : delta < 0
+                ? TiqSentiment.bad
+                : TiqSentiment.neutral,
+            magnitude: delta.abs(),
+            decimals: 1,
           ),
+          figureState: FigureState.measured,
+          compact: true,
+        ),
+        Text(
+          // The server's own refusal to invent a percentage, said in words
+          // rather than as "n/a" beside a triangle.
+          row.deltaPct == null
+              ? l10n.artifactNoBaseline
+              : formatChangePct(row.deltaPct!, number: TiqNumber.of(context)),
+          style: skin.text.meta.style(color: skin.palette.ink3),
         ),
       ],
     );
@@ -356,37 +429,42 @@ class _Change extends StatelessWidget {
 
 /// What this view is called, on screen and in the exported report.
 ///
-/// Shared so the PDF's header and the panel above the chart cannot drift into
+/// Shared so the PDF's header and the rule above the chart cannot drift into
 /// naming the same thing differently.
-String expandedArtifactTitle(ArtifactDetail artifact) {
+String expandedArtifactTitle(BuildContext context, ArtifactDetail artifact) {
+  final l10n = context.l10n;
   final data = artifact.data;
   if (artifact.type == 'ranked_bars') {
-    return RankedBarsData.from(data).title ?? 'Ranking';
+    return RankedBarsData.from(data).title ?? l10n.artifactTitleRanking;
   }
-  if (artifact.type == 'stat_tiles') return 'Key figures';
+  if (artifact.type == 'stat_tiles') return l10n.artifactTitleKeyFigures;
   if (artifact.type == 'trend_chart' && data is Map<String, dynamic>) {
     final metric = data['metric'];
-    return trendMetricLabels[metric] ?? (metric is String ? metric : 'Trend');
+    return trendMetricLabels[metric] ??
+        (metric is String ? metric : l10n.artifactTitleTrend);
   }
   if (artifact.type == 'pillar_metrics') {
-    final params = artifact.params;
-    final pillar = params['pillar'];
+    final pillar = artifact.params['pillar'];
     return switch (pillar) {
-      'sales' => 'Sales figures',
-      'stock' => 'Stock figures',
-      'visibility' => 'Visibility figures',
-      'competition' => 'Competition figures',
+      'sales' => l10n.artifactTitleSalesFigures,
+      'stock' => l10n.artifactTitleStockFigures,
+      'visibility' => l10n.artifactTitleVisibilityFigures,
+      'competition' => l10n.artifactTitleCompetitionFigures,
       // The row stores TOOL args, which carry no pillar — the pillar lives in
       // the view spec the chat stream sent, and this screen loads from the
       // server by id. So the honest fallback is the neutral noun.
-      _ => 'Figures',
+      _ => l10n.artifactTitleFigures,
     };
   }
-  return 'View';
+  return l10n.artifactTitleView;
 }
 
 /// "By day · vs the month before this one", or null when neither applies.
-String? expandedArtifactSubtitle(ArtifactDetail artifact) {
+String? expandedArtifactSubtitle(
+  BuildContext context,
+  ArtifactDetail artifact,
+) {
+  final l10n = context.l10n;
   final data = artifact.data;
   if (data is! Map<String, dynamic>) return null;
   final comparison = data['comparison'];
@@ -397,18 +475,24 @@ String? expandedArtifactSubtitle(ArtifactDetail artifact) {
     // Pre-formatted by the server ("vs Aug '25").
     return comparedTo.isEmpty ? null : comparedTo;
   }
-  final parts = [
-    if (interval is String) 'By $interval',
-    if (label is String && label.isNotEmpty) 'vs $label',
+  final parts = <String>[
+    if (interval == 'day')
+      l10n.artifactByDay
+    else if (interval == 'week')
+      l10n.artifactByWeek,
+    if (label is String && label.isNotEmpty) l10n.artifactVersus(label),
   ];
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
-/// Chart ⇄ Table, the console's existing two-state toggle.
+/// Chart ⇄ Table.
 ///
-/// Lifted from the trends screen's private one rather than forked: the table
-/// twin is a rule the design system already states, and two toggles that drift
-/// apart would make the same affordance behave differently on two screens.
+/// Two filter chips, which is the one selected vocabulary in this system:
+/// lifted fill, a 1px ink-1 border, a tick and weight 700 — three channels, and
+/// never amber on any screen in any skin. The trends screen's toggle is the
+/// same two chips, deliberately: the table twin is a rule the design system
+/// already states, and two toggles that drift apart would make the same
+/// affordance behave differently on two screens.
 class ChartTableToggle extends StatelessWidget {
   const ChartTableToggle({
     super.key,
@@ -421,110 +505,24 @@ class ChartTableToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      // Glass: a recessed track holding a bright raised pill for the view in
-      // force. The pill's lift and the heavier weight mark it, not the hue.
-      final lumen = context.lumen;
-      return Container(
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: lumen.tileFill,
-          border: Border.all(color: lumen.pillRim),
-          borderRadius: BorderRadius.circular(LumenGlass.radiusChip + 2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (label, isTable) in const [
-              ('Chart', false),
-              ('Table', true),
-            ])
-              InkWell(
-                key: ValueKey('artifact-view-${label.toLowerCase()}'),
-                onTap: () => onChanged(isTable),
-                borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isTable == asTable
-                        ? lumen.pillFill
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isTable == asTable
-                          ? lumen.panelRim
-                          : Colors.transparent,
-                    ),
-                    borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
-                    boxShadow: isTable == asTable
-                        ? [
-                            BoxShadow(
-                              color: lumen.shadow,
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: isTable == asTable
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      color: isTable == asTable ? lumen.ink : lumen.inkMuted,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (label, isTable) in const [
-            ('Chart', false),
-            ('Table', true),
-          ])
-            InkWell(
-              key: ValueKey('artifact-view-${label.toLowerCase()}'),
-              onTap: () => onChanged(isTable),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isTable == asTable
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: isTable ? Colors.transparent : colors.lineStrong,
-                    ),
-                  ),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: isTable == asTable ? colors.ink1 : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
+    final l10n = context.l10n;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TorchFilterRail(
+        semanticsLabel: l10n.trendsViewAs,
+        chips: <Widget>[
+          TorchFilterChip(
+            key: const ValueKey<String>('artifact-view-chart'),
+            label: l10n.trendsAsChart,
+            selected: !asTable,
+            onSelected: () => onChanged(false),
+          ),
+          TorchFilterChip(
+            key: const ValueKey<String>('artifact-view-table'),
+            label: l10n.trendsAsTable,
+            selected: asTable,
+            onSelected: () => onChanged(true),
+          ),
         ],
       ),
     );

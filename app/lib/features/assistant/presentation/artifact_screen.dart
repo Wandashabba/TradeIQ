@@ -1,13 +1,17 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart' show MissingPluginException;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
-import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../../clients/data/clients_repository.dart';
 import '../data/artifact_repository.dart';
 import '../export/artifact_exporter.dart';
@@ -26,10 +30,39 @@ import 'artifact_filters.dart';
 /// re-run, so opening this screen re-invokes the tool through a roster built
 /// for whoever is asking now: a link shared with a colleague who lacks the
 /// tool shows a refusal, not someone else's figures.
+///
+/// ```text
+///   ←  Sales performance
+///      Month to date · daily buckets.
+///   ── Filters ──────────────────── Undo ──
+///   PERIOD   (Today)(Yesterday)(Month to date✓)
+///   ── Rate of sale ───────────────────────
+///   (Chart✓)(Table)
+///   ┌─────────────────────────────────────┐
+///   │        ╭──────╮                     │
+///   └─────────────────────────────────────┘
+///   [ ☾ ] [        Export as a PDF        ]
+/// ```
+///
+/// ## The amber, counted
+///
+/// A pushed route with no nav, so Night's budget is two. **This screen spends
+/// exactly one, on the export** — the only thing on it that commits anything.
+/// Day and Veld allow one, the primary commit block, and it is the same
+/// object. While the artifact is loading or has failed there is nothing to
+/// export, no primary is built, and every skin paints **zero**.
+///
+/// The chart declines the focus rung for the reason the chart kit declines it
+/// everywhere; the selected filter chip is `lifted` like every other selected
+/// chip in the product; and a refusal is crimson at two commitment levels with
+/// its own words, never amber.
 class ArtifactScreen extends ConsumerStatefulWidget {
   const ArtifactScreen({super.key, required this.artifactId});
 
   final String artifactId;
+
+  /// The id the export's [TorchClaim] is declared under.
+  static const String exportClaimId = 'artifact-export';
 
   @override
   ConsumerState<ArtifactScreen> createState() => _ArtifactScreenState();
@@ -137,28 +170,33 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
     });
 
     try {
-      await ref.read(artifactExporterProvider).export(
+      await ref
+          .read(artifactExporterProvider)
+          .export(
             ArtifactExportRequest(
-              title: expandedArtifactTitle(detail),
-              subtitle: expandedArtifactSubtitle(detail),
+              title: expandedArtifactTitle(context, detail),
+              subtitle: expandedArtifactSubtitle(context, detail),
               // The same sentence the screen shows, so the report and the view
               // it came from cannot describe different filters — and the params
               // it describes are the ones on screen, not the ones the artifact
               // happened to be created with.
-              filters: describeParamsInWords(_pending ?? detail.params),
+              filters: describeParamsInWords(
+                context.l10n,
+                _pending ?? detail.params,
+              ),
               tenant: ref.read(clientConfigProvider).value?.name ?? 'TradeIQ',
               table: artifactTableFor(detail),
               captureKey: _captureKey,
               devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
             ),
-            filename: '${_filenameFor(detail)}.pdf',
+            filename: '${_filenameFor(context, detail)}.pdf',
           );
     } catch (err) {
       if (!mounted) return;
       // Reported in the same place a refused filter is: this screen already has
       // one honest place for "that did not work", and a second style of failure
       // message would be a second thing to learn.
-      setState(() => _error = _exportFailureMessage(err));
+      setState(() => _error = _exportFailureMessage(context.l10n, err));
       debugPrint('[assistant] pdf export failed: $err');
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -179,18 +217,17 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
   /// with nothing behind it and threw [MissingPluginException]. The export
   /// path was fine; the build was stale. An error message that says so is the
   /// difference between a reload and an afternoon.
-  static String _exportFailureMessage(Object err) {
+  static String _exportFailureMessage(AppLocalizations l10n, Object err) {
     if (err is MissingPluginException || err is UnimplementedError) {
-      return 'Exporting is not available in this build of the app. Reload the '
-          'page — if it keeps happening, the build needs replacing.';
+      return l10n.artifactExportUnavailable;
     }
-    return 'That view could not be exported. Please try again.';
+    return l10n.artifactExportFailed;
   }
 
-  static String _filenameFor(ArtifactDetail detail) {
+  static String _filenameFor(BuildContext context, ArtifactDetail detail) {
     final now = DateTime.now();
     String two(int v) => v.toString().padLeft(2, '0');
-    final slug = expandedArtifactTitle(detail)
+    final slug = expandedArtifactTitle(context, detail)
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-|-$'), '');
@@ -200,34 +237,91 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final detail = _detail;
 
-    return ManagerScaffold(
-      title: detail == null ? 'View' : artifactTitle(detail),
-      body: _loading
-          ? const Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    if (_loading) {
+      return _ArtifactFrame(
+        phase: 'loading',
+        title: l10n.artifactTitleView,
+        children: <Widget>[
+          Skeleton(
+            label: l10n.artifactTitleView,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonShell(height: 260),
+          ),
+        ],
+      );
+    }
+
+    if (detail == null) {
+      return _ArtifactFrame(
+        phase: 'unopenable',
+        title: l10n.artifactTitleView,
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'artifact',
+            child: ErrorState(
+              // The server's own words where it gave any: it writes them to be
+              // read by a user, and replacing them with "something went wrong"
+              // hides which view it refused.
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.artifactCouldNotOpenHeadline,
+                body: _error ?? l10n.artifactCouldNotOpenBody,
+                offersRetry: true,
               ),
-            )
-          : detail == null
-          ? _LoadFailure(
-              message: _error ?? 'That view could not be opened.',
-              onRetry: _load,
-            )
-          : _Loaded(
-              detail: detail,
-              params: _pending ?? detail.params,
-              busy: _pending != null,
-              error: _error,
-              exporting: _exporting,
-              captureKey: _captureKey,
-              onApply: _apply,
-              onUndo: _undo,
-              onExport: _exportPdf,
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('artifact-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: _load,
+              ),
             ),
+          ),
+        ],
+      );
+    }
+
+    final params = _pending ?? detail.params;
+    final busy = _pending != null;
+
+    return _ArtifactFrame(
+      phase: busy ? 'refining' : 'loaded',
+      title: artifactTitle(l10n, detail),
+      facts: <String>[describeParamsInWords(l10n, params)],
+      // The route's one commit, and its one light. Disabled mid-refine on
+      // purpose: exporting what is on screen while the figures underneath are
+      // being replaced would produce a report of neither state.
+      primary: TorchPrimaryButton(
+        key: const ValueKey<String>('artifact-export-pdf'),
+        claimId: ArtifactScreen.exportClaimId,
+        label: _exporting ? l10n.artifactPreparing : l10n.artifactExportPdf,
+        icon: Icons.picture_as_pdf_outlined,
+        busy: _exporting,
+        blockedReason: busy ? l10n.artifactExportBlocked : null,
+        onPressed: _exporting || busy ? null : _exportPdf,
+      ),
+      children: <Widget>[
+        if (_error != null) ...<Widget>[
+          _RefusalNote(message: _error!),
+          SizedBox(height: context.skin.space.blockGap),
+        ],
+        _Body(
+          detail: detail,
+          params: params,
+          busy: busy,
+          captureKey: _captureKey,
+          onApply: _apply,
+          onUndo: _undo,
+        ),
+        SizedBox(height: context.skin.space.blockGap),
+        Text(
+          l10n.artifactExportNote,
+          style: context.skin.text.meta.style(
+            color: context.skin.palette.ink3,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -238,55 +332,111 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
 /// and `pillar_metrics` in particular carries its pillar only in the view spec
 /// the chat stream sent — which this screen never sees, because it loads from
 /// the server by id.
-String artifactTitle(ArtifactDetail detail) => switch (detail.toolName) {
-  'getRateOfSale' => 'Sales performance',
-  'getSkuMovement' => 'SKU movement',
-  'getStockLevels' => 'Stock levels',
-  'getShareOfShelf' => 'Share of shelf',
-  'getVisibilityCompliance' => 'Visibility compliance',
-  'getCompetitorActivity' => 'Competitor activity',
-  'getVisitHistory' => 'Visits',
-  'getFraudFlags' => 'Flagged visits',
-  'getAgentScorecard' => 'Agent scorecard',
-  'getMetricTrend' => 'Trend',
-  // A tool this build has not heard of is a server that shipped ahead of
-  // the app, which is normal — not an error state.
-  _ => 'View',
-};
+String artifactTitle(AppLocalizations l10n, ArtifactDetail detail) =>
+    switch (detail.toolName) {
+      'getRateOfSale' => l10n.artifactToolSalesPerformance,
+      'getSkuMovement' => l10n.artifactToolSkuMovement,
+      'getStockLevels' => l10n.artifactToolStockLevels,
+      'getShareOfShelf' => l10n.artifactToolShareOfShelf,
+      'getVisibilityCompliance' => l10n.artifactToolVisibility,
+      'getCompetitorActivity' => l10n.artifactToolCompetitor,
+      'getVisitHistory' => l10n.artifactToolVisits,
+      'getFraudFlags' => l10n.artifactToolFlaggedVisits,
+      'getAgentScorecard' => l10n.artifactToolAgentScorecard,
+      'getMetricTrend' => l10n.artifactToolTrend,
+      // A tool this build has not heard of is a server that shipped ahead of
+      // the app, which is normal — not an error state.
+      _ => l10n.artifactTitleView,
+    };
 
-class _Loaded extends StatelessWidget {
-  const _Loaded({
+/// The frame every state of this route wears.
+class _ArtifactFrame extends StatelessWidget {
+  const _ArtifactFrame({
+    required this.phase,
+    required this.title,
+    required this.children,
+    this.facts = const <String>[],
+    this.primary,
+  });
+
+  final String phase;
+  final String title;
+  final List<String> facts;
+  final Widget? primary;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final canPop = Navigator.of(context).canPop();
+
+    return TorchScope(
+      skin: context.skin,
+      phase: phase,
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        // Declared only when there is something to export. The allocator is
+        // told the truth about the frame rather than handed a claim the widget
+        // will then decline to spend.
+        if (primary != null)
+          TorchPrimaryButton.claim(ArtifactScreen.exportClaimId),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.console,
+        header: TorchAppHeader(
+          title: title,
+          // The applied filters, spelled out. A chart with no visible date
+          // range is a support ticket waiting to happen — and this route is
+          // reachable by a link from someone else's conversation, where the
+          // reader has none of the context the chat gave.
+          facts: facts,
+          back: TorchIconButton(
+            key: const ValueKey<String>('artifact-back'),
+            icon: Icons.arrow_back,
+            semanticLabel: canPop ? l10n.artifactBackToAsk : l10n.artifactBackToFloor,
+            onPressed: () => canPop ? context.pop() : context.go('/dashboard'),
+          ),
+        ),
+        skinCycle: const ConsoleSkinCycle(),
+        primary: primary,
+        children: children,
+      ),
+    );
+  }
+}
+
+/// The controls and the view, side by side once there is room for both.
+class _Body extends StatelessWidget {
+  const _Body({
     required this.detail,
     required this.params,
     required this.busy,
-    required this.error,
-    required this.exporting,
     required this.captureKey,
     required this.onApply,
     required this.onUndo,
-    required this.onExport,
   });
 
   final ArtifactDetail detail;
   final Map<String, dynamic> params;
   final bool busy;
-  final String? error;
-  final bool exporting;
   final GlobalKey captureKey;
   final ValueChanged<Map<String, dynamic>> onApply;
   final VoidCallback onUndo;
-  final VoidCallback onExport;
+
+  /// Side by side above this; stacked below it, which is the phone's
+  /// full-screen sheet in all but name. The console's usual tablet line.
+  static const double wideAt = 880;
 
   @override
   Widget build(BuildContext context) {
+    final gap = context.skin.space.blockGap;
     final controls = ArtifactFilters(
       detail: detail,
       params: params,
       busy: busy,
-      exporting: exporting,
       onApply: onApply,
       onUndo: onUndo,
-      onExport: onExport,
     );
     // RepaintBoundary, not a screenshot of the page: it captures exactly the
     // view — chart, legend and all — at whatever pixel ratio is asked for, and
@@ -299,102 +449,42 @@ class _Loaded extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Side by side once there is room for both; stacked below that, which
-        // is the phone's full-screen sheet in all but name. The breakpoint is
-        // the console's usual tablet line.
-        final wide = constraints.maxWidth >= 880;
+        // Dimmed, not removed, while a change is in flight: the figures are
+        // still the last true ones, and blanking them makes a 200ms query look
+        // like a page load. The whole region is also announced as busy, so the
+        // dimming is not the only channel.
+        final dimmed = Semantics(
+          liveRegion: busy,
+          label: busy ? context.l10n.artifactRefining : null,
+          child: Opacity(opacity: busy ? 0.55 : 1, child: view),
+        );
 
-        final body = <Widget>[
-          if (error != null) ...[
-            _RefusalNote(message: error!),
-            const SizedBox(height: 12),
-          ],
-          _AppliedFilters(params: params),
-          const SizedBox(height: 12),
-          // Dimmed, not removed, while a change is in flight: the figures are
-          // still the last true ones, and blanking them makes a 200ms query
-          // look like a page load.
-          Opacity(opacity: busy ? 0.55 : 1, child: view),
-        ];
-
-        if (!wide) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [controls, const SizedBox(height: 12), ...body],
+        if (constraints.maxWidth < wideAt) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[controls, SizedBox(height: gap), dimmed],
           );
         }
 
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ListView(padding: EdgeInsets.zero, children: body),
-              ),
-              const SizedBox(width: 16),
-              SizedBox(
-                width: 300,
-                child: ListView(padding: EdgeInsets.zero, children: [controls]),
-              ),
-            ],
-          ),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: dimmed),
+            SizedBox(width: gap),
+            SizedBox(width: 300, child: controls),
+          ],
         );
       },
     );
   }
 }
 
-/// The applied filters, spelled out.
+/// A change the server refused, in its own words.
 ///
-/// A chart with no visible date range is a support ticket waiting to happen —
-/// and this screen is reachable by a link from someone else's conversation,
-/// where the user has none of the context the chat gave.
-class _AppliedFilters extends StatelessWidget {
-  const _AppliedFilters({required this.params});
-
-  final Map<String, dynamic> params;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      // A pill on the ground, headed by a kicker, so the sentence reads as the
-      // scope of the view rather than as a caption lost under the controls.
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: GlassPane(
-          kind: GlassKind.pill,
-          radius: LumenGlass.radiusControl,
-          shadow: false,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Kicker('Showing'),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  describeParamsInWords(params),
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: context.lumen.ink,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Text(
-      describeParamsInWords(params),
-      style: TextStyle(fontSize: 12, height: 1.4, color: colors.ink3),
-    );
-  }
-}
-
+/// Crimson at the watch commitment level, with the mark and the words — never
+/// a hue on its own, and never amber: there is no amber warning in this system
+/// and a refusal is the most tempting place to invent one.
 class _RefusalNote extends StatelessWidget {
   const _RefusalNote({required this.message});
 
@@ -402,121 +492,26 @@ class _RefusalNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      final sw = LumenStatus.crit.swatchOf(colors);
-      return Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        decoration: BoxDecoration(
-          // Opaque: the crit wash composited onto the pane, so the words'
-          // contrast is measured against what is actually painted (6.7:1).
-          color: Color.alphaBlend(sw.tint, colors.surface1),
-          border: Border.all(color: sw.rim),
-          borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.error_outline, size: 15, color: sw.ink),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(fontSize: 12.5, height: 1.4, color: sw.ink),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.error_outline, size: 15, color: colors.critText),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            // The server's own words. It writes them to be read by a user, and
-            // replacing them with "something went wrong" hides which filter it
-            // refused.
-            message,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.4,
-              color: colors.critText,
-            ),
+    final skin = context.skin;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: SeverityMark(kind: SeverityMarkKind.watch),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LoadFailure extends StatelessWidget {
-  const _LoadFailure({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      final lumen = context.lumen;
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: GlassPane(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.insights_outlined,
-                    size: 26,
-                    color: lumen.accentInk,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: lumen.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  OutlinedButton(
-                    onPressed: onRetry,
-                    child: const Text('Try again'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.insights_outlined, size: 26, color: colors.ink4),
-            const SizedBox(height: 12),
-            Text(
+          const SizedBox(width: TiqSpace.s3),
+          Expanded(
+            child: Text(
               message,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
+              key: const ValueKey<String>('artifact-refusal'),
+              style: skin.text.body.style(color: skin.palette.bad),
             ),
-            const SizedBox(height: 14),
-            OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
