@@ -99,7 +99,12 @@ void main() {
       final delta = tester.widget<Delta>(find.byType(Delta));
       expect(delta.data.direction, DeltaDirection.up);
       expect(delta.data.sentiment, TiqSentiment.good);
-      expect(text, contains('+11.0'));
+      // Unsigned since 25 September 2026: the triangle above carries the
+      // direction and the `+` was the same word said twice. The two lines
+      // above are where "up, and up is good here" is pinned, and they are
+      // stronger than the glyph was.
+      expect(text, contains('11.0'));
+      expect(text, isNot(contains('+11.0')));
     });
 
     testWidgets('offers Expand only for an artifact the routes can find', (
@@ -382,9 +387,15 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(Delta), findsOneWidget);
       final text = screenText(tester);
-      expect(text, contains('+4.0'));
+      // Unsigned — the triangle is the sign. What this test is for is the
+      // line below it: a null `pct` must not become a fabricated percentage.
+      expect(text, contains('4.0'));
       expect(text, isNot(contains('%')));
       expect(text, isNot(contains('0%')));
+      expect(
+        tester.widget<Delta>(find.byType(Delta)).data.direction,
+        DeltaDirection.up,
+      );
     });
 
     testWidgets('labels a metric it has never heard of instead of hiding it', (
