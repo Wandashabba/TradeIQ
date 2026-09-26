@@ -130,7 +130,6 @@ class _FakeWebhooksRepository implements WebhooksRepository {
     return _healthy;
   }
 
-  @override
   /// The cursor the delivery log hands back. A fake that never sets one
   /// cannot tell a whole log from a log cut at ten.
   String? deliveriesCursor;
