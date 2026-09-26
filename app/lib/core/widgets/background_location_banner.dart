@@ -206,7 +206,11 @@ class _Pane extends StatelessWidget {
           color: skin.palette.edgeStructure,
           width: skin.depth.borderWidth,
         ),
-        boxShadow: skin.depth.shadows,
+        // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
+        // in Night and Veld and three stacked drops in Day, so this block
+        // floated on the Day ground while every card and row beside it sat
+        // flat on it — two grammars on one screen, in the one skin where it
+        // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
       ),
       child: child,
     );

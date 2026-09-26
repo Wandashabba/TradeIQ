@@ -127,6 +127,14 @@ void invalidateRouteProgress(Ref ref) {
   ref.invalidate(todayRouteProvider);
 }
 
+/// How many pages "today's route" will walk before giving up.
+///
+/// The walk normally stops on its own at the first plan scheduled before
+/// today, so this is a backstop against a server that changes the ordering —
+/// not the mechanism. Twenty pages of fifty is a thousand plans, which is more
+/// than a year of a daily recurrence.
+const int _pageCap = 20;
+
 /// Today's route, or null if nobody planned one.
 ///
 /// Null is a real answer, not a loading state. A manager who has not built a
@@ -134,7 +142,6 @@ void invalidateRouteProgress(Ref ref) {
 /// that rather than inventing a route out of the outlet list.
 final todayRouteProvider = FutureProvider<TodayRoute?>((ref) async {
   final now = ref.watch(nowProvider)();
-  final plans = await ref.watch(beatPlansListProvider.future);
 
   // GET /beatplans already scopes a field agent to their own plans, so "today's
   // plan" is just today's date among them.
@@ -146,16 +153,42 @@ final todayRouteProvider = FutureProvider<TodayRoute?>((ref) async {
   // onto the client's timezone. Note too that `scheduledDate` is a calendar date
   // stored as UTC midnight, and `.toLocal()` keeps that date only in zones at or
   // east of UTC — a zone west of UTC would need the date read in UTC instead.
+  //
+  // AND IT IS NOT RELIABLY ON PAGE ONE. This read `beatPlansListProvider` —
+  // the first page, and only the first page — so an agent whose plan sat
+  // further down was told "No route today" and had no way to know the app had
+  // simply stopped looking. The server orders plans **descending by scheduled
+  // date** and recurrence creates them ahead of time, so a daily plan set up
+  // for a year puts three hundred future dates above today's.
+  //
+  // The walk is bounded by the data rather than by a guess: the list is
+  // sorted, so the first plan scheduled *before* today proves today's is not
+  // further down, and the loop stops there. [_pageCap] is a backstop against a
+  // server that ever changes that order, not the mechanism.
   BeatPlan? todays;
-  for (final plan in plans) {
-    final scheduled = DateTime.tryParse(plan.scheduledDate)?.toLocal();
-    if (scheduled == null) continue;
-    if (scheduled.year == now.year &&
-        scheduled.month == now.month &&
-        scheduled.day == now.day) {
-      todays = plan;
-      break;
+  String? cursor;
+  var pages = 0;
+  final repo = ref.read(beatPlansRepositoryProvider);
+  final today = DateTime(now.year, now.month, now.day);
+  outer:
+  while (pages < _pageCap) {
+    final page = pages == 0
+        ? await ref.watch(beatPlansPageProvider.future)
+        : await repo.listBeatPlans(cursor: cursor);
+    pages++;
+    for (final plan in page.data) {
+      final scheduled = DateTime.tryParse(plan.scheduledDate)?.toLocal();
+      if (scheduled == null) continue;
+      final day = DateTime(scheduled.year, scheduled.month, scheduled.day);
+      if (day == today) {
+        todays = plan;
+        break outer;
+      }
+      // Sorted newest first: once the list is past today, today is not in it.
+      if (day.isBefore(today)) break outer;
     }
+    cursor = page.nextCursor;
+    if (cursor == null) break;
   }
   if (todays == null) return null;
 

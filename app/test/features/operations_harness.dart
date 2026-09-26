@@ -76,6 +76,13 @@ class FakeOpsOutletsRepository implements OutletsRepository {
   final bool listPending;
   final Object? createFailure;
 
+  /// Plans behind the first page's cursor, and the cursor that reaches them.
+  final Map<String, List<BeatPlan>> pages = <String, List<BeatPlan>>{};
+  String? firstCursor;
+
+  /// Every cursor asked for, in order.
+  final List<String?> cursorsAsked = <String?>[];
+
   int createCount = 0;
   String? createdName;
   String? createdCode;
@@ -282,11 +289,29 @@ class FakeBeatPlansRepository implements BeatPlansRepository {
   List<String>? createdOutletIds;
   String? createdTerritoryId;
 
+  /// Plans behind the first page's cursor, and the cursor that reaches them.
+  final Map<String, List<BeatPlan>> pages = <String, List<BeatPlan>>{};
+  String? firstCursor;
+
+  /// Every cursor asked for, in order.
+  final List<String?> cursorsAsked = <String?>[];
+
   @override
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async {
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans({String? cursor}) async {
     if (listFailure != null) throw listFailure!;
     if (listPending) return Completer<PaginatedResponse<BeatPlan>>().future;
-    return PaginatedResponse(data: plans, nextCursor: null);
+    // Pages, because "today's route" walks them: the list is ordered
+    // descending by scheduled date and recurrence puts future plans above
+    // today's, so a fake that only ever answers one page cannot tell a walked
+    // list from a truncated one.
+    cursorsAsked.add(cursor);
+    if (cursor == null) {
+      return PaginatedResponse(data: plans, nextCursor: firstCursor);
+    }
+    return PaginatedResponse(
+      data: pages[cursor] ?? const <BeatPlan>[],
+      nextCursor: null,
+    );
   }
 
   @override
