@@ -3467,6 +3467,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meVisitsLoadError => 'Your visits did not load';
 
   @override
+  String meVisitsShowing(int shown) {
+    return 'Showing $shown. There are older visits.';
+  }
+
+  @override
+  String get meVisitsShowOlder => 'Show older visits';
+
+  @override
+  String get meVisitsMoreFailed => 'Older visits did not load';
+
+  @override
   String get meNotScoredYet => 'Waiting to be scored';
 
   @override

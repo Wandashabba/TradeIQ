@@ -405,9 +405,15 @@ class _Summary extends ConsumerWidget {
       ),
     };
 
-    return Container(
+    // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty in
+    // Night and Veld and three stacked drops in Day, so this block floated on
+    // the Day ground while the outbox rows under it sat flat on it — two
+    // grammars on one screen, in the one skin where it shows. Neither
+    // `TorchCard` nor `SoftRow` paints a shadow in any skin. Everything else
+    // is the standalone row's material, which is what this is: unify §1.3
+    // names "the outbox summary" as one of that form's cases.
+    return DecoratedBox(
       key: const ValueKey<String>('work-summary'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
         color: skin.palette.surface,
         borderRadius: BorderRadius.circular(skin.radii.panel),
@@ -415,9 +421,10 @@ class _Summary extends ConsumerWidget {
           color: skin.palette.edgeStructure,
           width: skin.depth.borderWidth,
         ),
-        boxShadow: skin.depth.shadows,
       ),
-      child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(TiqSpace.s4),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           // The state is ONE node for a screen reader, and it leads with the
@@ -478,7 +485,8 @@ class _Summary extends ConsumerWidget {
                 ? null
                 : () => ref.read(syncNowProvider)(),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

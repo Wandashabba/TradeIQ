@@ -63,9 +63,12 @@ enum NavGroup { operate, insight, configure }
 
 /// The group's name in [l10n]'s language, sentence case.
 ///
-/// Sentence case, because the section rule replaced the uppercase eyebrow and
-/// "OPERATE" shouted at a screen reader is a word spelled out letter by
-/// letter.
+/// Sentence case **in the data**, which is the half of this that never
+/// changed: "OPERATE" shouted into a string is a word a screen reader spells
+/// out letter by letter, and it reaches the search index and the PDF exporter
+/// too. [SectionRule] uppercases for display only and hands this string to
+/// anything that reads — so the menu's groups print as kickers and are still
+/// announced as words.
 String navGroupName(AppLocalizations l10n, NavGroup group) => switch (group) {
   NavGroup.operate => l10n.navGroupOperate,
   NavGroup.insight => l10n.navGroupInsight,

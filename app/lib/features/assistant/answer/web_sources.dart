@@ -35,8 +35,9 @@ Future<bool> openWebSource(Uri url) async {
 ///
 /// A [SectionRule] and a list of rows — the same grammar as the callout, so
 /// this surface has exactly two section markers and they look like each other.
-/// Sentence case, `title.m`, knocked out of the rule: unify §1.17 retires the
-/// uppercase eyebrow as a screen-level marker, and "SOURCES" was one.
+/// Since 26 September 2026 that grammar is The Floor's: `SOURCES · 2`,
+/// uppercase and letter-spaced on the ground, with no line across the answer.
+/// The string stays sentence case; the component does the shouting.
 ///
 /// Every string is drawn as plain text: a title off the open web is never
 /// parsed as markdown.

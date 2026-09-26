@@ -12,6 +12,9 @@ import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/tasks/presentation/tasks_screen.dart';
 import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
 
+import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
+
 import '../agent_harness.dart';
 import '../worklist_harness.dart';
 
@@ -50,6 +53,23 @@ void main() {
     outlet('o3', 'Kasi Corner Spaza'),
     outlet('o4', 'Pick n Pay Rosebank'),
   ];
+
+  testWidgets('Today — the agent’s home, Night × Field', (tester) async {
+    await pumpAgentScreen(
+      tester,
+      const TodayScreen(),
+      size: const Size(390, 844),
+      overrides: <Override>[
+        ...agentBaseOverrides(db: agentTestDb()),
+        todayRouteProvider.overrideWith((ref) async => _today()),
+      ],
+    );
+
+    await expectLater(
+      find.byKey(agentBoundaryKey),
+      matchesGoldenFile('goldens/grammar_today_390x844.png'),
+    );
+  }, skip: !looking);
 
   testWidgets('Alerts — the manager’s worklist, Night × Console', (
     tester,
@@ -104,6 +124,52 @@ void main() {
     );
   }, skip: !looking);
 }
+
+/// A real day: nine stores, four done, the fifth up next.
+TodayRoute _today() => TodayRoute(
+  planName: 'Tembisa run',
+  hasLocation: true,
+  stops: <RouteStop>[
+    for (var i = 0; i < 4; i++)
+      RouteStop(
+        sequence: 1 + i,
+        outlet: Outlet(
+          id: 'done$i',
+          name: 'Khumalo Superette $i',
+          code: 'KS-01$i',
+          lat: 0,
+          lng: 0,
+        ),
+        visited: true,
+        distanceMeters: 900.0 + i * 300,
+      ),
+    RouteStop(
+      sequence: 5,
+      outlet: Outlet(
+        id: 'kasi',
+        name: 'Kasi Corner Spaza',
+        code: 'KC-0412',
+        lat: 0,
+        lng: 0,
+      ),
+      visited: false,
+      distanceMeters: 420,
+    ),
+    for (var i = 0; i < 4; i++)
+      RouteStop(
+        sequence: 6 + i,
+        outlet: Outlet(
+          id: 'rest$i',
+          name: 'Pick n Pay Vosloorus $i',
+          code: 'PP-02$i',
+          lat: 0,
+          lng: 0,
+        ),
+        visited: false,
+        distanceMeters: 2100.0 + i * 400,
+      ),
+  ],
+);
 
 AlertItem _alert(String id, String severity, String message, String outletId) =>
     AlertItem(

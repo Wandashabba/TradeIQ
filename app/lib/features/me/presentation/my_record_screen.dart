@@ -9,6 +9,7 @@ import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -495,16 +496,19 @@ class _LedgerRow extends StatelessWidget {
               day,
               TiqNumber.of(context).format(score, decimals: 0),
             )
-          : l10n.meLedgerRowSemantics(reason, day, _pointWords(l10n, entry.points)),
+          : l10n.meLedgerRowSemantics(
+              reason,
+              day,
+              _pointWords(l10n, entry.points),
+            ),
     );
   }
 }
 
 /// "plus 5 points" / "minus 5 points". The sign in words, for the reader the
 /// triangle does not reach.
-String _pointWords(AppLocalizations l10n, int points) => points < 0
-    ? l10n.mePointsMinus(points.abs())
-    : l10n.mePointsPlus(points);
+String _pointWords(AppLocalizations l10n, int points) =>
+    points < 0 ? l10n.mePointsMinus(points.abs()) : l10n.mePointsPlus(points);
 
 /// The score a scorecard row fed into the average — a level, so no triangle
 /// and no sentiment. `FigureSlot`, like every other figure on this screen, and
@@ -591,14 +595,76 @@ class _HonestyLine extends StatelessWidget {
 
 // ── MY VISITS ──────────────────────────────────────────────────────────────
 
-class _Visits extends StatelessWidget {
+/// THE AGENT'S OWN VISITS — and, since 26 September 2026, all of them.
+///
+/// `GET /visits/me` is a cursor-paged endpoint, `MyVisitsPage` has carried a
+/// `nextCursor` since it was written, and **no widget read it**: the screen
+/// rendered page one and stopped, with no footer, no action and no sentence
+/// saying the list had been cut. An agent with more than a page of visits
+/// simply could not see their older ones, and nothing on the screen admitted
+/// it. That is the same class of loss as a filter dropped in a migration, and
+/// the repair is the one `my_work_screen.dart` already uses: a
+/// [PaginationFooter] that says what is shown and a ghost action that loads
+/// the next page.
+///
+/// The summary never fabricates a total. The server returns a cursor, not a
+/// count, so the line is "Showing 20. There are older visits." and not
+/// "Showing 20 of 63" — a number nobody sent.
+class _Visits extends ConsumerStatefulWidget {
   const _Visits({required this.visits, required this.sync});
 
   final AsyncValue<MyVisitsPage> visits;
   final SyncStatus sync;
 
   @override
+  ConsumerState<_Visits> createState() => _VisitsState();
+}
+
+class _VisitsState extends ConsumerState<_Visits> {
+  /// Pages two and on, in order. Page one stays in the provider so a refresh
+  /// of the record refreshes the list.
+  final List<MyVisit> _older = <MyVisit>[];
+
+  /// The cursor for the page after everything loaded so far. Null once the
+  /// server stops sending one, which is how the list says it has reached the
+  /// end without counting anything.
+  String? _cursor;
+  bool _cursorRead = false;
+  bool _loading = false;
+  bool _failed = false;
+
+  Future<void> _loadOlder(String cursor) async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final page = await ref
+          .read(myRecordRepositoryProvider)
+          .myVisits(cursor: cursor);
+      if (!mounted) return;
+      setState(() {
+        _older.addAll(page.visits);
+        _cursor = page.nextCursor;
+        _cursorRead = true;
+        _loading = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      // The visits already on screen stay. A failed *next* page is not a
+      // failed list, and throwing the loaded ones away to show an error
+      // region would be the worse answer.
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visits = widget.visits;
+    final sync = widget.sync;
     final l10n = context.l10n;
     final held = sync.pending.length + sync.needsAttention.length;
 
@@ -621,13 +687,42 @@ class _Visits extends StatelessWidget {
             message: meLoadError(context, l10n.meVisitsLoadError),
             scope: ErrorScope.inline,
           ),
-          data: (page) => page.visits.isEmpty
-              ? EmptyState(
-                  headline: l10n.meVisitsEmpty,
-                  scope: EmptyScope.inline,
-                  body: l10n.meVisitsEmptyDetail,
-                )
-              : _VisitList(visits: page.visits),
+          data: (page) {
+            final all = <MyVisit>[...page.visits, ..._older];
+            if (all.isEmpty) {
+              return EmptyState(
+                headline: l10n.meVisitsEmpty,
+                scope: EmptyScope.inline,
+                body: l10n.meVisitsEmptyDetail,
+              );
+            }
+            // Page one's cursor until something older has been loaded, then
+            // the last page's. `_cursorRead` is the difference between "not
+            // asked yet" and "the server sent none", which is the same
+            // unknown-versus-zero distinction the figures make.
+            final next = _cursorRead ? _cursor : page.nextCursor;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _VisitList(visits: all),
+                if (next != null || _failed) ...<Widget>[
+                  const SizedBox(height: TiqSpace.s4),
+                  PaginationFooter(
+                    summary: l10n.meVisitsShowing(all.length),
+                    narrowLine: _failed ? l10n.meVisitsMoreFailed : null,
+                    action: next == null
+                        ? null
+                        : TorchTertiaryButton(
+                            key: const ValueKey<String>('me-show-older'),
+                            label: l10n.meVisitsShowOlder,
+                            busy: _loading,
+                            onPressed: _loading ? null : () => _loadOlder(next),
+                          ),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ],
     );

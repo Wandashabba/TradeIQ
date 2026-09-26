@@ -3504,6 +3504,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meVisitsLoadError => 'Jou besoeke het nie gelaai nie';
 
   @override
+  String meVisitsShowing(int shown) {
+    return 'Wys $shown. Daar is ouer besoeke.';
+  }
+
+  @override
+  String get meVisitsShowOlder => 'Wys ouer besoeke';
+
+  @override
+  String get meVisitsMoreFailed => 'Ouer besoeke het nie gelaai nie';
+
+  @override
   String get meNotScoredYet => 'Wag om gepunt te word';
 
   @override

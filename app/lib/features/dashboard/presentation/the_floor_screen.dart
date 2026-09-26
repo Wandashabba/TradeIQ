@@ -348,13 +348,16 @@ class _Floor extends ConsumerWidget {
 
 /// `NEEDS A DECISION`, as words rather than as a rule.
 ///
-/// **Owner override, 25 September 2026.** unify §1.17 says a screen-level
-/// section marker is the knocked-out rule at `title.m` in sentence case, and
-/// [SectionRule] is that component. The reference the owner signed off has no
-/// rule and no count on this screen — a line across the screen is one more
-/// box on a screen they have twice asked to be less boxy — so The Floor's one
-/// marker is the uppercase kicker on the ground. Every other screen keeps the
-/// rule; this is not a licence to delete it.
+/// **Owner override, 25 September 2026, widened 26 September.** unify §1.17
+/// used to say a screen-level section marker is the knocked-out rule at
+/// `title.m` in sentence case, with The Floor as the single exception. The
+/// owner then asked for this screen's design "global and everywhere on the
+/// app", so [SectionRule] *is* this marker now and every screen wears it.
+///
+/// This widget stays a local [Eyebrow] rather than becoming a `SectionRule`
+/// for one reason: The Floor's marker takes no count. The count is not
+/// dropped, it moves — the list says how many it is not showing in words, at
+/// the foot, where a manager who wants the number is already looking.
 ///
 /// The count goes with the line. It was never the thing the marker was for:
 /// the list says how many it is not showing in words, at the foot, where a

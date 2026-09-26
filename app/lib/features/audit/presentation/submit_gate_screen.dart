@@ -350,6 +350,11 @@ class _CapturedBlock extends StatelessWidget {
           ? l10n.submitCapturedSemantics(done, total, line)
           : l10n.submitCapturedUnreadSemantics(line),
       excludeSemantics: true,
+      // NO SHADOW, since 26 September 2026: `skin.depth.shadows` is empty in
+      // Night and Veld and three stacked drops in Day, so this block floated
+      // on the Day ground while the rows beneath it sat flat on it. Neither
+      // `TorchCard` nor `SoftRow` paints one in any skin. The rest is the
+      // standalone row's material, which is what this block is.
       child: Container(
         key: const ValueKey<String>('submit-captured'),
         padding: const EdgeInsets.all(TiqSpace.s4),
@@ -360,7 +365,6 @@ class _CapturedBlock extends StatelessWidget {
             color: skin.palette.edgeStructure,
             width: skin.depth.borderWidth,
           ),
-          boxShadow: skin.depth.shadows,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,13 +531,28 @@ class _NothingToRaise extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
+    // THE STRUCTURAL EDGE, NOT A GREEN ONE — 26 September 2026.
+    //
+    // This block wore a 1px `good` border, which is the only coloured outline
+    // anywhere in the row-and-card family: a card has no resting outline, a
+    // standalone row has `edgeStructure`, and the severity system's own two
+    // levels are carried by a mark's silhouette rather than by a box around
+    // the content. A green box for "nothing to raise" also spends a verdict on
+    // an absence, which is the one thing a clean gate is not making.
+    //
+    // The verdict it was carrying is not lost — it is where the system puts
+    // it: the `onTarget` severity mark beside the headline, which survives
+    // greyscale, and the headline's own words.
     return Container(
       key: const ValueKey<String>('submit-clean'),
       padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
         color: skin.palette.surface,
         borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(color: skin.palette.good, width: 1),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
