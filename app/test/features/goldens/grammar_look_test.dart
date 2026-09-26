@@ -15,7 +15,12 @@ import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
+import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
+
 import '../agent_harness.dart';
+import '../assistant/ask_harness.dart' show askBlock;
 import '../worklist_harness.dart';
 
 /// THE GRAMMAR, RENDERED, SO SOMEBODY CAN LOOK AT IT.
@@ -53,6 +58,37 @@ void main() {
     outlet('o3', 'Kasi Corner Spaza'),
     outlet('o4', 'Pick n Pay Rosebank'),
   ];
+
+  // THE RANKED BARS, ON PAPER. The track was `lifted` — a dark block in all
+  // three skins — so on Day's Palladian ground a small `good` bar floated in a
+  // navy channel. Day is the skin this has to be looked at in.
+  for (final skin in <TiqSkin>[
+    TiqSkin.night(density: TiqDensity.console),
+    TiqSkin.day(density: TiqDensity.console),
+  ]) {
+    final name = skin.brightness == Brightness.dark ? 'night' : 'day';
+    testWidgets('Ranked bars — $name ground', (tester) async {
+      await tester.pumpWidget(
+        askBlock(
+          ArtifactView(
+            artifact: ChatArtifact(
+              id: 'a1',
+              type: 'ranked_bars',
+              params: const <String, dynamic>{},
+              data: _rankedBars,
+            ),
+          ),
+          skin: skin,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byType(ArtifactView),
+        matchesGoldenFile('goldens/grammar_ranked_bars_$name.png'),
+      );
+    }, skip: !looking);
+  }
 
   testWidgets('Today — the agent’s home, Night × Field', (tester) async {
     await pumpAgentScreen(
@@ -170,6 +206,20 @@ TodayRoute _today() => TodayRoute(
       ),
   ],
 );
+
+const _rankedBars = <String, Object>{
+  'title': 'Change by territory',
+  'comparedTo': "vs Aug '25",
+  'diverging': true,
+  'unit': 'pct',
+  'items': <Map<String, Object>>[
+    <String, Object>{'label': 'Soweto', 'value': -31},
+    <String, Object>{'label': 'Alexandra', 'value': -9},
+    <String, Object>{'label': 'Tembisa', 'value': -2},
+    <String, Object>{'label': 'Pretoria East', 'value': 7},
+    <String, Object>{'label': 'Midrand', 'value': 0},
+  ],
+};
 
 AlertItem _alert(String id, String severity, String message, String outletId) =>
     AlertItem(

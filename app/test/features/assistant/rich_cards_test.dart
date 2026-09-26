@@ -220,6 +220,83 @@ void main() {
         expect(text, contains('+7%'));
       });
 
+      testWidgets('the track wells into the surface rather than sitting on it', (
+        tester,
+      ) async {
+        // `lifted` is a DARK block in all three skins (#2C3B4D, #2C3B4D,
+        // #1B2632). On Night that is a step up from the ground and reads as a
+        // recess; on Day's Palladian paper it is a navy channel with a small
+        // `good` bar floating in it. `Meter` resolves this the same way and
+        // nothing was holding the ranked bars to it.
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), skin: skin),
+        );
+        await tester.pumpAndSettle();
+
+        final expected = skin.brightness == Brightness.dark
+            ? skin.palette.lifted
+            : skin.palette.well;
+        final tracks = tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: find.byType(RankedBarsCard),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((b) => b.decoration)
+            .whereType<BoxDecoration>()
+            .map((d) => d.color)
+            .toList();
+        expect(
+          tracks,
+          contains(expected),
+          reason: 'the track is $expected in ${skin.mode.name}',
+        );
+        if (skin.brightness != Brightness.dark) {
+          expect(
+            tracks,
+            isNot(contains(skin.palette.lifted)),
+            reason: 'a dark channel on paper is what this test exists for',
+          );
+        }
+      });
+
+      testWidgets('a bar is square at the origin and shaped only at its end', (
+        tester,
+      ) async {
+        // A fill rounded on all four corners is a lozenge floating in a track
+        // rather than a measurement growing out of an axis — and the shorter
+        // the reading, the worse it reads. A bar starts at the origin; only
+        // the end it stopped at is a measurement.
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), skin: skin),
+        );
+        await tester.pumpAndSettle();
+
+        for (final i in <int>[0, 3]) {
+          final fill = find.descendant(
+            of: find.byKey(ValueKey<String>('ranked-bar-fill-$i')),
+            matching: find.byType(DecoratedBox),
+          );
+          final radius =
+              (tester.widget<DecoratedBox>(fill.first).decoration
+                      as BoxDecoration)
+                  .borderRadius!
+                  .resolve(TextDirection.ltr);
+          // Index 0 is the fall — it grows leftward from the centre axis, so
+          // its square end is the trailing one. Index 3 is a rise.
+          final growsFromStart = i != 0;
+          final origin = growsFromStart
+              ? radius.topLeft
+              : radius.topRight;
+          final end = growsFromStart ? radius.topRight : radius.topLeft;
+          expect(origin, Radius.zero, reason: 'bar $i is square at the origin');
+          if (skin.mode != SkinMode.veld) {
+            expect(end.x, greaterThan(0), reason: 'bar $i is shaped at its end');
+          }
+        }
+      });
+
       testWidgets('all non-negative: plain bars from one baseline, unsigned', (
         tester,
       ) async {

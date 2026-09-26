@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/figure/eyebrow.dart';
 import '../../../l10n/l10n.dart';
 import '../answer/answer_notes.dart';
@@ -68,61 +69,59 @@ class InstrumentPanel extends StatelessWidget {
     return Semantics(
       container: true,
       label: context.l10n.askFigures,
-      child: Container(
+      // A CARD — 26 September 2026. This is the answer's one figure block, and
+      // the card override names exactly that as `TorchCard`'s second case
+      // ("the container for a list of things a person acts on **and for the
+      // one figure that sends them there**"). It was a hand-built radius-14
+      // panel with an `edgeStructure` rim and `sh1` on Day, which is the
+      // grammar The Floor left behind: radius 22, `surface`, no outline, and
+      // no shadow in any skin.
+      //
+      // Veld is `TorchCard`'s own answer and no longer this widget's: radius
+      // 0 with the skin's 2px border, which is what the `veld ?` branches here
+      // were spelling out by hand.
+      //
+      // Vertical padding only: the side gutters are each block's own, so the
+      // rules between blocks can run edge to edge without a negative margin —
+      // which `Container` refuses, and which took down every answer with more
+      // than one block.
+      child: KeyedSubtree(
         key: const ValueKey<String>('instrument-panel'),
-        // Vertical padding only: the side gutters are each block's own, so
-        // the rules between blocks can run edge to edge without a negative
-        // margin — which Container refuses, and which took down every answer
-        // with more than one block.
-        padding: EdgeInsets.symmetric(vertical: padding),
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(veld ? 0 : skin.radii.panel),
-          border: Border.all(
-            color: veld ? p.ink1 : p.edgeStructure,
-            width: ruleWidth,
-          ),
-          // No shadow, no rim. The direction's 1px Palladian@10% top rim is
-          // cut here: an 8–12% alpha step is below what a 6-bit LCD at 40%
-          // backlight resolves, and it cost a second border paint to say
-          // nothing.
-          // sh1 on Day, and nothing at all in Night or Veld — the token is
-          // empty there, so this is the palette's answer rather than a
-          // condition restated in a widget.
-          boxShadow: <BoxShadow>[?skin.depth.sh1],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (var i = 0; i < blocks.length; i++) ...<Widget>[
-              if (i > 0) ...<Widget>[
-                SizedBox(height: gap / 2),
-                // Full-bleed: the rule runs to the panel's inside edges, so
-                // it reads as the instrument's grid rather than as an
-                // underline on the block above it.
-                SizedBox(
-                  height: ruleWidth,
-                  child: ColoredBox(color: veld ? p.ink1 : p.edgeStructure),
-                ),
-                SizedBox(height: gap / 2),
-              ],
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: padding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (blocks[i].eyebrow != null && i > 0) ...<Widget>[
-                      Eyebrow(blocks[i].eyebrow!),
-                      SizedBox(height: skin.space.intraBlock),
+        child: TorchCard(
+          padding: EdgeInsets.symmetric(vertical: padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var i = 0; i < blocks.length; i++) ...<Widget>[
+                if (i > 0) ...<Widget>[
+                  SizedBox(height: gap / 2),
+                  // Full-bleed: the rule runs to the panel's inside edges, so
+                  // it reads as the instrument's grid rather than as an
+                  // underline on the block above it.
+                  SizedBox(
+                    height: ruleWidth,
+                    child: ColoredBox(color: veld ? p.ink1 : p.edgeStructure),
+                  ),
+                  SizedBox(height: gap / 2),
+                ],
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: padding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (blocks[i].eyebrow != null && i > 0) ...<Widget>[
+                        Eyebrow(blocks[i].eyebrow!),
+                        SizedBox(height: skin.space.intraBlock),
+                      ],
+                      KeyedSubtree(key: blocks[i].key, child: blocks[i].child),
                     ],
-                    KeyedSubtree(key: blocks[i].key, child: blocks[i].child),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -205,7 +204,8 @@ class AnswerFigures {
       // figures. There is no "probably internal".
       return AnswerFigures(
         internal: <ChatArtifact>[
-          for (final a in internal) if (!figureTypes.contains(a.type)) a,
+          for (final a in internal)
+            if (!figureTypes.contains(a.type)) a,
         ],
         outside: const <ChatArtifact>[],
         suppressed: true,
