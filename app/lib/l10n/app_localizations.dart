@@ -10242,6 +10242,30 @@ abstract class AppLocalizations {
   /// **'in {days}d'**
   String relativeInDays(int days);
 
+  /// The `visit.submitted` webhook event, in words. The dotted slug stays on the row as the identifier.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit submitted'**
+  String get webhookEventVisitSubmitted;
+
+  /// The `alert.raised` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert raised'**
+  String get webhookEventAlertRaised;
+
+  /// The `order.created` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Order created'**
+  String get webhookEventOrderCreated;
+
+  /// The `report.generated` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Report generated'**
+  String get webhookEventReportGenerated;
+
   /// An endpoint that is receiving.
   ///
   /// In en, this message translates to:
@@ -10494,6 +10518,12 @@ abstract class AppLocalizations {
   /// **'Recent deliveries'**
   String get webhookDeliveriesSection;
 
+  /// Footer under a webhook's delivery log when the page was cut. Never a fabricated total.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recent. There are more.'**
+  String webhookDeliveriesShowing(int shown);
+
   /// What the deliveries skeleton says it is loading.
   ///
   /// In en, this message translates to:
@@ -10721,6 +10751,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Anything you send below reaches the whole team.'**
   String get messagesEmptyBody;
+
+  /// Pagination footer under the messages feed. Never a fabricated total — the server returns a cursor, not a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older messages.'**
+  String messagesShowing(int shown);
+
+  /// Ghost action that loads the next page of messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older messages'**
+  String get messagesShowOlder;
+
+  /// Pagination footer under the announcements feed.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older announcements.'**
+  String announcementsShowing(int shown);
+
+  /// Ghost action that loads the next page of announcements.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older announcements'**
+  String get announcementsShowOlder;
+
+  /// The next page of a feed failed. What is on screen stays; this line says why there is no more.
+  ///
+  /// In en, this message translates to:
+  /// **'Older items did not load'**
+  String get feedMoreFailed;
 
   /// In-panel empty state of the announcements feed.
   ///

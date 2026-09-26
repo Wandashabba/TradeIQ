@@ -346,7 +346,7 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
         SoftRow(
           key: ValueKey<String>('webhook-row-${webhook.id}'),
           density: SoftRowDensity.tall,
-          title: webhook.event,
+          title: webhookEventWords(l10n, webhook.event),
           subtitle: lastDelivery == null
               ? l10n.webhookNoDeliveriesYet
               : l10n.webhookLastDelivery(relativeTime(lastDelivery, l10n)),
@@ -369,9 +369,14 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              // A URL is a thing the system calls, not prose.
+              // THE EVENT'S OWN TOKEN, AND THE URL — both things the system
+              // uses rather than things a person reads, so both wear the
+              // identifier face. The token was the row's *headline* until
+              // 26 September 2026 (`visit.submitted` as the name of the
+              // webhook); it is a thing you paste into a config file, not a
+              // name, and it belongs here where the URL already is.
               Text(
-                webhook.url,
+                '${webhook.event} · ${webhook.url}',
                 style: skin.text.monoIdent.style(color: skin.palette.ink3),
               ),
               const SizedBox(height: TiqSpace.s1),
@@ -421,7 +426,7 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
               ? SoftRowSeparator.none
               : SoftRowSeparator.auto,
           semanticsLabel: <String>[
-            webhook.event,
+            webhookEventWords(l10n, webhook.event),
             webhook.url,
             webhook.health.wordIn(l10n),
             _active ? l10n.webhookReceiving : l10n.webhookPaused,
@@ -474,25 +479,41 @@ class _DeliveriesList extends ConsumerWidget {
                     ref.invalidate(webhookDeliveriesProvider(webhookId)),
               ),
             ),
-            data: (list) => list.isEmpty
-                ? EmptyState(
-                    scope: EmptyScope.inPanel,
-                    headline: l10n.webhookDeliveriesEmptyHeadline,
-                    body: l10n.webhookDeliveriesEmptyBody,
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      for (var i = 0; i < list.length; i++)
-                        _DeliveryRow(
-                          key: ValueKey<String>('delivery-${list[i].id}'),
-                          webhookId: webhookId,
-                          delivery: list[i],
-                          last: i == list.length - 1,
-                        ),
-                    ],
-                  ),
+            data: (page) {
+              final list = page.data;
+              if (list.isEmpty) {
+                return EmptyState(
+                  scope: EmptyScope.inPanel,
+                  headline: l10n.webhookDeliveriesEmptyHeadline,
+                  body: l10n.webhookDeliveriesEmptyBody,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (var i = 0; i < list.length; i++)
+                    _DeliveryRow(
+                      key: ValueKey<String>('delivery-${list[i].id}'),
+                      webhookId: webhookId,
+                      delivery: list[i],
+                      last: i == list.length - 1,
+                    ),
+                  // THE LOG SAYS WHERE IT STOPS. `listDeliveries` defaulted
+                  // to ten that nobody asked for, so a manager debugging a
+                  // failing endpoint saw ten deliveries and no sign there
+                  // were more — and a log that silently stops is a log you
+                  // draw the wrong conclusion from. Never a total: the server
+                  // sends a cursor, not a count.
+                  if (page.nextCursor != null) ...<Widget>[
+                    const SizedBox(height: TiqSpace.s3),
+                    PaginationFooter(
+                      summary: l10n.webhookDeliveriesShowing(list.length),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -588,7 +609,7 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
 
     return SoftRow(
       density: SoftRowDensity.tall,
-      title: delivery.event,
+      title: webhookEventWords(l10n, delivery.event),
       subtitle: when,
       trailing: StatusChip(
         level: delivery.status.level,
@@ -623,7 +644,7 @@ class _DeliveryRowState extends ConsumerState<_DeliveryRow> {
           : null,
       separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
-        delivery.event,
+        webhookEventWords(l10n, delivery.event),
         delivery.status.wordIn(l10n),
         ...facts,
         when,
@@ -761,7 +782,10 @@ class _CreateWebhookSheetState extends ConsumerState<_CreateWebhookSheet> {
             notAnsweredLine: l10n.webhookCreateBlockedEvent,
             options: <ChoiceOption<String>>[
               for (final event in webhookEvents)
-                ChoiceOption<String>(value: event, label: event),
+                ChoiceOption<String>(
+                  value: event,
+                  label: webhookEventWords(l10n, event),
+                ),
             ],
             onChanged: (value) => setState(() => _event = value),
           ),

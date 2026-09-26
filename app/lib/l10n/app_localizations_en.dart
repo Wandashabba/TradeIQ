@@ -6473,6 +6473,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get webhookEventVisitSubmitted => 'Visit submitted';
+
+  @override
+  String get webhookEventAlertRaised => 'Alert raised';
+
+  @override
+  String get webhookEventOrderCreated => 'Order created';
+
+  @override
+  String get webhookEventReportGenerated => 'Report generated';
+
+  @override
   String get webhookHealthHealthy => 'Healthy';
 
   @override
@@ -6623,6 +6635,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webhookDeliveriesSection => 'Recent deliveries';
 
   @override
+  String webhookDeliveriesShowing(int shown) {
+    return 'Showing the $shown most recent. There are more.';
+  }
+
+  @override
   String get webhookDeliveriesSkeleton => 'deliveries';
 
   @override
@@ -6759,6 +6776,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get messagesEmptyBody =>
       'Anything you send below reaches the whole team.';
+
+  @override
+  String messagesShowing(int shown) {
+    return 'Showing $shown. There are older messages.';
+  }
+
+  @override
+  String get messagesShowOlder => 'Show older messages';
+
+  @override
+  String announcementsShowing(int shown) {
+    return 'Showing $shown. There are older announcements.';
+  }
+
+  @override
+  String get announcementsShowOlder => 'Show older announcements';
+
+  @override
+  String get feedMoreFailed => 'Older items did not load';
 
   @override
   String get announcementsEmptyHeadline => 'No announcements yet.';

@@ -310,10 +310,13 @@ class _EmptyWebhooksRepository implements WebhooksRepository {
       throw UnimplementedError();
 
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
-  }) async => const <WebhookDelivery>[];
+  }) async => const PaginatedResponse<WebhookDelivery>(
+    data: <WebhookDelivery>[],
+    nextCursor: null,
+  );
 
   @override
   Future<WebhookDelivery> redeliver(String deliveryId) async =>
@@ -322,7 +325,7 @@ class _EmptyWebhooksRepository implements WebhooksRepository {
 
 class _EmptyCollaborationRepository implements CollaborationRepository {
   @override
-  Future<PaginatedResponse<Message>> listMessages() async =>
+  Future<PaginatedResponse<Message>> listMessages({String? cursor}) async =>
       const PaginatedResponse<Message>(data: <Message>[], nextCursor: null);
 
   @override
@@ -334,7 +337,9 @@ class _EmptyCollaborationRepository implements CollaborationRepository {
   }) async => throw UnimplementedError();
 
   @override
-  Future<PaginatedResponse<Announcement>> listAnnouncements() async =>
+  Future<PaginatedResponse<Announcement>> listAnnouncements({
+    String? cursor,
+  }) async =>
       const PaginatedResponse<Announcement>(
         data: <Announcement>[],
         nextCursor: null,

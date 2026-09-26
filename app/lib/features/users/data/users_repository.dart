@@ -33,7 +33,9 @@ class AppUser {
 }
 
 abstract class UsersRepository {
-  Future<PaginatedResponse<AppUser>> listUsers();
+  /// One page of `GET /users`. [cursor] is the previous page's `nextCursor`
+  /// and [limit] is a request, not a guarantee — the backend caps it.
+  Future<PaginatedResponse<AppUser>> listUsers({int? limit, String? cursor});
   Future<AppUser> createUser({
     required String email,
     required String password,
@@ -55,8 +57,17 @@ const displayNameMaxLength = 120;
 
 class DioUsersRepository implements UsersRepository {
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async {
-    final response = await dio.get('/users');
+  Future<PaginatedResponse<AppUser>> listUsers({
+    int? limit,
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/users',
+      queryParameters: <String, dynamic>{
+        'limit': ?limit?.toString(),
+        'cursor': ?cursor,
+      },
+    );
     return PaginatedResponse<AppUser>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => AppUser.fromJson(e as Map<String, dynamic>),
@@ -104,14 +115,46 @@ class DioUsersRepository implements UsersRepository {
 final usersRepositoryProvider =
     Provider<UsersRepository>((ref) => DioUsersRepository());
 
-// The provider exposes the FIRST PAGE as a plain list: the admin roster
-// screen wants the current set, not the whole history, and "load more" UI is
-// deliberately out of scope for the pagination sweep (see the spec).
-// `nextCursor` is available on the repository for any screen that later needs
-// to page; this provider intentionally drops it.
+/// THE WHOLE ROSTER, NOT PAGE ONE OF IT — 26 September 2026.
+///
+/// This read one page and dropped `nextCursor`, on the reading that the admin
+/// screen "wants the current set, not the whole history". Two things were
+/// wrong with that. The roster screen printed the length of page one as the
+/// count beside its section marker, so an admin read the size of a page as
+/// the size of the team. And [userDirectoryProvider] is built from this list
+/// and is what the messages screen resolves every sender and recipient
+/// against — so a colleague on page two rendered as "not on the roster" beside
+/// a raw user id, which is precisely the failure #399/#400 repaired.
+///
+/// It walks, like `fetchAllOutlets` does and for the same stated reason: a
+/// roster is **reference data somebody finds by identity**, not an activity
+/// feed, so a "there are more" footer on the admin screen would not have
+/// helped the message list at all. The loop is bounded three ways — a page
+/// cap, a null cursor, and a cursor that fails to advance — because an
+/// unbounded client loop is a bug this codebase has already been bitten by.
+const _maxRosterPageSize = 200;
+const _maxRosterPages = 50;
+
 final usersListProvider = FutureProvider<List<AppUser>>((ref) async {
-  final page = await ref.read(usersRepositoryProvider).listUsers();
-  return page.data;
+  final repo = ref.read(usersRepositoryProvider);
+  final users = <AppUser>[];
+  String? cursor;
+  for (var page = 0; page < _maxRosterPages; page += 1) {
+    final result = await repo.listUsers(
+      limit: _maxRosterPageSize,
+      cursor: cursor,
+    );
+    users.addAll(result.data);
+    final next = result.nextCursor;
+    if (next == null) return users;
+    if (next == cursor) {
+      throw StateError('Roster paging stalled: the server repeated "$next".');
+    }
+    cursor = next;
+  }
+  throw StateError(
+    'Roster paging exceeded $_maxRosterPages pages of $_maxRosterPageSize.',
+  );
 });
 
 /// Who a user id is, for a screen whose payload carries only the id.

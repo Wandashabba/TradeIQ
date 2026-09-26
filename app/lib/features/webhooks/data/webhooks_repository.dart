@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../../l10n/l10n.dart';
 
 /// The events the backend emits — `WEBHOOK_EVENTS` in webhooks.service.ts, in
 /// its order. The API still accepts any event name; one not on this list simply
@@ -12,6 +13,27 @@ const webhookEvents = <String>[
   // A report schedule ran (#66): carries the run and a link to its CSV.
   'report.generated',
 ];
+
+/// The event, in words.
+///
+/// The worklist named every webhook row by the wire's dotted slug — a row's
+/// *headline* was `visit.submitted` — and the create form offered four options
+/// whose visible labels were the same four slugs, so a manager picked a
+/// webhook by wire token. A token is what you paste into a config file; it is
+/// not a name.
+///
+/// The token is not hidden: it stays on the row's second line in the mono
+/// identifier face, which is where a thing you copy belongs. An event this
+/// build has never heard of keeps its token rather than being given a name
+/// that matches nothing on the server.
+String webhookEventWords(AppLocalizations l10n, String event) =>
+    switch (event) {
+      'visit.submitted' => l10n.webhookEventVisitSubmitted,
+      'alert.raised' => l10n.webhookEventAlertRaised,
+      'order.created' => l10n.webhookEventOrderCreated,
+      'report.generated' => l10n.webhookEventReportGenerated,
+      _ => event,
+    };
 
 /// Whether a webhook is actually receiving (#100), as the backend derives it.
 enum WebhookHealth {
@@ -161,7 +183,16 @@ abstract class WebhooksRepository {
   Future<Webhook> setActive(String id, bool active);
 
   /// GET /webhooks/:id/deliveries — the most recent deliveries, newest first.
-  Future<List<WebhookDelivery>> listDeliveries(String webhookId, {int limit});
+  ///
+  /// **The page, not just its rows.** It returned the list and threw
+  /// `nextCursor` away while defaulting [limit] to 10 that nobody passed, so a
+  /// manager debugging a failing endpoint saw ten deliveries and no sign there
+  /// were more. A log that silently stops is a log you draw the wrong
+  /// conclusion from.
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
+    String webhookId, {
+    int limit,
+  });
 
   /// POST /webhook-deliveries/:id/redeliver — send a failed delivery again now.
   Future<WebhookDelivery> redeliver(String deliveryId);
@@ -203,7 +234,7 @@ class DioWebhooksRepository implements WebhooksRepository {
   }
 
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
   }) async {
@@ -214,7 +245,7 @@ class DioWebhooksRepository implements WebhooksRepository {
     return PaginatedResponse<WebhookDelivery>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => WebhookDelivery.fromJson(e as Map<String, dynamic>),
-    ).data;
+    );
   }
 
   @override
@@ -238,8 +269,12 @@ final webhooksListProvider = FutureProvider<List<Webhook>>((ref) async {
   return page.data;
 });
 
-/// The recent deliveries for one webhook — fetched only when its row is opened.
+/// The recent deliveries for one webhook — fetched only when its row is
+/// opened, and kept as the page so the panel can say it was cut.
 final webhookDeliveriesProvider =
-    FutureProvider.family<List<WebhookDelivery>, String>((ref, webhookId) {
-  return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
-});
+    FutureProvider.family<PaginatedResponse<WebhookDelivery>, String>((
+      ref,
+      webhookId,
+    ) {
+      return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
+    });

@@ -8716,6 +8716,22 @@
       }
     }
   },
+  "webhookEventVisitSubmitted": "Visit submitted",
+  "@webhookEventVisitSubmitted": {
+    "description": "The `visit.submitted` webhook event, in words. The dotted slug stays on the row as the identifier."
+  },
+  "webhookEventAlertRaised": "Alert raised",
+  "@webhookEventAlertRaised": {
+    "description": "The `alert.raised` webhook event, in words."
+  },
+  "webhookEventOrderCreated": "Order created",
+  "@webhookEventOrderCreated": {
+    "description": "The `order.created` webhook event, in words."
+  },
+  "webhookEventReportGenerated": "Report generated",
+  "@webhookEventReportGenerated": {
+    "description": "The `report.generated` webhook event, in words."
+  },
   "webhookHealthHealthy": "Healthy",
   "@webhookHealthHealthy": {
     "description": "An endpoint that is receiving."
@@ -8909,6 +8925,15 @@
   "@webhookDeliveriesSection": {
     "description": "Section rule above an endpoint's deliveries."
   },
+  "webhookDeliveriesShowing": "Showing the {shown} most recent. There are more.",
+  "@webhookDeliveriesShowing": {
+    "description": "Footer under a webhook's delivery log when the page was cut. Never a fabricated total.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
   "webhookDeliveriesSkeleton": "deliveries",
   "@webhookDeliveriesSkeleton": {
     "description": "What the deliveries skeleton says it is loading."
@@ -9090,6 +9115,36 @@
   "messagesEmptyBody": "Anything you send below reaches the whole team.",
   "@messagesEmptyBody": {
     "description": "Body of the messages empty state."
+  },
+  "messagesShowing": "Showing {shown}. There are older messages.",
+  "@messagesShowing": {
+    "description": "Pagination footer under the messages feed. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "messagesShowOlder": "Show older messages",
+  "@messagesShowOlder": {
+    "description": "Ghost action that loads the next page of messages."
+  },
+  "announcementsShowing": "Showing {shown}. There are older announcements.",
+  "@announcementsShowing": {
+    "description": "Pagination footer under the announcements feed.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "announcementsShowOlder": "Show older announcements",
+  "@announcementsShowOlder": {
+    "description": "Ghost action that loads the next page of announcements."
+  },
+  "feedMoreFailed": "Older items did not load",
+  "@feedMoreFailed": {
+    "description": "The next page of a feed failed. What is on screen stays; this line says why there is no more."
   },
   "announcementsEmptyHeadline": "No announcements yet.",
   "@announcementsEmptyHeadline": {

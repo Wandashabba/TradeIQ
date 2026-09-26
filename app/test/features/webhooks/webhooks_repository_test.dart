@@ -156,8 +156,10 @@ void main() {
       expect(adapter.last!.method, 'GET');
       expect(adapter.last!.path, '/webhooks/w1/deliveries');
       expect(adapter.last!.queryParameters, {'limit': 5});
-      expect(list.single.status, DeliveryStatus.succeeded);
-      expect(list.single.lastStatusCode, 200);
+      // The PAGE now, not just its rows — the panel has to be able to say
+      // the log was cut, and `nextCursor` is the only thing that can tell it.
+      expect(list.data.single.status, DeliveryStatus.succeeded);
+      expect(list.data.single.lastStatusCode, 200);
     });
 
     test('redeliver POSTs to the delivery and parses the row', () async {

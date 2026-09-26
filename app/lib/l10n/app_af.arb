@@ -1683,6 +1683,22 @@
   "relativeInMinutes": "oor {minutes}m",
   "relativeInHours": "oor {hours}u",
   "relativeInDays": "oor {days}d",
+  "webhookEventVisitSubmitted": "Besoek ingedien",
+  "@webhookEventVisitSubmitted": {
+    "description": "The `visit.submitted` webhook event, in words. The dotted slug stays on the row as the identifier."
+  },
+  "webhookEventAlertRaised": "Waarskuwing gelig",
+  "@webhookEventAlertRaised": {
+    "description": "The `alert.raised` webhook event, in words."
+  },
+  "webhookEventOrderCreated": "Bestelling geskep",
+  "@webhookEventOrderCreated": {
+    "description": "The `order.created` webhook event, in words."
+  },
+  "webhookEventReportGenerated": "Verslag gegenereer",
+  "@webhookEventReportGenerated": {
+    "description": "The `report.generated` webhook event, in words."
+  },
   "webhookHealthHealthy": "Gesond",
   "webhookHealthFailing": "Faal",
   "webhookHealthUnhealthy": "Ongesond",
@@ -2300,5 +2316,44 @@
   "outletsPinReportsMoreFailed": "Die res van die ry het nie gelaai nie",
   "@outletsPinReportsMoreFailed": {
     "description": "The next page failed. The reports already on screen stay; this line says why there are no more."
+  },
+  "messagesShowing": "Wys {shown}. Daar is ouer boodskappe.",
+  "@messagesShowing": {
+    "description": "Pagination footer under the messages feed. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "messagesShowOlder": "Wys ouer boodskappe",
+  "@messagesShowOlder": {
+    "description": "Ghost action that loads the next page of messages."
+  },
+  "announcementsShowing": "Wys {shown}. Daar is ouer aankondigings.",
+  "@announcementsShowing": {
+    "description": "Pagination footer under the announcements feed.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "announcementsShowOlder": "Wys ouer aankondigings",
+  "@announcementsShowOlder": {
+    "description": "Ghost action that loads the next page of announcements."
+  },
+  "feedMoreFailed": "Ouer items het nie gelaai nie",
+  "@feedMoreFailed": {
+    "description": "The next page of a feed failed. What is on screen stays; this line says why there is no more."
+  },
+  "webhookDeliveriesShowing": "Wys die {shown} mees onlangse. Daar is meer.",
+  "@webhookDeliveriesShowing": {
+    "description": "Footer under a webhook's delivery log when the page was cut. Never a fabricated total.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
   }
 }

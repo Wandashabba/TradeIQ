@@ -130,13 +130,20 @@ class _FakeWebhooksRepository implements WebhooksRepository {
     return _healthy;
   }
 
+  /// The cursor the delivery log hands back. A fake that never sets one
+  /// cannot tell a whole log from a log cut at ten.
+  String? deliveriesCursor;
+
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
   }) async {
     deliveriesFor = webhookId;
-    return _deliveries();
+    return PaginatedResponse<WebhookDelivery>(
+      data: _deliveries(),
+      nextCursor: deliveriesCursor,
+    );
   }
 
   @override
@@ -198,8 +205,17 @@ void main() {
     ) async {
       await pump(tester, repo: _FakeWebhooksRepository());
 
-      expect(find.text('visit.submitted'), findsOneWidget);
-      expect(find.text('https://example.com/first'), findsOneWidget);
+      // MOVED 26 September 2026: a row is named by its event **in words**.
+      //
+      // The headline was the wire's dotted slug, so a manager picked a
+      // webhook by wire token. The token is not hidden — it is on the
+      // identifier line with the URL, which is where a thing you paste into a
+      // config file belongs — and this asserts both halves.
+      expect(find.text('Visit submitted'), findsOneWidget);
+      expect(
+        find.text('visit.submitted · https://example.com/first'),
+        findsOneWidget,
+      );
       expect(find.text('Healthy'), findsOneWidget);
       expect(find.text('Failing'), findsOneWidget);
     });
@@ -418,6 +434,40 @@ void main() {
       expect(find.text('connect ECONNREFUSED'), findsOneWidget);
     });
 
+    testWidgets('a log that was cut says where it stops', (tester) async {
+      // `listDeliveries` defaulted to ten that nobody asked for and the
+      // provider threw the cursor away, so a manager debugging a failing
+      // endpoint saw ten deliveries and no sign there were more. A log that
+      // silently stops is a log you draw the wrong conclusion from.
+      final repo = _FakeWebhooksRepository()..deliveriesCursor = 'page-2';
+      await pump(tester, repo: repo);
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
+
+      await scrollWorklistTo(tester, find.textContaining('most recent'));
+      expect(find.textContaining('most recent'), findsOneWidget);
+      // Never a total: the server sends a cursor, not a count.
+      expect(find.textContaining(' of '), findsNothing);
+    });
+
+    testWidgets('a whole log owns up to nothing', (tester) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('most recent'), findsNothing);
+    });
+
     testWidgets('a failed delivery can be re-queued', (tester) async {
       final repo = _FakeWebhooksRepository();
       await pump(tester, repo: repo);
@@ -599,8 +649,8 @@ void main() {
   ) async {
     await pump(tester, repo: _FakeWebhooksRepository(), textScale: 2.0);
 
-    await scrollWorklistTo(tester, find.text('visit.submitted'));
-    expect(find.text('visit.submitted'), findsOneWidget);
+    await scrollWorklistTo(tester, find.text('Visit submitted'));
+    expect(find.text('Visit submitted'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -611,7 +661,30 @@ void main() {
       skin: TiqSkin.veld(),
     );
 
-    expect(find.text('visit.submitted'), findsOneWidget);
+    expect(find.text('Visit submitted'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an event this build has never heard of keeps its token', (
+    tester,
+  ) async {
+    // A fifth event the server starts emitting must be visibly a fifth
+    // event, not a name this client invented for it.
+    await pump(
+      tester,
+      repo: _FakeWebhooksRepository(
+        webhooks: <Webhook>[
+          Webhook(
+            id: 'w-unknown',
+            url: 'https://example.com/unknown',
+            event: 'invoice.settled',
+            active: true,
+            health: WebhookHealth.healthy,
+            hasSecret: true,
+          ),
+        ],
+      ),
+    );
+    expect(find.text('invoice.settled'), findsOneWidget);
   });
 }

@@ -258,7 +258,10 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
   final bool coverageFails;
 
   @override
-  Future<PaginatedResponse<Territory>> listTerritories() async =>
+  Future<PaginatedResponse<Territory>> listTerritories({
+    int? limit,
+    String? cursor,
+  }) async =>
       PaginatedResponse(data: territories, nextCursor: null);
 
   @override

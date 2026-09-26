@@ -71,7 +71,10 @@ class FakeUsersRepository implements UsersRepository {
   String? updatedDisplayName;
 
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async {
+  Future<PaginatedResponse<AppUser>> listUsers({
+    int? limit,
+    String? cursor,
+  }) async {
     listCalls++;
     if (listFailure != null) throw listFailure!;
     if (listPending) return Completer<PaginatedResponse<AppUser>>().future;

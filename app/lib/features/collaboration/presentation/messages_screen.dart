@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/auth/session_controller.dart';
 import '../../../core/camera/photo_capture_service.dart';
 import '../../../core/design/torch_scope.dart';
+import '../../../core/network/paginated_response.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -344,7 +345,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               TorchFilterChip(
                 key: const ValueKey<String>('tab-messages'),
                 label: l10n.messagesTitle,
-                count: messages.value?.length,
+                // The tab's count is what is loaded, which is what the feed
+                // below it shows — the footer is where "there are more" is
+                // said, in words, rather than in a number that would then be
+                // a different number from the list.
+                count: messages.value == null
+                    ? null
+                    : messages.value!.data.length + _olderMessages.length,
                 countLoading: messages.isLoading,
                 selected: !onAnnouncements,
                 onSelected: () => setState(() => _feed = _Feed.messages),
@@ -352,7 +359,10 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               TorchFilterChip(
                 key: const ValueKey<String>('tab-announcements'),
                 label: l10n.messagesFeedAnnouncements,
-                count: announcements.value?.length,
+                count: announcements.value == null
+                    ? null
+                    : announcements.value!.data.length +
+                          _olderAnnouncements.length,
                 countLoading: announcements.isLoading,
                 selected: onAnnouncements,
                 onSelected: () =>
@@ -401,11 +411,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           ],
           _ => onAnnouncements
               ? _announcements(
-                  announcements.value ?? const <Announcement>[],
+                  announcements.value,
                   canAnnounce: canAnnounce,
                   gutter: gutter,
                 )
-              : _messages(messages.value ?? const <Message>[], gutter),
+              : _messages(messages.value, gutter),
         },
       ],
     );
@@ -417,9 +427,77 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     _ => 'loaded',
   };
 
-  List<Widget> _messages(List<Message> messages, double gutter) {
+  /// Pages two and on for each feed. Page one stays in its provider so a sent
+  /// message still refreshes the list.
+  final List<Message> _olderMessages = <Message>[];
+  final List<Announcement> _olderAnnouncements = <Announcement>[];
+  String? _messagesCursor;
+  String? _announcementsCursor;
+  bool _messagesCursorRead = false;
+  bool _announcementsCursorRead = false;
+  bool _feedLoading = false;
+  bool _feedFailed = false;
+
+  Future<void> _loadOlder(Future<void> Function() fetch) async {
+    setState(() {
+      _feedLoading = true;
+      _feedFailed = false;
+    });
+    try {
+      await fetch();
+      if (!mounted) return;
+      setState(() => _feedLoading = false);
+    } on Object {
+      if (!mounted) return;
+      // What is on screen stays. A failed *next* page is not a failed feed.
+      setState(() {
+        _feedLoading = false;
+        _feedFailed = true;
+      });
+    }
+  }
+
+  /// The footer under a feed that was cut, and the way on.
+  ///
+  /// The count beside each section marker was the length of page one, so a
+  /// manager read the size of a page as the size of the feed. On a feed of
+  /// direct messages that is the worst version of this defect in the app: the
+  /// thing that goes missing is somebody asking you for something.
+  ///
+  /// Never a fabricated total — the server returns a cursor, not a count.
+  List<Widget> _feedFooter({
+    required String? next,
+    required String summary,
+    required String action,
+    required ValueKey<String> key,
+    required VoidCallback onPressed,
+  }) {
+    if (next == null && !_feedFailed) return const <Widget>[];
+    return <Widget>[
+      const SizedBox(height: TiqSpace.s4),
+      PaginationFooter(
+        summary: summary,
+        narrowLine: _feedFailed ? context.l10n.feedMoreFailed : null,
+        action: next == null
+            ? null
+            : TorchTertiaryButton(
+                key: key,
+                label: action,
+                busy: _feedLoading,
+                onPressed: _feedLoading ? null : onPressed,
+              ),
+      ),
+    ];
+  }
+
+  List<Widget> _messages(PaginatedResponse<Message>? page, double gutter) {
     final l10n = context.l10n;
     final directory = ref.watch(userDirectoryProvider);
+    final messages = <Message>[...?page?.data, ..._olderMessages];
+    // Page one's cursor until something older has been loaded, then the last
+    // page's. The read flag separates "not asked yet" from "the server sent
+    // none" — the same unknown-versus-zero distinction the figures make.
+    final next = _messagesCursorRead ? _messagesCursor : page?.nextCursor;
     return <Widget>[
       SectionRule(
         l10n.messagesTitle,
@@ -448,15 +526,36 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ],
           ),
         ),
+      ..._feedFooter(
+        next: next,
+        summary: l10n.messagesShowing(messages.length),
+        action: l10n.messagesShowOlder,
+        key: const ValueKey<String>('messages-older'),
+        onPressed: () => _loadOlder(() async {
+          final older = await ref
+              .read(collaborationRepositoryProvider)
+              .listMessages(cursor: next);
+          _olderMessages.addAll(older.data);
+          _messagesCursor = older.nextCursor;
+          _messagesCursorRead = true;
+        }),
+      ),
     ];
   }
 
   List<Widget> _announcements(
-    List<Announcement> announcements, {
+    PaginatedResponse<Announcement>? page, {
     required bool canAnnounce,
     required double gutter,
   }) {
     final l10n = context.l10n;
+    final announcements = <Announcement>[
+      ...?page?.data,
+      ..._olderAnnouncements,
+    ];
+    final next = _announcementsCursorRead
+        ? _announcementsCursor
+        : page?.nextCursor;
     return <Widget>[
       SectionRule(
         l10n.messagesFeedAnnouncements,
@@ -489,6 +588,20 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ],
           ),
         ),
+      ..._feedFooter(
+        next: next,
+        summary: l10n.announcementsShowing(announcements.length),
+        action: l10n.announcementsShowOlder,
+        key: const ValueKey<String>('announcements-older'),
+        onPressed: () => _loadOlder(() async {
+          final older = await ref
+              .read(collaborationRepositoryProvider)
+              .listAnnouncements(cursor: next);
+          _olderAnnouncements.addAll(older.data);
+          _announcementsCursor = older.nextCursor;
+          _announcementsCursorRead = true;
+        }),
+      ),
     ];
   }
 }

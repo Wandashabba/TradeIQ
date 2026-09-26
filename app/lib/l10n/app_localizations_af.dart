@@ -6536,6 +6536,18 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get webhookEventVisitSubmitted => 'Besoek ingedien';
+
+  @override
+  String get webhookEventAlertRaised => 'Waarskuwing gelig';
+
+  @override
+  String get webhookEventOrderCreated => 'Bestelling geskep';
+
+  @override
+  String get webhookEventReportGenerated => 'Verslag gegenereer';
+
+  @override
   String get webhookHealthHealthy => 'Gesond';
 
   @override
@@ -6688,6 +6700,11 @@ class AppLocalizationsAf extends AppLocalizations {
   String get webhookDeliveriesSection => 'Onlangse afleweringe';
 
   @override
+  String webhookDeliveriesShowing(int shown) {
+    return 'Wys die $shown mees onlangse. Daar is meer.';
+  }
+
+  @override
   String get webhookDeliveriesSkeleton => 'afleweringe';
 
   @override
@@ -6825,6 +6842,25 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get messagesEmptyBody =>
       'Enigiets wat jy hieronder stuur, bereik die hele span.';
+
+  @override
+  String messagesShowing(int shown) {
+    return 'Wys $shown. Daar is ouer boodskappe.';
+  }
+
+  @override
+  String get messagesShowOlder => 'Wys ouer boodskappe';
+
+  @override
+  String announcementsShowing(int shown) {
+    return 'Wys $shown. Daar is ouer aankondigings.';
+  }
+
+  @override
+  String get announcementsShowOlder => 'Wys ouer aankondigings';
+
+  @override
+  String get feedMoreFailed => 'Ouer items het nie gelaai nie';
 
   @override
   String get announcementsEmptyHeadline => 'Nog geen aankondigings nie.';
