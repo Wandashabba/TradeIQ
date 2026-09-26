@@ -4371,6 +4371,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String outletsPinReportsShowing(int shown) {
+    return 'Showing $shown. There are more open reports.';
+  }
+
+  @override
+  String get outletsPinReportsShowMore => 'Show more reports';
+
+  @override
+  String get outletsPinReportsMoreFailed =>
+      'The rest of the queue did not load';
+
+  @override
   String get outletDetailTitle => 'Store';
 
   @override

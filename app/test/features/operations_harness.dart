@@ -177,13 +177,35 @@ class FakeOutletAdminRepository implements OutletAdminRepository {
     return detail!.outlet;
   }
 
+  /// Pin-report pages behind the first page's cursor, and the cursor that
+  /// reaches them. A fake that only ever answered one page could not tell a
+  /// paged queue from a truncated one — which is why the queue shipped
+  /// showing the size of page one as the size of the queue.
+  final Map<String, List<PinDispute>> disputePages =
+      <String, List<PinDispute>>{};
+  String? disputeCursor;
+  bool disputeMoreThrows = false;
+
+  /// Every cursor asked for, in order.
+  final List<String?> disputeCursorsAsked = <String?>[];
+
   @override
   Future<PaginatedResponse<PinDispute>> listPinDisputes({
     String? status,
     String? outletId,
     int? limit,
     String? cursor,
-  }) async => PaginatedResponse(data: disputes, nextCursor: null);
+  }) async {
+    disputeCursorsAsked.add(cursor);
+    if (cursor == null) {
+      return PaginatedResponse(data: disputes, nextCursor: disputeCursor);
+    }
+    if (disputeMoreThrows) throw StateError('no route to host');
+    return PaginatedResponse(
+      data: disputePages[cursor] ?? const <PinDispute>[],
+      nextCursor: null,
+    );
+  }
 }
 
 class FakeTerritoriesRepository implements TerritoriesRepository {

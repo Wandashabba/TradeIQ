@@ -192,6 +192,102 @@ void main() {
       );
     });
 
+    testWidgets('a cut queue says so, and offers the rest', (tester) async {
+      // The count beside the marker was `open.length` — the size of ONE PAGE,
+      // read as the size of the queue. A manager cleared what they could see
+      // and believed they were done, and an unworked pin report is a store an
+      // agent cannot check into.
+      final admin = FakeOutletAdminRepository(
+        disputes: <PinDispute>[_dispute()],
+      )..disputeCursor = 'page-2';
+      admin.disputePages['page-2'] = <PinDispute>[
+        _dispute(id: 'd2', outletId: 'o3', outletName: 'Far Corner Spaza'),
+      ];
+
+      await pumpOperations(
+        tester,
+        const OutletsListScreen(),
+        overrides: <Override>[
+          outletsRepositoryProvider.overrideWithValue(
+            FakeOpsOutletsRepository(outlets: _outlets),
+          ),
+          outletAdminRepositoryProvider.overrideWithValue(admin),
+        ],
+      );
+
+      // Never a fabricated total: the server returns a cursor, not a count.
+      expect(find.textContaining('Showing 1.'), findsOneWidget);
+      expect(find.textContaining('Showing 1 of'), findsNothing);
+
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Far Corner Spaza'), findsOneWidget);
+      expect(
+        find.text('Unplaced Spaza'),
+        findsWidgets,
+        reason: 'page one stays',
+      );
+      expect(admin.disputeCursorsAsked, <String?>[null, 'page-2']);
+      // The server stopped sending a cursor, so the queue is whole.
+      expect(
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an uncut queue owns up to nothing', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        disputes: <PinDispute>[_dispute()],
+      );
+      expect(find.textContaining('Showing'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a page that will not load keeps the reports on screen', (
+      tester,
+    ) async {
+      final admin = FakeOutletAdminRepository(
+        disputes: <PinDispute>[_dispute()],
+      )
+        ..disputeCursor = 'page-2'
+        ..disputeMoreThrows = true;
+
+      await pumpOperations(
+        tester,
+        const OutletsListScreen(),
+        overrides: <Override>[
+          outletsRepositoryProvider.overrideWithValue(
+            FakeOpsOutletsRepository(outlets: _outlets),
+          ),
+          outletAdminRepositoryProvider.overrideWithValue(admin),
+        ],
+      );
+
+      await scrollOpsTo(
+        tester,
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('pin-reports-more')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unplaced Spaza'), findsWidgets);
+      expect(find.text('The rest of the queue did not load'), findsOneWidget);
+    });
+
     testWidgets('stay silent when the queue itself fails to load', (
       tester,
     ) async {

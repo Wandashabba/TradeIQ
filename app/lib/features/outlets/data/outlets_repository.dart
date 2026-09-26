@@ -509,13 +509,17 @@ final outletDetailProvider = FutureProvider.autoDispose
       return ref.read(outletAdminRepositoryProvider).getOutlet(id);
     });
 
-/// The open "the pin is wrong" queue (#386).
-final openPinDisputesProvider = FutureProvider.autoDispose<List<PinDispute>>((
-  ref,
-) async {
-  final page = await ref.read(outletAdminRepositoryProvider).listPinDisputes();
-  return page.data;
-});
+/// The open "the pin is wrong" queue (#386) — **the page, not just its rows**.
+///
+/// This returned `page.data` and threw the cursor away, and the screen printed
+/// `open.length` as the count beside the section marker. A manager therefore
+/// read the size of one page as the size of the queue, cleared what they could
+/// see, and believed they were done. Of every list in this app that quietly
+/// stopped at page one, this is the one where that belief costs something: an
+/// unworked pin report is a store an agent cannot check into.
+final openPinDisputesProvider = FutureProvider.autoDispose<
+  PaginatedResponse<PinDispute>
+>((ref) => ref.read(outletAdminRepositoryProvider).listPinDisputes());
 
 /// Walks every page of GET /outlets and concatenates them.
 ///
