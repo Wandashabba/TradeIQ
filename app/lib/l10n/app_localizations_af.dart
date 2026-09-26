@@ -6700,6 +6700,11 @@ class AppLocalizationsAf extends AppLocalizations {
   String get webhookDeliveriesSection => 'Onlangse afleweringe';
 
   @override
+  String webhookDeliveriesShowing(int shown) {
+    return 'Wys die $shown mees onlangse. Daar is meer.';
+  }
+
+  @override
   String get webhookDeliveriesSkeleton => 'afleweringe';
 
   @override

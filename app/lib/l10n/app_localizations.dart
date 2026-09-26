@@ -10518,6 +10518,12 @@ abstract class AppLocalizations {
   /// **'Recent deliveries'**
   String get webhookDeliveriesSection;
 
+  /// Footer under a webhook's delivery log when the page was cut. Never a fabricated total.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recent. There are more.'**
+  String webhookDeliveriesShowing(int shown);
+
   /// What the deliveries skeleton says it is loading.
   ///
   /// In en, this message translates to:

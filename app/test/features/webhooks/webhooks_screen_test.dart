@@ -131,12 +131,20 @@ class _FakeWebhooksRepository implements WebhooksRepository {
   }
 
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  /// The cursor the delivery log hands back. A fake that never sets one
+  /// cannot tell a whole log from a log cut at ten.
+  String? deliveriesCursor;
+
+  @override
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
   }) async {
     deliveriesFor = webhookId;
-    return _deliveries();
+    return PaginatedResponse<WebhookDelivery>(
+      data: _deliveries(),
+      nextCursor: deliveriesCursor,
+    );
   }
 
   @override
@@ -425,6 +433,40 @@ void main() {
       );
       expect(find.text('Gave up'), findsOneWidget);
       expect(find.text('connect ECONNREFUSED'), findsOneWidget);
+    });
+
+    testWidgets('a log that was cut says where it stops', (tester) async {
+      // `listDeliveries` defaulted to ten that nobody asked for and the
+      // provider threw the cursor away, so a manager debugging a failing
+      // endpoint saw ten deliveries and no sign there were more. A log that
+      // silently stops is a log you draw the wrong conclusion from.
+      final repo = _FakeWebhooksRepository()..deliveriesCursor = 'page-2';
+      await pump(tester, repo: repo);
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
+
+      await scrollWorklistTo(tester, find.textContaining('most recent'));
+      expect(find.textContaining('most recent'), findsOneWidget);
+      // Never a total: the server sends a cursor, not a count.
+      expect(find.textContaining(' of '), findsNothing);
+    });
+
+    testWidgets('a whole log owns up to nothing', (tester) async {
+      await pump(tester, repo: _FakeWebhooksRepository());
+
+      final expander = find.byKey(
+        const ValueKey<String>('deliveries-toggle-w-first'),
+      );
+      await scrollWorklistTo(tester, expander);
+      await tester.tap(expander);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('most recent'), findsNothing);
     });
 
     testWidgets('a failed delivery can be re-queued', (tester) async {

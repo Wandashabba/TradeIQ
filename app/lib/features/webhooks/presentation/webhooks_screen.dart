@@ -479,25 +479,41 @@ class _DeliveriesList extends ConsumerWidget {
                     ref.invalidate(webhookDeliveriesProvider(webhookId)),
               ),
             ),
-            data: (list) => list.isEmpty
-                ? EmptyState(
-                    scope: EmptyScope.inPanel,
-                    headline: l10n.webhookDeliveriesEmptyHeadline,
-                    body: l10n.webhookDeliveriesEmptyBody,
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      for (var i = 0; i < list.length; i++)
-                        _DeliveryRow(
-                          key: ValueKey<String>('delivery-${list[i].id}'),
-                          webhookId: webhookId,
-                          delivery: list[i],
-                          last: i == list.length - 1,
-                        ),
-                    ],
-                  ),
+            data: (page) {
+              final list = page.data;
+              if (list.isEmpty) {
+                return EmptyState(
+                  scope: EmptyScope.inPanel,
+                  headline: l10n.webhookDeliveriesEmptyHeadline,
+                  body: l10n.webhookDeliveriesEmptyBody,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (var i = 0; i < list.length; i++)
+                    _DeliveryRow(
+                      key: ValueKey<String>('delivery-${list[i].id}'),
+                      webhookId: webhookId,
+                      delivery: list[i],
+                      last: i == list.length - 1,
+                    ),
+                  // THE LOG SAYS WHERE IT STOPS. `listDeliveries` defaulted
+                  // to ten that nobody asked for, so a manager debugging a
+                  // failing endpoint saw ten deliveries and no sign there
+                  // were more — and a log that silently stops is a log you
+                  // draw the wrong conclusion from. Never a total: the server
+                  // sends a cursor, not a count.
+                  if (page.nextCursor != null) ...<Widget>[
+                    const SizedBox(height: TiqSpace.s3),
+                    PaginationFooter(
+                      summary: l10n.webhookDeliveriesShowing(list.length),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),

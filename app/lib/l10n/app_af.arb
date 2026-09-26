@@ -2346,5 +2346,14 @@
   "feedMoreFailed": "Ouer items het nie gelaai nie",
   "@feedMoreFailed": {
     "description": "The next page of a feed failed. What is on screen stays; this line says why there is no more."
+  },
+  "webhookDeliveriesShowing": "Wys die {shown} mees onlangse. Daar is meer.",
+  "@webhookDeliveriesShowing": {
+    "description": "Footer under a webhook's delivery log when the page was cut. Never a fabricated total.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
   }
 }

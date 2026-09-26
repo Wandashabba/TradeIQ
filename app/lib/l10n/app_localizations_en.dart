@@ -6635,6 +6635,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webhookDeliveriesSection => 'Recent deliveries';
 
   @override
+  String webhookDeliveriesShowing(int shown) {
+    return 'Showing the $shown most recent. There are more.';
+  }
+
+  @override
   String get webhookDeliveriesSkeleton => 'deliveries';
 
   @override

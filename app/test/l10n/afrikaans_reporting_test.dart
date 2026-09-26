@@ -310,10 +310,13 @@ class _EmptyWebhooksRepository implements WebhooksRepository {
       throw UnimplementedError();
 
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
-  }) async => const <WebhookDelivery>[];
+  }) async => const PaginatedResponse<WebhookDelivery>(
+    data: <WebhookDelivery>[],
+    nextCursor: null,
+  );
 
   @override
   Future<WebhookDelivery> redeliver(String deliveryId) async =>

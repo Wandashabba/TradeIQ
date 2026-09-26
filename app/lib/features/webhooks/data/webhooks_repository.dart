@@ -183,7 +183,16 @@ abstract class WebhooksRepository {
   Future<Webhook> setActive(String id, bool active);
 
   /// GET /webhooks/:id/deliveries — the most recent deliveries, newest first.
-  Future<List<WebhookDelivery>> listDeliveries(String webhookId, {int limit});
+  ///
+  /// **The page, not just its rows.** It returned the list and threw
+  /// `nextCursor` away while defaulting [limit] to 10 that nobody passed, so a
+  /// manager debugging a failing endpoint saw ten deliveries and no sign there
+  /// were more. A log that silently stops is a log you draw the wrong
+  /// conclusion from.
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
+    String webhookId, {
+    int limit,
+  });
 
   /// POST /webhook-deliveries/:id/redeliver — send a failed delivery again now.
   Future<WebhookDelivery> redeliver(String deliveryId);
@@ -225,7 +234,7 @@ class DioWebhooksRepository implements WebhooksRepository {
   }
 
   @override
-  Future<List<WebhookDelivery>> listDeliveries(
+  Future<PaginatedResponse<WebhookDelivery>> listDeliveries(
     String webhookId, {
     int limit = 10,
   }) async {
@@ -236,7 +245,7 @@ class DioWebhooksRepository implements WebhooksRepository {
     return PaginatedResponse<WebhookDelivery>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => WebhookDelivery.fromJson(e as Map<String, dynamic>),
-    ).data;
+    );
   }
 
   @override
@@ -260,8 +269,12 @@ final webhooksListProvider = FutureProvider<List<Webhook>>((ref) async {
   return page.data;
 });
 
-/// The recent deliveries for one webhook — fetched only when its row is opened.
+/// The recent deliveries for one webhook — fetched only when its row is
+/// opened, and kept as the page so the panel can say it was cut.
 final webhookDeliveriesProvider =
-    FutureProvider.family<List<WebhookDelivery>, String>((ref, webhookId) {
-  return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
-});
+    FutureProvider.family<PaginatedResponse<WebhookDelivery>, String>((
+      ref,
+      webhookId,
+    ) {
+      return ref.read(webhooksRepositoryProvider).listDeliveries(webhookId);
+    });
