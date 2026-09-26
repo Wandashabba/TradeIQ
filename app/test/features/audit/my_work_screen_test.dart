@@ -815,10 +815,12 @@ void main() {
       tester,
     ) async {
       await _pump(tester, sync: _held, skin: SkinMode.veld);
-      final box = tester.widget<Container>(
+      // A `DecoratedBox` and no longer a `Container` — the shadow slot went
+      // with the shadow, 26 September 2026.
+      final box = tester.widget<DecoratedBox>(
         find.byKey(const ValueKey<String>('work-summary')),
       );
-      final deco = box.decoration! as BoxDecoration;
+      final deco = box.decoration as BoxDecoration;
       expect(deco.borderRadius, BorderRadius.circular(0));
       expect((deco.border! as Border).top.width, 2);
       expect(deco.boxShadow ?? const <BoxShadow>[], isEmpty);
@@ -829,6 +831,26 @@ void main() {
       );
       expect(button.height, greaterThanOrEqualTo(56));
     });
+
+    // AND NO SHADOW IN THE SKIN THAT HAS ONE. Veld's `depth.shadows` is empty,
+    // so the assertion above held whatever this block asked for. Day's is
+    // three stacked drops, and that is where the summary floated over rows
+    // that sit flat on the ground.
+    for (final skin in <SkinMode>[SkinMode.night, SkinMode.day]) {
+      testWidgets('${skin.name}: the summary sits flat on the ground', (
+        tester,
+      ) async {
+        await _pump(tester, sync: _held, skin: skin);
+        final deco =
+            tester
+                    .widget<DecoratedBox>(
+                      find.byKey(const ValueKey<String>('work-summary')),
+                    )
+                    .decoration
+                as BoxDecoration;
+        expect(deco.boxShadow ?? const <BoxShadow>[], isEmpty);
+      });
+    }
   });
 
   group('the amber census', () {
