@@ -150,7 +150,9 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             outletLng: outletLng,
           );
     } catch (error, stack) {
-      debugPrint('Check-in threw for outlet ${widget.outletId}: $error\n$stack');
+      debugPrint(
+        'Check-in threw for outlet ${widget.outletId}: $error\n$stack',
+      );
       result = CheckInFailed(HumanError.of(error));
     }
     if (!mounted) return;
@@ -262,7 +264,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               dataUrl: photo.dataUrl,
               gpsTag: photo.gpsTag,
               capturedAt: photo.capturedAt,
-            source: photo.source.name,
+              source: photo.source.name,
             );
       } catch (error) {
         debugPrint('Storefront photo not queued for ${result.visitId}: $error');
@@ -320,29 +322,27 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   /// else, and there is no wrapper left to disagree with it about a title or a
   /// bottom region.
   void _openSection(AuditSection section, String visitDraftId) {
-    Navigator.of(context).push(
-      agentSectionRoute<void>(_sectionBody(section, visitDraftId)),
-    );
+    Navigator.of(
+      context,
+    ).push(agentSectionRoute<void>(_sectionBody(section, visitDraftId)));
   }
 
   void _openTemplateSection(ClientTemplate template, String visitDraftId) {
     Navigator.of(context).push(
       agentSectionRoute<void>(
-        ClientQuestionsScreen(
-          visitDraftId: visitDraftId,
-          template: template,
-        ),
+        ClientQuestionsScreen(visitDraftId: visitDraftId, template: template),
       ),
     );
   }
 
   /// Everything still blocking the submit, **by name**: the fixed sections,
   /// then the client's questions.
-  List<String> _blockingNames(AppLocalizations l10n, VisitProgress progress) => [
-    for (final s in progress.blocking) sectionLabel(l10n, s),
-    if (progress.templateBlocking)
-      progress.template?.template.name ?? l10n.visitClientQuestions,
-  ];
+  List<String> _blockingNames(AppLocalizations l10n, VisitProgress progress) =>
+      [
+        for (final s in progress.blocking) sectionLabel(l10n, s),
+        if (progress.templateBlocking)
+          progress.template?.template.name ?? l10n.visitClientQuestions,
+      ];
 
   /// Submitting is irreversible and it raises tasks against a real shop. It
   /// does not happen on one tap of a hub button — the agent gets to see what
@@ -770,7 +770,11 @@ class _ReadinessBlock extends StatelessWidget {
             color: skin.palette.edgeStructure,
             width: skin.depth.borderWidth,
           ),
-          boxShadow: skin.depth.shadows,
+          // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
+          // in Night and Veld and three stacked drops in Day, so this block
+          // floated on the Day ground while every card and row beside it sat
+          // flat on it — two grammars on one screen, in the one skin where it
+          // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -791,7 +795,9 @@ class _ReadinessBlock extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: TiqSpace.s1),
                       child: Text(
                         '/$total',
-                        style: skin.text.figureM.style(color: skin.palette.ink3),
+                        style: skin.text.figureM.style(
+                          color: skin.palette.ink3,
+                        ),
                       ),
                     ),
                   ],
@@ -1153,7 +1159,11 @@ class _DistanceHero extends StatelessWidget {
             color: skin.palette.edgeStructure,
             width: skin.depth.borderWidth,
           ),
-          boxShadow: skin.depth.shadows,
+          // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
+          // in Night and Veld and three stacked drops in Day, so this block
+          // floated on the Day ground while every card and row beside it sat
+          // flat on it — two grammars on one screen, in the one skin where it
+          // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
         ),
         // The severity bar is an OVERLAY, not a stretch child of a Row inside
         // an `IntrinsicHeight` — the same reason `StatCluster`'s rule is one.
@@ -1368,7 +1378,11 @@ class _SomethingElse extends StatelessWidget {
       ),
       children: <Widget>[
         ExcludeSemantics(
-          child: Icon(Icons.link_off, size: 64, color: skin.palette.edgeControl),
+          child: Icon(
+            Icons.link_off,
+            size: 64,
+            color: skin.palette.edgeControl,
+          ),
         ),
         const SizedBox(height: TiqSpace.s6),
         Semantics(
@@ -1490,7 +1504,10 @@ class _Statement extends StatelessWidget {
           header: true,
           child: Text(
             headline,
-            style: displayFor(context, headline).style(color: skin.palette.ink1),
+            style: displayFor(
+              context,
+              headline,
+            ).style(color: skin.palette.ink1),
           ),
         ),
         const SizedBox(height: TiqSpace.s3),
