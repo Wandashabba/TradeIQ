@@ -4413,6 +4413,18 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String outletsPinReportsShowing(int shown) {
+    return 'Wys $shown. Daar is meer oop verslae.';
+  }
+
+  @override
+  String get outletsPinReportsShowMore => 'Wys meer verslae';
+
+  @override
+  String get outletsPinReportsMoreFailed =>
+      'Die res van die ry het nie gelaai nie';
+
+  @override
   String get outletDetailTitle => 'Winkel';
 
   @override

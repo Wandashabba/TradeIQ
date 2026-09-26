@@ -300,16 +300,61 @@ class _OutletRow extends StatelessWidget {
 ///
 /// Silent when there are none, and silent when the request fails: a manager
 /// who cannot reach this endpoint still needs the store list underneath it.
-class _OpenPinReports extends ConsumerWidget {
+class _OpenPinReports extends ConsumerStatefulWidget {
   const _OpenPinReports();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_OpenPinReports> createState() => _OpenPinReportsState();
+}
+
+class _OpenPinReportsState extends ConsumerState<_OpenPinReports> {
+  /// Pages two and on, in order. Page one stays in the provider so a resolved
+  /// dispute still refreshes the queue.
+  final List<PinDispute> _older = <PinDispute>[];
+  String? _cursor;
+  bool _cursorRead = false;
+  bool _loading = false;
+  bool _failed = false;
+
+  Future<void> _loadMore(String cursor) async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final page = await ref
+          .read(outletAdminRepositoryProvider)
+          .listPinDisputes(cursor: cursor);
+      if (!mounted) return;
+      setState(() {
+        _older.addAll(page.data);
+        _cursor = page.nextCursor;
+        _cursorRead = true;
+        _loading = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      // The reports already on screen stay. A failed *next* page is not a
+      // failed queue.
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
     final disputes = ref.watch(openPinDisputesProvider);
-    final open = disputes.value ?? const <PinDispute>[];
+    final page = disputes.value;
+    final open = <PinDispute>[...?page?.data, ..._older];
     if (open.isEmpty) return const SizedBox.shrink();
+    // Page one's cursor until something older has been loaded, then the last
+    // page's. `_cursorRead` separates "not asked yet" from "the server sent
+    // none" — the same unknown-versus-zero distinction the figures make.
+    final next = _cursorRead ? _cursor : page?.nextCursor;
 
     final gutter = context.skin.space.gutterFor(
       MediaQuery.sizeOf(context).width,
@@ -351,6 +396,26 @@ class _OpenPinReports extends ConsumerWidget {
             ],
           ),
         ),
+        // WHAT THE QUEUE IS SHOWING. The count beside the marker was
+        // `open.length` — the size of one page, read as the size of the
+        // queue. A manager cleared what they could see and believed they were
+        // done, and an unworked pin report is a store an agent cannot check
+        // into.
+        if (next != null || _failed) ...<Widget>[
+          const SizedBox(height: TiqSpace.s4),
+          PaginationFooter(
+            summary: l10n.outletsPinReportsShowing(open.length),
+            narrowLine: _failed ? l10n.outletsPinReportsMoreFailed : null,
+            action: next == null
+                ? null
+                : TorchTertiaryButton(
+                    key: const ValueKey<String>('pin-reports-more'),
+                    label: l10n.outletsPinReportsShowMore,
+                    busy: _loading,
+                    onPressed: _loading ? null : () => _loadMore(next),
+                  ),
+          ),
+        ],
         const SizedBox(height: TiqSpace.s7),
       ],
     );

@@ -2283,5 +2283,22 @@
   "meVisitsMoreFailed": "Ouer besoeke het nie gelaai nie",
   "@meVisitsMoreFailed": {
     "description": "The next page failed. The visits already on screen stay; this line says why there are no more."
+  },
+  "outletsPinReportsShowing": "Wys {shown}. Daar is meer oop verslae.",
+  "@outletsPinReportsShowing": {
+    "description": "Pagination footer under the open pin-report queue. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "outletsPinReportsShowMore": "Wys meer verslae",
+  "@outletsPinReportsShowMore": {
+    "description": "Ghost action that loads the next page of open pin reports."
+  },
+  "outletsPinReportsMoreFailed": "Die res van die ry het nie gelaai nie",
+  "@outletsPinReportsMoreFailed": {
+    "description": "The next page failed. The reports already on screen stay; this line says why there are no more."
   }
 }

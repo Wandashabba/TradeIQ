@@ -82,12 +82,38 @@ class TorchSheetSpec {
       // Veld's scrim is not a paler scrim; it is no scrim. The route is
       // full-screen, so there is nothing behind it to dim.
       scrim: veld ? const Color(0x00000000) : p.scrim,
-      fill: veld ? p.ground : p.surface,
+      // THE SHEET IS THE GROUND ITS CONTENT STANDS ON — 26 September 2026.
+      //
+      // It was `surface`, and a list row's card fill is `surface` too, so
+      // every card in every sheet in the product was **invisible**: the
+      // manager's menu rendered as nine lines of text in a rectangle, which
+      // is what the owner was looking at when they said "the menu still has
+      // the rectangular shapes". A card is identified by its silhouette
+      // (unify §1.3's own answer to the device-floor objection), and a
+      // silhouette needs something behind it.
+      //
+      // `ground` is what The Floor's cards sit on, at the same 1.49:1 step, so
+      // a list in a sheet now reads exactly as the same list on a screen —
+      // which is the whole point of one grammar. Veld already resolved to
+      // `ground` here, so this makes the three skins agree rather than adding
+      // a fourth rule.
+      //
+      // The grabber's declared #616465 was measured at 3.09:1 on the Night
+      // sheet fill and 4.11:1 on the Day one; against `ground` it is higher in
+      // Night (a lighter grey on a darker block) and 4.5:1 in Day. The title
+      // and body inks are ink-1 and ink-2, which are specified against the
+      // ground to begin with.
+      fill: p.ground,
       outline: p.edgeStructure,
       outlineWidth: skin.depth.borderWidth,
+      // AND ITS CORNERS ARE THE PLATE'S. At `panel` (14) the sheet was squarer
+      // than the radius-22 cards inside it — the container harder than its
+      // contents, which is the wrong way round and the other half of what
+      // reads as "rectangular". The plate's 28 is the product's softest
+      // radius and the sheet is its largest object while it is up.
       radius: veld
           ? BorderRadius.zero
-          : BorderRadius.vertical(top: Radius.circular(skin.radii.panel)),
+          : BorderRadius.vertical(top: Radius.circular(skin.radii.plate)),
       maxHeightFraction: veld ? 1.0 : maxHeightFractionValue,
       horizontalPadding: skin.space.gutter,
       grabberColour: veld ? null : grabber,

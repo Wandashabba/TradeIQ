@@ -6842,6 +6842,24 @@ abstract class AppLocalizations {
   /// **'{agent} stood {distance} away'**
   String outletsPinReportStood(String agent, String distance);
 
+  /// Pagination footer under the open pin-report queue. Never a fabricated total — the server returns a cursor, not a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are more open reports.'**
+  String outletsPinReportsShowing(int shown);
+
+  /// Ghost action that loads the next page of open pin reports.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more reports'**
+  String get outletsPinReportsShowMore;
+
+  /// The next page failed. The reports already on screen stay; this line says why there are no more.
+  ///
+  /// In en, this message translates to:
+  /// **'The rest of the queue did not load'**
+  String get outletsPinReportsMoreFailed;
+
   /// Title of the outlet detail route, where a wrong pin is corrected.
   ///
   /// In en, this message translates to:

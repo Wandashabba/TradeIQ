@@ -15,15 +15,26 @@ void main() {
       for (final name in phase2SkinNames) {
         final skin = phase2SkinNamed(name);
         final spec = TroughSpec.resolve(skin: skin);
-        final expected = skin.density == TiqDensity.veld ? 0.0 : 10.0;
+        // MOVED 26 September 2026: a trough is round on all four corners.
+        //
+        // It was square at the top and rounded at the bottom — "a trough
+        // holds at the bottom and the shape says so". Two square corners on a
+        // 56dp box is a rectangle, and it is what the owner was looking at
+        // when they said the sign-in screen is still rectangular. The
+        // metaphor was true and it was spending the one channel this product
+        // uses to say *soft object* to say it; the fill and the resting edge
+        // carry the holding instead, and both are asserted below.
+        final expected = skin.density == TiqDensity.veld
+            ? 0.0
+            : skin.radii.control;
         expect(
           spec.radius.bottomLeft.x,
           expected,
-          reason: '$name: a trough holds at the bottom and the shape says so.',
+          reason: '$name: a control is a soft object on every corner.',
         );
         expect(spec.radius.bottomRight.x, expected);
-        expect(spec.radius.topLeft.x, 0);
-        expect(spec.radius.topRight.x, 0);
+        expect(spec.radius.topLeft.x, expected);
+        expect(spec.radius.topRight.x, expected);
       }
     });
 
