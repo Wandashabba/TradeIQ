@@ -212,7 +212,7 @@ class _BarRow extends StatelessWidget {
       fill = p.chartNeutral;
     }
 
-    Widget bar(AlignmentGeometry from) {
+    Widget bar(AlignmentDirectional from) {
       if (zero) {
         // No bar drawn, "0" printed, and a 2dp tick at the origin so the row
         // is not read as missing. A measured zero is a reading.
@@ -236,6 +236,7 @@ class _BarRow extends StatelessWidget {
             // blur, never a BoxShadow, and never a second draw call.
             bloom: focus ? AskLight.focusBloom(skin, lit: lit) : null,
             radius: veld ? 0 : track / 2,
+            growsFromStart: from == AlignmentDirectional.centerStart,
           ),
         ),
       );
@@ -312,9 +313,19 @@ class _BarRow extends StatelessWidget {
               ],
               Expanded(
                 flex: 62,
+                // THE TRACK IS `well` ON PAPER — 26 September 2026, and the
+                // same value `Meter._trackFill` resolves. `lifted` is a dark
+                // block in all three skins (#2C3B4D, #2C3B4D, #1B2632): on
+                // Night that is a step up from the ground and reads as a
+                // recess, and on Day's Palladian paper it is a navy channel
+                // with a small `good` bar floating in it. A track recesses by
+                // *welling* into the surface, so on a light skin it takes
+                // `well` and not the dark block.
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: p.lifted,
+                    color: skin.brightness == Brightness.dark
+                        ? p.lifted
+                        : p.well,
                     borderRadius: BorderRadius.circular(veld ? 0 : track / 2),
                   ),
                   child: SizedBox(
@@ -354,6 +365,18 @@ class _BarRow extends StatelessWidget {
 }
 
 /// One bar: a fill, optionally hatched, optionally blooming.
+///
+/// **Square at the origin, rounded at the data end** — 26 September 2026, and
+/// it is the same correction `Meter` took. A fill rounded on all four corners
+/// is a lozenge floating in a track rather than a measurement growing out of
+/// an axis, and the shorter the reading the worse it gets: at a 12% share on a
+/// 6dp track it is a capsule, and on Day's paper it reads as a nub adrift in a
+/// dark channel. A bar starts at the origin; only the end it stopped at is a
+/// measurement, so only that end is shaped.
+///
+/// A fill shorter than it is tall keeps square corners at both ends. Rounding
+/// a 4dp-wide bar by 3dp on one side leaves a wedge, which is a different
+/// shape again.
 class _Bar extends StatelessWidget {
   const _Bar({
     required this.height,
@@ -361,6 +384,7 @@ class _Bar extends StatelessWidget {
     required this.hatched,
     required this.bloom,
     required this.radius,
+    required this.growsFromStart,
   });
 
   final double height;
@@ -369,16 +393,35 @@ class _Bar extends StatelessWidget {
   final Gradient? bloom;
   final double radius;
 
+  /// Which end is the origin. A diverging bar's negative half grows leftward
+  /// from the centre axis, so *its* square end is the trailing one.
+  final bool growsFromStart;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final body = DecoratedBox(
-      decoration: BoxDecoration(
-        color: fill,
-        gradient: bloom,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      child: SizedBox(height: height),
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        // Measured, not assumed: the caller cannot know the laid-out width of
+        // a `FractionallySizedBox` child, and this is the one number the
+        // rounding decision turns on.
+        final short =
+            constraints.hasBoundedWidth && constraints.maxWidth <= height;
+        final end = (radius == 0 || short)
+            ? Radius.zero
+            : Radius.circular(radius);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: fill,
+            gradient: bloom,
+            borderRadius: BorderRadiusDirectional.horizontal(
+              start: growsFromStart ? Radius.zero : end,
+              end: growsFromStart ? end : Radius.zero,
+            ),
+          ),
+          child: SizedBox(height: height),
+        );
+      },
     );
     if (!hatched) return body;
     // 45° hard-stop stripes, drawn by the shared registry — never a pattern
