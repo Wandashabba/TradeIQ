@@ -8,6 +8,7 @@ import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
@@ -402,9 +403,17 @@ class _Route extends ConsumerWidget {
 
 /// THE DAY BLOCK — a standalone soft surface carrying the whole day.
 ///
-/// Radius 14, `surface` fill, a 1px `edgeStructure` rim: it is a standalone
-/// row's material, built here rather than through `SoftRow` because its
-/// content is a figure cluster and a track, not a title over a subtitle.
+/// **A card, since 26 September 2026.** It was a hand-built radius-14 panel
+/// with an `edgeStructure` rim and `skin.depth.shadows`, and it stacked six
+/// things: the eyebrow, the figure, the unit, a status chip, a meter and a
+/// distances-off line. The Floor's grammar gives a figure block **one card and
+/// at most four elements** — eyebrow, figure, one meta line, one visual — so
+/// the chip and the note fold into the meta line and the track is the visual.
+///
+/// Nothing is lost by the fold. The chip carried a word and a silhouette; the
+/// word is still here, in the same sentence as the distance note, and the
+/// silhouette was saying what the track beneath it already draws. What goes is
+/// the third and fourth *reads* of the same fact.
 class _DayBlock extends StatelessWidget {
   const _DayBlock({required this.route});
 
@@ -421,18 +430,8 @@ class _DayBlock extends StatelessWidget {
       container: true,
       label: l10n.todayRouteSemantics(done, route.total, route.remaining),
       excludeSemantics: true,
-      child: Container(
+      child: TorchCard(
         key: const ValueKey<String>('day-block'),
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        decoration: BoxDecoration(
-          color: skin.palette.surface,
-          borderRadius: BorderRadius.circular(skin.radii.panel),
-          border: Border.all(
-            color: skin.palette.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-          boxShadow: skin.depth.shadows,
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -462,20 +461,36 @@ class _DayBlock extends StatelessWidget {
                     style: skin.text.titleM.style(color: skin.palette.ink2),
                   ),
                 ),
+                // THE ONE META LINE, ON THE FIGURE'S OWN BASELINE — which is
+                // where The Floor puts its hero's delta, and what the chip
+                // occupied here before. It says what the chip said and what
+                // the distances note said, in one sentence: how much of the
+                // day is left, and — only when it is true — that no row will
+                // carry a distance.
+                //
+                // On the baseline and not on a line of its own, and that is
+                // arithmetic rather than taste: a line of its own cost 25dp,
+                // which on a 360×640 phone is the difference between the next
+                // section marker being on the first fold and being under it.
+                //
+                // "Not location error": the agent turned it off, or the phone
+                // cannot see the sky. Either way the route still works.
                 Padding(
                   padding: const EdgeInsets.only(bottom: TiqSpace.s1),
-                  // Never the bar alone: the state is a word on a chip with a
-                  // silhouette, which is what survives greyscale and glare.
-                  child: StatusChip(
-                    level: complete ? StatusLevel.onTarget : StatusLevel.held,
-                    label: complete
-                        ? l10n.todayRouteDone
-                        : l10n.todayStoresLeft(route.remaining),
+                  child: Text(
+                    <String>[
+                      complete
+                          ? l10n.todayRouteDone
+                          : l10n.todayStoresLeft(route.remaining),
+                      if (!route.hasLocation) l10n.todayDistancesOff,
+                    ].join(' · '),
+                    style: skin.text.meta.style(color: skin.palette.ink2),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: TiqSpace.s4),
+            // THE ONE VISUAL.
             Meter(
               value: route.total == 0 ? 0 : done / route.total * 100,
               semanticsValue: l10n.todayRouteSemantics(
@@ -484,16 +499,6 @@ class _DayBlock extends StatelessWidget {
                 route.remaining,
               ),
             ),
-            if (!route.hasLocation) ...<Widget>[
-              const SizedBox(height: TiqSpace.s3),
-              Text(
-                // Not "location error". The agent turned it off, or the phone
-                // cannot see the sky. Either way the route still works — and
-                // no row on it will show a distance.
-                l10n.todayDistancesOff,
-                style: skin.text.meta.style(color: skin.palette.ink3),
-              ),
-            ],
           ],
         ),
       ),
@@ -513,9 +518,14 @@ class _NextUpCard extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
-    return Container(
+    // NO SHADOW. `skin.depth.shadows` is empty in Night and Veld and three
+    // stacked drops in Day, so this block floated on the Day ground while the
+    // cards beside it sat flat on it — two grammars on one screen, in the one
+    // skin where it shows. Neither `TorchCard` nor `SoftRow` paints a shadow
+    // in any skin, and this is the standalone row's material: radius 14,
+    // `surface`, a 1px `edgeStructure` rim (unify §1.3).
+    return DecoratedBox(
       key: const ValueKey<String>('next-stop'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
         color: skin.palette.surface,
         borderRadius: BorderRadius.circular(skin.radii.panel),
@@ -523,9 +533,10 @@ class _NextUpCard extends StatelessWidget {
           color: skin.palette.edgeStructure,
           width: skin.depth.borderWidth,
         ),
-        boxShadow: skin.depth.shadows,
       ),
-      child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(TiqSpace.s4),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // The meta line, at the sizes the surface declares: the sequence in
@@ -563,7 +574,8 @@ class _NextUpCard extends StatelessWidget {
             icon: Icons.chevron_right,
             onPressed: () => context.go('/audit/${stop.outlet.id}'),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

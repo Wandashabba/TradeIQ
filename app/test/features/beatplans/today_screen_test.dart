@@ -269,8 +269,18 @@ void main() {
     ) async {
       await _pump(tester, route: _route(located: false));
 
+      // MOVED 26 September 2026: the note is no longer a line of its own.
+      //
+      // The day block is a figure block, and the card grammar gives one at
+      // most four elements — eyebrow, figure, one meta line, one visual. The
+      // status chip and this note were the fifth and sixth, saying between
+      // them what one sentence says: `5 left · Distances are off …`. The
+      // sentence is still exactly the string the l10n file holds, which is
+      // what this asserts; it is simply no longer alone in its `Text`.
       expect(
-        find.text('Distances are off — this phone will not say where it is.'),
+        find.textContaining(
+          'Distances are off — this phone will not say where it is.',
+        ),
         findsOneWidget,
       );
       // Not a wrong number, and not eleven em dashes either: nothing at all.
