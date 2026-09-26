@@ -639,11 +639,13 @@ class _LeaveSheet extends StatelessWidget {
   }
 }
 
-/// ONE GROUP OF FIELDS, under an optional rule.
+/// ONE GROUP OF FIELDS, under an optional marker.
 ///
-/// The rule is [SectionRule] — the system's one section marker — not an
-/// uppercase eyebrow, which unify §1.17 legalises in exactly three places and
-/// this is not one of them.
+/// The marker is [SectionRule] — the system's one section marker, and since
+/// 26 September 2026 that is the uppercase kicker on the ground rather than a
+/// rule with the name knocked out of it. Nothing here chooses: the group hands
+/// the component a sentence-case string and the component decides how a
+/// section marker looks, on this screen and on all the others.
 class SectionFieldGroup extends StatelessWidget {
   const SectionFieldGroup({super.key, required this.children, this.title});
 

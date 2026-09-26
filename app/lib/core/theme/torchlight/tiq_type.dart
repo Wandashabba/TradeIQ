@@ -195,10 +195,12 @@ class TiqType {
 
   /// 11/700/+4% uppercase, wrapping to two lines.
   ///
-  /// Legal in three places only (unify §1.17): a stat tile's label, a
-  /// hero/plate figure's label, and a block label inside a panel ("WORST
-  /// FIRST"). Every screen-level section marker is the knocked-out rule at
-  /// `title.m` in sentence case, not an eyebrow.
+  /// Four places (unify §1.17, as overridden 25–26 September 2026): a stat
+  /// tile's label, a hero/plate figure's label, a block label inside a panel
+  /// ("WORST FIRST"), and — since the owner asked for The Floor's design
+  /// everywhere — **the screen-level section marker**, which is now this role
+  /// on the ground rather than `title.m` knocked out of a rule. `SectionRule`
+  /// is the only component that may set a section marker in it.
   ///
   /// Tracking moved from +8% to **+4%** in Phase 1 (unify §1.4, "applies to
   /// the eyebrow role globally"). Uppercase plus tracking is the most

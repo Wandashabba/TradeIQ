@@ -199,9 +199,11 @@ class _ListBlock extends StatelessWidget {
 /// clear space either side of it — structure, which survives greyscale, sun, a
 /// printed export and a screen reader identically.
 ///
-/// Sentence case, at `title.m`, per unify §1.17: every screen-level section
-/// marker on this surface is the knocked-out rule, and the uppercase eyebrow
-/// is legal in three places and this is not one of them.
+/// Every screen-level section marker on this surface is [SectionRule], and
+/// since 26 September 2026 that is the uppercase kicker on the ground rather
+/// than a rule with the name knocked out of it. The kicker's own string stays
+/// sentence case — the component uppercases for display and hands the sentence
+/// to anything that reads.
 class AskCallout extends StatelessWidget {
   const AskCallout({
     super.key,
