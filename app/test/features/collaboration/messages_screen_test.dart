@@ -109,10 +109,28 @@ class _FakeCollaborationRepository implements CollaborationRepository {
   ({String title, String body})? posted;
   Object? postFailure;
 
+  /// Messages behind the first page's cursor, and the cursor that reaches
+  /// them. A fake that only ever answered one page could not tell a paged
+  /// feed from a truncated one — which is why a feed of direct messages
+  /// shipped showing the size of page one as the size of the feed.
+  final Map<String, List<Message>> messagePages = <String, List<Message>>{};
+  String? messagesCursor;
+  final List<String?> messageCursorsAsked = <String?>[];
+
   @override
-  Future<PaginatedResponse<Message>> listMessages() async {
+  Future<PaginatedResponse<Message>> listMessages({String? cursor}) async {
+    messageCursorsAsked.add(cursor);
     if (listFailure != null) throw listFailure!;
-    return PaginatedResponse<Message>(data: messages, nextCursor: null);
+    if (cursor == null) {
+      return PaginatedResponse<Message>(
+        data: messages,
+        nextCursor: messagesCursor,
+      );
+    }
+    return PaginatedResponse<Message>(
+      data: messagePages[cursor] ?? const <Message>[],
+      nextCursor: null,
+    );
   }
 
   @override
@@ -131,7 +149,9 @@ class _FakeCollaborationRepository implements CollaborationRepository {
   }
 
   @override
-  Future<PaginatedResponse<Announcement>> listAnnouncements() async {
+  Future<PaginatedResponse<Announcement>> listAnnouncements({
+    String? cursor,
+  }) async {
     if (announcementsFailure != null) throw announcementsFailure!;
     return const PaginatedResponse<Announcement>(
       data: <Announcement>[_announcement],
@@ -938,4 +958,65 @@ void main() {
     expect(find.text('Morning standup at 9'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  group('a cut feed says so, and offers the rest', () {
+    // The count beside the section marker was the length of page one, so a
+    // manager read the size of a page as the size of the feed. On a feed of
+    // DIRECT MESSAGES that is the worst version of this defect in the app:
+    // the thing that goes missing is somebody asking you for something, and
+    // nothing on screen said it had been left out.
+    _FakeCollaborationRepository cut() {
+      final repo = _FakeCollaborationRepository(
+        messages: const <Message>[_first, _direct],
+      )..messagesCursor = 'page-2';
+      repo.messagePages['page-2'] = const <Message>[
+        Message(id: 'm-older', body: 'Left the keys in the van', senderId: _sender),
+      ];
+      return repo;
+    }
+
+    testWidgets('the footer names what is on screen, never a total', (
+      tester,
+    ) async {
+      await pump(tester, repo: cut());
+      await scrollWorklistTo(tester, find.textContaining('Showing 2.'));
+      expect(find.textContaining('Showing 2.'), findsOneWidget);
+      // The server returns a cursor, not a count.
+      expect(find.textContaining('Showing 2 of'), findsNothing);
+    });
+
+    testWidgets('Show older appends and keeps what was there', (tester) async {
+      final repo = cut();
+      await pump(tester, repo: repo);
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('messages-older')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('messages-older')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Left the keys in the van'), findsOneWidget);
+      expect(find.text('Can you cover Soweto?'), findsOneWidget);
+      expect(repo.messageCursorsAsked, <String?>[null, 'page-2']);
+      // The server stopped sending a cursor, so the feed is whole.
+      expect(
+        find.byKey(const ValueKey<String>('messages-older')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an uncut feed owns up to nothing', (tester) async {
+      await pump(
+        tester,
+        repo: _FakeCollaborationRepository(
+          messages: const <Message>[_first, _direct],
+        ),
+      );
+      expect(find.textContaining('Showing'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('messages-older')),
+        findsNothing,
+      );
+    });
+  });
+
 }

@@ -322,7 +322,7 @@ class _EmptyWebhooksRepository implements WebhooksRepository {
 
 class _EmptyCollaborationRepository implements CollaborationRepository {
   @override
-  Future<PaginatedResponse<Message>> listMessages() async =>
+  Future<PaginatedResponse<Message>> listMessages({String? cursor}) async =>
       const PaginatedResponse<Message>(data: <Message>[], nextCursor: null);
 
   @override
@@ -334,7 +334,9 @@ class _EmptyCollaborationRepository implements CollaborationRepository {
   }) async => throw UnimplementedError();
 
   @override
-  Future<PaginatedResponse<Announcement>> listAnnouncements() async =>
+  Future<PaginatedResponse<Announcement>> listAnnouncements({
+    String? cursor,
+  }) async =>
       const PaginatedResponse<Announcement>(
         data: <Announcement>[],
         nextCursor: null,

@@ -10722,6 +10722,36 @@ abstract class AppLocalizations {
   /// **'Anything you send below reaches the whole team.'**
   String get messagesEmptyBody;
 
+  /// Pagination footer under the messages feed. Never a fabricated total — the server returns a cursor, not a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older messages.'**
+  String messagesShowing(int shown);
+
+  /// Ghost action that loads the next page of messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older messages'**
+  String get messagesShowOlder;
+
+  /// Pagination footer under the announcements feed.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older announcements.'**
+  String announcementsShowing(int shown);
+
+  /// Ghost action that loads the next page of announcements.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older announcements'**
+  String get announcementsShowOlder;
+
+  /// The next page of a feed failed. What is on screen stays; this line says why there is no more.
+  ///
+  /// In en, this message translates to:
+  /// **'Older items did not load'**
+  String get feedMoreFailed;
+
   /// In-panel empty state of the announcements feed.
   ///
   /// In en, this message translates to:

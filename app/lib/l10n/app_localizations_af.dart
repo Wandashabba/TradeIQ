@@ -6827,6 +6827,25 @@ class AppLocalizationsAf extends AppLocalizations {
       'Enigiets wat jy hieronder stuur, bereik die hele span.';
 
   @override
+  String messagesShowing(int shown) {
+    return 'Wys $shown. Daar is ouer boodskappe.';
+  }
+
+  @override
+  String get messagesShowOlder => 'Wys ouer boodskappe';
+
+  @override
+  String announcementsShowing(int shown) {
+    return 'Wys $shown. Daar is ouer aankondigings.';
+  }
+
+  @override
+  String get announcementsShowOlder => 'Wys ouer aankondigings';
+
+  @override
+  String get feedMoreFailed => 'Ouer items het nie gelaai nie';
+
+  @override
   String get announcementsEmptyHeadline => 'Nog geen aankondigings nie.';
 
   @override

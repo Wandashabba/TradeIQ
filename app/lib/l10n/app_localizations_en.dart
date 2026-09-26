@@ -6761,6 +6761,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Anything you send below reaches the whole team.';
 
   @override
+  String messagesShowing(int shown) {
+    return 'Showing $shown. There are older messages.';
+  }
+
+  @override
+  String get messagesShowOlder => 'Show older messages';
+
+  @override
+  String announcementsShowing(int shown) {
+    return 'Showing $shown. There are older announcements.';
+  }
+
+  @override
+  String get announcementsShowOlder => 'Show older announcements';
+
+  @override
+  String get feedMoreFailed => 'Older items did not load';
+
+  @override
   String get announcementsEmptyHeadline => 'No announcements yet.';
 
   @override

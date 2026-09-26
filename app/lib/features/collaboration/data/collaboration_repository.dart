@@ -73,7 +73,9 @@ class Announcement {
 }
 
 abstract class CollaborationRepository {
-  Future<PaginatedResponse<Message>> listMessages();
+  /// One page of `GET /messages`, newest first. [cursor] is the previous
+  /// page's `nextCursor`.
+  Future<PaginatedResponse<Message>> listMessages({String? cursor});
 
   /// POST /messages. [attachmentPhotoIds] are ids returned by
   /// `PhotosRepository.uploadMessageAttachment` — at most
@@ -92,7 +94,8 @@ abstract class CollaborationRepository {
     List<String> attachmentPhotoIds = const [],
     String? clientMessageId,
   });
-  Future<PaginatedResponse<Announcement>> listAnnouncements();
+  /// One page of `GET /announcements`, newest first.
+  Future<PaginatedResponse<Announcement>> listAnnouncements({String? cursor});
 
   /// POST /announcements. The backend gates this on `requireRole('manager',
   /// 'admin')` — the caller must role-gate the affordance too, or a field agent
@@ -108,8 +111,11 @@ const maxMessageAttachments = 4;
 
 class DioCollaborationRepository implements CollaborationRepository {
   @override
-  Future<PaginatedResponse<Message>> listMessages() async {
-    final response = await dio.get('/messages');
+  Future<PaginatedResponse<Message>> listMessages({String? cursor}) async {
+    final response = await dio.get(
+      '/messages',
+      queryParameters: <String, dynamic>{'cursor': ?cursor},
+    );
     return PaginatedResponse<Message>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => Message.fromJson(e as Map<String, dynamic>),
@@ -139,8 +145,13 @@ class DioCollaborationRepository implements CollaborationRepository {
   }
 
   @override
-  Future<PaginatedResponse<Announcement>> listAnnouncements() async {
-    final response = await dio.get('/announcements');
+  Future<PaginatedResponse<Announcement>> listAnnouncements({
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/announcements',
+      queryParameters: <String, dynamic>{'cursor': ?cursor},
+    );
     return PaginatedResponse<Announcement>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => Announcement.fromJson(e as Map<String, dynamic>),
@@ -163,17 +174,23 @@ class DioCollaborationRepository implements CollaborationRepository {
 final collaborationRepositoryProvider =
     Provider<CollaborationRepository>((ref) => DioCollaborationRepository());
 
-// Both providers expose the FIRST PAGE as a plain list: the messages/
-// announcements panel wants the most recent items, not the whole history,
-// and "load more" UI is deliberately out of scope for the pagination sweep
-// (see the spec). `nextCursor` is available on the repository for any screen
-// that later needs to page; these providers intentionally drop it.
-final messagesProvider = FutureProvider<List<Message>>((ref) async {
-  final page = await ref.read(collaborationRepositoryProvider).listMessages();
-  return page.data;
-});
+// BOTH PROVIDERS KEEP THE PAGE — 26 September 2026.
+//
+// They returned `page.data` and dropped `nextCursor`, on the reading that the
+// panel "wants the most recent items, not the whole history" and that load-more
+// UI was out of scope. The panel then printed the length of page one as the
+// count beside each section marker, so a manager read the size of a page as
+// the size of the feed. On a feed of **direct messages** that is the worst
+// version of this defect in the app: the thing that goes missing is somebody
+// asking you for something, and nothing on screen says it was left out.
+//
+// "Most recent items" is still what the screen opens on. It simply says so
+// now, and offers the rest.
+final messagesProvider = FutureProvider<PaginatedResponse<Message>>(
+  (ref) => ref.read(collaborationRepositoryProvider).listMessages(),
+);
 
-final announcementsListProvider = FutureProvider<List<Announcement>>((ref) async {
-  final page = await ref.read(collaborationRepositoryProvider).listAnnouncements();
-  return page.data;
-});
+final announcementsListProvider =
+    FutureProvider<PaginatedResponse<Announcement>>(
+      (ref) => ref.read(collaborationRepositoryProvider).listAnnouncements(),
+    );

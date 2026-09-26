@@ -9091,6 +9091,36 @@
   "@messagesEmptyBody": {
     "description": "Body of the messages empty state."
   },
+  "messagesShowing": "Showing {shown}. There are older messages.",
+  "@messagesShowing": {
+    "description": "Pagination footer under the messages feed. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "messagesShowOlder": "Show older messages",
+  "@messagesShowOlder": {
+    "description": "Ghost action that loads the next page of messages."
+  },
+  "announcementsShowing": "Showing {shown}. There are older announcements.",
+  "@announcementsShowing": {
+    "description": "Pagination footer under the announcements feed.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "announcementsShowOlder": "Show older announcements",
+  "@announcementsShowOlder": {
+    "description": "Ghost action that loads the next page of announcements."
+  },
+  "feedMoreFailed": "Older items did not load",
+  "@feedMoreFailed": {
+    "description": "The next page of a feed failed. What is on screen stays; this line says why there is no more."
+  },
   "announcementsEmptyHeadline": "No announcements yet.",
   "@announcementsEmptyHeadline": {
     "description": "In-panel empty state of the announcements feed."
