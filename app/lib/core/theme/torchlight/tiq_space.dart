@@ -160,7 +160,13 @@ class TiqRadii {
   /// Chips, outlined pills, ladder glyph tiles.
   final double chip;
 
-  /// Buttons and thumbnails.
+  /// Buttons, inputs and thumbnails.
+  ///
+  /// Raised from 10 to 16 on 26 September 2026. At 10 a 56dp field and a 48dp
+  /// button read as rectangles beside radius-22 cards — "the login as well",
+  /// in the owner's words, looking at the running sign-in screen. 16 is a
+  /// visible round-rect at both heights and still reads apart from a card,
+  /// which is the distinction [card] exists to make.
   final double control;
 
   /// The instrument panel, forms, sheets.
@@ -183,7 +189,7 @@ class TiqRadii {
   static const TiqRadii lit = TiqRadii(
     rule: 0,
     chip: 6,
-    control: 10,
+    control: 16,
     panel: 14,
     card: 22,
     plate: 28,
@@ -199,11 +205,16 @@ class TiqRadii {
     plate: 0,
   );
 
-  /// An input is a trough — it holds at the BOTTOM.
-  BorderRadius get input => BorderRadius.vertical(
-    top: Radius.zero,
-    bottom: Radius.circular(control),
-  );
+  /// An input is a control, and it is round on all four corners.
+  ///
+  /// It was a **trough** — square at the top, rounded at the bottom — on the
+  /// reading that an input "holds at the bottom". Two square corners at the
+  /// top of a 56dp box is a rectangle, and it is the shape the owner was
+  /// looking at when they said the sign-in screen is still rectangular. The
+  /// trough said something true about an input and said it in the one channel
+  /// this product uses to say "soft object"; the fill and the resting outline
+  /// carry the holding, and the silhouette carries the softness.
+  BorderRadius get input => BorderRadius.circular(control);
 
   TiqRadii lerp(TiqRadii other, double t) => TiqRadii(
     rule: lerpDouble(rule, other.rule, t)!,

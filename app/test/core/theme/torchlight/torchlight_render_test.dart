@@ -141,7 +141,11 @@ void main() {
 
     test('the pill radius is gone and five materials remain', () {
       expect(TiqRadii.lit.chip, 6);
-      expect(TiqRadii.lit.control, 10);
+      // `control` moved 10 → 16 on 26 September 2026. At 10 a 56dp field and
+      // a 48dp button read as rectangles beside radius-22 cards, which is
+      // what the owner meant by "the login as well". 16 is a visible
+      // round-rect at both heights and still reads apart from a card.
+      expect(TiqRadii.lit.control, 16);
       expect(TiqRadii.lit.panel, 14);
       // `card` 22 and `plate` 28 arrived with the owner's card override of
       // 25 September 2026 (torchlight-aisle §9c): a list row a person acts
@@ -164,10 +168,21 @@ void main() {
           reason: 'The 999 stadium radius died with the active-tab pill.',
         );
       }
-      // An input is a trough: it holds at the bottom.
+      // MOVED 26 September 2026: an input is a control, round on all four
+      // corners, and it is `control` on every one of them. The trough — square
+      // at the top, rounded at the bottom — said a true thing about an input
+      // in the one channel this product uses to say *soft object*, and two
+      // square corners on a 56dp box is the rectangle the owner objected to
+      // on the sign-in screen. The holding is carried by the fill and the
+      // resting edge, which `input_test.dart` asserts.
       final input = TiqRadii.lit.input;
-      expect(input.topLeft, Radius.zero);
-      expect(input.bottomLeft, const Radius.circular(10));
+      expect(input.topLeft, const Radius.circular(16));
+      expect(input.bottomLeft, const Radius.circular(16));
+      expect(
+        input.topLeft,
+        Radius.circular(TiqRadii.lit.control),
+        reason: 'an input takes the control radius, not a number of its own',
+      );
     });
 
     test('the tap-target floor rises with the density', () {

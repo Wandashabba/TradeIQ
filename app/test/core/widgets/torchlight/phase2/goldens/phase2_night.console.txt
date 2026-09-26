@@ -3,15 +3,15 @@
 # Regenerate: UPDATE_PHASE2_GOLDENS=1 flutter test test/core/widgets/torchlight/phase2/phase2_golden_test.dart
 
 ## sheet
-form=sheet  scrim=#B80B1017  fill=#FF1B2632  outline=#FF5B718A@1.0  radiusTop=14.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=24.0  closeRow=0.0  title=title.l  body=body
-form=sheet  scrim=#B80B1017  fill=#FF1B2632  outline=#FF5B718A@1.0  radiusTop=14.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=58.0  closeRow=0.0  title=title.l  body=body
+form=sheet  scrim=#B80B1017  fill=#FF0B1017  outline=#FF5B718A@1.0  radiusTop=28.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=24.0  closeRow=0.0  title=title.l  body=body
+form=sheet  scrim=#B80B1017  fill=#FF0B1017  outline=#FF5B718A@1.0  radiusTop=28.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=58.0  closeRow=0.0  title=title.l  body=body
 
 ## trough
-state=empty  minHeight=44.0  radius=10/0  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FF7C93AC@1.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
-state=filled  minHeight=44.0  radius=10/0  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FF7C93AC@1.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
-state=focused  minHeight=44.0  radius=10/0  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FFEEE9DF@2.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
-state=error  minHeight=44.0  radius=10/0  fill=#FF141D27  outline=#FFFF7D8C@2.0  rule=#FFFF7D8C@2.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
-state=finding  minHeight=44.0  radius=10/0  fill=#FF302933  outline=#FFFF7D8C@2.0  rule=#FFFF7D8C@2.0  pad=14.0/16.0  ink=#FFFF7D8C  label=label/#FFC9C1B1  help=meta/#FFA79E8C
-state=disabled  minHeight=44.0  radius=10/0  fill=#FF0B1017  outline=#FF4C6079@1.0  rule=#FF4C6079@1.0  pad=14.0/16.0  ink=#FF4C6079  label=label/#FF4C6079  help=meta/#FFA79E8C
-state=readOnly  minHeight=44.0  radius=10/0  fill=—  outline=—@0.0  rule=—@0.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=empty  minHeight=44.0  radius=16/16  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FF7C93AC@1.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=filled  minHeight=44.0  radius=16/16  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FF7C93AC@1.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=focused  minHeight=44.0  radius=16/16  fill=#FF141D27  outline=#FF7C93AC@1.0  rule=#FFEEE9DF@2.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=error  minHeight=44.0  radius=16/16  fill=#FF141D27  outline=#FFFF7D8C@2.0  rule=#FFFF7D8C@2.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=finding  minHeight=44.0  radius=16/16  fill=#FF302933  outline=#FFFF7D8C@2.0  rule=#FFFF7D8C@2.0  pad=14.0/16.0  ink=#FFFF7D8C  label=label/#FFC9C1B1  help=meta/#FFA79E8C
+state=disabled  minHeight=44.0  radius=16/16  fill=#FF0B1017  outline=#FF4C6079@1.0  rule=#FF4C6079@1.0  pad=14.0/16.0  ink=#FF4C6079  label=label/#FF4C6079  help=meta/#FFA79E8C
+state=readOnly  minHeight=44.0  radius=16/16  fill=—  outline=—@0.0  rule=—@0.0  pad=14.0/16.0  ink=#FFEEE9DF  label=label/#FFC9C1B1  help=meta/#FFA79E8C
 
