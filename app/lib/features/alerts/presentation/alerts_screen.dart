@@ -7,6 +7,7 @@ import '../../../core/design/tiq_number.dart';
 import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/evidence_thumb.dart';
@@ -288,37 +289,52 @@ class _LeadIndicator extends StatelessWidget {
         ? SeverityMarkKind.notMeasured
         : SeverityMarkKind.onTarget;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: TiqSpace.s5),
-          child: SeverityMark(kind: kind),
-        ),
-        const SizedBox(width: TiqSpace.s3),
-        Expanded(
-          child: StatTile(
-            eyebrow: 'Open critical',
-            // A measured zero renders 0 and keeps its place. Nought open
-            // criticals is a fact worth reading, not an absence — but a zero
-            // over a cut page is not that zero, and it renders as the em dash
-            // and the reason.
-            value: unknown ? null : critical,
-            noDataReason: unknown
-                ? 'None among the $loaded alerts loaded. The rest of the list '
-                      'was not fetched.'
-                : null,
-            stateLine: partial && critical > 0
-                ? 'At least this many: counted over the $loaded alerts loaded.'
-                : null,
-            lead: true,
-            severity: critical > 0 ? SeverityMarkKind.critical : null,
-            subordinates:
-                '${view.openWarning} warnings · ${view.acknowledged} '
-                'acknowledged',
+    // A CARD, AND NO CRIMSON BOX — 26 September 2026.
+    //
+    // The Floor's one figure block is a `TorchCard` holding a `StatTile(lead:
+    // true)`, and this is the same object on a worklist, so it wears the same
+    // material: radius 22, `surface`, no outline. It was a bare `Row` on the
+    // ground whose tile drew a 1px crimson `bad` outline around itself —
+    // the only coloured box left in the product, and a shape the card grammar
+    // has no form for.
+    //
+    // The severity is not lost, and it never depended on that outline. The
+    // `SeverityMark` beside the figure is the silhouette (filled for
+    // critical, a barred ring for an unmeasured page, a circle for clear), the
+    // eyebrow is the word, and the figure is the count. Three channels, and
+    // the two that survive greyscale are the two that are left.
+    return TorchCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: TiqSpace.s5),
+            child: SeverityMark(kind: kind),
           ),
-        ),
-      ],
+          const SizedBox(width: TiqSpace.s3),
+          Expanded(
+            child: StatTile(
+              eyebrow: 'Open critical',
+              // A measured zero renders 0 and keeps its place. Nought open
+              // criticals is a fact worth reading, not an absence — but a zero
+              // over a cut page is not that zero, and it renders as the em dash
+              // and the reason.
+              value: unknown ? null : critical,
+              noDataReason: unknown
+                  ? 'None among the $loaded alerts loaded. The rest of the list '
+                        'was not fetched.'
+                  : null,
+              stateLine: partial && critical > 0
+                  ? 'At least this many: counted over the $loaded alerts loaded.'
+                  : null,
+              lead: true,
+              subordinates:
+                  '${view.openWarning} warnings · ${view.acknowledged} '
+                  'acknowledged',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -544,12 +560,21 @@ class _AlertRowState extends ConsumerState<_AlertRow>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // The rule that fired is machine-facing, so it wears the
-            // identifier face — a manager can quote it straight back into the
-            // rules screen.
+            // THE RULE THAT FIRED, IN WORDS — 26 September 2026.
+            //
+            // This printed the wire's own token in the mono identifier face:
+            // `out_of_stock`, under a message that had just said "SKU 4412 is
+            // out of stock". The argument was that a manager could quote it
+            // back into the rules screen — but the rules screen lists rules by
+            // name, the slug is one of three, and a row that repeats its own
+            // title as a slug is a line of type spent on nothing.
+            //
+            // The token is not lost. The detail sheet one tap away still
+            // prints it in the identifier face beside the outlet, which is
+            // where a thing you quote belongs.
             Text(
-              alert.rule,
-              style: skin.text.monoIdent.style(color: skin.palette.ink3),
+              alert.ruleWords,
+              style: skin.text.meta.style(color: skin.palette.ink3),
             ),
           ],
         ),
@@ -568,7 +593,7 @@ class _AlertRowState extends ConsumerState<_AlertRow>
         semanticsLabel: <String>[
           alert.severityLabel,
           alert.message,
-          alert.rule,
+          alert.ruleWords,
           alert.outletName,
           if (alert.acknowledged) 'acknowledged',
         ].join('. '),

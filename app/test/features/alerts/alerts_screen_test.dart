@@ -185,9 +185,36 @@ void main() {
       expect(row.semanticsLabel, startsWith('Critical.'));
     });
 
-    testWidgets('the rule that fired is on the row, in the identifier face', (
+    // MOVED 26 September 2026: the rule that fired is on the row **in words**.
+    //
+    // It printed the wire's own token in the mono identifier face, and this
+    // test pinned the face. The token is one of three — `out_of_stock`,
+    // `price_deviation`, `low_scorecard` — so a row read "SKU 4412 is out of
+    // stock" over "out_of_stock": its own title, repeated as a slug. Present,
+    // and not readable.
+    //
+    // What the pin was really protecting is kept and tested harder below: the
+    // rule is still on the row, the token is still quotable into the rules
+    // screen from the detail sheet, and an unrecognised metric still shows
+    // exactly what the server sent rather than a name nobody can look up.
+    testWidgets('the rule that fired is on the row, in words', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(metric: 'out_of_stock')],
+      );
+
+      await scrollWorklistTo(tester, find.text('Out of stock'));
+      expect(find.text('Out of stock'), findsOneWidget);
+      expect(find.text('out_of_stock'), findsNothing);
+    });
+
+    testWidgets('a metric this build has never heard of keeps its token', (
       tester,
     ) async {
+      // `alerts.service.ts` rejects anything outside its allow-list, so this
+      // is a server that has grown a fourth metric. It must be visibly a
+      // fourth metric, not a name this client made up for it.
       await _pump(
         tester,
         outlets: _outlets,
@@ -195,9 +222,30 @@ void main() {
       );
 
       await scrollWorklistTo(tester, find.text('OSA_BELOW_50'));
+      expect(find.text('OSA_BELOW_50'), findsOneWidget);
+    });
+
+    testWidgets('and the token is still quotable, in the detail sheet', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(metric: 'out_of_stock')],
+      );
+
+      await scrollWorklistTo(tester, find.text('Out of stock'));
+      await tester.tap(find.text('Out of stock'));
+      await tester.pumpAndSettle();
+
+      final identifier = find.textContaining('out_of_stock');
+      expect(identifier, findsOneWidget);
       final skin = TiqSkin.night();
-      final text = tester.widget<Text>(find.text('OSA_BELOW_50'));
-      expect(text.style!.fontFamily, skin.text.monoIdent.family);
+      expect(
+        tester.widget<Text>(identifier).style!.fontFamily,
+        skin.text.monoIdent.family,
+        reason: 'a thing you quote wears the identifier face',
+      );
     });
 
     testWidgets('the section rule carries the count it is showing', (
