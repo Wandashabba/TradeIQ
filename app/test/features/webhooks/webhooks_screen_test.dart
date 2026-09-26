@@ -198,8 +198,17 @@ void main() {
     ) async {
       await pump(tester, repo: _FakeWebhooksRepository());
 
-      expect(find.text('visit.submitted'), findsOneWidget);
-      expect(find.text('https://example.com/first'), findsOneWidget);
+      // MOVED 26 September 2026: a row is named by its event **in words**.
+      //
+      // The headline was the wire's dotted slug, so a manager picked a
+      // webhook by wire token. The token is not hidden — it is on the
+      // identifier line with the URL, which is where a thing you paste into a
+      // config file belongs — and this asserts both halves.
+      expect(find.text('Visit submitted'), findsOneWidget);
+      expect(
+        find.text('visit.submitted · https://example.com/first'),
+        findsOneWidget,
+      );
       expect(find.text('Healthy'), findsOneWidget);
       expect(find.text('Failing'), findsOneWidget);
     });
@@ -599,8 +608,8 @@ void main() {
   ) async {
     await pump(tester, repo: _FakeWebhooksRepository(), textScale: 2.0);
 
-    await scrollWorklistTo(tester, find.text('visit.submitted'));
-    expect(find.text('visit.submitted'), findsOneWidget);
+    await scrollWorklistTo(tester, find.text('Visit submitted'));
+    expect(find.text('Visit submitted'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -611,7 +620,30 @@ void main() {
       skin: TiqSkin.veld(),
     );
 
-    expect(find.text('visit.submitted'), findsOneWidget);
+    expect(find.text('Visit submitted'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an event this build has never heard of keeps its token', (
+    tester,
+  ) async {
+    // A fifth event the server starts emitting must be visibly a fifth
+    // event, not a name this client invented for it.
+    await pump(
+      tester,
+      repo: _FakeWebhooksRepository(
+        webhooks: <Webhook>[
+          Webhook(
+            id: 'w-unknown',
+            url: 'https://example.com/unknown',
+            event: 'invoice.settled',
+            active: true,
+            health: WebhookHealth.healthy,
+            hasSecret: true,
+          ),
+        ],
+      ),
+    );
+    expect(find.text('invoice.settled'), findsOneWidget);
   });
 }

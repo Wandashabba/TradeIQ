@@ -6536,6 +6536,18 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get webhookEventVisitSubmitted => 'Besoek ingedien';
+
+  @override
+  String get webhookEventAlertRaised => 'Waarskuwing gelig';
+
+  @override
+  String get webhookEventOrderCreated => 'Bestelling geskep';
+
+  @override
+  String get webhookEventReportGenerated => 'Verslag gegenereer';
+
+  @override
   String get webhookHealthHealthy => 'Gesond';
 
   @override

@@ -6473,6 +6473,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get webhookEventVisitSubmitted => 'Visit submitted';
+
+  @override
+  String get webhookEventAlertRaised => 'Alert raised';
+
+  @override
+  String get webhookEventOrderCreated => 'Order created';
+
+  @override
+  String get webhookEventReportGenerated => 'Report generated';
+
+  @override
   String get webhookHealthHealthy => 'Healthy';
 
   @override

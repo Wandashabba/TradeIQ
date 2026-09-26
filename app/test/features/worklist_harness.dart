@@ -63,7 +63,10 @@ class FakeUsersRepository implements UsersRepository {
   final List<AppUser> users;
 
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async =>
+  Future<PaginatedResponse<AppUser>> listUsers({
+    int? limit,
+    String? cursor,
+  }) async =>
       PaginatedResponse(data: users, nextCursor: null);
 
   @override

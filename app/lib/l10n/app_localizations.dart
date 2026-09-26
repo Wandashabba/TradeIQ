@@ -10242,6 +10242,30 @@ abstract class AppLocalizations {
   /// **'in {days}d'**
   String relativeInDays(int days);
 
+  /// The `visit.submitted` webhook event, in words. The dotted slug stays on the row as the identifier.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit submitted'**
+  String get webhookEventVisitSubmitted;
+
+  /// The `alert.raised` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert raised'**
+  String get webhookEventAlertRaised;
+
+  /// The `order.created` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Order created'**
+  String get webhookEventOrderCreated;
+
+  /// The `report.generated` webhook event, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Report generated'**
+  String get webhookEventReportGenerated;
+
   /// An endpoint that is receiving.
   ///
   /// In en, this message translates to:

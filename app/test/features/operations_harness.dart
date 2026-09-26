@@ -220,7 +220,10 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
   final bool pending;
 
   @override
-  Future<PaginatedResponse<Territory>> listTerritories() async {
+  Future<PaginatedResponse<Territory>> listTerritories({
+    int? limit,
+    String? cursor,
+  }) async {
     if (failure != null) throw failure!;
     if (pending) return Completer<PaginatedResponse<Territory>>().future;
     return PaginatedResponse(data: territories, nextCursor: null);
@@ -407,7 +410,10 @@ class FakeOpsUsersRepository implements UsersRepository {
   final List<AppUser> users;
 
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async =>
+  Future<PaginatedResponse<AppUser>> listUsers({
+    int? limit,
+    String? cursor,
+  }) async =>
       PaginatedResponse(data: users, nextCursor: null);
 
   @override

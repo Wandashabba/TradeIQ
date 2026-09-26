@@ -8716,6 +8716,22 @@
       }
     }
   },
+  "webhookEventVisitSubmitted": "Visit submitted",
+  "@webhookEventVisitSubmitted": {
+    "description": "The `visit.submitted` webhook event, in words. The dotted slug stays on the row as the identifier."
+  },
+  "webhookEventAlertRaised": "Alert raised",
+  "@webhookEventAlertRaised": {
+    "description": "The `alert.raised` webhook event, in words."
+  },
+  "webhookEventOrderCreated": "Order created",
+  "@webhookEventOrderCreated": {
+    "description": "The `order.created` webhook event, in words."
+  },
+  "webhookEventReportGenerated": "Report generated",
+  "@webhookEventReportGenerated": {
+    "description": "The `report.generated` webhook event, in words."
+  },
   "webhookHealthHealthy": "Healthy",
   "@webhookHealthHealthy": {
     "description": "An endpoint that is receiving."

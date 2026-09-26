@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../../l10n/l10n.dart';
 
 /// The events the backend emits — `WEBHOOK_EVENTS` in webhooks.service.ts, in
 /// its order. The API still accepts any event name; one not on this list simply
@@ -12,6 +13,27 @@ const webhookEvents = <String>[
   // A report schedule ran (#66): carries the run and a link to its CSV.
   'report.generated',
 ];
+
+/// The event, in words.
+///
+/// The worklist named every webhook row by the wire's dotted slug — a row's
+/// *headline* was `visit.submitted` — and the create form offered four options
+/// whose visible labels were the same four slugs, so a manager picked a
+/// webhook by wire token. A token is what you paste into a config file; it is
+/// not a name.
+///
+/// The token is not hidden: it stays on the row's second line in the mono
+/// identifier face, which is where a thing you copy belongs. An event this
+/// build has never heard of keeps its token rather than being given a name
+/// that matches nothing on the server.
+String webhookEventWords(AppLocalizations l10n, String event) =>
+    switch (event) {
+      'visit.submitted' => l10n.webhookEventVisitSubmitted,
+      'alert.raised' => l10n.webhookEventAlertRaised,
+      'order.created' => l10n.webhookEventOrderCreated,
+      'report.generated' => l10n.webhookEventReportGenerated,
+      _ => event,
+    };
 
 /// Whether a webhook is actually receiving (#100), as the backend derives it.
 enum WebhookHealth {

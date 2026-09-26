@@ -82,7 +82,12 @@ class TerritoryCoverage {
 }
 
 abstract class TerritoriesRepository {
-  Future<PaginatedResponse<Territory>> listTerritories();
+  /// One page of `GET /territories`. [cursor] is the previous page's
+  /// `nextCursor`; [limit] is a request the backend may cap.
+  Future<PaginatedResponse<Territory>> listTerritories({
+    int? limit,
+    String? cursor,
+  });
   Future<TerritoryCoverage> getCoverage(String id);
 
   /// POST /territories (manager/admin). [code] must be unique per client.
@@ -98,8 +103,17 @@ abstract class TerritoriesRepository {
 
 class DioTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<PaginatedResponse<Territory>> listTerritories() async {
-    final response = await dio.get('/territories');
+  Future<PaginatedResponse<Territory>> listTerritories({
+    int? limit,
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/territories',
+      queryParameters: <String, dynamic>{
+        'limit': ?limit?.toString(),
+        'cursor': ?cursor,
+      },
+    );
     return PaginatedResponse<Territory>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => Territory.fromJson(e as Map<String, dynamic>),
@@ -138,18 +152,52 @@ final territoriesRepositoryProvider = Provider<TerritoriesRepository>(
   (ref) => DioTerritoriesRepository(),
 );
 
-// The provider exposes the FIRST PAGE as a plain list: the terse
-// territory-picker UIs it feeds want the current set, not the whole history,
-// and "load more" UI is deliberately out of scope for the pagination sweep
-// (see the spec). `nextCursor` is available on the repository for any screen
-// that later needs to page; this provider intentionally drops it.
+// THE WHOLE LIST, NOT PAGE ONE OF IT — 26 September 2026.
+//
+// This read one page and dropped `nextCursor`, on the reading that the "terse
+// territory-picker UIs it feeds want the current set". They want the set they
+// can assign from: this provider backs the pickers in the beat-plan form, the
+// sales-target form, the contest form and The Floor's own scope sheet, so a
+// territory on page two was simply unassignable — with nothing anywhere
+// saying so. The territories screen had the other half of it, printing the
+// length of page one as the count beside its marker.
+//
+// It walks, like `fetchAllOutlets` does and for the same stated reason:
+// territories are **reference data somebody finds by identity**, not an
+// activity feed, so a "there are more" footer on the list screen would not
+// have helped a picker at all. The loop is bounded three ways — a page cap, a
+// null cursor, and a cursor that fails to advance — because an unbounded
+// client loop is a bug this codebase has already been bitten by.
 //
 // Retries are disabled: Riverpod's default policy backs off silently for
 // several seconds before surfacing an error, which would leave the list
 // showing a skeleton with no explanation. Failing fast and offering the
 // error state's one Retry is the better trade for a screen somebody is
 // looking at — the same call `territory_map_screen.dart` made first.
+const _maxTerritoryPageSize = 200;
+const _maxTerritoryPages = 50;
+
 final territoriesListProvider = FutureProvider<List<Territory>>((ref) async {
-  final page = await ref.read(territoriesRepositoryProvider).listTerritories();
-  return page.data;
+  final repo = ref.read(territoriesRepositoryProvider);
+  final territories = <Territory>[];
+  String? cursor;
+  for (var page = 0; page < _maxTerritoryPages; page += 1) {
+    final result = await repo.listTerritories(
+      limit: _maxTerritoryPageSize,
+      cursor: cursor,
+    );
+    territories.addAll(result.data);
+    final next = result.nextCursor;
+    if (next == null) return territories;
+    if (next == cursor) {
+      throw StateError(
+        'Territory paging stalled: the server repeated "$next".',
+      );
+    }
+    cursor = next;
+  }
+  throw StateError(
+    'Territory paging exceeded $_maxTerritoryPages pages of '
+    '$_maxTerritoryPageSize.',
+  );
 }, retry: (retryCount, error) => null);
