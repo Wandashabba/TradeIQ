@@ -378,6 +378,23 @@
   "backgroundLocationNotificationTitle": "TradeIQ teken jou roete aan",
   "backgroundLocationNotificationBody": "Net werksure. Skakel dit in TradeIQ af.",
   "backgroundLocationNotificationChannel": "Roete-aantekening",
+  "contestsShowing": "Wys {shown}. Daar is ouer kompetisies.",
+  "@contestsShowing": {
+    "description": "Pagination footer under the manager's contest list. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "contestsShowOlder": "Wys ouer",
+  "@contestsShowOlder": {
+    "description": "Ghost action that loads the next page of contests."
+  },
+  "contestsMoreFailed": "Ouer kompetisies het nie gelaai nie",
+  "@contestsMoreFailed": {
+    "description": "The next page failed. The contests on screen stay; this line says why there are no more."
+  },
   "contestsTitle": "Kompetisies",
   "contestsSubtitle": "Verdien punte, klim op die ranglys",
   "contestsActiveHeading": "Loop nou",

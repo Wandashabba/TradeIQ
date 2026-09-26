@@ -417,4 +417,26 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+  group('a cut list says so', () {
+    testWidgets('the footer names what is on screen, never a total', (
+      tester,
+    ) async {
+      // `listContests` used to read only `response.data['data']`, so the
+      // envelope's `nextCursor` never reached Dart — nothing downstream could
+      // detect truncation even in principle, and the count beside the marker
+      // was the length of page one.
+      final repo = FakeContestsRepository()..listCursor = 'page-2';
+      await _pump(tester, repo: repo);
+
+      expect(find.textContaining('There are older contests'), findsOneWidget);
+      // The server sends a cursor, not a count.
+      expect(find.textContaining('Showing 4 of'), findsNothing);
+    });
+
+    testWidgets('an uncut list owns up to nothing', (tester) async {
+      await _pump(tester);
+      expect(find.textContaining('There are older contests'), findsNothing);
+    });
+  });
+
 }

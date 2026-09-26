@@ -1454,6 +1454,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundLocationNotificationChannel => 'Route tracking';
 
   @override
+  String contestsShowing(int shown) {
+    return 'Showing $shown. There are older contests.';
+  }
+
+  @override
+  String get contestsShowOlder => 'Show older';
+
+  @override
+  String get contestsMoreFailed => 'Older contests did not load';
+
+  @override
   String get contestsTitle => 'Contests';
 
   @override
