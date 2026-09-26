@@ -56,9 +56,27 @@ class AlertRow {
   /// The rule's own sentence. The row's title.
   final String message;
 
-  /// `OSA_BELOW_50` — machine-facing, so it wears the mono identifier face and
-  /// a manager can quote it straight back into the rules screen.
+  /// `out_of_stock` — the metric the rule fired on, exactly as the wire sends
+  /// it. Machine-facing, and kept as the wire's own token so a manager can
+  /// quote it straight back into the rules screen (the detail sheet prints it
+  /// in the mono identifier face beside the outlet).
+  ///
+  /// **It is not what the row shows.** See [ruleWords].
   final String rule;
+
+  /// The same rule, in words: `Out of stock`, `Price deviation`,
+  /// `Low scorecard`.
+  ///
+  /// The worklist row printed [rule] itself, in mono, under a message that had
+  /// just said the same thing in English — so a row read "SKU 4412 is out of
+  /// stock" over "out_of_stock". A wire token is *present*, not readable, and
+  /// present is not the standard: this is the same family as a delta beside
+  /// nothing and a zero standing in for an absence.
+  ///
+  /// An unrecognised metric keeps its token rather than being dropped or
+  /// prettified into something the rules screen has no matching row for — a
+  /// fourth metric the server starts sending must be visibly a fourth metric.
+  String get ruleWords => alertMetricWords(rule);
 
   /// Resolved against the outlet list. "Unassigned outlet" when the alert
   /// carries no outlet at all, and [AlertsView.unnamedOutlet] when the id is
@@ -102,6 +120,19 @@ class AlertRow {
 }
 
 /// The whole worklist.
+/// The three metrics the backend's `ALERT_METRICS` allow-list holds, in words.
+///
+/// The wire's tokens are `out_of_stock`, `price_deviation` and
+/// `low_scorecard`, and `alerts.service.ts` rejects anything else with a 400 —
+/// so the default branch is a server that has grown a fourth, and it keeps the
+/// token rather than inventing a name for it.
+String alertMetricWords(String metric) => switch (metric) {
+  'out_of_stock' => 'Out of stock',
+  'price_deviation' => 'Price deviation',
+  'low_scorecard' => 'Low scorecard',
+  _ => metric,
+};
+
 class AlertsView {
   const AlertsView({required this.rows, this.nextCursor, this.total});
 

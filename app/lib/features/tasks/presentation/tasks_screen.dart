@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
@@ -269,42 +270,57 @@ class _LeadIndicator extends StatelessWidget {
     final unknown = partial && overdue == 0;
     final loaded = TiqNumber.of(context).format(view.rows.length);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: TiqSpace.s5),
-          child: SeverityMark(
-            kind: overdue > 0
-                ? SeverityMarkKind.critical
-                : partial
-                ? SeverityMarkKind.notMeasured
-                : SeverityMarkKind.onTarget,
+    // A CARD, AND NO CRIMSON BOX — 26 September 2026.
+    //
+    // The Floor's one figure block is a `TorchCard` holding a `StatTile(lead:
+    // true)`, and this is the same object on a worklist, so it wears the same
+    // material: radius 22, `surface`, no outline. It was a bare `Row` on the
+    // ground whose tile drew a 1px crimson `bad` outline around itself —
+    // the only coloured box left in the product, and a shape the card grammar
+    // has no form for.
+    //
+    // The severity is not lost, and it never depended on that outline. The
+    // `SeverityMark` beside the figure is the silhouette (filled for
+    // critical, a barred ring for an unmeasured page, a circle for clear), the
+    // eyebrow is the word, and the figure is the count. Three channels, and
+    // the two that survive greyscale are the two that are left.
+    return TorchCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: TiqSpace.s5),
+            child: SeverityMark(
+              kind: overdue > 0
+                  ? SeverityMarkKind.critical
+                  : partial
+                  ? SeverityMarkKind.notMeasured
+                  : SeverityMarkKind.onTarget,
+            ),
           ),
-        ),
-        const SizedBox(width: TiqSpace.s3),
-        Expanded(
-          child: StatTile(
-            eyebrow: 'Overdue',
-            // A measured zero renders 0 and keeps its place: nothing overdue
-            // is a fact worth reading, not an absence. A zero over a cut page
-            // is not that zero, and it renders as the em dash and the reason.
-            value: unknown ? null : overdue,
-            noDataReason: unknown
-                ? 'None among the $loaded tasks loaded. The rest of the list '
-                      'was not fetched.'
-                : null,
-            stateLine: partial && overdue > 0
-                ? 'At least this many: counted over the $loaded tasks loaded.'
-                : null,
-            lead: true,
-            severity: overdue > 0 ? SeverityMarkKind.critical : null,
-            subordinates:
-                '${view.open} open · ${view.awaitingVerification} awaiting '
-                'verification',
+          const SizedBox(width: TiqSpace.s3),
+          Expanded(
+            child: StatTile(
+              eyebrow: 'Overdue',
+              // A measured zero renders 0 and keeps its place: nothing overdue
+              // is a fact worth reading, not an absence. A zero over a cut page
+              // is not that zero, and it renders as the em dash and the reason.
+              value: unknown ? null : overdue,
+              noDataReason: unknown
+                  ? 'None among the $loaded tasks loaded. The rest of the list '
+                        'was not fetched.'
+                  : null,
+              stateLine: partial && overdue > 0
+                  ? 'At least this many: counted over the $loaded tasks loaded.'
+                  : null,
+              lead: true,
+              subordinates:
+                  '${view.open} open · ${view.awaitingVerification} awaiting '
+                  'verification',
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -492,11 +508,27 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
         ),
     ];
 
+    // THE STORE IS THE FIRST LINE — 26 September 2026.
+    //
+    // It was the finding type: three tasks in a row all titled "Stockout",
+    // with the store that has the problem demoted to the second line. A
+    // manager works a worklist by store — that is what The Floor's decision
+    // row does, outlet over reason, and it is what makes a column of rows
+    // scannable instead of a column of one repeated word.
+    //
+    // The finding is not lost. It reads at the end of the meta line, where the
+    // SLA phrase and the required fix already are, which is also where it
+    // stops competing with the store's name for the eye.
+    //
+    // Middle-truncated, for the reason every outlet name in the product is:
+    // "Shoprite Klipspruit Mall" and "Shoprite Klipfontein Mall" end-truncate
+    // to the same string.
     return SoftRow(
       key: ValueKey<String>('task-${task.id}'),
       density: SoftRowDensity.tall,
-      title: task.title,
-      subtitle: task.outletName,
+      title: task.outletName,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: task.title,
       severity: task.severity,
       severityLabel: task.severity == SoftRowSeverity.none
           ? null

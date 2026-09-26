@@ -460,7 +460,12 @@ void main() {
 
       await scrollWorklistTo(tester, find.byType(SoftRow).first);
       final rows = tester.widgetList<SoftRow>(find.byType(SoftRow)).toList();
-      expect(rows.map((r) => r.title).toList(), <String>[
+      // MOVED 26 September 2026: the row's first line is the store now, and
+      // the finding is its second — a manager works a worklist by store, and
+      // three rows all titled "Stockout" is a column of one repeated word.
+      // The order this test is named for is unchanged and is read off the
+      // line that still carries the finding.
+      expect(rows.map((r) => r.subtitle).toList(), <String>[
         'B late',
         'C high',
         'A normal',
