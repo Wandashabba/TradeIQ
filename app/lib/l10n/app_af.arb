@@ -2266,5 +2266,22 @@
   "artifactToolVisits": "Besoeke",
   "artifactToolFlaggedVisits": "Gemerkte besoeke",
   "artifactToolAgentScorecard": "Agent-telkaart",
-  "artifactToolTrend": "Tendens"
+  "artifactToolTrend": "Tendens",
+  "meVisitsShowing": "Wys {shown}. Daar is ouer besoeke.",
+  "@meVisitsShowing": {
+    "description": "Pagination footer under the agent's own visit list. Never a fabricated total — the server returns a cursor, not a count.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      }
+    }
+  },
+  "meVisitsShowOlder": "Wys ouer besoeke",
+  "@meVisitsShowOlder": {
+    "description": "Ghost action that loads the next page of the agent's own visits."
+  },
+  "meVisitsMoreFailed": "Ouer besoeke het nie gelaai nie",
+  "@meVisitsMoreFailed": {
+    "description": "The next page failed. The visits already on screen stay; this line says why there are no more."
+  }
 }

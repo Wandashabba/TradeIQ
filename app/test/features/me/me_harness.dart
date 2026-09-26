@@ -159,6 +159,9 @@ class FakeMyRecordRepository implements MyRecordRepository {
     this.visitsThrow = false,
     this.earningsThrow = false,
     this.hang = false,
+    this.pages = const <String, List<MyVisit>>{},
+    this.firstCursor,
+    this.olderThrows = false,
   }) : visits = visits ?? <MyVisit>[visitFixture()],
        earnings = earnings ?? earningsFixture();
 
@@ -166,6 +169,22 @@ class FakeMyRecordRepository implements MyRecordRepository {
   final MyEarnings earnings;
   final bool visitsThrow;
   final bool earningsThrow;
+
+  /// The pages behind each cursor. `GET /visits/me` is cursor-paged and the
+  /// client ignored the cursor entirely until 26 September 2026, so a fake
+  /// that only ever answers page one cannot tell a paged list from a
+  /// truncated one.
+  final Map<String, List<MyVisit>> pages;
+
+  /// The cursor page one hands back, or null for "there is no more".
+  final String? firstCursor;
+
+  /// Only the *next* page fails. The visits already on screen must stay.
+  final bool olderThrows;
+
+  /// Every cursor asked for, in order — so a test can prove the screen sent
+  /// the one the server gave it rather than a guess.
+  final List<String?> cursorsAsked = <String?>[];
 
   /// Never answer, so the loading state can be asserted on.
   ///
@@ -177,9 +196,23 @@ class FakeMyRecordRepository implements MyRecordRepository {
 
   @override
   Future<MyVisitsPage> myVisits({String? cursor}) async {
+    cursorsAsked.add(cursor);
     if (hang) return Completer<MyVisitsPage>().future;
     if (visitsThrow) throw StateError('no signal');
-    return MyVisitsPage(visits: visits);
+    if (cursor == null) {
+      return MyVisitsPage(visits: visits, nextCursor: firstCursor);
+    }
+    if (olderThrows) throw StateError('no signal');
+    final page = pages[cursor];
+    if (page == null) return const MyVisitsPage(visits: <MyVisit>[]);
+    // The next cursor is the key after this one, so a two-page fake ends
+    // naturally rather than by a flag.
+    final keys = pages.keys.toList();
+    final at = keys.indexOf(cursor);
+    return MyVisitsPage(
+      visits: page,
+      nextCursor: at + 1 < keys.length ? keys[at + 1] : null,
+    );
   }
 
   @override

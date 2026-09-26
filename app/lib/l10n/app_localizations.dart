@@ -5432,6 +5432,24 @@ abstract class AppLocalizations {
   /// **'Your visits did not load'**
   String get meVisitsLoadError;
 
+  /// Pagination footer under the agent's own visit list. Never a fabricated total — the server returns a cursor, not a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older visits.'**
+  String meVisitsShowing(int shown);
+
+  /// Ghost action that loads the next page of the agent's own visits.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older visits'**
+  String get meVisitsShowOlder;
+
+  /// The next page failed. The visits already on screen stay; this line says why there are no more.
+  ///
+  /// In en, this message translates to:
+  /// **'Older visits did not load'**
+  String get meVisitsMoreFailed;
+
   /// In place of a score on a visit the server has not scored. Never a bare em dash.
   ///
   /// In en, this message translates to:
