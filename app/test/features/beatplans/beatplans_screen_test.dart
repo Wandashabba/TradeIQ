@@ -561,7 +561,9 @@ class _CutBeatPlans extends FakeBeatPlansRepository {
   _CutBeatPlans() : super(plans: _plans);
 
   @override
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async =>
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans({String? cursor}) async =>
+      // The cut page, whatever is asked for: this fake exists to say "there is
+      // more", and a second page it never returns is the state under test.
       const PaginatedResponse<BeatPlan>(
         data: _plans,
         nextCursor: 'cursor-2',

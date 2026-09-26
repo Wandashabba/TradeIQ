@@ -27,7 +27,7 @@ class _CountingBeatPlansRepository implements BeatPlansRepository {
   );
 
   @override
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async {
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans({String? cursor}) async {
     listCalls += 1;
     return const PaginatedResponse(data: [_plan], nextCursor: null);
   }

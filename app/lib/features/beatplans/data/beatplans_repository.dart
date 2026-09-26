@@ -74,7 +74,13 @@ class BeatPlanDetail {
 }
 
 abstract class BeatPlansRepository {
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans();
+  /// One page of `GET /beatplans`, newest `scheduledDate` first.
+  ///
+  /// [cursor] is the previous page's `nextCursor`. It exists because the list
+  /// is ordered **descending by scheduled date** and recurrence creates plans
+  /// ahead of today: a daily plan set up for a year puts three hundred future
+  /// dates above today's, so "today's route" is not reliably on page one.
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans({String? cursor});
   Future<BeatPlanDetail> getBeatPlan(String id);
   Future<void> markStopVisited(String planId, String stopId, bool visited);
 
@@ -91,8 +97,11 @@ abstract class BeatPlansRepository {
 
 class DioBeatPlansRepository implements BeatPlansRepository {
   @override
-  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async {
-    final response = await dio.get('/beatplans');
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans({String? cursor}) async {
+    final response = await dio.get(
+      '/beatplans',
+      queryParameters: <String, dynamic>{'cursor': ?cursor},
+    );
     return PaginatedResponse<BeatPlan>.fromJson(
       response.data as Map<String, dynamic>,
       (e) => BeatPlan.fromJson(e as Map<String, dynamic>),
