@@ -1475,6 +1475,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get backgroundLocationNotificationChannel => 'Roete-aantekening';
 
   @override
+  String contestsShowing(int shown) {
+    return 'Wys $shown. Daar is ouer kompetisies.';
+  }
+
+  @override
+  String get contestsShowOlder => 'Wys ouer';
+
+  @override
+  String get contestsMoreFailed => 'Ouer kompetisies het nie gelaai nie';
+
+  @override
   String get contestsTitle => 'Kompetisies';
 
   @override

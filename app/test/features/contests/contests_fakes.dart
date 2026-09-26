@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:tradeiq_app/core/network/paginated_response.dart';
+
 import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 
 /// Shared fixtures for the contest screen tests (#124).
@@ -113,11 +115,16 @@ class FakeContestsRepository implements ContestsRepository {
   String? updatedId;
   ContestInput? updated;
 
+  /// The cursor the list hands back. A fake that never sets one cannot tell a
+  /// whole list from a page of it — which is why the contests list shipped
+  /// reading only `response.data['data']` and throwing the envelope away.
+  String? listCursor;
+
   @override
-  Future<List<Contest>> listContests() async {
+  Future<PaginatedResponse<Contest>> listContests({String? cursor}) async {
     if (listFailure != null) throw listFailure!;
-    if (listPending) return Completer<List<Contest>>().future;
-    return contests;
+    if (listPending) return Completer<PaginatedResponse<Contest>>().future;
+    return PaginatedResponse<Contest>(data: contests, nextCursor: listCursor);
   }
 
   @override

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/paginated_response.dart';
+
 import '../../../core/auth/session_controller.dart';
 import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
@@ -190,8 +192,14 @@ class ContestInput {
 }
 
 abstract class ContestsRepository {
-  /// GET /contests — manager/admin. The first page, newest start first.
-  Future<List<Contest>> listContests();
+  /// GET /contests — manager/admin. One page, newest start first.
+  ///
+  /// **The page, not just its rows.** This returned `List<Contest>` and read
+  /// only `response.data['data']`, so the envelope's `nextCursor` never
+  /// reached Dart at all — nothing downstream could detect truncation even in
+  /// principle, and the list screen printed the length of page one as the
+  /// count beside its section marker.
+  Future<PaginatedResponse<Contest>> listContests({String? cursor});
 
   Future<Contest> createContest(ContestInput input);
 
@@ -212,12 +220,15 @@ class DioContestsRepository implements ContestsRepository {
   String _path(String id) => '/contests/${Uri.encodeComponent(id)}';
 
   @override
-  Future<List<Contest>> listContests() async {
-    final response = await dio.get('/contests');
-    final data = (response.data as Map<String, dynamic>)['data'] as List;
-    return data
-        .map((e) => Contest.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PaginatedResponse<Contest>> listContests({String? cursor}) async {
+    final response = await dio.get(
+      '/contests',
+      queryParameters: <String, dynamic>{'cursor': ?cursor},
+    );
+    return PaginatedResponse<Contest>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Contest.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -262,7 +273,7 @@ class DioContestsRepository implements ContestsRepository {
 final contestsRepositoryProvider =
     Provider<ContestsRepository>((ref) => DioContestsRepository());
 
-final contestsListProvider = FutureProvider<List<Contest>>((ref) {
+final contestsListProvider = FutureProvider<PaginatedResponse<Contest>>((ref) {
   return ref.read(contestsRepositoryProvider).listContests();
 });
 

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/paginated_response.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -13,6 +14,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../l10n/l10n.dart';
 import '../data/contests_repository.dart';
 import 'contest_form_screen.dart';
 import 'contest_labels.dart';
@@ -87,7 +89,7 @@ class ContestsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      data: (list) => _loaded(context, ref, list),
+      data: (page) => _loaded(context, ref, page),
     );
   }
 
@@ -146,8 +148,14 @@ class ContestsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _loaded(BuildContext context, WidgetRef ref, List<Contest> list) {
+  Widget _loaded(
+    BuildContext context,
+    WidgetRef ref,
+    PaginatedResponse<Contest> page,
+  ) {
+    final l10n = context.l10n;
     final gutter = context.skin.space.gutter;
+    final list = page.data;
 
     return _frame(
       context,
@@ -183,6 +191,15 @@ class ContestsScreen extends ConsumerWidget {
               ],
             ),
           ),
+        // WHAT THE LIST IS SHOWING. The count beside the marker was the
+        // length of page one, and `listContests` used to read only
+        // `response.data['data']` — so the envelope's `nextCursor` never
+        // reached Dart and nothing downstream could detect truncation even in
+        // principle. Never a total: the server sends a cursor, not a count.
+        if (page.nextCursor != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s4),
+          PaginationFooter(summary: l10n.contestsShowing(list.length)),
+        ],
       ],
     );
   }

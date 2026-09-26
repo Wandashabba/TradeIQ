@@ -2366,6 +2366,24 @@ abstract class AppLocalizations {
   /// **'Route tracking'**
   String get backgroundLocationNotificationChannel;
 
+  /// Pagination footer under the manager's contest list. Never a fabricated total — the server returns a cursor, not a count.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown}. There are older contests.'**
+  String contestsShowing(int shown);
+
+  /// Ghost action that loads the next page of contests.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older'**
+  String get contestsShowOlder;
+
+  /// The next page failed. The contests on screen stay; this line says why there are no more.
+  ///
+  /// In en, this message translates to:
+  /// **'Older contests did not load'**
+  String get contestsMoreFailed;
+
   /// Agent Contests screen title (#124). A contest ranks agents by the points they earn between two dates, for a prize.
   ///
   /// In en, this message translates to:
