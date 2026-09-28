@@ -18,7 +18,6 @@ import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../territories/data/territories_view.dart';
 import '../../trends/data/trends_repository.dart';
-import '../../visits/data/visit_detail_repository.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
 import 'dashboard_filters.dart';
@@ -31,8 +30,8 @@ import 'first_run_board.dart';
 /// that was not has been cut.
 ///
 /// ```text
-///   ╭───────────────╮  the plate: a real shelf, one strip of light,
-///   │ ──────        │  the hero figure and its delta on it
+///   ╭───────────────╮  the plate: the place in scope, one strip of light,
+///   │ (Gauteng ·  ›)│  the scope chip at the top and the hero at the foot
 ///   │ 72 ▼19        │
 ///   ╰───────────────╯
 ///   ╭───────────────╮  the one dominant metric: label, figure,
@@ -61,9 +60,10 @@ import 'first_run_board.dart';
 /// plate's strip light. Everything else that might have asked is unlit **by
 /// construction rather than by argument**: the hero's delta is severity
 /// crimson, every sparkline's last dot is severity crimson, the section rule
-/// has no colour at all, and the nav circle is denied by the ladder. When
-/// there is no photograph the plate's grant goes unspent and the screen
-/// renders one amber object — a budget is a ceiling, not a quota.
+/// has no colour at all, the scope chip is a control and controls are never
+/// amber (unify §1.6), and the nav circle is denied by the ladder. When there
+/// is no picture the plate's grant goes unspent and the screen renders one
+/// amber object — a budget is a ceiling, not a quota.
 ///
 /// ## Unknown is not zero
 ///
@@ -153,10 +153,11 @@ class _FloorFrame extends StatelessWidget {
 /// The scroll frame: [TorchShell] in its console profile, with the manager's
 /// four nav slots and the standing action beside them.
 ///
-/// The Floor carries **no app header**. The plate is the header: its eyebrow
-/// names the territory and the week, which is everything a title bar would
-/// have said. A 56dp title row above a photograph that already says where you
-/// are is the fold spent twice. (It used to run full-bleed to the top edge as
+/// The Floor carries **no app header**. The plate is the header: the scope
+/// chip at the top of it names the territory and the window and opens the
+/// scope sheet — everything a title bar would have said, and the one thing a
+/// title bar could not do. A 56dp title row above a picture that already says
+/// where you are is the fold spent twice. (It used to run full-bleed to the top edge as
 /// well; since 25 September 2026 it is an inset card and the shell's own
 /// console inset is the air above it.)
 ///
@@ -304,8 +305,20 @@ class _Floor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subject = view.plateSubject;
-    final hasPhoto = subject?.evidencePhotoId != null;
+    // THE CLAIM IS DECLARED FOR EVERY LOADED SCREEN, and it used to be
+    // declared only when the first decision carried a photo id.
+    //
+    // The plate's picture is the territory's now, and every scope has one —
+    // including "All territories", which is the scope this screen opens in. So
+    // the honest answer to "is there something to light" is yes, from the
+    // first frame, without waiting for a request to come back and without
+    // recomputing the claim set mid-scroll (which `TorchScope` forbids: a
+    // grant recomputed while the user scrolls is a grant that blinks).
+    //
+    // A claim is permission, not an instruction. When the picture does not
+    // arrive — a 404, a dead signal, a decode failure — `TiqPlate` spends
+    // nothing, the fallback drawing has no light on it, and the frame renders
+    // one amber object. A budget is a ceiling.
     final measured = view.phase == FloorPhase.measured;
 
     // `TorchShell` gutter-pads its children, and every block on this screen
@@ -315,7 +328,7 @@ class _Floor extends ConsumerWidget {
     // `SoftRow` owns its own gutter; see [TorchBleed].
     return _FloorFrame(
       phase: measured ? 'loaded' : 'window-empty',
-      hasPlatePhoto: hasPhoto,
+      hasPlatePhoto: true,
       children: <Widget>[
         // 1. THE PLATE — an inset, rounded card.
         _FloorPlate(view: view),
@@ -685,7 +698,7 @@ class _AvailabilityCard extends ConsumerWidget {
   }
 }
 
-/// The plate, wired to the first decision's outlet.
+/// The plate, wired to the territory in scope.
 class _FloorPlate extends ConsumerWidget {
   const _FloorPlate({required this.view});
 
@@ -693,84 +706,39 @@ class _FloorPlate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subject = view.plateSubject;
-    final photoId = subject?.evidencePhotoId;
-
-    // The bytes. `thumbnailBytes` is the ≤60 kB, LRU-cached, authed route —
-    // which is already the byte cap the design declares for a baked plate, and
-    // the only honest one to spend on a prepaid bundle. `Image.network` cannot
-    // carry the bearer token on web, so bytes is also the only route that
-    // works at all.
+    // THE PICTURE IS OF THE PLACE, NOT OF A SHELF.
     //
-    // FOLLOW-UP (plate bake ticket, filed with this PR): serve a purpose-baked
-    // plate asset — 12% chroma, #474747 luminance ceiling, alpha edge
-    // dissolve, ≤60 kB WebP — and read it here instead of a shelf thumbnail.
-    final image = photoId == null
-        ? null
-        : ref.watch(plateImageResolverProvider)(ref, photoId);
-
-    // Provenance. Metadata only — `GET /visits/:id` never carries an image —
-    // so this costs a small request and buys the caption that keeps the plate
-    // a specimen rather than an assertion.
-    final captureTime = subject?.visitId == null
-        ? null
-        : ref
-              .watch(visitDetailProvider(subject!.visitId!))
-              .maybeWhen(
-                data: (d) => d.photos
-                    .where((p) => p.id == photoId)
-                    .map((p) => p.timestamp)
-                    .firstOrNull,
-                orElse: () => null,
-              );
-
-    final outletName = subject?.outletName;
-    // THE PROVENANCE. It used to print on the plate's first line; the
-    // reference the owner signed off has no caption, so it is carried as the
-    // image's semantic label instead — the specimen is still named for
-    // anything that reads the screen, and the plate is still a photograph of
-    // one identified shop rather than an anonymous mood.
-    final caption = <String>[
-      ?outletName,
-      if (captureTime != null) _shortTimestamp(captureTime),
-    ].join(' · ');
+    // It used to be the shelf photograph of the outlet at the top of the
+    // decision list, resolved by photo id. Two things were wrong with that and
+    // only one of them was cosmetic. The cosmetic one: the seeded photos are
+    // four rows of randomly coloured blocks, so the demo dataset opened on
+    // noise. The other one: a photograph of a shelf directly above a list of
+    // shelf decisions is a photograph a manager can read as evidence for one
+    // of them, and it was at best a specimen of a different finding.
+    //
+    // A view of the territory is plainly context — nobody mistakes a street at
+    // sunrise for a stock count — and it earns its place by moving: change the
+    // territory and the picture of the place changes with it, which is the
+    // scope control demonstrating what it just did.
+    //
+    // ≤60 kB, LRU-cached, authed bytes. `Image.network` cannot carry the
+    // bearer token on web, so bytes is also the only route that works at all.
+    final image = ref.watch(plateImageResolverProvider)(ref, view.territoryId);
 
     return _PlateFor(
       view: view,
       image: image,
-      caption: caption.isEmpty ? null : caption,
-      // THE SCOPE CONTROL, AND IT IS THE WORDS THAT WERE ALREADY THERE.
+      // THE SCOPE CONTROL, AND NOW IT LOOKS LIKE ONE.
       //
-      // The eyebrow prints the territory and the window — exactly the two
-      // things the control sets — so the reference's "no filter chrome" and
-      // "a manager can change territory from home" are the same object rather
-      // than a trade. Nothing new is painted; the line grows a 48dp box and a
-      // button node. The sheet behind it is the overview's own: the same
-      // `TorchFilterRail` and the same territory rows, from
-      // `dashboard_filters.dart`.
+      // It was the eyebrow: the words `GAUTENG NORTH · WEEK 38` were the
+      // button, because the owner's reference has no filter chrome on it. The
+      // owner then met the running screen — "I wouldn't see it if I'm new on
+      // the app" — so it is a chip at the top of the plate, in the app's own
+      // chip grammar. The sheet behind it is unchanged: the overview's own
+      // `TorchFilterRail` and territory rows, from `dashboard_filters.dart`.
       onScopeTap: () => showDashboardScope(context, ref),
       onClearTerritory: view.isFiltered ? () => clearFloorTerritory(ref) : null,
     );
-  }
-
-  static String _shortTimestamp(DateTime t) {
-    const months = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final hh = t.hour.toString().padLeft(2, '0');
-    final mm = t.minute.toString().padLeft(2, '0');
-    return '${t.day} ${months[t.month - 1]} $hh:$mm';
   }
 }
 
@@ -780,16 +748,16 @@ class _PlateFor extends StatelessWidget {
   const _PlateFor({
     required this.view,
     required this.image,
-    required this.caption,
     this.onScopeTap,
     this.onClearTerritory,
   });
 
   final FloorView view;
   final ImageProvider<Object>? image;
-  final String? caption;
 
-  /// Opens the scope sheet. Null in a test that pumps the plate alone.
+  /// Opens the scope sheet. Null in a test that pumps the plate alone — and
+  /// the chip is then absent rather than inert, because a control that does
+  /// nothing is worse than no control at all.
   final VoidCallback? onScopeTap;
 
   /// Back to all territories in one tap. Null when nothing is filtered —
@@ -821,24 +789,50 @@ class _PlateFor extends StatelessWidget {
       claimId: TheFloorScreen.plateClaimId,
       viewportHeight: viewportHeight,
       image: image,
-      // Null, not the string: the provenance is in [semanticLabel] below.
+      // Null, not the string: the reference has no caption line, so what the
+      // picture is goes in [semanticLabel] below.
       caption: null,
       // Never a stock image and never a gradient pretending to be a
       // photograph: a drawing that is visibly a drawing, and a sentence.
-      fallbackSentence: view.plateSubject == null
-          ? 'No shelf photo yet. This becomes your territory’s availability '
-                'when the first visits land.'
-          : 'No shelf photo from ${view.plateSubject!.outletName} yet.',
-      semanticLabel: caption,
-      hero: PlateHeroCluster(
-        eyebrow: '${view.territoryName} · ${view.windowLabel}',
-        onEyebrowTap: onScopeTap,
-        // The printed line is two facts joined by a separator, which a screen
-        // reader spells as a caption. The control has to say what it does.
-        eyebrowSemanticLabel: onScopeTap == null
-            ? null
-            : '${view.territoryName}, ${view.windowLabel}. '
+      //
+      // AND NEVER A GENERATED PICTURE EITHER. This is the one place a made-up
+      // image would be easiest to reach for and the one place it is forbidden:
+      // a picture standing in for a picture that is missing is an invention
+      // presented as a state of the world. The sentence names the scope, so a
+      // manager can tell "this territory has no picture" from "everywhere has
+      // none".
+      fallbackSentence: view.territoryId == null
+          ? 'No picture of your territories yet.'
+          : 'No picture of ${view.territoryName} yet.',
+      // WHAT IT IS, AND THAT IT IS NOT EVIDENCE. The seeded place images are
+      // generated, and a reader of the screen is told so rather than left to
+      // assume a photograph — this plate used to carry a shelf from a named
+      // outlet, and the sentence that replaced it has to close that reading
+      // rather than go quiet.
+      semanticLabel:
+          '${view.territoryName}. An illustration of the area, not a '
+          'photograph from a visit.',
+      // THE SCOPE CONTROL, AT THE TOP OF THE PLATE — visible, 48dp, and
+      // carrying the two facts it sets. See [PlateScopeChip].
+      scopeControl: onScopeTap == null
+          ? null
+          : PlateScopeChip(
+              key: const ValueKey<String>('floor-scope-chip'),
+              scope: view.territoryName,
+              window: view.windowLabel,
+              filtered: view.isFiltered,
+              onTap: onScopeTap!,
+              // The printed line is two facts joined by a separator, which a
+              // screen reader spells as a caption. The control has to say what
+              // it does.
+              semanticsLabel:
+                  '${view.territoryName}, ${view.windowLabel}. '
                   'Change the territory or the window.',
+            ),
+      hero: PlateHeroCluster(
+        // No eyebrow: the chip above prints the territory and the window, and
+        // a card that names the territory twice is a card with one line spent
+        // on nothing.
         // THE WAY BACK, ON THE ONE ROW THAT HAS SPACE FOR IT. It appears only
         // when a territory is chosen: a Clear that clears nothing is chrome,
         // and this screen has none to spare.

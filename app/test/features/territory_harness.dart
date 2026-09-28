@@ -149,6 +149,10 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
     return coverageFor[id] ?? coverage();
   }
 
+
+  @override
+  Future<PlaceImage> placeImage(String? territoryId) async =>
+      throw UnimplementedError();
   @override
   Future<Territory> createTerritory({
     required String name,

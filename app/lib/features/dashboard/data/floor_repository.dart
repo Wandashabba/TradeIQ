@@ -1,8 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../audit/data/photos_repository.dart';
-
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
@@ -518,25 +516,49 @@ final floorViewProvider = FutureProvider<FloorView>((ref) async {
   );
 });
 
-/// How a photo id becomes something the plate can draw.
+/// THE PICTURE OF THE PLACE IN SCOPE, keyed by territory.
 ///
-/// A seam, and a deliberate one. The default reaches for the ≤60 kB,
-/// LRU-cached, authed thumbnail route — the only byte budget worth spending on
-/// a prepaid bundle, and the only route that can carry a bearer token on web.
-/// A test replaces it with an already-decoded frame, because `Image.memory`
+/// Null is "All territories" — the client's whole footprint, which has a
+/// picture of its own rather than borrowing one province's.
+///
+/// autoDispose with a family: the element is released with its last listener
+/// and the repository's bounded LRU (`DioTerritoriesRepository`) is the one
+/// survivor cache, so flipping back to a territory already looked at is a
+/// synchronous map hit and not a second download. A permanent family element
+/// per territory would be a second, unbounded cache.
+final placeImageProvider = FutureProvider.autoDispose
+    .family<PlaceImage, String?>(
+      (ref, territoryId) =>
+          ref.watch(territoriesRepositoryProvider).placeImage(territoryId),
+      // A missing picture is a 404 and a designed state, not a transient. The
+      // default backoff would hold the plate in `AsyncLoading` for seconds and
+      // then re-ask a question the server has already answered.
+      retry: (_, _) => null,
+    );
+
+/// How the territory in scope becomes something the plate can draw.
+///
+/// A seam, and a deliberate one. **It used to be keyed by a photo id**: the
+/// plate carried the shelf photograph of the outlet at the top of the decision
+/// list. That coupling is gone — a picture of a shelf directly above a list of
+/// shelf decisions is a picture somebody can act on, and the seeded one was
+/// four rows of random colour blocks. The plate now carries a view of the
+/// *place*, which is plainly context, and it changes with the filter: switch
+/// territory and the picture of the place switches with it.
+///
+/// A test replaces this with an already-decoded frame, because `Image.memory`
 /// decodes on the engine's clock and the frame the amber census measures would
 /// otherwise arrive after the assertion.
 typedef PlateImageResolver =
-    ImageProvider<Object>? Function(WidgetRef ref, String photoId);
+    ImageProvider<Object>? Function(WidgetRef ref, String? territoryId);
 
-/// FOLLOW-UP (plate bake ticket, filed with this PR): serve a purpose-baked
-/// plate asset — 12% chroma, `#474747` luminance ceiling, alpha edge dissolve,
-/// ≤60 kB WebP — and read it here instead of a shelf thumbnail. Until then
-/// `TiqPlate` applies the luminance half of that bake client-side.
-ImageProvider<Object>? defaultPlateImage(WidgetRef ref, String photoId) {
+/// The default: the ≤60 kB, LRU-cached, authed place-image route — the only
+/// byte budget worth spending on a prepaid bundle, and the only route that can
+/// carry a bearer token on web.
+ImageProvider<Object>? defaultPlateImage(WidgetRef ref, String? territoryId) {
   final bytes = ref
-      .watch(thumbnailBytesProvider(photoId))
-      .maybeWhen(data: (b) => b, orElse: () => null);
+      .watch(placeImageProvider(territoryId))
+      .maybeWhen(data: (image) => image.bytes, orElse: () => null);
   return bytes == null ? null : MemoryImage(bytes);
 }
 
