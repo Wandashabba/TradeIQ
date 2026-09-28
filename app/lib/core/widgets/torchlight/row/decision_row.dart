@@ -17,8 +17,14 @@ import 'soft_row.dart';
 /// * the outlet name **middle-truncated**, because "Shoprite Klipspruit Mall"
 ///   and "Shoprite Klipfontein Mall" end-truncate to the same string;
 /// * a trailing **figure** through [FigureSlot], so a column of them is a
-///   column — mono, tabular, and an em dash where there is no number rather
-///   than a blank;
+///   column — mono, tabular, an em dash where there is no number rather than a
+///   blank, and **in the row's own severity ink**. The figure is the number
+///   that proves the severity the dot is already claiming; drawing it in
+///   neutral ink beside a crimson dot makes one reading look like two, which
+///   is what the owner read on Palladian. The word is still there — the
+///   severity label is announced first in the row's semantics and the dot is
+///   still a fill against an outline — so the colour is the third cue, not
+///   the first;
 /// * a **sparkline slot**, which is a hole. The sparkline belongs to the
 ///   figures workstream; this row reserves the space, drops it first at 2.0×
 ///   and omits it entirely rather than letting a fabricated shape appear.
@@ -135,6 +141,19 @@ class DecisionRow extends StatelessWidget {
           unit: unit,
           decimals: decimals,
           state: figureState,
+          // The row's own verdict, in the word grade — one crimson for both
+          // commitment levels, because the dot beside the name is what carries
+          // the level and `badSolid` is a fill that fails 4.5:1 as a word on
+          // Night's `surface`. Null everywhere else, including every state but
+          // a plain measurement: `FigureSlot` then decides, and an em dash
+          // stays ink-3.
+          color: figureState != FigureState.measured
+              ? null
+              : switch (severity) {
+                  SoftRowSeverity.critical ||
+                  SoftRowSeverity.watch => skin.palette.bad,
+                  SoftRowSeverity.none => null,
+                },
           textAlign: TextAlign.end,
           semanticsLabel: valueSemanticsLabel,
         ),

@@ -38,6 +38,7 @@ import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
 import 'dashboard_filters.dart';
+import 'standards.dart';
 
 /// EXECUTION OVERVIEW — the manager's multi-panel console, in Torchlight.
 ///
@@ -195,10 +196,6 @@ class DashboardShellScreen extends ConsumerWidget {
 // The execution score, and its trend
 // ═══════════════════════════════════════════════════════════════════════
 
-/// The client's published execution-score standard. A figure is never read
-/// without the line it is measured against.
-const double executionScoreTarget = 75;
-
 class _ExecutionScoreSection extends ConsumerStatefulWidget {
   const _ExecutionScoreSection({required this.snapshot});
 
@@ -339,6 +336,13 @@ class _ScoreCard extends StatelessWidget {
       delta: measured ? deltaFor(l10n, delta, named: false) : null,
       deltaOnBaseline: true,
       lead: true,
+      // THE HEADLINE FIGURE CARRIES ITS STANDING. 67.8 against a published 75
+      // is a gap, and until 28 September 2026 the only thing on the card that
+      // said so was the target on the supporting line — in ink-3, at 12px,
+      // after two other facts. The word is still there and the sparkline still
+      // carries the same verdict; this is the third cue, on the object a
+      // manager actually looks at.
+      figureInk: measured ? standingInk(context.skin, status) : null,
       // NO SEVERITY. `lead` plus a severity is what drew the outlined
       // rectangle; the standing is in the supporting line's target and in the
       // delta beside the figure, and the indicator rows below are where a
@@ -496,12 +500,28 @@ class _TrendPanel extends ConsumerWidget {
                 semanticsLabel: heading,
               );
             }
+            // WHERE THE RUN STANDS, AGAINST THE RULE ALREADY ON THE PLOT.
+            // The last measured reading is what "where we are now" means on
+            // a trend, and it is the reading the end dot and the direct
+            // label are already about. No threshold means no judgement, and
+            // the run draws in ink — which is the same rule every figure on
+            // this screen is under.
+            final last = points
+                .map((p) => p.value)
+                .toList()
+                .lastOrNull;
+            final rule = threshold;
+            final standing = (rule == null || last == null)
+                ? null
+                : severityFor(againstStandard(last, rule.value)) ??
+                      SeverityMarkKind.onTarget;
             return TrendChart(
               key: chartKey,
               series: <ChartSeries>[series],
               unit: unit,
               decimals: 1,
               threshold: threshold,
+              standing: standing,
               semanticsLabel: l10n.trendsChartHint(heading, points.length),
               notMeasuredWord: l10n.trendsNotMeasured,
               dashedWord: l10n.trendsDashed,
@@ -775,6 +795,13 @@ class _AttentionRow extends StatelessWidget {
         role: skin.text.figureM,
         unit: TiqUnit.none,
         state: FigureState.measured,
+        // The count IS the severity: two critical alerts open is why this row
+        // has a dot at all, and a zero is why the next one has none. So the
+        // figure takes the row's own ink rather than sitting in neutral beside
+        // a crimson dot. A row with no severity keeps plain ink — there is no
+        // target here, only a count, and a count with nothing wrong with it
+        // carries no verdict.
+        color: armed ? skin.palette.bad : null,
         textAlign: TextAlign.end,
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
@@ -807,13 +834,17 @@ typedef _Indicator = ({
 });
 
 const List<_Indicator> _indicators = <_Indicator>[
-  (id: 'osa', read: _osa, sample: _nOsa, target: 95),
-  (id: 'perfect', read: _perfect, sample: _nPerfect, target: 80),
-  (id: 'price', read: _price, sample: _nPrice, target: 95),
-  (id: 'visibility', read: _visibility, sample: _nVisibility, target: 80),
-  (id: 'sos', read: _sos, sample: _nSos, target: 33),
-  (id: 'weighted', read: _weighted, sample: _nWeighted, target: 85),
-  (id: 'numeric', read: _numeric, sample: _nNumeric, target: 85),
+  (id: 'osa', read: _osa, sample: _nOsa, target: availabilityStandard),
+  (id: 'perfect', read: _perfect, sample: _nPerfect,
+    target: perfectStoreStandard),
+  (id: 'price', read: _price, sample: _nPrice, target: priceStandard),
+  (id: 'visibility', read: _visibility, sample: _nVisibility,
+    target: visibilityStandard),
+  (id: 'sos', read: _sos, sample: _nSos, target: shareOfShelfStandard),
+  (id: 'weighted', read: _weighted, sample: _nWeighted,
+    target: weightedDistributionStandard),
+  (id: 'numeric', read: _numeric, sample: _nNumeric,
+    target: numericDistributionStandard),
 ];
 
 double _osa(DashboardKpis k) => k.osaPct;
@@ -852,21 +883,10 @@ String indicatorNote(AppLocalizations l10n, String id) => switch (id) {
   _ => l10n.dashKpiNumericNote,
 };
 
-/// On the standard, within ten points of it, or breaching it.
-StatusLevel againstStandard(double value, double target) => value >= target
-    ? StatusLevel.onTarget
-    : value >= target - 10
-    ? StatusLevel.watch
-    : StatusLevel.critical;
-
-/// The severity mark a standing maps onto. `onTarget` is not a severity, so it
-/// draws no mark at all rather than a green one — a verdict is only ever
-/// crimson in this system.
-SeverityMarkKind? severityFor(StatusLevel level) => switch (level) {
-  StatusLevel.critical => SeverityMarkKind.critical,
-  StatusLevel.watch => SeverityMarkKind.watch,
-  _ => null,
-};
+// `againstStandard` and `severityFor` moved to
+// `core/widgets/torchlight/figure/standing.dart` (exported by `marks.dart`)
+// on 28 September 2026, so The Floor can read a figure against the same
+// published standard this screen does and colour it the same way.
 
 String standingWord(AppLocalizations l10n, StatusLevel level) =>
     switch (level) {
@@ -1090,6 +1110,20 @@ class _IndicatorRow extends StatelessWidget {
             : thin
             ? FigureState.lowSample
             : FigureState.measured,
+        // WHERE IT STANDS AGAINST ITS PUBLISHED STANDARD. Green on the
+        // standard, crimson under it — and plain ink the moment the figure
+        // stops being a plain measurement, which is `standingInk`'s first
+        // rule: an em dash is never coloured and a thin sample keeps the one
+        // ink step down it earned.
+        color: standingInk(
+          skin,
+          measured ? status : null,
+          state: !measured
+              ? FigureState.missing
+              : thin
+              ? FigureState.lowSample
+              : FigureState.measured,
+        ),
         textAlign: TextAlign.end,
         // An em dash announced as "em dash" is not a sentence. The row's
         // own label carries the whole reading, and this is the figure's
@@ -1429,6 +1463,10 @@ class _TerritoryScores extends ConsumerWidget {
         unit: TiqUnit.none,
         decimals: 1,
         state: FigureState.measured,
+        // A territory below target is the whole point of this list, so the
+        // number says so. The standing is already the subtitle in words and
+        // the dot beside the name; this is the third cue.
+        color: standingInk(skin, status),
         textAlign: TextAlign.end,
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
