@@ -86,7 +86,6 @@ import 'standards.dart';
 /// tenant with outlets and no visits renders em dashes, the unit suppressed,
 /// no deltas and a sentence in words. A measured `0` renders `0` and keeps its
 /// place.
-
 class DashboardShellScreen extends ConsumerWidget {
   const DashboardShellScreen({super.key});
 

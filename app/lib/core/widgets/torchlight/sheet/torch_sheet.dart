@@ -37,7 +37,6 @@ import 'sheet_spec.dart';
 /// see [TorchSheetSwap]. Opening a second sheet over a first asserts in debug
 /// and, in release, does the only sane thing left — it opens anyway rather
 /// than dropping the user's action on the floor.
-
 class TorchSheet extends StatelessWidget {
   const TorchSheet({
     super.key,

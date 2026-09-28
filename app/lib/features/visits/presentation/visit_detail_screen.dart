@@ -69,7 +69,6 @@ import '../data/visit_detail_repository.dart';
 /// reasons applies rather than printing 0. A missing geofence distance is
 /// words, never `0,0 m`. A band this build does not recognise is not guessed
 /// at: it shows as unbanded, with no severity and no mark.
-
 class VisitDetailScreen extends ConsumerWidget {
   const VisitDetailScreen({super.key, required this.visitId});
 

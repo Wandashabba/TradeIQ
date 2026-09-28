@@ -47,7 +47,6 @@ import 'scrub_readout.dart';
 /// bucket rather than sending a zero. Joining across a gap would draw a
 /// straight line through a week nobody measured and invite a manager to read a
 /// trend off it; the stroke stops instead, and the legend counts the gaps.
-
 class TrendChart extends StatefulWidget {
   const TrendChart({
     super.key,

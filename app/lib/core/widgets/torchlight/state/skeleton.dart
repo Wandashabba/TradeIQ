@@ -39,7 +39,6 @@ import '../../../theme/torchlight/tiq_skin.dart';
 ///   skeleton is loading, not live, and an amber pulse on a placeholder tells
 ///   a manager that a blank is real-time data.
 /// * **10s** — the rule stops and a meta line appears with a Retry.
-
 class Skeleton extends StatefulWidget {
   const Skeleton({
     super.key,
