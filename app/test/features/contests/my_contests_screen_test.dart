@@ -299,12 +299,10 @@ void main() {
     for (final skin in <SkinMode>[
       SkinMode.night,
       SkinMode.day,
-      SkinMode.veld,
     ]) {
       final resolved = switch (skin) {
         SkinMode.night => TiqSkin.night(),
-        SkinMode.day => TiqSkin.day(),
-        SkinMode.veld || SkinMode.auto => TiqSkin.veld(),
+        SkinMode.day || SkinMode.auto => TiqSkin.day(),
       };
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(t, skin: skin),

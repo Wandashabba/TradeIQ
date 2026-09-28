@@ -21,13 +21,10 @@ import '../../../theme/torchlight/tiq_skin.dart';
 ///
 /// The anti-slop concern is answered rather than ignored: the card grammar is
 /// for **lists of things a person acts on** — decisions, alerts, tasks, stops,
-/// outbox items. Nothing else on any screen gains a radius because of it, and
-/// **Veld keeps the flush form** (radius 0, 2px borders): a soft translucent
-/// row on white under glare stops reading as a row at all.
+/// outbox items. Nothing else on any screen gains a radius because of it.
 enum SoftRowForm {
   /// A card: radius [TiqRadii.card], `surface` fill, no outline, separated
-  /// from the next row by a gap of ground. Every list in the app. In Veld it
-  /// stays flush, radius 0, separated by a 2px rule inset to the text edge.
+  /// from the next row by a gap of ground. Every list in the app.
   list,
 
   /// Radius 14, `surface` fill, 1px `edgeStructure` outline. The Next-up card,
@@ -88,9 +85,7 @@ enum SoftRowTruncation {
 /// a perceivable boundary around a UI component; a non-tappable one gets
 /// `hairline`, which is deliberately below 3:1 because it is decoration.
 enum SoftRowSeparator {
-  /// A gap of ground after the card — and, in Veld only, a rule:
-  /// `edgeStructure` between tappable rows, `hairline` between non-tappable
-  /// ones. Resolved from the row, not declared.
+  /// A gap of ground after the card. Resolved from the row, not declared.
   auto,
 
   /// The last row in a group, and every standalone row (which carries an
@@ -167,69 +162,52 @@ class SoftRowSpec {
     bool still = false,
   }) {
     final palette = skin.palette;
-    final veld = skin.density == TiqDensity.veld;
 
-    // Veld collapses the three densities onto one 64dp row: outdoors, fewer
-    // things further apart, and a 56dp row is under the 56dp target floor the
-    // moment a border eats two pixels of it.
-    final minHeight = veld
-        ? 64.0
-        : switch (density) {
-            SoftRowDensity.compact => 56.0,
-            SoftRowDensity.standard => 64.0,
-            SoftRowDensity.tall => 80.0,
-          };
+    final minHeight = switch (density) {
+      SoftRowDensity.compact => 56.0,
+      SoftRowDensity.standard => 64.0,
+      SoftRowDensity.tall => 80.0,
+    };
 
-    final verticalPadding = veld
-        ? TiqSpace.s4
-        : (density == SoftRowDensity.compact ? TiqSpace.s3 : TiqSpace.s4);
-    final gap = density == SoftRowDensity.compact && !veld
+    final verticalPadding = density == SoftRowDensity.compact
         ? TiqSpace.s3
         : TiqSpace.s4;
+    final gap = density == SoftRowDensity.compact ? TiqSpace.s3 : TiqSpace.s4;
 
     final isStandalone = form == SoftRowForm.standalone;
     // THE CARD. A list row is an inset object with air on both sides of it;
-    // the standalone form is already inset by whatever holds it, and Veld is
-    // flush by ruling.
-    final isCard = !veld && !isStandalone;
+    // the standalone form is already inset by whatever holds it.
+    final isCard = !isStandalone;
 
     // THE SEVERITY MARK. The LANE — the mark plus its air — is reserved
     // whether or not a mark is drawn, which is manager's alignment rule and
     // the reason a list of rows reads as one column instead of two indented
-    // at random. Veld's bar is 6px rather than 3, because a 3px mark is a
-    // smudge in glare.
+    // at random.
     //
     // OWNER OVERRIDE, 25 September 2026: on a card the mark is a **dot**, not
     // a bar. A 3px bar is the silhouette of a flush row's left edge; inside a
-    // radius-22 card it reads as a scratch on the fill. Veld keeps the bar —
-    // it keeps the flush row it belongs to.
-    final markIsDot = !veld;
+    // radius-22 card it reads as a scratch on the fill.
+    const markIsDot = true;
     // The mark carries meaning, so it grows with the text — at half rate, like
     // a track, because its job is to be findable down the left edge rather
     // than to be read. A dot grows but stays round, so its width grows with
     // it and the lane grows with the width: every row on a screen shares one
     // text scale, so the column is still a column.
-    final barWidth = markIsDot
-        ? TiqSpace.s2 * (1 + (textScale - 1) / 2)
-        : (veld ? 6.0 : 3.0);
+    final barWidth = TiqSpace.s2 * (1 + (textScale - 1) / 2);
     final barStrokeWidth = skin.depth.borderWidth;
     // The lane is the mark plus its air. A dot is a smaller mark than a bar
     // and wants less of it, which also keeps the text's inset from the card's
     // edge close to what the flush row's was from the screen's — a card
     // spends its own padding before the lane even starts, and every dp of
     // that comes off the name.
-    final severityLane = barWidth + (markIsDot ? TiqSpace.s2 : TiqSpace.s3);
+    final severityLane = barWidth + TiqSpace.s2;
 
-    final barHeight = markIsDot
-        ? barWidth
-        : math.min(TiqSpace.s8 * (1 + (textScale - 1) / 2), minHeight);
+    final barHeight = barWidth;
 
     // A meaning-bearing glyph box grows with the text and stops at 48 — the
     // one pair unify §1.5 states for a tile is 28 → 48, and 48 is also the
     // tap-target floor, so nothing useful happens above it.
-    final leadingBase = veld
-        ? 48.0
-        : (density == SoftRowDensity.compact ? 28.0 : TiqSpace.s8);
+    final leadingBase = density == SoftRowDensity.compact ? 28.0 : TiqSpace.s8;
     final leadingExtent = math.min(leadingBase * textScale, 48.0);
 
     // A standalone row is never separated from anything: it carries an
@@ -238,15 +216,14 @@ class SoftRowSpec {
     //
     // A CARD is separated by a gap of ground and never by a rule: a line
     // between two objects that already have edges is the table look the card
-    // grammar exists to leave behind. Only Veld's flush row still draws one.
+    // grammar exists to leave behind.
     final separates = separated && !isStandalone;
     final drawsRule = separates && !isCard;
 
-    // `lifted` is a dark block in all three skins (#2C3B4D, #2C3B4D,
-    // #1B2632). On Night that is a step up from the ground; on Day and Veld it
-    // is an ink block on paper, so a pressed row inverts and the ink on it is
-    // the skin's lightest neutral. Two facts about the token values, not two
-    // code paths keyed on the mode.
+    // `lifted` is a dark block in both skins (#2C3B4D, #2C3B4D). On Night that
+    // is a step up from the ground; on Day it is an ink block on paper, so a
+    // pressed row inverts and the ink on it is the skin's lightest neutral.
+    // Two facts about the token values, not two code paths keyed on the mode.
     final pressedFill = palette.lifted;
     final pressedInk = skin.brightness == Brightness.dark
         ? palette.ink1
@@ -315,8 +292,6 @@ class SoftRowSpec {
       titleStyle: skin.text.titleM,
       subtitleStyle: skin.text.body,
       metaStyle: skin.text.meta,
-      // Veld runs `TiqMotion.off`, so its press is the inversion plus the
-      // haptic and nothing moves.
       pressScale: (still || !skin.motion.enabled) ? 1.0 : 0.98,
       // Below this the trailing column stops sitting beside the text and drops
       // beneath it. Measured against the real laid-out trailing width, never
@@ -340,8 +315,8 @@ class SoftRowSpec {
   /// and for a standalone one.
   final double margin;
 
-  /// The gap of ground under the card, before the next one. Zero where the
-  /// rule does the separating (Veld) or where nothing follows.
+  /// The gap of ground under the card, before the next one. Zero where
+  /// nothing follows.
   final double gapAfter;
 
   final double horizontalPadding;
@@ -354,9 +329,9 @@ class SoftRowSpec {
   /// it.
   final double stackedGap;
 
-  /// Whether the severity mark is a dot (every card) or a bar (Veld's flush
-  /// row). Two commitment levels either way, and the silhouette — filled
-  /// versus outlined — is what separates them, never the hue alone.
+  /// Whether the severity mark is a dot. Two commitment levels, and the
+  /// silhouette — filled versus outlined — is what separates them, never the
+  /// hue alone.
   final bool markIsDot;
 
   final double barWidth;
@@ -370,9 +345,7 @@ class SoftRowSpec {
   final double leadingExtent;
   final double radius;
 
-  /// `surface` on a card and on a standalone row; null on Veld's flush row,
-  /// where it is transparent over the ground and the 2px rule is what
-  /// identifies it.
+  /// `surface` on a card and on a standalone row.
   final Color? fill;
 
   final Color? outline;
@@ -410,8 +383,8 @@ class SoftRowSpec {
       (hasLeading ? leadingExtent + gap : 0);
 
   /// The whole row is the target, and it is never under the floor: 48 on
-  /// Night and Day, 56 in Veld. The densities are 56/64/80, so this is an
-  /// assertion rather than a clamp.
+  /// Night and Day. The densities are 56/64/80, so this is an assertion
+  /// rather than a clamp.
   bool meetsTargetFloor(TiqSkin skin) => minHeight >= skin.space.tapTarget;
 
   /// The golden's line for this spec. Ordered and labelled so a diff names the

@@ -91,9 +91,8 @@ class TorchDestructiveButton extends StatelessWidget {
         if (solid) {
           fill = p.badSolid;
           ink = p.onBadSolid;
-          // Veld's `bad` and `badSolid` are the same hex, so a fill step is not
-          // available there at all. The edge stepping to ink-1 is the press
-          // channel that exists in every skin.
+          // The edge stepping to ink-1 is the press channel, and it exists in
+          // every skin whether or not a fill step is available.
           edge = pressed ? p.ink1 : p.badSolid;
         } else if (disabled) {
           fill = null;
@@ -111,8 +110,9 @@ class TorchDestructiveButton extends StatelessWidget {
             borderRadius: radius,
             border: Border.all(
               color: edge,
-              // 2px in Night and Day, 4px in Veld — the destructive outline is
-              // the loudest edge in the system and it says so in every skin.
+              // Twice the skin's structural width — the destructive outline
+              // is the loudest edge in the system and it says so in every
+              // skin.
               width: skin.depth.borderWidth * 2,
             ),
           ),

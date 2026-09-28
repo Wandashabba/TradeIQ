@@ -92,8 +92,8 @@ TorchNavSlot _slot(WidgetTester tester) => tester
 
 void main() {
   // Every skin, because the bar is the one piece of chrome that changes shape
-  // between them — Veld docks it — and the slot has to survive all three.
-  for (final skin in <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld]) {
+  // between them, and the slot has to survive both.
+  for (final skin in <SkinMode>[SkinMode.night, SkinMode.day]) {
     testWidgets('${skin.name}: Today\'s nav badges the way to Contests '
         'with the running count', (tester) async {
       await tester.pumpWidget(_today(_running, skin: skin));

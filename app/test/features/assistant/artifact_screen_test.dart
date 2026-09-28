@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/chart/chart.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
@@ -377,20 +376,6 @@ void main() {
       expect(find.text('No data in range'), findsOneWidget);
     });
 
-    testWidgets('Veld draws the table, and offers no toggle', (tester) async {
-      await pumpArtifact(
-        tester,
-        StubArtifactRepository(trendArtifact(compared: true)),
-        skin: TiqSkin.veld(),
-      );
-
-      expect(find.byType(TrendChart), findsNothing);
-      expect(find.byType(ArtifactTableView), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('artifact-view-chart')),
-        findsNothing,
-      );
-    });
   });
 
   group('the export', () {

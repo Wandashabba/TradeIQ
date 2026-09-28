@@ -53,7 +53,7 @@ import 'contest_labels.dart';
 /// ## The amber, counted
 ///
 /// A tab root under the Menu, so Night paints the nav's active tab and nothing
-/// else: no primary, no plate, no chart focus. Day and Veld paint zero.
+/// else: no primary, no plate, no chart focus. Day paints zero.
 class ContestStandingsScreen extends ConsumerWidget {
   const ContestStandingsScreen({super.key, required this.contestId});
 

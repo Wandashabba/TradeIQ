@@ -225,7 +225,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets('${skin.mode.name}, editing: the save block, and only it', (
         tester,

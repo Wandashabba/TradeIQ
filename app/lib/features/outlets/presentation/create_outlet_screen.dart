@@ -48,7 +48,7 @@ import 'outlet_coordinates.dart';
 ///
 /// Not a tab root — a manager came here to add one store and leave — so the
 /// nav takes no slot and the thumb zone carries the one commit. Night's two
-/// content grants go to **one** object, "Add the store"; Day and Veld light
+/// content grants go to **one** object, "Add the store"; Day lights
 /// the same block and nothing else. With the keyboard up the nav is gone
 /// anyway, so a focused field plus the lit primary is still inside the budget.
 class CreateOutletScreen extends ConsumerWidget {

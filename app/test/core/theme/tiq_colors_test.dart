@@ -271,7 +271,6 @@ void main() {
     for (final (name, skin) in <(String, TiqSkin)>[
       ('night', TiqSkin.night()),
       ('day', TiqSkin.day()),
-      ('veld', TiqSkin.veld()),
     ]) {
       final c = TiqColors.fromSkin(skin);
       final p = skin.palette;

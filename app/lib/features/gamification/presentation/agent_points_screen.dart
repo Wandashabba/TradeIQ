@@ -56,7 +56,7 @@ import '../data/gamification_repository.dart';
 /// ## The one amber, counted
 ///
 /// Nothing on a ledger is armed, so this route nominates no content amber. In
-/// Night the nav's active tab is the only lit object; Day and Veld paint zero.
+/// Night the nav's active tab is the only lit object; Day paints zero.
 class AgentPointsScreen extends ConsumerWidget {
   const AgentPointsScreen({super.key, required this.agentId});
 

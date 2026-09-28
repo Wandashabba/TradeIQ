@@ -48,9 +48,8 @@ class PaginationFooter extends StatelessWidget {
   /// A ghost action at the trailing edge.
   final Widget? action;
 
-  /// 44 on Night and Day, 64 in Veld.
-  static double heightFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? 64 : 44;
+  /// 44 on Night and Day.
+  static double heightFor(TiqSkin skin) => 44;
 
   @override
   Widget build(BuildContext context) {

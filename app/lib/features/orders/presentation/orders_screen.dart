@@ -57,7 +57,7 @@ import 'order_form_screen.dart';
 /// ## The amber, counted
 ///
 /// A console route under Menu, so Night paints the nav's active tab and
-/// nothing else; Day and Veld paint zero. Nothing on a worklist is armed — the
+/// nothing else; Day paints zero. Nothing on a worklist is armed — the
 /// status words are words, the lead figure is crimson when it is anything at
 /// all, and "New order" is a section rule's ghost action.
 class OrdersScreen extends ConsumerWidget {

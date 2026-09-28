@@ -20,8 +20,8 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 ///
 /// 1. **Pins the skin.** Both screens wrap themselves in an
 ///    `EntryTorchlightRoute`, which reads `entrySkinProvider`. Overriding the
-///    provider is the only way a test chooses Night, Day or Veld, and it is
-///    also the real code path.
+///    provider is the only way a test chooses Night or Day, and it is also the
+///    real code path.
 /// 2. **Puts the census boundary around the whole frame**, under the key
 ///    `amberCensus` reads. The thumb zone is a sibling of the scroll view, so
 ///    a boundary around the body alone would miss the primary — which on
@@ -29,12 +29,8 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 /// 3. **Pins the size to a 360×640 phone**, because a connected-components
 ///    count is a function of the layout.
 
-/// Night first, then Day, Veld last — the order the design says to build them.
-List<SkinMode> get entrySkinModes => <SkinMode>[
-  SkinMode.night,
-  SkinMode.day,
-  SkinMode.veld,
-];
+/// Night first, then Day — the order the design says to build them.
+List<SkinMode> get entrySkinModes => <SkinMode>[SkinMode.night, SkinMode.day];
 
 /// Pins [entrySkinProvider] to one mode, through the real controller.
 class PinnedEntrySkin extends EntrySkinController {

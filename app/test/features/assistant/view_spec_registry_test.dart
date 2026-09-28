@@ -619,28 +619,7 @@ void main() {
       expect(screenText(tester), contains('2 outlets'));
     });
 
-    testWidgets('Veld lists the outlets instead of drawing tiles', (
-      tester,
-    ) async {
-      // Map tiles in direct sun are a grey smear: the same answer, as rows.
-      await pumpView(
-        tester,
-        artifact('outlet_map', data: mapData),
-        skin: TiqSkin.veld(),
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(
-        find.byKey(const ValueKey<String>('stockout-row-o1')),
-        findsOneWidget,
-      );
-      final text = screenText(tester);
-      expect(text, contains('Kasi Spaza'));
-      expect(text, contains('Maps are not drawn in Veld'));
-    });
-
-    testWidgets('an outlet whose count is unknown is a dash, never a 0', (
+    testWidgets('an outlet whose count is unknown is named, never a 0', (
       tester,
     ) async {
       await pumpView(
@@ -658,13 +637,22 @@ void main() {
             ],
           },
         ),
-        skin: TiqSkin.veld(),
       );
 
       expect(tester.takeException(), isNull);
-      final text = screenText(tester);
-      expect(text, contains(emDash));
-      expect(text, isNot(contains('\n0')));
+      // The pin says the outlet and stops. An absent count is absent from the
+      // sentence — it is never read out as "0 lines out of stock", which is a
+      // finding this build did not measure.
+      final pinSemantics = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey<String>('stockout-pin-icon-o1')),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(pinSemantics.properties.label, 'Kasi Spaza');
+      expect(screenText(tester), isNot(contains('0 lines')));
     });
 
     testWidgets('skips rows without a finite coordinate rather than guessing', (

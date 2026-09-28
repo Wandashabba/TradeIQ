@@ -1639,9 +1639,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get skinNight => 'Night';
 
   @override
-  String get skinVeld => 'Veld, the outdoor high-contrast screen';
-
-  @override
   String get syncChipAllSent => 'All sent';
 
   @override
@@ -1974,10 +1971,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.';
 
   @override
-  String get mapVeldNote =>
-      'The map is off in bright sun. Your stores are listed below, nearest first.';
-
-  @override
   String get mapEmptyTitle => 'No stores yet';
 
   @override
@@ -2019,9 +2012,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendLabel => 'What the pins mean';
-
-  @override
-  String get sheetClose => 'Close';
 
   @override
   String get askTitle => 'Ask TradeIQ';
@@ -2675,10 +2665,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get askMapNotInVeld =>
-      'Maps are not drawn in Veld. The outlets are listed instead.';
-
-  @override
   String get visitPinTooFarToReport =>
       'This is too far to report the pin from here. Ask your manager to correct this store.';
 
@@ -3205,9 +3191,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncBannerOpen => 'tap to open your work';
-
-  @override
-  String get commonClose => 'Close';
 
   @override
   String pickerStartVisitSemantics(String name, String code) {
@@ -7130,13 +7113,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String trailCheckedInAt(String time) {
     return 'checked in at $time';
   }
-
-  @override
-  String get trailNoMapHeadline => 'No map in the sun.';
-
-  @override
-  String get trailNoMapBody =>
-      'A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.';
 
   @override
   String get trailMapOfflineHeadline => 'The map will not load.';

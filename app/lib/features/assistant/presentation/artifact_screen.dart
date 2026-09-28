@@ -48,8 +48,8 @@ import 'artifact_filters.dart';
 ///
 /// A pushed route with no nav, so Night's budget is two. **This screen spends
 /// exactly one, on the export** — the only thing on it that commits anything.
-/// Day and Veld allow one, the primary commit block, and it is the same
-/// object. While the artifact is loading or has failed there is nothing to
+/// Day allows one, the primary commit block, and it is the same object.
+/// While the artifact is loading or has failed there is nothing to
 /// export, no primary is built, and every skin paints **zero**.
 ///
 /// The chart declines the focus rung for the reason the chart kit declines it

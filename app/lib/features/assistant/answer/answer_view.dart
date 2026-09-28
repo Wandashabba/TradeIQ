@@ -105,9 +105,6 @@ class AnswerBlockView extends StatelessWidget {
           decoration: BoxDecoration(
             color: p.well,
             borderRadius: BorderRadius.circular(skin.radii.control),
-            border: skin.mode == SkinMode.veld
-                ? Border.all(color: p.ink1, width: skin.depth.borderWidth)
-                : null,
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -300,9 +297,7 @@ class FollowUpChips extends ConsumerWidget {
 /// The text caret at the end of an answer still being written.
 ///
 /// A 2dp ink-2 bar, blinking at 1000ms, inside its own `RepaintBoundary` so a
-/// blink cannot repaint a forty-block answer. In Veld it is 3dp, solid
-/// veld-ink, and it does **not** blink — it is simply present until the turn
-/// ends, because motion is off out there and a caret is not information.
+/// blink cannot repaint a forty-block answer.
 class StreamingCaret extends StatefulWidget {
   const StreamingCaret({super.key, this.height = 16});
 
@@ -339,13 +334,12 @@ class _StreamingCaretState extends State<StreamingCaret>
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final veld = skin.mode == SkinMode.veld;
     final bar = Container(
       key: const ValueKey<String>('streaming-caret'),
-      width: veld ? 3 : 2,
-      height: veld ? widget.height + 4 : widget.height,
+      width: 2,
+      height: widget.height,
       margin: const EdgeInsets.only(left: 2),
-      color: veld ? skin.palette.ink1 : skin.palette.ink2,
+      color: skin.palette.ink2,
     );
     // ExcludeSemantics: the caret is decoration. That the answer is still
     // being written is the rail's live region's job, and saying it twice is

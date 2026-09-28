@@ -870,7 +870,7 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name}: zero empty, one with a draft', (
         tester,
       ) async {
@@ -947,17 +947,6 @@ void main() {
     });
   });
 
-  testWidgets('Veld builds the channel', (tester) async {
-    await pump(
-      tester,
-      repo: _FakeCollaborationRepository(),
-      skin: TiqSkin.veld(),
-    );
-
-    await scrollWorklistTo(tester, find.text('Morning standup at 9'));
-    expect(find.text('Morning standup at 9'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
   group('a cut feed says so, and offers the rest', () {
     // The count beside the section marker was the length of page one, so a
     // manager read the size of a page as the size of the feed. On a feed of

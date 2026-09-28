@@ -337,7 +337,7 @@ void main() {
               facts: const <String>['4 van 7 winkels', '12 km'],
               trailing: TorchIconButton(
                 icon: Icons.wb_sunny_outlined,
-                semanticLabel: 'Skerm: Veld.',
+                semanticLabel: 'Skerm: Nag.',
                 onPressed: () {},
               ),
             ),

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app_theme.dart';
 import 'tiq_skin.dart';
 
-/// WHICH SCREEN THE AGENT IS LOOKING AT — Day, Veld or Night.
+/// WHICH SCREEN THE AGENT IS LOOKING AT — Day or Night.
 ///
 /// The Torchlight skins exist and `AppTheme.torchlight(...)` builds a
 /// [ThemeData] from any of them, but nothing in `main.dart` routes to them:
@@ -20,12 +20,12 @@ import 'tiq_skin.dart';
 /// on `context.colors` renders in Torchlight tokens rather than throwing.
 ///
 /// The choice is **session-scoped and not persisted**. unify §6 question 13
-/// says the per-user preferences table that Veld memory, handedness and the
-/// collapsed plate all need does not exist yet; writing this one into
+/// says the per-user preferences table that handedness and the collapsed
+/// plate both need does not exist yet; writing this one into
 /// `flutter_secure_storage` beside the manager's theme would be a second
-/// storage stack for a preference that is about to get a real home. Veld
-/// therefore never auto-expires *and* never survives a restart, and both of
-/// those are said out loud rather than implied.
+/// storage stack for a preference that is about to get a real home. The skin
+/// therefore never survives a restart, and that is said out loud rather than
+/// implied.
 class AgentSkinController extends Notifier<SkinMode> {
   /// Day is the agent's default: they start outdoors at 06:30 and the paper
   /// skin is the one that reads in a car park.
@@ -45,7 +45,6 @@ final agentSkinProvider = NotifierProvider<AgentSkinController, SkinMode>(
 /// with one hand on a shelf, so rows are 64dp and targets 48dp. Console
 /// density belongs to the manager at a desk.
 TiqSkin agentSkinFor(SkinMode mode) => switch (mode) {
-  SkinMode.veld => TiqSkin.veld(),
   SkinMode.night => TiqSkin.night(density: TiqDensity.field),
   SkinMode.day || SkinMode.auto => TiqSkin.day(density: TiqDensity.field),
 };

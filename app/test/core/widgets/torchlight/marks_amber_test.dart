@@ -154,11 +154,10 @@ List<_Case> _cases() => <_Case>[
 void main() {
   group('no mark paints a lit object, in any skin', () {
     for (final skin in <TiqSkin>[
-      // Night first, then Day, Veld last — the order the design says to build
+      // Night first, then Day — the order the design says to build
       // them in, and therefore the order a failure should be read in.
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets(skin.mode.name, (tester) async {
         for (final entry in _cases()) {

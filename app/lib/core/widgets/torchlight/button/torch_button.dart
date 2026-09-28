@@ -13,31 +13,29 @@ import '../../../theme/torchlight/tiq_skin.dart';
 
 /// The height of a block button — primary, secondary, destructive.
 ///
-/// Field 56, Console 44, Veld 64 — which is exactly [TiqSpace.primaryActionHeight],
+/// Field 56, Console 44 — which is exactly [TiqSpace.primaryActionHeight],
 /// read rather than restated so a density change lands here for free. It is a
 /// **minimum**: at 2.0× the label wraps to two lines and the button grows to
 /// intrinsic height. A button pinned to 56 with an ellipsised label is a button
 /// whose verb the reader cannot read.
 double torchBlockHeight(TiqSkin skin) => skin.space.primaryActionHeight;
 
-/// The tap target floor for a text or glyph action: 48 everywhere, 56 in Veld,
-/// where a thumb in the sun is imprecise.
+/// The tap target floor for a text or glyph action: 48 everywhere.
 double torchTapTarget(TiqSkin skin) =>
     skin.space.tapTarget < 48 ? 48 : skin.space.tapTarget;
 
 /// The block-button label role.
 ///
-/// unify §1.7: **16/600 Field, 14/600 Console, 18/700 Veld** — the agent's
-/// argument that the commit action was carrying the smallest type on the
-/// screen. Those three land exactly on three existing roles, so this is a
-/// lookup and not a new token: Console `body.strong` is 14/600, Field `title.m`
-/// is 16/600 and Veld `title.m` is 18/700.
+/// unify §1.7: **16/600 Field, 14/600 Console** — the agent's argument that
+/// the commit action was carrying the smallest type on the screen. Both land
+/// exactly on an existing role, so this is a lookup and not a new token:
+/// Console `body.strong` is 14/600 and Field `title.m` is 16/600.
 TiqTypeToken torchBlockLabelToken(TiqSkin skin) =>
     skin.density == TiqDensity.console
     ? skin.text.bodyStrong
     : skin.text.titleM;
 
-/// The text-action label role: `label` 13/500, Veld 16/600.
+/// The text-action label role: `label` 13/500.
 TiqTypeToken torchTextLabelToken(TiqSkin skin) => skin.text.label;
 
 /// Horizontal padding inside a block button.

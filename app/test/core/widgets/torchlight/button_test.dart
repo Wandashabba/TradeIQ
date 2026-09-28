@@ -141,34 +141,6 @@ void main() {
       expect(day.palette.onAmber, day.palette.ink1);
     });
 
-    testWidgets('Veld is a square amber block with a 2px ink border', (
-      tester,
-    ) async {
-      final veld = TiqSkin.veld();
-      await pumpTorch(
-        tester,
-        skin: veld,
-        child: primary(onPressed: () {}),
-        claims: <TorchClaim>[TorchPrimaryButton.claim(claim)],
-      );
-      final rect = tester.getRect(find.byType(TorchPrimaryButton));
-      final pixels = await torchPixels(tester);
-      expect(pixels.at(rect.center.dx, rect.bottom - 6), veld.palette.flame600);
-      expect(
-        pixels.at(rect.left + 0.5, rect.top + 0.5),
-        veld.palette.ink1,
-        reason:
-            'radius 0 and a 2px ink border: the very corner pixel is the '
-            'border, not the ground showing through a rounded shoulder.',
-      );
-      expect(veld.radii.control, 0);
-      expect(veld.depth.borderWidth, 2);
-      expect(
-        tester.getSize(find.byType(TorchPrimaryButton)).height,
-        greaterThanOrEqualTo(64),
-        reason: 'Veld targets are 56 and its primary is 64',
-      );
-    });
   });
 
   group('Primary button — the states that are not lit', () {
@@ -544,9 +516,8 @@ void main() {
           ),
         );
         final size = tester.getSize(find.byType(TorchIconButton));
-        final floor = skin.mode == SkinMode.veld ? 56.0 : 48.0;
-        expect(size.width, greaterThanOrEqualTo(floor));
-        expect(size.height, greaterThanOrEqualTo(floor));
+        expect(size.width, greaterThanOrEqualTo(48.0));
+        expect(size.height, greaterThanOrEqualTo(48.0));
       }
     });
 

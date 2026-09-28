@@ -54,7 +54,7 @@ import 'message_attachment_thumb.dart';
 /// the keyboard exists. With the keyboard down: the nav's active tab is slot 1
 /// and Send is slot 2. With it up the nav does not render, and the grant it was
 /// holding pays for the focused field's rule — so a focused composer plus a lit
-/// Send is exactly two, not three. Day and Veld light Send alone, and **zero**
+/// Send is exactly two, not three. Day lights Send alone, and **zero**
 /// when the draft is empty: a Send with nothing to send is not armed.
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});

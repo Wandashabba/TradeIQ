@@ -95,7 +95,9 @@ void main() {
     test('the word grade clears 4.5:1 on every fill a figure sits on', () {
       for (final skin in allSkins) {
         final p = skin.palette;
-        final floor = skin.floorFor(4.5, isText: true);
+        // The role's own floor is the whole requirement: no skin declares
+        // one of its own since Veld was removed (28 September 2026).
+        const floor = 4.5;
         for (final MapEntry(key: name, value: ink) in <String, Color>{
           'good': p.good,
           'bad': p.bad,

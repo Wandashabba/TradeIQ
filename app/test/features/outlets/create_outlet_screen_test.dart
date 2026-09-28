@@ -470,7 +470,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets('${skin.mode.name}, form (nothing armed): 0', (tester) async {
         await _pump(tester, skin: skin);

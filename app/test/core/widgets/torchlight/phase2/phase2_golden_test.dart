@@ -6,7 +6,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 
 import 'phase2_harness.dart';
 
-/// THE PHASE 2 GOLDENS — Night first, then Day, Veld last.
+/// THE PHASE 2 GOLDENS — Night first, then Day.
 ///
 /// A golden here is a **snapshot of every declared value a component resolves**
 /// — one line per state, checked in as text. It is not a PNG, for the three

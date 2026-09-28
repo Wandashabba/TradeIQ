@@ -116,7 +116,7 @@ class _OutboxItemSheet extends ConsumerStatefulWidget {
   final OutboxState state;
 
   /// The sheet's one commit. A sheet is an untabbed route, so Night gives it
-  /// two content grants and Day and Veld one — and this sheet spends at most
+  /// two content grants and Day one — and this sheet spends at most
   /// one of them, on whichever single action is the fix.
   static const String fixClaimId = 'outbox-item-fix';
 
@@ -178,7 +178,6 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
         if (!_confirmingDiscard && (_retryable || _item.sessionEnded))
           const TorchClaim.primaryCommit(_OutboxItemSheet.fixClaimId),
       ],
-      closeLabel: l10n.commonClose,
       child: TorchSheetSwap(
         paneKey: _confirmingDiscard ? 'discard' : 'actions',
         child: _confirmingDiscard

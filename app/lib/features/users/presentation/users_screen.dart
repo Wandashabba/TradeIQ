@@ -61,8 +61,8 @@ import 'user_password_screen.dart';
 ///
 /// A tab root: Night paints the nav's active tab, and this route declines its
 /// one content grant — nothing on a roster is armed. The sheets are where the
-/// commits are, and a sheet extinguishes the route beneath it. Day and Veld
-/// paint zero.
+/// commits are, and a sheet extinguishes the route beneath it. Day
+/// paints zero.
 class UsersScreen extends ConsumerWidget {
   const UsersScreen({super.key});
 

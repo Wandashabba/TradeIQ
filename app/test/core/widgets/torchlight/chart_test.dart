@@ -36,7 +36,6 @@ Widget _chart({
   List<ChartSeries>? series,
   ChartThreshold? threshold,
   String? gapNote,
-  Widget? veldReplacement,
   // Afrikaans by default in the tests that care: the kit takes these words
   // from the caller, and a test that only ever passes English cannot tell a
   // threaded string from a hardcoded one.
@@ -54,7 +53,6 @@ Widget _chart({
     lowSampleWord: sampleKind == null ? null : 'Klein steekproef',
     threshold: threshold,
     gapNote: gapNote,
-    veldReplacement: veldReplacement,
   ),
 );
 
@@ -221,29 +219,6 @@ void main() {
       expect(find.text('Not measured'), findsOneWidget);
       // The unabbreviated period, not the axis form.
       expect(find.text('W26'), findsNothing);
-    });
-  });
-
-  group('Veld', () {
-    testWidgets('draws no plot and shows the figure list instead', (
-      tester,
-    ) async {
-      await pumpTorch(
-        tester,
-        skin: TiqSkin.veld(),
-        child: _chart(veldReplacement: const Text('the figures, as rows')),
-      );
-
-      expect(find.text('the figures, as rows'), findsOneWidget);
-      // The legend still renders: it names what the rows are.
-      expect(find.text('Gauteng North'), findsOneWidget);
-      // Nothing is painting a plot.
-      expect(
-        tester
-            .widgetList<CustomPaint>(find.byType(CustomPaint))
-            .where((p) => p.painter is TrendChartPainter),
-        isEmpty,
-      );
     });
   });
 

@@ -108,12 +108,8 @@ class DecisionRow extends StatelessWidget {
         MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     // The sparkline drops first at 2.0×, then the figure moves onto its own
     // line — and the second half of that is the row's own layout, not a rule
-    // written here. Veld drops it too: a 64×20 grey zigzag is under 9:1 by
-    // construction, and Veld has no text token under 9:1.
-    final showSparkline =
-        sparkline != null &&
-        skin.density != TiqDensity.veld &&
-        scaler.scale(1.0) < 1.6;
+    // written here.
+    final showSparkline = sparkline != null && scaler.scale(1.0) < 1.6;
 
     return SoftRow(
       // COMPACT, NOT TALL. unify §1.3 puts a decision row at the 80dp tall

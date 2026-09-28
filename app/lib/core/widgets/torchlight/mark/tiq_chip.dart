@@ -10,9 +10,9 @@ import 'tiq_mark.dart';
 /// how a record was produced — and that difference is carried by the level
 /// tokens, not by two chip implementations that would drift apart in a month.
 ///
-/// Geometry (unify §1.6): radius `chip` (6, 0 in Veld), visual height 28
-/// inline / 32 Field / 40 Veld inside a ≥48dp hit box when tappable, 10dp of
-/// horizontal padding, a 6dp gap to the leading glyph, label in sentence case.
+/// Geometry (unify §1.6): radius `chip` (6), visual height 28 inline / 32
+/// Field inside a ≥48dp hit box when tappable, 10dp of horizontal padding, a
+/// 6dp gap to the leading glyph, label in sentence case.
 ///
 /// **Opacity is never a state channel here.** A previous draft dimmed a stale
 /// Watch chip to 0.6, which computes to 3.29:1 for 11px text and passed CI
@@ -69,18 +69,19 @@ class TiqChip extends StatelessWidget {
   static double visualHeight(TiqSkin skin) => switch (skin.density) {
     TiqDensity.console => 28,
     TiqDensity.field => 32,
-    TiqDensity.veld => 40,
   };
 
   /// The chip label role, derived from `label` so it is a token and not a
-  /// seventeenth text style: 11/700 Console, 13/600 Field, 16/600 Veld.
+  /// seventeenth text style: 11/700 Console, 13/600 Field.
   static TiqTypeToken labelRole(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console =>
-      skin.text.label.copyWith(size: 11, weight: FontWeight.w700),
-    TiqDensity.field =>
-      skin.text.label.copyWith(size: 13, weight: FontWeight.w600),
-    TiqDensity.veld =>
-      skin.text.label.copyWith(size: 16, weight: FontWeight.w600),
+    TiqDensity.console => skin.text.label.copyWith(
+      size: 11,
+      weight: FontWeight.w700,
+    ),
+    TiqDensity.field => skin.text.label.copyWith(
+      size: 13,
+      weight: FontWeight.w600,
+    ),
   };
 
   @override

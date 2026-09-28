@@ -187,7 +187,7 @@ class _TorchTextFieldState extends State<TorchTextField> {
           // a flame-700 focused underline for the Material forms, and a
           // collapsed decoration inherits `focusedBorder` from it — which painted
           // an unclaimed amber line under every focused trough, a second lit
-          // object in Day and Veld. The trough draws the only rule.
+          // object in Day. The trough draws the only rule.
           inputDecorationTheme: const InputDecorationTheme(),
           textSelectionTheme: TextSelectionThemeData(
             cursorColor: spec.ink,

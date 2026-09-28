@@ -92,7 +92,7 @@ class TorchToast extends StatelessWidget {
     double safeArea = 0,
   }) {
     final chrome = navRenders
-        ? TorchNavPill.heightFor(skin) + TiqSpace.s5
+        ? TorchNavPill.height + TiqSpace.s5
         : thumbZoneHeight;
     return chrome + TiqSpace.s5 + safeArea;
   }
@@ -108,52 +108,38 @@ class TorchToast extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final veld = skin.density == TiqDensity.veld;
 
     Color fill;
     Color ink;
     Color? border;
     switch (kind) {
       case ToastKind.success:
-        if (veld) {
-          // Outlines and washes do not survive glare: Veld goes solid.
-          fill = p.goodSolid;
-          ink = p.onGoodSolid;
-          border = p.ink1;
-        } else {
-          fill = skin.brightness == Brightness.dark
-              ? successWashNight
-              : successWashDay;
-          ink = p.ink1;
-          border = p.good;
-        }
+        fill = skin.brightness == Brightness.dark
+            ? successWashNight
+            : successWashDay;
+        ink = p.ink1;
+        border = p.good;
       case ToastKind.failure:
-        if (veld) {
-          fill = p.badSolid;
-          ink = p.onBadSolid;
-          border = p.ink1;
-        } else {
-          fill = p.well;
-          ink = p.ink1;
-          // The whole outline goes crimson rather than a single leading side:
-          // a `BoxDecoration` refuses a radius on a border whose sides differ
-          // in colour, and a 10dp corner in `bad` is a better failure edge
-          // than a straight bar interrupted by two arcs. The filled triangle
-          // beside the words is the silhouette that carries it.
-          border = p.badSolid;
-        }
+        fill = p.well;
+        ink = p.ink1;
+        // The whole outline goes crimson rather than a single leading side:
+        // a `BoxDecoration` refuses a radius on a border whose sides differ
+        // in colour, and a 10dp corner in `bad` is a better failure edge
+        // than a straight bar interrupted by two arcs. The filled triangle
+        // beside the words is the silhouette that carries it.
+        border = p.badSolid;
       case ToastKind.neutral:
       case ToastKind.held:
-        fill = veld ? p.ground : p.well;
+        fill = p.well;
         ink = p.ink1;
-        border = veld ? p.ink1 : p.edgeControl;
+        border = p.edgeControl;
     }
 
     final glyphInk = switch (kind) {
-      ToastKind.success => veld ? ink : p.good,
-      ToastKind.failure => veld ? ink : p.bad,
-      ToastKind.held => veld ? ink : p.ink2,
-      ToastKind.neutral => veld ? ink : p.ink2,
+      ToastKind.success => p.good,
+      ToastKind.failure => p.bad,
+      ToastKind.held => p.ink2,
+      ToastKind.neutral => p.ink2,
     };
 
     // The failure bar is a child, not a border side: a `BoxDecoration` refuses
@@ -164,7 +150,7 @@ class TorchToast extends StatelessWidget {
       liveRegion: true,
       container: true,
       child: Container(
-        constraints: BoxConstraints(minHeight: veld ? 64 : 48),
+        constraints: const BoxConstraints(minHeight: 48),
         decoration: BoxDecoration(
           color: fill,
           borderRadius: BorderRadius.circular(skin.radii.control),
@@ -185,9 +171,7 @@ class TorchToast extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: (veld ? skin.text.bodyStrong : skin.text.body).style(
-                  color: ink,
-                ),
+                style: skin.text.body.style(color: ink),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

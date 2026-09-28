@@ -60,12 +60,12 @@ import '../data/my_record_repository.dart';
 ///
 /// ## The amber, counted
 ///
-/// **Night 1. Day 0. Veld 0.** A tab root, so the nav's active tab is object 1
+/// **Night 1. Day 0.** A tab root, so the nav's active tab is object 1
 /// whenever the nav renders — and the content claims nothing at all, which is
 /// the whole ruling for this screen. There is no primary here and no nav
 /// circle: reading your own record has no expected next move, and a light with
 /// nothing to point at is a light that means "look here" about nothing.
-/// On Day and Veld the nav's active slot is an Abyssal block, so outdoors this
+/// On Day the nav's active slot is an Abyssal block, so there this
 /// screen is genuinely unlit — which unify's ruling on My visits says in so
 /// many words.
 ///

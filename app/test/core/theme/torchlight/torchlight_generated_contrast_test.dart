@@ -45,25 +45,9 @@ void main() {
         );
       });
 
-      test('$label — the skin declares its own floor and the walk uses it', () {
-        // Veld's 9:1 / 15:1 is a token on the skin, not an `if (mode == veld)`
-        // in the generator. If someone replaces it with a branch, this fails.
-        final isVeld = skin.space.density == TiqDensity.veld;
-        expect(skin.textFloor, isVeld ? 9.0 : 0.0);
-        expect(skin.borderFloor, isVeld ? 15.0 : 0.0);
-        expect(
-          skin.floorFor(4.5, isText: true),
-          isVeld ? 9.0 : 4.5,
-          reason: 'The applicable floor is the stricter of role and skin.',
-        );
-        expect(
-          skin.floorFor(3.0, isText: false),
-          isVeld ? 15.0 : 3.0,
-        );
-      });
     }
 
-    test('the walk covers all three skins and both densities', () {
+    test('the walk covers both skins and both densities', () {
       final combos = TorchlightContrast.allSkinsAndDensities
           .map((s) => '${s.mode.name}/${s.density.name}')
           .toList();
@@ -72,7 +56,6 @@ void main() {
         'night/field',
         'day/console',
         'day/field',
-        'veld/veld',
       ]);
     });
 
@@ -82,10 +65,10 @@ void main() {
           .fold<int>(0, (a, b) => a + b);
       expect(
         total,
-        greaterThan(900),
+        greaterThan(700),
         reason:
             'Only $total generated pairings. Sixteen roles x three inks x '
-            'four fills x five skin/density combinations is 960 before the '
+            'four fills x four skin/density combinations is 768 before the '
             'edges; a number much under that means a matrix silently emptied.',
       );
     });
@@ -247,12 +230,12 @@ void main() {
 
     test('every skin contributes its series pairs', () {
       final skins = TorchlightContrast.seriesPairs.map((p) => p.skin).toSet();
-      expect(skins, <String>{'night', 'day', 'veld'});
+      expect(skins, <String>{'night', 'day'});
       expect(
         TorchlightContrast.seriesPairs.length,
-        33,
+        22,
         reason:
-            'Eleven pairs in each of three skins. Was nine until 28 September '
+            'Eleven pairs in each of two skins. Was nine until 28 September '
             '2026, when figures, sparklines and trend runs started carrying '
             'their standing: a green run beside a crimson one, and a coloured '
             'figure beside a plain one, are two new hue-coded distinctions '
@@ -271,7 +254,7 @@ void main() {
       }
       final night = bySkin['night']!;
       expect(night, hasLength(11));
-      for (final skin in <String>['day', 'veld']) {
+      for (final skin in <String>['day']) {
         expect(
           bySkin[skin],
           night,

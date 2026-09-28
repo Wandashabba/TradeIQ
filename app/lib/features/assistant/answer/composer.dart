@@ -24,7 +24,7 @@ import 'ask_phase.dart';
 ///
 /// ## Amber
 ///
-/// Send's rim in Night, its block in Day and Veld, and **only while Send is
+/// Send's rim in Night, its block in Day, and **only while Send is
 /// enabled** — which is only when the manager has typed something, i.e. when
 /// sending is the expected next move. It is the route's rung-1 claim. A
 /// disabled Send is never amber in any skin, so most states of this screen
@@ -132,9 +132,8 @@ class QuestionComposer extends StatelessWidget {
   }
 }
 
-/// A 48dp square (56 in Veld), radius 10.
-double _keySize(TiqSkin skin) =>
-    skin.density == TiqDensity.veld ? TiqSpace.s9 : 48;
+/// A 48dp square, radius 10.
+double _keySize(TiqSkin skin) => 48;
 
 class _SendKey extends StatelessWidget {
   const _SendKey({
@@ -191,14 +190,7 @@ class _SendKey extends StatelessWidget {
                 : Border.all(color: look.edge!, width: look.edgeWidth),
           ),
           child: Center(
-            child: _Arrow(
-              colour: look.ink,
-              size: MarkScale.glyph(context, 20),
-              // A SHAPE change, not only a colour one: a colour-only
-              // disabled state is invisible at 40% backlight in sun, which
-              // is the one place Veld exists for.
-              struck: !enabled && skin.mode == SkinMode.veld,
-            ),
+            child: _Arrow(colour: look.ink, size: MarkScale.glyph(context, 20)),
           ),
         );
       },
@@ -246,30 +238,14 @@ class _StopKey extends StatelessWidget {
   }
 }
 
-/// A 2px-stroke arrow-up, drawn rather than set, and optionally struck
-/// through for Veld's disabled state.
+/// A 2px-stroke arrow-up, drawn rather than set.
 class _Arrow extends StatelessWidget {
-  const _Arrow({
-    required this.colour,
-    required this.size,
-    required this.struck,
-  });
+  const _Arrow({required this.colour, required this.size});
 
   final Color colour;
   final double size;
-  final bool struck;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.center,
-    children: <Widget>[
-      Icon(Icons.arrow_upward, size: size, color: colour),
-      if (struck)
-        SizedBox(
-          width: size,
-          height: 2,
-          child: ColoredBox(color: colour),
-        ),
-    ],
-  );
+  Widget build(BuildContext context) =>
+      Icon(Icons.arrow_upward, size: size, color: colour);
 }

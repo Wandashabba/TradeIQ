@@ -84,8 +84,7 @@ class HatchSpec {
   /// Stripe angle. 45 falls, −45 rises.
   final double degrees;
 
-  /// A wash behind the stripes, or null for none. Veld has none — it has no
-  /// fill step to spend.
+  /// A wash behind the stripes, or null for none.
   final Color? fill;
 
   /// Whether the interior carries dots instead of stripes.
@@ -104,11 +103,8 @@ class HatchPaint {
   /// Resolve [pattern] against a skin.
   static HatchSpec spec(TiqSkin skin, HatchPattern pattern) {
     final p = skin.palette;
-    // Veld has no wash, no gradient and a 2px border floor; its hatch is
-    // heavier line on white and nothing else.
-    final veld = skin.depth.borderWidth >= 2;
-    final stroke = veld ? 2.0 : 1.0;
-    final pitch = veld ? 8.0 : 6.0;
+    const stroke = 1.0;
+    const pitch = 6.0;
     return switch (pattern) {
       HatchPattern.notMeasured => HatchSpec(
         pattern: pattern,
@@ -116,7 +112,7 @@ class HatchPaint {
         strokeWidth: stroke,
         pitch: pitch,
         degrees: 45,
-        fill: veld ? null : p.well,
+        fill: p.well,
         dots: false,
       ),
       HatchPattern.negative => HatchSpec(
@@ -125,7 +121,7 @@ class HatchPaint {
         strokeWidth: stroke,
         pitch: pitch,
         degrees: -45,
-        fill: veld ? null : p.well,
+        fill: p.well,
         dots: false,
       ),
       HatchPattern.lowSampleOutline => HatchSpec(

@@ -46,7 +46,7 @@ Future<FakeUsersRepository> _pump(
 ///
 /// There is no visible Close control in Night or Day — the grabber and the
 /// scrim are the dismissal — so the test taps the barrier the way a thumb
-/// would. Veld's 56dp Close row is the one skin that has a control.
+/// would.
 Future<void> _dismissSheet(WidgetTester tester) async {
   await tester.tapAt(const Offset(180, 8));
   await tester.pumpAndSettle();
@@ -554,7 +554,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{

@@ -281,7 +281,6 @@ class StatTile extends StatelessWidget {
   static double _insetFor(TiqSkin skin) => switch (skin.density) {
     TiqDensity.console => 16.0,
     TiqDensity.field => 20.0,
-    TiqDensity.veld => 24.0,
   };
 
   Widget _build(BuildContext context, TiqSkin skin, StatTileLayout resolved) {
@@ -289,7 +288,6 @@ class StatTile extends StatelessWidget {
     final minHeight = switch (skin.density) {
       TiqDensity.console => 88.0,
       TiqDensity.field => 96.0,
-      TiqDensity.veld => 128.0,
     };
 
     final baselineDelta = deltaOnBaseline ? _baselineDelta(context, skin) : null;

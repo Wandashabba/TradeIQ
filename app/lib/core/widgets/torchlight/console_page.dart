@@ -20,7 +20,7 @@ import 'skin_controls.dart';
 ///   [TorchThumbZone]; a screen with none gets the 76dp zone holding the skin
 ///   cycle alone. Never a screen without the cycle.
 /// * **The amber arithmetic is different.** Untabbed, so Night has **two**
-///   content grants rather than one, and Day and Veld still have exactly one.
+///   content grants rather than one, and Day still has exactly one.
 /// * **There is a way back**, and it names where it goes.
 ///
 /// ## The claim is declared only while the primary is armed

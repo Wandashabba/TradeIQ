@@ -318,7 +318,7 @@ void main() {
         // primary is not lit. Pick one, so the lit form is what is counted.
         await tester.tap(find.byKey(const ValueKey<String>('assign-agent-a1')));
         await tester.pumpAndSettle();
-        // Veld's full-screen route is taller than the viewport, so the commit
+        // A tall sheet outruns the viewport, so the commit
         // genuinely is below the fold until it is scrolled to — and a census
         // of a frame the button is not in would count zero and pass.
         await scrollSheetTo(

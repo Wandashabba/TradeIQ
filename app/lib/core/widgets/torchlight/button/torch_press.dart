@@ -14,8 +14,7 @@
 ///
 /// **Focus is a ring, and only for a keyboard.** 2px flame-700 at a 2dp offset
 /// outside the control's own border in Night (10.38:1 on surface); 2px ink-1 at
-/// 2dp in Day; 3px ink-1 at 3dp in Veld, where a 1.79:1 amber ring is simply
-/// not there. It renders only under `FocusHighlightMode.traditional` — keyboard,
+/// 2dp in Day. It renders only under `FocusHighlightMode.traditional` — keyboard,
 /// switch access or a D-pad — and never on a touch tap. The Night ring is the
 /// one amber the ladder does not count, by declaration: it never co-occurs with
 /// a touch frame and never appears for a touch user.
@@ -63,45 +62,33 @@ class TorchPressSurface {
 /// The press surface for a control that has no fill of its own — a ghost
 /// button, an icon button, a nav slot.
 ///
-/// Night steps **up** to `lifted`, Day steps **down** to `well`, and Veld —
-/// which has no fill steps at all, every one of its surface tokens being white
-/// — inverts to the ink block with white on it. That inversion is the same one
-/// the palette already reaches for in [TiqPalette.veld]'s `amberPressed`, and
-/// for the same reason: outdoors there is no glow, no shadow and no gradient to
-/// spend, so the only press cue Veld can afford is the one that swaps ground
-/// for ink.
+/// Night steps **up** to `lifted` and Day steps **down** to `well`.
 TorchPressSurface torchPressSurface(TiqSkin skin) => switch (skin.mode) {
   SkinMode.day => TorchPressSurface(
     fill: skin.palette.well,
     ink: skin.palette.ink1,
-  ),
-  SkinMode.veld => TorchPressSurface(
-    fill: skin.palette.lifted,
-    ink: torchOnAbyssal(skin),
   ),
   _ => TorchPressSurface(fill: skin.palette.lifted, ink: skin.palette.ink1),
 };
 
 /// THE ABYSSAL BLOCK — the one non-amber way this system says "this one".
 ///
-/// A selected nav slot on a light ground, a toggled-on icon button in every
-/// skin, the pressed state of a Veld control. It is `lifted` in all three
-/// skins, which is not a coincidence: the token's own doc comment says it is
-/// "the ink block behind an active nav slot" on Day, and Veld collapses every
-/// other surface onto white precisely so that this one can stay ink.
+/// A selected nav slot on a light ground, and a toggled-on icon button in
+/// either skin. It is `lifted` in both, which is not a coincidence: the
+/// token's own doc comment says it is "the ink block behind an active nav
+/// slot" on Day.
 Color torchAbyssal(TiqSkin skin) => skin.palette.lifted;
 
 /// The ink that goes **on** an Abyssal block.
 ///
 /// [TiqSkin.onFill] cannot answer this and should not be taught to: `lifted` is
 /// a dark *ground* in Night, where ink-1 belongs on it, and a dark *ink block*
-/// in Day and Veld, where the skin's own ink-1 would be invisible on it. So the
-/// answer is Palladian in Night and Day (9.43:1 on `#2C3B4D` — the figure the
-/// nav's Day form is specified at) and white in Veld (15.33:1 on `#1B2632`).
-/// Both are existing tokens read from a sibling palette, not new hexes.
+/// in Day, where the skin's own ink-1 would be invisible on it. So the answer
+/// is Palladian in Night and Day (9.43:1 on `#2C3B4D` — the figure the nav's
+/// Day form is specified at), an existing token read from a sibling palette
+/// rather than a new hex.
 Color torchOnAbyssal(TiqSkin skin) => switch (skin.mode) {
   SkinMode.day => TiqPalette.night.ink1, // Palladian
-  SkinMode.veld => TiqPalette.veld.ground, // white
   _ => skin.palette.ink1,
 };
 
@@ -381,14 +368,9 @@ class TorchFocusRing {
   final double offset;
 }
 
-/// Night is amber and exempt; Day and Veld are ink, because an amber ring on a
-/// light ground measures 1.79:1 and is a decoration pretending to be a state.
+/// Night is amber and exempt; Day is ink, because an amber ring on a light
+/// ground measures 1.79:1 and is a decoration pretending to be a state.
 TorchFocusRing torchFocusRing(TiqSkin skin) => switch (skin.mode) {
-  SkinMode.veld => TorchFocusRing(
-    color: skin.palette.ink1,
-    width: 3,
-    offset: 3,
-  ),
   SkinMode.day => TorchFocusRing(color: skin.palette.ink1, width: 2, offset: 2),
   _ => TorchFocusRing(color: skin.palette.flame700, width: 2, offset: 2),
 };

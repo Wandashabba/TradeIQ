@@ -13,8 +13,8 @@ import 'package:flutter/widgets.dart';
 /// something true and unpleasant, for a 56dp gain.
 ///
 /// The value comes from the per-user preferences table that unify's open
-/// question 13 asks for — the same table the collapsed plate and Veld memory
-/// are waiting on. Until it exists, a screen may set it from local storage
+/// question 13 asks for — the same table the collapsed plate is waiting on.
+/// Until it exists, a screen may set it from local storage
 /// and the default stands.
 enum TorchHandedness {
   /// The stepper's `[−][+]` pair sits at the **trailing** edge, under a right

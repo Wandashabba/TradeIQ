@@ -786,12 +786,11 @@ void main() {
   group('the amber census, per phase and per skin', () {
     // Night: 1 — the nav's active tab, and nothing else. The content claims
     // nothing, which is unify's ruling for a screen that is read rather than
-    // acted on. Day and Veld: 0, because on a light ground the ladder's one
-    // rung is the primary commit block and there is no primary here.
+    // acted on. Day: 0, because on a light ground the ladder's one rung is
+    // the primary commit block and there is no primary here.
     const Map<SkinMode, int> expected = <SkinMode, int>{
       SkinMode.night: 1,
       SkinMode.day: 0,
-      SkinMode.veld: 0,
     };
 
     for (final mode in agentSkinModes) {

@@ -88,40 +88,6 @@ void main() {
       }
     });
 
-    testWidgets('Veld docks: full bleed, 72 tall, 2px top border, radius 0', (
-      tester,
-    ) async {
-      final veld = TiqSkin.veld();
-      await pumpTorch(
-        tester,
-        skin: veld,
-        navRenders: true,
-        tabbedRoute: true,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: TorchNavPill(
-            slots: agentSlots,
-            activeIndex: 0,
-            onSelect: (_) {},
-          ),
-        ),
-      );
-      final rect = tester.getRect(find.byType(TorchNavPill));
-      expect(rect.height, 72);
-      expect(rect.left, 0, reason: 'full bleed');
-      expect(rect.right, 360);
-
-      final pixels = await torchPixels(tester);
-      expect(
-        pixels.at(rect.left + 1, rect.top + 1),
-        veld.palette.edgeStructure,
-        reason:
-            'radius 0 and a 2px top border: the corner pixel is the border. '
-            'A white pill floating on white under glare stops reading as a '
-            'bar, and Veld has no radius but 0.',
-      );
-    });
-
     testWidgets('five slots will not build', (tester) async {
       expect(
         () => TorchNavPill(
@@ -194,34 +160,31 @@ void main() {
       );
     });
 
-    testWidgets('Day and Veld use an Abyssal block, never amber', (
-      tester,
-    ) async {
-      for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
-        await pumpTorch(
-          tester,
-          skin: skin,
-          navRenders: true,
-          tabbedRoute: true,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: TorchNavPill(
-              slots: agentSlots,
-              activeIndex: 1,
-              onSelect: (_) {},
-            ),
+    testWidgets('Day uses an Abyssal block, never amber', (tester) async {
+      final skin = TiqSkin.day();
+      await pumpTorch(
+        tester,
+        skin: skin,
+        navRenders: true,
+        tabbedRoute: true,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: TorchNavPill(
+            slots: agentSlots,
+            activeIndex: 1,
+            onSelect: (_) {},
           ),
-        );
-        final slot = tester.getRect(find.text('Work'));
-        final pixels = await torchPixels(tester);
-        expect(
-          pixels.at(slot.right + 10, slot.center.dy),
-          skin.palette.lifted,
-          reason:
-              '${skin.mode.name}: on a light ground amber is a carrier of '
-              'ink, and the one object allowed to be that is the primary.',
-        );
-      }
+        ),
+      );
+      final slot = tester.getRect(find.text('Work'));
+      final pixels = await torchPixels(tester);
+      expect(
+        pixels.at(slot.right + 10, slot.center.dy),
+        skin.palette.lifted,
+        reason:
+            'on a light ground amber is a carrier of ink, and the one object '
+            'allowed to be that is the primary.',
+      );
     });
 
     testWidgets('each slot says which tab it is, and whether it is on', (
@@ -321,7 +284,7 @@ void main() {
       for (final expected in <bool>[true, false]) {
         await pumpTorch(
           tester,
-          skin: TiqSkin.veld(),
+          skin: TiqSkin.day(),
           child: Center(child: navCircle(expected: expected)),
         );
         final glyph = tester.widget<TorchGlyph>(
@@ -340,26 +303,27 @@ void main() {
   });
 
   group('Skin cycle', () {
-    testWidgets('one glyph per skin, and the cycle is Day, Veld, Night', (
+    testWidgets('one glyph per skin, and the cycle is Day, Night', (
       tester,
     ) async {
-      expect(TorchSkinCycle.next(SkinMode.day), SkinMode.veld);
-      expect(TorchSkinCycle.next(SkinMode.veld), SkinMode.night);
+      expect(TorchSkinCycle.next(SkinMode.day), SkinMode.night);
       expect(TorchSkinCycle.next(SkinMode.night), SkinMode.day);
+      // `auto` is a preference, not a position: the control always shows a
+      // real glyph, and a tap from there lands on the agent default.
+      expect(TorchSkinCycle.next(SkinMode.auto), SkinMode.night);
 
       final glyphs = <IconData>{
         TorchSkinCycle.glyphFor(SkinMode.day),
-        TorchSkinCycle.glyphFor(SkinMode.veld),
         TorchSkinCycle.glyphFor(SkinMode.night),
       };
       expect(
         glyphs,
-        hasLength(3),
-        reason: 'three cycle positions, each a different glyph',
+        hasLength(2),
+        reason: 'two cycle positions, each a different glyph',
       );
     });
 
-    testWidgets('is 56dp, 64 in Veld, and asks for the next skin', (
+    testWidgets('is 56dp in both skins, and asks for the next one', (
       tester,
     ) async {
       SkinMode? asked;
@@ -371,12 +335,11 @@ void main() {
             child: TorchSkinCycle(
               mode: skin.mode,
               onChanged: (m) => asked = m,
-              semanticLabel: 'Screen: Day. Double-tap for Veld.',
+              semanticLabel: 'Screen: Day. Double-tap for Night.',
             ),
           ),
         );
-        final size = tester.getSize(find.byType(TorchSkinCycle));
-        expect(size.width, skin.mode == SkinMode.veld ? 64 : 56);
+        expect(tester.getSize(find.byType(TorchSkinCycle)).width, 56);
         await tester.tap(find.byType(TorchSkinCycle));
         await tester.pump();
         expect(asked, TorchSkinCycle.next(skin.mode));

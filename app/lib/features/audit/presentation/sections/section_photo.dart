@@ -215,10 +215,7 @@ class _FramingCard extends StatelessWidget {
           ExcludeSemantics(
             child: CustomPaint(
               size: const Size(64, 64),
-              painter: _BayPainter(
-                colour: skin.palette.edgeControl,
-                stroke: skin.mode == SkinMode.veld ? 3 : 2,
-              ),
+              painter: _BayPainter(colour: skin.palette.edgeControl, stroke: 2),
             ),
           ),
           const SizedBox(width: TiqSpace.s4),

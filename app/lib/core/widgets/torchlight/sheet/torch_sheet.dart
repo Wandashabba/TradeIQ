@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../../../l10n/l10n.dart';
 import '../../../design/motion_budget.dart';
 import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
-import '../button/torch_press.dart';
 import 'sheet_spec.dart';
 
 /// THE ONE MODAL CONTAINER.
@@ -39,10 +37,6 @@ import 'sheet_spec.dart';
 /// see [TorchSheetSwap]. Opening a second sheet over a first asserts in debug
 /// and, in release, does the only sane thing left — it opens anyway rather
 /// than dropping the user's action on the floor.
-///
-/// **Veld has no sheets.** The same call renders a full-screen white route
-/// with a 2px border and a 56dp Close row, because a translucent wash outdoors
-/// dims nothing and obscures everything.
 class TorchSheet extends StatelessWidget {
   const TorchSheet({
     super.key,
@@ -50,10 +44,8 @@ class TorchSheet extends StatelessWidget {
     this.title,
     this.subtitle,
     this.dismissible = true,
-    this.onDismiss,
     this.claims = const <TorchClaim>[],
     this.semanticsLabel,
-    this.closeLabel,
     this.scrollable = true,
   });
 
@@ -70,39 +62,20 @@ class TorchSheet extends StatelessWidget {
 
   /// False for a blocking sheet: the session-ended sheet on first appearance,
   /// and a decision sheet whose work would be lost. A non-dismissible sheet
-  /// swallows the scrim tap and the system back gesture, drops the Veld Close
-  /// row, and must therefore carry at least one action that closes it —
-  /// asserted by [DecisionSheet].
+  /// swallows the scrim tap and the system back gesture, and must therefore
+  /// carry at least one action that closes it — asserted by [DecisionSheet].
   ///
   /// Leaving it true is safe inside `showTorchSheet(dismissible: false)`: the
   /// widget reads the route's flag as well as its own, so the sheet and the
   /// route can never disagree about whether they can be walked past.
   final bool dismissible;
 
-  /// Called when the sheet is dismissed by the scrim, the back gesture or the
-  /// Veld Close row. Not called when an action pops the route itself.
-  final VoidCallback? onDismiss;
-
   /// The sheet's own amber claims. A sheet is an **untabbed** route, so Night
-  /// gives it two content grants and Day and Veld give it one — see
-  /// [TorchScope]. Most sheets declare exactly one: their primary action.
+  /// gives it two content grants and Day gives it one — see [TorchScope].
+  /// Most sheets declare exactly one: their primary action.
   final List<TorchClaim> claims;
 
   final String? semanticsLabel;
-
-  /// The word on the Veld Close row.
-  ///
-  /// **Null reads `sheetClose` from the ambient localisations**, and that is
-  /// the point: this used to default to the literal `'Close'`, which meant the
-  /// one sheet with no scrim and no back gesture told an Afrikaans agent
-  /// outdoors to press a word she may not read. Thirty-odd call sites passed
-  /// nothing — the menu, the "what is held" sheet and the session-ended sheet
-  /// among them — so the fix belongs here and not in each of them.
-  ///
-  /// `context.l10n` falls back to the English template when no delegate is
-  /// installed, so a widget test pumping a bare `MaterialApp` still reads
-  /// "Close".
-  final String? closeLabel;
 
   /// Whether the body scrolls when it outgrows 88% of the viewport. True
   /// almost always; a decision sheet with two thumb-height actions sets it
@@ -117,18 +90,6 @@ class TorchSheet extends StatelessWidget {
       skin: skin,
       bottomSafeArea: media.padding.bottom,
     );
-    final veld = spec.form == TorchSheetForm.fullScreen;
-
-    // A BLOCKING SHEET HAS NO CLOSE ROW, and the route is the authority on
-    // whether it is blocking. `showTorchSheet(dismissible: false)` sets it on
-    // the ROUTE; the widget inside is usually built by someone who never saw
-    // that argument — `SessionEndedSheet` is exactly that, which is how a
-    // sheet the design says cannot be walked past grew a Close row in Veld
-    // that popped it. So the widget asks the route rather than trusting a
-    // flag two constructors away from the call that set it.
-    final route = ModalRoute.of(context);
-    final blocking =
-        !dismissible || (route is TorchSheetRoute && !route.dismissible);
 
     final header = <Widget>[
       if (title != null)
@@ -178,15 +139,8 @@ class TorchSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        if (veld && !blocking)
-          _VeldCloseRow(
-            label: closeLabel ?? context.l10n.sheetClose,
-            height: spec.closeRowHeight,
-            onClose: () => _dismiss(context),
-          )
-        else if (!veld)
-          _Grabber(spec: spec),
-        SizedBox(height: veld ? TiqSpace.s5 : spec.belowGrabber),
+        _Grabber(spec: spec),
+        SizedBox(height: spec.belowGrabber),
         body,
       ],
     );
@@ -207,32 +161,16 @@ class TorchSheet extends StatelessWidget {
           decoration: BoxDecoration(
             color: spec.fill,
             borderRadius: spec.radius,
-            border: veld
-                ? Border.all(color: spec.outline, width: spec.outlineWidth)
-                : Border(
-                    top: BorderSide(
-                      color: spec.outline,
-                      width: spec.outlineWidth,
-                    ),
-                    left: BorderSide(
-                      color: spec.outline,
-                      width: spec.outlineWidth,
-                    ),
-                    right: BorderSide(
-                      color: spec.outline,
-                      width: spec.outlineWidth,
-                    ),
-                  ),
+            border: Border(
+              top: BorderSide(color: spec.outline, width: spec.outlineWidth),
+              left: BorderSide(color: spec.outline, width: spec.outlineWidth),
+              right: BorderSide(color: spec.outline, width: spec.outlineWidth),
+            ),
           ),
           child: content,
         ),
       ),
     );
-  }
-
-  void _dismiss(BuildContext context) {
-    onDismiss?.call();
-    Navigator.of(context).maybePop();
   }
 }
 
@@ -259,62 +197,6 @@ class _Grabber extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Veld's 56dp Close row, with a 2px rule beneath it.
-///
-/// It is a row and not an icon in a corner because outdoors a 24dp glyph at
-/// arm's length in glare is a smudge, and because the whole point of the Veld
-/// form is that there is no scrim to tap.
-class _VeldCloseRow extends StatelessWidget {
-  const _VeldCloseRow({
-    required this.label,
-    required this.height,
-    required this.onClose,
-  });
-
-  final String label;
-  final double height;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final press = torchPressSurface(skin);
-    return Semantics(
-      button: true,
-      label: label,
-      // THE ACTION, not only the flag: `excludeSemantics` drops the
-      // gesture detector's own node, so without `onTap` here this is a
-      // control a screen reader can focus and cannot activate.
-      onTap: onClose,
-      excludeSemantics: true,
-      child: TorchPressable(
-        onPressed: onClose,
-        pressScale: 1,
-        builder: (context, pressed) => Container(
-          constraints: BoxConstraints(minHeight: height),
-          decoration: BoxDecoration(
-            color: pressed ? press.fill : null,
-            border: Border(
-              bottom: BorderSide(
-                color: skin.palette.edgeStructure,
-                width: skin.depth.borderWidth,
-              ),
-            ),
-          ),
-          padding: EdgeInsets.symmetric(horizontal: skin.space.gutter),
-          alignment: Alignment.centerLeft,
-          child: Text(
-            label,
-            style: skin.text.titleM.style(
-              color: pressed ? press.ink : skin.palette.ink1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// HOW MANY SHEETS ARE UP, AND WHO NEEDS TO KNOW.
@@ -389,8 +271,7 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
   late final TorchSheetSpec _spec = TorchSheetSpec.resolve(skin: skin);
 
   @override
-  Color? get barrierColor =>
-      _spec.form == TorchSheetForm.fullScreen ? null : _spec.scrim;
+  Color? get barrierColor => _spec.scrim;
 
   @override
   bool get barrierDismissible => dismissible;
@@ -409,10 +290,6 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
   @override
   RoutePopDisposition get popDisposition =>
       dismissible ? super.popDisposition : RoutePopDisposition.doNotPop;
-
-  /// Veld's form is a full-screen opaque route; the sheet form is not.
-  @override
-  bool get opaque => _spec.form == TorchSheetForm.fullScreen;
 
   @override
   Duration get transitionDuration => skin.motion.resolve(TiqMotion.reveal);
@@ -437,9 +314,7 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
     // it inherits the framework's debug fallback — the red-on-yellow double
     // underline — merged into the skin's token styles, which all inherit.
     // Replacing (not merging) the ambient style gives the tokens a clean base.
-    final page = _spec.form == TorchSheetForm.fullScreen
-        ? SafeArea(child: builder(context))
-        : _anchored(context, media);
+    final page = _anchored(context, media);
     return DefaultTextStyle(
       style: skin.text.body.style(color: skin.palette.ink1),
       child: page,
@@ -473,9 +348,6 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
   ) {
     final still = MotionBudget.of(context).still;
     if (still || !skin.motion.enabled) return child;
-    if (_spec.form == TorchSheetForm.fullScreen) {
-      return FadeTransition(opacity: animation, child: child);
-    }
     return SlideTransition(
       position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
           .animate(

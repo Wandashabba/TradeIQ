@@ -341,17 +341,6 @@ void main() {
   });
 
   group('the three screens with no map on them', () {
-    testWidgets('Veld replaces it with the list, and says why', (tester) async {
-      await _pump(tester, skin: SkinMode.veld);
-
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(
-        find.textContaining('The map is off in bright sun'),
-        findsOneWidget,
-      );
-      expect(find.text('Kasi Corner Spaza'), findsWidgets);
-    });
-
     testWidgets('offline says no map here, and keeps every store', (
       tester,
     ) async {
@@ -766,7 +755,7 @@ void main() {
       expect(find.text('Outlet picker'), findsOneWidget);
     });
 
-    for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
+    for (final skin in <SkinMode>[SkinMode.day]) {
       testWidgets('${skin.name}: nothing is armed, so nothing is lit', (
         tester,
       ) async {
@@ -843,18 +832,18 @@ void main() {
     // THE MATRIX. The cases above are the ones with a story; this is every
     // phase in every skin, so no phase can go uncounted in a skin nobody
     // thought to open it in. Night keeps the nav tab whenever the nav renders
-    // and nothing else is armed in these phases; Day and Veld have no primary
+    // and nothing else is armed in these phases; Day have no primary
     // commit on the route, so they are dark — until a sheet puts its own
     // "Check in here" up, which is the one amber object in every skin.
     const matrix = <String, Map<SkinMode, int>>{
-      'loading': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'error': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'empty': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'loaded': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'located-off': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'offline': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
-      'sheet': {SkinMode.night: 1, SkinMode.day: 1, SkinMode.veld: 1},
-      'sheet-done': {SkinMode.night: 0, SkinMode.day: 0, SkinMode.veld: 0},
+      'loading': {SkinMode.night: 1, SkinMode.day: 0},
+      'error': {SkinMode.night: 1, SkinMode.day: 0},
+      'empty': {SkinMode.night: 1, SkinMode.day: 0},
+      'loaded': {SkinMode.night: 1, SkinMode.day: 0},
+      'located-off': {SkinMode.night: 1, SkinMode.day: 0},
+      'offline': {SkinMode.night: 1, SkinMode.day: 0},
+      'sheet': {SkinMode.night: 1, SkinMode.day: 1},
+      'sheet-done': {SkinMode.night: 0, SkinMode.day: 0},
     };
 
     for (final MapEntry(key: phase, value: bySkin) in matrix.entries) {

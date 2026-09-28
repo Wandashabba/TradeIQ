@@ -53,7 +53,7 @@ import 'sales_import_sheet.dart';
 /// ## The amber, counted
 ///
 /// A console route under Menu: Night paints the nav's active tab and nothing
-/// else, Day and Veld paint zero. The commits on this route live in sheets —
+/// else, Day paints zero. The commits on this route live in sheets —
 /// the target sheet and the import sheet — and while a sheet is up every amber
 /// beneath it goes out, so the sheet's own primary is the only light on the
 /// frame.

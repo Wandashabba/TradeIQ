@@ -44,7 +44,7 @@ import '../data/beatplans_repository.dart';
 /// ## The amber, counted
 ///
 /// Not a tab root: the thumb zone carries the one commit, armed only when the
-/// plan is complete. One object in Night, one in Day and Veld, and zero while
+/// plan is complete. One object in Night, one in Day, and zero while
 /// the form is unfinished.
 class BeatPlanFormScreen extends ConsumerWidget {
   const BeatPlanFormScreen({super.key});

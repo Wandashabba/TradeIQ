@@ -149,12 +149,6 @@ void main() {
       );
     });
 
-    test('Veld draws no plate', () {
-      expect(
-        PlateSpec.resolve(skin: TiqSkin.veld(), viewportHeight: 720).describe(),
-        startsWith('form=none  height=0.0'),
-      );
-    });
   });
 
   group('amber', () {

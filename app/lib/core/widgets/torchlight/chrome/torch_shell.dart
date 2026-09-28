@@ -42,8 +42,6 @@ enum TorchShellProfile {
 ///
 /// 1. **Tab root** — no thumb zone. A floating 64dp row, inset 16 from both
 ///    gutters, 20dp above the safe area: the nav pill, a 12dp gap, the 64dp
-///    circle. **Veld docks the bar** instead: full-bleed, 72dp, a 2px top
-///    border, radius 0, and the circle floats above its trailing end.
 /// 2. **A screen with a primary action** — a [TorchThumbZone] at 96dp with the
 ///    skin cycle at the leading gutter.
 /// 3. **A screen with neither** — a 76dp zone holding the skin cycle alone.
@@ -204,15 +202,8 @@ class TorchShell extends StatelessWidget {
         ? skin.space.gutterFor(width).left
         : skin.space.gutter;
     final showNav = navWillRender(context, hasNav: navPill != null);
-    final docked = skin.mode == SkinMode.veld;
 
-    final bottom = _bottomRegion(
-      context,
-      skin: skin,
-      showNav: showNav,
-      docked: docked,
-      gutter: gutter,
-    );
+    final bottom = _bottomRegion(context, skin: skin, showNav: showNav);
 
     final top = bleedTop
         ? 0.0
@@ -294,10 +285,8 @@ class TorchShell extends StatelessWidget {
 
     // The letterbox falloff is the shell's **ground**, not a wash over its
     // content: four stops in one draw call, painted once, beneath everything.
-    // Two stops band on a 6-bit panel, and Veld has no falloff at all —
-    // outdoors a gradient is a smudge.
-    final falloff =
-        profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
+    // Two stops band on a 6-bit panel.
+    final falloff = profile == TorchShellProfile.console;
 
     final keyboard = media.viewInsets.bottom;
 
@@ -342,34 +331,10 @@ class TorchShell extends StatelessWidget {
     BuildContext context, {
     required TiqSkin skin,
     required bool showNav,
-    required bool docked,
-    required double gutter,
   }) {
     if (showNav) {
       final pill = navPill!;
       final circle = navCircle;
-      if (docked) {
-        // Docked: the bar is the bottom edge of the screen. The circle cannot
-        // sit beside it any more, so it floats above the bar's trailing end —
-        // still 12dp away, still outside the bar.
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            if (circle != null) ...<Widget>[
-              Padding(
-                padding: EdgeInsets.only(right: gutter),
-                child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: circle,
-                ),
-              ),
-              const SizedBox(height: TorchNavCircle.gap),
-            ],
-            pill,
-          ],
-        );
-      }
       return Padding(
         padding: const EdgeInsets.fromLTRB(
           TiqSpace.s4,

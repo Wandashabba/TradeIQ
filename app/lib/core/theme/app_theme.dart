@@ -51,10 +51,7 @@ class AppTheme {
   static ThemeData day({TiqDensity density = TiqDensity.field}) =>
       torchlight(TiqSkin.day(density: density));
 
-  /// VELD — outdoor high-contrast. Single-density by construction.
-  static ThemeData veld() => torchlight(TiqSkin.veld());
-
-  /// Build a [ThemeData] from a skin. One function, three value sets — there
+  /// Build a [ThemeData] from a skin. One function, two value sets — there
   /// is deliberately no per-mode branch in here.
   static ThemeData torchlight(TiqSkin skin) {
     final p = skin.palette;
@@ -320,15 +317,7 @@ class AppTheme {
         ),
         textStyle: role(skin.text.meta, p.ink1),
       ),
-      // Veld kills every ambient loop, so it also kills page transitions.
-      pageTransitionsTheme: skin.motion.enabled
-          ? const PageTransitionsTheme()
-          : const PageTransitionsTheme(
-              builders: <TargetPlatform, PageTransitionsBuilder>{
-                TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-                TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
-              },
-            ),
+      pageTransitionsTheme: const PageTransitionsTheme(),
       useMaterial3: true,
     );
   }

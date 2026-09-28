@@ -5,11 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 /// Which density a skin is laid out at.
-///
-/// Veld is declared single-density in the type system — `TiqSkin.veld()` takes
-/// no density argument — so `Veld × Console` cannot be constructed. A manager
-/// who opens the app outdoors gets Veld, and that is correct: outdoors nobody
-/// is doing analysis.
 enum TiqDensity {
   /// The manager console: tight rows, 24px block gaps, a 44dp row floor.
   console,
@@ -17,10 +12,6 @@ enum TiqDensity {
   /// The field agent's phone: 64dp rows, 48dp tap targets, 56dp primary
   /// actions.
   field,
-
-  /// Outdoors. Fewer things, further apart, because a thumb in the sun is
-  /// imprecise. Only ever paired with the Veld palette.
-  veld,
 }
 
 /// The spacing scale. Base 4, eleven steps, and **no other value exists** —
@@ -121,18 +112,6 @@ class TiqSpace {
     chipHeight: 48,
   );
 
-  static const TiqSpace veld = TiqSpace(
-    density: TiqDensity.veld,
-    gutter: s6,
-    gutterWide: s6,
-    rowMinHeight: 64,
-    blockGap: s8,
-    intraBlock: s5,
-    tapTarget: s9,
-    primaryActionHeight: 64,
-    chipHeight: s9,
-  );
-
   /// The horizontal gutter for a viewport [width] logical pixels wide.
   EdgeInsets gutterFor(double width) =>
       EdgeInsets.symmetric(horizontal: width >= 1080 ? gutterWide : gutter);
@@ -185,7 +164,7 @@ class TiqRadii {
   /// Photographic plates.
   final double plate;
 
-  /// Night and Day share one radius set.
+  /// Night and Day share one radius set. It is the only one.
   static const TiqRadii lit = TiqRadii(
     rule: 0,
     chip: 6,
@@ -193,16 +172,6 @@ class TiqRadii {
     panel: 14,
     card: 22,
     plate: 28,
-  );
-
-  /// Veld squares everything off: a radius is a soft cue, and Veld has none.
-  static const TiqRadii flat = TiqRadii(
-    rule: 0,
-    chip: 0,
-    control: 0,
-    panel: 0,
-    card: 0,
-    plate: 0,
   );
 
   /// An input is a control, and it is round on all four corners.
@@ -262,7 +231,7 @@ class TiqDepth {
   });
 
   /// `sh1`, `sh2`, `sh3` — Day only. Night has none (black on black is
-  /// invisible, and the audit's 34 ad-hoc BoxShadows all go). Veld has none.
+  /// invisible, and the audit's 34 ad-hoc BoxShadows all go).
   final List<BoxShadow> shadows;
 
   /// The decorative 1px top rim over an L2 edge. Transparent where a skin has
@@ -270,10 +239,9 @@ class TiqDepth {
   final Color litRim;
 
   /// Whether gradient decorations (the only legal bloom) are permitted.
-  /// False in Veld.
   final bool allowsGradients;
 
-  /// Structural border width. Veld's hairlines are 2px solid.
+  /// Structural border width.
   final double borderWidth;
 
   static const TiqDepth night = TiqDepth(
@@ -306,13 +274,6 @@ class TiqDepth {
     borderWidth: 1,
   );
 
-  static const TiqDepth veld = TiqDepth(
-    shadows: <BoxShadow>[],
-    litRim: Color(0x00000000),
-    allowsGradients: false,
-    borderWidth: 2,
-  );
-
   /// sh1 — the only shadow a Day panel takes.
   BoxShadow? get sh1 => shadows.isEmpty ? null : shadows[0];
   BoxShadow? get sh2 => shadows.length < 2 ? null : shadows[1];
@@ -320,13 +281,14 @@ class TiqDepth {
 }
 
 /// Durations and curves. One application-wide `Ticker` drives the three loops;
-/// all three are disabled under `MediaQuery.disableAnimations`, battery-saver
-/// and Veld.
+/// all three are disabled under `MediaQuery.disableAnimations` and
+/// battery-saver.
 @immutable
 class TiqMotion {
   const TiqMotion({required this.enabled});
 
-  /// False in Veld, and wherever the platform asks for reduced motion.
+  /// Whether this skin animates at all. Both shipping skins do; a test pins
+  /// [off] to render the resting frame.
   final bool enabled;
 
   /// Press, toggle, chip select.

@@ -25,10 +25,10 @@ import 'agent_harness.dart';
 import 'audit/visit_harness.dart';
 import 'me/me_harness.dart';
 
-/// The migrated agent routes, Night → Day → Veld, as declared values.
+/// The migrated agent routes, Night → Day, as declared values.
 ///
-/// The order is the design's own: Night first, then Day, and Veld last —
-/// after Night and Day have stopped moving. Veld matters most here, because
+/// The order is the design's own: Night first, then Day —
+/// after Night has stopped moving. The declared values matter here, because
 /// this is the outdoor screen: targets 56, rows 64, 2px borders, no
 /// gradients, no shadows, and the nav docked.
 

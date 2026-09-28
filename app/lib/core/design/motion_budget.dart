@@ -1,15 +1,13 @@
 import 'package:flutter/widgets.dart';
 
-import '../theme/torchlight/tiq_skin.dart';
-
-/// Whether this frame moves at all — **one** boolean, resolved from three
+/// Whether this frame moves at all — **one** boolean, resolved from its
 /// inputs, read by every animated thing in the app.
 ///
-/// The design says motion is off under reduce-motion, in Veld and in battery
-/// saver. Before this existed each of those was checked (or not checked) by
-/// each widget separately: the audit found four ambient loops, two of which
-/// honoured `disableAnimations` and none of which knew about Veld. A single
-/// boolean is the only version of that sentence that can be true.
+/// The design says motion is off under reduce-motion and in battery saver.
+/// Before this existed each of those was checked (or not checked) by each
+/// widget separately: the audit found four ambient loops, only two of which
+/// honoured `disableAnimations`. A single boolean is the only version of that
+/// sentence that can be true.
 ///
 /// ```dart
 /// if (MotionBudget.of(context).still) {
@@ -28,16 +26,12 @@ import '../theme/torchlight/tiq_skin.dart';
 class MotionBudget {
   const MotionBudget({
     required this.disableAnimations,
-    required this.veld,
     required this.powerSave,
   });
 
   /// `MediaQuery.disableAnimationsOf(context)` — the platform's reduce-motion
   /// switch.
   final bool disableAnimations;
-
-  /// Veld kills every ambient loop: outdoors, motion is glare that moves.
-  final bool veld;
 
   /// Battery saver.
   ///
@@ -54,19 +48,18 @@ class MotionBudget {
   final bool powerSave;
 
   /// The answer. Anything that moves asks this and nothing else.
-  bool get still => disableAnimations || veld || powerSave;
+  bool get still => disableAnimations || powerSave;
 
   /// The reason, for a test failure message or a debug overlay.
   String get reason {
     if (!still) return 'motion on';
     return <String>[
       if (disableAnimations) 'reduce-motion',
-      if (veld) 'Veld',
       if (powerSave) 'battery saver',
     ].join(' + ');
   }
 
-  /// Resolve from the ambient `MediaQuery` and skin.
+  /// Resolve from the ambient `MediaQuery`.
   ///
   /// A [MotionBudgetScope] ancestor wins if there is one — that is how a test
   /// or a Phase 1 golden pins a budget without faking a platform. There is no
@@ -79,7 +72,6 @@ class MotionBudget {
     if (scope != null) return scope.budget;
     return MotionBudget(
       disableAnimations: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
-      veld: !context.skin.motion.enabled,
       // TODO(#407): no power-save channel exists yet. See [powerSave]. This
       // is `false` and not a guess; when #407 lands it becomes the real read
       // and every animated widget in the app inherits the fix for free.
@@ -90,14 +82,12 @@ class MotionBudget {
   /// Everything moves. The default a widget assumes with no context.
   static const MotionBudget moving = MotionBudget(
     disableAnimations: false,
-    veld: false,
     powerSave: false,
   );
 
   /// Nothing moves.
   static const MotionBudget frozen = MotionBudget(
     disableAnimations: true,
-    veld: false,
     powerSave: false,
   );
 
@@ -105,11 +95,10 @@ class MotionBudget {
   bool operator ==(Object other) =>
       other is MotionBudget &&
       other.disableAnimations == disableAnimations &&
-      other.veld == veld &&
       other.powerSave == powerSave;
 
   @override
-  int get hashCode => Object.hash(disableAnimations, veld, powerSave);
+  int get hashCode => Object.hash(disableAnimations, powerSave);
 
   @override
   String toString() => 'MotionBudget(still: $still — $reason)';

@@ -101,12 +101,11 @@ class ChartThreshold {
 
 /// The plot's height, by density and viewport.
 ///
-/// unify §1.17: 208 Console phone / 232 Field / 180 Veld / 260 at ≥600dp.
+/// unify §1.17: 208 Console phone / 232 Field / 260 at ≥600dp.
 /// The assistant surface's 160 lost on its own arithmetic — with a 38dp
 /// gutter it leaves about 120dp of plot.
 double trendChartHeight(BuildContext context) {
   final skin = context.skin;
-  if (skin.mode == SkinMode.veld) return 180;
   final width = MediaQuery.sizeOf(context).width;
   if (width >= 600) return 260;
   return skin.space.density == TiqDensity.console ? 208 : 232;

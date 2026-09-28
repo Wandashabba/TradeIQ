@@ -50,24 +50,6 @@ void main() {
       expect(Skeleton.ruleThickness, 2);
     });
 
-    testWidgets('is the word "Loading" in Veld, and nothing else', (
-      tester,
-    ) async {
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: const Skeleton(label: 'outlets', child: SkeletonRows()),
-      );
-      expect(find.text('Loading'), findsOneWidget);
-      expect(
-        find.byType(SkeletonShell),
-        findsNothing,
-        reason:
-            'A field of grey blocks on white at 40% backlight in the sun is '
-            'indistinguishable from a broken screen.',
-      );
-    });
-
     testWidgets('says so when it is slower than usual', (tester) async {
       await pumpPhase2(
         tester,
@@ -104,6 +86,8 @@ void main() {
         ),
       );
       expect(find.byType(EmptyStateDrawing), findsOneWidget);
+      expect(EmptyStateDrawing.extentFor(TiqSkin.night()), 64);
+      expect(EmptyStateDrawing.strokeFor(TiqSkin.night()), 2);
 
       await pumpPhase2(
         tester,
@@ -150,11 +134,6 @@ void main() {
       );
     });
 
-    testWidgets('scales the placeholder down in Veld', (tester) async {
-      expect(EmptyStateDrawing.extentFor(TiqSkin.night()), 64);
-      expect(EmptyStateDrawing.extentFor(TiqSkin.veld()), 48);
-      expect(EmptyStateDrawing.strokeFor(TiqSkin.veld()), 3);
-    });
   });
 
   group('the error state', () {
@@ -240,26 +219,6 @@ void main() {
       );
     });
 
-    testWidgets('drops the support code in Veld', (tester) async {
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: ErrorState(
-          message: TorchErrorMessage.forKind(
-            TorchErrorKind.server,
-            code: 'HTTP 503',
-          ),
-        ),
-      );
-      expect(
-        find.text('HTTP 503'),
-        findsNothing,
-        reason:
-            'A support code is unreadable in glare and useless to an agent on '
-            'a shelf.',
-      );
-    });
-
     testWidgets('states the count rather than repeating itself', (
       tester,
     ) async {
@@ -319,7 +278,7 @@ void main() {
       tester,
     ) async {
       expect(OfflineHeldBanner.heightFor(TiqSkin.night()), 56);
-      expect(OfflineHeldBanner.heightFor(TiqSkin.veld()), 72);
+      expect(OfflineHeldBanner.heightFor(TiqSkin.day()), 56);
     });
 
     testWidgets('keeps the count out of the live label', (tester) async {
@@ -414,17 +373,6 @@ void main() {
         ),
       );
       expect(find.text('Working'), findsOneWidget);
-    });
-
-    testWidgets('is the word "Working" in Veld, with no travelling rule', (
-      tester,
-    ) async {
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: const TorchProgressBar(label: 'Sending', workingWord: 'Working'),
-      );
-      expect(find.text('Working'), findsWidgets);
     });
 
     testWidgets('scales its track at half rate and stops at 12', (
@@ -531,7 +479,7 @@ void main() {
             'riskiest twenty must never read as "nothing suspicious".',
       );
       expect(PaginationFooter.heightFor(TiqSkin.night()), 44);
-      expect(PaginationFooter.heightFor(TiqSkin.veld()), 64);
+      expect(PaginationFooter.heightFor(TiqSkin.day()), 44);
     });
 
     // The footer's words are one utterance, and its action used to be INSIDE

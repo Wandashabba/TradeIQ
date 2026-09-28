@@ -41,7 +41,7 @@ import 'territory_detail_sheet.dart';
 /// the ladder's rung 4 is for the role's *standing* action and a manager
 /// reaches this screen to read it far more often than to add to it.
 ///
-/// On Day and Veld the ladder has one rung, the primary commit block, and this
+/// On Day the ladder has one rung, the primary commit block, and this
 /// route has none: **zero**.
 ///
 /// ## Coverage is three absences, not one zero

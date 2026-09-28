@@ -459,24 +459,4 @@ void main() {
     }
   });
 
-  group('Veld is built, not declared', () {
-    testWidgets('every control in a section is at least 56dp', (tester) async {
-      await pumpSection(tester, const _Probe(), skin: SkinMode.veld);
-      await tapInSection(tester, _key('probe-toggle'));
-      await scrollAgentTo(tester, sectionSave);
-      for (final finder in <Finder>[
-        sectionSave,
-        _key('section-cant-confirm'),
-        _key('section-save-and-back'),
-        _key('probe-toggle'),
-      ]) {
-        expect(
-          tester.getSize(finder).height,
-          greaterThanOrEqualTo(56),
-          reason: '$finder in Veld',
-        );
-      }
-      await disposeAgentScreen(tester);
-    });
-  });
 }

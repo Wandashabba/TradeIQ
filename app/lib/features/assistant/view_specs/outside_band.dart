@@ -49,7 +49,6 @@ class OutsideDataBand extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     if (artifacts.isEmpty) return const SizedBox.shrink();
 
     final rows = <Widget>[];
@@ -112,10 +111,7 @@ class OutsideDataBand extends StatelessWidget {
         key: const ValueKey<String>('outside-data-band'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SizedBox(
-            width: veld ? 2 : 2,
-            child: ColoredBox(color: veld ? p.ink1 : p.comparison),
-          ),
+          SizedBox(width: 2, child: ColoredBox(color: p.comparison)),
           const SizedBox(width: TiqSpace.s3),
           Expanded(
             child: Column(
@@ -187,7 +183,6 @@ class _DashedUnderline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final veld = skin.mode == SkinMode.veld;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -195,11 +190,8 @@ class _DashedUnderline extends StatelessWidget {
         child,
         const SizedBox(height: 2),
         CustomPaint(
-          size: Size(48, veld ? 2 : 1),
-          painter: _DashPainter(
-            colour: veld ? skin.palette.ink1 : skin.palette.comparison,
-            thickness: veld ? 2 : 1,
-          ),
+          size: const Size(48, 1),
+          painter: _DashPainter(colour: skin.palette.comparison, thickness: 1),
         ),
       ],
     );

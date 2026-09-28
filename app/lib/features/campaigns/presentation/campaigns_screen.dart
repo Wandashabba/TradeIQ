@@ -37,7 +37,7 @@ import 'campaign_return_view.dart';
 ///
 /// A tab root: the nav pill's active tab is slot 1 in Night whenever the nav
 /// renders, and this route declines the one content grant it has left —
-/// nothing on a list of campaigns is armed. Day and Veld have one rung, the
+/// nothing on a list of campaigns is armed. Day has one rung, the
 /// primary commit block, and this route has no primary, so they paint zero.
 /// While the rollup sheet is up every amber beneath it goes out.
 ///

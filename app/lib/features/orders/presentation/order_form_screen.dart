@@ -55,7 +55,7 @@ import '../data/orders_repository.dart';
 /// Not a tab root: the thumb zone carries the one commit. Night's two content
 /// grants go to **one** object, "Create the order", and only when there is a
 /// store and at least one line — a primary that is lit and refuses is a
-/// primary nobody trusts. Day and Veld light the same block.
+/// primary nobody trusts. Day lights the same block.
 class OrderFormScreen extends ConsumerWidget {
   const OrderFormScreen({super.key});
 

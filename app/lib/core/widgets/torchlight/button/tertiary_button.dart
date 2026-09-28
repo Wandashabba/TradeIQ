@@ -124,8 +124,8 @@ class TorchTertiaryButton extends StatelessWidget {
                     const SizedBox(height: 3),
                     if (rule != null)
                       Container(
-                        // 2px in Night and Day, 3px in Veld, and one step
-                        // thicker while it is held.
+                        // One step over the skin's structural width, and one
+                        // step thicker again while it is held.
                         height: skin.depth.borderWidth + 1 + (pressed ? 1 : 0),
                         color: rule,
                       ),

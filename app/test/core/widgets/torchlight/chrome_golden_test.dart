@@ -10,19 +10,15 @@ import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'chrome_test.dart' show agentSlots;
 import 'torch_harness.dart';
 
-/// THE COMPOSED FRAME, ONE SKIN AT A TIME — **Night first, then Day, Veld
-/// last**, which is the order the build plan gives and the order these groups
-/// are written in.
+/// THE COMPOSED FRAME, ONE SKIN AT A TIME — **Night first, then Day**, which
+/// is the order the build plan gives and the order these groups are written
+/// in.
 ///
 /// These are pixel goldens without image files: the frame is rendered, read
 /// back, and named coordinates are asserted against named tokens. A PNG would
 /// say that something changed; this says what changed and why it mattered, and
 /// it reviews in a diff.
-///
-/// Veld goes last for the reason unify §5 gives — it has the fewest users per
-/// day and the highest per-component tax, and writing its goldens against
-/// components that have stopped moving is the whole point of sequencing it
-/// third.
+
 
 /// A tab root: header with the skin cycle as its one trailing button, a body,
 /// the nav pill and the circle.
@@ -88,8 +84,7 @@ void expectNoBlur(WidgetTester tester) {
   }
 }
 
-/// Night has no shadows at all — black on black is invisible — and neither
-/// does Veld, which removes every one rather than softening it.
+/// Night has no shadows at all — black on black is invisible.
 void expectNoShadow(WidgetTester tester) {
   for (final object in tester.allRenderObjects) {
     final decoration = switch (object) {
@@ -116,8 +111,7 @@ void expectNoGradient(WidgetTester tester) {
           decoration.gradient,
           isNull,
           reason:
-              'Veld allows no gradient at all: every bloom, rim and falloff '
-              'is removed there, not softened',
+              'a gradient in a skin whose depth budget forbids one',
         );
       }
     }
@@ -275,74 +269,4 @@ void main() {
     });
   });
 
-  group('VELD — last', () {
-    final skin = TiqSkin.veld();
-
-    testWidgets('the bar docks, and every target clears 56', (tester) async {
-      await pumpTorch(
-        tester,
-        skin: skin,
-        size: const Size(360, 720),
-        navRenders: true,
-        tabbedRoute: true,
-        claims: const <TorchClaim>[TorchClaim.navCircle('unplanned-visit')],
-        child: tabRoot(SkinMode.veld),
-      );
-      final bar = tester.getRect(find.byType(TorchNavPill));
-      expect(bar.height, 72);
-      expect(bar.left, 0);
-      expect(bar.right, 360, reason: 'full bleed, no float, no radius');
-      expect(
-        tester.getSize(find.byType(TorchIconButton).first).height,
-        greaterThanOrEqualTo(56),
-      );
-
-      final pixels = await torchPixels(tester);
-      expect(
-        pixels.at(180, bar.top + 0.5),
-        skin.palette.edgeStructure,
-        reason: 'a 2px top border, which is every hairline in Veld',
-      );
-      expect(
-        pixels.at(bar.left + 10, bar.center.dy),
-        skin.palette.lifted,
-        reason: 'a solid ink block with white on it at 15.33:1',
-      );
-      expectNoBlur(tester);
-      expectNoShadow(tester);
-      expectNoGradient(tester);
-    });
-
-    testWidgets('the commit block is square, amber and bordered', (
-      tester,
-    ) async {
-      await pumpTorch(
-        tester,
-        skin: skin,
-        size: const Size(360, 720),
-        claims: const <TorchClaim>[TorchClaim.primaryCommit('submit')],
-        child: committing(SkinMode.veld),
-      );
-      final primary = tester.getRect(find.byType(TorchPrimaryButton));
-      expect(primary.height, greaterThanOrEqualTo(64));
-      final pixels = await torchPixels(tester);
-      expect(
-        pixels.at(primary.left + 0.5, primary.top + 0.5),
-        skin.palette.ink1,
-        reason: 'radius 0: the very corner pixel is the 2px border',
-      );
-      expect(
-        pixels.at(primary.center.dx, primary.bottom - 8),
-        skin.palette.flame600,
-      );
-      expect(
-        tester.getSize(find.byType(TorchSkinCycle)).width,
-        64,
-        reason: 'Veld grows the cycle to 64 and kills its press scale',
-      );
-      expectNoBlur(tester);
-      expectNoShadow(tester);
-      expectNoGradient(tester);
-    });
-  });
 }

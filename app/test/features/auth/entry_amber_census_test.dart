@@ -20,7 +20,7 @@ import 'entry_harness.dart';
 /// itself, a bloom where no object was declared, a video frame that happened
 /// to contain a shop light.
 ///
-/// | route | phase | Night | Day | Veld |
+/// | route | phase | Night | Day |
 /// |---|---|---|---|---|
 /// | splash | holding | 0 | 0 | 0 |
 /// | sign-in | blocked (empty form) | 0 | 0 | 0 |
@@ -186,21 +186,13 @@ void main() {
         );
         expect(census.objectCount, 1, reason: census.describe());
 
-        if (mode == SkinMode.veld) {
-          // Veld has no sheets and no scrims (unify §1.10): this is a
-          // full-screen route, the sign-in form is not rendered behind it,
-          // and there is nothing beneath to extinguish.
-          expect(find.byType(LoginScreen), findsNothing);
-        } else {
-          // Night and Day: the route beneath declares nothing while a sheet
-          // is up, so the sheet genuinely owns the screen at 72% rather than
-          // at 88%.
-          final scope = tester.widget<TorchScope>(
-            find.byType(TorchScope).first,
-          );
-          expect(scope.beneathSheet, isTrue);
-          expect(scope.allocation.granted, isEmpty);
-        }
+        // The route beneath declares nothing while a sheet is up, so the
+        // sheet genuinely owns the screen at 72% rather than at 88%.
+        final scope = tester.widget<TorchScope>(
+          find.byType(TorchScope).first,
+        );
+        expect(scope.beneathSheet, isTrue);
+        expect(scope.allocation.granted, isEmpty);
       });
     });
   }

@@ -40,7 +40,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(density: TiqDensity.field),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets(skin.mode.name, (tester) async {
         for (final size in sizes) {
@@ -72,7 +71,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(density: TiqDensity.field),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets(skin.mode.name, (tester) async {
         for (final scale in <double>[1.0, 2.0]) {
@@ -184,15 +182,16 @@ void main() {
       ),
       ChoiceLayout.column,
     );
-    // And Veld is always a column, whatever the arithmetic says: three
-    // side-by-side 56dp targets in the sun is a mis-tap.
+    // And a caller that declares its own stakes gets a column whatever the
+    // arithmetic says: three side-by-side targets on a verdict is a mis-tap.
     expect(
       ChoiceRow.layoutFor(
-        skin: TiqSkin.veld(),
+        skin: TiqSkin.night(density: TiqDensity.field),
         labels: <String>['Ja', 'Nee'],
         maxWidth: 1000,
         scaler: TextScaler.noScaling,
         direction: TextDirection.ltr,
+        forceColumn: true,
       ),
       ChoiceLayout.column,
     );

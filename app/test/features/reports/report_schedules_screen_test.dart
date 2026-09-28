@@ -543,7 +543,7 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {
         testWidgets('${skin.mode.name}, $phase, paints no amber at all', (
           tester,
@@ -578,10 +578,4 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Veld builds the list', (tester) async {
-    await pump(tester, repo: FakeSchedulesRepository(), skin: TiqSkin.veld());
-
-    expect(find.text('Coverage by outlet'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
 }

@@ -48,11 +48,11 @@ import 'outlet_sheet.dart';
 /// ## Why the list is not a second-class citizen
 ///
 /// The list under the map is not a fallback. It is the same set of stores in
-/// the same order, and it is what the screen becomes in the three conditions
-/// that are ordinary rather than exceptional in this product: **Veld** (maps
-/// do not render outdoors — unify §4), **offline** (the tiles never arrive on
-/// a rural forecourt), and **a short screen at 2.0× text** (the map's fold
-/// budget goes to zero before the list does). Everything a marker can do, a
+/// the same order, and it is what the screen becomes in the two conditions
+/// that are ordinary rather than exceptional in this product: **offline** (the
+/// tiles never arrive on a rural forecourt) and **a short screen at 2.0× text**
+/// (the map's fold budget goes to zero before the list does). Everything a
+/// marker can do, a
 /// row can do — including opening the sheet — so none of those three is a
 /// degraded screen.
 ///
@@ -65,7 +65,7 @@ import 'outlet_sheet.dart';
 /// content grant is declared by the **nav circle** and painted only when the
 /// circle is the expected next move: when the phone says the agent is standing
 /// inside one of their own stores' check-in fences. Night is therefore 1 or 2;
-/// Day and Veld are 0, because on a light ground only a primary commit block
+/// Day is 0, because on a light ground only a primary commit block
 /// may be amber and this screen has none.
 ///
 /// The claim set does not depend on the fix. It is declared on every phase, so
@@ -322,7 +322,7 @@ class _Stores extends ConsumerWidget {
       storeCount: view.pins.length,
       children: <Widget>[
         // THE MAP. Full-bleed, a fixed fold-budget height, and absent
-        // altogether in Veld and on a screen too short to give it one.
+        // altogether on a screen too short to give it one.
         AgentOutletMap(view: view),
         const SizedBox(height: TiqSpace.s5),
 
@@ -389,7 +389,7 @@ class _Stores extends ConsumerWidget {
 }
 
 /// One store, as a list row. The same object the marker is, in the form that
-/// survives Veld, glare, an empty battery and no signal.
+/// survives an empty battery and no signal.
 class OutletRow extends StatelessWidget {
   const OutletRow({super.key, required this.pin, required this.last});
 
@@ -426,8 +426,7 @@ class OutletRow extends StatelessWidget {
         pin.disputed ? '$state, ${l10n.mapStateDisputed}' : state,
       ),
       // A row opens the same sheet a marker does. One object, one affordance —
-      // and the only way the sheet is reachable at all in Veld, where there is
-      // no map to tap.
+      // and the only way the sheet is reachable when there is no map to tap.
       onTap: () => showOutletSheet(context, pin),
     );
   }

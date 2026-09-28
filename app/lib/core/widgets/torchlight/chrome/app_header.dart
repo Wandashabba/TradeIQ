@@ -54,8 +54,7 @@ class TorchAppHeader extends StatefulWidget {
   final String title;
 
   /// "Spaza", "Tembisa Ext 12", "1,2 km", "last visit 12 Aug". Joined by
-  /// middots in Night and Day; stacked in Veld, where a middot-joined line
-  /// under glare is one long word.
+  /// middots.
   final List<String> facts;
 
   /// A real pop, never a route replacement. Its label names the destination —
@@ -115,23 +114,9 @@ class _TorchAppHeaderState extends State<TorchAppHeader> {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
 
     return Container(
       constraints: BoxConstraints(minHeight: TorchAppHeader.minHeightFor(skin)),
-      decoration: veld
-          ? BoxDecoration(
-              // Veld replaces every hairline with a 2px border, and the one
-              // place the header needs a boundary is where it meets the body.
-              border: Border(
-                bottom: BorderSide(
-                  color: p.edgeStructure,
-                  width: skin.depth.borderWidth,
-                ),
-              ),
-            )
-          : null,
-      padding: EdgeInsets.only(bottom: veld ? skin.space.intraBlock : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -242,31 +227,6 @@ class _Facts extends StatelessWidget {
     final p = skin.palette;
     // Read as a sentence, not as punctuation.
     final spoken = facts.join(', ');
-
-    if (skin.mode == SkinMode.veld) {
-      return Semantics(
-        label: spoken,
-        excludeSemantics: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (final fact in facts)
-              Text(
-                fact,
-                // `label`, the subtitle's declared role, in Veld as in Night
-                // and Day — where Veld's own scale sets it at 16/600. It was
-                // `body`, which is the role a paragraph wears: a stacked
-                // Veld fact line was the one place in the app where a
-                // subtitle outranked the subtitle role.
-                style: skin.text.label.style(color: p.ink2),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
-      );
-    }
 
     return Semantics(
       label: spoken,

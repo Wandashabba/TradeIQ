@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/console_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/entry_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 
-/// All three skins build a theme and paint a screen without throwing.
+/// Both skins build a theme and paint a screen without throwing.
 ///
 /// This is the cheapest test in the file and historically the one that catches
 /// the most: a `ThemeExtension` that forgets a slot, a `lerp` that returns
@@ -13,7 +17,6 @@ void main() {
   final modes = <String, ThemeData Function()>{
     'night': AppTheme.night,
     'day': AppTheme.day,
-    'veld': AppTheme.veld,
   };
 
   group('every skin renders', () {
@@ -83,21 +86,57 @@ void main() {
       expect(copied.mode, night.mode);
     });
 
-    test('Veld cannot be constructed at Console density', () {
-      final veld = TiqSkin.veld();
-      expect(veld.density, TiqDensity.veld);
-      expect(veld.space, TiqSpace.veld);
-      // The type system carries the rule: TiqSkin.veld() has no density
-      // parameter, so `Veld × Console` has no spelling. The assert below is
-      // the other half — Night and Day may not borrow Veld's density either.
-      expect(
-        () => TiqSkin.night(density: TiqDensity.veld),
-        throwsA(isA<AssertionError>()),
-      );
-      expect(
-        () => TiqSkin.day(density: TiqDensity.veld),
-        throwsA(isA<AssertionError>()),
-      );
+    /// THERE ARE TWO SKINS AND A PREFERENCE, AND NOTHING ELSE RESOLVES.
+    ///
+    /// Veld was removed on 28 September 2026 (unify §4). Nothing in this app
+    /// persists a skin — the agent's, the console's and the entry cycle are
+    /// all session-scoped, and the one appearance preference that IS stored
+    /// is `tiq.themeMode`, which holds `light`/`dark` and nothing else. So
+    /// there is no `"veld"` on any disk to migrate. What there *is* is a
+    /// resolver per surface, and the pin is that every one of them is total:
+    /// a mode that reaches them produces a real, buildable skin rather than a
+    /// crash or a blank frame.
+    test('every SkinMode resolves to a buildable skin on every surface', () {
+      expect(SkinMode.values, <SkinMode>[
+        SkinMode.night,
+        SkinMode.day,
+        SkinMode.auto,
+      ]);
+      final ambient = TiqSkin.night();
+      for (final mode in SkinMode.values) {
+        for (final skin in <TiqSkin>[
+          TiqSkin.of(mode),
+          agentSkinFor(mode),
+          entrySkinFor(mode),
+          consoleSkinFor(mode, ambient),
+        ]) {
+          expect(
+            skin.mode,
+            isNot(SkinMode.auto),
+            reason: '$mode: auto is a preference and must resolve before a '
+                'skin is built',
+          );
+          expect(skin.palette.ground.a, 1.0, reason: '$mode: a real ground');
+          expect(skin.text.body.size, greaterThan(0));
+        }
+      }
+      // `null` on the console means "follow the app", and it does.
+      expect(consoleSkinFor(null, ambient), same(ambient));
+    });
+
+    test('the skin cycle is a closed two-state loop', () {
+      expect(TorchSkinCycle.next(SkinMode.day), SkinMode.night);
+      expect(TorchSkinCycle.next(SkinMode.night), SkinMode.day);
+      // A preference is not a position: it lands on the agent default's
+      // opposite, so the first tap from `auto` always changes something.
+      expect(TorchSkinCycle.next(SkinMode.auto), SkinMode.night);
+      for (final mode in SkinMode.values) {
+        expect(
+          TorchSkinCycle.next(TorchSkinCycle.next(mode)),
+          isIn(<SkinMode>[SkinMode.night, SkinMode.day]),
+          reason: '$mode: two taps land on a real skin, never on auto',
+        );
+      }
     });
 
     test('SkinMode.of resolves auto from the platform brightness', () {
@@ -109,7 +148,6 @@ void main() {
         TiqSkin.of(SkinMode.auto, platformBrightness: Brightness.light).mode,
         SkinMode.day,
       );
-      expect(TiqSkin.of(SkinMode.veld).mode, SkinMode.veld);
     });
 
     test('the spacing scale is base-4 and has no twelfth step', () {
@@ -117,11 +155,7 @@ void main() {
       for (final step in TiqSpace.scale) {
         expect(step % 4, 0, reason: '$step is not on the base-4 grid.');
       }
-      for (final space in <TiqSpace>[
-        TiqSpace.console,
-        TiqSpace.field,
-        TiqSpace.veld,
-      ]) {
+      for (final space in <TiqSpace>[TiqSpace.console, TiqSpace.field]) {
         for (final value in <double>[
           space.gutter,
           space.gutterWide,
@@ -187,11 +221,10 @@ void main() {
 
     test('the tap-target floor rises with the density', () {
       expect(TiqSpace.console.tapTarget, 44);
-      expect(TiqSpace.field.tapTarget, 48);
       expect(
-        TiqSpace.veld.tapTarget,
-        56,
-        reason: 'A thumb in the sun is imprecise.',
+        TiqSpace.field.tapTarget,
+        48,
+        reason: 'A thumb on a shelf is less precise than one on a mouse.',
       );
     });
   });
@@ -201,7 +234,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final c = TiqColors.fromSkin(skin);
         final p = skin.palette;
@@ -285,7 +317,7 @@ class _TokenSampler extends StatelessWidget {
                     style: skin.text.monoIdent.style(color: p.ink1),
                   ),
                   Divider(color: p.hairline, height: TiqSpace.s3),
-                  // L4: emitted. A gradient, never a blur, and never in Veld.
+                  // L4: emitted. A gradient, never a blur.
                   Container(
                     height: TiqSpace.s2,
                     decoration: skin.depth.allowsGradients

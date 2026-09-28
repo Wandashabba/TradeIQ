@@ -51,8 +51,8 @@ enum AskPhase {
   ///
   /// Read the table in [AskLight]: rung 1 is Send, rung 3 the answer's focus
   /// object, rung 6 the running dot. Every other phase declares nothing, and
-  /// then Night's count is the nav's active tab alone and Day's and Veld's is
-  /// zero — which is correct, because nothing is armed.
+  /// then Night's count is the nav's active tab alone and Day's is zero —
+  /// which is correct, because nothing is armed.
   List<TorchClaim> get claims => switch (this) {
     AskPhase.typing => const <TorchClaim>[
       TorchClaim.primaryCommit(AskLight.sendClaimId),

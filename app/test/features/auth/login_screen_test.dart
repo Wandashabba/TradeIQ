@@ -531,38 +531,10 @@ void main() {
       expect(TorchSheets.anyOpen, isTrue);
     });
 
-    /// Veld renders the full-screen form with a 56dp Close row — and it
+    /// The sheet renders over the form — and it
     /// rendered it regardless of `dismissible`, so outdoors the blocking
     /// sheet grew its own way past itself. It still has two actions, which is
     /// what makes refusing the row safe.
-    testWidgets('in Veld it has no Close row, and back is still refused', (
-      tester,
-    ) async {
-      await _pump(tester, skin: SkinMode.veld, sessionEnded: held);
-      await tester.pumpAndSettle();
-
-      expect(_key('session-ended-sheet'), findsOneWidget);
-      expect(
-        find.text('Close', skipOffstage: false),
-        findsNothing,
-        reason:
-            'a blocking sheet relies on its own actions — a Close row on it '
-            'is a way past a decision that cannot be walked past',
-      );
-      // The two actions that ARE the way out.
-      expect(find.text('Sign in to send them'), findsOneWidget);
-      expect(find.text('Not now'), findsOneWidget);
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(_key('session-ended-sheet'), findsOneWidget);
-
-      // And the way out still works.
-      await tester.tap(find.text('Not now'));
-      await tester.pumpAndSettle();
-      expect(_key('session-ended-sheet'), findsNothing);
-    });
-
     /// THE FAILURE, WRITTEN AS ITSELF.
     ///
     /// `ProofBlock`'s `semanticsLabel` was the literal 'What is held on this

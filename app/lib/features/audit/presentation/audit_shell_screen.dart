@@ -771,10 +771,10 @@ class _ReadinessBlock extends StatelessWidget {
             width: skin.depth.borderWidth,
           ),
           // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-          // in Night and Veld and three stacked drops in Day, so this block
-          // floated on the Day ground while every card and row beside it sat
-          // flat on it — two grammars on one screen, in the one skin where it
-          // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
+          // in Night and three stacked drops in Day, so this block floated on
+          // the Day ground while every card and row beside it sat flat on it —
+          // two grammars on one screen, in the one skin where it shows.
+          // Neither `TorchCard` nor `SoftRow` paints one in any skin.
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1143,8 +1143,7 @@ class _DistanceHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    // Veld's hairline is 2px everywhere else, and its severity bar is 4.
-    final barWidth = skin.mode == SkinMode.veld ? 4.0 : 3.0;
+    const barWidth = 3.0;
 
     return Semantics(
       container: true,
@@ -1160,10 +1159,10 @@ class _DistanceHero extends StatelessWidget {
             width: skin.depth.borderWidth,
           ),
           // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-          // in Night and Veld and three stacked drops in Day, so this block
-          // floated on the Day ground while every card and row beside it sat
-          // flat on it — two grammars on one screen, in the one skin where it
-          // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
+          // in Night and three stacked drops in Day, so this block floated on
+          // the Day ground while every card and row beside it sat flat on it —
+          // two grammars on one screen, in the one skin where it shows.
+          // Neither `TorchCard` nor `SoftRow` paints one in any skin.
         ),
         // The severity bar is an OVERLAY, not a stretch child of a Row inside
         // an `IntrinsicHeight` — the same reason `StatCluster`'s rule is one.
@@ -1438,8 +1437,6 @@ class _CodeBlock extends StatelessWidget {
         vertical: TiqSpace.s2,
       ),
       decoration: BoxDecoration(
-        // Veld's `well` is white and its border is 2px #1B2632, so the block
-        // loses its fill and gains an edge without a branch here.
         color: skin.palette.well,
         borderRadius: BorderRadius.circular(skin.radii.control),
         border: Border.all(

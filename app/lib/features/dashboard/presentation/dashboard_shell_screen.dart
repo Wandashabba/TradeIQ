@@ -74,8 +74,8 @@ import 'standards.dart';
 /// route is three focus objects asking, and the budget is counted per route
 /// rather than per viewport), the selected filter chip is `lifted` like every
 /// other selected chip in the product, and every severity on the screen is
-/// crimson at two commitment levels with a word beside it. Night: 1. Day and
-/// Veld: 0. On every phase.
+/// crimson at two commitment levels with a word beside it. Night: 1. Day: 0.
+/// On every phase.
 ///
 /// ## Unknown is not zero
 ///
@@ -86,13 +86,6 @@ import 'standards.dart';
 /// tenant with outlets and no visits renders em dashes, the unit suppressed,
 /// no deltas and a sentence in words. A measured `0` renders `0` and keeps its
 /// place.
-///
-/// ## Veld
-///
-/// Veld draws no plot and no map (unify §4). Both trend panels fall back to
-/// their `TableTwin` — which is also what a screen reader and a printer get —
-/// and the agent panel falls back to its list, which was always the half that
-/// kept the map honest.
 class DashboardShellScreen extends ConsumerWidget {
   const DashboardShellScreen({super.key});
 
@@ -419,9 +412,6 @@ class _TrendPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    // Veld draws no chart, so the toggle would be a control with one working
-    // position. The table is simply what Veld shows.
-    final veld = context.skin.mode == SkinMode.veld;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -429,14 +419,12 @@ class _TrendPanel extends ConsumerWidget {
       children: <Widget>[
         SectionRule(heading),
         const SizedBox(height: TiqSpace.s3),
-        if (!veld) ...<Widget>[
-          _ViewToggle(
-            heading: heading,
-            asTable: asTable,
-            onChanged: onViewChanged,
-          ),
-          const SizedBox(height: TiqSpace.s3),
-        ],
+        _ViewToggle(
+          heading: heading,
+          asTable: asTable,
+          onChanged: onViewChanged,
+        ),
+        const SizedBox(height: TiqSpace.s3),
         // THE PLOT LIVES IN A CARD, like every other block on this route. It
         // used to sit bare on the ground between two rows of cards, which is
         // the two-grammar screen `card.dart` was written to end: a figure
@@ -445,91 +433,86 @@ class _TrendPanel extends ConsumerWidget {
         // toned against — `lifted` is the one-step-off-*surface* line.
         _Framed(
           child: async.when(
-          loading: () => Skeleton(
-            label: heading,
-            slowLine: l10n.torchStillFetching,
-            child: SkeletonShell(
-              height: veld ? 120 : trendChartHeight(context),
+            loading: () => Skeleton(
+              label: heading,
+              slowLine: l10n.torchStillFetching,
+              child: SkeletonShell(height: trendChartHeight(context)),
             ),
-          ),
-          error: (error, _) => TorchErrorRegion(
-            name: heading,
-            child: ErrorState(
-              scope: ErrorScope.inline,
-              message: TorchErrorMessage.sanitise(error),
-              action: TorchTertiaryButton(
-                key: ValueKey<String>('$heading-retry'),
-                label: l10n.torchTryAgain,
-                onPressed: () => ref.invalidate(provider),
+            error: (error, _) => TorchErrorRegion(
+              name: heading,
+              child: ErrorState(
+                scope: ErrorScope.inline,
+                message: TorchErrorMessage.sanitise(error),
+                action: TorchTertiaryButton(
+                  key: ValueKey<String>('$heading-retry'),
+                  label: l10n.torchTryAgain,
+                  onPressed: () => ref.invalidate(provider),
+                ),
               ),
             ),
-          ),
-          data: (points) {
-            if (points.isEmpty) {
-              // Not "every bucket scored 0" — `/trends/*` omits an empty
-              // bucket rather than sending one, so nothing in this window was
-              // measured at all.
-              return EmptyState(
-                scope: EmptyScope.inPanel,
-                headline: l10n.trendsEmptyHeadline,
-                body: l10n.trendsEmptyBody,
+            data: (points) {
+              if (points.isEmpty) {
+                // Not "every bucket scored 0" — `/trends/*` omits an empty
+                // bucket rather than sending one, so nothing in this window was
+                // measured at all.
+                return EmptyState(
+                  scope: EmptyScope.inPanel,
+                  headline: l10n.trendsEmptyHeadline,
+                  body: l10n.trendsEmptyBody,
+                );
+              }
+              final series = ChartSeries(
+                name: seriesName,
+                readings: <ChartReading>[
+                  for (final p in points)
+                    ChartReading(
+                      label: formatPeriodLabel(p.period),
+                      longLabel: p.period,
+                      value: p.value,
+                      sampleSize: p.count <= 0 ? null : p.count,
+                    ),
+                ],
               );
-            }
-            final series = ChartSeries(
-              name: seriesName,
-              readings: <ChartReading>[
-                for (final p in points)
-                  ChartReading(
-                    label: formatPeriodLabel(p.period),
-                    longLabel: p.period,
-                    value: p.value,
-                    sampleSize: p.count <= 0 ? null : p.count,
-                  ),
-              ],
-            );
-            if (veld || asTable) {
-              return TableTwin(
-                key: tableKey,
+              if (asTable) {
+                return TableTwin(
+                  key: tableKey,
+                  series: <ChartSeries>[series],
+                  unit: unit,
+                  decimals: 1,
+                  periodHeading: l10n.trendsPeriod,
+                  notMeasuredWord: l10n.trendsNotMeasured,
+                  sampleKind: kind,
+                  lowSampleWord: l10n.trendsSmallSample,
+                  semanticsLabel: heading,
+                );
+              }
+              // WHERE THE RUN STANDS, AGAINST THE RULE ALREADY ON THE PLOT.
+              // The last measured reading is what "where we are now" means on
+              // a trend, and it is the reading the end dot and the direct
+              // label are already about. No threshold means no judgement, and
+              // the run draws in ink — which is the same rule every figure on
+              // this screen is under.
+              final last = points.map((p) => p.value).toList().lastOrNull;
+              final rule = threshold;
+              final standing = (rule == null || last == null)
+                  ? null
+                  : severityFor(againstStandard(last, rule.value)) ??
+                        SeverityMarkKind.onTarget;
+              return TrendChart(
+                key: chartKey,
                 series: <ChartSeries>[series],
                 unit: unit,
                 decimals: 1,
-                periodHeading: l10n.trendsPeriod,
+                threshold: threshold,
+                standing: standing,
+                semanticsLabel: l10n.trendsChartHint(heading, points.length),
                 notMeasuredWord: l10n.trendsNotMeasured,
+                dashedWord: l10n.trendsDashed,
                 sampleKind: kind,
                 lowSampleWord: l10n.trendsSmallSample,
-                semanticsLabel: heading,
+                scrubHint: l10n.trendsScrubHint,
               );
-            }
-            // WHERE THE RUN STANDS, AGAINST THE RULE ALREADY ON THE PLOT.
-            // The last measured reading is what "where we are now" means on
-            // a trend, and it is the reading the end dot and the direct
-            // label are already about. No threshold means no judgement, and
-            // the run draws in ink — which is the same rule every figure on
-            // this screen is under.
-            final last = points
-                .map((p) => p.value)
-                .toList()
-                .lastOrNull;
-            final rule = threshold;
-            final standing = (rule == null || last == null)
-                ? null
-                : severityFor(againstStandard(last, rule.value)) ??
-                      SeverityMarkKind.onTarget;
-            return TrendChart(
-              key: chartKey,
-              series: <ChartSeries>[series],
-              unit: unit,
-              decimals: 1,
-              threshold: threshold,
-              standing: standing,
-              semanticsLabel: l10n.trendsChartHint(heading, points.length),
-              notMeasuredWord: l10n.trendsNotMeasured,
-              dashedWord: l10n.trendsDashed,
-              sampleKind: kind,
-              lowSampleWord: l10n.trendsSmallSample,
-              scrubHint: l10n.trendsScrubHint,
-            );
-          },
+            },
           ),
         ),
       ],
@@ -1215,9 +1198,9 @@ class _IndicatorMeta extends StatelessWidget {
 /// How many outlets sit in each perfect-store band, by their latest scored
 /// visit — doors, not visits.
 ///
-/// Rows and meters, not columns: a bar chart does not render in Veld and this
-/// is a comparison of five counted categories, which is a list of five rows in
-/// every skin. The panel is hidden when the server sends no bands at all —
+/// Rows and meters, not columns: this is a comparison of five counted
+/// categories, which is a list of five rows in every skin. The panel is hidden
+/// when the server sends no bands at all —
 /// five zero-height bars would be a picture of a field that does not exist,
 /// which is not the same thing as five measured noughts.
 class _DistributionSection extends StatelessWidget {
@@ -1598,9 +1581,6 @@ String emptyActivityMessage(
 /// a base layer: the outlets are real, just not narrowed the way the agent
 /// list is.
 ///
-/// **Veld draws no map at all** (unify §4). The list is the replacement, which
-/// is what it always was for a screen reader.
-///
 /// Public rather than private so the widget test can pump it on its own.
 class AgentActivityPanel extends ConsumerWidget {
   const AgentActivityPanel({super.key});
@@ -1685,15 +1665,13 @@ class AgentActivityPanel extends ConsumerWidget {
               extra: gutter * 2,
               child: _AgentList(agents: page.agents),
             );
-            // Veld draws no map. Everywhere else the map draws as long as
-            // there is EITHER a checked-in agent OR an outlet to place — a
-            // base layer of stores is still a map worth showing on a quiet
-            // morning.
+            // The map draws as long as there is EITHER a checked-in agent OR
+            // an outlet to place — a base layer of stores is still a map worth
+            // showing on a quiet morning.
             final hasMapContent =
-                skin.mode != SkinMode.veld &&
-                (withStops.isNotEmpty ||
-                    outlets.isNotEmpty ||
-                    livePositions.isNotEmpty);
+                withStops.isNotEmpty ||
+                outlets.isNotEmpty ||
+                livePositions.isNotEmpty;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1703,14 +1681,13 @@ class AgentActivityPanel extends ConsumerWidget {
                   // Nothing to plot at all: a grey, empty map would look
                   // broken rather than honest, so the list carries the panel
                   // alone and says in words why there is nothing to draw.
-                  if (skin.mode != SkinMode.veld)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: TiqSpace.s3),
-                      child: Text(
-                        l10n.dashNoOutletsToPlot,
-                        style: skin.text.meta.style(color: skin.palette.ink3),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: TiqSpace.s3),
+                    child: Text(
+                      l10n.dashNoOutletsToPlot,
+                      style: skin.text.meta.style(color: skin.palette.ink3),
                     ),
+                  ),
                   list,
                 ] else
                   LayoutBuilder(
@@ -1782,7 +1759,7 @@ class AgentActivityPanel extends ConsumerWidget {
 
 /// The compact list half of the panel — every agent, idle ones included. It is
 /// what stops an agent with no stops from vanishing when the map cannot place
-/// them, and in Veld it is the whole panel.
+/// them.
 class _AgentList extends StatelessWidget {
   const _AgentList({required this.agents});
 
@@ -2044,9 +2021,9 @@ class _CameraDriverState extends State<_CameraDriver>
 
   void _travelTo((LatLng, double) target) {
     final controller = MapController.of(context);
-    // The one motion switch in the system: reduce-motion, Veld and power save
-    // all resolve into `MotionBudget.still`, and a still frame moves the
-    // camera rather than travelling it.
+    // The one motion switch in the system: reduce-motion and power save both
+    // resolve into `MotionBudget.still`, and a still frame moves the camera
+    // rather than travelling it.
     if (MotionBudget.of(context).still) {
       controller.move(target.$1, target.$2);
       return;

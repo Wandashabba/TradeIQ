@@ -39,10 +39,8 @@ class StatTilesCard extends StatefulWidget {
 
   final ChatArtifact artifact;
 
-  /// Four on a phone, three recommended, two in Veld.
-  static int limitFor(TiqSkin skin) => skin.density == TiqDensity.veld
-      ? StatCluster.maximumInVeld
-      : StatCluster.maximumOnPhone;
+  /// Four on a phone, three recommended.
+  static int limitFor(TiqSkin skin) => StatCluster.maximumOnPhone;
 
   /// The tiles the fold shows before "Show all".
   static List<StatTileData> capped(List<StatTileData> tiles, TiqSkin skin) {
@@ -65,7 +63,7 @@ class _StatTilesCardState extends State<StatTilesCard> {
     // A block with nothing in it is dropped, never rendered empty.
     if (tiles.isEmpty) return const SizedBox.shrink();
 
-    // The fold holds four (two in Veld). The figures past it are not
+    // The fold holds four. The figures past it are not
     // dropped: stat tiles are answer-only — there is no full view to send a
     // reader to — so a figure cut here would be a figure the narrative
     // mentions and the screen cannot show. They wait behind one row, and

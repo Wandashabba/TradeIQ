@@ -179,10 +179,7 @@ class _TorchProgressBarState extends State<TorchProgressBar>
         widget.state != ProgressState.stalled &&
         widget.state != ProgressState.failed &&
         !still &&
-        skin.motion.enabled &&
-        // Veld has no travelling rule at all: an indeterminate bar there is
-        // the word "Working".
-        skin.density != TiqDensity.veld;
+        skin.motion.enabled;
     if (runs && !_travel.isAnimating) {
       _travel.repeat();
     } else if (!runs && _travel.isAnimating) {
@@ -194,9 +191,6 @@ class _TorchProgressBarState extends State<TorchProgressBar>
         (widget.total == null
             ? null
             : '${widget.value ?? 0} of ${widget.total}');
-
-    final veldWorking =
-        _indeterminate && skin.density == TiqDensity.veld;
 
     return Semantics(
       label: widget.label,
@@ -224,35 +218,24 @@ class _TorchProgressBarState extends State<TorchProgressBar>
                 : skin.text.figureS.style(color: p.ink2),
           ),
           const SizedBox(height: TiqSpace.s2),
-          if (veldWorking)
-            // No track that states nothing. Outdoors, the word is the whole
-            // statement.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                widget.workingWord,
-                style: skin.text.bodyStrong.style(color: p.ink1),
-              ),
-            )
-          else
-            SizedBox(
-              height: height,
-              child: AnimatedBuilder(
-                animation: _travel,
-                builder: (context, _) => CustomPaint(
-                  painter: _TrackPainter(
-                    skin: skin,
-                    fraction: _indeterminate ? 0 : _fraction,
-                    indeterminate: _indeterminate,
-                    travel: runs ? _travel.value : null,
-                    failed: widget.state == ProgressState.failed,
-                    rewardReached: _rewardReached,
-                    milestones: widget.milestones,
-                    total: widget.total,
-                  ),
+          SizedBox(
+            height: height,
+            child: AnimatedBuilder(
+              animation: _travel,
+              builder: (context, _) => CustomPaint(
+                painter: _TrackPainter(
+                  skin: skin,
+                  fraction: _indeterminate ? 0 : _fraction,
+                  indeterminate: _indeterminate,
+                  travel: runs ? _travel.value : null,
+                  failed: widget.state == ProgressState.failed,
+                  rewardReached: _rewardReached,
+                  milestones: widget.milestones,
+                  total: widget.total,
                 ),
               ),
             ),
+          ),
           if (widget.milestones.any((m) => m.label != null)) ...<Widget>[
             const SizedBox(height: TiqSpace.s1),
             // THE WORDS ARE ALWAYS BENEATH. A label inside a 8dp track is a

@@ -125,10 +125,8 @@ class TiqTypeToken {
 
 /// The type scale, resolved for one skin.
 ///
-/// Sizes come from the spec; Console/Field differ only where the spec says
-/// they do, and Veld steps up by explicit declared values rather than "one
-/// stop" — a stop is how the first draft invented a 17px that collided with
-/// two existing roles.
+/// Sizes come from the spec; Console and Field differ only where the spec
+/// says they do.
 @immutable
 class TiqType {
   const TiqType({
@@ -462,157 +460,8 @@ class TiqType {
     monoIdent: _monoIdent,
   );
 
-  /// Veld. Declared scale members, not "one stop": body 15→17, label 13→16,
-  /// meta 12→14, title.m 16→18, figure.m 22→24, a 600 weight floor,
-  /// line-height +0.05 and tracking +0.5% because glare fills counters.
-  static const TiqType veld = TiqType(
-    heroFigure: TiqTypeToken(
-      name: 'hero.figure',
-      kind: TiqTypeKind.figure,
-      size: 72,
-      weight: _w7,
-      height: 0.97,
-      trackingPercent: -2.0,
-      maxTextScale: 1.6,
-    ),
-    heroFigureCompact: TiqTypeToken(
-      name: 'hero.figure.compact',
-      kind: TiqTypeKind.figure,
-      size: 56,
-      weight: _w7,
-      height: 1.00,
-      trackingPercent: -1.5,
-    ),
-    display: TiqTypeToken(
-      name: 'display',
-      kind: TiqTypeKind.prose,
-      size: 40,
-      weight: _w7,
-      height: 1.05,
-      trackingPercent: -1.0,
-    ),
-    displayM: TiqTypeToken(
-      name: 'display.m',
-      kind: TiqTypeKind.prose,
-      size: 32,
-      weight: _w7,
-      height: 1.10,
-      trackingPercent: -0.5,
-    ),
-    displayS: TiqTypeToken(
-      name: 'display.s',
-      kind: TiqTypeKind.prose,
-      size: 26,
-      weight: _w7,
-      height: 1.20,
-    ),
-    figureL: TiqTypeToken(
-      name: 'figure.l',
-      kind: TiqTypeKind.figure,
-      size: 32,
-      weight: _w7,
-      height: 1.10,
-      trackingPercent: -0.5,
-    ),
-    figureM: TiqTypeToken(
-      name: 'figure.m',
-      kind: TiqTypeKind.figure,
-      size: 24,
-      weight: _w7,
-      height: 1.15,
-    ),
-    figureS: TiqTypeToken(
-      name: 'figure.s',
-      kind: TiqTypeKind.figure,
-      size: 16,
-      weight: _w7,
-      height: 1.25,
-      trackingPercent: 0.5,
-    ),
-    titleL: TiqTypeToken(
-      name: 'title.l',
-      kind: TiqTypeKind.prose,
-      size: 24,
-      weight: _w7,
-      height: 1.30,
-    ),
-    titleM: TiqTypeToken(
-      name: 'title.m',
-      kind: TiqTypeKind.prose,
-      size: 18,
-      weight: _w7,
-      height: 1.35,
-      trackingPercent: 0.25,
-    ),
-    headlineAnswer: TiqTypeToken(
-      name: 'headline.answer',
-      kind: TiqTypeKind.prose,
-      size: 22,
-      weight: _w7,
-      height: 1.40,
-    ),
-    body: TiqTypeToken(
-      name: 'body',
-      kind: TiqTypeKind.prose,
-      size: 17,
-      weight: _w6,
-      height: 1.55,
-      trackingPercent: 0.5,
-    ),
-    bodyStrong: TiqTypeToken(
-      name: 'body.strong',
-      kind: TiqTypeKind.prose,
-      size: 17,
-      weight: _w7,
-      height: 1.55,
-      trackingPercent: 0.5,
-    ),
-    label: TiqTypeToken(
-      name: 'label',
-      kind: TiqTypeKind.prose,
-      size: 16,
-      weight: _w6,
-      height: 1.40,
-      trackingPercent: 1.0,
-    ),
-    eyebrow: TiqTypeToken(
-      name: 'eyebrow',
-      kind: TiqTypeKind.prose,
-      size: 13,
-      weight: _w7,
-      height: 1.15,
-      trackingPercent: 4,
-      uppercase: true,
-    ),
-    meta: TiqTypeToken(
-      name: 'meta',
-      kind: TiqTypeKind.prose,
-      size: 14,
-      weight: _w6,
-      height: 1.45,
-      trackingPercent: 0.5,
-    ),
-    axisLabel: TiqTypeToken(
-      name: 'axis.label',
-      kind: TiqTypeKind.figure,
-      size: 14,
-      weight: _w6,
-      height: 1.45,
-      trackingPercent: 0.5,
-    ),
-    monoIdent: TiqTypeToken(
-      name: 'mono.ident',
-      kind: TiqTypeKind.identifier,
-      size: 16,
-      weight: _w6,
-      height: 1.35,
-      trackingPercent: 1,
-    ),
-  );
-
   static TiqType forDensity(TiqDensity density) => switch (density) {
     TiqDensity.console => console,
     TiqDensity.field => field,
-    TiqDensity.veld => veld,
   };
 }

@@ -80,8 +80,8 @@ class TorchNavCircle extends StatelessWidget {
   /// grant on a circle that is not asking for one.
   static TorchClaim claim(String id) => TorchClaim.navCircle(id);
 
-  /// 64dp in every skin. It is the primary action of a tab root and 56 is the
-  /// Veld floor, so it cannot be the 56 the manager surface drew.
+  /// 64dp in every skin. It is the primary action of a tab root, so it cannot
+  /// be the 56 the manager surface drew.
   static const double diameter = 64;
 
   /// The gap between the pill and the circle.
@@ -156,8 +156,7 @@ class TorchNavCircle extends StatelessWidget {
                   ? null
                   : Border.all(color: edge, width: edgeWidth),
               // Day is the one skin with a shadow budget, and a floating disc
-              // is exactly what sh2 is for. Night has none (black on black)
-              // and Veld has none at all.
+              // is exactly what sh2 is for. Night has none (black on black).
               boxShadow:
                   skin.mode == SkinMode.day && enabled && skin.depth.sh2 != null
                   ? <BoxShadow>[skin.depth.sh2!]
@@ -168,7 +167,7 @@ class TorchNavCircle extends StatelessWidget {
                   ? TorchBusyDots(color: ink, size: 5, gap: 5)
                   : TorchGlyph(
                       expected ? expectedIcon : icon,
-                      size: skin.mode == SkinMode.veld ? 28 : 26,
+                      size: 26,
                       color: ink,
                     ),
             ),

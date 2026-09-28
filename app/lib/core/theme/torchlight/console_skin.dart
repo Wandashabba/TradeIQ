@@ -21,19 +21,9 @@ import 'tiq_skin.dart';
 /// has never touched the skin cycle sees exactly the brightness she chose in
 /// settings, and nothing about migrating a route changes that.
 ///
-/// ## Veld is manual-only here
-///
-/// unify §4 lets Veld be entered by solar elevation elsewhere in the app. Not
-/// on a console route, and the reason is specific: an analysis surface is not
-/// an outdoor surface. A manager reading a ranked answer at a north-facing
-/// window at 11:40 should not have her layout reflow to one column, her type
-/// jump two steps and her place in the answer move two screens down because
-/// the sun came out. She reaches Veld — and leaves it — through the skin cycle
-/// in the header, which is the exit this control exists to be.
-///
 /// Like the agent's, the choice is **session-scoped and not persisted**: the
-/// per-user preferences table that Veld memory, handedness and the collapsed
-/// plate all need is unify §6 question 13, and it does not exist yet.
+/// per-user preferences table that handedness and the collapsed plate both
+/// need is unify §6 question 13, and it does not exist yet.
 class ConsoleSkinController extends Notifier<SkinMode?> {
   @override
   SkinMode? build() => null;
@@ -50,9 +40,7 @@ final consoleSkinProvider = NotifierProvider<ConsoleSkinController, SkinMode?>(
 ///
 /// Console density throughout — the manager is at a desk with a mouse, and
 /// Field's 64dp rows are for someone standing up with one hand on a shelf.
-/// Veld has one density by construction.
 TiqSkin consoleSkinFor(SkinMode? mode, TiqSkin ambient) => switch (mode) {
-  SkinMode.veld => TiqSkin.veld(),
   SkinMode.night => TiqSkin.night(density: TiqDensity.console),
   SkinMode.day => TiqSkin.day(density: TiqDensity.console),
   SkinMode.auto || null => ambient,

@@ -47,7 +47,6 @@ void main() {
     addTearDown(tester.view.reset);
 
     final resolved = switch (skin) {
-      SkinMode.veld => TiqSkin.veld(),
       SkinMode.day => TiqSkin.day(density: TiqDensity.console),
       _ => TiqSkin.night(density: TiqDensity.console),
     };
@@ -257,30 +256,6 @@ void main() {
       }
     });
 
-    /// THE FAILURE, WRITTEN AS ITSELF.
-    ///
-    /// `TorchSheet.closeLabel` defaulted to the literal `'Close'` and
-    /// `_MenuSheet` passed nothing, so in Veld — the one form with no scrim
-    /// and, until this change, a Close row instead of a back gesture — an
-    /// Afrikaans agent outdoors was shown one way out of the menu, in a
-    /// language she may not read.
-    testWidgets('the Veld way out is Afrikaans too', (tester) async {
-      await pumpMenu(tester, skin: SkinMode.veld, locale: const Locale('af'));
-
-      expect(find.text('Maak toe'), findsOneWidget);
-      expect(
-        find.text('Close', skipOffstage: false),
-        findsNothing,
-        reason:
-            '"Close" is hardcoded English on the only way out of a Veld sheet',
-      );
-    });
-
-    testWidgets('and in English it still says Close', (tester) async {
-      await pumpMenu(tester, skin: SkinMode.veld);
-      expect(find.text('Close'), findsOneWidget);
-    });
-
     test('every manager destination has an Afrikaans name', () {
       final af = lookupAppLocalizations(const Locale('af'));
       final en = lookupAppLocalizations(const Locale('en'));
@@ -304,7 +279,6 @@ void main() {
     for (final skin in <SkinMode>[
       SkinMode.night,
       SkinMode.day,
-      SkinMode.veld,
     ]) {
       testWidgets('${skin.name}: no amber anywhere in it', (tester) async {
         await pumpMenu(tester, skin: skin);

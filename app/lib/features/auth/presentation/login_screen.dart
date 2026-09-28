@@ -65,8 +65,8 @@ TorchErrorKind loginErrorKind(Object error) {
 ///
 /// ## Amber, counted
 ///
-/// Not a tab root and no nav, so Night has two content grants and Day and Veld
-/// have one. **One object takes one of them: the sign-in button**, and only
+/// Not a tab root and no nav, so Night has two content grants and Day
+/// has one. **One object takes one of them: the sign-in button**, and only
 /// while it is armed. An empty form carries zero amber in every skin — the
 /// first screen anyone sees is also the screen with the least reason to be
 /// lit, because nothing on it is ready to commit yet.

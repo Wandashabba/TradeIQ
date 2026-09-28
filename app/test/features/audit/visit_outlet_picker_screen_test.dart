@@ -447,24 +447,6 @@ void main() {
     }
   });
 
-  group('Veld is built, not declared', () {
-    testWidgets('rows 64, targets 56', (tester) async {
-      await _pump(tester, skin: SkinMode.veld);
-      await scrollAgentTo(
-        tester,
-        find.byKey(const ValueKey<String>('outlet-o1')),
-      );
-      expect(
-        tester.getSize(find.byKey(const ValueKey<String>('outlet-o1'))).height,
-        greaterThanOrEqualTo(64),
-      );
-      expect(
-        tester.getSize(find.byKey(const ValueKey<String>('add-store'))).height,
-        greaterThanOrEqualTo(56),
-      );
-    });
-  });
-
   group('the amber census', () {
     // A list of stores has no commit. The rows are the affordance and a row
     // never emits light; "Add a store" is a secondary. Zero on every skin,

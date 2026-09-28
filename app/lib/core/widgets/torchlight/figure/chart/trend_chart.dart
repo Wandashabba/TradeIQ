@@ -47,12 +47,6 @@ import 'scrub_readout.dart';
 /// bucket rather than sending a zero. Joining across a gap would draw a
 /// straight line through a week nobody measured and invite a manager to read a
 /// trend off it; the stroke stops instead, and the legend counts the gaps.
-///
-/// **In Veld it does not render at all.** unify §4: "the plate, sparklines,
-/// trend charts, maps and thumbnails do not render; figure lists replace
-/// them". The caller supplies that list — [TrendChart] is not going to invent
-/// one — and this widget renders [veldReplacement] in its place, or the
-/// legend alone if the caller passed none.
 class TrendChart extends StatefulWidget {
   const TrendChart({
     super.key,
@@ -67,7 +61,6 @@ class TrendChart extends StatefulWidget {
     this.sampleKind,
     this.lowSampleWord,
     this.gapNote,
-    this.veldReplacement,
     this.scrubHint,
   }) : assert(series.length > 0, 'A chart with no series is not a chart.'),
        assert(
@@ -123,9 +116,6 @@ class TrendChart extends StatefulWidget {
 
   /// "2 weeks not measured", from the caller's own plural rules.
   final String? gapNote;
-
-  /// What renders instead of the plot in Veld.
-  final Widget? veldReplacement;
 
   /// "Drag across the chart to read a week." Shown under the plot on a touch
   /// device; null hides it.
@@ -184,20 +174,6 @@ class _TrendChartState extends State<TrendChart> {
       subjectInk: subjectInk(skin, widget.standing),
       gapNote: widget.gapNote,
     );
-
-    if (skin.mode == SkinMode.veld) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          legend,
-          if (widget.veldReplacement != null) ...<Widget>[
-            SizedBox(height: skin.space.intraBlock),
-            widget.veldReplacement!,
-          ],
-        ],
-      );
-    }
 
     // Nobody measured anything, in any series. There is no plot to draw: a
     // scale invented from an empty set is a 0–1 axis across an empty grid,
@@ -867,24 +843,30 @@ class TrendChartPainter extends CustomPainter {
     required Paint paint,
     required bool dashed,
   }) {
-    _runs(readings, x: x, y: y, count: count, onRun: (points) {
-      if (points.length == 1) {
-        // A path of one point strokes nothing, and a measured week must not
-        // vanish because the weeks either side of it were not measured. It
-        // gets a dot — round, the same width as the stroke it stands in for.
-        canvas.drawCircle(
-          points.first,
-          paint.strokeWidth,
-          Paint()..color = paint.color,
+    _runs(
+      readings,
+      x: x,
+      y: y,
+      count: count,
+      onRun: (points) {
+        if (points.length == 1) {
+          // A path of one point strokes nothing, and a measured week must not
+          // vanish because the weeks either side of it were not measured. It
+          // gets a dot — round, the same width as the stroke it stands in for.
+          canvas.drawCircle(
+            points.first,
+            paint.strokeWidth,
+            Paint()..color = paint.color,
+          );
+          return;
+        }
+        final path = monotonePath(points);
+        canvas.drawPath(
+          dashed ? dashedPath(path, dash: 6, gap: 4) : path,
+          paint,
         );
-        return;
-      }
-      final path = monotonePath(points);
-      canvas.drawPath(
-        dashed ? dashedPath(path, dash: 6, gap: 4) : path,
-        paint,
-      );
-    });
+      },
+    );
   }
 
   int? _lastMeasured(List<ChartReading> readings, int count) {

@@ -113,10 +113,8 @@ Future<List<GoldenLine>> measureAgentFrame(
   }
 
   // Rows ON SCREEN, not rows declared: the body is one lazy scroll view, so
-  // this is a fact about the composed frame at rest. A Veld hub with a taller
-  // header and a taller thumb zone genuinely shows fewer rungs than a Night
-  // one, and that is the kind of thing this file is for. The names and the
-  // order of the whole ladder are `audit_shell_client_questions_test`'s job.
+  // this is a fact about the composed frame at rest. The names and the order
+  // of the whole ladder are `audit_shell_client_questions_test`'s job.
   add('rows.onscreen', find.byType(SoftRow).evaluate().length);
 
   // The census, on the real pixels of this exact frame.

@@ -298,21 +298,12 @@ class _StockFormState extends ConsumerState<_StockForm> {
 /// is the backstop; this is the band fitting inside it by construction, which
 /// is how the header's own 40% is kept true.
 ///
-/// **Veld collapses at every scale.** Its type is a size up, its targets are
-/// 56dp and its rules are 2px: measured, its full band is 258dp before the
-/// reader's font setting is touched at all, which is over the ceiling already.
-/// The glare skin is built, not declared, and this is one of the places that
-/// costs something — the band keeps the one line that has to be true at a
-/// glance, and the sentence and the jump land first in the body, ahead of the
-/// first product rather than somewhere down a 60-SKU shelf.
-///
 /// Both halves read this: the band drops what it will not keep, and
 /// [_SummaryDetail] picks up exactly what the band dropped. It is asked in the
 /// widgets rather than in `_StockFormState.build`, because the skin is
 /// re-rooted by `TorchlightRoute` *inside* `SectionForm` and is not knowable
 /// above it.
 bool _bandCollapsed(BuildContext context) =>
-    context.skin.mode == SkinMode.veld ||
     MediaQuery.textScalerOf(context).scale(_bandScaleProbe) >
         _bandScaleProbe * _bandCollapseAbove;
 
@@ -480,7 +471,7 @@ class _SkuBlock extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final finding = value == 0;
-    final barWidth = skin.mode == SkinMode.veld ? 4.0 : 3.0;
+    const barWidth = 3.0;
 
     final block = Padding(
       padding: EdgeInsetsDirectional.fromSTEB(

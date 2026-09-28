@@ -58,7 +58,7 @@ import 'outbox_item_sheet.dart';
 /// **"Send now"**, and only when pressing it is the expected next move:
 ///
 /// * nothing stuck → the queue sends itself and the button is a ghost, so the
-///   screen paints **one** amber object in Night and **zero** in Day and Veld.
+///   screen paints **one** amber object in Night and **zero** in Day.
 ///   That is the correct reading of a screen whose whole message is *nothing
 ///   to do*.
 /// * something stuck → "Send now" is armed and takes the grant.
@@ -406,7 +406,7 @@ class _Summary extends ConsumerWidget {
     };
 
     // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty in
-    // Night and Veld and three stacked drops in Day, so this block floated on
+    // Night and three stacked drops in Day, so this block floated on
     // the Day ground while the outbox rows under it sat flat on it — two
     // grammars on one screen, in the one skin where it shows. Neither
     // `TorchCard` nor `SoftRow` paints a shadow in any skin. Everything else
@@ -425,66 +425,66 @@ class _Summary extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(TiqSpace.s4),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // The state is ONE node for a screen reader, and it leads with the
-          // state word. The button below is a second, separate node — a
-          // summary that swallowed its own action would announce "12 items
-          // held on this phone, Send now" as a single sentence.
-          Semantics(
-            container: true,
-            label: '$title. $subtitle',
-            excludeSemantics: true,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(top: TiqSpace.s1),
-                  child: TiqMark(
-                    shape: shape,
-                    color: ink,
-                    size: MarkScale.glyph(context, 16),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // The state is ONE node for a screen reader, and it leads with the
+            // state word. The button below is a second, separate node — a
+            // summary that swallowed its own action would announce "12 items
+            // held on this phone, Send now" as a single sentence.
+            Semantics(
+              container: true,
+              label: '$title. $subtitle',
+              excludeSemantics: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(top: TiqSpace.s1),
+                    child: TiqMark(
+                      shape: shape,
+                      color: ink,
+                      size: MarkScale.glyph(context, 16),
+                    ),
                   ),
-                ),
-                const SizedBox(width: TiqSpace.s3),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: skin.text.bodyStrong.style(
-                          color: skin.palette.ink1,
+                  const SizedBox(width: TiqSpace.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: skin.text.bodyStrong.style(
+                            color: skin.palette.ink1,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: TiqSpace.s1),
-                      Text(
-                        subtitle,
-                        style: skin.text.meta.style(color: skin.palette.ink3),
-                      ),
-                    ],
+                        const SizedBox(height: TiqSpace.s1),
+                        Text(
+                          subtitle,
+                          style: skin.text.meta.style(color: skin.palette.ink3),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: TiqSpace.s4),
-          // "Send now" lives here, with the thing it acts on. My work is a
-          // tab root and tab roots have no thumb zone (unify §1.2), and the
-          // button belongs beside the queue anyway.
-          TorchPrimaryButton(
-            key: const ValueKey<String>('send-now'),
-            claimId: MyWorkScreen.sendNowClaimId,
-            label: l10n.myWorkSendNow,
-            icon: Icons.upload_outlined,
-            busy: sending,
-            blockedReason: status.pending.isEmpty
-                ? l10n.myWorkSendNowBlocked
-                : null,
-            onPressed: status.pending.isEmpty || sending
-                ? null
-                : () => ref.read(syncNowProvider)(),
-          ),
+            const SizedBox(height: TiqSpace.s4),
+            // "Send now" lives here, with the thing it acts on. My work is a
+            // tab root and tab roots have no thumb zone (unify §1.2), and the
+            // button belongs beside the queue anyway.
+            TorchPrimaryButton(
+              key: const ValueKey<String>('send-now'),
+              claimId: MyWorkScreen.sendNowClaimId,
+              label: l10n.myWorkSendNow,
+              icon: Icons.upload_outlined,
+              busy: sending,
+              blockedReason: status.pending.isEmpty
+                  ? l10n.myWorkSendNowBlocked
+                  : null,
+              onPressed: status.pending.isEmpty || sending
+                  ? null
+                  : () => ref.read(syncNowProvider)(),
+            ),
           ],
         ),
       ),

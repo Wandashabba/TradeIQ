@@ -161,9 +161,9 @@ class _HistoryRow extends StatelessWidget {
 /// equivalent to Carry on, so the destructive path is never the default
 /// outcome of an accidental gesture.
 ///
-/// Amber: exactly one — the safe action's rim in Night, its block in Day and
-/// Veld. The nav pill is hidden and inert beneath the sheet, so its tab
-/// contributes nothing to the count.
+/// Amber: exactly one — the safe action's rim in Night, its block in Day. The
+/// nav pill is hidden and inert beneath the sheet, so its tab contributes
+/// nothing to the count.
 class AskStartOverSheet extends StatelessWidget {
   const AskStartOverSheet({
     super.key,

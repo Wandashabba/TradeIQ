@@ -60,7 +60,7 @@ import '../data/dispatch_repository.dart';
 ///
 /// A tab root reached from the Menu: the nav's active tab is slot 1 and the
 /// content declines its grant on every phase. Dispatch **reads** a ranking;
-/// assigning the visit is a different screen's commit. Day and Veld: zero.
+/// assigning the visit is a different screen's commit. Day: zero.
 class DispatchScreen extends ConsumerStatefulWidget {
   const DispatchScreen({super.key});
 

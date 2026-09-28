@@ -82,7 +82,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(density: TiqDensity.field),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets(skin.mode.name, (tester) async {
         for (final entry in phase2Cases()) {
@@ -102,7 +101,7 @@ void main() {
           // exact zero for everything else. The census's job is catching light
           // nobody authorised, and a commit action that has scrolled below an
           // 88% ceiling paints no pixels without breaking any rule — which is
-          // exactly what a tall Veld sheet does. That the three sheets really
+          // exactly what a tall sheet does. That the sheets really
           // do declare and receive their claim is asserted below, against the
           // allocator, where it is a fact rather than a screenshot.
           expect(
@@ -129,14 +128,13 @@ void main() {
   });
 
   group('the three sheets that spend a grant actually get one', () {
-    // A sheet is an untabbed route: Night gives it two content grants, Day and
-    // Veld one. Each of these declares exactly one, for its commit action, and
+    // A sheet is an untabbed route: Night gives it two content grants and Day
+    // one. Each of these declares exactly one, for its commit action, and
     // the allocator grants it in every skin — which is the half of the claim a
     // pixel walk cannot prove when the button is below the fold.
     for (final skin in <TiqSkin>[
       TiqSkin.night(density: TiqDensity.field),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       test(skin.mode.name, () {
         for (final id in <String>[

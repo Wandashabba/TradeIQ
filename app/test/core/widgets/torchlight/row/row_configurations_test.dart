@@ -338,34 +338,6 @@ void main() {
       expect(find.byKey(const ValueKey<String>('sparkline')), findsNothing);
     });
 
-    testWidgets('the sparkline drops first at 2.0×, then in Veld',
-        (tester) async {
-      const sparkline = SizedBox(key: ValueKey<String>('sparkline'));
-      Widget row() => const DecisionRow(
-        title: 'Shoprite Klipspruit Mall',
-        reason: 'Availability fell',
-        value: 71,
-        sparkline: sparkline,
-      );
-
-      await pumpRow(tester, skin: TiqSkin.night(), child: row());
-      expect(find.byKey(const ValueKey<String>('sparkline')), findsOneWidget);
-
-      await pumpRow(
-        tester,
-        skin: TiqSkin.night(),
-        textScale: 2.0,
-        child: row(),
-      );
-      expect(find.byKey(const ValueKey<String>('sparkline')), findsNothing);
-
-      await pumpRow(tester, skin: TiqSkin.veld(), child: row());
-      expect(
-        find.byKey(const ValueKey<String>('sparkline')),
-        findsNothing,
-        reason: 'a 64x20 grey zigzag is under 9:1 by construction',
-      );
-    });
   });
 
   group('PersonRow (#399/#400)', () {

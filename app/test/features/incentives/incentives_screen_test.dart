@@ -824,7 +824,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{
@@ -918,24 +917,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Veld is built and the reward is still named', (tester) async {
-      await _pump(
-        tester,
-        skin: TiqSkin.veld(),
-        schemes: <IncentiveScheme>[_scheme()],
-        board: <LeaderboardEntry>[_agent()],
-      );
-
-      await scrollWorklistTo(
-        tester,
-        find.byKey(const ValueKey<String>('scheme-bar-s-1')),
-      );
-      final bar = tester.widget<TorchProgressBar>(
-        find.byKey(const ValueKey<String>('scheme-bar-s-1')),
-      );
-      expect(bar.milestones.single.label, '250 pts at 20 visits');
-      expect(tester.takeException(), isNull);
-    });
   });
 
   // PROBE E found "Incentives", "Schemes", "Add a scheme", "Awarding",

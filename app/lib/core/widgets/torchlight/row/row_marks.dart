@@ -246,8 +246,8 @@ class _MarkPainter extends CustomPainter {
 /// GPS fix being sought. An upload is progress, and progress is a report. The
 /// dots are `ink2`, they live in their own `RepaintBoundary` so a scrolling
 /// list does not repaint eleven rows to move three dots, and they do not exist
-/// at all when `MotionBudget.still`: under reduce-motion, in Veld and in
-/// battery saver the state word and the byte figure are the whole signal.
+/// at all when `MotionBudget.still`: under reduce-motion and in battery saver
+/// the state word and the byte figure are the whole signal.
 ///
 /// The ticker is this widget's own. Unify §4 wants one application-wide
 /// `Ticker` with three subscribers; that object is chrome and does not exist

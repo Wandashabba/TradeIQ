@@ -115,9 +115,8 @@ class CountStepper extends StatefulWidget {
   /// [label].
   final String? sheetTitle;
 
-  /// One step tile's extent for a skin. 56 on Night and Day, 64 in Veld.
-  static double tileExtentFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? 64 : TiqSpace.s9;
+  /// One step tile's extent. 56 on Night and Day.
+  static double tileExtentFor(TiqSkin skin) => TiqSpace.s9;
 
   /// Above this text scale the pair drops beneath the trough as two halves —
   /// still adjacent, still one thumb. Measured, not guessed: the threshold is

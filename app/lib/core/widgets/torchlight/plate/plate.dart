@@ -183,10 +183,10 @@ class TiqPlate extends StatelessWidget {
 
     switch (spec.form) {
       case PlateForm.none:
-        // Veld. The hero cluster renders on white, with no band around it —
-        // and the scope control comes with it. A screen that can be scoped in
-        // Night and not in Veld is a screen that loses a capability outdoors,
-        // which is where the territory question gets asked most.
+        // No plate. The hero cluster renders on the ground, with no band
+        // around it — and the scope control comes with it, because a screen
+        // that can be scoped with a plate and not without one is a screen
+        // that loses a capability it never advertised losing.
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: spec.textInset),
           child: Column(

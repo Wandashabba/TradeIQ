@@ -2069,10 +2069,6 @@
   "@skinNight": {
     "description": "The name of the dark screen, in the skin cycle's spoken label."
   },
-  "skinVeld": "Veld, the outdoor high-contrast screen",
-  "@skinVeld": {
-    "description": "The name of the outdoor screen, in the skin cycle's spoken label. The explanation is part of the name because a blind user has no other way to learn what Veld is."
-  },
   "syncChipAllSent": "All sent",
   "@syncChipAllSent": {
     "description": "Sync chip when the outbox is empty."
@@ -2534,10 +2530,6 @@
   "@mapTilesOffBody": {
     "description": "Body under mapTilesOffTitle. Offline on a rural forecourt is the normal case, not an error."
   },
-  "mapVeldNote": "The map is off in bright sun. Your stores are listed below, nearest first.",
-  "@mapVeldNote": {
-    "description": "Shown instead of the map in the Veld skin, where maps do not render."
-  },
   "mapEmptyTitle": "No stores yet",
   "@mapEmptyTitle": {
     "description": "Whole-screen empty state: no route today and nothing in the agent's territories."
@@ -2610,10 +2602,6 @@
   "mapLegendLabel": "What the pins mean",
   "@mapLegendLabel": {
     "description": "Spoken label for the map's legend row."
-  },
-  "sheetClose": "Close",
-  "@sheetClose": {
-    "description": "The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld."
   },
   "askTitle": "Ask TradeIQ",
   "@askTitle": {
@@ -3006,7 +2994,7 @@
   },
   "askLoading": "Loading",
   "@askLoading": {
-    "description": "Veld has no skeleton — one word instead."
+    "description": "The one word a loading region shows when a skeleton is not what the reader needs."
   },
   "askNotEnoughToPlot": "{count, plural, =0{Not enough data to plot — nothing returned.} =1{Not enough data to plot — 1 period returned.} other{Not enough data to plot — {count} periods returned.}}",
   "@askNotEnoughToPlot": {
@@ -3507,10 +3495,6 @@
         "type": "int"
       }
     }
-  },
-  "askMapNotInVeld": "Maps are not drawn in Veld. The outlets are listed instead.",
-  "@askMapNotInVeld": {
-    "description": "Ask TradeIQ answer card."
   },
   "visitPinTooFarToReport": "This is too far to report the pin from here. Ask your manager to correct this store.",
   "@visitPinTooFarToReport": {
@@ -4212,10 +4196,6 @@
   "syncBannerOpen": "tap to open your work",
   "@syncBannerOpen": {
     "description": "The trailing half of the held banner’s screen-reader label."
-  },
-  "commonClose": "Close",
-  "@commonClose": {
-    "description": "The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap."
   },
   "pickerStartVisitSemantics": "{name}, {code}. Double-tap to start a visit here.",
   "@pickerStartVisitSemantics": {
@@ -9604,14 +9584,6 @@
         "type": "String"
       }
     }
-  },
-  "trailNoMapHeadline": "No map in the sun.",
-  "@trailNoMapHeadline": {
-    "description": "Headline of the Veld note that stands in for the trail map."
-  },
-  "trailNoMapBody": "A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.",
-  "@trailNoMapBody": {
-    "description": "Body of the Veld note that stands in for the trail map."
   },
   "trailMapOfflineHeadline": "The map will not load.",
   "@trailMapOfflineHeadline": {

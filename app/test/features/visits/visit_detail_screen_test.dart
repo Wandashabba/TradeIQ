@@ -429,25 +429,8 @@ void main() {
       expect(find.text('Showing 1 of 9'), findsOneWidget);
     });
 
-    // unify §4: Veld renders no thumbnails. The figure list that replaces
+    // The figure list that replaces
     // them is what a screen reader has always been given.
-    testWidgets('Veld draws the figure list instead of thumbnails', (
-      tester,
-    ) async {
-      await pumpVisit(
-        tester,
-        detail: submittedVisit(),
-        skin: TiqSkin.veld(),
-      );
-
-      expect(find.byType(TorchEvidenceThumb), findsNothing);
-      await scrollVisitTo(
-        tester,
-        find.byKey(const ValueKey<String>('visit-photo-p1')),
-      );
-      expect(find.byKey(const ValueKey<String>('visit-photo-p1')), findsOneWidget);
-      expect(find.text(clockOf(_photoTakenAt.toLocal())), findsOneWidget);
-    });
   });
 
   group('fraud signals', () {

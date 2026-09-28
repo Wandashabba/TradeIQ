@@ -21,10 +21,8 @@ import 'tiq_skin.dart';
 /// So these screens default to **Night**, and the reason is the brand rather
 /// than the light: the way in is the dimmed aisle, it has been since the
 /// premium-ui redesign, and the first screen anyone sees is the one place in
-/// this product where the ground is the message. Day and Veld are one tap away
-/// on every one of them — a person locked out of their account in a car park
-/// at 13:00 is exactly the person who needs Veld, and they reach it from the
-/// same cycle as everybody else.
+/// this product where the ground is the message. Day is one tap away on every
+/// one of them, from the same cycle as everybody else.
 ///
 /// Field density: the first screen is met on a phone, standing up.
 ///
@@ -46,7 +44,6 @@ final entrySkinProvider = NotifierProvider<EntrySkinController, SkinMode>(
 
 /// Resolve a [SkinMode] to the skin an entry screen wears.
 TiqSkin entrySkinFor(SkinMode mode) => switch (mode) {
-  SkinMode.veld => TiqSkin.veld(),
   SkinMode.day => TiqSkin.day(density: TiqDensity.field),
   SkinMode.night || SkinMode.auto => TiqSkin.night(density: TiqDensity.field),
 };

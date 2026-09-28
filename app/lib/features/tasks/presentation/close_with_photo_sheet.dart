@@ -48,7 +48,7 @@ import '../data/tasks_view.dart';
 ///
 /// A sheet is an untabbed route, and the nav's tab beneath it has already gone
 /// out, so Night's two grants are both the sheet's. It spends one: `Close
-/// task` at rung 1. Day and Veld spend their single grant on the same block.
+/// task` at rung 1. Day spends its single grant on the same block.
 /// The pre-capture card is a 2px `edgeControl` outline and a drawing; nothing
 /// else on this sheet asks for light.
 ///

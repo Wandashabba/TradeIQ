@@ -23,14 +23,6 @@ void main() {
       for (final name in phase2SkinNames) {
         final skin = phase2SkinNamed(name);
         final spec = TorchSheetSpec.resolve(skin: skin);
-        if (spec.form == TorchSheetForm.fullScreen) {
-          expect(
-            spec.grabberColour,
-            isNull,
-            reason: '$name is the full-screen form and has no grabber.',
-          );
-          continue;
-        }
         expect(
           spec.grabberColour,
           TorchSheetSpec.grabber,
@@ -39,7 +31,7 @@ void main() {
               'a different grey on every surface it lands on, and opacity is '
               'banned as a state channel and as a colour channel with it.',
         );
-        expect(spec.grabberColour!.a, 1.0);
+        expect(spec.grabberColour.a, 1.0);
       }
     });
 
@@ -84,42 +76,13 @@ void main() {
       expect(spec.horizontalPadding, TiqSkin.night().space.gutter);
     });
 
-    testWidgets('becomes a full-screen route with a 2px border and a 56dp '
-        'Close row in Veld', (tester) async {
-      final spec = TorchSheetSpec.resolve(skin: TiqSkin.veld());
-      expect(spec.form, TorchSheetForm.fullScreen);
-      expect(spec.closeRowHeight, 56);
-      expect(spec.outlineWidth, 2);
-      expect(spec.radius, BorderRadius.zero);
-      expect(
-        spec.scrim.a,
-        0,
-        reason:
-            'Veld has no scrim. A translucent wash outdoors dims nothing and '
-            'obscures everything.',
-      );
-
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: const TorchSheet(
-          title: 'A route, not a sheet',
-          closeLabel: 'Close',
-          child: Text('body'),
-        ),
-      );
-      expect(find.text('Close'), findsOneWidget);
-    });
-
     /// THE FAILURE, WRITTEN AS ITSELF.
     ///
     /// "Non-dismissible" was one override — `barrierDismissible` — and the
     /// doc claimed two. `TorchSheetRoute` never overrode `popDisposition` and
     /// never wrapped its page in a `PopScope`, so the Android back button
-    /// popped a blocking sheet. And in Veld `_VeldCloseRow` rendered whatever
-    /// `dismissible` said, so the blocking sheet grew its own way past itself
-    /// on the one skin with no scrim to fall back on.
-    for (final name in <String>['night.field', 'day.field', 'veld']) {
+    /// popped a blocking sheet.
+    for (final name in <String>['night.field', 'day.field']) {
       testWidgets('$name: a blocking sheet cannot be walked past', (
         tester,
       ) async {
@@ -134,7 +97,6 @@ void main() {
                 dismissible: false,
                 builder: (_) => const TorchSheet(
                   title: 'A decision',
-                  closeLabel: 'Close',
                   child: Text('body'),
                 ),
               ),
@@ -158,50 +120,12 @@ void main() {
               'gesture is the other half of the contract',
         );
 
-        expect(
-          find.text('Close'),
-          findsNothing,
-          reason:
-              'a blocking sheet relies on its own actions — in Veld the Close '
-              'row was rendered regardless of dismissible and popped it',
-        );
-
         await Navigator.of(element, rootNavigator: true).maybePop();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
         expect(find.byType(TorchSheet), findsOneWidget);
       });
     }
-
-    testWidgets('a dismissible Veld sheet keeps its Close row', (tester) async {
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: Builder(
-          builder: (context) => GestureDetector(
-            onTap: () => showTorchSheet<void>(
-              context,
-              builder: (_) => const TorchSheet(
-                title: 'A route, not a sheet',
-                closeLabel: 'Close',
-                child: Text('body'),
-              ),
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('open'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('Close'), findsOneWidget);
-
-      await tester.tap(find.text('Close'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(TorchSheet), findsNothing);
-    });
 
     testWidgets('does not stack — a second sheet asserts', (tester) async {
       await pumpPhase2(
@@ -504,7 +428,7 @@ void main() {
       );
       expect(find.text('Sign in'), findsOneWidget);
       expect(SessionHeldLine.heightFor(TiqSkin.night()), 44);
-      expect(SessionHeldLine.heightFor(TiqSkin.veld()), 64);
+      expect(SessionHeldLine.heightFor(TiqSkin.day()), 44);
     });
   });
 

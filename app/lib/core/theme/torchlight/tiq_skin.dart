@@ -11,33 +11,32 @@ export 'tiq_type.dart';
 
 /// Which skin the app is wearing.
 ///
-/// Three skins, not two: NIGHT (the cinematic dark — managers by default, and
-/// agents doing back-of-store or pre-dawn forecourt work), DAY (Palladian
-/// paper — the agent default) and VELD (outdoor high-contrast, a genuine third
-/// theme with its own token set, not a contrast tweak on Day).
+/// Two skins: NIGHT (the cinematic dark — managers by default, and agents
+/// doing back-of-store or pre-dawn forecourt work) and DAY (Palladian paper —
+/// the agent default).
+///
+/// There was a third, VELD — an outdoor high-contrast skin with its own token
+/// set. The owner removed it on 28 September 2026; see
+/// `docs/design/spec/unify.md` §4.
 enum SkinMode {
   night,
   day,
-  veld,
 
-  /// Follow the platform brightness, plus — once the solar/memory logic lands
-  /// — the outdoor triggers. Always overridable by the thumb-zone skin cycle.
+  /// Follow the platform brightness. Always overridable by the thumb-zone
+  /// skin cycle.
   auto,
 }
 
-/// **The** token source. One `ThemeExtension`, three value sets.
+/// **The** token source. One `ThemeExtension`, two value sets.
 ///
 /// This replaces `TiqColors`, `LumenPalette`, `LumenGlass`, `AppColors` and
 /// `status_pill_colors.dart`. Those five still exist as `@Deprecated` shims so
 /// the existing screens compile; new code reads `context.skin`.
 ///
-/// A mode is a value set, not a code path: every difference between Night, Day
-/// and Veld is a different [TiqPalette]/[TiqType]/[TiqDepth] instance handed to
-/// the same constructor. There is no `if (isNight)` anywhere in this file, and
+/// A mode is a value set, not a code path: every difference between Night and
+/// Day is a different [TiqPalette]/[TiqType]/[TiqDepth] instance handed to the
+/// same constructor. There is no `if (isNight)` anywhere in this file, and
 /// there should be none in a widget either.
-///
-/// Veld is single-density by construction — [TiqSkin.veld] takes no density
-/// argument, so `Veld × Console` cannot be built.
 @immutable
 class TiqSkin extends ThemeExtension<TiqSkin> {
   const TiqSkin({
@@ -50,12 +49,10 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     required this.depth,
     required this.motion,
     required this.amberIsInk,
-    this.textFloor = 0,
-    this.borderFloor = 0,
   });
 
-  /// Which of the three skins this is. Never [SkinMode.auto] — auto is a
-  /// preference, and it resolves to one of the three before a skin is built.
+  /// Which of the two skins this is. Never [SkinMode.auto] — auto is a
+  /// preference, and it resolves to one of the two before a skin is built.
   final SkinMode mode;
 
   final Brightness brightness;
@@ -82,82 +79,32 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
   /// ranked-bar focus channel, the live pulse) is something else there.
   final bool amberIsInk;
 
-  /// THIS SKIN's own contrast floor for anything carrying a word, over and
-  /// above whatever WCAG asks of the role.
-  ///
-  /// Zero on Night and Day: there the role's own floor (4.5 for body, 3.0 for
-  /// large text) is the whole requirement. Nine on Veld, because an entry LCD
-  /// at 40% backlight in highveld sun loses the bottom two stops and outdoors
-  /// there is no such thing as a decoration — not even a disabled control.
-  ///
-  /// It is a token and not an `if (mode == veld)` in the contrast generator
-  /// for the reason the system doc gives: a skin is a value set, not a code
-  /// path, and a branch on the mode is a token that does not exist yet.
-  final double textFloor;
-
-  /// The same, for a border or a meaningful graphic. Fifteen on Veld.
-  final double borderFloor;
-
-  /// The floor a pairing actually has to clear on this skin: the stricter of
-  /// the role's requirement and the skin's own.
-  double floorFor(double roleFloor, {required bool isText}) {
-    final skinFloor = isText ? textFloor : borderFloor;
-    return roleFloor > skinFloor ? roleFloor : skinFloor;
-  }
-
   TiqDensity get density => space.density;
 
   /// NIGHT. Console by default — it is the manager's skin.
-  factory TiqSkin.night({TiqDensity density = TiqDensity.console}) {
-    assert(
-      density != TiqDensity.veld,
-      'TiqDensity.veld belongs to TiqSkin.veld() only.',
-    );
-    return TiqSkin(
-      mode: SkinMode.night,
-      brightness: Brightness.dark,
-      palette: TiqPalette.night,
-      text: TiqType.forDensity(density),
-      space: density == TiqDensity.field ? TiqSpace.field : TiqSpace.console,
-      radii: TiqRadii.lit,
-      depth: TiqDepth.night,
-      motion: TiqMotion.on,
-      amberIsInk: false,
-    );
-  }
+  factory TiqSkin.night({TiqDensity density = TiqDensity.console}) => TiqSkin(
+    mode: SkinMode.night,
+    brightness: Brightness.dark,
+    palette: TiqPalette.night,
+    text: TiqType.forDensity(density),
+    space: density == TiqDensity.field ? TiqSpace.field : TiqSpace.console,
+    radii: TiqRadii.lit,
+    depth: TiqDepth.night,
+    motion: TiqMotion.on,
+    amberIsInk: false,
+  );
 
   /// DAY. Field by default — it is the agent's skin.
-  factory TiqSkin.day({TiqDensity density = TiqDensity.field}) {
-    assert(
-      density != TiqDensity.veld,
-      'TiqDensity.veld belongs to TiqSkin.veld() only.',
-    );
-    return TiqSkin(
-      mode: SkinMode.day,
-      brightness: Brightness.light,
-      palette: TiqPalette.day,
-      text: TiqType.forDensity(density),
-      space: density == TiqDensity.console ? TiqSpace.console : TiqSpace.field,
-      radii: TiqRadii.lit,
-      depth: TiqDepth.day,
-      motion: TiqMotion.on,
-      amberIsInk: true,
-    );
-  }
-
-  /// VELD. No density argument, by design.
-  factory TiqSkin.veld() => const TiqSkin(
-    mode: SkinMode.veld,
+  factory TiqSkin.day({TiqDensity density = TiqDensity.field}) => TiqSkin(
+    mode: SkinMode.day,
     brightness: Brightness.light,
-    palette: TiqPalette.veld,
-    text: TiqType.veld,
-    space: TiqSpace.veld,
-    radii: TiqRadii.flat,
-    depth: TiqDepth.veld,
-    motion: TiqMotion.off,
+    palette: TiqPalette.day,
+    text: TiqType.forDensity(density),
+    space: density == TiqDensity.console ? TiqSpace.console : TiqSpace.field,
+    radii: TiqRadii.lit,
+    depth: TiqDepth.day,
+    motion: TiqMotion.on,
     amberIsInk: true,
-    textFloor: 9,
-    borderFloor: 15,
   );
 
   /// Build the skin a [SkinMode] asks for. [platformBrightness] only matters
@@ -171,10 +118,10 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
       density: density ?? TiqDensity.console,
     ),
     SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.field),
-    SkinMode.veld => TiqSkin.veld(),
-    SkinMode.auto => platformBrightness == Brightness.dark
-        ? TiqSkin.night(density: density ?? TiqDensity.console)
-        : TiqSkin.day(density: density ?? TiqDensity.field),
+    SkinMode.auto =>
+      platformBrightness == Brightness.dark
+          ? TiqSkin.night(density: density ?? TiqDensity.console)
+          : TiqSkin.day(density: density ?? TiqDensity.field),
   };
 
   /// The default ink for a body of text on this skin's ground.
@@ -202,8 +149,6 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     TiqDepth? depth,
     TiqMotion? motion,
     bool? amberIsInk,
-    double? textFloor,
-    double? borderFloor,
   }) => TiqSkin(
     mode: mode ?? this.mode,
     brightness: brightness ?? this.brightness,
@@ -214,8 +159,6 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: depth ?? this.depth,
     motion: motion ?? this.motion,
     amberIsInk: amberIsInk ?? this.amberIsInk,
-    textFloor: textFloor ?? this.textFloor,
-    borderFloor: borderFloor ?? this.borderFloor,
   );
 
   /// Colours and radii interpolate; a type scale, a density and a depth budget
@@ -235,10 +178,6 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
       depth: past ? depth : other.depth,
       motion: past ? motion : other.motion,
       amberIsInk: past ? amberIsInk : other.amberIsInk,
-      // A contrast floor does not interpolate: half of Veld's 9:1 is a floor
-      // nobody declared and nothing was designed against.
-      textFloor: past ? textFloor : other.textFloor,
-      borderFloor: past ? borderFloor : other.borderFloor,
     );
   }
 }

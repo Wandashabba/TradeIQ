@@ -73,7 +73,7 @@ const List<TorchNavSlot> consoleNavSlots = <TorchNavSlot>[
 /// carries the urgency in words, and the section rule has no colour at all. A
 /// budget is a ceiling, not a quota.
 ///
-/// On Day and Veld the ladder has one rung — the primary commit block — and
+/// On Day the ladder has one rung — the primary commit block — and
 /// these routes have no primary, so they paint **zero**.
 ///
 /// While a sheet is up (an alert's detail, a task's closure gate) every amber

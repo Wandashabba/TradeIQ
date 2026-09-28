@@ -27,7 +27,6 @@ void main() {
       AppTheme.light(),
       AppTheme.night(),
       AppTheme.day(),
-      AppTheme.veld(),
     ]) {
       // ThemeData applies its fontFamily to the typography defaults before
       // merging our TextTheme on top, so every prose style must come out as
@@ -40,11 +39,7 @@ void main() {
   });
 
   test('the Torchlight themes set their figures in JetBrains Mono', () {
-    for (final theme in <ThemeData>[
-      AppTheme.night(),
-      AppTheme.day(),
-      AppTheme.veld(),
-    ]) {
+    for (final theme in <ThemeData>[AppTheme.night(), AppTheme.day()]) {
       // displayLarge/Medium carry hero.figure and hero.figure.compact.
       expect(theme.textTheme.displayLarge?.fontFamily, TiqFonts.mono);
       expect(theme.textTheme.displayMedium?.fontFamily, TiqFonts.mono);

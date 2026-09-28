@@ -46,10 +46,10 @@ void main() {
       });
     }
 
-    test('the table covers all three skins and the plate', () {
+    test('the table covers both skins and the plate', () {
       final skins = TorchlightContrast.declared.map((p) => p.skin).toSet();
-      expect(skins, containsAll(<String>['night', 'day', 'veld', 'plate']));
-      expect(TorchlightContrast.declared.length, greaterThan(50));
+      expect(skins, containsAll(<String>['night', 'day', 'plate']));
+      expect(TorchlightContrast.declared.length, greaterThan(40));
     });
 
     test('every ground a coloured figure can land on is declared', () {
@@ -101,7 +101,7 @@ void main() {
       });
     }
 
-    test('every banned pairing is listed, and there are five of them', () {
+    test('every banned pairing is listed, and there are four of them', () {
       // Pinned so that deleting a ban is a visible edit, not an omission.
       expect(
         TorchlightContrast.banned.map((b) => b.label).toList(),
@@ -110,7 +110,6 @@ void main() {
           'flame-900 ink on a pressed flame-500 block',
           'flame-600 as text on the Palladian ground',
           'edge-structure on the Day well',
-          'flame-600 as a line, icon, border or word on white',
         ],
       );
     });
@@ -120,7 +119,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final p = skin.palette;
         expect(
@@ -156,7 +154,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final p = skin.palette;
         final ambers = <Color>{
@@ -200,7 +197,7 @@ void main() {
     });
 
     test('the focus channel on a light ground is ink, not amber', () {
-      for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      for (final skin in <TiqSkin>[TiqSkin.day()]) {
         final p = skin.palette;
         // The ranked-bar focus fill on a light ground is ink-1 on the track.
         final focus = contrastRatio(p.ink1, p.well);
@@ -216,58 +213,6 @@ void main() {
   });
 
   group('skin-wide floors', () {
-    test('Veld has no text token under 9:1 and no border under 15:1', () {
-      final v = TiqSkin.veld().palette;
-      for (final MapEntry(key: name, value: ink) in <String, Color>{
-        'ink1': v.ink1,
-        'ink2': v.ink2,
-        'ink3': v.ink3,
-        'navInkInactive': v.navInkInactive,
-        'inkMute': v.inkMute,
-        'chartNeutral': v.chartNeutral,
-        'good': v.good,
-        'bad': v.bad,
-      }.entries) {
-        final ratio = contrastRatio(ink, v.ground);
-        expect(
-          ratio,
-          greaterThanOrEqualTo(9.0),
-          reason:
-              'Veld $name is ${ratio.toStringAsFixed(2)}:1 on white. In '
-              'highveld sun an entry LCD at 40% backlight loses the bottom two '
-              'stops; Veld has no token under 9:1 for text — including the '
-              'disabled one, because outdoors there is no such thing as a '
-              'decoration.',
-        );
-      }
-      for (final MapEntry(key: name, value: edge) in <String, Color>{
-        'edgeStructure': v.edgeStructure,
-        'edgeControl': v.edgeControl,
-        'hairline': v.hairline,
-      }.entries) {
-        final ratio = contrastRatio(edge, v.ground);
-        expect(
-          ratio,
-          greaterThanOrEqualTo(15.0),
-          reason: 'Veld $name is ${ratio.toStringAsFixed(2)}:1 on white.',
-        );
-      }
-    });
-
-    test('Veld casts no shadow, gradient or rim', () {
-      final veld = TiqSkin.veld();
-      expect(veld.depth.shadows, isEmpty);
-      expect(veld.depth.allowsGradients, isFalse);
-      expect(veld.depth.litRim.a, 0);
-      expect(veld.depth.borderWidth, 2);
-      expect(
-        veld.motion.enabled,
-        isFalse,
-        reason: 'Veld kills every ambient loop.',
-      );
-      expect(veld.motion.resolve(TiqMotion.reveal), Duration.zero);
-    });
-
     test('Night casts no shadow; Day casts exactly three', () {
       expect(
         TiqSkin.night().depth.shadows,
@@ -367,14 +312,6 @@ void main() {
       'day focus bar ink-1 on chart track (well)': 11.12,
       'day nav-active: ground ink on the lifted block': 9.43,
       'day decorative hairline on ground': 1.18,
-      'veld body ink on white': 18.52,
-      'veld secondary ink on white': 9.66,
-      'veld 2px structural border on white': 15.33,
-      'veld ink on the one amber block': 10.34,
-      'veld ink on the pressed amber block': 15.33,
-      'veld ink on solid success block': 9.43,
-      'veld ink on solid critical block': 10.94,
-      'veld white ink on the lifted (Abyssal) block': 15.33,
       // ── The semantic-figure colour, 28 September 2026 ──────────────
       //
       // "On this theme we need to add the colours of green red and some
@@ -451,10 +388,6 @@ void main() {
       expect(
         banRatios['day edge-structure on the Day well'],
         closeTo(2.99, 0.005),
-      );
-      expect(
-        banRatios['veld flame-600 as a line, icon, border or word on white'],
-        closeTo(1.79, 0.005),
       );
     });
   });

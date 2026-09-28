@@ -190,7 +190,7 @@ String attemptsLabel(int n, AppLocalizations l10n) => l10n.deliveryAttempts(n);
 ///
 /// ## Amber, counted
 ///
-/// Not a tab root and no nav, so Night has two content grants and Day and Veld
+/// Not a tab root and no nav, so Night has two content grants and Day
 /// one. Nothing here is armed and nothing is claimed: **zero in every skin**.
 /// A record of what already happened has nothing to light.
 class ReportRunHistoryScreen extends ConsumerStatefulWidget {

@@ -70,8 +70,7 @@ class TorchErrorMessage {
   /// Whether a Retry is honest for this kind.
   final bool offersRetry;
 
-  /// A support code in `mono.ident`. Dropped entirely in Veld: a support code
-  /// is unreadable in glare and useless to an agent on a shelf.
+  /// A support code in `mono.ident`.
   final String? code;
 
   /// The English defaults. A localised screen passes its own strings through
@@ -214,7 +213,6 @@ class ErrorState extends StatelessWidget {
     final skin = context.skin;
     final p = skin.palette;
     final whole = scope == ErrorScope.wholeScreen;
-    final veld = skin.density == TiqDensity.veld;
 
     assert(() {
       if (action != null) {
@@ -340,9 +338,7 @@ class ErrorState extends StatelessWidget {
               style: skin.text.body.style(color: p.ink2),
             ),
           ),
-          // The code is for support, and Veld drops it: unreadable in glare,
-          // useless to an agent on a shelf.
-          if (message.code != null && !veld) ...<Widget>[
+          if (message.code != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s2),
             Text(
               message.code!,
@@ -358,10 +354,7 @@ class ErrorState extends StatelessWidget {
           ],
           if (action != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s6),
-            if (veld)
-              SizedBox(width: double.infinity, child: action!)
-            else
-              Align(alignment: Alignment.centerLeft, child: action!),
+            Align(alignment: Alignment.centerLeft, child: action!),
           ],
         ],
       ),

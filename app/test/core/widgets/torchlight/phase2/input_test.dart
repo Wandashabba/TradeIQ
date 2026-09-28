@@ -24,9 +24,7 @@ void main() {
         // metaphor was true and it was spending the one channel this product
         // uses to say *soft object* to say it; the fill and the resting edge
         // carry the holding instead, and both are asserted below.
-        final expected = skin.density == TiqDensity.veld
-            ? 0.0
-            : skin.radii.control;
+        final expected = skin.radii.control;
         expect(
           spec.radius.bottomLeft.x,
           expected,
@@ -462,8 +460,8 @@ void main() {
         find.text('On'),
         findsOneWidget,
         reason:
-            'Mandatory, and not only in Veld. At a 56dp target in glare a '
-            'thumb position alone is a coin toss.',
+            'Mandatory. At a small target a thumb position alone is a coin '
+            'toss.',
       );
     });
 
@@ -471,7 +469,7 @@ void main() {
       final night = TiqSkin.night(density: TiqDensity.field);
       expect(TorchToggle.trackSizeFor(night), const Size(52, 32));
       expect(TorchToggle.thumbExtentFor(night), 26);
-      expect(TorchToggle.trackSizeFor(TiqSkin.veld()), const Size(64, 36));
+      expect(TorchToggle.trackSizeFor(TiqSkin.day()), const Size(52, 32));
     });
   });
 
@@ -704,28 +702,6 @@ void main() {
       );
     });
 
-    testWidgets('does not scroll its rail in Veld', (tester) async {
-      await pumpPhase2(
-        tester,
-        skin: TiqSkin.veld(),
-        child: TorchFilterRail(
-          chips: <Widget>[
-            TorchFilterChip(label: 'All', selected: true, onSelected: () {}),
-            TorchFilterChip(
-              label: 'Gauteng North',
-              selected: false,
-              onSelected: () {},
-            ),
-          ],
-        ),
-      );
-      expect(
-        find.byType(ListView),
-        findsNothing,
-        reason: 'Horizontal-scroll discovery fails outdoors.',
-      );
-      expect(find.byType(Wrap), findsOneWidget);
-    });
   });
 
   group('the verdict control', () {

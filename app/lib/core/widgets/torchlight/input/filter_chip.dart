@@ -48,11 +48,10 @@ class TorchFilterChip extends StatelessWidget {
 
   final String? semanticsLabel;
 
-  /// 44 Console / 48 Field / 56 Veld.
+  /// 44 Console / 48 Field.
   static double heightFor(TiqSkin skin) => switch (skin.density) {
     TiqDensity.console => 44,
     TiqDensity.field => 48,
-    TiqDensity.veld => TiqSpace.s9,
   };
 
   @override
@@ -169,10 +168,8 @@ class _CountSkeleton extends StatelessWidget {
 
 /// THE RAIL — a horizontally scrolling row of chips with a gutter at each end.
 ///
-/// The last chip is never flush to the screen edge, selected chips are **never
-/// reordered to the front** (reordering under a thumb is a mis-tap), and in
-/// Veld the rail does not scroll at all: horizontal-scroll discovery fails
-/// outdoors, so it becomes a wrap of full-width chips.
+/// The last chip is never flush to the screen edge and selected chips are
+/// **never reordered to the front** — reordering under a thumb is a mis-tap.
 ///
 /// There is never a rail with no selection. When nothing else is chosen, the
 /// leading "All" chip is the selected one — an empty rail and a rail showing
@@ -196,26 +193,6 @@ class TorchFilterRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final gutter = skin.space.gutter;
-
-    if (skin.density == TiqDensity.veld) {
-      return Semantics(
-        container: true,
-        label: semanticsLabel,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: gutter),
-          child: Wrap(
-            spacing: TiqSpace.s2,
-            runSpacing: TiqSpace.s2,
-            children: <Widget>[
-              for (final chip in chips)
-                // Two columns of full-width chips: a 56dp target in sun is the
-                // floor, and two per row is what a 360dp phone holds.
-                FractionallySizedBox(widthFactor: 1, child: chip),
-            ],
-          ),
-        ),
-      );
-    }
 
     return Semantics(
       container: true,

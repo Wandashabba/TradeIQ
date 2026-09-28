@@ -110,13 +110,11 @@ class TroughSpec {
     bool numeric = false,
   }) {
     final p = skin.palette;
-    final veld = skin.density == TiqDensity.veld;
     final border = skin.depth.borderWidth;
 
     final minHeight = switch (skin.density) {
       TiqDensity.console => 44.0,
       TiqDensity.field => TiqSpace.s9,
-      TiqDensity.veld => 64.0,
     };
 
     // READ-ONLY stops looking like a field entirely: no fill, no edge, no
@@ -148,11 +146,9 @@ class TroughSpec {
       // because there is nothing to put in it.
       fill = p.ground;
     } else if (finding) {
-      fill = veld
-          ? p.ground
-          : (skin.brightness == Brightness.dark
-                ? findingWashNight
-                : findingWashDay);
+      fill = skin.brightness == Brightness.dark
+          ? findingWashNight
+          : findingWashDay;
     } else {
       fill = p.well;
     }
@@ -169,9 +165,8 @@ class TroughSpec {
         ? p.ink1
         : p.edgeControl;
 
-    // THICKNESS IS THE FIRST CHANNEL. Rest 1px (2 in Veld), focus and error
-    // 2px (4 in Veld). A reader who cannot separate ink-1 from edge-control
-    // still sees the rule double.
+    // THICKNESS IS THE FIRST CHANNEL. Rest 1px, focus and error 2px. A reader
+    // who cannot separate ink-1 from edge-control still sees the rule double.
     final bottomRuleWidth = (focused || error || finding) ? border * 2 : border;
 
     return TroughSpec._common(
@@ -207,7 +202,6 @@ class TroughSpec {
     required bool numeric,
   }) {
     final p = skin.palette;
-    final veld = skin.density == TiqDensity.veld;
     return TroughSpec(
       state: state,
       minHeight: minHeight,
@@ -218,7 +212,7 @@ class TroughSpec {
       outlineWidth: outlineWidth,
       bottomRule: bottomRule,
       bottomRuleWidth: bottomRuleWidth,
-      horizontalPadding: veld ? TiqSpace.s4 : 14,
+      horizontalPadding: 14,
       verticalPadding: TiqSpace.s4,
       labelGap: TiqSpace.s2,
       helpGap: 6,

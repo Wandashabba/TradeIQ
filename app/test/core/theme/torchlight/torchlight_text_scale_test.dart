@@ -46,7 +46,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final capped = skin.text.all
             .where((t) => t.maxTextScale != null)
@@ -159,7 +158,6 @@ void main() {
           Function()>{
         'night': AppTheme.night,
         'day': AppTheme.day,
-        'veld': AppTheme.veld,
       }.entries) {
         testWidgets('$name survives ${scale}x on a 360dp phone', (
           tester,
