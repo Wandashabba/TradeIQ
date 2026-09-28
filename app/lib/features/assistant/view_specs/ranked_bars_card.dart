@@ -31,8 +31,8 @@ import 'stat_tiles_card.dart' show askUnitFor;
 /// The focus bar carries fill, a 12dp bloom drawn inside the same
 /// `BoxDecoration`, a 7dp filled triangle at its origin, and its label at
 /// `body.strong`. Three of those four survive greyscale, deuteranopia, a
-/// printed export and a sun-washed panel — which is why Day and Veld can drop
-/// the hue entirely and lose nothing.
+/// printed export and a sun-washed panel — which is why Day can drop the hue
+/// entirely and lose nothing.
 ///
 /// ## The label takes two lines before anything truncates
 ///
@@ -195,10 +195,9 @@ class _BarRow extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     final negative = item.value < 0;
     final zero = item.value == 0;
-    final track = veld ? 8.0 : 6.0;
+    const track = 6.0;
 
     final Color fill;
     if (focus) {
@@ -235,7 +234,7 @@ class _BarRow extends StatelessWidget {
             // The bloom is drawn inside the bar's own decoration — never a
             // blur, never a BoxShadow, and never a second draw call.
             bloom: focus ? AskLight.focusBloom(skin, lit: lit) : null,
-            radius: veld ? 0 : track / 2,
+            radius: track / 2,
             growsFromStart: from == AlignmentDirectional.centerStart,
           ),
         ),
@@ -282,7 +281,7 @@ class _BarRow extends StatelessWidget {
       excludeSemantics: true,
       child: RepaintBoundary(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: veld ? TiqSpace.s3 : TiqSpace.s2),
+          padding: const EdgeInsets.symmetric(vertical: TiqSpace.s2),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -296,7 +295,7 @@ class _BarRow extends StatelessWidget {
               // The triangle's slot is kept on every row so the focus row's
               // track is not shorter than its neighbours'.
               if (!focus)
-                SizedBox(width: MarkScale.glyph(context, veld ? 9 : 7) + TiqSpace.s1),
+                SizedBox(width: MarkScale.glyph(context, 7) + TiqSpace.s1),
               if (focus) ...<Widget>[
                 // A filled triangle at the bar's origin, pointing right. One
                 // of the focus bar's four channels, and the one that survives
@@ -306,7 +305,7 @@ class _BarRow extends StatelessWidget {
                   child: TiqMark(
                     shape: MarkShape.deltaUp,
                     color: AskLight.focusFill(skin, lit: lit),
-                    size: MarkScale.glyph(context, veld ? 9 : 7),
+                    size: MarkScale.glyph(context, 7),
                   ),
                 ),
                 const SizedBox(width: TiqSpace.s1),
@@ -315,7 +314,7 @@ class _BarRow extends StatelessWidget {
                 flex: 62,
                 // THE TRACK IS `well` ON PAPER — 26 September 2026, and the
                 // same value `Meter._trackFill` resolves. `lifted` is a dark
-                // block in all three skins (#2C3B4D, #2C3B4D, #1B2632): on
+                // block in both skins (#2C3B4D, #2C3B4D): on
                 // Night that is a step up from the ground and reads as a
                 // recess, and on Day's Palladian paper it is a navy channel
                 // with a small `good` bar floating in it. A track recesses by
@@ -326,7 +325,7 @@ class _BarRow extends StatelessWidget {
                     color: skin.brightness == Brightness.dark
                         ? p.lifted
                         : p.well,
-                    borderRadius: BorderRadius.circular(veld ? 0 : track / 2),
+                    borderRadius: BorderRadius.circular(track / 2),
                   ),
                   child: SizedBox(
                     height: track * 2,

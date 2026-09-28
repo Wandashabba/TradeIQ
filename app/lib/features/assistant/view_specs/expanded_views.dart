@@ -127,9 +127,6 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
     final readings = _readingsFrom(_data['points']);
     final comparison = _readingsFrom(_comparison['points']);
     final subtitle = expandedArtifactSubtitle(context, widget.artifact);
-    // Veld draws no plot (unify §4), so the toggle would be a control with one
-    // working position. The table is simply what Veld shows.
-    final veld = skin.mode == SkinMode.veld;
     final measured = readings.any((r) => r.value != null);
 
     return Column(
@@ -155,14 +152,12 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
           // Not decoration: a chart that is the only way to read a value fails
           // anyone using a screen reader, printing it, or checking an exact
           // figure.
-          if (!veld) ...<Widget>[
-            ChartTableToggle(
-              asTable: _asTable,
-              onChanged: (value) => setState(() => _asTable = value),
-            ),
-            const SizedBox(height: TiqSpace.s4),
-          ],
-          if (veld || _asTable)
+          ChartTableToggle(
+            asTable: _asTable,
+            onChanged: (value) => setState(() => _asTable = value),
+          ),
+          const SizedBox(height: TiqSpace.s4),
+          if (_asTable)
             ArtifactTableView(table: artifactTableFor(widget.artifact))
           else
             TrendChart(

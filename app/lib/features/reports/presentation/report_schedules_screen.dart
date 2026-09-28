@@ -112,7 +112,7 @@ String nextRunLabel(ReportSchedule schedule, AppLocalizations l10n) {
 /// ## The one amber, counted
 ///
 /// A tab root: the nav pill's active tab is slot 1 and nothing here is armed,
-/// so the content grant goes unspent. Day and Veld paint zero.
+/// so the content grant goes unspent. Day paints zero.
 class ReportSchedulesScreen extends ConsumerStatefulWidget {
   const ReportSchedulesScreen({super.key});
 

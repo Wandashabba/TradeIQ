@@ -38,9 +38,10 @@ import '../data/trends_repository.dart';
 /// ## The chart is never the only way to read a value
 ///
 /// Every panel carries a **table twin** behind a two-chip toggle, and it is
-/// not a debug view: it is what a screen reader gets, what a printer gets, and
-/// what **Veld** gets, because Veld draws no charts at all (unify §4). The
-/// twin carries the unabbreviated period — the axis says `W26` because it has
+/// not a debug view: it is what a screen reader gets and what a printer gets.
+/// A drag-scrub plot is not reachable without a pointer; the table is the
+/// reading that is. The twin carries the unabbreviated period — the axis says
+/// `W26` because it has
 /// 40dp; the table says `2026-W26` because a manager quoting a week into a
 /// spreadsheet needs the year.
 ///
@@ -60,7 +61,7 @@ import '../data/trends_repository.dart';
 /// objects asking, the budget is counted per route rather than per viewport,
 /// and a grant that released on scroll is a grant that blinks. The subject
 /// series is carried by weight, by a solid stroke against a dashed one and by
-/// the legend's word instead. Day and Veld: zero, on every phase.
+/// the legend's word instead. Day: zero, on every phase.
 class TrendsScreen extends ConsumerWidget {
   const TrendsScreen({super.key});
 
@@ -150,9 +151,6 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final async = ref.watch(widget.provider);
-    // Veld draws no chart, so the toggle would be a control with one working
-    // position. The table is simply what Veld shows.
-    final veld = context.skin.mode == SkinMode.veld;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -160,20 +158,16 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
       children: <Widget>[
         SectionRule(widget.heading),
         const SizedBox(height: TiqSpace.s3),
-        if (!veld) ...<Widget>[
-          _ViewToggle(
-            asTable: _asTable,
-            onChanged: (v) => setState(() => _asTable = v),
-          ),
-          const SizedBox(height: TiqSpace.s4),
-        ],
+        _ViewToggle(
+          asTable: _asTable,
+          onChanged: (v) => setState(() => _asTable = v),
+        ),
+        const SizedBox(height: TiqSpace.s4),
         async.when(
           loading: () => Skeleton(
             label: widget.heading,
             slowLine: l10n.torchStillFetching,
-            child: SkeletonShell(
-              height: veld ? 120 : trendChartHeight(context),
-            ),
+            child: SkeletonShell(height: trendChartHeight(context)),
           ),
           error: (error, _) => TorchErrorRegion(
             name: widget.heading,
@@ -218,7 +212,7 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
               lowSampleWord: l10n.trendsSmallSample,
               semanticsLabel: widget.heading,
             );
-            if (veld || _asTable) return table;
+            if (_asTable) return table;
             return TrendChart(
               series: <ChartSeries>[series],
               unit: widget.unit,
@@ -742,8 +736,7 @@ class _BenchmarkChart extends StatelessWidget {
   final TerritoryBenchmarkReport report;
   final TiqUnit unit;
 
-  /// Whether the reader asked for the table. Veld ignores it and shows the
-  /// table regardless, because Veld draws no plot at all.
+  /// Whether the reader asked for the table.
   final bool asTable;
   final ValueChanged<bool> onViewChanged;
 
@@ -790,7 +783,6 @@ class _BenchmarkChart extends StatelessWidget {
       readings: readings(report.client.points),
     );
     final gaps = subject.gaps;
-    final veld = context.skin.mode == SkinMode.veld;
     final kind = _metricKind(report.metric);
 
     return Column(
@@ -798,16 +790,10 @@ class _BenchmarkChart extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         SectionRule(l10n.trendsAgainstClient(territory.territoryName)),
-        // Veld draws no plot, so the toggle would be a control with one
-        // working position — the same reasoning as the over-time panels.
-        if (veld)
-          const SizedBox(height: TiqSpace.s4)
-        else ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
-          _ViewToggle(asTable: asTable, onChanged: onViewChanged),
-          const SizedBox(height: TiqSpace.s4),
-        ],
-        if (veld || asTable)
+        const SizedBox(height: TiqSpace.s3),
+        _ViewToggle(asTable: asTable, onChanged: onViewChanged),
+        const SizedBox(height: TiqSpace.s4),
+        if (asTable)
           TableTwin(
             key: const ValueKey<String>('benchmark-table'),
             series: <ChartSeries>[subject, comparison],

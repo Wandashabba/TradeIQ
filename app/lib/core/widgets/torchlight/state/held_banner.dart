@@ -151,10 +151,9 @@ class OfflineHeldBanner extends StatelessWidget {
 
   final String openLabel;
 
-  /// 56 on Night and Day, 72 in Veld. **Every state is the same height**, so
-  /// content beneath never jumps when the state changes.
-  static double heightFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? 72 : 56;
+  /// 56. **Every state is the same height**, so content beneath never jumps
+  /// when the state changes.
+  static double heightFor(TiqSkin skin) => 56;
 
   @override
   Widget build(BuildContext context) {

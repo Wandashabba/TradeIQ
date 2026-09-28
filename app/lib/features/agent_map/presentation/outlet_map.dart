@@ -22,17 +22,10 @@ import 'outlet_sheet.dart';
 ///
 /// ## When there is no map
 ///
-/// Three conditions, all of them ordinary rather than exceptional, and each
+/// Two conditions, both of them ordinary rather than exceptional, and each
 /// one says so in words rather than leaving a grey rectangle:
 ///
-/// 1. **Veld.** Maps do not render in the outdoor skin (unify §4: "the plate,
-///    sparklines, trend charts, maps and thumbnails do not render; figure
-///    lists replace them"). This is not a concession — a dark basemap read in
-///    direct sun at 40% backlight is a black rectangle, and the one screen an
-///    agent uses standing in a forecourt at midday is the last place to ship
-///    one. The figure list that replaces it is the store list, which was
-///    always there: name, code, state word and distance, nearest first.
-/// 2. **No room.** The region takes the plate's fold budget —
+/// 1. **No room.** The region takes the plate's fold budget —
 ///    `min(clamp(0.44·vh, 200, 360), vh − 440)` — and below 200dp it does not
 ///    render. The plate collapses to a 96dp band at that point; a map does
 ///    not, because 96dp of basemap at street zoom is four buildings and no
@@ -40,7 +33,7 @@ import 'outlet_sheet.dart';
 ///    sideways are exactly this case: 440dp is the header, the legend, two
 ///    rows and the nav, and a map that ate them would be a map of nothing you
 ///    could act on.
-/// 3. **No tiles.** See [_TilesOff].
+/// 2. **No tiles.** See [_TilesOff].
 ///
 /// ## The paint budget
 ///
@@ -95,7 +88,6 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
     final skin = context.skin;
     final height = agentMapHeight(context);
 
-    if (skin.mode == SkinMode.veld) return const _VeldNote();
     if (height <= 0) return const SizedBox.shrink();
 
     final offline = _failures >= AgentOutletMap.debugFailureThreshold;
@@ -133,8 +125,6 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
 /// promised a map to a screen that has no room for one would push the whole
 /// list down and then snap it back.
 double agentMapHeight(BuildContext context) {
-  final skin = context.skin;
-  if (skin.mode == SkinMode.veld) return 0;
   final viewport = MediaQuery.sizeOf(context).height;
   final budget = math.min(
     (viewport * 0.44).clamp(200.0, 360.0),
@@ -374,7 +364,7 @@ class MapPinGlyph extends StatelessWidget {
 
   /// True on the basemap, which is the same dark canvas in every skin (see
   /// [TiqTileLayer]) — so the glyph takes the Night palette there whatever the
-  /// app around it is wearing, rather than painting Veld's near-black ink on a
+  /// app around it is wearing, rather than painting Day's dark ink on a
   /// near-black tile.
   final bool onDarkGround;
 
@@ -649,23 +639,6 @@ class _TilesOff extends StatelessWidget {
         headline: l10n.mapTilesOffTitle,
         scope: EmptyScope.inline,
         body: l10n.mapTilesOffBody,
-      ),
-    );
-  }
-}
-
-/// Veld has no map, and says so once.
-class _VeldNote extends StatelessWidget {
-  const _VeldNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    return Padding(
-      padding: EdgeInsets.only(bottom: skin.space.intraBlock),
-      child: Text(
-        context.l10n.mapVeldNote,
-        style: skin.text.body.style(color: skin.palette.ink2),
       ),
     );
   }

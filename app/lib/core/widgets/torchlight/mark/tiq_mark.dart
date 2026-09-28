@@ -150,8 +150,7 @@ class TiqMark extends StatelessWidget {
   /// caller knows which it is holding — see [MarkScale].
   final double size;
 
-  /// Defaults to 2, or 3 in Veld, where a 2px line at arm's length in glare is
-  /// a smudge. 1.5 for the low-sample and reconciliation marks, which say
+  /// Defaults to 2. 1.5 for the low-sample and reconciliation marks, which say
   /// "less committed" with a lighter stroke rather than a paler colour.
   final double? strokeWidth;
 
@@ -175,7 +174,7 @@ class TiqMark extends StatelessWidget {
     );
   }
 
-  /// 2dp on Night and Day, 3dp in Veld.
+  /// 2dp on Night and Day.
   static double defaultStrokeFor(TiqSkin skin) =>
       skin.depth.borderWidth >= 2 ? 3 : 2;
 }

@@ -295,7 +295,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             managerPage(const TerritoryFormScreen()),
       ),
       // One territory as ground: every outlet in it, whether anyone has been,
-      // and the list that replaces the map in Veld and with no tiles.
+      // and the list that replaces the map when there are no tiles.
       //
       // It reads the same coverage endpoint the list does, which has no role
       // restriction, so it is not in `managerOnly` — every role that can see

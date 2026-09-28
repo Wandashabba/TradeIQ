@@ -80,7 +80,7 @@ String? filterDateError(String raw, AppLocalizations l10n) {
 ///
 /// ## Amber, counted
 ///
-/// Untabbed and no nav, so Night has two content grants and Day and Veld one.
+/// Untabbed and no nav, so Night has two content grants and Day one.
 /// The claim is declared **only while the primary is armed**, so an empty form
 /// carries zero amber in every skin and a fillable one exactly one.
 class ReportFormScreen extends ConsumerStatefulWidget {

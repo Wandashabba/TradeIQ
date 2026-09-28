@@ -1662,9 +1662,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get skinNight => 'Nag';
 
   @override
-  String get skinVeld => 'Veld, die buitelug-skerm met hoë kontras';
-
-  @override
   String get syncChipAllSent => 'Alles gestuur';
 
   @override
@@ -2001,10 +1998,6 @@ class AppLocalizationsAf extends AppLocalizations {
       'Die kaart laai nie — daar is niks om dit mee te haal nie. Jou winkels is hieronder gelys, en die lys het geen verbinding nodig nie.';
 
   @override
-  String get mapVeldNote =>
-      'Die kaart is af in helder son. Jou winkels is hieronder gelys, naaste eerste.';
-
-  @override
   String get mapEmptyTitle => 'Nog geen winkels nie';
 
   @override
@@ -2046,9 +2039,6 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get mapLegendLabel => 'Wat die spelde beteken';
-
-  @override
-  String get sheetClose => 'Maak toe';
 
   @override
   String get askTitle => 'Vra TradeIQ';
@@ -2708,10 +2698,6 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String get askMapNotInVeld =>
-      'Kaarte word nie in Veld geteken nie. Die winkels word eerder gelys.';
-
-  @override
   String get visitPinTooFarToReport =>
       'Dit is te ver om die speld van hier af aan te meld. Vra jou bestuurder om hierdie winkel reg te stel.';
 
@@ -3241,9 +3227,6 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get syncBannerOpen => 'tik om jou werk oop te maak';
-
-  @override
-  String get commonClose => 'Maak toe';
 
   @override
   String pickerStartVisitSemantics(String name, String code) {
@@ -7197,13 +7180,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String trailCheckedInAt(String time) {
     return 'ingeklok om $time';
   }
-
-  @override
-  String get trailNoMapHeadline => 'Geen kaart in die son nie.';
-
-  @override
-  String get trailNoMapBody =>
-      '’n Donker basiskaart wat buite gelees word is ’n swart reghoek. Elke stop is hieronder gelys, in volgorde, met die tyd waarop dit bevestig is.';
 
   @override
   String get trailMapOfflineHeadline => 'Die kaart wil nie laai nie.';

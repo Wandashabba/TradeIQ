@@ -206,13 +206,7 @@ enum ContrastRole {
   /// Decorative, or exempt under 1.4.3 (disabled controls). No floor — but it
   /// must be *declared* exempt, with the reason, so that "it's decorative" is
   /// a decision on the record rather than an excuse found later.
-  exempt(1.0),
-
-  /// Veld's own floor. Nothing that carries a word outdoors goes under 9:1.
-  veldText(9.0),
-
-  /// Veld's border floor.
-  veldBorder(15.0);
+  exempt(1.0);
 
   const ContrastRole(this.floor);
 
@@ -284,7 +278,6 @@ class TorchlightContrast {
 
   static final TiqSkin _night = TiqSkin.night();
   static final TiqSkin _day = TiqSkin.day();
-  static final TiqSkin _veld = TiqSkin.veld();
 
   /// The scrim that sits under any text block laid over a plate:
   /// `ground @ 80%`. The worst case a hero number can meet is this scrim over
@@ -295,7 +288,6 @@ class TorchlightContrast {
   static List<ContrastPairing> get declared {
     final n = _night.palette;
     final d = _day.palette;
-    final v = _veld.palette;
     return <ContrastPairing>[
       // ── NIGHT ────────────────────────────────────────────────────────
       ContrastPairing(
@@ -703,95 +695,6 @@ class TorchlightContrast {
         role: ContrastRole.exempt,
         note: 'Decorative only.',
       ),
-      // ── VELD ─────────────────────────────────────────────────────────
-      ContrastPairing(
-        skin: 'veld',
-        label: 'body ink on white',
-        foreground: v.ink1,
-        background: v.ground,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'secondary ink on white',
-        foreground: v.ink2,
-        background: v.ground,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'tertiary ink on white',
-        foreground: v.ink3,
-        background: v.ground,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'neutral bar on white',
-        foreground: v.chartNeutral,
-        background: v.ground,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: '2px structural border on white',
-        foreground: v.edgeStructure,
-        background: v.ground,
-        role: ContrastRole.veldBorder,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: '2px control border on white',
-        foreground: v.edgeControl,
-        background: v.ground,
-        role: ContrastRole.veldBorder,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'hairline (a 2px solid border here) on white',
-        foreground: v.hairline,
-        background: v.ground,
-        role: ContrastRole.veldBorder,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'ink on the one amber block',
-        foreground: v.onAmber,
-        background: v.flame600,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'ink on the pressed amber block',
-        foreground: v.onAmberPressed,
-        background: v.amberPressed,
-        role: ContrastRole.veldText,
-        note:
-            'Veld does not lighten on press: veld-ink on flame-500 is 8.34:1, '
-            'under the 9:1 floor Veld declares for every word. It inverts to '
-            'the ink block instead.',
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'ink on solid success block',
-        foreground: v.onGoodSolid,
-        background: v.goodSolid,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'ink on solid critical block',
-        foreground: v.onBadSolid,
-        background: v.badSolid,
-        role: ContrastRole.veldText,
-      ),
-      ContrastPairing(
-        skin: 'veld',
-        label: 'white ink on the lifted (Abyssal) block',
-        foreground: v.ground,
-        background: v.lifted,
-        role: ContrastRole.veldText,
-      ),
     ];
   }
 
@@ -833,8 +736,8 @@ class TorchlightContrast {
     // The ink ramp only. `good`, `bad` and `comparison` are *marks* that
     // sometimes carry a word, and where they do the pairing is written down by
     // hand in [declared] with the surface it is written for — Truffle as text
-    // on the Day well is 4.02:1 and on Veld white is 5.54:1, and neither is a
-    // pairing this system uses. Sweeping them everywhere would fail on
+    // on the Day well is 4.02:1, which is not a pairing this system uses.
+    // Sweeping them everywhere would fail on
     // combinations nothing renders, which is how a generated test gets
     // switched off.
     final inks = <String, Color>{
@@ -844,9 +747,7 @@ class TorchlightContrast {
     };
 
     for (final role in skin.text.all) {
-      final roleFloor = _roleContrast(role);
-      final floor = skin.floorFor(roleFloor.floor, isText: true);
-      final effective = _roleFor(floor);
+      final effective = _roleContrast(role);
       for (final MapEntry(key: inkName, value: ink) in inks.entries) {
         for (final MapEntry(key: bgName, value: bg) in textGrounds.entries) {
           out.add(
@@ -862,9 +763,7 @@ class TorchlightContrast {
       }
     }
 
-    final graphic = _roleFor(
-      skin.floorFor(ContrastRole.graphic.floor, isText: false),
-    );
+    const graphic = ContrastRole.graphic;
     for (final MapEntry(key: bgName, value: bg) in <String, Color>{
       'ground': p.ground,
       'surface': p.surface,
@@ -893,16 +792,12 @@ class TorchlightContrast {
     return out;
   }
 
-  /// Every skin × density the app can actually build. Veld appears once
-  /// because `TiqSkin.veld()` takes no density argument — `Veld × Console`
-  /// has no spelling, and a generator that invented one would be testing a
-  /// configuration no user can reach.
+  /// Every skin × density the app can actually build.
   static List<TiqSkin> get allSkinsAndDensities => <TiqSkin>[
     TiqSkin.night(density: TiqDensity.console),
     TiqSkin.night(density: TiqDensity.field),
     TiqSkin.day(density: TiqDensity.console),
     TiqSkin.day(density: TiqDensity.field),
-    TiqSkin.veld(),
   ];
 
   /// WCAG 1.4.3's large-text rule, applied to a declared role rather than
@@ -912,13 +807,6 @@ class TorchlightContrast {
           (role.size >= 18.66 && role.weight.value >= FontWeight.w600.value)
       ? ContrastRole.largeText
       : ContrastRole.text;
-
-  static ContrastRole _roleFor(double floor) {
-    if (floor >= ContrastRole.veldBorder.floor) return ContrastRole.veldBorder;
-    if (floor >= ContrastRole.veldText.floor) return ContrastRole.veldText;
-    if (floor >= ContrastRole.text.floor) return ContrastRole.text;
-    return ContrastRole.graphic;
-  }
 
   /// The separation floor a pair must clear on luminance alone before it is
   /// allowed to rely on colour at all. Below this, hue is decoration and the
@@ -936,7 +824,7 @@ class TorchlightContrast {
   /// fine.
   static List<SeriesPair> get seriesPairs {
     final out = <SeriesPair>[];
-    for (final skin in <TiqSkin>[_night, _day, _veld]) {
+    for (final skin in <TiqSkin>[_night, _day]) {
       final name = skin.mode.name;
       final p = skin.palette;
       // On a light ground the focus channel is ink, not amber: the one amber
@@ -1076,7 +964,6 @@ class TorchlightContrast {
   static List<BannedPairing> get banned {
     final n = _night.palette;
     final d = _day.palette;
-    final v = _veld.palette;
     return <BannedPairing>[
       BannedPairing(
         skin: 'night',
@@ -1118,16 +1005,6 @@ class TorchlightContrast {
         instead:
             'edge-control #6E6657, or put the container on the ground or the '
             'surface instead of in the well.',
-      ),
-      BannedPairing(
-        skin: 'veld',
-        label: 'flame-600 as a line, icon, border or word on white',
-        foreground: v.flame600,
-        background: v.ground,
-        wouldNeed: ContrastRole.graphic,
-        instead:
-            'A solid amber block carrying veld-ink, once per screen, on the '
-            'primary commit action — or veld-ink itself for a line or a word.',
       ),
     ];
   }

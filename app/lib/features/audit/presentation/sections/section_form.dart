@@ -45,8 +45,8 @@ import '../../data/visit_progress.dart';
 /// A section is an **untabbed** route, so Night allows two content objects. It
 /// spends **one**, and only when there is something to commit: the inline
 /// `Save` takes `primaryCommit` the moment the form is dirty, and declares no
-/// claim at all before the first edit or after a successful save. Day and Veld
-/// are the same one object. The thumb zone's `Save and go back` is a **ghost**
+/// claim at all before the first edit or after a successful save. Day
+/// is the same one object. The thumb zone's `Save and go back` is a **ghost**
 /// in every skin — two amber saves in one frame is the repeated-fill violation
 /// the law exists to stop, and the inline Save is the one the spec calls "the
 /// only thing that persists".

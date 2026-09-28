@@ -36,8 +36,8 @@ import '../data/territories_view.dart';
 /// A sheet is an untabbed route and the nav's tab beneath it has already gone
 /// out, so both of Night's grants belong to the sheet. The **evidence pane
 /// spends none** — coverage is a reading, not an action. The **roster pane
-/// spends one**: `Assign` at rung 1. Day and Veld spend their single grant on
-/// the same block, and nothing else on either pane asks.
+/// spends one**: `Assign` at rung 1. Day spends its single grant on the same
+/// block, and nothing else on either pane asks.
 Future<void> showTerritoryDetailSheet(
   BuildContext context, {
   required Territory territory,
@@ -315,13 +315,6 @@ class _CoverageCluster extends StatelessWidget {
     final visited = coverage.outletsVisited;
     final total = coverage.outletsTotal;
 
-    // Veld takes two cells, not four (unify §1.4 / the cluster's own
-    // assertion): outdoors a grid is read one cell at a time and a third
-    // column is a column nobody reaches. The outlet count is the one that
-    // goes, because it is already in the header of the map this sheet opens
-    // and it is the least actionable of the three.
-    final veld = context.skin.density == TiqDensity.veld;
-
     return StatCluster(
       semanticsLabel: l10n.territoryCoverageCluster,
       tiles: <StatTile>[
@@ -340,14 +333,13 @@ class _CoverageCluster extends StatelessWidget {
               ? l10n.territoryVisitedOf(visited, total)
               : null,
         ),
-        if (!veld)
-          StatTile(
-            eyebrow: l10n.territoryOutletsWord,
-            // outletCount is the length of a list the server sent, so it is
-            // measured whenever the block arrived at all — including at zero.
-            value: coverage.outletCount,
-            unit: TiqUnit.none,
-          ),
+        StatTile(
+          eyebrow: l10n.territoryOutletsWord,
+          // outletCount is the length of a list the server sent, so it is
+          // measured whenever the block arrived at all — including at zero.
+          value: coverage.outletCount,
+          unit: TiqUnit.none,
+        ),
         StatTile(
           eyebrow: l10n.territoryAgentsWord,
           value: coverage.agentCount,

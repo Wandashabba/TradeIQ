@@ -23,8 +23,8 @@ import '../data/campaigns_repository.dart';
 ///
 /// ## The amber, counted
 ///
-/// Not a tab root and no nav, so Night has two content grants and Day and Veld
-/// have one. The only claim is the save action, declared only while the form
+/// Not a tab root and no nav, so Night has two content grants and Day
+/// has one. The only claim is the save action, declared only while the form
 /// can be submitted: a busy form carries zero amber, a ready one exactly one.
 ///
 /// ## Where the validation went

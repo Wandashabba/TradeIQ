@@ -40,7 +40,7 @@ import 'contest_labels.dart';
 /// renders, and this route declines the one content grant it has left.
 /// Nothing here is armed — creating a contest is a ghost at the foot of the
 /// list, not a commit, and the status chips are a `live` dot and an Oatmeal
-/// square. Day and Veld have one rung, the primary commit block, and this
+/// square. Day has one rung, the primary commit block, and this
 /// route has no primary: they paint **zero**.
 ///
 /// While a confirm sheet is up every amber beneath it goes out, which

@@ -56,10 +56,10 @@ import '../data/contests_repository.dart';
 ///
 /// ## The amber, counted
 ///
-/// Pushed, so no nav and no tab: Night has two content grants and Day and Veld
-/// have one. This screen declares **none of them**. Nothing here is a commit —
+/// Pushed, so no nav and no tab: Night has two content grants and Day
+/// has one. This screen declares **none of them**. Nothing here is a commit —
 /// a contest is something an agent reads, and the running chip is a `live` dot
-/// and a word, which is a label. Night, Day and Veld all paint **zero**.
+/// and a word, which is a label. Night and Day both paint **zero**.
 class MyContestsScreen extends ConsumerWidget {
   const MyContestsScreen({super.key});
 

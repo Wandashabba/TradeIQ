@@ -21,17 +21,14 @@ import 'live_location_layer.dart';
 
 /// THE TRAIL MAP — a fixed-height band above the trail list, or nothing.
 ///
-/// Three conditions remove it, and each says so in words rather than leaving a
-/// grey rectangle. They are the same three the agent's own map declares, and
-/// for the same reasons:
+/// Two conditions remove it, and each says so in words rather than leaving a
+/// grey rectangle. They are the same two the agent's own map declares, and for
+/// the same reasons:
 ///
-/// 1. **Veld.** Maps do not render in the outdoor skin (unify §4). The list
-///    beneath is not a fallback — it is the same day in the same order, with
-///    the agent named and every stop numbered.
-/// 2. **No room.** The band takes the plate's fold budget and does not render
+/// 1. **No room.** The band takes the plate's fold budget and does not render
 ///    below 200dp: 96dp of basemap at street zoom is four buildings and no
 ///    orientation.
-/// 3. **No tiles.** A forecourt with no signal. A tile request that fails *is*
+/// 2. **No tiles.** A forecourt with no signal. A tile request that fails *is*
 ///    the offline signal on this screen.
 ///
 /// ## The paint budget
@@ -47,8 +44,6 @@ import 'live_location_layer.dart';
 /// outlined ones, which is a silhouette and therefore survives greyscale, a
 /// screenshot in an email and a reader.
 double trailMapHeight(BuildContext context) {
-  final skin = context.skin;
-  if (skin.mode == SkinMode.veld) return 0;
   final viewport = MediaQuery.sizeOf(context).height;
   final budget = math.min(
     (viewport * 0.44).clamp(200.0, 360.0),
@@ -116,7 +111,6 @@ class _TrailMapState extends State<TrailMap> {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final height = trailMapHeight(context);
-    if (skin.mode == SkinMode.veld) return const _VeldNote();
     if (height <= 0) return const SizedBox.shrink();
     if (_failures >= TrailMap.debugFailureThreshold) return const _TilesOff();
 
@@ -399,8 +393,8 @@ class TrailStopPin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The basemap is the same dark canvas in every skin, so the pin takes the
-    // Night palette wherever the console is — rather than painting Veld's
-    // near-black ink on a near-black tile.
+    // Night palette wherever the console is — rather than painting Day's dark
+    // ink on a near-black tile.
     final night = TiqSkin.night();
     final p = night.palette;
     final time = trailStopTime(stop.checkinTs);
@@ -533,22 +527,6 @@ String trailStopTime(DateTime at) {
   final hh = t.hour.toString().padLeft(2, '0');
   final mm = t.minute.toString().padLeft(2, '0');
   return '$hh:$mm';
-}
-
-/// Veld does not draw a map. It says so, and the trail list below is the day.
-class _VeldNote extends StatelessWidget {
-  const _VeldNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return EmptyState(
-      key: const ValueKey<String>('trail-map-veld'),
-      scope: EmptyScope.inPanel,
-      headline: l10n.trailNoMapHeadline,
-      body: l10n.trailNoMapBody,
-    );
-  }
 }
 
 /// Tiles that never arrived. A forecourt with no signal is a normal Tuesday.

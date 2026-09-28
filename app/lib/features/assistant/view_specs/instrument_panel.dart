@@ -56,15 +56,14 @@ class InstrumentPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     // An empty panel reads as a bug and a dropped one reads as an answer that
     // did not need figures. Every container on this surface is dropped rather
     // than rendered empty.
     if (blocks.isEmpty) return const SizedBox.shrink();
 
-    final padding = veld ? TiqSpace.s6 : TiqSpace.s4;
-    final gap = veld ? TiqSpace.s8 : TiqSpace.s6;
-    final ruleWidth = veld ? 2.0 : skin.depth.borderWidth;
+    const padding = TiqSpace.s4;
+    const gap = TiqSpace.s6;
+    final ruleWidth = skin.depth.borderWidth;
 
     return Semantics(
       container: true,
@@ -76,10 +75,6 @@ class InstrumentPanel extends StatelessWidget {
       // panel with an `edgeStructure` rim and `sh1` on Day, which is the
       // grammar The Floor left behind: radius 22, `surface`, no outline, and
       // no shadow in any skin.
-      //
-      // Veld is `TorchCard`'s own answer and no longer this widget's: radius
-      // 0 with the skin's 2px border, which is what the `veld ?` branches here
-      // were spelling out by hand.
       //
       // Vertical padding only: the side gutters are each block's own, so the
       // rules between blocks can run edge to edge without a negative margin —
@@ -101,7 +96,7 @@ class InstrumentPanel extends StatelessWidget {
                   // underline on the block above it.
                   SizedBox(
                     height: ruleWidth,
-                    child: ColoredBox(color: veld ? p.ink1 : p.edgeStructure),
+                    child: ColoredBox(color: p.edgeStructure),
                   ),
                   SizedBox(height: gap / 2),
                 ],

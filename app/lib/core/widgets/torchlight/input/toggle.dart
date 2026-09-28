@@ -48,12 +48,10 @@ class TorchToggle extends StatelessWidget {
   /// end.
   final String? disabledReason;
 
-  /// Track geometry. One set of numbers, scaled up in Veld only.
-  static Size trackSizeFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? const Size(64, 36) : const Size(52, 32);
+  /// Track geometry. One set of numbers.
+  static Size trackSizeFor(TiqSkin skin) => const Size(52, 32);
 
-  static double thumbExtentFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? 30 : 26;
+  static double thumbExtentFor(TiqSkin skin) => 26;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +62,6 @@ class TorchToggle extends StatelessWidget {
     final track = trackSizeFor(skin);
     final thumbExtent = thumbExtentFor(skin);
     final inset = (track.height - thumbExtent) / 2;
-    final veld = skin.density == TiqDensity.veld;
     final word = value ? onWord : offWord;
 
     final Color trackFill;
@@ -77,16 +74,14 @@ class TorchToggle extends StatelessWidget {
       thumbFill = p.inkMute;
       tickInk = p.ground;
     } else if (value) {
-      // Veld keeps its 2px border in BOTH states, because outdoors a border
-      // that comes and goes is a control that changes shape.
-      trackFill = veld ? p.goodSolid : p.good;
-      trackBorder = veld ? p.ink1 : p.good;
-      thumbFill = veld ? p.ground : p.ground;
-      tickInk = veld ? p.goodSolid : p.good;
+      trackFill = p.good;
+      trackBorder = p.good;
+      thumbFill = p.ground;
+      tickInk = p.good;
     } else {
       trackFill = p.well;
       trackBorder = p.edgeControl;
-      thumbFill = veld ? p.lifted : p.ink3;
+      thumbFill = p.ink3;
       tickInk = trackFill;
     }
 
@@ -117,7 +112,7 @@ class TorchToggle extends StatelessWidget {
                 painter: _ThumbPainter(
                   fill: thumbFill,
                   tick: value ? tickInk : null,
-                  strokeWidth: veld ? 3 : 2,
+                  strokeWidth: 2,
                 ),
               ),
             ),
@@ -151,9 +146,8 @@ class TorchToggle extends StatelessWidget {
           ),
         ),
         const SizedBox(width: TiqSpace.s3),
-        // THE WORD. Never optional, and never only in Veld: the state has to
-        // survive greyscale, a screen reader and a photograph of a screen sent
-        // over WhatsApp.
+        // THE WORD. Never optional: the state has to survive greyscale, a
+        // screen reader and a photograph of a screen sent over WhatsApp.
         Text(
           word,
           style: skin.text.label

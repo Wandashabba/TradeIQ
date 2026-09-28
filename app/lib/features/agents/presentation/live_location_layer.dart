@@ -38,7 +38,7 @@ import '../data/agent_locations_repository.dart';
 ///
 /// **The map geometry reads the Night palette in every skin.** The basemap is
 /// the same dark canvas whatever the console around it wears, so a pin paints
-/// Palladian on near-black rather than Veld's near-black ink on a near-black
+/// Palladian on near-black rather than Day's dark ink on a near-black
 /// tile. `trail_map.dart` does the same, for the same reason.
 
 /// The palette every pin on the basemap paints from, whatever skin the console

@@ -30,8 +30,8 @@ import '../../theme/torchlight/tiq_skin.dart';
 ///
 /// A local [AnimationController], not the shared application Ticker: this is
 /// full-screen, short-lived and exclusive, and it is disposed the instant a
-/// result arrives. Under [MotionBudget.still] — reduce-motion, Veld, battery
-/// saver — there are no rings at all: a static pin and the headline carry the
+/// result arrives. Under [MotionBudget.still] — reduce-motion, battery saver
+/// — there are no rings at all: a static pin and the headline carry the
 /// whole message, and nothing here ever depended on motion to be understood.
 class CheckInRadar extends StatefulWidget {
   const CheckInRadar({

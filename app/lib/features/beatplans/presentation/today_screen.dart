@@ -53,9 +53,9 @@ import '../data/today_route.dart';
 ///
 /// When the route is done there is no next stop and therefore no primary, and
 /// the circle takes the grant instead: *start a visit somewhere else* is then
-/// genuinely the expected next move. On Day and Veld the ladder has one rung
-/// and the circle is denied there too, so a finished route outdoors carries
-/// **zero** amber — which is correct, because nothing is armed.
+/// genuinely the expected next move. On Day the ladder has one rung and the
+/// circle is denied there too, so a finished route carries **zero** amber —
+/// which is correct, because nothing is armed.
 ///
 /// ## Distances are a figure or a sentence, never a guess
 ///
@@ -518,8 +518,8 @@ class _NextUpCard extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
-    // NO SHADOW. `skin.depth.shadows` is empty in Night and Veld and three
-    // stacked drops in Day, so this block floated on the Day ground while the
+    // NO SHADOW. `skin.depth.shadows` is empty in Night and three stacked
+    // drops in Day, so this block floated on the Day ground while the
     // cards beside it sat flat on it — two grammars on one screen, in the one
     // skin where it shows. Neither `TorchCard` nor `SoftRow` paints a shadow
     // in any skin, and this is the standalone row's material: radius 14,
@@ -782,31 +782,26 @@ class _TodayMessage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
-        // LEFT-ALIGNED AT ITS NATURAL WIDTH, except in Veld.
+        // LEFT-ALIGNED AT ITS NATURAL WIDTH.
         //
         // The empty-state grammar says "one secondary button, 56dp,
-        // left-aligned at its natural width", and Veld's own note says the
-        // secondary becomes full-width at 64dp because outdoors an
-        // intrinsic-width button is a small target. It was full width
-        // everywhere: a ghost action stretched across the screen reads as the
-        // commit this state deliberately does not have.
+        // left-aligned at its natural width". It was full width everywhere: a
+        // ghost action stretched across the screen reads as the commit this
+        // state deliberately does not have.
         //
         // `IntrinsicWidth` and not `Align(widthFactor:)`: the button's label
         // sits in a `Center`, which expands to whatever width it is offered,
         // so an Align around it still yields a full-width button. This is one
         // button in a state with nothing else in it, not a row in a list.
-        if (skin.mode == SkinMode.veld)
-          TorchSecondaryButton(label: actionLabel, onPressed: onAction)
-        else
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: IntrinsicWidth(
-              child: TorchSecondaryButton(
-                label: actionLabel,
-                onPressed: onAction,
-              ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: IntrinsicWidth(
+            child: TorchSecondaryButton(
+              label: actionLabel,
+              onPressed: onAction,
             ),
           ),
+        ),
       ],
     );
   }

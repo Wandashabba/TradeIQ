@@ -75,9 +75,8 @@ class StatusLevelToken {
 
   /// Resolve [level] against [skin].
   ///
-  /// Veld takes the same structure with the solid columns and a 2px border —
-  /// there is no separate Veld branch here because a skin is a value set, not
-  /// a code path, and every difference is already in the palette.
+  /// There is no per-skin branch here because a skin is a value set, not a
+  /// code path, and every difference is already in the palette.
   static StatusLevelToken of(TiqSkin skin, StatusLevel level) {
     final p = skin.palette;
     return switch (level) {

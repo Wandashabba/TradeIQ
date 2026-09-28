@@ -52,7 +52,7 @@ import 'report_form_screen.dart';
 ///
 /// A tab root: the nav pill's active tab is slot 1, and this screen nominates
 /// **no content amber**. Nothing here is armed — Run is a ghost, the state
-/// marks are Oatmeal and `good`, and the file is a report. Day and Veld paint
+/// marks are Oatmeal and `good`, and the file is a report. Day paints
 /// zero, because the ladder's one rung on a light ground is the primary commit
 /// block and a list of definitions has none.
 class ReportsScreen extends ConsumerStatefulWidget {

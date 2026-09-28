@@ -57,17 +57,14 @@ class EmptyStateDrawing extends StatelessWidget {
   /// `edgeControl` for an empty state, `bad` for an error state.
   final Color? color;
 
-  /// 64 by default, 48 in Veld — a 64dp drawing in a 24dp gutter takes a
-  /// quarter of the width that the headline needs.
+  /// 64 by default.
   final double? extent;
 
   /// The declared extent for a skin.
-  static double extentFor(TiqSkin skin) =>
-      skin.density == TiqDensity.veld ? 48 : 64;
+  static double extentFor(TiqSkin skin) => 64;
 
-  /// 2px, 3px in Veld.
-  static double strokeFor(TiqSkin skin) =>
-      skin.depth.borderWidth >= 2 ? 3 : 2;
+  /// 2px.
+  static double strokeFor(TiqSkin skin) => 2;
 
   @override
   Widget build(BuildContext context) {

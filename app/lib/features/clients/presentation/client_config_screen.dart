@@ -55,7 +55,7 @@ import '../data/iana_time_zones.dart';
 /// ## The amber, counted
 ///
 /// A tab root: Night paints the nav's active tab and nothing else, because
-/// this route nominates no content amber. Day and Veld paint zero. A sheet
+/// this route nominates no content amber. Day paints zero. A sheet
 /// extinguishes the route beneath it and carries its own single commit.
 class ClientConfigScreen extends ConsumerWidget {
   const ClientConfigScreen({super.key});

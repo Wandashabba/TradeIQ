@@ -51,9 +51,9 @@ import '../data/outlets_repository.dart';
 /// A console route under Menu, so the nav's active tab is object 1 in Night
 /// and the content has one grant left. It declines it. Nothing here is a
 /// commit: "Add a store" is a section rule's ghost action, the severity bars
-/// are severity, and the lead figure is crimson. Night paints **1**, Day and
-/// Veld paint **0** — their one rung is the primary commit block and this
-/// route has none.
+/// are severity, and the lead figure is crimson. Night paints **1** and Day
+/// paints **0** — its one rung is the primary commit block and this route has
+/// none.
 class OutletsListScreen extends ConsumerWidget {
   const OutletsListScreen({super.key});
 

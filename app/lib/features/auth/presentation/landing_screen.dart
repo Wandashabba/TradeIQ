@@ -24,7 +24,7 @@ import 'entry_brand.dart';
 /// ## Amber: none, in any skin
 ///
 /// Nothing here is armed and nothing here is a control, so the route declares
-/// no claims at all and the census counts zero objects in Night, Day and Veld.
+/// no claims at all and the census counts zero objects in Night and Day.
 /// A splash is the one screen in the product with nothing to commit.
 ///
 /// ## The one screen with no skin cycle, and why that is not an exception
@@ -39,10 +39,9 @@ import 'entry_brand.dart';
 ///
 /// ## The footage is Night's ground, and Night's only
 ///
-/// Day is paper and Veld removes every image in the system (unify §4); a
-/// near-black video under a white ground is not a lighter version of the same
-/// idea, it is a different screen. So Day and Veld get the skin's own ground
-/// and the same mark on it.
+/// Day is paper; a near-black video under a light ground is not a lighter
+/// version of the same idea, it is a different screen. So Day gets the skin's
+/// own ground and the same mark on it.
 class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
@@ -105,8 +104,8 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
     // — under the SC's 5-second threshold — with the whole tap surface acting
     // as the skip.
     //
-    // `MotionBudget.still` and not `reduceMotion` alone: Veld has no motion at
-    // all, and Veld does not render the footage either.
+    // `MotionBudget.still` and not `reduceMotion` alone: it is the one switch
+    // every animated thing in this app reads.
     if (!MotionBudget.of(context).still) {
       _videoController.play();
     }

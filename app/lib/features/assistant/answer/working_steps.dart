@@ -140,9 +140,8 @@ enum StepState {
 ///
 /// Every dot state carries a distinct **silhouette** (ring, disc, triangle,
 /// bar) and a word, so neither colour nor motion is ever the only signal.
-/// Under reduce-motion, in Day and in Veld the running dot is a `lifted` disc
-/// plus the word "Live" — through the same code path, so the two cannot rot
-/// apart.
+/// Under reduce-motion and in Day the running dot is a `lifted` disc plus the
+/// word "Live" — through the same code path, so the two cannot rot apart.
 class WorkingSteps extends StatefulWidget {
   const WorkingSteps({
     super.key,

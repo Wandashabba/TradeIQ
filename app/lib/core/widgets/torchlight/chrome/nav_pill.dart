@@ -71,10 +71,6 @@ class TorchNavSlot {
 /// **never amber**, because on a light ground amber is a carrier of ink and the
 /// one object allowed to be that is the primary commit block.
 ///
-/// **Veld docks the bar**: full bleed, 72dp, a 2px top border, radius 0. A
-/// white pill floating on white under glare stops reading as a bar, and Veld
-/// has no radius but 0. Docking also gives back 36dp of fold.
-///
 /// ## It claims amber; it does not paint it
 ///
 /// The active tab asks [TorchScope] about [TorchScope.navActiveTabId], the id
@@ -111,14 +107,13 @@ class TorchNavPill extends StatelessWidget {
   final int activeIndex;
   final ValueChanged<int> onSelect;
 
-  /// The bar's outer height for this skin, before any text-scale growth.
-  static double heightFor(TiqSkin skin) => skin.mode == SkinMode.veld ? 72 : 64;
+  /// The bar's outer height, before any text-scale growth.
+  static const double height = 64;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final docked = skin.mode == SkinMode.veld;
     final lit = TorchScope.lit(context, TorchScope.navActiveTabId);
     final scaler = MediaQuery.textScalerOf(context);
 
@@ -129,7 +124,7 @@ class TorchNavPill extends StatelessWidget {
     final glyphSize = scaler.scale(24).clamp(24.0, 32.0);
 
     final labelToken = skin.text.label.copyWith(
-      size: docked ? 13 : 11,
+      size: 11,
       weight: FontWeight.w500,
     );
     final activeLabelToken = labelToken.copyWith(weight: FontWeight.w700);
@@ -137,7 +132,7 @@ class TorchNavPill extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final barWidth = constraints.maxWidth;
-        final hInset = docked ? TiqSpace.s2 : 6.0;
+        const hInset = 6.0;
         final slotWidth = (barWidth - hInset * 2) / slots.length;
 
         // THE MEASUREMENT. Every label, at the real scaler, against the real
@@ -165,9 +160,9 @@ class TorchNavPill extends StatelessWidget {
         // 8dp above and below the active pill, which is what makes a 64dp bar
         // hold a 48dp tab. The bar only grows past 64 when the measured
         // content will not fit inside it — it is a minimum, never a pin.
-        final vInset = docked ? TiqSpace.s2 : 8.0;
+        const vInset = 8.0;
         final barHeight = [
-          heightFor(skin),
+          height,
           contentHeight + vInset * 2,
         ].reduce((a, b) => a > b ? a : b);
 
@@ -175,22 +170,11 @@ class TorchNavPill extends StatelessWidget {
           height: barHeight,
           decoration: BoxDecoration(
             color: p.well,
-            borderRadius: docked
-                ? null
-                : BorderRadius.circular(torchPillRadius),
-            border: docked
-                // Docked, the bar is the bottom of the screen; the only edge it
-                // needs is the one that separates it from the content above.
-                ? Border(
-                    top: BorderSide(
-                      color: p.edgeStructure,
-                      width: skin.depth.borderWidth,
-                    ),
-                  )
-                : Border.all(
-                    color: p.edgeStructure,
-                    width: skin.depth.borderWidth,
-                  ),
+            borderRadius: BorderRadius.circular(torchPillRadius),
+            border: Border.all(
+              color: p.edgeStructure,
+              width: skin.depth.borderWidth,
+            ),
           ),
           padding: EdgeInsets.symmetric(horizontal: hInset, vertical: vInset),
           child: Row(
@@ -246,10 +230,7 @@ class _Slot extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final docked = skin.mode == SkinMode.veld;
-    final radius = docked
-        ? BorderRadius.zero
-        : BorderRadius.circular(torchPillRadius);
+    final radius = BorderRadius.circular(torchPillRadius);
     final press = torchPressSurface(skin);
 
     // Night, granted: the amber pill. Night beneath a sheet, and every light

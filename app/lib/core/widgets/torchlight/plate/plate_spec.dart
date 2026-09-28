@@ -15,9 +15,8 @@ enum PlateForm {
   /// list.
   collapsed,
 
-  /// Veld draws no plate. Not a smaller one, not a flat one: none. Outdoors a
-  /// crushed photograph under glare is a grey rectangle, and the hero cluster
-  /// on white says the same thing at 15:1.
+  /// No plate at all. A caller resolves to this where a photograph has
+  /// nothing to say.
   none,
 }
 
@@ -74,21 +73,6 @@ class PlateSpec {
     required double viewportHeight,
     double textScale = 1.0,
   }) {
-    if (skin.density == TiqDensity.veld) {
-      return PlateSpec(
-        form: PlateForm.none,
-        height: 0,
-        stripLightY: 0,
-        bloomHeight: 0,
-        scrimFraction: 0,
-        textZoneTop: 0,
-        figureRole: skin.text.heroFigure,
-        textInset: skin.space.gutter,
-        captionGap: TiqSpace.s2,
-        radius: skin.radii.plate,
-      );
-    }
-
     final height = heightFor(viewportHeight);
     if (height < _floor) {
       return PlateSpec(

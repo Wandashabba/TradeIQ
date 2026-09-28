@@ -17,8 +17,8 @@ import '../theme/torchlight/tiq_skin.dart';
 ///   slot 1 *whenever the nav renders*; content gets one grant on a tabbed
 ///   route and two on an untabbed one (in a visit, in a sheet, in a
 ///   full-screen state).
-/// * **Day and Veld** — one grant, and it is the primary commit block. Zero
-///   when nothing is armed.
+/// * **Day** — one grant, and it is the primary commit block. Zero when
+///   nothing is armed.
 ///
 /// The nav is **counted**, not exempt. Kit called it "reserved", manager
 /// called it "exempt"; both produce the same number and "counted" is the
@@ -280,9 +280,9 @@ class TorchScope extends InheritedWidget {
   /// How many lit objects a skin permits in one composed frame.
   ///
   /// Night is two because a dark room can hold two lights and still have a
-  /// brightest one. Day and Veld are one because on a light ground amber is
-  /// not light any more — it is a block of ink-carrying paint, and two of
-  /// those is two primary actions.
+  /// brightest one. Day is one because on a light ground amber is not light
+  /// any more — it is a block of ink-carrying paint, and two of those is two
+  /// primary actions.
   static int budgetFor(TiqSkin skin) => skin.amberIsInk ? 1 : 2;
 
   /// Resolve a claim set. Pure, synchronous, and independently testable —
@@ -349,8 +349,8 @@ class TorchScope extends InheritedWidget {
             'TorchScope over-claim on a light ground: '
             '${primaries.length} primary commit actions.\n\n'
             '${allocation.describe()}\n'
-            'Day and Veld have exactly one amber block per screen and it is '
-            'the primary commit action. Two primaries is two screens.',
+            'Day has exactly one amber block per screen and it is the '
+            'primary commit action. Two primaries is two screens.',
           );
         }
         return true;

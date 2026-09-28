@@ -156,12 +156,7 @@ class EmptyState extends StatelessWidget {
           ],
           if (action != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s6),
-            // Full-width in Veld, where an intrinsic-width button is a small
-            // target; intrinsic elsewhere, left-aligned.
-            if (skin.density == TiqDensity.veld)
-              SizedBox(width: double.infinity, child: action!)
-            else
-              Align(alignment: Alignment.centerLeft, child: action!),
+            Align(alignment: Alignment.centerLeft, child: action!),
           ],
         ],
       ),

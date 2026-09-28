@@ -18,9 +18,6 @@ import 'tiq_mark.dart';
 /// Three of the five surfaces proposed hatching the tile. A 3dp stripe inside
 /// a 28dp tile aliases to a **flat grey disc** on a sub-R2000 Android at 40%
 /// backlight — and a flat grey disc is exactly what [inProgress] looks like.
-/// Veld's coarsened stripe period gives the same tile two stripes, which reads
-/// as a rendering artefact rather than a state.
-///
 /// So the fourth state is a fourth shape: a ring at the empty ring's stroke
 /// weight with a 2px diagonal bar through it. Four silhouettes — a ring,
 /// a half disc, a tick, a barred ring — and `section_state_glyph_test.dart`

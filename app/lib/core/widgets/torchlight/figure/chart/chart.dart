@@ -6,7 +6,8 @@
 ///
 /// `TrendChart` draws the run and builds its own `ChartLegend`; `ScrubReadout`
 /// is what the thumb reveals; `TableTwin` is the same data as rows, which is
-/// what a screen reader, a printer and the Veld skin all get.
+/// what a screen reader and a printer get — a drag-scrub plot is not reachable
+/// without a pointer, and the table is the reading that is.
 ///
 /// Nothing in this folder names an amber token — the chart-focus rung exists
 /// on the ladder and this kit declines it. See `trend_chart.dart`.

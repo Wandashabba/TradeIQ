@@ -9,10 +9,10 @@ import 'chart_series.dart';
 /// THE NUMBERS BEHIND THE VISUAL. Canonical component 56.
 ///
 /// A chart that is the *only* way to read a value fails anyone using a screen
-/// reader, printing it, checking an exact figure, or standing in sunlight with
-/// a chart that does not render. The twin is the WCAG-clean equivalent of the
-/// same data, and it is **not** a debug view: in Veld it is the whole
-/// presentation, because Veld draws no charts at all.
+/// reader, printing it, or checking an exact figure. The twin is the
+/// WCAG-clean equivalent of the same data, and it is **not** a debug view: a
+/// drag-scrub plot cannot be read without a pointer, and this is the reading
+/// that can.
 ///
 /// Three rules it keeps:
 ///

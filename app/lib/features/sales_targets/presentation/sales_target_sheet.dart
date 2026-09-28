@@ -46,7 +46,7 @@ Future<void> deleteSalesTarget(
 ///
 /// While this sheet is up every amber on the route beneath goes out, so the
 /// sheet's own commit — declared like any other primary — is the single lit
-/// object on the frame in Night, Day and Veld alike.
+/// object on the frame in Night and Day alike.
 Future<void> showSalesTargetSheet(
   BuildContext context,
   WidgetRef ref, {

@@ -3,12 +3,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../core/design/figure_slot.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/torchlight/figure/eyebrow.dart';
-import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 
@@ -78,38 +76,6 @@ class OutletMapCard extends StatelessWidget {
       body = Text(
         l10n.askMapUnreadable,
         style: skin.text.meta.style(color: skin.palette.ink3),
-      );
-    } else if (skin.mode == SkinMode.veld) {
-      // Veld draws no maps (unify §4): a tile layer in glare is a smudge.
-      // The same outlets, as a list a thumb can read.
-      body = Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            l10n.askMapNotInVeld,
-            style: skin.text.meta.style(color: skin.palette.ink3),
-          ),
-          for (var i = 0; i < outlets.length; i++)
-            SoftRow(
-              key: ValueKey<String>('stockout-row-${outlets[i].id}'),
-              density: SoftRowDensity.compact,
-              title: outlets[i].name,
-              trailing: FigureSlot(
-                value: outlets[i].outOfStockLines,
-                role: skin.text.figureS,
-                decimals: 0,
-                color: skin.palette.ink1,
-                semanticsLabel: outlets[i].outOfStockLines == null
-                    ? l10n.askTileNoData
-                    : null,
-              ),
-              semanticsLabel: _pinLabel(l10n, outlets[i]),
-              separator: i == outlets.length - 1
-                  ? SoftRowSeparator.none
-                  : SoftRowSeparator.auto,
-            ),
-        ],
       );
     } else {
       body = SizedBox(

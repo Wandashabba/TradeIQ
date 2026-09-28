@@ -51,7 +51,7 @@ class TiqPalette {
   });
 
   // ── Grounds and surfaces ─────────────────────────────────────────────
-  /// App ground, full bleed. Night `#0B1017`, Day Palladian, Veld pure white.
+  /// App ground, full bleed. Night `#0B1017`, Day Palladian.
   final Color ground;
 
   /// Midpoint stop of the ground's letterbox falloff and the plate's baked
@@ -129,7 +129,7 @@ class TiqPalette {
   final Color flame500;
 
   /// The signature. Night: strip lights, underbars, focus rings, one focus
-  /// bar. Day/Veld: one solid block per screen, carrying dark ink.
+  /// bar. Day: one solid block per screen, carrying dark ink.
   final Color flame600;
 
   /// Amber as TEXT on dark, focus rings, the hot end of the bloom.
@@ -144,16 +144,10 @@ class TiqPalette {
 
   /// The fill an amber block takes while it is held down, and the ink on it.
   ///
-  /// On dark and paper grounds this is [flame500] — the amber gets hotter and
-  /// the ink stays dark (8.59:1), which is the fix for a pressed state that
-  /// used to put flame-900 on flame-500 at 2.00:1 and make the label vanish at
-  /// the moment of commitment.
-  ///
-  /// Veld does NOT lighten. veld-ink on flame-500 is 8.34:1, under the 9:1
-  /// floor Veld declares for every word it shows — the design document asserted
-  /// both and they cannot both be true. Outdoors the press inverts to the ink
-  /// block with white on it (15.33:1) instead, which is also the only press cue
-  /// Veld can afford: it has no glow, no shadow and no gradient to spend.
+  /// On both grounds this is [flame500] — the amber gets hotter and the ink
+  /// stays dark (8.59:1), which is the fix for a pressed state that used to
+  /// put flame-900 on flame-500 at 2.00:1 and make the label vanish at the
+  /// moment of commitment.
   final Color amberPressed;
   final Color onAmberPressed;
 
@@ -265,48 +259,6 @@ class TiqPalette {
     comparison: Color(0xFFA35139),
     comparisonWash: Color(0xFFF7DCD2),
     scrim: Color(0xB81B2632),
-  );
-
-  /// VELD — outdoor high-contrast. Pure white ground, near-black ink, nothing
-  /// under 9:1 for text and nothing under 15:1 for a border. Every shadow,
-  /// gradient, rim, blur and glow is removed, not softened.
-  ///
-  /// Veld changes the physics, not the palette: its recessed/raised tokens all
-  /// collapse onto white, because a fill step is not a cue an entry LCD at 40%
-  /// backlight in highveld sun can resolve.
-  static const TiqPalette veld = TiqPalette(
-    ground: Color(0xFFFFFFFF),
-    vignette: Color(0xFFFFFFFF),
-    well: Color(0xFFFFFFFF),
-    surface: Color(0xFFFFFFFF),
-    raised: Color(0xFFFFFFFF),
-    lifted: Color(0xFF1B2632),
-    hairline: Color(0xFF1B2632), // every hairline becomes a 2px solid border
-    edgeStructure: Color(0xFF1B2632),
-    edgeControl: Color(0xFF1B2632),
-    navInkInactive: Color(0xFF4A4437),
-    inkMute: Color(0xFF4A4437),
-    ink1: Color(0xFF0E141A),
-    ink2: Color(0xFF4A4437),
-    ink3: Color(0xFF4A4437),
-    chartNeutral: Color(0xFF4A4437),
-    flame300: Color(0xFF8A4A12),
-    flame500: Color(0xFFF79742),
-    flame600: Color(0xFFFFB162),
-    flame700: Color(0xFFFFCB94),
-    flame900: Color(0xFFFFF1DE),
-    onAmber: Color(0xFF0E141A),
-    amberPressed: Color(0xFF1B2632),
-    onAmberPressed: Color(0xFFFFFFFF),
-    good: Color(0xFF0F5039),
-    goodSolid: Color(0xFF0F5039),
-    onGoodSolid: Color(0xFFFFFFFF),
-    bad: Color(0xFF7A0F22),
-    badSolid: Color(0xFF7A0F22),
-    onBadSolid: Color(0xFFFFFFFF),
-    comparison: Color(0xFFA35139),
-    comparisonWash: Color(0xFFF7DCD2),
-    scrim: Color(0xB80E141A),
   );
 
   TiqPalette lerp(TiqPalette other, double t) {

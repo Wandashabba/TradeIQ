@@ -17,15 +17,12 @@ import 'stat_tile.dart';
 ///   own arithmetic: every inter-cell space has to exceed every intra-cell
 ///   space, and a tile's own rows are 8dp apart.
 ///
-/// In Veld the rule is the 2px border every hairline becomes there.
-///
 /// ## Count
 ///
 /// Four tiles maximum on a phone and three recommended — the fourth is the one
 /// a reader least often acts on and it belongs in the table twin. Four
 /// horizontal tiles plus a footer is about 470dp, which is most of a phone's
-/// fold, and a route should pay that deliberately. Veld takes two: outdoors,
-/// four figures is analysis, and nobody does analysis outdoors.
+/// fold, and a route should pay that deliberately.
 ///
 /// ## No amber
 ///
@@ -58,7 +55,6 @@ class StatCluster extends StatelessWidget {
   final String? semanticsLabel;
 
   static const int maximumOnPhone = 4;
-  static const int maximumInVeld = 2;
 
   /// 12dp gap, rule centred in it.
   static const double gap = 12;
@@ -66,12 +62,6 @@ class StatCluster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    assert(
-      skin.density != TiqDensity.veld || tiles.length <= maximumInVeld,
-      'StatCluster: ${tiles.length} tiles in Veld. Veld halves density by '
-      'rule; two figures is a reading and four is analysis, which nobody does '
-      'in the sun.',
-    );
     return Semantics(
       container: true,
       label: semanticsLabel,
@@ -204,7 +194,7 @@ class StatCluster extends StatelessWidget {
 
   /// The separator. `edge-structure` in Night at 3:1 against the surface it
   /// divides; the decorative hairline on paper, where the fill step is already
-  /// visible; 2px in Veld.
+  /// visible.
   Widget _rule(TiqSkin skin) => SizedBox(
     height: skin.depth.borderWidth,
     width: double.infinity,

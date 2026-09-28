@@ -19,7 +19,7 @@ import 'dynamic_template_form.dart';
 ///
 /// ## Amber, counted
 ///
-/// Untabbed and no nav, so Night has two content grants and Day and Veld one.
+/// Untabbed and no nav, so Night has two content grants and Day one.
 /// The one claim is Next / Finish preview, declared only while it can be
 /// pressed — so a section with a required question still empty carries zero
 /// amber, in every skin.

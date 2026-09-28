@@ -28,10 +28,9 @@ export 'soft_row_spec.dart';
 /// identified by its silhouette, which is what a radius is, and the press
 /// still adds a real `edgeControl` edge on top of the fill step.
 /// A **standalone row** keeps radius 14, `surface` and its 1px
-/// `edgeStructure` outline. **Veld keeps the flush row**: radius 0, no fill,
-/// a 2px rule — a soft translucent row on white under glare stops reading as
-/// a row. The rule's colour is still not a parameter: `edgeStructure`
-/// (3.73:1) between tappable rows, `hairline` between non-tappable ones.
+/// `edgeStructure` outline. A rule's colour is not a parameter:
+/// `edgeStructure` (3.73:1) between tappable rows, `hairline` between
+/// non-tappable ones.
 ///
 /// **2. Where content starts.** At a fixed inset, whether or not a severity
 /// bar is drawn. The bar's lane is reserved either way, so a list where three
@@ -462,8 +461,8 @@ class _SoftRowState extends State<SoftRow> {
 
 /// The severity mark, at two commitment levels and never amber.
 ///
-/// A **dot** on a card and a **bar** on Veld's flush row. The two commitment
-/// levels are the same crimson at both, and what separates them is the
+/// A **dot** on a card. The two commitment levels are the same crimson, and
+/// what separates them is the
 /// silhouette — filled for critical, a ring for watch — plus the word the
 /// caller passes as `severityLabel`, which is what survives greyscale,
 /// deuteranopia, glare and a screen reader.

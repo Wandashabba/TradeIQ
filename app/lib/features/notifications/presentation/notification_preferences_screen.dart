@@ -67,8 +67,8 @@ final notificationPreferencesProvider =
 ///
 /// Neither branch has a commit. The agent's is a pushed screen with no nav, so
 /// it has two content grants and declares none; the manager's is a tab root,
-/// so Night paints the nav's active tab and nothing else. Day and Veld paint
-/// zero on both.
+/// so Night paints the nav's active tab and nothing else. Day paints
+/// zero.
 class NotificationPreferencesScreen extends ConsumerWidget {
   const NotificationPreferencesScreen({super.key});
 

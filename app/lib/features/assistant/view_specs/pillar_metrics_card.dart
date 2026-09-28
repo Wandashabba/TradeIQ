@@ -221,22 +221,16 @@ class _FigureRow extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     final d = delta;
 
     return Container(
-      padding: EdgeInsets.symmetric(vertical: veld ? TiqSpace.s3 : TiqSpace.s2),
+      padding: const EdgeInsets.symmetric(vertical: TiqSpace.s2),
       // A ledger: rows divided by a rule, so a column of numbers reads as one
       // reading. Hairline between non-tappable rows (unify §1.3).
       decoration: last
           ? null
           : BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: veld ? p.ink1 : p.hairline,
-                  width: veld ? 2 : 1,
-                ),
-              ),
+              border: Border(bottom: BorderSide(color: p.hairline)),
             ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

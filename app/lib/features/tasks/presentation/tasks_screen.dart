@@ -50,7 +50,7 @@ import 'close_with_photo_sheet.dart';
 /// nothing. The overdue lead figure and the SLA phrasing carry the urgency —
 /// a crimson outline, a filled triangle and a word — and the earlier draft's
 /// reasoning that the filter chip should be lit *because a slot was free* is
-/// not a possibility the ruling leaves open. Day and Veld paint zero.
+/// not a possibility the ruling leaves open. Day paints zero.
 ///
 /// The one lit object in this feature is `Close task`, and it lives on the
 /// closure sheet, where the amber beneath it has already gone out.

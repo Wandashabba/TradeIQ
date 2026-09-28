@@ -31,7 +31,7 @@ import '../data/territories_view.dart';
 ///   ←  Gauteng North                        (header)
 ///      GP-N · 3 outlets · 2 visited
 ///   ┌────────────────────────────────┐
-///   │        the basemap             │      (never in Veld)
+///   │        the basemap             │
 ///   └────────────────────────────────┘
 ///   ✓ Visited   ◉ Not visited yet          (the legend, in words)
 ///   ── Outlets  3 ────────────────────
@@ -44,16 +44,13 @@ import '../data/territories_view.dart';
 /// ## The list is not the map's caption — it is the map's equal
 ///
 /// Every store is in the list at full text scale with its state in words,
-/// whether or not the tiles arrive, whether or not the reader can see a map,
-/// and whether or not the skin draws one. That is what makes the three "no
-/// map" cases ordinary rather than degraded:
+/// whether or not the tiles arrive and whether or not the reader can see a
+/// map. That is what makes the two "no map" cases ordinary rather than
+/// degraded:
 ///
-/// 1. **Veld.** unify §4: maps do not render in the outdoor skin — a dark
-///    basemap read in direct sun at 40% backlight is a black rectangle. The
-///    figure list that replaces it is the list that was always there.
-/// 2. **No tiles.** Counted, not latched on the first failure: one dropped
+/// 1. **No tiles.** Counted, not latched on the first failure: one dropped
 ///    tile in a lift is not a forecourt with no signal.
-/// 3. **No outlets.** A designed state with a sentence, not a blank panel and
+/// 2. **No outlets.** A designed state with a sentence, not a blank panel and
 ///    not a map of the whole world, which is what `CameraFit` over an empty
 ///    bounds box produces.
 ///
@@ -189,24 +186,11 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
         ];
         final offline = _failures >= TerritoryMapScreen.debugFailureThreshold;
         final height = _mapHeight(context);
-        final veld = skin.mode == SkinMode.veld;
 
         return frame(
-          phase: veld
-              ? 'veld'
-              : offline
-              ? 'tiles-off'
-              : 'loaded',
+          phase: offline ? 'tiles-off' : 'loaded',
           children: <Widget>[
-            if (veld)
-              Padding(
-                padding: EdgeInsets.only(bottom: skin.space.intraBlock),
-                child: Text(
-                  l10n.mapVeldNote,
-                  style: skin.text.body.style(color: skin.palette.ink2),
-                ),
-              )
-            else if (offline)
+            if (offline)
               _TilesOff(territoryName: widget.territory.name)
             else if (height > 0)
               TorchBleed(
@@ -217,7 +201,7 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
                 ),
               ),
 
-            if (!veld && !offline && height > 0) ...<Widget>[
+            if (!offline && height > 0) ...<Widget>[
               SizedBox(height: skin.space.intraBlock),
               const _MapLegend(),
             ],
@@ -271,7 +255,6 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
 /// is four buildings and no orientation, which is why a map collapses to
 /// nothing where a plate collapses to a band.
 double _mapHeight(BuildContext context) {
-  if (context.skin.mode == SkinMode.veld) return 0;
   final viewport = MediaQuery.sizeOf(context).height;
   final budget = math.min(
     (viewport * 0.44).clamp(200.0, 360.0),
@@ -433,7 +416,7 @@ class OutletVisitGlyph extends StatelessWidget {
 
   /// True on the basemap, which is the same dark canvas in every skin (see
   /// [TiqTileLayer]) — so the glyph takes the Night palette there whatever the
-  /// app around it is wearing, rather than painting Veld's near-black ink on a
+  /// app around it is wearing, rather than painting Day's dark ink on a
   /// near-black tile.
   final bool onDarkGround;
 
@@ -553,7 +536,7 @@ class _MapLegend extends StatelessWidget {
   }
 }
 
-/// One store in the list beneath the map — and the whole of the map in Veld.
+/// One store in the list beneath the map.
 class _OutletRow extends StatelessWidget {
   const _OutletRow({super.key, required this.outlet, required this.last});
 
@@ -617,7 +600,7 @@ class _TilesOff extends StatelessWidget {
 }
 
 /// One store, opened — from a pin or from a row, which is what makes the
-/// sheet reachable at all in Veld, where there is no pin to tap.
+/// sheet reachable without aiming at a 24dp pin.
 Future<void> showTerritoryOutletSheet(BuildContext context, Outlet outlet) {
   return showTorchSheet<void>(
     context,

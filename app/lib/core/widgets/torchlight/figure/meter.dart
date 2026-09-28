@@ -91,11 +91,10 @@ class Meter extends StatelessWidget {
   /// tick's silhouette is reinforced rather than relied on.
   final String? semanticsValue;
 
-  /// Track height by density (unify §1.19). 4dp Console, 6dp Field, 8dp Veld.
+  /// Track height by density (unify §1.19). 4dp Console, 6dp Field.
   static double trackHeight(TiqSkin skin) => switch (skin.density) {
     TiqDensity.console => 4,
     TiqDensity.field => 6,
-    TiqDensity.veld => 8,
   };
 
   @override
@@ -182,13 +181,9 @@ class MeterPainter extends CustomPainter {
     );
 
     // A filled track needs no edge. An empty one is 1.3:1 from the panel
-    // behind it and is simply invisible — and in Veld a white track on a white
-    // ground is invisible in every state, which is why the border width is the
-    // second half of this condition rather than a mode check.
-    final outlined = skin.depth.borderWidth >= 2 ||
-        state != MeterState.filled ||
-        fraction == null ||
-        fraction == 0;
+    // behind it and is simply invisible.
+    final outlined =
+        state != MeterState.filled || fraction == null || fraction == 0;
     if (outlined) {
       canvas.drawRRect(
         rounded.deflate(skin.depth.borderWidth / 2),
@@ -270,8 +265,8 @@ class MeterPainter extends CustomPainter {
   }
 
   /// A dark ground recesses by *lifting* a surface out of it; a light ground
-  /// recesses by *welling* into it. Night's track is `lifted` #2C3B4D, Day's
-  /// is `well` #E2DBCC, and Veld's is white with the 2px border above.
+  /// recesses by *welling* into it. Night's track is `lifted` #2C3B4D and
+  /// Day's is `well` #E2DBCC.
   Color _trackFill(TiqPalette p) =>
       skin.brightness == Brightness.dark ? p.lifted : p.well;
 

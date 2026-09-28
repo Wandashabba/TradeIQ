@@ -25,13 +25,13 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// The rule the cycle has to obey: **the control and the ground must read the
 /// same provider.** A cycle wired to a provider the enclosing route does not
 /// watch still moves and still repaints nothing, which is the worst of both —
-/// the person taps Veld, the screen stays Night, and the setting silently
+/// the person taps Day, the screen stays Night, and the setting silently
 /// lands on a skin they are not looking at.
 ///
 /// ## Amber, counted
 ///
-/// Not a tab root and no nav, so Night has two content grants and Day and Veld
-/// have one. The only claim is the primary, and it is declared **only while
+/// Not a tab root and no nav, so Night has two content grants and Day
+/// has one. The only claim is the primary, and it is declared **only while
 /// the primary is armed** — a disabled primary declares nothing, so a form
 /// with an empty field carries zero amber, and a filled one carries exactly
 /// one in every skin.

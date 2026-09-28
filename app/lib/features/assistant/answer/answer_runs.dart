@@ -152,10 +152,8 @@ List<InlineSpan> answerSpans(
                 fontFamily: TiqFonts.mono,
                 fontFamilyFallback: TiqFonts.monoFallback,
                 // 0.94em of the surrounding role lands mono's larger x-height
-                // on the same optical size as the Onest around it. Veld takes
-                // 1.00em instead: glare eats counters, and out there the size
-                // step matters more than the optical match.
-                fontSize: size * (skin.mode == SkinMode.veld ? 1.0 : 0.94),
+                // on the same optical size as the Onest around it.
+                fontSize: size * 0.94,
                 letterSpacing: 0,
                 fontWeight: run.bold ? FontWeight.w700 : null,
                 fontStyle: run.italic ? FontStyle.italic : null,

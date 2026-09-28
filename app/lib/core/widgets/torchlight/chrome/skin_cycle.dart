@@ -5,12 +5,16 @@ import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/torch_button.dart';
 import '../button/torch_press.dart';
 
-/// THE SKIN CYCLE — sun, paper, moon, in one 56dp control.
+/// THE SKIN CYCLE — paper and moon, in one 56dp control.
 ///
-/// Three positions, **each a different glyph**: sun is Veld, paper is Day, moon
-/// is Night. A tap advances Day → Veld → Night → Day. There is no colour cue
-/// and there is no label at rest; the state is the silhouette, and the sentence
-/// is the semantic label.
+/// Two positions, **each a different glyph**: paper is Day, moon is Night. A
+/// tap advances Day → Night → Day. There is no colour cue and there is no
+/// label at rest; the state is the silhouette, and the sentence is the
+/// semantic label.
+///
+/// It had a third position, the sun — Veld, the outdoor high-contrast skin.
+/// The owner removed Veld on 28 September 2026; see `docs/design/spec/
+/// unify.md` §4. The control, its label rule and its two homes are unchanged.
 ///
 /// ## Where it lives, and where it does not
 ///
@@ -36,12 +40,12 @@ class TorchSkinCycle extends StatelessWidget {
   }) : assert(
          semanticLabel.length > 0,
          'The label names the NEXT state, not this one: "Screen: Day. '
-         'Double-tap for Veld, the outdoor high-contrast screen." A toggle '
-         'that announces where it is and not where it goes makes a blind '
-         'user press it to find out.',
+         'Double-tap for Night, the dimmed screen." A toggle that announces '
+         'where it is and not where it goes makes a blind user press it to '
+         'find out.',
        );
 
-  /// The skin showing now. [SkinMode.auto] resolves to whichever of the three
+  /// The skin showing now. [SkinMode.auto] resolves to whichever of the two
   /// it produced, so the control always shows a real glyph.
   final SkinMode mode;
 
@@ -50,39 +54,35 @@ class TorchSkinCycle extends StatelessWidget {
   /// Names the next state, and is announced as a live region when it changes.
   final String semanticLabel;
 
-  /// Opens the three-row sheet naming all three skins.
+  /// Opens the two-row sheet naming both skins.
   final VoidCallback? onLongPress;
 
-  /// Day → Veld → Night → Day.
+  /// Day → Night → Day.
   ///
-  /// It starts at Day because Day is the agent default and the agent is who
-  /// reaches for this; the cycle then goes *outward* (brighter, for the
-  /// forecourt) before it goes dark.
+  /// [SkinMode.auto] lands on Day: it is the agent default, and the agent is
+  /// who reaches for this.
   static SkinMode next(SkinMode mode) => switch (mode) {
-    SkinMode.day => SkinMode.veld,
-    SkinMode.veld => SkinMode.night,
     SkinMode.night => SkinMode.day,
-    SkinMode.auto => SkinMode.day,
+    SkinMode.day || SkinMode.auto => SkinMode.night,
   };
 
-  /// The glyph for a skin. sun = Veld, paper = Day, moon = Night.
+  /// The glyph for a skin. paper = Day, moon = Night.
   static IconData glyphFor(SkinMode mode) => switch (mode) {
-    SkinMode.veld => Icons.wb_sunny_outlined,
     SkinMode.night => Icons.dark_mode_outlined,
     _ => Icons.article_outlined,
   };
 
   /// The control's edge length, before text scale.
-  static double sizeFor(TiqSkin skin) => skin.mode == SkinMode.veld ? 64 : 56;
+  static const double size = 56;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
     final scaler = MediaQuery.textScalerOf(context);
-    final base = sizeFor(skin);
-    // 56 → 72 at 2.0×, 64 → 80 in Veld. The control grows under the
-    // glyph-scale rule; it is never pinned.
+    const base = size;
+    // 56 → 72 at 2.0×. The control grows under the glyph-scale rule; it is
+    // never pinned.
     final side = scaler.scale(base).clamp(base, base + 16);
     final glyph = scaler.scale(24).clamp(24.0, 48.0);
     final press = torchPressSurface(skin);
@@ -102,9 +102,7 @@ class TorchSkinCycle extends StatelessWidget {
         onPressed: () => onChanged(next(mode)),
         onLongPress: onLongPress,
         borderRadius: radius,
-        // Veld kills the press scale along with every other motion; the fill
-        // inversion is the whole cue there.
-        pressScale: skin.mode == SkinMode.veld ? 1 : torchPressScaleControl,
+        pressScale: torchPressScaleControl,
         builder: (context, pressed) => Container(
           width: side,
           height: side,

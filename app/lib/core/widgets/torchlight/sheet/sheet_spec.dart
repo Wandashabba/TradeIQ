@@ -2,22 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
 
-/// Which shape the one modal container takes on this skin.
-///
-/// One component, two shapes — unify §1.10. Night and Day get the bottom
-/// sheet; Veld has **no sheets and no scrims**, so the same call renders a
-/// full-screen white route with a 2px border and a 56dp Close row. A scrim is
-/// a translucent wash and a translucent wash outdoors is a smear: the thing it
-/// dims is still legible and the thing it covers is not.
-enum TorchSheetForm {
-  /// A panel rising from the bottom edge over a 72% scrim.
-  sheet,
-
-  /// Veld. A full-bleed white route, 2px `edgeStructure` border, Close row on
-  /// top.
-  fullScreen,
-}
-
 /// Every number and colour the modal container paints, resolved once.
 ///
 /// Split out for the same three reasons [SoftRowSpec] is: it is what the text
@@ -27,7 +11,6 @@ enum TorchSheetForm {
 @immutable
 class TorchSheetSpec {
   const TorchSheetSpec({
-    required this.form,
     required this.scrim,
     required this.fill,
     required this.outline,
@@ -41,7 +24,6 @@ class TorchSheetSpec {
     required this.grabberTopInset,
     required this.belowGrabber,
     required this.bottomPadding,
-    required this.closeRowHeight,
     required this.titleStyle,
     required this.titleInk,
     required this.bodyStyle,
@@ -68,20 +50,13 @@ class TorchSheetSpec {
   /// reading as a route that forgot its header.
   static const double maxHeightFractionValue = 0.88;
 
-  /// Veld's Close row. 56 is the Veld target floor, so the row IS the target.
-  static const double veldCloseRowHeight = 56;
-
   factory TorchSheetSpec.resolve({
     required TiqSkin skin,
     double bottomSafeArea = 0,
   }) {
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     return TorchSheetSpec(
-      form: veld ? TorchSheetForm.fullScreen : TorchSheetForm.sheet,
-      // Veld's scrim is not a paler scrim; it is no scrim. The route is
-      // full-screen, so there is nothing behind it to dim.
-      scrim: veld ? const Color(0x00000000) : p.scrim,
+      scrim: p.scrim,
       // THE SHEET IS THE GROUND ITS CONTENT STANDS ON — 26 September 2026.
       //
       // It was `surface`, and a list row's card fill is `surface` too, so
@@ -94,9 +69,7 @@ class TorchSheetSpec {
       //
       // `ground` is what The Floor's cards sit on, at the same 1.49:1 step, so
       // a list in a sheet now reads exactly as the same list on a screen —
-      // which is the whole point of one grammar. Veld already resolved to
-      // `ground` here, so this makes the three skins agree rather than adding
-      // a fourth rule.
+      // which is the whole point of one grammar.
       //
       // The grabber's declared #616465 was measured at 3.09:1 on the Night
       // sheet fill and 4.11:1 on the Day one; against `ground` it is higher in
@@ -111,12 +84,10 @@ class TorchSheetSpec {
       // contents, which is the wrong way round and the other half of what
       // reads as "rectangular". The plate's 28 is the product's softest
       // radius and the sheet is its largest object while it is up.
-      radius: veld
-          ? BorderRadius.zero
-          : BorderRadius.vertical(top: Radius.circular(skin.radii.plate)),
-      maxHeightFraction: veld ? 1.0 : maxHeightFractionValue,
+      radius: BorderRadius.vertical(top: Radius.circular(skin.radii.plate)),
+      maxHeightFraction: maxHeightFractionValue,
       horizontalPadding: skin.space.gutter,
-      grabberColour: veld ? null : grabber,
+      grabberColour: grabber,
       grabberWidth: 40,
       grabberHeight: 4,
       grabberTopInset: TiqSpace.s3,
@@ -124,15 +95,12 @@ class TorchSheetSpec {
       // 24 plus the safe area, because a sheet's last action must not sit
       // under a home indicator.
       bottomPadding: TiqSpace.s6 + bottomSafeArea,
-      closeRowHeight: veld ? veldCloseRowHeight : 0,
       titleStyle: skin.text.titleL,
       titleInk: p.ink1,
       bodyStyle: skin.text.body,
       bodyInk: p.ink2,
     );
   }
-
-  final TorchSheetForm form;
 
   /// 72% of the skin's ground. Not 88%: #380 requires held work to stay
   /// **visible** behind the session-ended sheet, and the assistant's real
@@ -151,8 +119,7 @@ class TorchSheetSpec {
   final double maxHeightFraction;
   final double horizontalPadding;
 
-  /// Null in Veld, which has no grabber because it has no sheet.
-  final Color? grabberColour;
+  final Color grabberColour;
   final double grabberWidth;
   final double grabberHeight;
   final double grabberTopInset;
@@ -161,9 +128,6 @@ class TorchSheetSpec {
   final double belowGrabber;
 
   final double bottomPadding;
-
-  /// Zero outside Veld.
-  final double closeRowHeight;
 
   final TiqTypeToken titleStyle;
   final Color titleInk;
@@ -180,7 +144,6 @@ class TorchSheetSpec {
         ? '—'
         : '#${(c.toARGB32() & 0xFFFFFFFF).toRadixString(16).padLeft(8, '0').toUpperCase()}';
     return <String>[
-      'form=${form.name}',
       'scrim=${hex(scrim)}',
       'fill=${hex(fill)}',
       'outline=${hex(outline)}@${outlineWidth.toStringAsFixed(1)}',
@@ -191,7 +154,6 @@ class TorchSheetSpec {
           '@${grabberWidth.toStringAsFixed(0)}x${grabberHeight.toStringAsFixed(0)}',
       'belowGrabber=${belowGrabber.toStringAsFixed(1)}',
       'padBottom=${bottomPadding.toStringAsFixed(1)}',
-      'closeRow=${closeRowHeight.toStringAsFixed(1)}',
       'title=${titleStyle.name}',
       'body=${bodyStyle.name}',
     ].join('  ');

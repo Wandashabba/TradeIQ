@@ -17,11 +17,7 @@ import '../../theme/torchlight/tiq_skin.dart';
 /// on and for the one figure that sends them there. A panel is still a
 /// [TorchPanel] at radius 14, a chip is still radius 6, and a section marker
 /// is still words on the ground.
-///
-/// **Veld does not get one.** A soft translucent block on white under glare
-/// stops reading as a block, so in Veld this is the same content with no
-/// fill, no radius and the skin's own 2px border — which is the rule Veld
-/// applies to everything else.
+
 ///
 /// Cost: one `DecoratedBox`. No shadow, no gradient, no `saveLayer`, and
 /// nothing that may not appear inside a `ListView.builder`.
@@ -37,17 +33,10 @@ class TorchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final veld = skin.density == TiqDensity.veld;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: veld ? null : skin.palette.surface,
-        borderRadius: veld ? null : BorderRadius.circular(skin.radii.card),
-        border: veld
-            ? Border.all(
-                color: skin.palette.edgeStructure,
-                width: skin.depth.borderWidth,
-              )
-            : null,
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.card),
       ),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(TiqSpace.s4),

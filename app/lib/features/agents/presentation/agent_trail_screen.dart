@@ -58,11 +58,11 @@ final agentTrailDayProvider = StateProvider.autoDispose<DateTime>((ref) {
 /// ## Everything the map says, the list says too
 ///
 /// The trail used to BE the map: a full-bleed `FlutterMap` with a legend strip
-/// over it and nothing else on the route. That made three ordinary conditions
-/// into a blank screen — **Veld** (maps do not render outdoors, unify §4),
-/// **no tiles** (a forecourt with no signal), and **a short phone at 2.0×**
-/// (the fold budget goes to zero). The list underneath is the same day in the
-/// same order, and every one of those three now degrades to a screen rather
+/// over it and nothing else on the route. That made two ordinary conditions
+/// into a blank screen — **no tiles** (a forecourt with no signal) and **a
+/// short phone at 2.0×** (the fold budget goes to zero). The list underneath
+/// is the same day in the same order, and both of those now degrade to a
+/// screen rather
 /// than to an absence.
 ///
 /// ## A row names a person (#399/#400)
@@ -77,7 +77,7 @@ final agentTrailDayProvider = StateProvider.autoDispose<DateTime>((ref) {
 ///
 /// A tab root, so Night's budget is two and the nav's active tab is slot 1.
 /// This route nominates nothing: a record of where somebody has been has no
-/// commit action, and a trail is not a chart with a focus. Day and Veld paint
+/// commit action, and a trail is not a chart with a focus. Day paints
 /// zero. The stop pins carry no amber either — amber leaves the map entirely
 /// (§3.2), and on a map of eleven stops it would be claimed eleven times.
 class AgentTrailScreen extends ConsumerWidget {

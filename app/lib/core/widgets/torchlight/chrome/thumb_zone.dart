@@ -13,7 +13,7 @@ import '../../../theme/torchlight/tiq_skin.dart';
 ///
 /// | | height | contents |
 /// |---|---|---|
-/// | a screen with a primary | 96 (Veld 112) | `[cycle 56] [12] [primary, Expanded]` |
+/// | a screen with a primary | 96 | `[cycle 56] [12] [primary, Expanded]` |
 /// | with a second action | 160 | the ghost above the primary at 8dp |
 /// | a screen with no primary | 76 | the skin cycle alone, no rule |
 ///
@@ -55,7 +55,7 @@ class TorchThumbZone extends StatelessWidget {
     required bool hasSecondary,
   }) {
     if (!hasPrimary) return 76;
-    final base = skin.mode == SkinMode.veld ? 112.0 : 96.0;
+    const base = 96.0;
     return hasSecondary ? base + 64 : base;
   }
 
@@ -67,10 +67,7 @@ class TorchThumbZone extends StatelessWidget {
     final gutter = skin.space.gutter;
 
     final rule = hasPrimary
-        ? Container(
-            height: skin.depth.borderWidth,
-            color: skin.mode == SkinMode.veld ? p.edgeStructure : p.hairline,
-          )
+        ? Container(height: skin.depth.borderWidth, color: p.hairline)
         // Never a rule over nothing: the cycle-only zone is the ground it sits
         // on, and a line there would announce a region that has no contents.
         : const SizedBox.shrink();

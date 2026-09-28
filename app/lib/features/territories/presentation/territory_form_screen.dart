@@ -25,7 +25,7 @@ import '../data/territories_repository.dart';
 /// ## The amber, counted
 ///
 /// Untabbed, no nav, so Night has two content grants and this route spends
-/// **one**: `Create territory` at rung 1. Day and Veld spend their single
+/// **one**: `Create territory` at rung 1. Day spend their single
 /// grant on the same block. The focused field's rule is ink-1 and 2px here,
 /// not flame-700 — Phase 2 ships no light in the input folder and the
 /// accessibility requirement the ruling states (2px minimum, never

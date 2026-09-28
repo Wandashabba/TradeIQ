@@ -46,7 +46,6 @@ class _QuestionBubbleState extends State<QuestionBubble> {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
 
     return Semantics(
       container: true,
@@ -76,13 +75,10 @@ class _QuestionBubbleState extends State<QuestionBubble> {
                     maxWidth: MediaQuery.sizeOf(context).width * 0.78,
                   ),
                   child: Container(
-                    padding: EdgeInsets.all(veld ? TiqSpace.s4 : TiqSpace.s3),
+                    padding: const EdgeInsets.all(TiqSpace.s3),
                     decoration: BoxDecoration(
-                      color: veld ? p.ground : p.raised,
-                      borderRadius: BorderRadius.circular(
-                        veld ? 0 : skin.radii.panel,
-                      ),
-                      border: veld ? Border.all(color: p.ink1, width: 2) : null,
+                      color: p.raised,
+                      borderRadius: BorderRadius.circular(skin.radii.panel),
                     ),
                     child: Text.rich(
                       TextSpan(
@@ -168,7 +164,6 @@ class AnswerErrorBlock extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
 
     return Semantics(
       container: true,
@@ -179,17 +174,10 @@ class AnswerErrorBlock extends StatelessWidget {
       child: DecoratedBox(
         key: const ValueKey<String>('answer-error'),
         decoration: BoxDecoration(
-          border: BorderDirectional(
-            start: BorderSide(
-              color: veld ? p.badSolid : p.bad,
-              width: veld ? 4 : 3,
-            ),
-          ),
+          border: BorderDirectional(start: BorderSide(color: p.bad, width: 3)),
         ),
         child: Padding(
-          padding: EdgeInsetsDirectional.only(
-            start: (veld ? 4 : 3) + TiqSpace.s3,
-          ),
+          padding: const EdgeInsetsDirectional.only(start: 3 + TiqSpace.s3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -201,8 +189,8 @@ class AnswerErrorBlock extends StatelessWidget {
                     padding: const EdgeInsets.only(top: TiqSpace.s1),
                     child: TiqMark(
                       shape: MarkShape.criticalTriangle,
-                      color: veld ? p.badSolid : p.bad,
-                      size: MarkScale.glyph(context, veld ? 14 : 9),
+                      color: p.bad,
+                      size: MarkScale.glyph(context, 9),
                     ),
                   ),
                   const SizedBox(width: TiqSpace.s3 - 2),
@@ -289,7 +277,7 @@ class StoppedLine extends StatelessWidget {
 /// about a clock.
 ///
 /// **Amber: zero.** Send is disabled beneath it and therefore unrimmed in
-/// Night and unfilled in Day and Veld.
+/// Night and unfilled in Day.
 class AskHeldBand extends StatelessWidget {
   const AskHeldBand({
     super.key,
@@ -308,7 +296,6 @@ class AskHeldBand extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
 
     return Semantics(
       container: true,
@@ -327,11 +314,8 @@ class AskHeldBand extends StatelessWidget {
           vertical: TiqSpace.s2,
         ),
         decoration: BoxDecoration(
-          color: veld ? p.ground : p.well,
-          borderRadius: BorderRadius.circular(veld ? 0 : skin.radii.control),
-          border: veld
-              ? Border.all(color: p.ink1, width: skin.depth.borderWidth)
-              : null,
+          color: p.well,
+          borderRadius: BorderRadius.circular(skin.radii.control),
         ),
         child: Row(
           children: <Widget>[
@@ -339,8 +323,8 @@ class AskHeldBand extends StatelessWidget {
               child: TiqMark(
                 // The square is labelled "Held" — deliberately not a severity.
                 shape: MarkShape.heldSquare,
-                color: veld ? p.ink1 : p.comparison,
-                size: MarkScale.glyph(context, veld ? 12 : 9),
+                color: p.comparison,
+                size: MarkScale.glyph(context, 9),
               ),
             ),
             const SizedBox(width: TiqSpace.s2),

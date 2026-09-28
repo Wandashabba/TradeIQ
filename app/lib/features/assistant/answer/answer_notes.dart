@@ -45,7 +45,6 @@ class AnswerNotice extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final veld = skin.mode == SkinMode.veld;
     final reason = reasonFor(l10n, notice.code);
 
     return Semantics(
@@ -57,21 +56,15 @@ class AnswerNotice extends StatelessWidget {
         constraints: BoxConstraints(minHeight: skin.space.rowMinHeight),
         decoration: BoxDecoration(
           // Recessed: a caveat sits below the answer, not above it.
-          color: veld ? p.ground : p.well,
+          color: p.well,
           borderRadius: BorderRadius.circular(skin.radii.control),
-          border: veld
-              ? Border.all(color: p.ink1, width: skin.depth.borderWidth)
-              : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             // A 3dp left bar, full height. Three channels carry "held": the
             // bar, the square, and the words.
-            SizedBox(
-              width: veld ? 4 : 3,
-              child: ColoredBox(color: veld ? p.ink1 : p.comparison),
-            ),
+            SizedBox(width: 3, child: ColoredBox(color: p.comparison)),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -85,7 +78,7 @@ class AnswerNotice extends StatelessWidget {
                       padding: const EdgeInsets.only(top: TiqSpace.s1),
                       child: TiqMark(
                         shape: MarkShape.heldSquare,
-                        color: veld ? p.ink1 : p.comparison,
+                        color: p.comparison,
                         size: MarkScale.glyph(context, 9),
                       ),
                     ),

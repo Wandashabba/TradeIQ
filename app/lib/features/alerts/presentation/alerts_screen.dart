@@ -50,8 +50,8 @@ import 'alert_detail_sheet.dart';
 /// **no content amber at all**. Under the ruling that costs nothing — the
 /// selected filter chip is `lifted` here exactly as it is everywhere else, the
 /// severity bars are crimson at two commitment levels, and the lead figure
-/// carries the urgency with an outline, a triangle and a word. Day and Veld
-/// paint zero: the ladder has one rung on a light ground and it is the primary
+/// carries the urgency with an outline, a triangle and a word. Day
+/// paints zero: the ladder has one rung on a light ground and it is the primary
 /// commit block, which a worklist does not have.
 ///
 /// ## Acknowledging is optimistic, and it is never silent

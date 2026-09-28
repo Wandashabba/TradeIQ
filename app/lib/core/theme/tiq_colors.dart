@@ -354,7 +354,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
       //
       // So: the fill stays the body (a screen that still paints a pill paints
       // nothing visible rather than a stray block) and the ink is ink-1, which
-      // is 14.06 / 11.12 / 18.52 on the well across Night, Day and Veld. What
+      // is 14.06 / 11.12 / 18.52 on the well across Night and Day. What
       // makes the slot read as active is a shape — see `TiqBottomNavBar`'s
       // underbar and filled silhouette — never the hue alone.
       navActivePillBg: p.well,

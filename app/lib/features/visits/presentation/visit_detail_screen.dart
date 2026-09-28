@@ -59,7 +59,7 @@ import '../data/visit_detail_repository.dart';
 /// with its word beside it, the band is a mark plus a word, and the score's
 /// hero is ink-1 at every band — a severity-coded figure at 72px is a hue
 /// doing a number's job, and it is the one object large enough that its colour
-/// would read as the whole message. Day and Veld: zero, on every phase.
+/// would read as the whole message. Day: zero, on every phase.
 ///
 /// ## Unknown is never zero
 ///
@@ -69,12 +69,7 @@ import '../data/visit_detail_repository.dart';
 /// reasons applies rather than printing 0. A missing geofence distance is
 /// words, never `0,0 m`. A band this build does not recognise is not guessed
 /// at: it shows as unbanded, with no severity and no mark.
-///
-/// ## Veld
-///
-/// Veld renders no thumbnails (unify §4), so the photo strip becomes the
-/// figure list it always was for a screen reader: one row per photograph,
-/// naming its section and the time it was taken.
+
 class VisitDetailScreen extends ConsumerWidget {
   const VisitDetailScreen({super.key, required this.visitId});
 
@@ -992,9 +987,6 @@ class _Photos extends StatelessWidget {
     final l10n = context.l10n;
     final skin = context.skin;
     final shown = detail.photos.length;
-    // Veld renders no thumbnails at all (unify §4). The figure list that
-    // replaces them is what a screen reader has always been given.
-    final veld = skin.mode == SkinMode.veld;
 
     return Column(
       key: const ValueKey<String>('visit-photos'),
@@ -1008,75 +1000,43 @@ class _Photos extends StatelessWidget {
         ),
         if (detail.photos.isNotEmpty) ...<Widget>[
           const SizedBox(height: TiqSpace.s4),
-          if (veld)
-            TorchBleed(
-              extra: skin.space.gutter * 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (var i = 0; i < detail.photos.length; i++)
-                    SoftRow(
-                      key: ValueKey<String>(
-                        'visit-photo-${detail.photos[i].id}',
-                      ),
-                      density: SoftRowDensity.compact,
-                      title: detail.photos[i].section,
-                      trailing: Text(
-                        clockOf(detail.photos[i].timestamp.toLocal()),
-                        style: skin.text.figureS.style(
-                          color: skin.palette.ink1,
-                        ),
-                      ),
-                      separator: i == detail.photos.length - 1
-                          ? SoftRowSeparator.none
-                          : SoftRowSeparator.auto,
-                    ),
-                ],
-              ),
-            )
-          else
-            Wrap(
-              spacing: TiqSpace.s3,
-              runSpacing: TiqSpace.s3,
-              children: <Widget>[
-                for (final p in detail.photos)
-                  SizedBox(
-                    key: ValueKey<String>('visit-photo-${p.id}'),
-                    width: _size,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        TorchEvidenceThumb(
-                          photoId: p.id,
-                          size: _size,
-                          semanticLabel: l10n.visitPhotoSemantics(
-                            detail.outlet.name,
-                            p.section,
-                            clockOf(p.timestamp.toLocal()),
-                          ),
-                        ),
-                        const SizedBox(height: TiqSpace.s1),
-                        Text(
+          Wrap(
+            spacing: TiqSpace.s3,
+            runSpacing: TiqSpace.s3,
+            children: <Widget>[
+              for (final p in detail.photos)
+                SizedBox(
+                  key: ValueKey<String>('visit-photo-${p.id}'),
+                  width: _size,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      TorchEvidenceThumb(
+                        photoId: p.id,
+                        size: _size,
+                        semanticLabel: l10n.visitPhotoSemantics(
+                          detail.outlet.name,
                           p.section,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: skin.text.meta.style(
-                            color: skin.palette.ink2,
-                          ),
-                        ),
-                        Text(
                           clockOf(p.timestamp.toLocal()),
-                          style: skin.text.meta.style(
-                            color: skin.palette.ink3,
-                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: TiqSpace.s1),
+                      Text(
+                        p.section,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: skin.text.meta.style(color: skin.palette.ink2),
+                      ),
+                      Text(
+                        clockOf(p.timestamp.toLocal()),
+                        style: skin.text.meta.style(color: skin.palette.ink3),
+                      ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
+          ),
           if (shown < detail.photoTotal) ...<Widget>[
             const SizedBox(height: TiqSpace.s3),
             Text(

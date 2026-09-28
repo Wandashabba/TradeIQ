@@ -17,8 +17,8 @@
 ///
 /// The section rule is **not** here: `SectionRule` landed in Phase 1
 /// (`lib/core/widgets/torchlight/section_rule.dart`) and already generalises —
-/// count slot, action slot, empty line, the 2.0× wrap and the Veld
-/// above-the-rule form. Phase 2 adds nothing to it.
+/// count slot, action slot, empty line and the 2.0× wrap. Phase 2 adds
+/// nothing to it.
 ///
 /// **Nothing in this folder emits light.** Not the skeleton's travelling rule
 /// (Oatmeal — a skeleton is loading, not live), not the held banner (Oatmeal

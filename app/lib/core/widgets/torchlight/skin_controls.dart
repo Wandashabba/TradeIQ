@@ -9,7 +9,6 @@ import 'chrome/chrome.dart';
 
 /// A skin's name in the agent's language.
 String skinName(AppLocalizations l10n, SkinMode mode) => switch (mode) {
-  SkinMode.veld => l10n.skinVeld,
   SkinMode.night => l10n.skinNight,
   SkinMode.day || SkinMode.auto => l10n.skinDay,
 };
@@ -42,8 +41,8 @@ class AgentSkinCycle extends ConsumerWidget {
 /// The same control in the app header's single trailing slot — unify §1.2's
 /// placement on a tab root, where the floating nav row has no 56dp to spare.
 ///
-/// Same three glyphs, same cycle, same "name the next state" rule; a
-/// different 48dp box.
+/// Same two glyphs, same cycle, same "name the next state" rule; a different
+/// 48dp box.
 ///
 /// A function and not a widget, because [TorchAppHeader.trailing] is **typed**
 /// as a `TorchIconButton`: the rule is *exactly one* trailing icon button, and

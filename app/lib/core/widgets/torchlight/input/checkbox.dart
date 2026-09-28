@@ -43,11 +43,9 @@ class TorchCheckbox extends StatelessWidget {
 
   final String? disabledReason;
 
-  /// 28 at 1.0×, 48 at 2.0×, and 32 in Veld before scaling.
-  static double extentFor(BuildContext context, TiqSkin skin) {
-    final base = skin.density == TiqDensity.veld ? 32.0 : 28.0;
-    return math.min(base * MarkScale.factor(context), 48.0);
-  }
+  /// 28 at 1.0×, 48 at 2.0×.
+  static double extentFor(BuildContext context, TiqSkin skin) =>
+      math.min(28.0 * MarkScale.factor(context), 48.0);
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +53,6 @@ class TorchCheckbox extends StatelessWidget {
     final p = skin.palette;
     final enabled = onChanged != null && !readOnly;
     final extent = extentFor(context, skin);
-    final veld = skin.density == TiqDensity.veld;
 
     final Color? fill;
     final Color? border;
@@ -69,11 +66,9 @@ class TorchCheckbox extends StatelessWidget {
       border = p.inkMute;
       tickInk = p.ground;
     } else if (value) {
-      // Veld fills with INK, not green: outdoors filled-versus-empty is the
-      // signal and the success colour is reserved for success blocks.
-      fill = veld ? p.lifted : p.good;
-      border = veld ? p.ink1 : p.good;
-      tickInk = veld ? p.ground : p.ground;
+      fill = p.good;
+      border = p.good;
+      tickInk = p.ground;
     } else {
       fill = null;
       border = p.edgeControl;
@@ -92,10 +87,7 @@ class TorchCheckbox extends StatelessWidget {
         ),
         child: value
             ? CustomPaint(
-                painter: _TickPainter(
-                  color: tickInk,
-                  strokeWidth: veld ? 3 : 2.5,
-                ),
+                painter: _TickPainter(color: tickInk, strokeWidth: 2.5),
               )
             : null,
       ),

@@ -383,7 +383,6 @@ class _FramingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final veld = skin.mode == SkinMode.veld;
 
     return Container(
       key: const ValueKey<String>('framing-card'),
@@ -396,7 +395,7 @@ class _FramingCard extends StatelessWidget {
           width: skin.depth.borderWidth,
         ),
         // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-        // in Night and Veld and three stacked drops in Day, so this block
+        // in Night and three stacked drops in Day, so this block
         // floated on the Day ground while every card and row beside it sat
         // flat on it — two grammars on one screen, in the one skin where it
         // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
@@ -414,7 +413,7 @@ class _FramingCard extends StatelessWidget {
                 key: const ValueKey<String>('framing-brackets'),
                 painter: _FramingBracketPainter(
                   colour: skin.palette.edgeControl,
-                  stroke: veld ? 3 : 2,
+                  stroke: 2,
                 ),
               ),
             ),

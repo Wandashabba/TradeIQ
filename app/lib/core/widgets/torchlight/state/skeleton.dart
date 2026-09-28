@@ -39,12 +39,7 @@ import '../../../theme/torchlight/tiq_skin.dart';
 ///   skeleton is loading, not live, and an amber pulse on a placeholder tells
 ///   a manager that a blank is real-time data.
 /// * **10s** — the rule stops and a meta line appears with a Retry.
-///
-/// ## Veld has no skeleton
-///
-/// A field of grey blocks on white at 40% backlight in the sun is
-/// indistinguishable from a broken screen. Veld renders the word `Loading` at
-/// `body.strong` on the left gutter, and nothing else.
+
 class Skeleton extends StatefulWidget {
   const Skeleton({
     super.key,
@@ -121,27 +116,6 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-
-    // VELD HAS NO SKELETON.
-    if (skin.density == TiqDensity.veld) {
-      return Semantics(
-        label: 'Loading ${widget.label}',
-        excludeSemantics: true,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: skin.space.gutter,
-              vertical: skin.space.intraBlock,
-            ),
-            child: Text(
-              'Loading',
-              style: skin.text.bodyStrong.style(color: skin.palette.ink2),
-            ),
-          ),
-        ),
-      );
-    }
 
     if (!_visible) return const SizedBox.shrink();
 

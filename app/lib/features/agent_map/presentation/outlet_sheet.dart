@@ -14,9 +14,9 @@ import 'outlet_map.dart' show MapPinGlyph;
 /// WHAT YOU CAN DO AT THIS STORE.
 ///
 /// Opened by a marker and by its row — the same object, the same sheet. That
-/// is not symmetry for its own sake: in Veld there is no map to tap, and a
-/// sheet reachable only from a marker would be a feature that disappears
-/// outdoors.
+/// is not symmetry for its own sake: on a screen with no tiles, or too short
+/// to give the map a fold budget, there is no marker to tap, and a sheet
+/// reachable only from a marker would be a feature that disappears.
 ///
 /// ## The amber
 ///
@@ -31,8 +31,7 @@ import 'outlet_map.dart' show MapPinGlyph;
 /// screen where nothing is armed.
 const String outletSheetCheckInClaimId = 'map-sheet-check-in';
 
-/// Opens [pin]'s sheet. A bottom sheet in Night and Day, a full-screen route
-/// with a 56dp close row in Veld — [TorchSheet] owns that difference.
+/// Opens [pin]'s sheet.
 Future<void> showOutletSheet(BuildContext context, MapOutlet pin) {
   return showTorchSheet<void>(
     context,
@@ -55,7 +54,6 @@ class OutletSheet extends StatelessWidget {
     return TorchSheet(
       title: pin.outlet.name,
       subtitle: pin.outlet.code,
-      closeLabel: l10n.sheetClose,
       claims: done
           ? const <TorchClaim>[]
           : const <TorchClaim>[

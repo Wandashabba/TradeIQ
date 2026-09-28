@@ -29,7 +29,7 @@ import '../data/templates_repository.dart';
 /// A tab root: the nav pill's active tab is slot 1. "Use in audits" is a
 /// consequential change, but it is a row verb rather than the screen's commit
 /// action — a list of templates is not a screen about one of them — so the
-/// content grant goes unspent and Day and Veld paint zero.
+/// content grant goes unspent and Day paints zero.
 class TemplatesScreen extends ConsumerStatefulWidget {
   const TemplatesScreen({super.key});
 

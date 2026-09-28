@@ -2672,12 +2672,6 @@ abstract class AppLocalizations {
   /// **'Night'**
   String get skinNight;
 
-  /// The name of the outdoor screen, in the skin cycle's spoken label. The explanation is part of the name because a blind user has no other way to learn what Veld is.
-  ///
-  /// In en, this message translates to:
-  /// **'Veld, the outdoor high-contrast screen'**
-  String get skinVeld;
-
   /// Sync chip when the outbox is empty.
   ///
   /// In en, this message translates to:
@@ -3134,12 +3128,6 @@ abstract class AppLocalizations {
   /// **'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.'**
   String get mapTilesOffBody;
 
-  /// Shown instead of the map in the Veld skin, where maps do not render.
-  ///
-  /// In en, this message translates to:
-  /// **'The map is off in bright sun. Your stores are listed below, nearest first.'**
-  String get mapVeldNote;
-
   /// Whole-screen empty state: no route today and nothing in the agent's territories.
   ///
   /// In en, this message translates to:
@@ -3205,12 +3193,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What the pins mean'**
   String get mapLegendLabel;
-
-  /// The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld.
-  ///
-  /// In en, this message translates to:
-  /// **'Close'**
-  String get sheetClose;
 
   /// The Ask TradeIQ route's title.
   ///
@@ -3644,7 +3626,7 @@ abstract class AppLocalizations {
   /// **'Loading figures'**
   String get askLoadingFigures;
 
-  /// Veld has no skeleton — one word instead.
+  /// The one word a loading region shows when a skeleton is not what the reader needs.
   ///
   /// In en, this message translates to:
   /// **'Loading'**
@@ -4183,12 +4165,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name}, {count, plural, =1{1 line} other{{count} lines}} out of stock'**
   String askMapPin(String name, int count);
-
-  /// Ask TradeIQ answer card.
-  ///
-  /// In en, this message translates to:
-  /// **'Maps are not drawn in Veld. The outlets are listed instead.'**
-  String get askMapNotInVeld;
 
   /// Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action.
   ///
@@ -5005,12 +4981,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'tap to open your work'**
   String get syncBannerOpen;
-
-  /// The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap.
-  ///
-  /// In en, this message translates to:
-  /// **'Close'**
-  String get commonClose;
 
   /// One picker row as a screen reader hears it — the store, its code, and what tapping does.
   ///
@@ -11291,18 +11261,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'checked in at {time}'**
   String trailCheckedInAt(String time);
-
-  /// Headline of the Veld note that stands in for the trail map.
-  ///
-  /// In en, this message translates to:
-  /// **'No map in the sun.'**
-  String get trailNoMapHeadline;
-
-  /// Body of the Veld note that stands in for the trail map.
-  ///
-  /// In en, this message translates to:
-  /// **'A dark basemap read outdoors is a black rectangle. Every stop is listed below, in order, with the time it was confirmed.'**
-  String get trailNoMapBody;
 
   /// Headline when the trail map's tiles never arrive.
   ///

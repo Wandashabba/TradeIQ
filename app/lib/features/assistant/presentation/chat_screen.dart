@@ -88,7 +88,7 @@ final askSessionEndedProvider = Provider<bool>((ref) {
 ///
 /// ## The amber census, per phase
 ///
-/// | phase | Night | Day / Veld | which |
+/// | phase | Night | Day | which |
 /// |---|---|---|---|
 /// | first run | 1 | 0 | the nav tab; Send is disabled |
 /// | thinking | 2 | 0 | the nav tab, the running step |

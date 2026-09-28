@@ -31,7 +31,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 ///
 /// | rung | object | when |
 /// |---|---|---|
-/// | 1 `primaryCommit` | Send's rim (Night) / block (Day, Veld) | the manager has typed something |
+/// | 1 `primaryCommit` | Send's rim (Night) / block (Day) | the manager has typed something |
 /// | 3 `chartFocus` | one ranked bar, or the trend's primary series | a landed answer, trough empty |
 /// | 6 `livePulse` | the running step's dot | a tool is genuinely executing |
 ///
@@ -94,9 +94,7 @@ class AskLight {
     if (disabled) {
       // Disabled must look disabled — 1.4.3 exempts it — and it is never
       // amber, in any skin. Most states of this screen therefore carry no
-      // composer amber at all. In Veld the caller also strikes the glyph
-      // through, because a colour-only disabled state is invisible at 40%
-      // backlight in sun.
+      // composer amber at all.
       return AskSendLook(
         fill: p.well,
         ink: p.inkMute,
@@ -108,8 +106,6 @@ class AskLight {
       return AskSendLook(
         fill: p.amberPressed,
         ink: p.onAmberPressed,
-        // Veld's press is an ink block, and an ink block on white needs its
-        // border as much as an amber one does.
         edge: skin.amberIsInk ? p.ink1 : null,
         edgeWidth: skin.depth.borderWidth,
       );
@@ -146,9 +142,9 @@ class AskLight {
   /// series stroke.
   ///
   /// Denied, it is ink-1 and the marker and the weight carry the emphasis
-  /// instead. That is not a degradation: on Day and Veld the focus is *always*
-  /// ink, because amber on a light ground is a carrier of ink and the one
-  /// carrier per screen is the commit action.
+  /// instead. That is not a degradation: on Day the focus is *always* ink,
+  /// because amber on a light ground is a carrier of ink and the one carrier
+  /// per screen is the commit action.
   static Color focusFill(TiqSkin skin, {required bool lit}) =>
       lit ? skin.palette.flame600 : skin.palette.ink1;
 
@@ -183,8 +179,8 @@ class AskLight {
 
   /// The running step's dot.
   ///
-  /// Denied — on Day, in Veld, or while something else holds the route's one
-  /// content grant — it is a `lifted` disc, and the rail appends the word
+  /// Denied — on Day, or while something else holds the route's one content
+  /// grant — it is a `lifted` disc, and the rail appends the word
   /// "Live" to the step's label. The word is not a fallback: under
   /// reduce-motion it is the only channel, and the same code path serves both,
   /// so it cannot rot.

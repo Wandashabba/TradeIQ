@@ -70,7 +70,7 @@ import '../data/leaderboard_view.dart';
 ///
 /// A tab root, so Night's budget is two and the nav's active tab is slot 1.
 /// This route nominates **no content amber**: a ranking has nothing armed, no
-/// commit action and no chart focus. Day and Veld paint zero — their one rung
+/// commit action and no chart focus. Day paints zero — their one rung
 /// is the primary commit block, and there is none here.
 class LeaderboardScreen extends ConsumerWidget {
   const LeaderboardScreen({super.key});

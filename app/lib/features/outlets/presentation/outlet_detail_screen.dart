@@ -57,7 +57,7 @@ import 'outlets_list_screen.dart' show formatDistance;
 ///
 /// Not a tab root: a manager came here to fix one store. The thumb zone
 /// carries the one commit and Night's two content grants go to **one** object,
-/// "Save". Day and Veld light the same block. Every other thing on this screen
+/// "Save". Day lights the same block. Every other thing on this screen
 /// that looks urgent — the reports banner, the severity on a rejected
 /// check-in, the refusal on a mocked position — is crimson plus a silhouette
 /// plus a word, because a count of problems is never light.

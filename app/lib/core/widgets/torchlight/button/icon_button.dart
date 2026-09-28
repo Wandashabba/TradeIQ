@@ -55,14 +55,14 @@ class TorchIconButton extends StatelessWidget {
   /// Torch on, skin pinned, filter active.
   final bool toggledOn;
 
-  /// "On", "Veld", "3 filters" — rendered beside the glyph inside the block.
+  /// "On", "Night", "3 filters" — rendered beside the glyph inside the block.
   final String? stateWord;
 
   final VoidCallback? onLongPress;
 
-  /// 24dp by default, 26 in Veld. A component that carries meaning in this
-  /// glyph — a nav slot gone icon-only — passes a bigger number rather than
-  /// letting the ambient scaler do it.
+  /// 24dp by default. A component that carries meaning in this glyph — a nav
+  /// slot gone icon-only — passes a bigger number rather than letting the
+  /// ambient scaler do it.
   final double? glyphSize;
 
   @override
@@ -73,13 +73,13 @@ class TorchIconButton extends StatelessWidget {
     final floor = torchTapTarget(skin);
     // The glyph does not scale with the text — a chevron is not a word — but
     // the TARGET does, because a reader at 2.0× is usually a reader whose aim
-    // is also less precise. 48 grows to 56, and Veld's 56 to 64.
+    // is also less precise. 48 grows to 56.
     final target = MediaQuery.textScalerOf(
       context,
     ).scale(floor).clamp(floor, floor >= 56 ? 64.0 : 56.0);
     final radius = BorderRadius.circular(skin.radii.control);
     final press = torchPressSurface(skin);
-    final size = glyphSize ?? (skin.mode == SkinMode.veld ? 26 : 24);
+    final size = glyphSize ?? 24;
 
     return TorchPressable(
       onPressed: onPressed,

@@ -24,8 +24,8 @@ import 'contest_labels.dart';
 ///
 /// ## The amber, counted
 ///
-/// Not a tab root and no nav, so Night has two content grants and Day and Veld
-/// have one. The only claim is the save action, and it is declared only while
+/// Not a tab root and no nav, so Night has two content grants and Day
+/// has one. The only claim is the save action, and it is declared only while
 /// the form can actually be submitted — a screen mid-save declares nothing, so
 /// a busy form carries zero amber and a ready one carries exactly one in every
 /// skin.

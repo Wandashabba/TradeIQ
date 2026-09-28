@@ -44,15 +44,12 @@ import 'torch_press.dart';
 ///   The rim and the bleed touch, so the pixel census counts them as **one**
 ///   object, which is what unify §1.7 means by "rim + 2dp top bleed is one
 ///   object". The block itself is not amber; it is a dark block that is *lit*.
-/// * **Day and Veld** — a solid amber block with dark ink on it. On a light
+/// * **Day** — a solid amber block with dark ink on it. On a light
 ///   ground amber stops being light and becomes a carrier of ink, and there is
 ///   exactly one of those per screen.
 /// * **Pressed** — floods to `amberPressed` with `onAmberPressed` on it. In
 ///   Night that is flame-500 with `#0B1017` at 8.59:1, exactly as §1.7 asks.
-///   Veld does **not** lighten: `#0E141A` on flame-500 is 8.34:1, under the 9:1
-///   floor Veld declares for every word it shows, so Veld's press inverts to the
-///   ink block with white on it. That is the palette's own argued answer and it
-///   is read from the token rather than restated here.
+///   The value is read from the token rather than restated here.
 /// * **Disabled** — a `well` block with ink-mute on it, its edge-control
 ///   outline retained, and a [TorchBarNote] **above it naming exactly what is
 ///   missing**. The note is a constructor requirement, not a convention.
@@ -226,8 +223,6 @@ class TorchPrimaryButton extends StatelessWidget {
       return _PrimaryLook(
         fill: p.amberPressed,
         ink: p.onAmberPressed,
-        // Veld's press is an ink block, and an ink block on white needs its
-        // border as much as an amber one does.
         edge: skin.amberIsInk ? p.ink1 : null,
         edgeWidth: skin.depth.borderWidth,
         bleed: false,
@@ -248,7 +243,7 @@ class TorchPrimaryButton extends StatelessWidget {
       );
     }
     if (skin.amberIsInk) {
-      // Day and Veld: a solid amber block carrying dark ink. It gets a real
+      // Day: a solid amber block carrying dark ink. It gets a real
       // edge because a `#FFB162` block on Palladian is 1.6:1 against its own
       // ground, and nothing in this system is identified by a fill alone.
       return _PrimaryLook(

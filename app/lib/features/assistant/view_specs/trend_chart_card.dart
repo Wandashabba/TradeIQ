@@ -68,11 +68,10 @@ class TrendChartCard extends StatelessWidget {
     'share_of_shelf',
   };
 
-  /// 208 Console phone / 232 Field / 180 Veld / 260 at ≥600dp (unify §1.17).
-  /// The assistant surface asked for 160 and lost on its own arithmetic: with
-  /// a 38dp gutter that leaves about 120dp of plot.
+  /// 208 Console phone / 232 Field / 260 at ≥600dp (unify §1.17). The
+  /// assistant surface asked for 160 and lost on its own arithmetic: with a
+  /// 38dp gutter that leaves about 120dp of plot.
   static double plotHeightFor(TiqSkin skin, double width) {
-    if (skin.density == TiqDensity.veld) return 180;
     if (width >= 600) return 260;
     return skin.density == TiqDensity.field ? 232 : 208;
   }
@@ -219,7 +218,6 @@ class ChartLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    final veld = skin.mode == SkinMode.veld;
     final spoken = <String>[
       for (final e in entries)
         l10n.askLegendEntry(
@@ -232,7 +230,7 @@ class ChartLegend extends StatelessWidget {
       label: l10n.askLegend(spoken),
       excludeSemantics: true,
       child: Wrap(
-        spacing: veld ? TiqSpace.s6 : TiqSpace.s4,
+        spacing: TiqSpace.s4,
         runSpacing: TiqSpace.s2,
         children: <Widget>[
           for (final entry in entries)
@@ -240,11 +238,11 @@ class ChartLegend extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 CustomPaint(
-                  size: Size(veld ? 20 : 16, veld ? 2 : 2),
+                  size: const Size(16, 2),
                   painter: _SwatchPainter(
                     colour: entry.colour,
                     dashed: entry.dashed,
-                    thickness: veld ? 2 : 2,
+                    thickness: 2,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -482,15 +480,13 @@ class _TrendPainter extends CustomPainter {
     double y(double v) => size.height * (1 - (v - low) / span);
     double x(int i, int n) => n <= 1 ? 0 : size.width * i / (n - 1);
 
-    final veld = skin.mode == SkinMode.veld;
-
-    // Gridlines: horizontal only, three, hairline in Night and Day and a 2px
-    // border in Veld at two values. No vertical gridlines, no plot border,
-    // no background fill — the legend above and the axis row below bound it.
+    // Gridlines: horizontal only, three, hairline. No vertical gridlines, no
+    // plot border, no background fill — the legend above and the axis row
+    // below bound it.
     final grid = Paint()
-      ..color = veld ? skin.palette.ink1 : skin.palette.hairline
-      ..strokeWidth = veld ? 2 : 1;
-    final lines = veld ? 2 : 3;
+      ..color = skin.palette.hairline
+      ..strokeWidth = 1;
+    const lines = 3;
     for (var i = 0; i <= lines; i++) {
       final gy = size.height * i / lines;
       canvas.drawLine(Offset(0, gy), Offset(size.width, gy), grid);
@@ -503,23 +499,21 @@ class _TrendPainter extends CustomPainter {
     }
 
     // The area fill is part of the series object, not a second one: one
-    // gradient in the same draw call, and never in Veld.
-    if (!veld) {
-      final area = Path.from(path)
-        ..lineTo(size.width, size.height)
-        ..lineTo(0, size.height)
-        ..close();
-      canvas.drawPath(
-        area,
-        Paint()..shader = wash.createShader(Offset.zero & size),
-      );
-    }
+    // gradient in the same draw call.
+    final area = Path.from(path)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(
+      area,
+      Paint()..shader = wash.createShader(Offset.zero & size),
+    );
 
     canvas.drawPath(
       path,
       Paint()
         ..color = series
-        ..strokeWidth = veld ? 2 : 2
+        ..strokeWidth = 2
         ..style = PaintingStyle.stroke
         ..strokeJoin = StrokeJoin.round,
     );
@@ -528,16 +522,13 @@ class _TrendPainter extends CustomPainter {
       // 1.5dp dashed, and NEVER an area fill: a filled comparison breaks the
       // 1.41:1 deuteranopia pair that the stroke pattern is carrying.
       final dash = Paint()
-        ..color = veld ? skin.palette.ink2 : skin.palette.comparison
-        ..strokeWidth = veld ? 2 : 1.5
+        ..color = skin.palette.comparison
+        ..strokeWidth = 1.5
         ..style = PaintingStyle.stroke;
       Offset? previous;
       for (var i = 0; i < comparison.length; i++) {
-        final point = Offset(
-          x(i, comparison.length),
-          y(comparison[i].value),
-        );
-        if (previous != null) _dashed(canvas, previous, point, dash, veld);
+        final point = Offset(x(i, comparison.length), y(comparison[i].value));
+        if (previous != null) _dashed(canvas, previous, point, dash);
         previous = point;
       }
     }
@@ -550,11 +541,11 @@ class _TrendPainter extends CustomPainter {
     );
   }
 
-  void _dashed(Canvas canvas, Offset a, Offset b, Paint paint, bool veld) {
+  void _dashed(Canvas canvas, Offset a, Offset b, Paint paint) {
     final total = (b - a).distance;
     if (total == 0) return;
-    final step = veld ? 10.0 : 7.0;
-    final on = veld ? 6.0 : 4.0;
+    const step = 7.0;
+    const on = 4.0;
     final direction = (b - a) / total;
     var travelled = 0.0;
     while (travelled < total) {

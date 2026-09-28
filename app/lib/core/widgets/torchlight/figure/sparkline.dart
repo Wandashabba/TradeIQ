@@ -52,12 +52,6 @@ class Sparkline extends StatelessWidget {
     if (points.length < 2) return const SizedBox.shrink();
     final skin = context.skin;
 
-    // Veld draws no sparklines at all — a grey zigzag is under the 9:1 floor
-    // by construction, and Veld has no token under 9:1. The row drops it too;
-    // this is the belt for that brace, so a sparkline placed directly on a
-    // Veld surface cannot appear.
-    if (skin.density == TiqDensity.veld) return const SizedBox.shrink();
-
     final line = skin.palette.chartNeutral;
     final dot = severity == null
         ? skin.palette.chartNeutral

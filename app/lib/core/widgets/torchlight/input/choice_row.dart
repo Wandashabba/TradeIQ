@@ -35,8 +35,7 @@ enum ChoiceLayout {
   /// Two to four options side by side.
   row,
 
-  /// Full-width rows, mark leading. Automatic on a measured width, and always
-  /// in Veld.
+  /// Full-width rows, mark leading. Automatic on a measured width.
   column,
 }
 
@@ -94,8 +93,8 @@ class ChoiceRow<T> extends StatelessWidget {
   /// For a group where a mis-tap is not recoverable — a verdict that accuses
   /// a person of faking their work — three 44dp targets side by side is a
   /// mis-tap waiting to happen, and the arithmetic that says they fit is not
-  /// the argument. Veld already forces this for the same reason; this is the
-  /// caller's way of saying the stakes do it too.
+  /// the argument. This is the caller's way of saying the stakes force a
+  /// column.
   final bool forceColumn;
 
   /// Above 14 characters a label stops fitting a quarter of a 360dp phone, and
@@ -112,11 +111,9 @@ class ChoiceRow<T> extends StatelessWidget {
     required TextDirection direction,
     bool forceColumn = false,
   }) {
-    // Veld is ALWAYS a column: three side-by-side 56dp targets in the sun is a
-    // mis-tap, whatever the arithmetic says. A caller that declares the same
-    // about its own stakes gets the same answer.
+    // A caller that declares its own stakes gets a column whatever the
+    // arithmetic says.
     if (forceColumn) return ChoiceLayout.column;
-    if (skin.density == TiqDensity.veld) return ChoiceLayout.column;
     if (!maxWidth.isFinite) return ChoiceLayout.row;
     final cell = (maxWidth - TiqSpace.s2 * (labels.length - 1)) / labels.length;
     for (final label in labels) {
@@ -298,8 +295,7 @@ class _Option<T> extends StatelessWidget {
     final skin = context.skin;
     final p = skin.palette;
     final enabled = option.enabled && onTap != null;
-    final veld = skin.density == TiqDensity.veld;
-    final height = veld ? 64.0 : (column ? 56.0 : skin.space.tapTarget);
+    final height = column ? 56.0 : skin.space.tapTarget;
     final radius = BorderRadius.circular(skin.radii.chip);
 
     final Color? fill;
@@ -310,8 +306,8 @@ class _Option<T> extends StatelessWidget {
       border = p.inkMute;
       ink = p.inkMute;
     } else if (selected) {
-      fill = veld ? p.lifted : p.lifted;
-      border = veld ? p.ink1 : p.ink1;
+      fill = p.lifted;
+      border = p.ink1;
       ink = torchOnAbyssal(skin);
     } else {
       fill = null;
