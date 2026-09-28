@@ -613,4 +613,119 @@ void main() {
       expect(minusSign, '\u2212');
     });
   });
+
+  // ── The semantic colour, 28 September 2026 ──────────────────────────
+  //
+  // "Nothing on the screen tells you at a glance whether a number is good or
+  // bad, which is the whole job of a manager's home screen." These are the
+  // pins on the answer, and the reason they are on THE FLOOR rather than on
+  // the components is that the components cannot tell whether a screen
+  // applied the rule: a hero that renders in ink-1 is a perfectly valid hero.
+  group('a figure carries its standing', () {
+    /// The colour of the run that prints [text].
+    Color inkOf(WidgetTester tester, String text) {
+      for (final widget in tester.widgetList<RichText>(find.byType(RichText))) {
+        final span = widget.text;
+        if (!span.toPlainText().contains(text)) continue;
+        Color? found;
+        span.visitChildren((InlineSpan child) {
+          if (child is TextSpan &&
+              (child.text ?? '').contains(text) &&
+              child.style?.color != null) {
+            found = child.style!.color;
+            return false;
+          }
+          return true;
+        });
+        if (found != null) return found!;
+      }
+      fail('No run printing "$text" was found on The Floor.');
+    }
+
+    testWidgets('the hero is crimson under the published standard', (
+      tester,
+    ) async {
+      final skin = TiqSkin.day();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        // 73 against a published 75, and 61% against a published 95.
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        outlets: twoOutlets,
+      );
+
+      expect(
+        inkOf(tester, '73'),
+        skin.palette.bad,
+        reason:
+            'Territory health is the execution score and the execution score '
+            'is measured against 75. A hero that renders in plain ink says '
+            'nothing about whether 73 is good news.',
+      );
+      expect(
+        inkOf(tester, '61'),
+        skin.palette.bad,
+        reason: 'Availability against the published standard of 95.',
+      );
+      // AND THE WORDS ARE STILL THERE. Colour is never the only signal: the
+      // plate's own delta sentence names the verdict, so a reader who cannot
+      // see the hue gets the same reading.
+      expect(
+        find.bySemanticsLabel(RegExp('which is bad')),
+        findsWidgets,
+        reason:
+            'The delta sentence carries the verdict word. A reader who '
+            'cannot see the hue must get the same reading.',
+      );
+    });
+
+    testWidgets('a hero on target is green, in both grounds', (tester) async {
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          skin: skin,
+          // 88 against 75, and 97% against 95.
+          current: kpis(osa: 97, execution: 88),
+          previous: kpis(osa: 96, execution: 87),
+          outlets: twoOutlets,
+        );
+        expect(
+          inkOf(tester, '88'),
+          skin.palette.good,
+          reason: '${skin.mode.name}: a score over its standard is good news.',
+        );
+      }
+    });
+
+    testWidgets('an unmeasured window colours nothing', (tester) async {
+      // THE ONE THAT MATTERS MOST. An em dash is an em dash: a window with no
+      // visits has no standing, and a screen that painted one would be
+      // inventing a verdict out of an absence.
+      final skin = TiqSkin.day();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        current: emptyWindowKpis(),
+        outlets: twoOutlets,
+      );
+      for (final widget in tester.widgetList<RichText>(find.byType(RichText))) {
+        final span = widget.text;
+        if (!span.toPlainText().contains(emDash)) continue;
+        span.visitChildren((InlineSpan child) {
+          if (child is TextSpan && (child.text ?? '').contains(emDash)) {
+            expect(
+              child.style?.color,
+              skin.palette.ink3,
+              reason: 'An em dash is ink-3, never a verdict.',
+            );
+          }
+          return true;
+        });
+      }
+    });
+  });
 }

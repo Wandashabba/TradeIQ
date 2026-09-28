@@ -795,13 +795,14 @@ class _AttentionRow extends StatelessWidget {
         role: skin.text.figureM,
         unit: TiqUnit.none,
         state: FigureState.measured,
-        // The count IS the severity: two critical alerts open is why this row
-        // has a dot at all, and a zero is why the next one has none. So the
-        // figure takes the row's own ink rather than sitting in neutral beside
-        // a crimson dot. A row with no severity keeps plain ink — there is no
-        // target here, only a count, and a count with nothing wrong with it
-        // carries no verdict.
-        color: armed ? skin.palette.bad : null,
+        // PLAIN INK, DELIBERATELY. This is the one place on the route where a
+        // figure sits beside a severity dot and is NOT coloured, and the
+        // reason is the rule rather than the look: a queue length is a
+        // quantity, not a verdict. Two critical alerts and twenty critical
+        // alerts are the same severity — what makes this row crimson is that
+        // any exist at all, which the dot and the word already say. Colouring
+        // the count would be colouring a number to brighten a screen, which
+        // is the one thing the standing rule exists to refuse.
         textAlign: TextAlign.end,
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
