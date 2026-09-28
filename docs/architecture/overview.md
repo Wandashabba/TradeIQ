@@ -14,8 +14,22 @@ TradeIQ Phase 1 is a monorepo:
   mount list). JWT auth with role guards (`field_agent` / `manager` /
   `admin`).
 - `docs/` — this documentation system.
-- `backend/scripts/` — currently just the backend demo-data seed script
-  (`backend/scripts/seed.ts`, run via `npm run seed`).
+- `backend/scripts/` — the backend demo-data seed (`backend/scripts/seed.ts`,
+  run via `npm run seed`) and the hand-run maintenance scripts beside it.
+- `backend/assets/places/` — **committed, generated place images**, one per
+  seeded territory plus `ALL.jpg` for the whole footprint. The Floor's plate
+  shows the place currently in scope, and it changes when the territory filter
+  changes. They are made **once, by hand**, by
+  `backend/scripts/generate-place-images.ts` against the Gemini image API
+  (`npm run generate-place-images`, or `npm run generate-place-images -- GP-TSH`
+  for one; needs `GEMINI_API_KEY` in `backend/.env`) and committed with a
+  `manifest.json` recording the model, the prompt and the date beside each file.
+  **The seed never calls an API** — it reads them off disk. Every row lands in
+  `place_images` with `source: 'generated'`, which travels out through the API's
+  `X-Image-Source` header to a sentence the plate speaks; a generated image is
+  seed data and is never a stand-in for a missing real photograph. Look at what
+  the generator produced before committing it. See
+  `docs/design/torchlight-aisle.md` §9e.
 
 ## Request flow (proof-of-concept slice)
 
