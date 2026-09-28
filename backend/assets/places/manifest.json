@@ -1,0 +1,158 @@
+{
+  "places": [
+    {
+      "code": "ALL",
+      "label": "All territories",
+      "file": "ALL.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A long tarred trade route crossing the South African Highveld at first light, straight to the horizon, telephone poles running beside it, dry winter grass on both shoulders, a small town low in the distance under a wide pale sky. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 56501,
+      "generatedAt": "2026-09-28T14:35:56.524Z"
+    },
+    {
+      "code": "EC-BCM",
+      "label": "Eastern Cape – Buffalo City",
+      "file": "EC-BCM.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A quiet river-mouth town street in East London at dusk: faded mid-century shopfronts with deep awnings, wet pavement reflecting the last light, coastal haze softening the far end of the street. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 58100,
+      "generatedAt": "2026-09-28T14:38:30.586Z"
+    },
+    {
+      "code": "EC-NMB",
+      "label": "Eastern Cape – Nelson Mandela Bay",
+      "file": "EC-NMB.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A windswept seafront road in Gqeberha: low dunes and marram grass on one side, plain 1960s shopfronts on the other, the grey-green Indian Ocean and a huge sky full of moving cloud, flat bright light. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 60747,
+      "generatedAt": "2026-09-28T14:38:15.712Z"
+    },
+    {
+      "code": "FS",
+      "label": "Free State",
+      "file": "FS.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A wide dusty main street in a Free State town on the flat plateau at noon: low single-storey buildings set far back, poplar trees, a bakkie parked at an angle, an enormous pale sky and heat shimmer on the tar. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 61417,
+      "generatedAt": "2026-09-28T14:38:43.664Z"
+    },
+    {
+      "code": "GP",
+      "label": "Gauteng",
+      "file": "GP.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A busy inner-city trading street in Johannesburg on a weekday mid-morning: mid-rise concrete buildings, roll-up shutters, informal traders under plain canvas umbrellas, white minibus taxis at the kerb, hard bright Highveld light and short shadows. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 59557,
+      "generatedAt": "2026-09-28T14:36:12.027Z"
+    },
+    {
+      "code": "GP-EKU",
+      "label": "Gauteng East (Ekurhuleni)",
+      "file": "GP-EKU.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A petrol-station forecourt on the East Rand late in the afternoon: plain unbranded canopy, two pumps, a flat industrial horizon behind with a pale yellow mine dump and power lines, long low sun and dust in the air. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 53461,
+      "generatedAt": "2026-09-28T14:36:46.102Z"
+    },
+    {
+      "code": "GP-TSH",
+      "label": "Gauteng North (Tshwane)",
+      "file": "GP-TSH.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A wide suburban high street in Pretoria in late October: jacaranda trees in full purple bloom arching over the road, fallen blossom on the tar, low face-brick and sandstone shopfronts, soft overcast light after rain. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 58918,
+      "generatedAt": "2026-09-28T14:36:28.527Z"
+    },
+    {
+      "code": "KZN",
+      "label": "KwaZulu-Natal",
+      "file": "KZN.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A humid coastal high street in Durban in the early afternoon: faded art-deco facades, deep shop verandas, tall palms, wet tar after a downpour, heavy subtropical light and a bright overcast sky. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 56399,
+      "generatedAt": "2026-09-28T14:37:44.343Z"
+    },
+    {
+      "code": "KZN-PMB",
+      "label": "KwaZulu-Natal Midlands",
+      "file": "KZN-PMB.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A red-brick Victorian street in Pietermaritzburg on a cold clear morning: iron-lace verandas over the pavement, mist still lying in the green Midlands hills beyond the rooftops, low raking sunlight. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 60193,
+      "generatedAt": "2026-09-28T14:38:01.114Z"
+    },
+    {
+      "code": "LP",
+      "label": "Limpopo",
+      "file": "LP.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A bushveld trading street on the edge of Polokwane in high summer: red earth verges, a big marula tree over the pavement, low painted concrete shops with plain corrugated awnings, fierce midday sun and sharp black shade. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 56240,
+      "generatedAt": "2026-09-28T14:39:00.629Z"
+    },
+    {
+      "code": "MP",
+      "label": "Mpumalanga",
+      "file": "MP.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A Lowveld town street near Mbombela in the late afternoon: lush subtropical green, flame trees, the dark blue wall of the escarpment behind the rooftops, a thunderstorm building and warm light under the cloud. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 57486,
+      "generatedAt": "2026-09-28T14:39:16.302Z"
+    },
+    {
+      "code": "NW",
+      "label": "North West",
+      "file": "NW.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A platinum-belt town street outside Rustenburg in dry winter: the long ridge of the Magaliesberg behind the roofline, bleached grass, dust hanging over the road, plain low shopfronts and a hazy white sky. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 59774,
+      "generatedAt": "2026-09-28T14:39:30.419Z"
+    },
+    {
+      "code": "WC",
+      "label": "Western Cape",
+      "file": "WC.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "A shopping street in the Cape Flats suburbs of Cape Town at midday, Table Mountain and its cloud far behind the rooftops, single-storey plastered shopfronts with security grilles, a hard blue sky and the southeaster moving the trees. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 60727,
+      "generatedAt": "2026-09-28T14:37:02.611Z"
+    },
+    {
+      "code": "WC-WIN",
+      "label": "Western Cape Winelands",
+      "file": "WC-WIN.jpg",
+      "source": "generated",
+      "generator": "gemini-3.1-flash-image",
+      "prompt": "The oak-lined main street of a Cape Winelands town in autumn: whitewashed Cape Dutch gables, dappled shade on the pavement, vineyards and blue-grey mountains closing the end of the street, warm clear light. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "mimeType": "image/jpeg",
+      "bytes": 53851,
+      "generatedAt": "2026-09-28T14:37:23.062Z"
+    }
+  ]
+}
