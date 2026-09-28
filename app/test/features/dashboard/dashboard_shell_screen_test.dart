@@ -143,7 +143,33 @@ void main() {
       );
       expect(tile.delta!.direction, DeltaDirection.up);
       expect(tile.delta!.sentiment, TiqSentiment.good);
-      expect(tile.delta!.comparedTo, 'vs the window before');
+      // THE COMPARISON MOVED, IT WAS NOT DROPPED. The delta stands on the
+      // figure's own baseline now (the owner's card override: a hero carries
+      // its movement beside it, not under it), and "vs the window before"
+      // beside a `figure.l` takes two further lines and stops the pair
+      // reading as a pair. The phrase is on the card's one supporting line
+      // instead, beside the target — so the reader is still told what the
+      // 2.1 is measured against, in the same card.
+      expect(tile.delta!.comparedTo, isNull);
+      expect(tile.subordinates, contains('vs the window before'));
+      expect(tile.subordinates, contains('target 75'));
+      expect(tile.deltaOnBaseline, isTrue);
+    });
+
+    testWidgets('with nothing to compare against, nothing claims there was', (
+      tester,
+    ) async {
+      // The supporting line carries the comparison only when there is one:
+      // "vs the window before" under a figure with no delta beside it would
+      // promise a movement the card is not showing.
+      await _pump(tester, current: kpis(execution: 78.4));
+
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(tile.delta, isNull);
+      expect(tile.subordinates, isNot(contains('vs the window before')));
+      expect(tile.subordinates, contains('target 75'));
     });
 
     testWidgets('a fall is a down triangle with the bad sentiment', (
@@ -249,7 +275,7 @@ void main() {
   });
 
   group('where we sit against the standard', () {
-    testWidgets('every indicator carries a figure, a meter and a word', (
+    testWidgets('every indicator carries a figure, its standard and a word', (
       tester,
     ) async {
       await _pump(tester, current: kpis());
@@ -280,6 +306,36 @@ void main() {
         find.byKey(const ValueKey<String>('kpi-sos')),
       );
       expect(sos.semanticsLabel, contains('On the standard'));
+      // THE METER WENT AND THE STANDARD DID NOT. The row drew a full-width
+      // bar of the percentage the figure beside it had already printed, with
+      // a tick on it for the target and the target itself nowhere in words —
+      // seven of them on one screen. The card override cut it; the tick's one
+      // piece of information is now a number on the row's meta line, and this
+      // is the pin that says so.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('kpi-osa')),
+          matching: find.byType(Meter),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('kpi-osa')),
+          matching: find.textContaining('Target 95%'),
+        ),
+        findsOneWidget,
+      );
+      // And the standing is a dot at the row's leading edge, not a crimson
+      // triangle in its trailing column.
+      expect(osa.severity, SoftRowSeverity.watch);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('kpi-osa')),
+          matching: find.byType(SeverityMark),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('an unmeasured window says so on every indicator', (
@@ -379,8 +435,18 @@ void main() {
         'Western Cape',
         'Gauteng North',
       ]);
-      expect(rows.first.subtitle, 'Below the standard');
-      expect(rows.last.subtitle, 'On the standard');
+      // THE STANDARD MOVED ONTO THE ROW. It used to be a note above the list
+      // ("Target 75") plus a full-width meter per row drawing the same score
+      // the figure printed. The meter went with the card override — a ranked
+      // worst-first list is the comparison the bar was making — and the
+      // target it was ticking is now stated on every row, where a manager
+      // reading that row is already looking.
+      expect(rows.first.subtitle, 'Below the standard · Target 75');
+      expect(rows.last.subtitle, 'On the standard · Target 75');
+      // The standing is also a dot, at its two commitment levels, and an
+      // on-target territory draws none: a verdict is only ever crimson.
+      expect(rows.first.severity, SoftRowSeverity.critical);
+      expect(rows.last.severity, SoftRowSeverity.none);
     });
 
     testWidgets('no territories at all is an answer, never a loader', (

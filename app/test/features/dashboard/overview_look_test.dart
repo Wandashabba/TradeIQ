@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
-import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 
 import '../agent_harness.dart';
 import 'overview_harness.dart';
