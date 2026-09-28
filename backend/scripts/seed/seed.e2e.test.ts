@@ -7,7 +7,7 @@ import {
   getScorecardsTrend,
 } from '../../src/modules/trends/trends.service';
 import { addDays } from './calendar';
-import { DEMO_CLIENT_ID } from './catalog';
+import { DEMO_CLIENT_ID, TERRITORIES } from './catalog';
 import { seedDemoData } from './index';
 import { resetDemoData } from './reset';
 
@@ -82,6 +82,38 @@ describe('seedDemoData (end to end)', () => {
       expect(thumb[0]).toBe(0xff);
       expect(thumb[1]).toBe(0xd8);
     }
+  });
+
+  it('gives every territory a place image, marked as generated, and the '
+    + 'footprint one of its own', async () => {
+    const images = await prisma.placeImage.findMany({
+      where: { clientId: DEMO_CLIENT_ID },
+      select: { territoryId: true, source: true, generator: true, url: true, mimeType: true },
+    });
+
+    // One per territory plus the null-territory footprint row, which is what
+    // The Floor shows under "All territories" — a scope a manager spends most
+    // of their time in, so it gets a picture of its own rather than one
+    // province's borrowed.
+    expect(images.length).toBe(TERRITORIES.length + 1);
+    expect(images.filter((i) => i.territoryId === null).length).toBe(1);
+
+    for (const image of images) {
+      // THE MARK. It travels from the manifest to here to the API's
+      // `X-Image-Source` header to a sentence the plate speaks. A row without
+      // it is a generated picture nothing downstream can tell from a capture.
+      expect(image.source).toBe('generated');
+      expect(image.generator).toMatch(/^gemini-/);
+      expect(image.url.startsWith(`data:${image.mimeType};base64,`)).toBe(true);
+    }
+
+    // AND NOT IN `photos`. That table is evidence — visit sections, the review
+    // strip, the pin-dispute storefront — and a place image must never be
+    // reachable by a query looking for one.
+    const leaked = await prisma.photo.count({
+      where: { clientId: DEMO_CLIENT_ID, source: 'generated' },
+    });
+    expect(leaked).toBe(0);
   });
 
   it('leaves open alerts and overdue tasks for the demo to act on', async () => {
