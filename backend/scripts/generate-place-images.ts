@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import sharp from 'sharp';
 import {
@@ -33,21 +33,29 @@ import { PLACE_ASSET_DIR, PLACE_MAX_BYTES, PLACE_WIDTH, type PlaceManifest } fro
  *
  * ## Why raw `fetch` and not `@google/genai`
  *
- * The SDK in this repo is pinned for the assistant's text orchestration and
- * its image surface moves faster than the assistant's. This is a hand-run
- * script that writes files a human then looks at; one documented POST is
- * easier to keep true than a second SDK version constraint on the API server's
- * dependency tree. The endpoint and the response shape are pinned by
- * `generate-place-images.test.ts` against a stubbed `fetch`.
+ * The SDK in this repo is pinned for the assistant's text orchestration, and
+ * its image surface moves on a different clock. This is a hand-run script that
+ * writes files a human then looks at; one documented POST is easier to keep
+ * true than a second SDK version constraint on the API server's dependency
+ * tree. The endpoint, the model id and the response shape were taken from the
+ * published API at https://ai.google.dev/gemini-api/docs/image-generation on
+ * 28 September 2026 and are named once, here.
+ *
+ * `generate-place-images.test.ts` does NOT call the API — a test that hits a
+ * paid image endpoint on every push is a test somebody deletes within the
+ * month. It exercises the prompts and [fitToBudget], which is the part with a
+ * failure mode nobody would notice.
  *
  * ## The size budget
  *
- * The plate's own budget is ≤60 kB (`docs/design/torchlight-aisle.md` §9c) and
- * these are stored as data URLs, so the encoder walks the JPEG quality down
- * until the bytes fit with base64's 4/3 expansion accounted for. A plate is
- * drawn at 12% chroma under a #474747 luminance ceiling, which hides encoder
- * artefacts that would be obvious on a bright screen — so the budget is met by
- * quality rather than by cropping the picture.
+ * The plate's budget is ≤60 kB (`docs/design/torchlight-aisle.md` §9c) measured
+ * on what the client downloads, which is the JPEG itself: `GET
+ * /territories/:id/place-image` serves these bytes, and the base64 in
+ * `place_images.url` is a storage detail of the seed. The encoder walks the
+ * JPEG quality down until it fits. A plate is drawn at 12% chroma under a
+ * #474747 luminance ceiling, which hides encoder artefacts that would be
+ * obvious on a bright screen — so the budget is met by quality rather than by
+ * cropping the picture.
  */
 
 /** The image model, from https://ai.google.dev/gemini-api/docs/image-generation. */
@@ -133,8 +141,8 @@ function firstImage(payload: unknown): GeneratedImage | undefined {
 }
 
 /**
- * Down to [PLACE_WIDTH] and then down in quality until the base64 of it fits
- * the plate's byte budget.
+ * Down to [PLACE_WIDTH] and then down in quality until it fits the plate's
+ * byte budget.
  *
  * Exported for the test, which proves the loop terminates and respects the cap
  * rather than trusting one hand-tuned quality number to hold for every scene —
@@ -218,14 +226,15 @@ async function main(): Promise<void> {
   console.log(`\n${wanted.length} image(s) written to ${PLACE_ASSET_DIR}. Look at them before you commit them.`);
 }
 
+/**
+ * The manifest as it stands, so `-- GP-TSH` reshoots one place without
+ * discarding the provenance of the other thirteen.
+ */
 function readManifest(): PlaceManifest {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    const existing = require(join(PLACE_ASSET_DIR, 'manifest.json')) as PlaceManifest;
-    return { places: [...existing.places] };
-  } catch {
-    return { places: [] };
-  }
+  const path = join(PLACE_ASSET_DIR, 'manifest.json');
+  if (!existsSync(path)) return { places: [] };
+  const existing = JSON.parse(readFileSync(path, 'utf8')) as PlaceManifest;
+  return { places: [...(existing.places ?? [])] };
 }
 
 if (require.main === module) {

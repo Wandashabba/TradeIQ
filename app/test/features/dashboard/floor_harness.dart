@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -460,6 +461,21 @@ class SyncImage extends ImageProvider<SyncImage> {
         }
       }
       return recorder.endRecording().toImage(width, height);
+    });
+    return SyncImage(made!);
+  }
+
+  /// A real committed asset, decoded synchronously.
+  ///
+  /// `backend/assets/places/*.jpg` are the seed's generated place images — the
+  /// pictures the plate actually carries. A look at the screen that used a
+  /// stand-in would be a look at a screen nobody has.
+  static Future<SyncImage> fromFile(WidgetTester tester, String path) async {
+    final made = await tester.runAsync(() async {
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return frame.image;
     });
     return SyncImage(made!);
   }
