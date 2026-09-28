@@ -112,15 +112,52 @@ double trendChartHeight(BuildContext context) {
   return skin.space.density == TiqDensity.console ? 208 : 232;
 }
 
+/// The range a metric can physically take, when it has one.
+///
+/// A rate cannot be 120%, and an axis that prints 120 is not a rounding
+/// choice — it is a reading that does not exist. See [niceScale].
+@immutable
+class ChartDomain {
+  const ChartDomain({this.min, this.max});
+
+  /// Nought to a hundred. Every rate in this product.
+  static const ChartDomain rate = ChartDomain(min: 0, max: 100);
+
+  /// No natural bounds: a count, a score out of nothing in particular, rand.
+  static const ChartDomain unbounded = ChartDomain();
+
+  final double? min;
+  final double? max;
+}
+
 /// Rounds a range out to bounds whose ticks land on round numbers.
 ///
-/// Lifted unchanged in behaviour from `charts.dart` — the arithmetic was never
-/// the problem with the old chart set, the tokens were — and kept here so the
-/// Torchlight charts do not import a deprecated file.
+/// The arithmetic came from `charts.dart` and two things have been added to
+/// it since, both because the owner looked at a rendered plot and called it
+/// unrealistic:
+///
+/// * **[domain] — the metric's own ceiling and floor.** `GET /trends/
+///   availability` answers in percent, the published standard is 95, and a
+///   run at 88–97 rounded out to an axis labelled `105`. A percentage cannot
+///   be 105, and a gridline that says so is the most confident-looking lie a
+///   chart can tell. The padded range is clipped to [ChartDomain] before the
+///   ticks are chosen, and 100 is a multiple of every step on the ladder, so
+///   the rounding cannot push back through it.
+/// * **The step is searched, not computed in one shot.** The old form divided
+///   the span by [ticks] and snapped the quotient up the 1-2-5 ladder, which
+///   overshoots badly near a ladder boundary: a span of 41 asked for a step of
+///   10.25, snapped to 20, and drew a six-reading run inside an eighty-point
+///   axis — the "cartoonish" plot, in the owner's word. This walks the ladder
+///   from below and stops at the **finest** step whose gridline count is
+///   inside the budget, so the run fills the plot it is given.
+///
+/// [ticks] is the tick budget, not a tick count: the result carries at most
+/// `ticks + 2` gridlines and usually fewer.
 ({double min, double max, double step}) niceScale(
   Iterable<double> values, {
   double? include,
   int ticks = 4,
+  ChartDomain domain = ChartDomain.unbounded,
 }) {
   final all = <double>[...values, ?include];
   if (all.isEmpty) return (min: 0, max: 1, step: 1);
@@ -138,21 +175,42 @@ double trendChartHeight(BuildContext context) {
     hi += pad;
   }
   if (lo > 0 && lo < (hi - lo)) lo = 0;
-  final raw = (hi - lo) / ticks;
-  final magnitude = _magnitude(raw);
-  final normalised = raw / magnitude;
-  final step =
-      (normalised <= 1
-          ? 1
-          : normalised <= 2
-          ? 2
-          : normalised <= 5
-          ? 5
-          : 10) *
-      magnitude;
-  final niceMin = (lo / step).floor() * step;
-  final niceMax = (hi / step).ceil() * step;
+  // The padding is air, and air outside the metric's range is not air. Only
+  // the padding is clipped — a reading itself is never moved, so a server
+  // that sends 103% still draws at 103%.
+  final floor = domain.min;
+  final ceiling = domain.max;
+  final lowest = all.reduce((a, b) => a < b ? a : b);
+  final highest = all.reduce((a, b) => a > b ? a : b);
+  if (floor != null && lo < floor && lowest >= floor) lo = floor;
+  if (ceiling != null && hi > ceiling && highest <= ceiling) hi = ceiling;
+
+  var span = hi - lo;
+  if (span <= 0) span = 1;
+  // The finest step on the 1-2-5 ladder that keeps the gridlines inside the
+  // budget. Starts an order of magnitude under the span, so the loop always
+  // approaches from the fine side.
+  final budget = ticks + 1;
+  var step = _magnitude(span) / 10;
+  if (step <= 0) step = 1;
+  var niceMin = lo;
+  var niceMax = hi;
+  for (var guard = 0; guard < 24; guard++) {
+    niceMin = (lo / step).floor() * step;
+    niceMax = (hi / step).ceil() * step;
+    if ((niceMax - niceMin) / step <= budget) break;
+    step = _nextStep(step);
+  }
   return (min: niceMin, max: niceMax, step: step);
+}
+
+/// The next rung up the 1-2-5 ladder. 1 → 2 → 5 → 10 → 20 → 50 → …
+double _nextStep(double step) {
+  final magnitude = _magnitude(step);
+  final normalised = step / magnitude;
+  if (normalised < 1.5) return 2 * magnitude;
+  if (normalised < 3.5) return 5 * magnitude;
+  return 10 * magnitude;
 }
 
 double _magnitude(double raw) {
