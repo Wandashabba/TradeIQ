@@ -394,6 +394,71 @@ void main() {
       final scale = niceScale(const <double>[]);
       expect(scale.step, greaterThan(0));
     });
+
+    // ── The owner's word for the plot that made these necessary was
+    //    "cartoonish", and both faults were in the scale rather than in the
+    //    paint: an axis that printed a reading nobody can have, and a run
+    //    squashed into a tenth of the plot it was given.
+
+    test('a rate cannot be a hundred and twenty per cent', () {
+      // Availability at 64–73 against a published 95% standard. The scale
+      // used to pad the range, divide by four, snap the quotient up the 1-2-5
+      // ladder to 20 and round outward — 40 to 120, with six real readings
+      // inside the bottom eighth of it.
+      final scale = niceScale(
+        <double>[64.8, 68.2, 72.9, 66.1, 69.6],
+        include: 95,
+        domain: ChartDomain.rate,
+      );
+      expect(scale.max, lessThanOrEqualTo(100));
+      expect(scale.min, greaterThanOrEqualTo(0));
+      // The standard is still on the plot: the domain is clipped, not the
+      // threshold — a target you cannot see is a target nobody is measured
+      // against.
+      expect(scale.min, lessThan(95));
+    });
+
+    test('a rate near the ceiling does not round through it', () {
+      // The everyday case, and the one that shipped: a healthy availability
+      // run rounds out to 105 on a four-tick scale.
+      final scale = niceScale(
+        <double>[88.4, 93.2, 96.8, 97.1],
+        include: 95,
+        domain: ChartDomain.rate,
+      );
+      expect(scale.max, 100);
+    });
+
+    test('the run fills the plot it is given', () {
+      // The step is searched from below rather than computed in one shot, so
+      // a span that lands just past a ladder boundary does not take the next
+      // rung up and leave three quarters of the plot empty.
+      final scale = niceScale(
+        <double>[64.8, 68.2, 72.9, 66.1, 69.6],
+        include: 95,
+        domain: ChartDomain.rate,
+      );
+      final span = scale.max - scale.min;
+      expect((95 - 64.8) / span, greaterThan(0.5));
+    });
+
+    test('a bounded domain never clips a reading that broke it', () {
+      // A server that sends 103% is wrong, and the chart's job is to draw
+      // what it was sent rather than to hide it inside the axis.
+      final scale = niceScale(
+        <double>[92, 103],
+        domain: ChartDomain.rate,
+      );
+      expect(scale.max, greaterThanOrEqualTo(103));
+    });
+
+    test('an unbounded metric keeps the scale it always had', () {
+      // A score out of nothing in particular, against a 75 target.
+      final scale = niceScale(<double>[64.8, 72.9, 66.1], include: 75);
+      expect(scale.min, 60);
+      expect(scale.max, 80);
+      expect(scale.step, 5);
+    });
   });
 
   group('the curve may not invent a reading', () {
