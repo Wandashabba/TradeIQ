@@ -77,6 +77,29 @@ void main() {
       expect(await store.read(), isNull);
     });
 
+    /// THE ONE STORED APPEARANCE PREFERENCE, AND WHAT A LEGACY VALUE DOES.
+    ///
+    /// Veld was removed on 28 September 2026. It was never persisted — the
+    /// three skin cycles are session-scoped by design (unify §6 question 13)
+    /// — so the only appearance preference on disk is this one, and it holds
+    /// `light` or `dark`. A key carrying anything else, `veld` included,
+    /// reads back as null and the caller keeps **light**: the same path a
+    /// corrupt value, a downgrade and a future mode all take, and it is a
+    /// resolution rather than a crash or a blank frame.
+    test('a legacy "veld" value reads back as null, and the app keeps light',
+        () async {
+      final storage = _MockSecureStorage();
+      when(() => storage.read(key: any(named: 'key')))
+          .thenAnswer((_) async => 'veld');
+      expect(await SecureThemeModeStore(storage: storage).read(), isNull);
+
+      // And the controller that reads it keeps light, as it does for every
+      // other unreadable value.
+      final container = withStore(FakeThemeModeStore());
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(themeModeProvider), ThemeMode.light);
+    });
+
     test('an unreadable store yields null — caller keeps dark', () async {
       final storage = _MockSecureStorage();
       when(() => storage.read(key: any(named: 'key')))

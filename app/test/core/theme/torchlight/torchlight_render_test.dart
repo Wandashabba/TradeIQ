@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/console_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/entry_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 
-/// All three skins build a theme and paint a screen without throwing.
+/// Both skins build a theme and paint a screen without throwing.
 ///
 /// This is the cheapest test in the file and historically the one that catches
 /// the most: a `ThemeExtension` that forgets a slot, a `lerp` that returns
@@ -80,6 +84,59 @@ void main() {
       expect(copied.motion.enabled, isFalse);
       expect(copied.palette, night.palette);
       expect(copied.mode, night.mode);
+    });
+
+    /// THERE ARE TWO SKINS AND A PREFERENCE, AND NOTHING ELSE RESOLVES.
+    ///
+    /// Veld was removed on 28 September 2026 (unify §4). Nothing in this app
+    /// persists a skin — the agent's, the console's and the entry cycle are
+    /// all session-scoped, and the one appearance preference that IS stored
+    /// is `tiq.themeMode`, which holds `light`/`dark` and nothing else. So
+    /// there is no `"veld"` on any disk to migrate. What there *is* is a
+    /// resolver per surface, and the pin is that every one of them is total:
+    /// a mode that reaches them produces a real, buildable skin rather than a
+    /// crash or a blank frame.
+    test('every SkinMode resolves to a buildable skin on every surface', () {
+      expect(SkinMode.values, <SkinMode>[
+        SkinMode.night,
+        SkinMode.day,
+        SkinMode.auto,
+      ]);
+      final ambient = TiqSkin.night();
+      for (final mode in SkinMode.values) {
+        for (final skin in <TiqSkin>[
+          TiqSkin.of(mode),
+          agentSkinFor(mode),
+          entrySkinFor(mode),
+          consoleSkinFor(mode, ambient),
+        ]) {
+          expect(
+            skin.mode,
+            isNot(SkinMode.auto),
+            reason: '$mode: auto is a preference and must resolve before a '
+                'skin is built',
+          );
+          expect(skin.palette.ground.a, 1.0, reason: '$mode: a real ground');
+          expect(skin.text.body.size, greaterThan(0));
+        }
+      }
+      // `null` on the console means "follow the app", and it does.
+      expect(consoleSkinFor(null, ambient), same(ambient));
+    });
+
+    test('the skin cycle is a closed two-state loop', () {
+      expect(TorchSkinCycle.next(SkinMode.day), SkinMode.night);
+      expect(TorchSkinCycle.next(SkinMode.night), SkinMode.day);
+      // A preference is not a position: it lands on the agent default's
+      // opposite, so the first tap from `auto` always changes something.
+      expect(TorchSkinCycle.next(SkinMode.auto), SkinMode.night);
+      for (final mode in SkinMode.values) {
+        expect(
+          TorchSkinCycle.next(TorchSkinCycle.next(mode)),
+          isIn(<SkinMode>[SkinMode.night, SkinMode.day]),
+          reason: '$mode: two taps land on a real skin, never on auto',
+        );
+      }
     });
 
     test('SkinMode.of resolves auto from the platform brightness', () {

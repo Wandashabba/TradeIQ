@@ -40,7 +40,7 @@ class TorchSkinCycle extends StatelessWidget {
   }) : assert(
          semanticLabel.length > 0,
          'The label names the NEXT state, not this one: "Screen: Day. '
-         'Double-tap for Night, the dimmed screen." A toggle that announces '
+         'Double-tap for Night." A toggle that announces '
          'where it is and not where it goes makes a blind user press it to '
          'find out.',
        );

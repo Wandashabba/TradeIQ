@@ -626,7 +626,7 @@ void main() {
       final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(
         header.trailing!.semanticLabel,
-        'Screen: Day. Double-tap for Night, the dimmed screen.',
+        'Screen: Day. Double-tap for Night.',
       );
     });
   });
