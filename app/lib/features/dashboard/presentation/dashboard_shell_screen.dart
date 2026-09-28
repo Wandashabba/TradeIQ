@@ -14,6 +14,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_state_glyph.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
@@ -221,8 +222,10 @@ class _ExecutionScoreSectionState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SectionRule(l10n.dashExecutionScore),
-        const SizedBox(height: TiqSpace.s4),
+        // NO SECTION MARKER ABOVE THE CARD. The card's own eyebrow is the
+        // label, and a marker over it printed `EXECUTION SCORE` twice, 20dp
+        // apart, in the same role and the same ink. The Floor's lead card
+        // carries no marker either, for the same reason.
         widget.snapshot.when(
           loading: () => Skeleton(
             label: l10n.dashExecutionScore,
@@ -241,9 +244,9 @@ class _ExecutionScoreSectionState
               ),
             ),
           ),
-          data: (snap) => _ScoreTile(snapshot: snap),
+          data: (snap) => _ScoreCard(snapshot: snap, trend: trend),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: context.skin.space.blockGap),
         _TrendPanel(
           heading: l10n.dashScoreTrend,
           seriesName: l10n.dashExecutionScore,
@@ -265,16 +268,46 @@ class _ExecutionScoreSectionState
   }
 }
 
-/// The headline figure: the execution score, its distance from the published
-/// standard, and the like-for-like movement.
+/// THE HEADLINE FIGURE — one card, four things in it.
+///
+/// The label, the figure with its movement on the same baseline, one line of
+/// supporting facts, and the shape of the last few periods at the trailing
+/// edge. Nothing else. It is the same card as The Floor's lead metric, and it
+/// is the same card for the same reason.
+///
+/// **What this replaced.** A [StatCluster] holding a `lead` [StatTile] with a
+/// severity outline: an eyebrow that repeated the section marker directly
+/// above it word for word, the figure, a full-width [Meter] of the number the
+/// figure had already printed, a delta on a line of its own, and the
+/// supporting line — five stacked elements inside a **crimson-outlined
+/// rectangle at radius 6**, which was the loudest and boxiest object on the
+/// route. The owner cut exactly this shape on The Floor in September and then
+/// asked for the ruling everywhere ("remove the rectangular style"). So:
+///
+/// * **the outline goes.** A verdict is carried by the delta's sentiment and
+///   by the supporting line's stated target, not by drawing a box around the
+///   number. `unify.md` §1.16: a figure block is one soft card, radius 22,
+///   `surface`, no border.
+/// * **the meter goes.** A full-width bar of the same percentage the figure
+///   has already set, at a size that made it the loudest object under the
+///   header.
+/// * **the eyebrow keeps its place and the marker goes**, because the two said
+///   the same words.
+/// * **the delta moves onto the figure's baseline**, which is where a hero's
+///   movement belongs and where the plate has always put it.
 ///
 /// No count-up. The spec deleted it in Phase 1: the figure is present at first
 /// paint, which removes the horizontal jitter of a delta beside a growing
 /// digit count and the heaviest frame sequence on a cold start.
-class _ScoreTile extends StatelessWidget {
-  const _ScoreTile({required this.snapshot});
+class _ScoreCard extends StatelessWidget {
+  const _ScoreCard({required this.snapshot, required this.trend});
 
   final DashboardSnapshot snapshot;
+
+  /// The score series the panel below already fetches, at 64×20. A failed or
+  /// one-point series drops the cell — `Sparkline` renders nothing under two
+  /// points and a fabricated shape is the one thing its own doc forbids.
+  final AsyncValue<List<TrendPoint>> trend;
 
   @override
   Widget build(BuildContext context) {
@@ -286,34 +319,64 @@ class _ScoreTile extends StatelessWidget {
       current.executionScore,
       executionScoreTarget,
     );
+    final shape = trend.maybeWhen(
+      data: (points) => <double>[for (final p in points) p.value],
+      orElse: () => const <double>[],
+    );
 
-    return StatCluster(
-      semanticsLabel: l10n.dashExecutionScore,
-      tiles: <StatTile>[
-        StatTile(
-          key: const ValueKey<String>('kpi-execution-score'),
-          eyebrow: l10n.dashExecutionScore,
-          // A window with no visits is an absence, not a score of nought.
-          value: measured ? current.executionScore : null,
-          decimals: 1,
-          noDataReason: measured ? null : l10n.dashNoVisitsInWindow,
-          sampling: FigureSampling(
-            kind: MetricKind.average,
-            n: current.sampleSizes.executionScore,
-            baselineN: snapshot.previous?.sampleSizes.executionScore,
-          ),
-          meter: MeterData(
-            value: measured ? current.executionScore : null,
-            target: executionScoreTarget,
-          ),
-          delta: measured ? deltaFor(l10n, delta) : null,
-          lead: true,
-          severity: measured ? severityFor(status) : null,
-          subordinates: l10n.dashExecutionScoreSupports(
-            executionScoreTarget.round(),
-          ),
-        ),
-      ],
+    final tile = StatTile(
+      key: const ValueKey<String>('kpi-execution-score'),
+      eyebrow: l10n.dashExecutionScore,
+      // A window with no visits is an absence, not a score of nought.
+      value: measured ? current.executionScore : null,
+      decimals: 1,
+      noDataReason: measured ? null : l10n.dashNoVisitsInWindow,
+      sampling: FigureSampling(
+        kind: MetricKind.average,
+        n: current.sampleSizes.executionScore,
+        baselineN: snapshot.previous?.sampleSizes.executionScore,
+      ),
+      delta: measured ? deltaFor(l10n, delta, named: false) : null,
+      deltaOnBaseline: true,
+      lead: true,
+      // NO SEVERITY. `lead` plus a severity is what drew the outlined
+      // rectangle; the standing is in the supporting line's target and in the
+      // delta beside the figure, and the indicator rows below are where a
+      // standing is a mark.
+      layout: StatTileLayout.vertical,
+      // The card has already spent its inset; the tile's own would be a
+      // second, invisible one.
+      padding: EdgeInsets.zero,
+      // THE ONE META LINE: what the figure is made of, what it is measured
+      // against, and — when there is a movement beside it — what that
+      // movement is measured against. Three facts on one line rather than
+      // three lines, which is what the four-element rule buys.
+      subordinates: <String>[
+        l10n.dashExecutionScoreSupports(executionScoreTarget.round()),
+        if (measured && delta.hasDelta) l10n.dashVsWindowBefore,
+      ].join(' · '),
+    );
+
+    return TorchCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          Expanded(child: tile),
+          if (measured && shape.length >= 2) ...<Widget>[
+            const SizedBox(width: TiqSpace.s4),
+            Padding(
+              // On the figure's baseline rather than the card's: a shape
+              // floating level with the label reads as decoration.
+              padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+              child: Sparkline(
+                points: shape,
+                // The metric's own verdict, never amber.
+                severity: severityFor(status) ?? SeverityMarkKind.onTarget,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -368,9 +431,16 @@ class _TrendPanel extends ConsumerWidget {
             asTable: asTable,
             onChanged: onViewChanged,
           ),
-          const SizedBox(height: TiqSpace.s4),
+          const SizedBox(height: TiqSpace.s3),
         ],
-        async.when(
+        // THE PLOT LIVES IN A CARD, like every other block on this route. It
+        // used to sit bare on the ground between two rows of cards, which is
+        // the two-grammar screen `card.dart` was written to end: a figure
+        // block gets the same material as the rows that send somebody
+        // somewhere. It also gives the gridlines the `surface` they were
+        // toned against — `lifted` is the one-step-off-*surface* line.
+        _Framed(
+          child: async.when(
           loading: () => Skeleton(
             label: heading,
             slowLine: l10n.torchStillFetching,
@@ -440,10 +510,27 @@ class _TrendPanel extends ConsumerWidget {
               scrubHint: l10n.trendsScrubHint,
             );
           },
+          ),
         ),
       ],
     );
   }
+}
+
+/// A block of figures, on the card material.
+///
+/// The one place the route says "this is a block, not a row" — a chart, a
+/// table twin, a skeleton or an in-panel empty state, all in the same soft
+/// card at radius 22 with no outline. Without it the page alternates between
+/// cards and bare columns down its whole length, which is the "two grammars
+/// on one screen" the card override exists to settle.
+class _Framed extends StatelessWidget {
+  const _Framed({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TorchCard(child: child);
 }
 
 /// Chart or table. Two filter chips, which is the one selected vocabulary in
@@ -793,7 +880,11 @@ String standingWord(AppLocalizations l10n, StatusLevel level) =>
 /// `direction` is the shape and `sentiment` is the colour, and neither is
 /// derived from the other. These seven are all rates where up is good, so the
 /// mapping is stated once here rather than guessed per call site.
-DeltaData? deltaFor(AppLocalizations l10n, KpiDelta delta) {
+DeltaData? deltaFor(
+  AppLocalizations l10n,
+  KpiDelta delta, {
+  bool named = true,
+}) {
   if (!delta.hasDelta) return null;
   final change = delta.change!;
   return DeltaData(
@@ -810,7 +901,11 @@ DeltaData? deltaFor(AppLocalizations l10n, KpiDelta delta) {
     magnitude: change.abs(),
     unit: TiqUnit.worded('pts'),
     decimals: 1,
-    comparedTo: l10n.dashVsWindowBefore,
+    // Named once per block, not once per figure. On the hero the phrase sits
+    // on the supporting line beside the target, because a sentence beside a
+    // `figure.l` pushes the delta onto a third line; on an indicator row it
+    // would be the same seven words seven times down one list.
+    comparedTo: named ? l10n.dashVsWindowBefore : null,
   );
 }
 
@@ -829,16 +924,11 @@ class _StandardsSection extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         SectionRule(l10n.dashAgainstStandard),
+        // NO NOTE UNDER THE MARKER. "The tick marks the target" described a
+        // tick on a meter, and the meter is gone; every row now states its
+        // own standard in words on its meta line, which is where a manager
+        // reading that row is already looking.
         const SizedBox(height: TiqSpace.s3),
-        Padding(
-          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
-          child: Text(
-            l10n.dashTickMarksTarget,
-            style: context.skin.text.meta.style(
-              color: context.skin.palette.ink3,
-            ),
-          ),
-        ),
         snapshot.when(
           loading: () => Skeleton(
             label: l10n.dashAgainstStandard,
@@ -896,7 +986,29 @@ class _StandardsSection extends ConsumerWidget {
   }
 }
 
-/// One indicator, its standard, its movement and its shape.
+/// One indicator, its standard, its movement and its shape — as a card.
+///
+/// **What this replaced.** The same row carrying a title, a two-line note, a
+/// full-width [Meter], a [Sparkline], a figure, a crimson [SeverityMark]
+/// triangle and a standing word, and sometimes a delta under all of it:
+/// roughly 120dp of row, seven times over, and the block read as one heavy
+/// texture rather than as seven readings. The owner's card override says a
+/// severity is an **8dp dot**, not a bar and not a triangle, and The Floor's
+/// decision row is the shape this list now wears:
+///
+/// * **the dot** — the standing, at its two commitment levels, in the slot
+///   `SoftRow` already draws it in;
+/// * **the title**;
+/// * **the note**, unchanged, as the reason line;
+/// * **one meta line** — the standing in words, the published standard, the
+///   movement and the shape, which is where the meter's tick and the trailing
+///   triangle both went;
+/// * **the figure**.
+///
+/// The [Meter] is what actually went. It drew the same percentage the figure
+/// beside it had already printed, at full row width, seven times on one
+/// screen — and the one thing it added over the words, the target tick, is
+/// now stated as a number instead of implied by a notch.
 class _IndicatorRow extends StatelessWidget {
   const _IndicatorRow({
     required this.indicator,
@@ -929,12 +1041,15 @@ class _IndicatorRow extends StatelessWidget {
     final thin = measured && sampling.isLowSample;
     final status = againstStandard(value, indicator.target);
     final numbers = TiqNumber.of(context);
+    final targetWords = l10n.dashTargetIs(
+      numbers.format(indicator.target, unit: TiqUnit.percent),
+    );
 
     // A delta never stands beside nothing, and never beside a figure this
     // thin: unify line 271 removes it for a low sample and for a thin
     // baseline alike.
     final delta = measured && !thin
-        ? deltaFor(l10n, snapshot.of(indicator.read))
+        ? deltaFor(l10n, snapshot.of(indicator.read), named: false)
         : null;
 
     return SoftRow(
@@ -942,83 +1057,54 @@ class _IndicatorRow extends StatelessWidget {
       density: SoftRowDensity.tall,
       title: label,
       subtitle: indicatorNote(l10n, indicator.id),
-      // A severity bar would be four crimson bars on one list; the standing
-      // is carried by the meter's tick, by the word in the trailing column
-      // and by the mark beside it instead.
-      meta: Row(
-        children: <Widget>[
-          Expanded(
-            child: Meter(
-              value: measured ? value : null,
-              target: indicator.target,
-              state: !measured
-                  ? MeterState.missing
-                  : thin
-                  ? MeterState.lowSample
-                  : MeterState.filled,
-            ),
-          ),
-          if (series != null) ...<Widget>[
-            const SizedBox(width: TiqSpace.s3),
-            Sparkline(points: series!, severity: severityFor(status)),
-          ],
-        ],
+      // THE DOT, NOT A TRIANGLE AND NOT A BAR. `onTarget` is not a severity
+      // in this system, so an indicator that is meeting its standard draws no
+      // mark at all rather than a green one — the word on the meta line is
+      // what says so.
+      severity: !measured
+          ? SoftRowSeverity.none
+          : switch (status) {
+              StatusLevel.critical => SoftRowSeverity.critical,
+              StatusLevel.watch => SoftRowSeverity.watch,
+              _ => SoftRowSeverity.none,
+            },
+      severityLabel: measured && status != StatusLevel.onTarget
+          ? standingWord(l10n, status)
+          : null,
+      meta: _IndicatorMeta(
+        standing: measured ? standingWord(l10n, status) : null,
+        target: targetWords,
+        delta: delta,
+        sampling: sampling,
+        figureState: thin ? FigureState.lowSample : FigureState.measured,
+        series: series,
+        severity: severityFor(status),
       ),
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          FigureSlot(
-            value: measured ? value : null,
-            role: skin.text.figureM,
-            unit: measured ? TiqUnit.percent : TiqUnit.none,
-            decimals: 1,
-            state: !measured
-                ? FigureState.missing
-                : thin
-                ? FigureState.lowSample
-                : FigureState.measured,
-            textAlign: TextAlign.end,
-            // An em dash announced as "em dash" is not a sentence. The row's
-            // own label carries the whole reading, and this is the figure's
-            // half of it.
-            semanticsLabel: !measured
-                ? l10n.dashNoVisitsInWindow
-                : thin
-                ? '${numbers.format(value, unit: TiqUnit.percent, decimals: 1)}, '
-                      '${l10n.trendsSmallSample}'
-                : null,
-          ),
-          if (measured)
-            // Wraps rather than overflows: at 2.0x "Close to the standard"
-            // beside a 24dp mark is wider than a trailing column has.
-            Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: TiqSpace.s1,
-              children: <Widget>[
-                if (severityFor(status) != null)
-                  SeverityMark(kind: severityFor(status)!),
-                Text(
-                  standingWord(l10n, status),
-                  textAlign: TextAlign.end,
-                  style: skin.text.meta.style(color: skin.palette.ink3),
-                ),
-              ],
-            ),
-          if (measured && delta != null)
-            DeltaSlot(
-              data: delta,
-              figureState: thin
-                  ? FigureState.lowSample
-                  : FigureState.measured,
-              sampling: sampling,
-            ),
-        ],
+      trailing: FigureSlot(
+        value: measured ? value : null,
+        role: skin.text.figureM,
+        unit: measured ? TiqUnit.percent : TiqUnit.none,
+        decimals: 1,
+        state: !measured
+            ? FigureState.missing
+            : thin
+            ? FigureState.lowSample
+            : FigureState.measured,
+        textAlign: TextAlign.end,
+        // An em dash announced as "em dash" is not a sentence. The row's
+        // own label carries the whole reading, and this is the figure's
+        // half of it.
+        semanticsLabel: !measured
+            ? l10n.dashNoVisitsInWindow
+            : thin
+            ? '${numbers.format(value, unit: TiqUnit.percent, decimals: 1)}, '
+                  '${l10n.trendsSmallSample}'
+            : null,
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      // `meta` sits inside the row's excluded label, so the meter and the
-      // sparkline are silent to a reader. The whole reading goes here.
+      // `meta` sits inside the row's excluded label, so the standing, the
+      // target, the delta and the sparkline are all silent to a reader. The
+      // whole reading goes here.
       semanticsLabel: <String>[
         label,
         if (!measured)
@@ -1027,12 +1113,62 @@ class _IndicatorRow extends StatelessWidget {
           numbers.format(value, unit: TiqUnit.percent, decimals: 1),
           if (thin) l10n.trendsSmallSample,
           standingWord(l10n, status),
-          l10n.dashTargetIs(
-            numbers.format(indicator.target, unit: TiqUnit.percent),
-          ),
+          targetWords,
         ],
         indicatorNote(l10n, indicator.id),
       ].join('. '),
+    );
+  }
+}
+
+/// ONE LINE UNDER AN INDICATOR: where it stands, what it is measured against,
+/// which way it moved, and the shape of the last few periods.
+///
+/// A `Wrap` rather than a `Row`: at 2.0× in Afrikaans "Naby aan die standaard"
+/// beside a target and a delta is wider than a phone, and a line that wraps is
+/// a line you can still read. No gradient and no `saveLayer` — this builds
+/// inside a list row.
+class _IndicatorMeta extends StatelessWidget {
+  const _IndicatorMeta({
+    required this.standing,
+    required this.target,
+    required this.delta,
+    required this.sampling,
+    required this.figureState,
+    required this.series,
+    required this.severity,
+  });
+
+  final String? standing;
+  final String target;
+  final DeltaData? delta;
+  final FigureSampling sampling;
+  final FigureState figureState;
+  final List<double>? series;
+  final SeverityMarkKind? severity;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final words = <String>[?standing, target].join(' · ');
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: TiqSpace.s3,
+      runSpacing: TiqSpace.s1,
+      children: <Widget>[
+        Text(words, style: skin.text.meta.style(color: skin.palette.ink3)),
+        if (delta != null)
+          DeltaSlot(
+            data: delta,
+            figureState: figureState,
+            sampling: sampling,
+            compact: true,
+          ),
+        // `/trends` serves three series and no more (#95). An indicator with
+        // no history endpoint gets no shape — a fabricated one would be the
+        // most confident-looking lie on the screen.
+        if (series != null) Sparkline(points: series!, severity: severity),
+      ],
     );
   }
 }
@@ -1138,16 +1274,10 @@ class _TerritorySection extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         SectionRule(l10n.dashByTerritory),
+        // The target is stated on every row rather than once above them: a
+        // ranked list is read row by row, and a note at the top is a fact the
+        // reader has to carry down the list themselves.
         const SizedBox(height: TiqSpace.s3),
-        Padding(
-          padding: const EdgeInsets.only(bottom: TiqSpace.s4),
-          child: Text(
-            l10n.dashTargetIs(executionScoreTarget.round().toString()),
-            style: context.skin.text.meta.style(
-              color: context.skin.palette.ink3,
-            ),
-          ),
-        ),
         territories.when(
           loading: () => Skeleton(
             label: l10n.dashByTerritory,
@@ -1271,13 +1401,28 @@ class _TerritoryScores extends ConsumerWidget {
     bool last,
   ) {
     final status = againstStandard(entry.value, executionScoreTarget);
+    final targetWords = l10n.dashTargetIs(
+      executionScoreTarget.round().toString(),
+    );
     return SoftRow(
       key: ValueKey<String>('territory-score-${entry.name}'),
       density: SoftRowDensity.tall,
       title: entry.name,
       titleTruncation: SoftRowTruncation.middle,
-      subtitle: standingWord(l10n, status),
-      meta: Meter(value: entry.value, target: executionScoreTarget),
+      // The standing and the standard, in words, on one line — where a
+      // full-width meter of the same number used to be. The list is already
+      // ranked worst first, which is the comparison the bar was drawing.
+      subtitle: '${standingWord(l10n, status)} · $targetWords',
+      // The dot, at its two commitment levels. An on-target territory draws
+      // no mark: a verdict is only ever crimson in this system.
+      severity: switch (status) {
+        StatusLevel.critical => SoftRowSeverity.critical,
+        StatusLevel.watch => SoftRowSeverity.watch,
+        _ => SoftRowSeverity.none,
+      },
+      severityLabel: status == StatusLevel.onTarget
+          ? null
+          : standingWord(l10n, status),
       trailing: FigureSlot(
         value: entry.value,
         role: skin.text.figureS,
@@ -1291,7 +1436,7 @@ class _TerritoryScores extends ConsumerWidget {
         entry.name,
         numbers.format(entry.value, decimals: 1),
         standingWord(l10n, status),
-        l10n.dashTargetIs(executionScoreTarget.round().toString()),
+        targetWords,
       ].join('. '),
     );
   }
@@ -1711,7 +1856,10 @@ class _AgentMap extends StatelessWidget {
         : <LatLng>[...agentPoints, ...outletPoints];
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(context.skin.radii.panel),
+      // The card radius, not the panel's. Every other object on this route is
+      // radius 22 and a 14 on the one rectangle big enough to notice reads as
+      // a different material.
+      borderRadius: BorderRadius.circular(context.skin.radii.card),
       // This panel lives below the fold on a typical screen — a scrollable can
       // lay a child out before it is ever scrolled into view, sometimes on a
       // transient pass with a zero or unbounded size. The LayoutBuilder plus

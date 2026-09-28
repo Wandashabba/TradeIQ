@@ -369,6 +369,13 @@ class TrendChartPainter extends CustomPainter {
         for (final r in comparison!.readings) ?r.value,
     ],
     include: threshold?.value,
+    // A RATE'S AXIS STOPS AT A HUNDRED. The unit is the only thing on this
+    // painter that knows what kind of number it is holding, and a plot of
+    // availability against a 95% standard used to round its top gridline out
+    // to 105 — or, with the run well below the standard, to 120. A percentage
+    // above a hundred is not a rounding choice, it is a reading that cannot
+    // happen, printed in the same mono face as the readings that did.
+    domain: unit == TiqUnit.percent ? ChartDomain.rate : ChartDomain.unbounded,
   );
 
   /// The axis style at the live text scale.

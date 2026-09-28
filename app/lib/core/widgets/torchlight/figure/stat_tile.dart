@@ -115,6 +115,7 @@ class StatTile extends StatelessWidget {
     this.lead = false,
     this.severity,
     this.subordinates,
+    this.deltaOnBaseline = false,
     this.layout,
     this.padding,
     this.strings = StatTileStrings.defaults,
@@ -186,6 +187,25 @@ class StatTile extends StatelessWidget {
   /// "Coverage 78% · Price compliance 91%". Renders what exists; never padded
   /// to three because a reference had three.
   final String? subordinates;
+
+  /// THE DELTA STANDS ON THE FIGURE'S OWN BASELINE, rather than on a line of
+  /// its own beneath it.
+  ///
+  /// The owner's card override (25–26 September 2026, `unify.md` §1.16) says a
+  /// hero figure carries its delta on the same baseline: the pairing *is* the
+  /// hero — a number, and whether it is moving — and a delta on its own line
+  /// is a fourth element in a block that is allowed four in total. The plate's
+  /// [PlateHeroCluster] has always done it; this is the same arrangement for a
+  /// hero that lives in a card instead of on a photograph.
+  ///
+  /// It changes where the delta is drawn and nothing about whether: the
+  /// suppression rules still run first, so a delta beside an em dash or beside
+  /// a thin sample is still absent rather than merely moved.
+  ///
+  /// Above 1.6× the delta drops under the figure anyway — the figure has
+  /// stopped growing at that scale and everything beside it has not, which is
+  /// the measurement [PlateHeroCluster] makes for the same reason.
+  final bool deltaOnBaseline;
 
   /// Null measures the tile's own width and picks.
   final StatTileLayout? layout;
@@ -259,7 +279,10 @@ class StatTile extends StatelessWidget {
       TiqDensity.veld => 128.0,
     };
 
-    final figure = _figure(skin);
+    final baselineDelta = deltaOnBaseline ? _baselineDelta(context, skin) : null;
+    final figure = baselineDelta == null
+        ? _figure(skin)
+        : _figureWithDelta(context, _figure(skin), baselineDelta);
     final label = Eyebrow(eyebrow);
 
     final head = resolved == StatTileLayout.horizontal
@@ -355,6 +378,72 @@ class StatTile extends StatelessWidget {
     );
   }
 
+  /// The delta that stands beside the figure, or null when the rule removes
+  /// it. Built here rather than inline so [_build] reads as a layout.
+  Widget? _baselineDelta(BuildContext context, TiqSkin skin) {
+    final suppression = DeltaRule.resolve(
+      figureState: figureState,
+      delta: delta,
+      sampling: sampling,
+    );
+    if (suppression == DeltaSuppression.noData ||
+        suppression == DeltaSuppression.nullFigure) {
+      return null;
+    }
+    // A BASELINE DELTA IS A TRIANGLE AND A MAGNITUDE, AND NOTHING ELSE.
+    //
+    // `DeltaData.comparedTo` renders as a second item in the delta's own
+    // `Wrap`, which is right under a figure and wrong beside one: at the
+    // width left over next to `67,8` at `figure.l`, "vs the window before"
+    // takes two more lines and the pair stops reading as a pair. The plate's
+    // hero has never printed it. The caller states the comparison on the
+    // supporting line, which is the one meta line the card is allowed.
+    final data = delta;
+    return DeltaSlot(
+      data: data == null || data.comparedTo == null
+          ? data
+          : DeltaData(
+              direction: data.direction,
+              sentiment: data.sentiment,
+              magnitude: data.magnitude,
+              unit: data.unit,
+              decimals: data.decimals,
+            ),
+      figureState: figureState,
+      sampling: sampling,
+      strings: deltaStrings,
+      compact: true,
+    );
+  }
+
+  /// Figure and delta on one baseline — a `Row` with an alphabetic baseline,
+  /// so the delta sits on the digits rather than on the bottom of the
+  /// figure's line box, which is a descender lower and reads as a second line.
+  /// Above 1.6× it becomes a `Wrap` and the delta falls underneath.
+  Widget _figureWithDelta(BuildContext context, Widget figure, Widget delta) {
+    final scale =
+        (MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling)
+            .scale(1.0);
+    if (scale >= 1.6) {
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.end,
+        spacing: TiqSpace.s3,
+        runSpacing: TiqSpace.s1,
+        children: <Widget>[figure, delta],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: <Widget>[
+        Flexible(child: figure),
+        const SizedBox(width: TiqSpace.s3),
+        Flexible(child: delta),
+      ],
+    );
+  }
+
   Widget _figure(TiqSkin skin) => FigureSlot(
     value: value,
     role: skin.text.figureL,
@@ -414,7 +503,8 @@ class StatTile extends StatelessWidget {
       delta: delta,
       sampling: sampling,
     );
-    if (deltaSuppression != DeltaSuppression.noData &&
+    if (!deltaOnBaseline &&
+        deltaSuppression != DeltaSuppression.noData &&
         deltaSuppression != DeltaSuppression.nullFigure) {
       add(
         DeltaSlot(

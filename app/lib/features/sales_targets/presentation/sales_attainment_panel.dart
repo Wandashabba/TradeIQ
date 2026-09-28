@@ -7,6 +7,7 @@ import '../../../core/design/tiq_number.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/state.dart';
@@ -96,23 +97,28 @@ class AttainmentLevels extends StatelessWidget {
         _levelTile(context, label: label, level: level),
     ];
 
-    // Veld takes two figures to a cluster by rule — "two figures is a reading
-    // and four is analysis, which nobody does in the sun" — and there are
-    // three scope levels. Under glare they become the figure list unify §4
-    // asks for: the same three tiles, stacked, each one full width.
-    if (context.skin.density == TiqDensity.veld) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          for (var i = 0; i < tiles.length; i++) ...<Widget>[
-            if (i > 0) const SizedBox(height: TiqSpace.s5),
-            tiles[i],
-          ],
+    // THREE CARDS, NOT A RULED CLUSTER.
+    //
+    // [StatCluster] separates its tiles with a 12dp gap and a 1px
+    // `edge-structure` rule centred in it, which was unify §1.4's answer
+    // before the owner's card override. A screen whose rows and whose figure
+    // blocks are all soft cards with ground between them, carrying one block
+    // of figures divided by hairlines, is the two-grammar screen the override
+    // settled — "it's still very boxy and I don't need that". Each level is
+    // its own card on the same s3 of ground every other card on the console
+    // sits on, and the rule is simply gone.
+    //
+    // The tiles keep their own inset at zero for the same reason The Floor's
+    // lead card does: the card has already spent it.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (var i = 0; i < tiles.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: TiqSpace.s3),
+          TorchCard(child: tiles[i]),
         ],
-      );
-    }
-
-    return StatCluster(semanticsLabel: l10n.salesLevelsHeading, tiles: tiles);
+      ],
+    );
   }
 
   StatTile _levelTile(
@@ -145,6 +151,7 @@ class AttainmentLevels extends StatelessWidget {
     return StatTile(
       key: ValueKey<String>('attainment-level-$label'),
       eyebrow: label,
+      padding: EdgeInsets.zero,
       value: pct,
       unit: TiqUnit.percent,
       decimals: pct == null || pct == pct.roundToDouble() ? 0 : 1,
