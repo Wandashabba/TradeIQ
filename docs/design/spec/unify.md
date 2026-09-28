@@ -3,6 +3,7 @@
 Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refine-cinematic.json` and the owner's five standing decisions. Where the spec and an owner decision disagree, the owner decision wins (typeface: Onest + JetBrains Mono; nav: floating pill with a solid amber active tab and a separate circle). Where two designers disagree, one is picked below and the reason is one sentence.
 
 ---
+
 > **OWNER OVERRIDE — 28 September 2026. VELD IS REMOVED FROM THE PRODUCT.**
 >
 > Veld was the third skin: white ground, near-black ink, radius 0, 2px

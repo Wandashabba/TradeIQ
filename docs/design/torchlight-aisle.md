@@ -2,6 +2,9 @@
 
 The TradeIQ design system. One token source, two skins, two typefaces, and
 one rule about the colour amber that explains most of the others.
+
+---
+
 > **OWNER OVERRIDE — 28 September 2026. VELD IS REMOVED FROM THE PRODUCT.**
 >
 > Veld was the third skin: a white ground, near-black ink, radius 0, 2px
@@ -37,7 +40,7 @@ one rule about the colour amber that explains most of the others.
 > severity word beside every severity hue and the list halves of the map
 > panels are all likewise kept on their own merits.
 
-
+---
 
 Trade marketing happens in badly lit rooms — a spaza in Tembisa during Stage 6,
 a forecourt cold-room at 05:40, a Boxer back aisle with the fluorescents off to
