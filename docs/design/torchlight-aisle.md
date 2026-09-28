@@ -1168,6 +1168,97 @@ committing it.**
 
 ---
 
+## 9f. The card override reaches the Execution overview — 28 September 2026
+
+The overview (`/dashboard/overview`) migrated to Torchlight in #453, **before**
+the card override (§9c/§9d) and before the realistic charts (§17). Rendered at
+390×844 in Onest it was the two-grammar screen the override exists to end: soft
+cards for every row, a **crimson-outlined rectangle at radius 6** for the
+headline figure, and a bare column on the ground for every plot.
+
+> *"Let's look at the Execution overview page and make it match the style of
+> the floor. The chart must be realistic please fix it. And remove the
+> rectangular style."*
+
+### The rectangle
+
+`StatTile(lead: true, severity: …)` is the one configuration in the kit that
+draws a border, and it draws it at `radii.chip` — a radius-6 outline around the
+loudest object on the route, on a screen where everything else is radius 22.
+The headline block is now `TorchCard` with **four** things in it, which is The
+Floor's lead card exactly:
+
+| | before | now |
+|---|---|---|
+| container | outlined rectangle, radius 6, crimson | `TorchCard`, radius 22, `surface`, no border |
+| 1 | section marker `EXECUTION SCORE` | — (the card's eyebrow is the label; the two said the same words 20dp apart) |
+| 2 | eyebrow `EXECUTION SCORE` | eyebrow |
+| 3 | the figure | the figure, **with its delta on the same baseline** |
+| 4 | a full-width `Meter` of the same percentage | — |
+| 5 | the delta, on its own line | — |
+| 6 | the supporting line | the supporting line, carrying the target **and** what the movement is measured against |
+| 7 | — | the score's own `Sparkline`, at the trailing edge |
+
+`StatTile.deltaOnBaseline` is the kit half of that: a `Row` on the alphabetic
+baseline under 1.6× and a `Wrap` above it, the same measurement
+`PlateHeroCluster` makes. A baseline delta **drops its `comparedTo`** — the
+pairing is a figure and a movement, and a sentence beside a `figure.l` takes two
+further lines. The caller states the comparison on the supporting line, which is
+the one meta line the card is allowed.
+
+### The rows
+
+Seven indicator rows and every territory row carried a title, a two-line note, a
+full-width `Meter`, a `Sparkline`, a figure, a crimson `SeverityMark` **triangle**
+and a standing word — about 120dp of row, seven times. §9c says a severity is an
+**8dp dot**, so:
+
+* the **dot** carries the standing, at its two commitment levels, and an
+  on-target row draws no mark at all — a verdict is only ever crimson;
+* the **meter goes**. It redrew the percentage the figure beside it had already
+  printed. Its one piece of information, the target tick, is now a number in
+  words on the row's meta line, where a manager reading that row is looking;
+* the **triangle goes** from the trailing column, which is a figure and nothing
+  else;
+* the notes that used to sit above each list (*"The tick marks the target."*,
+  *"Target 75"*) go with it: a fact stated once above a list is a fact the
+  reader has to carry down the list themselves.
+
+`AttainmentLevels` moved the same way — three cards on ground rather than one
+`StatCluster` divided by `edge-structure` hairlines, and without the meter, for
+the reason the headline figure lost its own.
+
+### The chart
+
+`niceScale` divided the padded span by the tick count and snapped the quotient
+up the 1-2-5 ladder. That overshoots badly near a ladder boundary: availability
+at 64–73 against the published 95% standard asked for a step of 10.25, took 20,
+and drew six readings inside **an axis labelled 40 to 120**. A percentage cannot
+be 120, and a gridline that says so is the most confident-looking lie a chart
+can tell — the same fault at the other end printed `105` for a healthy run.
+
+Two changes, both in `niceScale`:
+
+* **`ChartDomain`** — the metric's own ceiling and floor. `ChartDomain.rate` is
+  0 to 100 and `TrendChart` passes it whenever the unit is percent. Only the
+  *padding* is clipped, so a server that sends 103% is still drawn at 103%.
+* **The step is searched, not computed.** The ladder is walked from below and
+  the **finest** step inside the tick budget wins, so the run fills the plot it
+  is given.
+
+The same plot is now **50 to 100 in tens**, with the 95 standard dashed across
+it. Every plot on the route also sits in a `TorchCard` now, which is the
+`surface` its gridlines were toned against in the first place.
+
+### Where it is pinned
+
+`overview_grammar_test.dart` (the grammar, everywhere) and the five scale cases
+in `chart_test.dart`. `overview_look_test.dart` renders the route at four
+sizes × two skins for somebody to look at, and is off in CI for the reason
+`floor_look_test.dart` gives.
+
+---
+
 ## 11. Migration status
 
 The five old colour sources — `TiqColors`, `LumenPalette`, `LumenGlass`,

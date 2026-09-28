@@ -157,7 +157,11 @@ class AttainmentLevels extends StatelessWidget {
       decimals: pct == null || pct == pct.roundToDouble() ? 0 : 1,
       noDataReason: noDataReason,
       severity: salesSeverity(pct),
-      meter: pct == null ? null : MeterData(value: pct, maximum: 100),
+      // NO METER. A full-width bar of the percentage the figure above it has
+      // already set is the redundancy the owner's card override cut from the
+      // console's headline figure and from every indicator row; an attainment
+      // block is the same block with the same figure in it. Four things:
+      // the level, the figure, the counts behind it, and the band word.
       stateLine: salesBandWord(l10n, pct),
       // The counts stand on their own: "4 of 0 units · 1 target" is true, and
       // it is how a manager finds the delisted SKU the reason is about.

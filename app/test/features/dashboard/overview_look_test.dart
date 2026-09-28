@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
+import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 
 import '../agent_harness.dart';
@@ -143,6 +144,32 @@ void main() {
             agent(id: 'ag3', name: 'Sipho Ndlovu'),
           ],
           trend: series,
+          // Targets set, so the sell-in panel renders its three figure
+          // blocks rather than its empty state — the block that was a ruled
+          // [StatCluster] and is now three cards.
+          attainment: const SalesAttainmentReport(
+            month: '2026-09',
+            timeZone: 'Africa/Johannesburg',
+            skus: <SkuAttainment>[],
+            client: AttainmentLevel(
+              targets: 12,
+              targetUnits: 48000,
+              actualUnits: 41280,
+              attainmentPct: 86,
+            ),
+            territory: AttainmentLevel(
+              targets: 5,
+              targetUnits: 19000,
+              actualUnits: 12730,
+              attainmentPct: 67,
+            ),
+            outlet: AttainmentLevel(
+              targets: 31,
+              targetUnits: 7400,
+              actualUnits: 7548,
+              attainmentPct: 102,
+            ),
+          ),
         ),
       );
 
