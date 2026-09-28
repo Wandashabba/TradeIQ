@@ -22,6 +22,7 @@
 /// | `NotMeasured` | a zero with no explanation |
 /// | `ProvisionalMarker` / `ReconciliationLine` | nothing — new (#377/#390/#398) |
 /// | `Eyebrow` | `Text(label.toUpperCase())` |
+/// | `standingInk` / `severityInk` | seven screens each deciding when a figure may be coloured |
 ///
 /// **Nothing here emits amber.** Not one of these components names a flame
 /// token or declares a `TorchClaim`, and `marks_amber_test.dart` renders every
@@ -36,6 +37,7 @@ export 'figure/meter.dart';
 export 'figure/not_measured.dart';
 export 'figure/provisional.dart';
 export 'figure/sample_threshold.dart';
+export 'figure/standing.dart';
 export 'figure/stat_cluster.dart';
 export 'figure/stat_tile.dart';
 export 'mark/delta.dart';

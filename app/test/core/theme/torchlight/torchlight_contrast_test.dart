@@ -51,6 +51,31 @@ void main() {
       expect(skins, containsAll(<String>['night', 'day', 'plate']));
       expect(TorchlightContrast.declared.length, greaterThan(40));
     });
+
+    test('every ground a coloured figure can land on is declared', () {
+      // THE RULE THE SEMANTIC-FIGURE COLOUR NEEDS, AS A TEST RATHER THAN AS A
+      // HABIT. `good` and `bad` are real ink now — a score against its
+      // target, an availability against the published standard, the figure on
+      // a decision row — so every fill a figure is ever set on has to appear
+      // against both of them in this table, by hand, with a label somebody
+      // wrote. The generated sweep in `torchlight_generated_contrast_test`
+      // walks the same matrix; this is the half that carries the reasons.
+      final labels = TorchlightContrast.declared
+          .map((p) => '${p.skin} ${p.label}')
+          .toSet();
+      for (final skin in <String>['night', 'day']) {
+        for (final token in <String>['good', 'bad']) {
+          final grounds = labels.where(
+            (l) => l.startsWith('$skin $token on '),
+          );
+          expect(
+            grounds,
+            isNotEmpty,
+            reason: '$skin $token is set on no declared ground at all.',
+          );
+        }
+      }
+    });
   });
 
   group('banned pairings are banned, and stay banned', () {
@@ -287,6 +312,35 @@ void main() {
       'day focus bar ink-1 on chart track (well)': 11.12,
       'day nav-active: ground ink on the lifted block': 9.43,
       'day decorative hairline on ground': 1.18,
+      // ── The semantic-figure colour, 28 September 2026 ──────────────
+      //
+      // "On this theme we need to add the colours of green red and some
+      // colours on the numbers and graphs that make sense." Every pairing
+      // that change created, recomputed here so the owner's note has an
+      // arithmetic record rather than a screenshot.
+      'night good on surface — a coloured figure on a card': 9.45,
+      'night bad on surface — a coloured figure on a card': 6.25,
+      'night critical mark badSolid on surface — the row dot': 3.66,
+      'night subject run ink-1 on the card it is plotted in (surface)': 12.67,
+      'night good run on the card it is plotted in (surface)': 9.45,
+      'night bad run on the card it is plotted in (surface)': 6.25,
+      'day good on card (surface) — a coloured figure on a card': 6.49,
+      'day good on well — the darkest Day fill a figure sits on': 5.03,
+      'day bad on card (surface) — a coloured figure on a card': 8.51,
+      'day bad on well': 6.60,
+      'day critical mark badSolid on ground — the row dot, as red': 5.74,
+      'day critical mark badSolid on card (surface)': 6.50,
+      'day subject run ink-1 on the card it is plotted in (surface)': 14.34,
+      'day good run on the card it is plotted in (surface)': 6.49,
+      'day bad run on the card it is plotted in (surface)': 8.51,
+      'day target rule ink-2 on the card it is plotted in (surface)': 9.04,
+      'day ink on solid critical block': 6.95,
+      'plate night hero good on the darkest scrimmed plate pixel': 12.02,
+      'plate night hero bad on the darkest scrimmed plate pixel': 7.95,
+      'plate day hero good on the darkest scrimmed plate pixel': 3.60,
+      'plate day hero bad on the darkest scrimmed plate pixel': 4.72,
+      'plate day hero delta bad at 13px on the darkest scrimmed plate pixel':
+          4.72,
     };
 
     final measured = <String, double>{

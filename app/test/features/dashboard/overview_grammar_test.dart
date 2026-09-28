@@ -203,4 +203,113 @@ void main() {
     });
 
   });
+
+  // ── The semantic colour, 28 September 2026 ────────────────────────────
+  group('a figure and a run carry their standing', () {
+    testWidgets('the headline figure is crimson under its standard', (
+      tester,
+    ) async {
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        await pump(tester, skin: skin, current: kpis(execution: 67.8));
+        final tile = tester.widget<StatTile>(
+          find.byKey(const ValueKey<String>('kpi-execution-score')),
+        );
+        expect(
+          tile.figureInk,
+          skin.palette.bad,
+          reason:
+              '${skin.mode.name}: 67.8 against a published 75 is a gap, and '
+              'the card said so only in ink-3 at 12px after two other facts.',
+        );
+        // The words are still the carrier: the supporting line states the
+        // target and the delta beside the figure carries its own sentiment.
+        expect(tile.subordinates, contains('75'));
+      }
+    });
+
+    testWidgets('a headline over its standard is green', (tester) async {
+      final skin = TiqSkin.day();
+      await pump(tester, skin: skin, current: kpis(execution: 81.2));
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(tile.figureInk, skin.palette.good);
+    });
+
+    // A `chartNeutral` run is a grey scribble: the token means "a series with
+    // nothing to say about it", which is the one thing the subject of a trend
+    // panel is not. Two tests rather than a loop — a second `pumpOverview`
+    // inside one test reuses the ProviderScope element and the series does
+    // not change, which is a test that passes for the wrong reason.
+    for (final (last, want) in <(double, String)>[
+      // Ends at 80, above the 75 rule already on the plot.
+      (80, 'good'),
+      (62, 'bad'),
+    ]) {
+      testWidgets('a run ending at $last is $want', (tester) async {
+        final skin = TiqSkin.day();
+        await pumpOverview(
+          tester,
+          const DashboardShellScreen(),
+          skin: skin,
+          overrides: overviewOverrides(
+            current: kpis(execution: 67.8),
+            previous: kpis(execution: 66),
+            trend: <TrendPoint>[
+              const TrendPoint(period: '2026-W26', value: 40, count: 12),
+              TrendPoint(period: '2026-W27', value: last, count: 14),
+            ],
+          ),
+        );
+        await scrollOverviewTo(
+          tester,
+          find.byKey(const ValueKey<String>('dashboard-score-chart')),
+        );
+        final chart = tester.widget<TrendChart>(
+          find.byKey(const ValueKey<String>('dashboard-score-chart')),
+        );
+        expect(chart.standing, isNotNull);
+        expect(
+          subjectInk(skin, chart.standing),
+          want == 'good' ? skin.palette.good : skin.palette.bad,
+          reason:
+              'A run ending at $last against a rule at 75 drew the wrong '
+              'ink. The run, its area wash, its end dot and its legend '
+              'swatch all come from this one call, so a key cannot name a '
+              'line the plot does not draw.',
+        );
+        // The rule it is judged against is named in the legend, always —
+        // that is the position channel the colour is redundant with.
+        expect(chart.threshold, isNotNull);
+        expect(find.text(chart.threshold!.label), findsWidgets);
+      });
+    }
+
+    testWidgets('an unmeasured window colours nothing at all', (tester) async {
+      // An em dash is an em dash, and `figureInk` never reaches it.
+      final skin = TiqSkin.day();
+      await pump(tester, skin: skin, current: emptyWindowKpis());
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(tile.value, isNull);
+      expect(tile.figureInk, isNull);
+    });
+
+    testWidgets('the queue counts stay in plain ink', (tester) async {
+      // RESTRAINT, PINNED. A count is a quantity, not a verdict: two critical
+      // alerts and twenty are the same severity, and what makes the row
+      // crimson is that any exist. If this starts carrying colour, the rule
+      // has become "colour anything next to a dot".
+      await pump(tester, skin: TiqSkin.day());
+      await scrollOverviewTo(
+        tester,
+        find.byKey(const ValueKey<String>('attention-critical-alerts')),
+      );
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('attention-critical-alerts')),
+      );
+      expect((row.trailing! as FigureSlot).color, isNull);
+    });
+  });
 }

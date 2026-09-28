@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../../../../design/tiq_number.dart';
 import '../../../../theme/torchlight/tiq_skin.dart';
 import '../curve.dart';
+import '../../mark/severity_mark.dart';
 import '../sample_threshold.dart';
 import 'chart_legend.dart';
 import 'chart_series.dart';
@@ -31,6 +32,17 @@ import 'scrub_readout.dart';
 /// three channels, none of them light. A trends route carries three of these
 /// and the budget is counted per route, so the honest answer is zero.
 ///
+/// **The subject run is not grey.** It was `chartNeutral` in every chart on
+/// every screen, which is a token whose whole job is *the series with nothing
+/// to say about it* — so the loudest object on a trend panel said nothing.
+/// Since 28 September 2026 the run takes [standing] where the caller has one
+/// to give (green on the standard, crimson under it) and `ink-1` where it has
+/// none, because where there is no target there is no judgement and a figure
+/// with no judgement is plain ink. The comparison is Truffle and dashed
+/// either way, so the two are never told apart by hue alone; the standing is
+/// also stated in the panel's own words and by the run's position against the
+/// named target rule.
+///
 /// **A null reading breaks the line.** The trends endpoints omit an empty
 /// bucket rather than sending a zero. Joining across a gap would draw a
 /// straight line through a week nobody measured and invite a manager to read a
@@ -43,6 +55,7 @@ class TrendChart extends StatefulWidget {
     required this.unit,
     required this.semanticsLabel,
     this.threshold,
+    this.standing,
     this.decimals,
     required this.notMeasuredWord,
     required this.dashedWord,
@@ -66,6 +79,20 @@ class TrendChart extends StatefulWidget {
 
   /// A dashed rule across the plot, named in the legend.
   final ChartThreshold? threshold;
+
+  /// WHERE THE SUBJECT RUN STANDS — the verdict on the series, from the
+  /// caller, never inferred here.
+  ///
+  /// Null is the honest default and means *this run has nothing to be judged
+  /// against*: it draws in ink-1, the subject's own weight and solidity doing
+  /// the work they already did. A caller with a published standard passes
+  /// `severityFor(againstStandard(last, target))` and gets the same green and
+  /// crimson the figure beside the chart is already wearing — one verdict, in
+  /// one hue, on every object that carries it.
+  ///
+  /// It is the caller's because polarity is the caller's: a falling
+  /// out-of-stock count is good news and this component cannot know that.
+  final SeverityMarkKind? standing;
 
   /// What a screen reader is told the chart is. The **values** are not in
   /// here: they are in the table twin, which is a real widget with real rows
@@ -99,6 +126,22 @@ class TrendChart extends StatefulWidget {
   State<TrendChart> createState() => _TrendChartState();
 }
 
+/// The ink a subject run takes from its [TrendChart.standing].
+///
+/// Public and static so the legend swatch, the run, the area wash and the end
+/// dot cannot drift apart — a key whose swatch is a different colour from the
+/// line it names is worse than no key.
+Color subjectInk(TiqSkin skin, SeverityMarkKind? standing) => switch (standing) {
+  // The word grade, not the mark grade: a 2dp run is a hairline at arm's
+  // length and Night's `badSolid` is 3.21:1 on `raised`.
+  SeverityMarkKind.critical || SeverityMarkKind.watch => skin.palette.bad,
+  SeverityMarkKind.onTarget => skin.palette.good,
+  // No verdict: the subject is still the subject. Ink-1 is the focus channel
+  // on a light ground by the contrast contract's own declaration, and the
+  // strongest ink on a dark one.
+  _ => skin.palette.ink1,
+};
+
 class _TrendChartState extends State<TrendChart> {
   /// Which bucket the thumb is on, or null for none. A readout, never a
   /// selection: nothing is gated behind it and the table twin holds every
@@ -129,6 +172,7 @@ class _TrendChartState extends State<TrendChart> {
       series: widget.series,
       dashedWord: widget.dashedWord,
       threshold: widget.threshold,
+      subjectInk: subjectInk(skin, widget.standing),
       gapNote: widget.gapNote,
     );
 
@@ -159,6 +203,7 @@ class _TrendChartState extends State<TrendChart> {
               final painter = TrendChartPainter(
                 skin: skin,
                 subject: subject,
+                subjectInk: subjectInk(skin, widget.standing),
                 comparison: _comparison,
                 threshold: widget.threshold,
                 scrub: scrubIndex,
@@ -278,6 +323,7 @@ class TrendChartPainter extends CustomPainter {
     required this.skin,
     required this.subject,
     required this.comparison,
+    this.subjectInk,
     required this.threshold,
     required this.scrub,
     required this.unit,
@@ -291,6 +337,11 @@ class TrendChartPainter extends CustomPainter {
 
   final TiqSkin skin;
   final ChartSeries subject;
+
+  /// The run's ink, from [TrendChart.standing]. Null keeps the old neutral,
+  /// for a painter stood up directly in a test.
+  final Color? subjectInk;
+
   final ChartSeries? comparison;
   final ChartThreshold? threshold;
   final int? scrub;
@@ -335,6 +386,10 @@ class TrendChartPainter extends CustomPainter {
   /// before the dash is counted.
   static const double subjectStroke = 2;
   static const double comparisonStroke = 1.5;
+
+  /// The target rule's stroke. Lighter than the subject and heavier than a
+  /// gridline: a rule somebody drew, not a row of specks.
+  static const double thresholdStroke = 1.5;
 
   /// The scale, and the value labels it implies. Computed once and reused by
   /// [gutterFor] and by [paint], because the left gutter is a function of the
@@ -487,14 +542,15 @@ class TrendChartPainter extends CustomPainter {
       final v = r.value;
       if (v != null) crest = math.min(crest, y(v));
     }
+    final run = subjectInk ?? skin.palette.chartNeutral;
     final wash = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: <Color>[
-          skin.palette.chartNeutral.withValues(alpha: 0.26),
-          skin.palette.chartNeutral.withValues(alpha: 0.08),
-          skin.palette.chartNeutral.withValues(alpha: 0),
+          run.withValues(alpha: 0.26),
+          run.withValues(alpha: 0.08),
+          run.withValues(alpha: 0),
         ],
         // A mid stop, so the wash falls away quickly under the run and is
         // genuinely gone by the baseline. A straight two-stop ramp over a
@@ -533,9 +589,15 @@ class TrendChartPainter extends CustomPainter {
         ..isAntiAlias = false,
     );
 
-    // ── The threshold, dashed, ink-2. A dash is what a threshold *means* in
-    // this system; ink-2 rather than ink-1 is what keeps it from being the
-    // loudest mark on a plot whose subject is the run.
+    // ── The threshold: a RULE, dashed, ink-2, 1.5dp with a 6-4 dash.
+    //
+    // A dash is what a threshold *means* in this system, and ink-2 rather
+    // than ink-1 is what keeps it from being the loudest mark on a plot whose
+    // subject is the run. What changed on 28 September 2026 is the weight: at
+    // 1dp with a 4-4 dash over 300dp it read as a row of specks rather than
+    // as a line somebody drew across the chart on purpose — the owner's
+    // "unmistakably a rule". It is still lighter than the 2dp run and still
+    // the only dashed horizontal, so it cannot be mistaken for a series.
     final rule = threshold;
     if (rule != null && rule.value >= scale.min && rule.value <= scale.max) {
       final ry = _crisp(y(rule.value));
@@ -544,12 +606,12 @@ class TrendChartPainter extends CustomPainter {
           Path()
             ..moveTo(plot.left, ry)
             ..lineTo(plot.right, ry),
-          dash: 4,
+          dash: 6,
           gap: 4,
         ),
         Paint()
           ..color = skin.palette.ink2
-          ..strokeWidth = 1
+          ..strokeWidth = thresholdStroke
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.butt,
       );
@@ -576,7 +638,9 @@ class TrendChartPainter extends CustomPainter {
       );
     }
 
-    // ── The subject: solid chart-neutral at 2dp, round join and cap.
+    // ── The subject: solid, 2dp, round join and cap, in the run's own
+    // verdict — green where the series is where it should be, crimson where
+    // it is not, ink-1 where there is nothing to judge it against.
     _series(
       canvas,
       readings,
@@ -584,7 +648,7 @@ class TrendChartPainter extends CustomPainter {
       y: y,
       count: count,
       paint: Paint()
-        ..color = skin.palette.chartNeutral
+        ..color = run
         ..strokeWidth = subjectStroke
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -598,7 +662,7 @@ class TrendChartPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x(lastMeasured), y(readings[lastMeasured].value!)),
         endRadius,
-        Paint()..color = skin.palette.chartNeutral,
+        Paint()..color = run,
       );
     }
 

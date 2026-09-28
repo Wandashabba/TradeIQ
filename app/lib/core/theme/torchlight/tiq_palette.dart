@@ -152,7 +152,17 @@ class TiqPalette {
   final Color onAmberPressed;
 
   // ── Severity — one hue, two commitment levels, never amber ───────────
+  /// The **word grade** of each severity: the ink a figure, a phrase or a
+  /// delta is set in. It carries text, so it is measured at 4.5:1 on every
+  /// fill the app sets text on, in every skin — the sweep in
+  /// `TorchlightContrast.generatedFor` walks exactly these two.
   final Color good;
+
+  /// The **mark grade**: a fill, a dot, a bar, a solid block. It is a graphic
+  /// at 3:1 and it carries [onGoodSolid] / [onBadSolid] when it is a block, so
+  /// it is free to be more chromatic than the word grade. It is **not** an ink
+  /// for a word: Night [badSolid] is 3.66:1 on `surface`, which is what the
+  /// grade split exists to keep out of a sentence.
   final Color goodSolid;
   final Color onGoodSolid;
   final Color bad;
@@ -254,7 +264,25 @@ class TiqPalette {
     goodSolid: Color(0xFF0F5039),
     onGoodSolid: Color(0xFFFFFFFF),
     bad: Color(0xFF8C1B2C),
-    badSolid: Color(0xFF7A0F22),
+    // MOVED 28 September 2026, from #7A0F22. The critical mark on a light
+    // ground is a filled 8dp dot, and at #7A0F22 — 9.04:1 on Palladian — it
+    // read as brown rather than as red. The owner looked at The Floor in Day
+    // and said so: "the severity dots ... are a dark crimson so muted they
+    // read as brown".
+    //
+    // On paper, commitment is carried by **fill and chroma**, not by
+    // darkness: past about 8:1 a red on cream stops gaining urgency and
+    // starts losing hue. #B3121F is 5.74:1 on the ground and 5.04:1 on the
+    // well — well clear of the 3:1 a mark needs and still clear of 4.5:1 —
+    // and carries white at 6.95:1, so the solid critical block is unchanged
+    // in its contract and changed in its colour.
+    //
+    // [bad] deliberately did NOT move with it. It is the word grade, and its
+    // binding case is 13px text over the plate's scrimmed photograph, which
+    // on a light ground composites to #BEBAB2 at worst: #8C1B2C is 4.70:1
+    // there and anything brighter is under the floor. See the `day plate`
+    // pairings in `tiq_contrast.dart`.
+    badSolid: Color(0xFFB3121F),
     onBadSolid: Color(0xFFFFFFFF),
     comparison: Color(0xFFA35139),
     comparisonWash: Color(0xFFF7DCD2),

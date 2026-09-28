@@ -19,10 +19,16 @@ import 'curve.dart';
 ///   dot drawn as a flat line is a fabricated trend. The slot collapses and
 ///   the figure beside it moves to the row's edge — [DecisionRow] is built for
 ///   exactly that.
-/// * **The last dot is severity-coloured, and severity is never amber.** It is
-///   the one mark in the shape that carries a verdict, so it takes the crimson
-///   the rest of the system uses for one. Five rows of amber last-dots is the
-///   repeated fill the amber law bans by name.
+/// * **The whole shape carries the verdict, and the verdict is never amber.**
+///   A sparkline that is always `chartNeutral` is a grey scribble: it says
+///   *there is a shape here* and nothing about whether the shape is good news.
+///   Since 28 September 2026 the **stroke** takes the standing as well as the
+///   dot — green where the run is where it should be, crimson where it is not,
+///   `chartNeutral` where there is nothing to judge it against. Colour is not
+///   the only signal and cannot be: the shape *is* the direction, drawn, and
+///   every caller already prints a word, a delta or a standing beside it.
+///   Five rows of amber last-dots is the repeated fill the amber law bans by
+///   name, and amber is not a verdict in any case.
 /// * **It caches.** The geometry becomes a [ui.Picture] once per (points,
 ///   size, skin) and is replayed inside a [RepaintBoundary]. A `ListView` of
 ///   five of these repainting on every scroll frame is the budget gone.
@@ -38,8 +44,10 @@ class Sparkline extends StatelessWidget {
   /// and a shape anchored to zero flattens every real movement.
   final List<double> points;
 
-  /// Colours the last dot. Null draws it in `chartNeutral` — a series with no
-  /// verdict attached still gets its "you are here".
+  /// The run's standing. Colours the **stroke and the last dot**: null draws
+  /// both in `chartNeutral` — a series with no verdict attached still gets its
+  /// shape and its "you are here", in plain neutral, because a shape with
+  /// nothing to be judged against is not good news or bad news.
   final SeverityMarkKind? severity;
 
   final String? semanticsLabel;
@@ -52,10 +60,24 @@ class Sparkline extends StatelessWidget {
     if (points.length < 2) return const SizedBox.shrink();
     final skin = context.skin;
 
-    final line = skin.palette.chartNeutral;
-    final dot = severity == null
+    // THE STROKE AND THE DOT COME FROM THE SAME VERDICT.
+    //
+    // The stroke takes the **word grade** (`good` / `bad`) rather than the
+    // mark grade: a 1.5dp line is a hairline, and Night's `badSolid` at
+    // 3.21:1 on `raised` is a hairline that disappears on a 6-bit panel. The
+    // dot keeps the mark grade, because a 5dp disc is a mark and reads as one
+    // of the two commitment levels the severity set has.
+    final verdict = severity;
+    final line = switch (verdict) {
+      SeverityMarkKind.critical || SeverityMarkKind.watch => skin.palette.bad,
+      SeverityMarkKind.onTarget => skin.palette.good,
+      // `held` and `notMeasured` are not verdicts. A series that nobody could
+      // judge draws the neutral it has always drawn.
+      _ => skin.palette.chartNeutral,
+    };
+    final dot = verdict == null
         ? skin.palette.chartNeutral
-        : SeverityMarkToken.of(skin, severity!).ink;
+        : SeverityMarkToken.of(skin, verdict).ink;
 
     return Semantics(
       label: semanticsLabel,

@@ -22,6 +22,7 @@ import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
 import 'dashboard_filters.dart';
 import 'first_run_board.dart';
+import 'standards.dart';
 
 /// THE FLOOR — the manager's home.
 ///
@@ -589,12 +590,12 @@ class _AvailabilityCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
     final snapshot = view.snapshot;
     final current = snapshot.current;
     final measured = view.phase == FloorPhase.measured;
     final n = current.sampleSizes.osaPct;
     final baselineN = snapshot.previous?.sampleSizes.osaPct;
-    final delta = snapshot.of((k) => k.osaPct);
 
     // THE SHAPE OF THE LAST FEW PERIODS. `/trends/availability` is the series
     // the overview already draws; the sparkline is the same data at 64×20.
@@ -608,6 +609,15 @@ class _AvailabilityCard extends ConsumerWidget {
           orElse: () => const <double>[],
         );
 
+    // WHERE IT STANDS AGAINST THE PUBLISHED STANDARD. On-shelf availability
+    // is measured against 95 everywhere in this product — the overview's
+    // indicator list says so in words on its own row — so the figure here
+    // carries the same verdict rather than being the one place the standard
+    // is not applied.
+    final standing = measured
+        ? againstStandard(current.osaPct, availabilityStandard)
+        : null;
+
     final tile = StatTile(
       eyebrow: 'On-shelf availability',
       // A window with no visits is an absence, not a score of zero. The
@@ -620,6 +630,10 @@ class _AvailabilityCard extends ConsumerWidget {
       // declares the precision the design specifies rather than rounding
       // inside the widget.
       decimals: 0,
+      // The standard, in ink. The words are on the supporting line below and
+      // the sparkline beside it carries the same verdict; this is the third
+      // cue, not the only one.
+      figureInk: standingInk(skin, standing),
       noDataReason: measured ? null : 'No visits in this window',
       sampling: FigureSampling(
         kind: MetricKind.rate,
@@ -658,13 +672,18 @@ class _AvailabilityCard extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: TiqSpace.s4),
               child: Sparkline(
                 points: trend,
-                // The last dot takes the metric's own verdict, never amber:
-                // a falling availability is bad and a rising one is good.
-                severity: !delta.hasDelta
+                // THE SHAPE TAKES THE FIGURE'S OWN STANDING, never amber and
+                // never the sign of the last movement.
+                //
+                // It used to read `delta.change! < 0 ? watch : onTarget` —
+                // the direction of one week's movement, which made a run at
+                // 61% against a standard of 95 draw green the moment it
+                // ticked up. The verdict on a series is where the series
+                // *is*, and the figure beside it is already saying so; two
+                // marks in one card must not disagree.
+                severity: standing == null
                     ? null
-                    : delta.change! < 0
-                    ? SeverityMarkKind.watch
-                    : SeverityMarkKind.onTarget,
+                    : severityFor(standing) ?? SeverityMarkKind.onTarget,
                 semanticsLabel: null,
               ),
             ),
@@ -846,6 +865,32 @@ class _PlateFor extends StatelessWidget {
               ),
         figure: FigureSlot(
           value: measured ? current.executionScore : null,
+          // THE HERO SAYS WHETHER 73 IS GOOD NEWS.
+          //
+          // Territory health is the execution score, and the execution score
+          // is measured against a published 75 on the overview this figure
+          // opens. Until 28 September 2026 the only thing on the plate that
+          // carried a verdict was the delta — which says whether the number
+          // *moved*, not whether it is *where it should be*. A score can fall
+          // nineteen points and still be fine, and rise two and still be a
+          // gap; the two marks answer two questions and the screen was only
+          // answering one.
+          //
+          // The word is in the semantics: the health line and the delta
+          // sentence both name the standing, and the hero is `hero.figure` at
+          // 72px, which is large text at a 3:1 floor — measured against the
+          // worst pixel the plate's scrim can produce on either ground and
+          // declared in `tiq_contrast.dart`.
+          color: standingInk(
+            skin,
+            measured
+                ? againstStandard(
+                    current.executionScore,
+                    executionScoreTarget,
+                  )
+                : null,
+            state: figureState,
+          ),
           role: spec.figureRole,
           fit: <TiqTypeToken>[
             spec.figureRole,

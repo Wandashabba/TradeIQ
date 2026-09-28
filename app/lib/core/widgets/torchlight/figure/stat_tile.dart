@@ -114,6 +114,7 @@ class StatTile extends StatelessWidget {
     this.reconciliation,
     this.lead = false,
     this.severity,
+    this.figureInk,
     this.subordinates,
     this.deltaOnBaseline = false,
     this.layout,
@@ -183,6 +184,18 @@ class StatTile extends StatelessWidget {
   /// The lead tile's standing. Outline for watch, solid for critical — never
   /// a fill on a plain tile.
   final SeverityMarkKind? severity;
+
+  /// THE FIGURE'S OWN INK, where the figure carries a judgement.
+  ///
+  /// Null is the default and the right answer for most tiles: a figure with
+  /// nothing to be measured against is plain ink, and colouring one to
+  /// brighten a screen is the failure this parameter is narrow enough to
+  /// prevent. Pass `standingInk(skin, againstStandard(value, target))` — never
+  /// a colour picked at the call site.
+  ///
+  /// It reaches [FigureSlot.color], so the unknown states still outrank it:
+  /// an em dash is ink-3 and a thin sample is ink-2 whatever is passed here.
+  final Color? figureInk;
 
   /// "Coverage 78% · Price compliance 91%". Renders what exists; never padded
   /// to three because a reference had three.
@@ -444,6 +457,7 @@ class StatTile extends StatelessWidget {
 
   Widget _figure(TiqSkin skin) => FigureSlot(
     value: value,
+    color: figureState == FigureState.measured ? figureInk : null,
     role: skin.text.figureL,
     // Measured, not guessed: the first role whose real glyphs and real
     // affixes fit the real constraint at the real scale wins.

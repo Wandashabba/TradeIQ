@@ -233,10 +233,46 @@ void main() {
       expect(skins, <String>{'night', 'day'});
       expect(
         TorchlightContrast.seriesPairs.length,
-        18,
+        22,
         reason:
-            'Nine pairs in each of two skins. Pinned so that deleting one '
-            'is a visible edit rather than an omission.',
+            'Eleven pairs in each of two skins. Was nine until 28 September '
+            '2026, when figures, sparklines and trend runs started carrying '
+            'their standing: a green run beside a crimson one, and a coloured '
+            'figure beside a plain one, are two new hue-coded distinctions '
+            'and each had to declare the channel that carries it when hue '
+            'cannot. Pinned so that deleting one is a visible edit rather '
+            'than an omission.',
+      );
+
+      // STRONGER THAN A COUNT. A pin on the length alone is satisfied by
+      // deleting a pair from one skin and adding a different one to another,
+      // which is exactly the drift that lets a distinction go undeclared in
+      // the ground it is hardest on. Every skin must carry the SAME set.
+      final bySkin = <String, List<String>>{};
+      for (final pair in TorchlightContrast.seriesPairs) {
+        bySkin.putIfAbsent(pair.skin, () => <String>[]).add(pair.label);
+      }
+      final night = bySkin['night']!;
+      expect(night, hasLength(11));
+      for (final skin in <String>['day']) {
+        expect(
+          bySkin[skin],
+          night,
+          reason:
+              'The $skin registry is not the Night registry. A pair declared '
+              'in one skin and not another is a distinction nobody measured '
+              'on the ground it is worst on.',
+        );
+      }
+      expect(
+        night,
+        containsAll(<String>[
+          'a good run vs a bad run',
+          'a figure carrying a verdict vs one that carries none',
+        ]),
+        reason:
+            'The two pairs the semantic-figure colour created. If they are '
+            'gone, either the colour is gone or it stopped being declared.',
       );
     });
 
