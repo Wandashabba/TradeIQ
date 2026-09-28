@@ -292,6 +292,21 @@ class TorchlightContrast {
   static Color plateScrim(TiqPalette p, Color over) =>
       Color.alphaBlend(p.ground.withValues(alpha: 0.80), over);
 
+  /// The **darkest** pixel a plate's text-safe zone can produce in a skin.
+  ///
+  /// Every plate pixel is luminance-capped at [TiqPalette.plateCeiling] before
+  /// the scrim goes over it, so the range of grounds the hero cluster can meet
+  /// runs from `plateScrim(p, black)` to `plateScrim(p, plateCeiling)`. On a
+  /// dark ground the ceiling end is the awkward one and it is already declared
+  /// (`plateScrimOverStripLight`). On a **light** ground it is the other end:
+  /// Palladian at 80% over a shadow composites to `#BEBAB2`, which is the
+  /// darkest paper in the product and the ground that decides how bright a
+  /// severity ink on the plate is allowed to be.
+  ///
+  /// It is computed, not typed, so it cannot drift from the ground.
+  static Color plateFloor(TiqPalette p) =>
+      plateScrim(p, const Color(0xFF000000));
+
   static List<ContrastPairing> get declared {
     final n = _night.palette;
     final d = _day.palette;
@@ -447,6 +462,57 @@ class TorchlightContrast {
       ),
       ContrastPairing(
         skin: 'night',
+        label: 'good on surface — a coloured figure on a card',
+        foreground: n.good,
+        background: n.surface,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'bad on surface — a coloured figure on a card',
+        foreground: n.bad,
+        background: n.surface,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'critical mark badSolid on surface — the row dot',
+        foreground: n.badSolid,
+        background: n.surface,
+        role: ContrastRole.graphic,
+        note:
+            'A MARK, not a word. badSolid is 3.66:1 as text on this fill, '
+            'which is why a figure, a phrase and a sparkline stroke all take '
+            'the word grade (`bad`) and only the dot, the bar and the solid '
+            'block take this one.',
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'subject run ink-1 on the card it is plotted in (surface)',
+        foreground: n.ink1,
+        background: n.surface,
+        role: ContrastRole.graphic,
+        note:
+            'A trend run with no target to be judged against draws in ink, '
+            'not in chart-neutral: the neutral means "a series with nothing '
+            'to say about it" and the subject is the thing the panel is for.',
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'good run on the card it is plotted in (surface)',
+        foreground: n.good,
+        background: n.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'bad run on the card it is plotted in (surface)',
+        foreground: n.bad,
+        background: n.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'night',
         label: 'comparison on ground',
         foreground: n.comparison,
         background: n.ground,
@@ -572,6 +638,55 @@ class TorchlightContrast {
         background: TiqPalette.plateScrimOverStripLight,
         role: ContrastRole.text,
       ),
+      // THE HERO'S VERDICT, ON THE DARKEST GROUND EITHER PLATE CAN MAKE.
+      //
+      // The Floor's hero carries its standing against the published 75 since
+      // 28 September 2026, which puts `good` and `bad` on a photograph for
+      // the first time. `hero.figure` is 72px, so the floor is 3:1 — and on
+      // Day the binding ground is not the scrimmed strip light (which is
+      // bright) but the scrimmed shadow, #BEBAB2. These four are why `bad`
+      // did NOT move when `badSolid` did: at 13px the same ground needs
+      // 4.5:1, and #8C1B2C clears it at 4.70:1 with nothing to spare.
+      ContrastPairing(
+        skin: 'plate',
+        label: 'night hero good on the darkest scrimmed plate pixel',
+        foreground: n.good,
+        background: plateFloor(n),
+        role: ContrastRole.largeText,
+      ),
+      ContrastPairing(
+        skin: 'plate',
+        label: 'night hero bad on the darkest scrimmed plate pixel',
+        foreground: n.bad,
+        background: plateFloor(n),
+        role: ContrastRole.largeText,
+      ),
+      ContrastPairing(
+        skin: 'plate',
+        label: 'day hero good on the darkest scrimmed plate pixel',
+        foreground: d.good,
+        background: plateFloor(d),
+        role: ContrastRole.largeText,
+      ),
+      ContrastPairing(
+        skin: 'plate',
+        label: 'day hero bad on the darkest scrimmed plate pixel',
+        foreground: d.bad,
+        background: plateFloor(d),
+        role: ContrastRole.largeText,
+        note:
+            'The tightest of the four at 4.70:1, and the reason the word '
+            'grade of Day crimson stayed at #8C1B2C while the mark grade '
+            'moved to a true red: the hero delta beside this figure is 13px '
+            'and needs 4.5:1 on this exact ground.',
+      ),
+      ContrastPairing(
+        skin: 'plate',
+        label: 'day hero delta bad at 13px on the darkest scrimmed plate pixel',
+        foreground: d.bad,
+        background: plateFloor(d),
+        role: ContrastRole.text,
+      ),
       // ── DAY ──────────────────────────────────────────────────────────
       ContrastPairing(
         skin: 'day',
@@ -635,6 +750,86 @@ class TorchlightContrast {
         foreground: d.bad,
         background: d.ground,
         role: ContrastRole.text,
+      ),
+      // ── DAY'S SEVERITY, THE PAIRINGS THE OWNER'S NOTE CREATED ────────
+      //
+      // "On this theme we need to add the colours of green red and some
+      // colours on the numbers and graphs that make sense." Day is where the
+      // margin is thinnest, so every ground a coloured figure can land on is
+      // written down here as well as swept by `generatedFor`.
+      ContrastPairing(
+        skin: 'day',
+        label: 'good on card (surface) — a coloured figure on a card',
+        foreground: d.good,
+        background: d.surface,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'good on well — the darkest Day fill a figure sits on',
+        foreground: d.good,
+        background: d.well,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'bad on card (surface) — a coloured figure on a card',
+        foreground: d.bad,
+        background: d.surface,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'bad on well',
+        foreground: d.bad,
+        background: d.well,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'critical mark badSolid on ground — the row dot, as red',
+        foreground: d.badSolid,
+        background: d.ground,
+        role: ContrastRole.graphic,
+        note:
+            'Moved from #7A0F22 on 28 September 2026. At 9.04:1 the dot was '
+            'so dark it read as brown; a mark needs 3:1 and buying 4 stops of '
+            'margin cost the hue the mark exists to carry.',
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'critical mark badSolid on card (surface)',
+        foreground: d.badSolid,
+        background: d.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'subject run ink-1 on the card it is plotted in (surface)',
+        foreground: d.ink1,
+        background: d.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'good run on the card it is plotted in (surface)',
+        foreground: d.good,
+        background: d.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'bad run on the card it is plotted in (surface)',
+        foreground: d.bad,
+        background: d.surface,
+        role: ContrastRole.graphic,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'target rule ink-2 on the card it is plotted in (surface)',
+        foreground: d.ink2,
+        background: d.surface,
+        role: ContrastRole.graphic,
       ),
       ContrastPairing(
         skin: 'day',
@@ -830,17 +1025,32 @@ class TorchlightContrast {
       'surface': p.surface,
       'raised': p.raised,
     };
-    // The ink ramp only. `good`, `bad` and `comparison` are *marks* that
-    // sometimes carry a word, and where they do the pairing is written down by
-    // hand in [declared] with the surface it is written for — Truffle as text
-    // on the Day well is 4.02:1 and on Veld white is 5.54:1, and neither is a
-    // pairing this system uses. Sweeping them everywhere would fail on
-    // combinations nothing renders, which is how a generated test gets
-    // switched off.
+    // The ink ramp, plus the **word grade** of each severity.
+    //
+    // `good` and `bad` joined the sweep on 28 September 2026, when figures
+    // started carrying their standing: a score against its target, an
+    // availability against the published standard, the figure on a decision
+    // row. They are now real ink on every fill the ink ramp is set on, so
+    // they are swept exactly like it — every type role, every ground, every
+    // skin at every density — rather than trusted to the hand-written table.
+    // That is the whole of the owner's "the generated test must cover them".
+    //
+    // What is deliberately NOT here:
+    //
+    // * **`goodSolid` / `badSolid`** — the mark grade. They are fills, dots,
+    //   bars and solid blocks at a 3:1 graphic floor, and their ink pairings
+    //   (`onGoodSolid` / `onBadSolid`) are declared by hand. Night `badSolid`
+    //   is 3.66:1 on `surface`; sweeping it as text would fail on a pairing
+    //   nothing draws, which is how a generated test gets switched off.
+    // * **`comparison`** — Truffle is a dashed 1.5dp line and a legend
+    //   swatch, never a word. On the Day well it is 4.02:1 and on Veld white
+    //   5.54:1, and neither is a pairing this system uses.
     final inks = <String, Color>{
       'ink-1': p.ink1,
       'ink-2': p.ink2,
       'ink-3': p.ink3,
+      'good': p.good,
+      'bad': p.bad,
     };
 
     for (final role in skin.text.all) {
@@ -1051,6 +1261,40 @@ class TorchlightContrast {
               'Two surfaces used Truffle for held work. Truffle is the '
               'comparison series and nothing else; giving it a second meaning '
               'is exactly the failure the severity system avoids.',
+        ),
+        // ── The two distinctions the semantic-figure change created ────
+        SeriesPair(
+          skin: name,
+          label: 'a good run vs a bad run',
+          a: p.good,
+          b: p.bad,
+          channels: const <SeparationChannel>{
+            SeparationChannel.shape,
+            SeparationChannel.position,
+          },
+          why:
+              'Since figures and sparklines carry their standing, one list '
+              'can hold a green run and a crimson one. The shape IS the '
+              'direction — a sparkline draws the movement it is colouring — '
+              'and on a trend panel the run sits above or below a named '
+              'target rule, which is a position the other member cannot '
+              'occupy. The standing is also printed as a word on the row.',
+        ),
+        SeriesPair(
+          skin: name,
+          label: 'a figure carrying a verdict vs one that carries none',
+          a: p.good,
+          b: p.ink1,
+          channels: const <SeparationChannel>{SeparationChannel.word},
+          why:
+              'Restraint is the design: most figures stay plain ink and a '
+              'handful carry a standing, so a reader has to be able to tell '
+              'which is which without hue. Every coloured figure in the '
+              'product has its standing printed beside it — "Below the '
+              'standard", "On target", a severity label announced first in '
+              'the row, or a delta sentence that ends in the verdict word. A '
+              'figure that cannot say its verdict in words is not allowed to '
+              'be coloured.',
         ),
         SeriesPair(
           skin: name,

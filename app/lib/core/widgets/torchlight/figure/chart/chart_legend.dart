@@ -22,11 +22,16 @@ class ChartLegend extends StatelessWidget {
     required this.series,
     required this.dashedWord,
     this.threshold,
+    this.subjectInk,
     this.gapNote,
   });
 
   final List<ChartSeries> series;
   final ChartThreshold? threshold;
+
+  /// The subject swatch's colour, from `subjectInk(skin, standing)`. Null
+  /// keeps the neutral, for a legend built without a plot behind it.
+  final Color? subjectInk;
 
   /// The word a reader hears where the swatch is dashed — "dashed",
   /// "gestippel". **Required, and localised by the caller**: the dash is the
@@ -47,8 +52,11 @@ class ChartLegend extends StatelessWidget {
         _LegendEntry(
           label: s.name,
           dashedWord: dashedWord,
+          // The swatch is the run's own colour, whatever the run's standing
+          // made it. A key whose swatch is a different colour from the line
+          // it names is worse than no key.
           colour: s.role == ChartSeriesRole.subject
-              ? skin.palette.chartNeutral
+              ? (subjectInk ?? skin.palette.chartNeutral)
               : skin.palette.comparison,
           dashed: s.role == ChartSeriesRole.comparison,
           thickness: s.role == ChartSeriesRole.subject ? 2 : 1.5,
@@ -57,9 +65,12 @@ class ChartLegend extends StatelessWidget {
         _LegendEntry(
           label: threshold!.label,
           dashedWord: dashedWord,
-          colour: skin.palette.ink1,
+          // ink-2 at 1.5dp — the same rule the plot draws. It said ink-1 at
+          // 1dp here and the painter has drawn ink-2 since the chrome was
+          // quietened, so the key named a line the chart does not have.
+          colour: skin.palette.ink2,
           dashed: true,
-          thickness: 1,
+          thickness: 1.5,
         ),
     ];
 

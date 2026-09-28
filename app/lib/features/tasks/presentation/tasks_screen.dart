@@ -482,9 +482,13 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
       TaskSlaState.closed || TaskSlaState.verified => SeverityMarkKind.onTarget,
       TaskSlaState.open => null,
     };
+    // ONE CRIMSON FOR BOTH COMMITMENT LEVELS, in the word grade. Overdue read
+    // `badSolid`, which is a FILL: it is 3.66:1 on Night's `surface`, and this
+    // is a phrase on a card. The level is carried by the mark beside it —
+    // `markKind` above is a filled triangle against an outlined one — which is
+    // where a commitment level belongs.
     final phraseInk = switch (task.slaState) {
-      TaskSlaState.overdue => skin.palette.badSolid,
-      TaskSlaState.dueSoon => skin.palette.bad,
+      TaskSlaState.overdue || TaskSlaState.dueSoon => skin.palette.bad,
       _ => skin.palette.ink2,
     };
 
