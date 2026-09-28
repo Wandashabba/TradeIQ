@@ -107,6 +107,10 @@ async function deleteDemoRows(prisma: PrismaClient, clientId: string): Promise<v
   await prisma.outlet.deleteMany({ where: { clientId } });
   await prisma.sku.deleteMany({ where: { clientId } });
   await prisma.userTerritory.deleteMany({ where: { user: { clientId } } });
+  // Before the territories they hang off. The FK cascades, but an explicit
+  // delete is what keeps this file the honest list of what the seed owns —
+  // see the note at the top about there being no bare `deleteMany({})`.
+  await prisma.placeImage.deleteMany({ where: { clientId } });
   await prisma.territory.deleteMany({ where: { clientId } });
   await prisma.user.deleteMany({ where: { clientId } });
 }

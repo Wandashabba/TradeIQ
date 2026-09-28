@@ -286,65 +286,92 @@ void main() {
   });
 
   group('the plate', () {
-    testWidgets(
-      "draws the photograph of the first decision row's outlet, attributed "
-      'to it',
-      (tester) async {
-        final handle = tester.ensureSemantics();
-        final image = await SyncImage.solid(tester);
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          plateImage: image,
-          alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
-          outlets: twoOutlets,
-        );
+    testWidgets('draws the place in scope, and says it is an illustration', (
+      tester,
+    ) async {
+      // PIN MOVED, 28 September 2026. This test read "draws the photograph of
+      // the first decision row's outlet, attributed to it", and it held down a
+      // coupling that has been deliberately cut: the plate carried the shelf
+      // photograph of whichever outlet was at the top of the decision list.
+      //
+      // Two things were wrong with that. The seeded "photographs" are four
+      // rows of random colour blocks, so a demo opened on noise — cosmetic.
+      // And a shelf directly above a list of shelf decisions is a picture a
+      // manager can read as evidence for one of them, when it was at best a
+      // specimen of a different finding — not cosmetic at all.
+      //
+      // The plate carries a view of the TERRITORY now. What has to hold is
+      // that it is still painted through the toned decoration, and that
+      // nothing about it claims to be a capture.
+      final handle = tester.ensureSemantics();
+      final image = await SyncImage.solid(tester);
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        plateImage: image,
+        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
+        outlets: twoOutlets,
+      );
 
-        expect(find.byType(PlateFallback), findsNothing);
-        // The photograph is painted as a `DecorationImage` rather than an
-        // `Image`, because that is the only slot that takes an arbitrary
-        // `ColorFilter` — and it is carrying the plate's tone.
-        final painted = platedImage(tester);
-        expect(painted, isNotNull, reason: 'no photograph on the plate');
-        expect(painted!.colorFilter, TiqPlate.tone);
-        // PROVENANCE, IN THE SEMANTICS. It used to print on the plate's first
-        // line; the owner's reference of 25 September 2026 has no caption, so
-        // the specimen is named where a reader of the screen still gets it
-        // and a looker at the screen is not handed a second line of type over
-        // a photograph. The picture is still a named specimen, so the figure
-        // above the list is still visibly about the territory.
-        expect(
-          find.text('Kasi Corner Spaza'),
-          findsNothing,
-          reason: 'no printed caption',
-        );
-        expect(
-          find.bySemanticsLabel(RegExp('Kasi Corner Spaza')),
-          findsWidgets,
-          reason: 'an unattributed photograph is an assertion',
-        );
-        handle.dispose();
-      },
-    );
+      expect(find.byType(PlateFallback), findsNothing);
+      // The picture is painted as a `DecorationImage` rather than an `Image`,
+      // because that is the only slot that takes an arbitrary `ColorFilter` —
+      // and it is carrying the plate's tone.
+      final painted = platedImage(tester);
+      expect(painted, isNotNull, reason: 'no picture on the plate');
+      expect(painted!.colorFilter, TiqPlate.tone);
+      // WHAT IT IS, IN THE SEMANTICS. The owner's reference of 25 September
+      // 2026 has no caption line, so what the picture is gets said where a
+      // reader of the screen still gets it. It names the scope and it says
+      // "illustration", because the seeded place images are generated and a
+      // reader must never be left to assume a photograph.
+      expect(
+        find.bySemanticsLabel(
+          RegExp(
+            'All territories. An illustration of the area, not a photograph '
+            'from a visit',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('Kasi Corner Spaza.*photograph')),
+        findsNothing,
+        reason: 'the plate attributes itself to no outlet at all now',
+      );
+      handle.dispose();
+    });
 
     testWidgets(
-      'no photo renders the fallback drawing and a sentence — never a stock '
-      'image, never an empty band',
+      'no picture renders the fallback drawing and a sentence — never a '
+      'stock image, never a generated one, never an empty band',
       (tester) async {
+        // No `plateImage` override, so the real resolver runs against a fake
+        // territories repository with no place image in it — the request
+        // fails, exactly as it does for a tenant whose territories have never
+        // been pictured.
         await pumpFloor(
           tester,
           const TheFloorScreen(),
           alerts: <AlertItem>[alert(outletId: 'o1')],
           outlets: twoOutlets,
-          photosFail: true,
         );
 
         expect(find.byType(PlateFallback), findsOneWidget);
+        // SENTENCE MOVED with the picture it is about: it said "No shelf photo
+        // from Kasi Corner Spaza yet." THE RULE IT ENFORCES HAS NOT MOVED — a
+        // drawing and a sentence, and never a generated picture standing in
+        // for one that is missing.
         expect(
-          find.textContaining('No shelf photo from Kasi Corner Spaza yet.'),
+          find.textContaining('No picture of your territories yet.'),
           findsOneWidget,
         );
-        // The hero figure stays on the plate: the photograph is the specimen,
+        expect(
+          platedImage(tester),
+          isNull,
+          reason: 'something was painted where there is nothing to paint',
+        );
+        // The hero figure stays on the plate: the picture is the ground,
         // never the subject.
         expect(find.byType(PlateHeroCluster), findsOneWidget);
       },

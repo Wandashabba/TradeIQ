@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
+import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 
 import '../agent_harness.dart';
@@ -14,11 +16,16 @@ import 'floor_harness.dart';
 /// THE FLOOR, RENDERED, SO SOMEBODY CAN LOOK AT IT.
 ///
 /// Every other test in this folder asserts a number. This one produces the
-/// two images the owner and the reviewer compare against the mockup: a
-/// 390×844 phone and a 360×640 one, populated, with the seeded rainbow shelf
-/// fixture on the plate and **Onest and JetBrains Mono loaded**. The test
-/// font is wider than Onest, so a screen rendered in it wraps sooner and
-/// measures taller — a picture of the wrong screen.
+/// three images the owner and the reviewer compare against the mockup: a
+/// 390×844 phone and a 360×640 one unfiltered, and a 390×844 one scoped to a
+/// territory — populated, with a **real committed place image** on the plate
+/// and **Onest and JetBrains Mono loaded**. The test font is wider than Onest,
+/// so a screen rendered in it wraps sooner and measures taller — a picture of
+/// the wrong screen.
+///
+/// The scoped one is not a luxury: the scope chip wears a heavier name and an
+/// `ink1` edge when a territory is chosen, and the picture behind it is of a
+/// different place. Both of those are things somebody has to look at.
 ///
 /// ## Why it does not run in CI
 ///
@@ -88,9 +95,15 @@ void main() {
     ),
   ];
 
-  for (final (name, size) in <(String, Size)>[
-    ('390x844', Size(390, 844)),
-    ('360x640', Size(360, 640)),
+  // The seed's own generated place images, read off disk. `ALL.jpg` is the
+  // whole-footprint view The Floor opens in; `GP-TSH.jpg` is Tshwane, which is
+  // what a manager sees after choosing that territory.
+  const places = '../backend/assets/places';
+
+  for (final (name, size, place, territory) in <(String, Size, String, String?)>[
+    ('390x844', Size(390, 844), '$places/ALL.jpg', null),
+    ('360x640', Size(360, 640), '$places/ALL.jpg', null),
+    ('390x844-scoped', Size(390, 844), '$places/GP-TSH.jpg', 't-gp-tsh'),
   ]) {
     testWidgets('The Floor at $name, populated, Night x Console', (
       tester,
@@ -99,13 +112,34 @@ void main() {
         tester,
         const TheFloorScreen(),
         size: size,
-        plateImage: await SyncImage.seededShelf(tester),
+        territories: territory == null
+            ? const <Territory>[]
+            : <Territory>[
+                Territory(
+                  id: territory,
+                  name: 'Gauteng North (Tshwane)',
+                  code: 'GP-TSH',
+                ),
+              ],
+        coverage: territory == null
+            ? const <String, List<Outlet>>{}
+            : <String, List<Outlet>>{territory: outlets},
+        plateImage: await SyncImage.fromFile(tester, place),
         // The owner's figures: health 73 against 92, availability 61.
         current: kpis(osa: 61, execution: 73, priceCompliance: 74),
         previous: kpis(osa: 64, execution: 92),
         alerts: decisions,
         outlets: outlets,
         extraOverrides: <Override>[
+          // The scope is set on the filter rather than by tapping the chip:
+          // `pumpFloor` stands the screen up with no Navigator over it, so the
+          // scope sheet has nowhere to open. What is being looked at here is
+          // the scoped SCREEN — the chip's filtered edge, the Clear beside the
+          // health line, and a different place behind them.
+          if (territory != null)
+            dashboardFilterProvider.overrideWith(
+              () => _ScopedFilter(territory),
+            ),
           availabilityTrendProvider.overrideWith(
             (ref) async => const <TrendPoint>[
               TrendPoint(period: '2026-W33', value: 71),
@@ -125,4 +159,14 @@ void main() {
       );
     }, skip: !looking);
   }
+}
+
+/// The filter, already narrowed to one territory. See the override above.
+class _ScopedFilter extends DashboardFilterNotifier {
+  _ScopedFilter(this.territoryId);
+
+  final String territoryId;
+
+  @override
+  DashboardFilter build() => DashboardFilter(territoryId: territoryId);
 }

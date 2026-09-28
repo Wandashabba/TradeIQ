@@ -152,12 +152,22 @@ void main() {
         outlets: <Outlet>[outlet('o1', 'Kasi Corner Spaza')],
       );
 
-      // The band of plate above the strip light's bloom: pure photograph, no
+      // The band of plate above the strip light's bloom: pure picture, no
       // amber, no scrim, no hero cluster. Measured off the plate's own rect,
       // not off the viewport, because the shell puts the body's top padding
       // above it.
+      //
+      // PIN MOVED, 28 September 2026: the band is the same band, with the
+      // scope control cut out of it. The control is painted on the plate now,
+      // with a `surface` fill and an edge — a control, not a photograph, and
+      // not subject to the bake. Cutting its rect out is the honest way to
+      // keep measuring the picture; narrowing the band to dodge it would have
+      // left a few pixels of band and nothing at all on a 360dp phone.
       final spec = PlateSpec.resolve(skin: TiqSkin.night(), viewportHeight: 640);
       final plate = tester.getRect(find.byType(TiqPlate));
+      final chip = tester.getRect(
+        find.byKey(const ValueKey<String>('floor-scope-chip')),
+      );
       final top = plate.top.ceil() + 2;
       final bottom =
           (plate.top + spec.stripLightY - spec.bloomHeight).floor() - 2;
@@ -174,6 +184,9 @@ void main() {
         bottom: bottom,
         left: (plate.left + spec.radius).ceil() + 1,
         right: (plate.right - spec.radius).floor() - 1,
+        // Inflated by 2: the chip's own edge is antialiased against the
+        // picture, and a blend of two colours is neither of them.
+        except: chip.inflate(2),
       );
 
       expect(
@@ -236,12 +249,21 @@ Future<int> _maxChannelSpread(ui.Image image) async {
 }
 
 /// What the rasteriser actually put on the screen, between two rows.
+/// The brightest channel and the widest channel spread in a rectangle of the
+/// rendered frame, **skipping** [except].
+///
+/// The exclusion exists because the plate is no longer only a picture: the
+/// scope control is painted on it, with a `surface` fill and an edge, and a
+/// control is a control — it is not subject to the photographic bake and its
+/// fill legitimately carries more colour than 8.5/255. What this measures is
+/// the picture, so it measures the picture.
 Future<({int maxChannel, int maxSpread})> _sample(
   WidgetTester tester, {
   required int top,
   required int bottom,
   required int left,
   required int right,
+  Rect? except,
 }) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(const ValueKey<String>('amber-golden-boundary')),
@@ -258,6 +280,10 @@ Future<({int maxChannel, int maxSpread})> _sample(
     var maxSpread = 0;
     for (var y = top; y < bottom; y++) {
       for (var x = left; x < math.min(right, width); x++) {
+        if (except != null &&
+            except.contains(Offset(x.toDouble(), y.toDouble()))) {
+          continue;
+        }
         final i = (y * width + x) * 4;
         final int r = bytes[i];
         final int g = bytes[i + 1];

@@ -254,15 +254,29 @@ void main() {
       expect(find.byType(PlateHeroCluster), findsOneWidget);
     });
 
-    testWidgets('announces itself as a drawing, not as a shelf', (
+    testWidgets('announces itself as a drawing, not as a picture', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
       await pumpTorch(tester, skin: TiqSkin.night(), child: plate());
 
+      // STRING MOVED, 28 September 2026, because one of its words was taken.
+      // It read "Generated shelf illustration". "Generated" now means one
+      // specific thing in this product — an image a model made, recorded as
+      // such in `place_images.source` and spoken on the plate that carries one
+      // — and this is the opposite of that: a vector drawing whose whole job
+      // is to admit there is no picture. Two different absences may not share
+      // a word, or the word stops carrying the one it was needed for.
       expect(
-        find.bySemanticsLabel('Generated shelf illustration'),
+        find.bySemanticsLabel(
+          'A drawing, in place of a picture there is none of',
+        ),
         findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('[Gg]enerated')),
+        findsNothing,
+        reason: 'nothing was generated here; something was drawn',
       );
       handle.dispose();
     });

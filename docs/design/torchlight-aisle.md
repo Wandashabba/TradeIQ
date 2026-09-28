@@ -1053,6 +1053,121 @@ something is filtered.
 
 ---
 
+## 9e. The scope control you can see, and the picture of the place — 28 September 2026
+
+Two owner rulings on The Floor, on the same screen and the same day. They are
+one change: the control that says *where you are* now looks like a control, and
+the picture behind it is of where you are.
+
+### The control
+
+It shipped as the plate's **eyebrow**. The line reading `GAUTENG NORTH · WEEK
+38` was the button, with a transparent `space.tapTarget`-tall band stacked over
+the hero cluster as its target. That was the honest reading of a reference image
+with no filter chrome on it, it was a real 48dp target, it announced itself as a
+button to a screen reader — and it failed the only test that counts:
+
+> *"I wouldn't see it if I'm new on the app. Please make it a visible button or
+> something matching the style of the app."*
+
+So it is **`PlateScopeChip`**, at the top-left of the plate, on the same gutter
+line as the hero and the decision cards below it.
+
+| | The eyebrow control | `PlateScopeChip` |
+|---|---|---|
+| what you see | two lines of `eyebrow` ink-2, indistinguishable from a caption | a filled pill with an edge and a chevron |
+| case | uppercase, from the eyebrow role | **sentence case** — every chip in this app is |
+| target | a transparent band over the cluster | the chip's own box, `space.tapTarget` tall |
+| filtered | nothing | an `ink1` edge and a heavier scope name |
+| where | inside the hero cluster's column | in the photographic band, outside the `FittedBox` |
+
+The last row is the load-bearing one and it is arithmetic, not taste. The
+cluster is laid out inside the plate's `FittedBox(scaleDown)`, so every dp added
+there is taken off the hero figure — the first attempt at this control put a
+`ConstrainedBox(minHeight: 48)` round the eyebrow and scaled a 66dp hero down to
+57, which is exactly what `floor_proportion_test.dart` exists to catch. Out in
+the band it costs the hero nothing and the fold nothing, because the strip above
+the light is picture that nothing else is using. On the shortest plate it
+overlaps the top of the light's *bloom*; it never reaches the light itself.
+
+**It is the filter chip's grammar** — radius `chip`, a 1px `edgeControl` edge,
+the `label` role, the standard press treatment, and never amber (§1.6: a filter
+is a control and a control is not a light). Two departures, both because it
+stands on a picture rather than on the ground: it always carries a `surface`
+fill (an unselected rail chip is transparent, which over a photograph is a label
+nobody can read), and *filtered* is an edge and a weight rather than a tick (a
+tick means "chosen from these options" in a rail of several; there is one chip
+here).
+
+**It prints the scope and the window**, which are the two facts it sets — so the
+eyebrow line is dropped from the cluster rather than naming the territory twice
+on one card, and the hero gets that line's height back. Clearing stays one tap
+on the health line and still appears only while something is filtered.
+
+### The picture
+
+The plate carried the shelf photograph of whichever outlet was top of the
+decision list. Cosmetically that was noise: the seeded "photographs" are four
+rows of randomly coloured blocks from a PRNG. Substantially it was worse — **a
+shelf directly above a list of shelf decisions is a picture a manager can read
+as evidence for one of them**, and it was at best a specimen of a different
+finding.
+
+The owner's answer was better than a replacement shelf: *"or rather by city or
+territory — an image of that specific place or city."* So the plate carries a
+view of the **territory in scope**, fetched by territory, and it changes when
+the filter changes — which is the control demonstrating what it just did.
+
+Where the rules sit:
+
+* **Generated, and marked at every layer.** `backend/scripts/generate-place-images.ts`
+  calls the Gemini image API **once, by hand**; the JPEGs are committed under
+  `backend/assets/places/` with a manifest recording the model, the prompt and
+  the date. The seed reads them off disk and never makes a network call — a seed
+  that needs a key and a signal is a seed that fails for the next person.
+  `place_images.source` is `NOT NULL` and is `generated`; the API answers
+  `X-Image-Source` (CORS-exposed, or a web build loses it); the plate speaks
+  *"an illustration of the area, not a photograph from a visit"*.
+* **A table of its own, never `photos`.** Everything in `photos` is a reading —
+  visit evidence, the review strip, the pin-dispute storefront — each with a
+  visit, a GPS tag and a capture time, each hashed by the fraud engine. A place
+  image has none of those and must never acquire them.
+* **Never a stand-in.** The no-picture state keeps its drawing and its sentence.
+  A generated image is not the fallback for a missing real photograph, here or
+  anywhere.
+* **No brand marks, no readable signage, no identifiable faces**, in every
+  prompt, from one shared constraint string so it cannot go missing from one of
+  them. A generated logo is a real company's mark on a picture it never
+  authorised.
+* **≤60 kB each**, the plate's declared budget, met by walking the JPEG quality
+  down rather than by cropping — the plate paints at 12% chroma under a #474747
+  ceiling, so the whole picture lands in a near-neutral band where encoder
+  artefacts have nowhere to show.
+
+"All territories" — the scope the screen opens in — gets its own generated
+image, a national trade route at first light, rather than borrowing one
+province's.
+
+### Where it is recorded
+
+`docs/design/spec/unify.md` §1.16 (the plate) and §1.17 (the scope control)
+carry the same rulings. The pins are `floor_scope_test.dart` (the control is
+painted, it is outside the cluster, it prints the scope, and it still rescopes
+every block), `floor_plate_tone_test.dart` (the tone, measured with the
+control's rect cut out — it is a control, not a photograph),
+`the_floor_test.dart` (the plate names no outlet and says "illustration"),
+`placeImages.routes.test.ts` (the mark on the wire) and
+`scripts/seed/placeImages.test.ts` (the committed fixtures are covered,
+budgeted and marked). Look at it with
+`FLOOR_LOOK=1 flutter test test/features/dashboard/floor_look_test.dart --update-goldens`.
+
+Regenerate the pictures with `cd backend && npm run generate-place-images`
+(needs `GEMINI_API_KEY` in `backend/.env`), or one of them with
+`npm run generate-place-images -- GP-TSH`. **Look at what comes back before
+committing it.**
+
+---
+
 ## 11. Migration status
 
 The five old colour sources — `TiqColors`, `LumenPalette`, `LumenGlass`,

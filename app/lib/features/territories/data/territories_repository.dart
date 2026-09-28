@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart' show Options, ResponseType;
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
@@ -81,6 +85,38 @@ class TerritoryCoverage {
   }
 }
 
+/// A PICTURE OF A PLACE — and never a picture of a shelf.
+///
+/// The bytes The Floor's plate paints: a view of the territory in scope, or of
+/// the whole footprint under "All territories". It changes when the scope
+/// changes, which is the whole point of it — switch territory and the picture
+/// of the place switches too.
+///
+/// [source] is the server's `X-Image-Source`, carried rather than assumed. It
+/// is `generated` for every image the seed ships: these are illustrations made
+/// by a model, and the plate says so out loud in its spoken label. That is the
+/// one fact about them that may never get lost between the database and the
+/// screen — a townscape is context, and it must never be readable as evidence
+/// a manager could act on.
+///
+/// Nothing here touches `PhotosRepository`. Visit evidence, the review strip
+/// and the pin-dispute storefront are real captures on a different route, and a
+/// generated image is never substituted for one of them.
+@immutable
+class PlaceImage {
+  const PlaceImage({required this.bytes, required this.source});
+
+  final Uint8List bytes;
+
+  /// `generated`, or whatever the server said. Null when the header was absent
+  /// — an origin nobody stated, which the plate treats as unattributed rather
+  /// than as a photograph.
+  final String? source;
+
+  /// Whether this picture was made by a model rather than taken by a person.
+  bool get isGenerated => source == 'generated';
+}
+
 abstract class TerritoriesRepository {
   /// One page of `GET /territories`. [cursor] is the previous page's
   /// `nextCursor`; [limit] is a request the backend may cap.
@@ -89,6 +125,15 @@ abstract class TerritoriesRepository {
     String? cursor,
   });
   Future<TerritoryCoverage> getCoverage(String id);
+
+  /// `GET /territories/:id/place-image`, or `GET /territories/place-image`
+  /// when [territoryId] is null — the whole footprint.
+  ///
+  /// Bytes through the authed client, for the same reason as a photo
+  /// thumbnail: `Image.network` cannot carry a bearer token on web. Throws
+  /// when the scope has no picture, and The Floor draws its designed
+  /// no-picture state rather than substituting one.
+  Future<PlaceImage> placeImage(String? territoryId);
 
   /// POST /territories (manager/admin). [code] must be unique per client.
   Future<Territory> createTerritory({
@@ -124,6 +169,48 @@ class DioTerritoriesRepository implements TerritoriesRepository {
   Future<TerritoryCoverage> getCoverage(String id) async {
     final response = await dio.get('/territories/$id/coverage');
     return TerritoryCoverage.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Place images by scope, LRU-bounded, keyed by territory id (`''` is the
+  /// footprint).
+  ///
+  /// The whole reason this control is worth having is that a manager flips
+  /// between territories to compare them, and re-downloading 60 kB on every
+  /// flip back is the kind of thing a prepaid bundle notices. A place image is
+  /// replaced by a reseed and never edited in place — the server serves it
+  /// `immutable` — so a cached one cannot go stale within a session. The bound
+  /// is small because a client has territories in the dozens, not thousands.
+  final _placeImageCache = <String, PlaceImage>{};
+  static const placeImageCacheCap = 24;
+
+  @override
+  Future<PlaceImage> placeImage(String? territoryId) async {
+    final key = territoryId ?? '';
+    final cached = _placeImageCache.remove(key);
+    if (cached != null) {
+      _placeImageCache[key] = cached; // re-insert = most recently used
+      return cached;
+    }
+
+    final response = await dio.get<List<int>>(
+      territoryId == null
+          ? '/territories/place-image'
+          : '/territories/$territoryId/place-image',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final image = PlaceImage(
+      bytes: Uint8List.fromList(response.data!),
+      // Read, never inferred. A picture whose origin the server did not state
+      // is not promoted to a photograph here.
+      source: response.headers.value('x-image-source'),
+    );
+    // Only a successful fetch is cached, so a retry after a dead-signal
+    // moment actually retries.
+    _placeImageCache[key] = image;
+    if (_placeImageCache.length > placeImageCacheCap) {
+      _placeImageCache.remove(_placeImageCache.keys.first);
+    }
+    return image;
   }
 
   @override

@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../../../design/motion_budget.dart';
 import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
+import '../button/torch_press.dart';
+import '../row/soft_row.dart' show SoftRowChevron;
 import 'plate_fallback.dart';
 import 'plate_spec.dart';
 
@@ -11,21 +13,24 @@ export 'plate_spec.dart';
 
 /// THE PHOTOGRAPHIC PLATE.
 ///
-/// A real shelf from the territory the manager is about to act on, made
-/// cinematic by one strip of light — and the hero figure sitting on the
-/// darkened half of it.
+/// The place the manager is about to act on, made cinematic by one strip of
+/// light — and the hero figure sitting on the darkened half of it.
 ///
 /// Four things are load-bearing and none of them are decoration:
 ///
-/// 1. **The photograph is a specimen, not a mood.** It is attributed to the
-///    outlet and the capture time, so a figure printed over a picture of one
-///    named store is visibly a figure about the territory with a specimen
-///    beside it. That attribution used to be a printed [caption] on the first
-///    line of the text-safe zone. **Owner override, 25 September 2026:** the
-///    reference the owner signed off has no caption line, so The Floor passes
-///    the provenance as [semanticLabel] only — the attribution survives for a
-///    screen reader and for the image's own node, and the printed line is
-///    gone. The parameter stays for the states that still print one.
+/// 1. **The picture is attributed, not a mood.** What it is, and where it came
+///    from, travels with it: a figure printed over a picture has to be visibly
+///    a figure with a picture beside it rather than a figure the picture
+///    proves. **The Floor's plate is a view of the TERRITORY in scope** and it
+///    changes when the filter changes — a townscape is plainly context, which
+///    is exactly why it replaced the outlet shelf photograph that used to sit
+///    here: a shelf directly above a list of shelf decisions is a picture
+///    somebody can act on. The attribution used to be a printed [caption] on
+///    the first line of the text-safe zone. **Owner override, 25 September
+///    2026:** the reference the owner signed off has no caption line, so The
+///    Floor passes it as [semanticLabel] only — and that label says the
+///    picture is an illustration, because the seeded ones are generated. The
+///    [caption] parameter stays for the states that still print one.
 /// 2. **One strip light, allocated.** The line and its bloom are one object,
 ///    and whether it is lit is [TorchScope]'s answer, not this widget's. In
 ///    Day the claim is denied on a light ground and the light becomes a 2px
@@ -73,6 +78,7 @@ class TiqPlate extends StatelessWidget {
     this.caption,
     this.fallbackSentence,
     this.semanticLabel,
+    this.scopeControl,
     this.devicePixelRatio,
   });
 
@@ -100,9 +106,30 @@ class TiqPlate extends StatelessWidget {
   /// Why there is no photograph. Shown with the fallback drawing.
   final String? fallbackSentence;
 
-  /// `Kasi Corner Spaza, 17 September 06:40` — or "Generated shelf
-  /// illustration" for the fallback, which this widget supplies itself.
+  /// `Gauteng North. An illustration of the area…` — or the fallback's own
+  /// label, which this widget supplies itself.
   final String? semanticLabel;
+
+  /// ONE CONTROL, AT THE TOP OF THE PICTURE.
+  ///
+  /// The plate is the screen's header, so the thing that says *where you are*
+  /// and offers to change it belongs at the top of it — see [PlateScopeChip],
+  /// which is what The Floor puts here.
+  ///
+  /// It sits in the photographic band and **not** in the hero cluster, and
+  /// that is arithmetic rather than taste. The cluster is laid out inside a
+  /// `FittedBox(scaleDown)`: every dp added to it is taken off the hero
+  /// figure, and at the 200dp plate floor a 48dp control up there would shrink
+  /// a 66dp figure to something smaller than the metric that supports it — the
+  /// exact defect `floor_proportion_test.dart` exists to catch. Out here it
+  /// costs the hero nothing and the fold nothing, because the band above the
+  /// strip light is picture that nothing else is using.
+  ///
+  /// It is the last thing in the stack, so it takes its own taps rather than
+  /// losing them to the scrim. On the shortest plate it overlaps the top of
+  /// the strip light's bloom; it never reaches the light itself, which is the
+  /// object the amber budget is spent on.
+  final Widget? scopeControl;
 
   /// Overrides the ambient DPR when choosing `cacheWidth`. Tests pin it.
   final double? devicePixelRatio;
@@ -156,13 +183,30 @@ class TiqPlate extends StatelessWidget {
 
     switch (spec.form) {
       case PlateForm.none:
-        // Veld. The hero cluster renders on white, with no band around it.
+        // Veld. The hero cluster renders on white, with no band around it —
+        // and the scope control comes with it. A screen that can be scoped in
+        // Night and not in Veld is a screen that loses a capability outdoors,
+        // which is where the territory question gets asked most.
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: spec.textInset),
-          child: hero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (scopeControl != null) ...<Widget>[
+                scopeControl!,
+                const SizedBox(height: TiqSpace.s3),
+              ],
+              hero,
+            ],
+          ),
         );
       case PlateForm.collapsed:
-        return _CollapsedBand(spec: spec, hero: hero);
+        return _CollapsedBand(
+          spec: spec,
+          hero: hero,
+          scopeControl: scopeControl,
+        );
       case PlateForm.photographic:
         return _PhotographicPlate(
           spec: spec,
@@ -172,6 +216,7 @@ class TiqPlate extends StatelessWidget {
           caption: caption,
           fallbackSentence: fallbackSentence,
           semanticLabel: semanticLabel,
+          scopeControl: scopeControl,
           tone: tone,
           devicePixelRatio:
               devicePixelRatio ??
@@ -240,10 +285,15 @@ List<double> plateToneMatrix({
 /// smaller photograph would be a photograph nobody can read *and* a list
 /// nobody can use.
 class _CollapsedBand extends StatelessWidget {
-  const _CollapsedBand({required this.spec, required this.hero});
+  const _CollapsedBand({
+    required this.spec,
+    required this.hero,
+    this.scopeControl,
+  });
 
   final PlateSpec spec;
   final Widget hero;
+  final Widget? scopeControl;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -255,7 +305,20 @@ class _CollapsedBand extends StatelessWidget {
       TiqSpace.s4,
     ),
     alignment: Alignment.bottomLeft,
-    child: hero,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // The picture is what the fold could not afford. The control is 48dp
+        // and it stays: losing the ability to change territory on the smallest
+        // screen is losing it on the screen that needs it most.
+        if (scopeControl != null) ...<Widget>[
+          scopeControl!,
+          const SizedBox(height: TiqSpace.s3),
+        ],
+        hero,
+      ],
+    ),
   );
 }
 
@@ -268,6 +331,7 @@ class _PhotographicPlate extends StatefulWidget {
     required this.caption,
     required this.fallbackSentence,
     required this.semanticLabel,
+    required this.scopeControl,
     required this.tone,
     required this.devicePixelRatio,
   });
@@ -279,6 +343,7 @@ class _PhotographicPlate extends StatefulWidget {
   final String? caption;
   final String? fallbackSentence;
   final String? semanticLabel;
+  final Widget? scopeControl;
   final ColorFilter tone;
   final double devicePixelRatio;
 
@@ -331,9 +396,14 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
           children: <Widget>[
             // 1. The specimen, or the drawing that admits there is none.
             Semantics(
+              // NOT "generated" for the fallback, whatever it used to say.
+              // "Generated" now means one specific thing in this product — an
+              // image a model made — and the fallback is the opposite of that:
+              // a vector drawing that exists to admit there is no picture. Two
+              // different absences must not share a word.
               label: hasPhotograph
-                  ? (widget.semanticLabel ?? 'Shelf photograph')
-                  : 'Generated shelf illustration',
+                  ? (widget.semanticLabel ?? 'Photograph')
+                  : 'A drawing, in place of a picture there is none of',
               image: true,
               child: _Frame(
                 image: _imageFailed ? null : widget.image,
@@ -443,6 +513,24 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
                 ],
               ),
             ),
+
+            // 5. THE SCOPE CONTROL, LAST, so the taps are its own.
+            //
+            //    Top-left of the band, on the gutter the text zone hangs off,
+            //    so the control, the hero and the decision cards below all
+            //    line up on one left edge. `right` is bound as well as `left`
+            //    — at 2.0x in Afrikaans the label wraps inside the plate
+            //    instead of running off the card.
+            if (widget.scopeControl != null)
+              Positioned(
+                left: spec.textInset,
+                right: spec.textInset,
+                top: TiqSpace.s4,
+                child: Align(
+                  alignment: AlignmentDirectional.topStart,
+                  child: widget.scopeControl!,
+                ),
+              ),
           ],
         ),
       ),
@@ -723,25 +811,28 @@ class _Scrim extends StatelessWidget {
 class PlateHeroCluster extends StatelessWidget {
   const PlateHeroCluster({
     super.key,
-    required this.eyebrow,
     required this.figure,
+    this.eyebrow,
     this.delta,
     this.healthLine,
     this.onHealthTap,
-    this.onEyebrowTap,
-    this.eyebrowSemanticLabel,
     this.healthTrailing,
     this.semanticsLabel,
-  }) : assert(
-         onEyebrowTap == null || eyebrowSemanticLabel != null,
-         'PlateHeroCluster: a tappable eyebrow needs its own label. The '
-         'printed string is two facts joined by a separator; a control has to '
-         'say what pressing it does.',
-       );
+  });
 
-  /// `GAUTENG NORTH · LAST 30 DAYS`. Uppercased for display by the eyebrow
-  /// role.
-  final String eyebrow;
+  /// `GAUTENG NORTH · LAST 30 DAYS`, uppercased for display by the eyebrow
+  /// role — or null, which is what The Floor passes.
+  ///
+  /// **THE EYEBROW WAS THE SCOPE CONTROL, AND IT IS NOT ANY MORE.** The line
+  /// printed the territory and the window and opened the scope sheet, because
+  /// the owner's reference has no filter chrome; the owner then met the
+  /// running screen and said they would not have found it. The control is now
+  /// [PlateScopeChip], at the top of the plate, and it prints the same two
+  /// facts — so an eyebrow here would be the territory named twice on one
+  /// card. It is dropped rather than kept as a label, and the hero has that
+  /// line's height back, which is worth most on the 360x640 phone where the
+  /// plate is already at its 200dp floor.
+  final String? eyebrow;
 
   /// The hero figure — a `FigureSlot` at `hero.figure`, fitted by the caller.
   final Widget figure;
@@ -755,23 +846,6 @@ class PlateHeroCluster extends StatelessWidget {
   final Widget? healthLine;
 
   final VoidCallback? onHealthTap;
-
-  /// THE EYEBROW AS A CONTROL.
-  ///
-  /// The eyebrow already prints the two facts a scope control sets — which
-  /// territory, and over what window — so on a screen whose reference has no
-  /// filter chrome at all, the honest place to put the control is the words
-  /// that already say what it does. Null keeps the eyebrow a label.
-  ///
-  /// It is a real target: the line sits inside a `space.tapTarget` box and
-  /// announces itself as a button with [eyebrowSemanticLabel], because a
-  /// control a screen reader hears as a caption is a control that is not
-  /// there.
-  final VoidCallback? onEyebrowTap;
-
-  /// "All territories, last 30 days. Change the territory or the window."
-  /// Required with [onEyebrowTap].
-  final String? eyebrowSemanticLabel;
 
   /// One thing at the trailing end of the **health line** — The Floor's way
   /// back to all territories when one is chosen.
@@ -797,17 +871,14 @@ class PlateHeroCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     final cluster = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _Eyebrow(
-          text: eyebrow,
-          onTap: onEyebrowTap,
-          semanticLabel: eyebrowSemanticLabel,
-        ),
-        const SizedBox(height: TiqSpace.s2),
+        if (eyebrow != null) ...<Widget>[
+          _Eyebrow(text: eyebrow!),
+          const SizedBox(height: TiqSpace.s2),
+        ],
         // THE FIGURE AND ITS DELTA SHARE A BASELINE — the pairing is the
         // point of a hero: a number, and whether it is moving.
         //
@@ -865,86 +936,35 @@ class PlateHeroCluster extends StatelessWidget {
       ],
     );
 
-    // THE EYEBROW'S TARGET, AS AN OVERLAY. See [_Eyebrow] for why it is not
-    // a box in the column. `Clip.none` is deliberate and unused — the band is
-    // [space.tapTarget] tall inside a cluster that is never shorter than its
-    // figure, so it has nothing to clip.
-    final withTarget = onEyebrowTap == null
-        ? cluster
-        : Stack(
-            children: <Widget>[
-              cluster,
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: skin.space.tapTarget,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onEyebrowTap,
-                  excludeFromSemantics: true,
-                ),
-              ),
-            ],
-          );
-
-    if (semanticsLabel == null) return withTarget;
+    if (semanticsLabel == null) return cluster;
     return Semantics(
       label: semanticsLabel,
       excludeSemantics: onHealthTap == null,
-      child: withTarget,
+      child: cluster,
     );
   }
 }
 
-/// The eyebrow line — a label, or a control wearing a label's clothes.
+/// The eyebrow line — two lines of `eyebrow` ink-2, ellipsised at the end.
 ///
-/// Untapped it is exactly what it was: two lines of `eyebrow` ink-2,
-/// ellipsised at the end. Given [onTap] it becomes a button, and **it grows by
-/// nothing**.
-///
-/// That last part is the whole design of this widget. The cluster this line
-/// sits in is wrapped in the plate's `FittedBox(scaleDown)`, so every dp added
-/// here is taken off the hero figure — a `ConstrainedBox(minHeight: 48)` round
-/// the words shrank a 66dp hero to 57dp, which is the exact failure
-/// `floor_proportion_test.dart` was written for. So the target is an overlay:
-/// the words keep their own height in the column and a transparent
-/// [space.tapTarget]-tall band is stacked over the top of the cluster, which
-/// covers the words, the gap under them and the top of the figure. The figure
-/// is not otherwise interactive and the reading is coherent — the number is
-/// this territory's score, and the band above and across it is how you change
-/// which territory that is.
-///
-/// The semantics node stays on the words, with [excludeFromSemantics] on the
-/// overlay, so a screen reader hears one button labelled with the sentence
-/// rather than a button and a caption saying the same thing twice.
+/// It was briefly a control wearing a label's clothes, with a transparent 48dp
+/// target stacked over the cluster so the words cost the hero nothing. That
+/// control is visible now and lives at the top of the plate
+/// ([PlateScopeChip]), so this is a label again — which is what the reference
+/// always showed it as.
 class _Eyebrow extends StatelessWidget {
-  const _Eyebrow({
-    required this.text,
-    required this.onTap,
-    required this.semanticLabel,
-  });
+  const _Eyebrow({required this.text});
 
   final String text;
-  final VoidCallback? onTap;
-  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final label = Text(
+    return Text(
       text.toUpperCase(),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: skin.text.eyebrow.style(color: skin.palette.ink2),
-    );
-    if (onTap == null) return label;
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: label,
     );
   }
 }
@@ -969,4 +989,143 @@ class _HealthTarget extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// THE SCOPE CONTROL — where you are, and one tap to be somewhere else.
+///
+/// ```text
+///   ╭──────────────────────────────────╮
+///   │  Gauteng North · Last 30 days  ›  │
+///   ╰──────────────────────────────────╯
+/// ```
+///
+/// ## Why it is visible, after being deliberately invisible
+///
+/// The Floor's scope control shipped as the plate's eyebrow: the line reading
+/// `GAUTENG NORTH · WEEK 38` was a button wearing a label's clothes, because
+/// the owner's reference image has no filter chrome on it. That was the honest
+/// reading of the reference and the wrong thing for a person meeting the app —
+/// *"I wouldn't see it if I'm new on the app"* — so the words became a control
+/// that looks like one. **Owner override, 28 September 2026**; unify §1.3 and
+/// §1.17 carry the note.
+///
+/// It is still **one** control and not a toolbar. The window and the territory
+/// are the two facts it sets and the two facts it prints, so nothing is said
+/// twice: the eyebrow line the cluster used to carry is gone, and the hero has
+/// its height back.
+///
+/// ## The grammar is the filter chip's
+///
+/// Radius `chip`, a 1px `edgeControl` edge, the `label` role, the press
+/// treatment every control in this app uses, and **never amber** — a filter is
+/// a control and a control is not a light (unify §1.6). Two deliberate
+/// departures from `TorchFilterChip`, both because this chip stands on a
+/// picture rather than on the ground:
+///
+/// * **It always has a `surface` fill.** An unselected rail chip is
+///   transparent, which over a picture is a label nobody can read.
+/// * **Filtered is an `ink1` edge and a heavier name, not a tick.** A tick
+///   means "chosen from these options" in a rail of several. There is one chip
+///   here, and what it has to say is whether the screen is narrowed.
+///
+/// The target is `space.tapTarget` tall in every density — the chip's own 44dp
+/// Console height would be a control smaller in the console than the rule
+/// requires.
+class PlateScopeChip extends StatelessWidget {
+  const PlateScopeChip({
+    super.key,
+    required this.scope,
+    required this.window,
+    required this.onTap,
+    required this.semanticsLabel,
+    this.filtered = false,
+  });
+
+  /// `All territories`, or the territory's name. Sentence case: this is a chip,
+  /// and every other chip in the app is in sentence case. The uppercase came
+  /// from the eyebrow role, which is not what this is any more.
+  final String scope;
+
+  /// `Last 30 days`. The window the figures under it were measured over.
+  final String window;
+
+  final VoidCallback onTap;
+
+  /// Names the current scope AND says what pressing does. Required, not
+  /// optional: the printed line is two facts joined by a separator, which a
+  /// screen reader spells as a caption, and a control heard as a caption is a
+  /// control that is not there.
+  final String semanticsLabel;
+
+  /// Whether a territory is chosen. Changes the edge and the weight, never the
+  /// hue.
+  final bool filtered;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final p = skin.palette;
+    final radius = BorderRadius.circular(skin.radii.chip);
+
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: TorchPressable(
+        onPressed: onTap,
+        borderRadius: radius,
+        builder: (context, pressed) => Container(
+          constraints: BoxConstraints(minHeight: skin.space.tapTarget),
+          decoration: BoxDecoration(
+            color: pressed ? torchPressSurface(skin).fill : p.surface,
+            borderRadius: radius,
+            border: Border.all(
+              color: filtered ? p.ink1 : p.edgeControl,
+              width: skin.depth.borderWidth,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: TiqSpace.s3,
+            vertical: TiqSpace.s2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Flexible(
+                child: Text.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: scope,
+                        style: skin.text.label
+                            .copyWith(
+                              weight: filtered
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            )
+                            .style(color: p.ink1),
+                      ),
+                      TextSpan(
+                        // The window is the quieter half: it is usually the
+                        // default, and the territory is what a manager changes.
+                        text: ' · $window',
+                        style: skin.text.label.style(color: p.ink2),
+                      ),
+                    ],
+                  ),
+                  // Never ellipsised, like a filter chip's label: a scope you
+                  // cannot read is a scope you cannot trust. At 2.0x it wraps
+                  // and the chip grows.
+                  maxLines: 2,
+                ),
+              ),
+              const SizedBox(width: TiqSpace.s2),
+              SoftRowChevron(color: p.ink3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

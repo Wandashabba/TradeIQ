@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -279,6 +280,22 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
     );
   }
 
+  /// The picture of a place, or a throw — which is how the no-picture test
+  /// drives the plate to its fallback through the real code path rather than
+  /// by passing null.
+  ///
+  /// Keyed by territory id, with `''` for the whole footprint, because "the
+  /// picture changed when the scope changed" is the assertion this fake exists
+  /// to make possible.
+  final Map<String, Uint8List> placeImages = <String, Uint8List>{};
+
+  @override
+  Future<PlaceImage> placeImage(String? territoryId) async {
+    final bytes = placeImages[territoryId ?? ''];
+    if (bytes == null) throw StateError('no picture of this place');
+    return PlaceImage(bytes: bytes, source: 'generated');
+  }
+
   @override
   Future<Territory> createTerritory({
     required String name,
@@ -448,6 +465,21 @@ class SyncImage extends ImageProvider<SyncImage> {
     return SyncImage(made!);
   }
 
+  /// A real committed asset, decoded synchronously.
+  ///
+  /// `backend/assets/places/*.jpg` are the seed's generated place images — the
+  /// pictures the plate actually carries. A look at the screen that used a
+  /// stand-in would be a look at a screen nobody has.
+  static Future<SyncImage> fromFile(WidgetTester tester, String path) async {
+    final made = await tester.runAsync(() async {
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    });
+    return SyncImage(made!);
+  }
+
   @override
   Future<SyncImage> obtainKey(ImageConfiguration configuration) =>
       SynchronousFuture<SyncImage>(this);
@@ -501,11 +533,15 @@ List<Override> floorOverrides({
   photosRepositoryProvider.overrideWithValue(
     FakePhotosRepository(bytes: photoBytes, fail: photosFail),
   ),
-  // The plate's image seam. A decoded frame rather than an HTTP round
-  // trip: `Image.memory` decodes on the engine's clock, and the frame the
+  // The plate's image seam — now keyed by TERRITORY, not by a photo id: the
+  // plate carries a picture of the place in scope rather than a shelf
+  // photograph of one outlet. A decoded frame rather than an HTTP round trip,
+  // because `Image.memory` decodes on the engine's clock and the frame the
   // amber census measures would otherwise arrive after the assertion.
   if (plateImage != null)
-    plateImageResolverProvider.overrideWithValue((ref, photoId) => plateImage),
+    plateImageResolverProvider.overrideWithValue(
+      (ref, territoryId) => plateImage,
+    ),
   nowProvider.overrideWithValue(() => now ?? DateTime.utc(2026, 9, 18, 18)),
   ...extraOverrides,
 ];

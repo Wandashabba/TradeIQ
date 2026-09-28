@@ -349,6 +349,10 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
   Future<TerritoryCoverage> getCoverage(String id) async =>
       throw UnimplementedError();
 
+
+  @override
+  Future<PlaceImage> placeImage(String? territoryId) async =>
+      throw UnimplementedError();
   @override
   Future<Territory> createTerritory({
     required String name,

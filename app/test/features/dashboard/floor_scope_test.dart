@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
+import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
 import '../../core/design/amber_golden.dart';
 import 'floor_harness.dart';
 
-/// THE FLOOR CAN BE SCOPED, AND UNSCOPED.
+/// THE FLOOR CAN BE SCOPED, AND UNSCOPED — AND YOU CAN SEE HOW.
 ///
 /// The manager's home printed a territory name in the plate's eyebrow and had
 /// no way to change it. The old overview has had a working window-and-territory
@@ -19,15 +22,33 @@ import 'floor_harness.dart';
 /// fifth capability this project has lost to a migration and the fourth one
 /// only a test would have caught — so this is the test.
 ///
+/// **PINS MOVED, 28 September 2026.** The control shipped as the eyebrow
+/// itself: the words `GAUTENG NORTH · WEEK 38` were the button, with a
+/// transparent 48dp band stacked over the cluster as its target, because the
+/// owner's reference image has no filter chrome. The owner then looked at the
+/// running screen — *"I wouldn't see it if I'm new on the app"* — so it is now
+/// a visible chip at the top of the plate (`PlateScopeChip`). Three pins in
+/// this file measured the old geometry and have moved with it:
+///
+/// * the target *was* a band over the cluster; it is now the chip's own box;
+/// * the eyebrow *was* two lines the control had to not grow; the eyebrow is
+///   gone from the cluster entirely (the chip prints those two facts), and
+///   what is asserted instead is that the control sits outside the cluster;
+/// * the printed scope *was* uppercase, from the eyebrow role. A chip is a
+///   chip, and every chip in this app is sentence case.
+///
+/// Everything else in this file is behaviour and has not moved a line.
+///
 /// What it holds down, in order:
 ///
-/// 1. changing the territory rescopes **every block** — the figures move, not
+/// 1. the control is visible, and it says where you are;
+/// 2. changing the territory rescopes **every block** — the figures move, not
 ///    just the label;
-/// 2. clearing restores every one of them;
-/// 3. the empty result is a designed state and says which slice is empty;
-/// 4. a coverage request that fails withholds the list and says so, rather
+/// 3. clearing restores every one of them;
+/// 4. the empty result is a designed state and says which slice is empty;
+/// 5. a coverage request that fails withholds the list and says so, rather
 ///    than showing every territory's findings under one territory's name;
-/// 5. the amber census is unchanged by the control.
+/// 6. the amber census is unchanged by the control.
 void main() {
   final gautengOutlets = <Outlet>[outlet('o1', 'Kasi Corner Spaza')];
   final outlets = <Outlet>[
@@ -50,19 +71,26 @@ void main() {
     alert(id: 'a2', outletId: 'o2', message: 'Shelf talker missing'),
   ];
 
-  /// Tap the eyebrow's target.
+  /// Tap the scope chip.
   ///
-  /// By position, and deliberately: the target is an overlay band across the
-  /// top of the hero cluster rather than a box in its column — see
-  /// `_Eyebrow` — so tapping *the top of the cluster* is exactly the geometry
-  /// under test. The cluster's centre is the hero figure and is not it.
+  /// By its key and not by position: it is an object now, with an edge a
+  /// person can see, which is the whole of this change. The previous version
+  /// of this helper tapped 8dp inside the top-left of the hero cluster,
+  /// because the control was a transparent band stacked over it.
   Future<void> openScope(WidgetTester tester) async {
-    final cluster = tester.getTopLeft(find.byType(PlateHeroCluster));
-    await tester.tapAt(cluster + const Offset(8, 8));
+    await tester.tap(find.byKey(const ValueKey<String>('floor-scope-chip')));
     await tester.pumpAndSettle();
   }
 
-  /// Open the scope sheet from the plate's eyebrow and choose [option].
+  /// What the chip is printing. The fallback sentence names the scope too —
+  /// deliberately, so "no picture of Gauteng North" and "no picture at all"
+  /// are different sentences — so a finder for the control says so.
+  Finder onTheChip(String text) => find.descendant(
+    of: find.byKey(const ValueKey<String>('floor-scope-chip')),
+    matching: find.textContaining(text),
+  );
+
+  /// Open the scope sheet from the plate's chip and choose [option].
   Future<void> choose(WidgetTester tester, String option) async {
     await openScope(tester);
     await tester.tap(find.byKey(ValueKey<String>('territory-option-$option')));
@@ -94,7 +122,7 @@ void main() {
     territories: territories,
   ).then((_) {});
 
-  group('the eyebrow is the scope control', () {
+  group('the scope control is a thing you can see', () {
     testWidgets('it announces itself as a button and names both facts', (
       tester,
     ) async {
@@ -113,20 +141,40 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('the target is a band, not just the words', (tester) async {
+    testWidgets('it has an edge, a fill and a 48dp box', (tester) async {
+      // PIN MOVED. This asserted that the tap target extended past the words
+      // it was drawn behind, because the control WAS the words with a
+      // transparent band over them. The band was a real 48dp target and it was
+      // still invisible, which is the defect this change exists to fix — so
+      // what is measured now is that the control is painted.
       await pump(tester, plateImage: await SyncImage.seededShelf(tester));
-      final cluster = tester.getRect(find.byType(PlateHeroCluster));
-      final eyebrow = tester.getRect(find.textContaining('ALL TERRITORIES'));
+      final chip = find.byKey(const ValueKey<String>('floor-scope-chip'));
+      expect(chip, findsOneWidget);
 
-      // The words are ~11dp tall. The target runs the declared
-      // `space.tapTarget` down from the top of the cluster, so a thumb that
-      // lands under the line still lands on the control.
-      await tester.tapAt(Offset(cluster.left + 8, eyebrow.bottom + 8));
+      expect(
+        tester.getRect(chip).height,
+        greaterThanOrEqualTo(TiqSkin.night().space.tapTarget),
+        reason: 'a control under the tap target is a control people miss',
+      );
+
+      // Painted: a fill and a rounded edge, from the chip grammar. A control
+      // on a picture with no fill is a label nobody can read, and a hard
+      // rectangle is not this app's card grammar.
+      final decoration = tester
+          .widgetList<Container>(
+            find.descendant(of: chip, matching: find.byType(Container)),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .firstWhere((d) => d.border != null);
+      expect(decoration.color, isNotNull, reason: 'no fill');
+      expect(decoration.borderRadius, isNotNull, reason: 'a hard rectangle');
+
+      await tester.tap(chip);
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey<String>('territory-option-all')),
         findsOneWidget,
-        reason: 'the band extends past the words it is drawn behind',
       );
       // `TorchSheets.openCount` is a process-wide guard against stacking, so
       // a test that walks away from an open sheet fails the next one.
@@ -137,21 +185,33 @@ void main() {
     });
 
     testWidgets('and it costs the hero nothing', (tester) async {
-      // `floor_proportion_test.dart` is where the hero's own face is pinned,
-      // at two viewport sizes, and it is the test the first attempt at this
-      // control broke: a `ConstrainedBox(minHeight: 48)` round the eyebrow in
-      // the column made the cluster overflow the plate's text zone, and the
-      // `FittedBox` paid for it by scaling a 66dp hero down to 57. The
-      // overlay adds no height at all, which is what this asserts here — the
-      // eyebrow is exactly as tall as its own two lines.
+      // PIN MOVED, SAME DEFECT GUARDED. `floor_proportion_test.dart` is where
+      // the hero's own face is pinned, at two viewport sizes, and it is the
+      // test the FIRST attempt at this control broke: a
+      // `ConstrainedBox(minHeight: 48)` round the eyebrow inside the cluster
+      // made the cluster overflow the plate's text zone, and the `FittedBox`
+      // paid for it by scaling a 66dp hero down to 57.
+      //
+      // The old fix was an overlay that added no height. The new one is
+      // stronger: the control is not in the cluster at all. It sits in the
+      // photographic band above the strip light, so it cannot take a single dp
+      // off the figure however tall it grows — which is what this measures.
       await pump(tester, plateImage: await SyncImage.seededShelf(tester));
-      final eyebrow = tester.getRect(find.textContaining('ALL TERRITORIES'));
+      final chip = tester.getRect(
+        find.byKey(const ValueKey<String>('floor-scope-chip')),
+      );
+      final cluster = tester.getRect(find.byType(PlateHeroCluster));
       expect(
-        eyebrow.height,
-        lessThan(32),
+        chip.overlaps(cluster),
+        isFalse,
         reason:
-            'the eyebrow occupies its own line height in the column; the '
-            '48dp target is an overlay stacked over it',
+            'the control is inside the hero cluster, which is inside the '
+            'plate’s FittedBox: every dp it takes comes off the figure',
+      );
+      expect(
+        chip.bottom,
+        lessThanOrEqualTo(cluster.top),
+        reason: 'the control is above the hero, not beside or under it',
       );
     });
 
@@ -162,8 +222,25 @@ void main() {
       // It said "Week 38" whatever the filter held — and the filter is shared
       // with the overview, so a manager who picked a window there came back to
       // a label that contradicted the figures under it.
-      expect(find.textContaining('LAST 30 DAYS'), findsOneWidget);
-      expect(find.textContaining('WEEK'), findsNothing);
+      //
+      // Sentence case now, not `LAST 30 DAYS`: that uppercase was the eyebrow
+      // role's, and this is a chip.
+      expect(onTheChip('Last 30 days'), findsOneWidget);
+      expect(find.textContaining('Week'), findsNothing);
+    });
+
+    testWidgets('it prints the scope it is showing, filtered or not', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(
+        onTheChip('All territories'),
+        findsOneWidget,
+        reason: 'unfiltered is a scope and has to be printed as one',
+      );
+
+      await choose(tester, 't-gn');
+      expect(onTheChip('Gauteng North'), findsOneWidget);
     });
   });
 
@@ -178,7 +255,7 @@ void main() {
 
       await choose(tester, 't-gn');
 
-      expect(find.textContaining('GAUTENG NORTH'), findsOneWidget);
+      expect(onTheChip('Gauteng North'), findsOneWidget);
       // THE FIGURES, not the caption. This is the whole assertion: a screen
       // that relabels itself and keeps the same numbers is worse than one
       // with no control, because it claims an answer it did not compute.
@@ -194,18 +271,72 @@ void main() {
       );
     });
 
-    testWidgets('the plate follows the new list rather than lingering', (
-      tester,
-    ) async {
-      await pump(tester);
-      await choose(tester, 't-gn');
-      // The plate's photograph belongs to the outlet at the top of the list,
-      // and the top of the list is now a different outlet.
+    testWidgets('the picture is of the territory on screen', (tester) async {
+      // PIN MOVED, 28 September 2026. This used to assert that the plate's
+      // photograph stopped being SaveMor Glenwood's when SaveMor Glenwood left
+      // the list, because the plate carried the shelf photograph of the outlet
+      // at the top of it. It does not any more: a shelf directly above a list
+      // of shelf decisions is a picture a manager can read as evidence for one
+      // of them, and the seeded ones were blocks of random colour.
+      //
+      // What the plate carries is the PLACE in scope, so what has to be true
+      // is that the picture is asked for by territory and named as one — and
+      // that nothing on it claims to be a photograph from a visit.
+      final handle = tester.ensureSemantics();
+      final asked = <String?>[];
+      final picture = await SyncImage.solid(tester);
+      await pumpFloorRoute(
+        tester,
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        byTerritory: <String, DashboardKpis>{
+          't-gn': kpis(osa: 44, execution: 51),
+        },
+        coverage: <String, List<Outlet>>{
+          't-gn': gautengOutlets,
+          't-ws': const <Outlet>[],
+        },
+        alerts: alerts,
+        outlets: outlets,
+        territories: territories,
+        extraOverrides: <Override>[
+          plateImageResolverProvider.overrideWithValue((ref, territoryId) {
+            asked.add(territoryId);
+            return picture;
+          }),
+        ],
+      );
+
+      expect(asked, contains(null), reason: 'the footprint, unfiltered');
+      await tester.tap(find.byKey(const ValueKey<String>('floor-scope-chip')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('territory-option-t-gn')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        asked,
+        contains('t-gn'),
+        reason:
+            'the picture is asked for by territory, so it changes when the '
+            'scope does — which is what makes the control legible',
+      );
+      expect(
+        find.bySemanticsLabel(
+          RegExp('Gauteng North. An illustration of the area'),
+        ),
+        findsOneWidget,
+        reason:
+            'a generated view of a place must never be readable as evidence '
+            'from a visit',
+      );
       expect(
         find.bySemanticsLabel(RegExp('SaveMor Glenwood')),
         findsNothing,
-        reason: 'the plate is a specimen from the territory on screen',
+        reason: 'the plate names no outlet at all now',
       );
+      handle.dispose();
     });
 
     testWidgets('clearing restores every block in one tap', (tester) async {
@@ -218,7 +349,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('ALL TERRITORIES'), findsOneWidget);
+      expect(onTheChip('All territories'), findsOneWidget);
       expect(find.textContaining('73'), findsWidgets);
       expect(find.text('SaveMor Glenwood'), findsOneWidget);
     });
