@@ -305,7 +305,7 @@ void main() {
       expect(census.objectCount, 0, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name}: exactly the commit', (tester) async {
         await pump(tester, repo: FakeTemplatesRepository(), skin: skin);
 

@@ -845,7 +845,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final phases = <String, (Future<void> Function(WidgetTester), int)>{
         'loaded': (

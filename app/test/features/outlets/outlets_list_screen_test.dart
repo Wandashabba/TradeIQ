@@ -454,12 +454,11 @@ void main() {
   group('the amber census, every phase in every skin', () {
     /// The stores list nominates no content amber, so the arithmetic is the
     /// same everywhere: Night paints the nav's active tab and nothing else;
-    /// Day and Veld paint nothing, because their one rung is the primary
+    /// Day paints nothing, because their one rung is the primary
     /// commit block and this route has none armed.
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{

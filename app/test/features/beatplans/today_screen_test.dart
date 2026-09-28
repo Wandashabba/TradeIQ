@@ -492,16 +492,6 @@ void main() {
       );
     });
 
-    testWidgets('and full width in Veld, where a small target is not one', (
-      tester,
-    ) async {
-      await _pump(tester, route: null, skin: SkinMode.veld);
-      final button = tester.getRect(find.byType(TorchSecondaryButton));
-      final screen = tester.getRect(find.byType(TodayFrame)).width;
-      final skin = agentSkinFor(SkinMode.veld);
-      expect(button.width, screen - skin.space.gutter * 2);
-    });
-
     testWidgets('a load failure keeps the chrome and says what survived', (
       tester,
     ) async {
@@ -636,7 +626,7 @@ void main() {
       final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(
         header.trailing!.semanticLabel,
-        'Screen: Day. Double-tap for Veld, the outdoor high-contrast screen.',
+        'Screen: Day. Double-tap for Night, the dimmed screen.',
       );
     });
   });
@@ -716,21 +706,6 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    testWidgets('Veld: one — the block; the bar is docked and its tab is ink', (
-      tester,
-    ) async {
-      await _pump(tester, route: _route(), skin: SkinMode.veld);
-      await showPrimary(tester);
-      final census = await amberCensus(tester);
-      expectWithinAmberBudget(
-        census,
-        agentSkinFor(SkinMode.veld),
-        route: 'today',
-        phase: 'loaded',
-      );
-      expect(census.objectCount, 1, reason: census.describe());
-    });
-
     testWidgets('a finished route: the circle takes the grant in Night', (
       tester,
     ) async {
@@ -745,7 +720,7 @@ void main() {
       expect(census.objectCount, 2, reason: census.describe());
     });
 
-    for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
+    for (final skin in <SkinMode>[SkinMode.day]) {
       testWidgets(
         'a finished route on a light ground arms nothing — ${skin.name} is 0',
         (tester) async {

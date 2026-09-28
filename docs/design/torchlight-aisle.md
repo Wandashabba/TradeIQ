@@ -1,7 +1,43 @@
 # Torchlight Aisle
 
-The TradeIQ design system. One token source, three skins, two typefaces, and
+The TradeIQ design system. One token source, two skins, two typefaces, and
 one rule about the colour amber that explains most of the others.
+> **OWNER OVERRIDE — 28 September 2026. VELD IS REMOVED FROM THE PRODUCT.**
+>
+> Veld was the third skin: a white ground, near-black ink, radius 0, 2px
+> borders, no gradient, shadow, rim, scrim or blur, nothing under 9:1 for a
+> word or 15:1 for a border, 56dp targets, 64dp rows, larger declared type
+> steps, the nav docked full-bleed, sheets becoming full-screen routes, and
+> no plate, sparkline, chart, map or thumbnail at all. It existed for one
+> reader: **a field agent reading this app in direct sunlight.**
+>
+> The owner was shown that trade and chose removal anyway. **What is given up
+> is outdoor legibility for field agents**, and nothing replaces it: an agent
+> standing in a forecourt at 13:00 now reads Day — Palladian paper, a 1px
+> hairline grammar, radius 22 cards — which is legible in a car park and
+> compromised in full sun on a 6-bit panel at 40% backlight. There is no
+> high-contrast mode, no outdoor trigger and no solar-elevation entry.
+>
+> **The skin cycle keeps its place, its label rule and its persistence and
+> becomes a two-state toggle**: paper (Day) and moon (Night), cycling
+> Day → Night → Day, 56dp in both, still on every screen.
+>
+> **How this document was edited.** Every Veld *rule* below is struck through
+> rather than deleted, so a reader who finds the old rule finds the decision
+> beside it. Where Veld was only a **column in a token table** or a third
+> item in an enumeration, the column or the item is gone and this block is
+> the record of why — there is no stale rule left there to mislead anybody.
+>
+> **What Veld justified and what survives it.** `TableTwin` and its
+> chart/table toggle stay: charts not rendering outdoors gave the twin a
+> purpose, but it is also the screen-reader-reachable and printable
+> equivalent of a drag-scrub plot, and that reason outlives the skin. The
+> panels that *forced* the table in Veld now simply offer the toggle, which
+> is what an indoor reader always had. `MarkShape`, the hatch kit, the
+> severity word beside every severity hue and the list halves of the map
+> panels are all likewise kept on their own merits.
+
+
 
 Trade marketing happens in badly lit rooms — a spaza in Tembisa during Stage 6,
 a forecourt cold-room at 05:40, a Boxer back aisle with the fluorescents off to
@@ -40,8 +76,8 @@ skin.text.body.style(color: skin.palette.ink1)
 ```
 
 A skin is **a value set, not a code path**. Every difference between Night, Day
-and Veld is a different `TiqPalette` / `TiqType` / `TiqDepth` handed to the same
-constructor. If you find yourself writing `if (skin.mode == SkinMode.veld)` in a
+is a different `TiqPalette` / `TiqType` / `TiqDepth` handed to the same
+constructor. If you find yourself writing `if (skin.mode == SkinMode.night)` in a
 widget, the thing you want is a token that does not exist yet — add it.
 
 ---
@@ -54,27 +90,30 @@ run.
 
 ### Grounds and surfaces
 
-| Token | Night | Day | Veld | Use |
-|---|---|---|---|---|
-| `ground` | `#0B1017` | `#EEE9DF` | `#FFFFFF` | App ground, full bleed. Veld is pure white, not Palladian: every point of luminance counts at 40% backlight in highveld sun. |
-| `vignette` | `#0F1620` | `#E6E0D4` | `#FFFFFF` | Midpoint stop of the ground's letterbox falloff and the plate's edge-dissolve. Four even stops, because two band on a 6-bit panel. |
-| `well` | `#141D27` | `#E2DBCC` | `#FFFFFF` | Recessed: input troughs, nav-bar body, queue chips, mono blocks. |
-| `surface` | `#1B2632` | `#FAF7F2` | `#FFFFFF` | The one panel surface: the answer's instrument panel, forms, sheets. |
-| `raised` | `#22303E` | `#F4F0E8` | `#FFFFFF` | Stat-tile cells, scrub readouts, the question bubble. |
-| `lifted` | `#2C3B4D` | `#2C3B4D` | `#1B2632` | Pressed/hover, chart bar tracks. On Day it is the nav-active ink block. |
+| Token | Night | Day | Use |
+|---|---|---|---|
+| `ground` | `#0B1017` | `#EEE9DF` | App ground, full bleed. |
+| `vignette` | `#0F1620` | `#E6E0D4` | Midpoint stop of the ground's letterbox falloff and the plate's edge-dissolve. Four even stops, because two band on a 6-bit panel. |
+| `well` | `#141D27` | `#E2DBCC` | Recessed: input troughs, nav-bar body, queue chips, mono blocks. |
+| `surface` | `#1B2632` | `#FAF7F2` | The one panel surface: the answer's instrument panel, forms, sheets. |
+| `raised` | `#22303E` | `#F4F0E8` | Stat-tile cells, scrub readouts, the question bubble. |
+| `lifted` | `#2C3B4D` | `#2C3B4D` | Pressed/hover, chart bar tracks. On Day it is the nav-active ink block. |
 
-Veld collapses every recessed and raised token onto white on purpose. A
+~~Veld collapses every recessed and raised token onto white on purpose. A
 1.12–1.24:1 fill step is one or two quantisation levels on a budget LCD in
 sunlight — it is not a cue, so Veld does not pretend it is one and uses a 2px
-border instead.
+border instead.~~ **Struck 28 September 2026 — Veld is removed; see the block
+at the top.** The device-floor argument it rests on is untouched and still
+governs Night and Day: nothing is identified by a fill step alone, and every
+perceivable boundary carries a real edge.
 
 ### Edges
 
-| Token | Night | Day | Veld | Use |
-|---|---|---|---|---|
-| `hairline` | `#3A4B60` | `#DED7C9` | `#1B2632` | **Decorative only**: section rules, list separators, gridlines. Deliberately under 3:1 (2.14 / 1.18). Never the sole identifier of anything, and never the only cue that two regions differ. |
-| `edgeStructure` | `#5B718A` | `#857C6B` | `#1B2632` | The compliant edge for **containers**: panel outlines, sheet edges. ≥3:1 on the fill it bounds and the ground it sits on. |
-| `edgeControl` | `#7C93AC` | `#6E6657` | `#1B2632` | The compliant edge for **controls**: outlined chips, troughs, ghost buttons. Louder than a container edge on purpose — controls outrank containers. |
+| Token | Night | Day | Use |
+|---|---|---|---|
+| `hairline` | `#3A4B60` | `#DED7C9` | **Decorative only**: section rules, list separators, gridlines. Deliberately under 3:1 (2.14 / 1.18). Never the sole identifier of anything, and never the only cue that two regions differ. |
+| `edgeStructure` | `#5B718A` | `#857C6B` | The compliant edge for **containers**: panel outlines, sheet edges. ≥3:1 on the fill it bounds and the ground it sits on. |
+| `edgeControl` | `#7C93AC` | `#6E6657` | The compliant edge for **controls**: outlined chips, troughs, ghost buttons. Louder than a container edge on purpose — controls outrank containers. |
 
 > **Correction to the spec.** The design document gave `edgeStructure` as
 > `#5A7088` and described it as "tuned to exactly 3.00:1" on `surface`. It
@@ -84,13 +123,13 @@ border instead.
 
 ### Ink
 
-| Token | Night | Day | Veld | Use |
-|---|---|---|---|---|
-| `ink1` | `#EEE9DF` | `#1B2632` | `#0E141A` | Body and headline text, hero figures, the focus bar fill on light grounds. |
-| `ink2` | `#C9C1B1` | `#4A4437` | `#4A4437` | Secondary: reasons, subtitles, chip labels, eyebrows. |
-| `ink3` | `#A79E8C` | `#676052` | `#4A4437` | Tertiary/meta: timestamps, units, axis labels, source lines. |
-| `navInkInactive` | `#8AA0B8` | `#6E6657` | `#4A4437` | Inactive tab-bar icon and label — real text at 6.32:1 on the nav body, not a ghost. |
-| `inkMute` | `#4C6079` | `#9B917F` | `#4A4437` | **Disabled only.** Deliberately sub-AA on Night and Day: 1.4.3 exempts disabled controls and a disabled control must look disabled. Veld has no such thing — outdoors nothing is allowed under 9:1. |
+| Token | Night | Day | Use |
+|---|---|---|---|
+| `ink1` | `#EEE9DF` | `#1B2632` | Body and headline text, hero figures, the focus bar fill on light grounds. |
+| `ink2` | `#C9C1B1` | `#4A4437` | Secondary: reasons, subtitles, chip labels, eyebrows. |
+| `ink3` | `#A79E8C` | `#676052` | Tertiary/meta: timestamps, units, axis labels, source lines. |
+| `navInkInactive` | `#8AA0B8` | `#6E6657` | Inactive tab-bar icon and label — real text at 6.32:1 on the nav body, not a ghost. |
+| `inkMute` | `#4C6079` | `#9B917F` | **Disabled only.** Deliberately sub-AA: 1.4.3 exempts disabled controls and a disabled control must look disabled. |
 
 Warm off-white ink on a cool navy-black ground is the deliberate move. It is
 what makes Night look lit rather than switched off.
@@ -105,28 +144,32 @@ what makes Night look lit rather than switched off.
 | `flame700` | `#FFCB94` | Amber as text on dark, focus rings, the hot end of a bloom. 12.92:1 on Night ground. |
 | `flame900` | `#FFF1DE` | The white-hot core stop of a glow gradient. **Never ink on an amber fill.** |
 | `onAmber` | `#0B1017` / `#1B2632` / `#0E141A` | The ink that goes on an amber block. |
-| `amberPressed` / `onAmberPressed` | `#F79742` + dark / **`#1B2632` + white** in Veld | The held-down state. |
+| `amberPressed` / `onAmberPressed` | `#F79742` + dark | The held-down state. |
 | `TiqPalette.glowAmber` | `#FFF1DE@0.55 → #FFB162@0.30 → transparent` | Every bloom, as gradient stops. |
 
-> **Correction to the spec.** The document declares "there is no token in Veld
+> ~~**Correction to the spec.** The document declares "there is no token in Veld
 > below 9:1 for text" and separately gives Veld's pressed amber block as
 > veld-ink on `flame-500` at **8.34:1**. Both cannot be true. Veld does not
 > lighten on press: it inverts to the ink block with white on it (15.33:1),
 > which is also the only press cue Veld can afford — it has no glow, no shadow
-> and no gradient to spend.
+> and no gradient to spend.~~
+>
+> **Struck 28 September 2026** — the contradiction went with the skin. Night
+> and Day both lighten to `flame-500` on press with dark ink at 8.59:1, which
+> is what §1.7 asked for and what ships.
 
 ### Severity, comparison, data
 
-| Token | Night | Day | Veld | Use |
-|---|---|---|---|---|
-| `good` | `#6FE0AE` | `#14664A` | `#0F5039` | On target. Outline + filled circle. |
-| `goodSolid` / `onGoodSolid` | `#C9F5E1` + ground | `#0F5039` + white | same as Day | Solid success block. |
-| `bad` | `#FF7D8C` | `#8C1B2C` | `#7A0F22` | Watch: 1px outline, `bad` ink, half-filled triangle. |
-| `badSolid` / `onBadSolid` | `#E23C55` + ground | `#7A0F22` + white | same as Day | Critical: solid block, filled triangle, 3px left bar. |
-| `comparison` | `#E08E71` | `#A35139` | `#A35139` | Competitor share, prior period, benchmark. Also the held/queued warm neutral. **Never a severity.** |
-| `comparisonWash` | `#7A3A28` | `#F7DCD2` | `#F7DCD2` | Wash behind a "held" chip; the 2px edge on an underexposed photo. |
-| `chartNeutral` | `#A39887` | `#5C5648` | `#4A4437` | The fill of every non-focus bar and series. |
-| `plateCeiling` | `#474747` | — | — | The maximum luminance any pixel of a baked photographic plate may reach. Enforced server-side; a contrast floor, not a decoration. |
+| Token | Night | Day | Use |
+|---|---|---|---|
+| `good` | `#6FE0AE` | `#14664A` | On target. Outline + filled circle. |
+| `goodSolid` / `onGoodSolid` | `#C9F5E1` + ground | `#0F5039` + white | Solid success block. |
+| `bad` | `#FF7D8C` | `#8C1B2C` | Watch: 1px outline, `bad` ink, half-filled triangle. |
+| `badSolid` / `onBadSolid` | `#E23C55` + ground | `#7A0F22` + white | Critical: solid block, filled triangle, 3px left bar. |
+| `comparison` | `#E08E71` | `#A35139` | Competitor share, prior period, benchmark. Also the held/queued warm neutral. **Never a severity.** |
+| `comparisonWash` | `#7A3A28` | `#F7DCD2` | Wash behind a "held" chip; the 2px edge on an underexposed photo. |
+| `chartNeutral` | `#A39887` | `#5C5648` | The fill of every non-focus bar and series. |
+| `plateCeiling` | `#474747` | — | The maximum luminance any pixel of a baked photographic plate may reach. Enforced server-side; a contrast floor, not a decoration. |
 
 `chartNeutral` exists because Burning Flame and Oatmeal have **identical**
 relative luminance — 1.00:1. They are the same bar in greyscale, in
@@ -149,7 +192,7 @@ deuteranopia, in print and on a sun-washed panel. That pairing is banned; see §
    icon tint on a list row, and never the caret on a severity-coded delta.
    Budget is declared per screen and counted, not asserted.
 
-2. **Day and Veld.** On light grounds amber inverts from light to ink-carrier,
+2. **Day.** On a light ground amber inverts from light to ink-carrier,
    and **there is exactly one amber block per screen: the primary commit
    action.** Torch-on is a filled Abyssal block with an amber glyph and the word
    ON. "You are here" is an Abyssal disc with a white ring — amber leaves the
@@ -203,24 +246,24 @@ Two faces, and a law that divides them.
 Size / weight / line-height / tracking. Tracking is stated as a percentage of
 the size, because that is the only form that survives a size change.
 
-| Role | Kind | Console | Field | Veld |
-|---|---|---|---|---|
-| `heroFigure` | figure | 72 / 600 / 0.92 / −2.5% | same | 72 / 700 / 0.97 / −2.0% |
-| `heroFigureCompact` | figure | 56 / 600 / 0.95 / −2.0% | same | 56 / 700 / 1.00 / −1.5% |
-| `display` | prose | 40 / 600 / 1.00 / −1.5% | same | 40 / 700 / 1.05 / −1.0% |
-| `figureL` | figure | 32 / 600 / 1.05 / −1.0% | same | 32 / 700 / 1.10 / −0.5% |
-| `figureM` | figure | 22 / 600 / 1.10 / −0.5% | same | **24** / 700 / 1.15 |
-| `figureS` | figure | 16 / 600 / 1.20 | same | 16 / 700 / 1.25 / +0.5% |
-| `titleL` | prose | 20 / 600 / 1.25 / −0.5% | **24** / 600 / 1.25 | 24 / 700 / 1.30 |
-| `titleM` | prose | 16 / 600 / 1.30 / −0.25% | same | **18** / 700 / 1.35 / +0.25% |
-| `headlineAnswer` | prose | 22 / 600 / 1.35 / −0.5%, max 32em | same | 22 / 700 / 1.40 |
-| `body` | prose | 14 / 400 / 1.55 | **15** / 400 / 1.50 | **17** / 600 / 1.55 / +0.5% |
-| `bodyStrong` | prose | 14 / 600 / 1.55 | 15 / 600 / 1.50 | 17 / 700 / 1.55 / +0.5% |
-| `label` | prose | 13 / 500 / 1.35 / +0.5% | same | **16** / 600 / 1.40 / +1.0% |
-| `eyebrow` | prose | 11 / 700 / 1.10 / **+4%**, uppercase | same | 13 / 700 / 1.15 / +4% |
-| `meta` | prose | 12 / 400 / 1.40 | same | **14** / 600 / 1.45 / +0.5% |
-| `axisLabel` | **figure** | 12 / 400 / 1.40 | same | 14 / 600 / 1.45 / +0.5% |
-| `monoIdent` | **identifier** | 13 / 500 / 1.30 / +1% | same | 16 / 600 / 1.35 / +1% |
+| Role | Kind | Console | Field |
+|---|---|---|---|
+| `heroFigure` | figure | 72 / 600 / 0.92 / −2.5% | same |
+| `heroFigureCompact` | figure | 56 / 600 / 0.95 / −2.0% | same |
+| `display` | prose | 40 / 600 / 1.00 / −1.5% | same |
+| `figureL` | figure | 32 / 600 / 1.05 / −1.0% | same |
+| `figureM` | figure | 22 / 600 / 1.10 / −0.5% | same |
+| `figureS` | figure | 16 / 600 / 1.20 | same |
+| `titleL` | prose | 20 / 600 / 1.25 / −0.5% | **24** / 600 / 1.25 |
+| `titleM` | prose | 16 / 600 / 1.30 / −0.25% | same |
+| `headlineAnswer` | prose | 22 / 600 / 1.35 / −0.5%, max 32em | same |
+| `body` | prose | 14 / 400 / 1.55 | **15** / 400 / 1.50 |
+| `bodyStrong` | prose | 14 / 600 / 1.55 | 15 / 600 / 1.50 |
+| `label` | prose | 13 / 500 / 1.35 / +0.5% | same |
+| `eyebrow` | prose | 11 / 700 / 1.10 / **+4%**, uppercase | same |
+| `meta` | prose | 12 / 400 / 1.40 | same |
+| `axisLabel` | **figure** | 12 / 400 / 1.40 | same |
+| `monoIdent` | **identifier** | 13 / 500 / 1.30 / +1% | same |
 
 `axisLabel` is split out from `meta` for one reason: a chart axis label is a
 numeral, and numerals are mono. `meta` keeps the prose jobs — timestamps read as
@@ -240,8 +283,9 @@ uppercases for *display* and hands the sentence-case string to `Semantics` — a
 `toUpperCase()` at the call site puts the uppercase in the data, where a screen
 reader spells it out.
 
-Veld's steps are **declared scale members**, not "one stop up". A stop invents a
-17px that collides with two existing roles.
+~~Veld's steps are **declared scale members**, not "one stop up". A stop invents a
+17px that collides with two existing roles.~~ **Struck 28 September 2026 —
+`TiqType.veld` is removed; the scale is Console and Field.**
 
 ### PDF export
 
@@ -273,7 +317,7 @@ The audit found **no** `textScale` handling anywhere in the app. That is not
    is applied by wrapping that one widget in `TiqRoleTextScale`. Adding a second
    capped role is a policy change and the test will say so.
 
-Tested at 1.0×, 1.3× and 2.0×, in all three skins, on a 360dp phone.
+Tested at 1.0×, 1.3× and 2.0×, in both skins, on a 360dp phone.
 
 ---
 
@@ -287,18 +331,24 @@ in 96 files.
 |---|---|---|---|---|---|---|---|
 | Console | 20 | 40 | 44 | 24 | 12 | 44 | 44 |
 | Field | 20 | 20 | 64 | 32 | 16 | 48 | 56 |
-| Veld | 24 | 24 | 64 | 40 | 20 | 56 | 64 |
 
-Veld is **single-density by construction**: `TiqSkin.veld()` takes no density
+~~| Veld | 24 | 24 | 64 | 40 | 20 | 56 | 64 |~~
+
+~~Veld is **single-density by construction**: `TiqSkin.veld()` takes no density
 argument, so `Veld × Console` has no spelling. A manager who opens the app
-outdoors gets Veld, and that is correct — outdoors nobody is doing analysis.
+outdoors gets Veld, and that is correct — outdoors nobody is doing analysis.~~
+**Struck 28 September 2026** — there is no third density. `TiqDensity` is
+Console and Field, and `TiqSkin.night()`/`day()` no longer assert against a
+third value because there is none to assert against.
 
 **Radii — five materials, five radii.** `rule` 0 (rules and dividers), `chip` 6
 (chips, outlined pills, ladder glyph tiles), `control` 10 (buttons, thumbnails),
 `panel` 14 (the instrument panel, forms, sheets), `card` 22 (a list row a
 person acts on, and the one figure block beside it), `plate` 28 (photographic
 plates). An input is a trough: `radii.input` is 10 at the **bottom** corners and
-0 at the top — a trough holds at the bottom. Veld squares everything to 0.
+0 at the top — a trough holds at the bottom. ~~Veld squares everything to 0.~~
+**Struck 28 September 2026 — `TiqRadii.flat` is removed; `lit` is the only
+radius set.**
 
 `card` and the bigger `plate` arrived with the owner's override of 25 September
 2026 — see [the card override](#9c-the-card-override-25-september-2026). A
@@ -324,8 +374,9 @@ fill step alone to be perceived.
 
 Night casts **no drop shadows** (black on black is invisible; the audit's 34
 ad-hoc `BoxShadow`s all go). Day casts exactly three — `sh1 0 1 2 .06`,
-`sh2 0 4 12 .08`, `sh3 0 12 32 .12`. Veld casts none, allows no gradients, and
-its `borderWidth` is 2.
+`sh2 0 4 12 .08`, `sh3 0 12 32 .12`. ~~Veld casts none, allows no gradients, and
+its `borderWidth` is 2.~~ **Struck 28 September 2026 — `TiqDepth.veld` is
+removed; both remaining skins carry a 1px `borderWidth` and allow gradients.**
 
 **Glow is never a blur.** Every bloom is a `BoxDecoration(gradient:)` with alpha
 stops. Zero `BackdropFilter`, zero `ShaderMask`, zero `ImageFiltered`, zero
@@ -337,7 +388,7 @@ busy · 1400 skeleton rule · 3200 live pulse. Curves: enter
 `cubic-bezier(0.05,0.70,0.10,1.00)`, exit `(0.30,0.00,0.80,0.15)`, state
 `(0.20,0.00,0.00,1.00)`, count-up ease-out-quart. One application-wide `Ticker`
 with three subscribers. `skin.motion.resolve(d)` returns `Duration.zero` when
-motion is off, so no caller has to branch — and Veld's motion is off.
+motion is off, so no caller has to branch. ~~Veld's motion is off.~~
 
 ---
 
@@ -354,7 +405,7 @@ token — and nobody can "fix" the ban by reintroducing the pairing.
 | Night | `flame900` ink on a pressed `flame500` block | **2.00:1** | 4.5 | `onAmberPressed` — the ink stays dark through the press. |
 | Day | `flame600` as text on Palladian | **1.48:1** | 4.5 | `flame300`. |
 | Day | `edgeStructure` on the Day `well` | **2.99:1** | 3.0 | `edgeControl`, or move the container out of the well. |
-| Veld | `flame600` as a line, icon, border or word on white | **1.79:1** | 3.0 | A solid amber block carrying `onAmber`, once per screen — or `ink1` for a line or a word. |
+~~| Veld | `flame600` as a line, icon, border or word on white | **1.79:1** | 3.0 | A solid amber block carrying `onAmber`, once per screen — or `ink1` for a line or a word. |~~ **Struck 28 September 2026 — four bans remain.**
 
 Every ban names a replacement. A ban without one is a dead end and someone will
 walk back into it.
@@ -375,9 +426,9 @@ All in `app/test/core/theme/torchlight/`, run by `flutter test` in
 |---|---|
 | `torchlight_lint_test.dart` | A file in `lib/features/**` that gains a `Color(0x…)`, a `Colors.*` or a bare `TextStyle(`. Ledger in `torchlight_style_debt.dart`; the scanner itself is tested against known-bad and known-good source, because a guard that cannot fail is not a guard. |
 | `torchlight_type_test.dart` | A figure or identifier role set in Onest; a prose role set in mono; a missing `tnum`; Onest declared with a weight (which pins the variable axis); Onest shipping without an `fvar` table; Inter creeping back into the bundle. |
-| `torchlight_contrast_test.dart` | All 63 declared pairings against their floor, every banned pairing still failing, the Veld 9:1/15:1 floors, the ink ramp stepping down, control edges outranking container edges, and every spec-stated ratio recomputed to two decimals. |
-| `torchlight_render_test.dart` | All three skins building a theme and painting a screen that touches every token; `lerp` across a mode change; `Veld × Console` being unconstructible; the spacing scale being base-4 with no twelfth step; the shim mapping. |
-| `torchlight_text_scale_test.dart` | The clamp, the one documented exception, and all three skins at 1.0×/1.3×/2.0× on a 360dp phone. |
+| `torchlight_contrast_test.dart` | Every declared pairing against its floor, every banned pairing still failing, the ink ramp stepping down, control edges outranking container edges, and every spec-stated ratio recomputed to two decimals. |
+| `torchlight_render_test.dart` | Both skins building a theme and painting a screen that touches every token; `lerp` across a mode change; the spacing scale being base-4 with no twelfth step; the shim mapping. |
+| `torchlight_text_scale_test.dart` | The clamp, the one documented exception, and both skins at 1.0×/1.3×/2.0× on a 360dp phone. |
 | `onest_font_test.dart` | Every theme asking for Onest; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
 | `torchlight_generated_contrast_test.dart` | ~1000 generated ink x role x fill pairings across all five skin/density combinations; the Vienot deuteranopia and protanopia simulations against the ruling's own figures; every declared series pair carrying a non-colour channel. |
 | `torchlight_amber_lint_test.dart` | A `flame*` token named anywhere under `lib/` outside the five-file emitter allowlist. |
@@ -425,7 +476,7 @@ same twelve amber objects on one screen.
 
 The arithmetic: **Night = 2** — the nav's active tab is slot 1 whenever the nav
 renders, content gets one grant on a tabbed route and two on an untabbed one.
-**Day and Veld = 1**, and it is the primary commit block; zero when nothing is
+**Day = 1**, and it is the primary commit block; zero when nothing is
 armed. The nav is *counted*, not exempt — kit called it "reserved" and manager
 called it "exempt", both produce the same number, and "counted" is the honest
 word.
@@ -554,9 +605,9 @@ Four things it owns:
 
 ### 9.3 MotionBudget — one `still` boolean
 
-**What it is.** `disableAnimations ∨ Veld ∨ powerSave`, resolved once and read
+**What it is.** `disableAnimations ∨ powerSave` ~~`∨ Veld`~~, resolved once and read
 by everything that moves. The audit found four ambient loops, two of which
-honoured reduce-motion and none of which knew about Veld.
+honoured reduce-motion.
 
 ```dart
 if (MotionBudget.of(context).still) {
@@ -629,14 +680,18 @@ backlight every time.
 role × fill pairing for one skin at one density, with the floor taken from the
 role that is actually set in the ink — `meta` at 12px needs 4.5:1 and
 `figure.l` at 32px needs 3.0:1, so the same two colours are two different
-verdicts. It runs over all five skin × density combinations the app can build
-(Veld appears once: `Veld × Console` has no spelling), which is about a thousand
-pairings.
+verdicts. It runs over ~~all five~~ **all four** skin × density combinations
+the app can build ~~(Veld appears once: `Veld × Console` has no spelling)~~,
+which is about eight hundred pairings.
 
-Veld's 9:1 / 15:1 floors are now **tokens on the skin** — `skin.textFloor` and
+~~Veld's 9:1 / 15:1 floors are now **tokens on the skin** — `skin.textFloor` and
 `skin.borderFloor`, combined with the role's floor by `skin.floorFor` — rather
 than an `if (mode == veld)` in the generator. A skin is a value set, not a code
-path.
+path.~~ **Struck 28 September 2026.** With Veld gone no skin declares a floor
+of its own: `textFloor`, `borderFloor` and `floorFor` are removed, along with
+`ContrastRole.veldText` and `veldBorder`, and the role's own floor is the whole
+requirement everywhere. "A skin is a value set, not a code path" still holds —
+it is why there was nothing to unbranch here.
 
 **The colour-vision passes.** `simulateVision(color, filter)` implements
 greyscale plus Viénot–Brettel–Mollon deuteranopia and protanopia in
@@ -776,7 +831,7 @@ landed; screens adopt it one feature folder at a time, behind a green suite.
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
 // A list row — a CARD: radius 22, `surface` fill, no outline, an s5 margin
-// and an s3 gap of ground to the next one. Veld keeps the flush form.
+// and an s3 gap of ground to the next one.
 SoftRow(
   density: SoftRowDensity.standard,        // compact 56 / standard 64 / tall 80
   title: outlet.name,
@@ -850,8 +905,8 @@ inactive alert rule — carries the word, not the flag.
 
 `SoftRowSeparator` has two members — `auto` and `none` — and `none` means
 "last in the group", not "a different line". On a card `auto` is the **gap of
-ground** under it; in Veld, where the row is still flush, it is the rule, and
-the rule's **colour is not a parameter**: `edgeStructure` (3.73:1) between
+ground** under it. Where a rule does the separating its **colour is not a
+parameter**: `edgeStructure` (3.73:1) between
 tappable rows because 1.4.11 wants a perceivable boundary around a UI
 component, `hairline` between non-tappable ones because there it is
 decoration.
@@ -884,10 +939,10 @@ PersonRow(name: ..., role: ..., outlet: ...)  // #399/#400 — never an id
 
 | Rule | Where it lives |
 |---|---|
-| 56 / 64 / 80, collapsing to 64 in Veld | `SoftRowSpec.minHeight` |
-| a card's margin is the gutter and its gap is s3; a Veld row has neither | `SoftRowSpec.margin` / `.gapAfter` |
+| 56 / 64 / 80 | `SoftRowSpec.minHeight` |
+| a card's margin is the gutter and its gap is s3 | `SoftRowSpec.margin` / `.gapAfter` |
 | content starts at the same inset with or without a severity bar | `SoftRowSpec.severityLane`, always reserved |
-| pressed = `lifted` fill **and** an `edgeControl` edge **and** scale 0.98 **and** the tick haptic — the card *gains* the edge, Veld's flush row *doubles* its rule | `SoftRowSpec.resolve(pressed: true)` |
+| pressed = `lifted` fill **and** an `edgeControl` edge **and** scale 0.98 **and** the tick haptic — the card *gains* the edge | `SoftRowSpec.resolve(pressed: true)` |
 | critical = solid bar, watch = outlined bar, both plus a word | `SoftRowSpec.barFill` / `barStroke` + `severityLabel` |
 | the trailing column drops beneath the text rather than squeezing the title | measured in `_RenderSoftRowContent`, never guessed from the text scale |
 | a name middle-truncates; the full name is what a screen reader gets | `MiddleTruncatedText` + the row's `Semantics` label |
@@ -895,7 +950,7 @@ PersonRow(name: ..., role: ..., outlet: ...)  // #399/#400 — never an id
 
 The press needs both channels because the fill step alone is 1.49:1 on the
 Night well: invisible on a 6-bit panel at 40% backlight, which is the panel a
-field agent has. On Day and Veld `lifted` is an ink block on paper, so the press
+field agent has. On Day `lifted` is an ink block on paper, so the press
 inverts and the ink goes to `ground` with it.
 
 ### Adopting it on a screen
@@ -921,7 +976,7 @@ inverts and the ink goes to `ground` with it.
 
 `test/core/widgets/torchlight/row/goldens/soft_row_<skin>.txt` — one line per
 `form × density × severity × tappable × pressed × textScale`, per skin, in the
-ruling's sequence: Night first, then Day, Veld last. They are **text**, not
+ruling's sequence: Night first, then Day. They are **text**, not
 PNGs: CI runs `flutter test` on `ubuntu-latest` while the repo is developed on
 macOS, and an image golden that disagrees across platforms gets skipped within a
 week. What unify §1.3 rules is a set of declared values, and a text golden names
@@ -963,9 +1018,12 @@ image."*
 | severity mark | a 3px bar down the leading edge | a **dot**, 8dp, at the same lane |
 | press | fill steps **and** the rule doubles to 2px `edgeControl` | fill steps **and** the card *gains* a 1px `edgeControl` edge |
 
-**Veld is the exception and keeps its own rules**: radius 0, no fill, 2px
+~~**Veld is the exception and keeps its own rules**: radius 0, no fill, 2px
 `#1B2632` borders, the 6px bar. A soft translucent row on white under glare
-stops reading as a row at all, and that is the whole reason Veld exists.
+stops reading as a row at all, and that is the whole reason Veld exists.~~
+**Struck 28 September 2026** — there is no exception left. Every list row in
+the product is a card, `SoftRowSpec` has no `veld` branch, and the severity
+mark is a dot everywhere.
 
 Two other objects came with it, on the same screen and the same day:
 `TiqRadii.plate` 20 → **28**, because the plate stopped being a full-bleed band
@@ -997,8 +1055,7 @@ grammar is scoped:
 
 `docs/design/spec/unify.md` §1.3 carries the same note, so a reader who starts
 from the ruling finds the override before they "fix" it back. The pins are
-`soft_row_test.dart` (the card's declared values, and Veld's flush exception)
-and the five text goldens.
+`soft_row_test.dart` (the card's declared values) and the four text goldens.
 
 ---
 
@@ -1035,9 +1092,9 @@ something is filtered.
    If two components would disagree about it, it is a token.
 2. Add the field to `TiqPalette` (or `TiqSpace` / `TiqType` / `TiqDepth`), with
    a doc comment saying what it is **for** — the job, not the colour.
-3. Give it a value in **all three** value sets. Veld usually wants a different
-   answer, not a lighter one: it has no shadow, no gradient and no fill step to
-   spend, so ask what carries the meaning when those are gone.
+3. Give it a value in **both** value sets. Day usually wants a different
+   answer, not a lighter one: amber is ink there rather than light, so ask what
+   carries the meaning when the dark ground is gone.
 4. Extend `lerp` (and `copyWith` on `TiqSkin` if you added a top-level field).
 5. **Declare its contrast.** Add a `ContrastPairing` to
    `TorchlightContrast.declared` for every surface it can sit on, with the role
@@ -1269,8 +1326,8 @@ they keep rendering exactly as they did.
 - `AppTheme.dark()` / `AppTheme.light()` are unchanged Lumen themes, except that
   they now also register a `TiqSkin`, so **`context.skin` resolves everywhere
   today**. The only visible change is the typeface: Onest replaces Inter.
-- `AppTheme.night()`, `AppTheme.day()` and `AppTheme.veld()` are the Torchlight
-  themes. They register both a `TiqSkin` and a `TiqColors` derived from it by
+- `AppTheme.night()` and `AppTheme.day()` are the Torchlight themes
+  (~~`AppTheme.veld()`~~ went with the skin, 28 September 2026). They register both a `TiqSkin` and a `TiqColors` derived from it by
   `TiqColors.fromSkin`, so a screen still on `context.colors` renders in
   Torchlight tokens the moment it is pointed at one.
 - `TiqColors.fromSkin` is the whole slot-by-slot mapping table, in one place. It
@@ -1307,10 +1364,11 @@ route had been migrated had no way out of the app from a phone.
 
 **Sequencing.** `GlassPane` is in 61 files and is deleted when its call sites are
 empty, not first. Golden infrastructure lands **Night only**, before any feature
-screen is ported; Day follows per component; **Veld is sequenced last**, after
+screen is ported; Day follows per component; ~~**Veld is sequenced last**, after
 Night and Day are shipped and stable, because it has the fewest users per day
 and the highest per-component tax — and shipping it third means its goldens are
-written against components that have stopped moving.
+written against components that have stopped moving.~~ **Struck 28 September
+2026 — there is no third skin to sequence.**
 
 ---
 
@@ -1346,11 +1404,11 @@ app/lib/core/widgets/torchlight/
 
 | | geometry | amber |
 |---|---|---|
-| `TorchPrimaryButton` | 56 Field / 44 Console / 64 Veld, radius 10, full width | `TorchClaim.primaryCommit`, rung 1 |
+| `TorchPrimaryButton` | 56 Field / 44 Console, radius 10, full width | `TorchClaim.primaryCommit`, rung 1 |
 | `TorchSecondaryButton` | the same, ghost | none |
-| `TorchTertiaryButton` | text + rule, 48dp target (56 Veld) | none |
+| `TorchTertiaryButton` | text + rule, 48dp target | none |
 | `TorchDestructiveButton` | the same block, 2px crimson outline | none, categorically |
-| `TorchIconButton` | 48 square (44 Console, 56 Veld), 24dp glyph | none |
+| `TorchIconButton` | 48 square (44 Console), 24dp glyph | none |
 
 Every height is a **minimum**. At 2.0× the label wraps and the button grows to
 intrinsic height with 16dp of vertical padding; nothing is pinned and nothing is
@@ -1375,8 +1433,8 @@ primary lives at the bottom edge of a 96dp thumb zone and there is nothing under
 it to put a sentence in.
 
 The primary's label role is a lookup, not a new token: unify §1.7's **16/600
-Field, 14/600 Console, 18/700 Veld** lands exactly on Field `title.m`, Console
-`body.strong` and Veld `title.m`.
+Field, 14/600 Console** lands exactly on Field `title.m` and Console
+`body.strong`.
 
 **Night's granted form is a lit block, not an amber one.** `lifted` fill, a
 flame-600 rim, Palladian label, and a 2dp `TiqPalette.glowAmber` gradient bleed
@@ -1386,14 +1444,14 @@ census's 0.90 floor, so the census reads a 1px rim as four separate lights and a
 correctly built commit button fails the budget it obeys. A rim the enforcement
 mechanism cannot count is a rim that fails the law it exists to serve.
 
-**Day and Veld** are a solid `flame600` block carrying `onAmber`, with a real
-`ink1` edge — an amber block on Palladian is 1.6:1 against its own ground and
-nothing here is identified by a fill alone. **Pressed** floods to `amberPressed`
-with `onAmberPressed`: in Night that is flame-500 with `#0B1017` at 8.59:1,
-exactly as §1.7 asks. Veld does *not* lighten — `#0E141A` on flame-500 is 8.34:1,
-under the 9:1 floor Veld declares for every word it shows — so its press inverts
-to the ink block with white on it. That is the palette's own argued answer and it
-is read from the token rather than restated in the widget.
+**Day** is a solid `flame600` block carrying `onAmber`, with a real `ink1`
+edge — an amber block on Palladian is 1.6:1 against its own ground and nothing
+here is identified by a fill alone. **Pressed** floods to `amberPressed` with
+`onAmberPressed`: flame-500 with dark ink at 8.59:1, exactly as §1.7 asks. The
+value is read from the token rather than restated in the widget. ~~Veld does
+*not* lighten — `#0E141A` on flame-500 is 8.34:1, under the 9:1 floor Veld
+declares for every word it shows — so its press inverts to the ink block with
+white on it.~~
 
 `TorchIconButton` takes `semanticLabel` as a **required constructor argument**
 and asserts it is not empty. That is the whole reason it exists in a codebase
@@ -1412,17 +1470,16 @@ that always has to be there. Ghost controls also step their edge from 1px to 2px
 because Night's fill step is 1.67:1 on the ground and that is not enough on a
 6-bit panel at 40% backlight.
 
-`torchPressSurface(skin)` is the fill-and-ink pair: Night steps up to `lifted`,
-Day steps down to `well`, and Veld — which has no fill steps at all, every one of
-its surface tokens being white — inverts to the ink block with white on it.
+`torchPressSurface(skin)` is the fill-and-ink pair: Night steps up to `lifted`
+and Day steps down to `well`.
 
 `torchAbyssal(skin)` / `torchOnAbyssal(skin)` are the non-amber way this system
-says *this one*: `lifted` in all three skins, carrying Palladian in Night and Day
-(9.43:1) and white in Veld (15.33:1). `TiqSkin.onFill` cannot answer that,
+says *this one*: `lifted` in both skins, carrying Palladian in Night and Day
+(9.43:1). `TiqSkin.onFill` cannot answer that,
 because `lifted` is a dark **ground** in Night and a dark **ink block** in Day.
 
-The keyboard focus ring is 2px flame-700 at a 2dp offset in Night, 2px ink-1 at
-2dp in Day, 3px ink-1 at 3dp in Veld. It renders only under
+The keyboard focus ring is 2px flame-700 at a 2dp offset in Night and 2px
+ink-1 at 2dp in Day. It renders only under
 `FocusHighlightMode.traditional` and is the one amber the ladder does not count,
 by declaration — it never co-occurs with a touch frame and never appears for a
 touch user.
@@ -1457,13 +1514,12 @@ TorchScope(
 ```
 
 **`TorchShell`** — gutter, header, scroll frame, bottom region. The console
-profile paints the letterbox falloff (four stops, one gradient, one draw call;
-none in Veld) and widens the gutter past 1080dp. Three bottom regions, one of
+profile paints the letterbox falloff (four stops, one gradient, one draw call)
+and widens the gutter past 1080dp. Three bottom regions, one of
 which always applies:
 
 1. **tab root** — a floating 64dp row, inset 16, 20dp above the safe area: the
-   pill, a 12dp gap, the 64dp circle. In Veld the bar **docks** and the circle
-   floats above its trailing end.
+   pill, a 12dp gap, the 64dp circle.
 2. **a screen with a primary** — a `TorchThumbZone`.
 3. **neither** — a 76dp zone holding the skin cycle alone.
 
@@ -1505,9 +1561,11 @@ pill takes its 6dp inset. Manager: Floor · Work · Ask · Menu. Agent: Today ·
 work · Map · Me.
 
 The active tab is a solid pill inset 6dp, 48 tall, radius 999 — `flame600` with
-`#0B1017` at 10.65:1 in Night, a solid Abyssal block with Palladian or white ink
-on a light ground, **never amber there**. **Veld docks the bar**: full bleed,
-72dp, a 2px top border, radius 0, which also gives back 36dp of fold.
+`#0B1017` at 10.65:1 in Night, a solid Abyssal block with Palladian ink on a
+light ground, **never amber there**. ~~**Veld docks the bar**: full bleed, 72dp,
+a 2px top border, radius 0, which also gives back 36dp of fold.~~ **Struck 28
+September 2026 — the bar floats in both skins; `TorchNavPill.height` is a flat
+64.**
 
 `TorchNavSlot` requires **both** `icon` and `activeIcon`. That is not decoration:
 at 2.0× the bar goes icon-only, the label and its 700 weight disappear, and if
@@ -1523,14 +1581,16 @@ glyph (`icon` → `expectedIcon`, an outlined plus becoming a filled arrow) and 
 the spoken label, before any fill changes — so the state survives greyscale, a
 light ground where it is never amber at all, and a screen reader.
 
-**`TorchSkinCycle`** — 56dp (64 Veld, 72 at 2.0×), three positions, each a
-different glyph: sun is Veld, paper is Day, moon is Night. `TorchSkinCycle.next`
-is Day → Veld → Night → Day. Its `semanticLabel` names the **next** state, and it
-is a live region. Per unify §1.2 it is *not* on the nav row: on a tab root it is
+**`TorchSkinCycle`** — 56dp (72 at 2.0×), ~~three~~ **two** positions, each a
+different glyph: ~~sun is Veld,~~ paper is Day, moon is Night.
+`TorchSkinCycle.next` is ~~Day → Veld → Night → Day~~ **Day → Night → Day**
+(**28 September 2026** — the sun position went with the skin; the label rule,
+the persistence and both homes are unchanged). Its `semanticLabel` names the
+**next** state, and it is a live region. Per unify §1.2 it is *not* on the nav row: on a tab root it is
 the header's single trailing icon button, and on every other screen it is at the
 leading end of the thumb zone.
 
-**`TorchThumbZone`** — 96dp (112 Veld, 160 with a second action), a rule across
+**`TorchThumbZone`** — 96dp (160 with a second action), a rule across
 the full bleed, the cycle at the leading gutter and the primary beside it. The
 second action sits **above** the primary: the thumb rests at the bottom of the
 screen and a control that throws work away must never be the bottom-most thing
@@ -1563,10 +1623,10 @@ connected regions in the frame:
 |---|---|---|
 | Night | **2** | the nav's active tab, and the primary's rim |
 | Day | **1** | the primary block; the tab is Abyssal |
-| Veld | **1** | the primary block; the bar is docked and its tab is ink |
+| ~~Veld~~ | ~~**1**~~ | ~~the primary block; the bar is docked and its tab is ink~~ |
 | any, beneath a sheet | **0** | every amber on the route goes out |
 
-The nav circle asked and lost with `TorchDenial.circleWithPrimary` in all three.
+The nav circle asked and lost with `TorchDenial.circleWithPrimary` in both.
 
 Building that test found a real bug in the Phase 0 harness, and it is fixed here:
 dark ink on an amber block leaves amber showing through the counter of every `o`,
@@ -1580,7 +1640,7 @@ Four files are added to `TorchlightScanner.amberAllowlist`: `primary_button`,
 `nav_pill`, `nav_circle` and `torch_press`. Every one of them asks the allocator
 first.
 
-### 12.5 The nav bar at 2.0× text, and in Veld
+### 12.5 The nav bar at 2.0× text
 
 At build the bar lays out **every localised label** with a `TextPainter`, at the
 ambient scaler, against the slot width it actually has. If any one of them
@@ -1601,11 +1661,12 @@ thing carrying the destination — 24dp up to a cap of 32, because the active pi
 is 48 and a 48dp glyph in a 48dp pill is a glyph with no pill around it. The bar
 is 64dp **minimum** and grows only when measured content will not fit.
 
-In Veld the bar docks: full bleed, 72dp, a 2px `#1B2632` top border, radius 0,
+~~In Veld the bar docks: full bleed, 72dp, a 2px `#1B2632` top border, radius 0,
 its active slot a solid ink block with white on it at 15.33:1, targets at 56, no
-gradient, no shadow, no rim, no bloom. `chrome_golden_test.dart` asserts all
-three — no `BackdropFilter`, `ImageFiltered` or `ShaderMask` anywhere in the
-frame, no `BoxShadow` in Night or Veld, and no gradient at all in Veld.
+gradient, no shadow, no rim, no bloom.~~ **Struck 28 September 2026.**
+`chrome_golden_test.dart` asserts both skins — no `BackdropFilter`,
+`ImageFiltered` or `ShaderMask` anywhere in the frame, and no `BoxShadow` in
+Night.
 
 ### 12.6 What a migrating screen has to do
 
@@ -1805,9 +1866,9 @@ StatCluster(
 )
 ```
 
-Four tiles maximum on a phone, three recommended, two in Veld. Cells are
+Four tiles maximum on a phone, three recommended. Cells are
 separated by a **12dp gap with a 1px rule centred in it** — `edgeStructure` in
-Night, the decorative hairline on paper, 2px in Veld. Both, not either: a
+Night and the decorative hairline on paper. Both, not either: a
 hairline alone measures 1.72:1 and a gap alone loses because a tile's own rows
 are 8dp apart. Below 320dp of inner width (which is every phone) the cluster is
 one column of horizontal tiles; above it, a two-column grid of vertical cells,
@@ -1823,7 +1884,7 @@ the word; `reconciliation:` hangs a `ReconciliationLine` under the figure.
 Meter(value: 61, target: 80, semanticsValue: '61 out of 100, target 80')
 ```
 
-Track 4dp Console / 6dp Field / 8dp Veld, scaling at half rate. **The target
+Track 4dp Console / 6dp Field, scaling at half rate. **The target
 tick is ink-1 everywhere** and `TorchClaim.meterTick` does not exist: a target
 is an annotation, an annotation is a label, and — the load-bearing half — the
 amber budget is counted per *route*, where up to ten ticks can appear against a
@@ -1866,7 +1927,7 @@ is the common case.
 
 Not one component in these two folders names a flame token or declares a
 `TorchClaim`. `marks_amber_test.dart` renders **every state of every one of
-them in all three skins** through the amber census and requires zero lit
+them in both skins** through the amber census and requires zero lit
 regions, and then scans both folders for any spelling of an amber token. The
 `Live` status chip is a `well` dot and the word; the breathing amber pulse that
 can accompany presence is a separate emitter on the ladder, claimed by whatever
@@ -1877,7 +1938,7 @@ owns the presence, and is not part of this component.
 There are no `matchesGoldenFile` PNGs here, deliberately and for the same reason
 the amber census has none: a byte golden fails on a font hint, passes on a
 semantic regression, and gets re-baselined by whoever is in a hurry. The
-goldens are **measurements**, Night first, then Day, Veld last:
+goldens are **measurements**, Night first, then Day:
 
 - `section_state_glyph_test.dart` renders each of the four states, converts to
   luminance and requires that every pair differ — so "can't confirm" is proved
@@ -1931,7 +1992,7 @@ hero band replaces it — a smaller photograph is a photograph nobody can read
 | 720 | 280 | 106.4 | 134.4 | `hero.figure` |
 | 892 | 360 | 136.8 | 172.8 | `hero.figure` |
 | 600 | *collapsed, 96* | — | — | `hero.figure.compact` |
-| any, Veld | *none* | — | — | — |
+| ~~any, Veld~~ | ~~*none*~~ | — | — | — |
 
 **The light is one object.** A 2px `flame600` line at `0.38h`, clamped out of the
 lower 40%, with a 48dp `glowAmber` gradient above it. Line plus bloom is one
@@ -1969,7 +2030,7 @@ bloom). Zero `BackdropFilter`, `ShaderMask`, `ImageFiltered`, `saveLayer` and
 ### 14.3 The section rule
 
 A rule gutter to gutter with the section's name sitting on it, left, knocked out
-12dp either side (16 in Veld), `title.m` 16/600 `ink1`, **sentence case**. A count
+12dp either side, `title.m` 16/600 `ink1`, **sentence case**. A count
 follows the name in `figure.s` tabular mono `ink3`, inside the same knock-out.
 An optional ghost action sits at the far end in a 44dp box.
 
@@ -2037,7 +2098,7 @@ would put two measurements in one column and make it unreadable as a column.
 | Floor, Night, with a photo | **2** | nav active tab, plate strip light |
 | Floor, Night, no photo | **1** | nav active tab |
 | Floor, Day | **0** | no primary on this route |
-| Floor, Veld | **0** | no plate, no amber |
+| ~~Floor, Veld~~ | ~~**0**~~ | ~~no plate, no amber~~ |
 | First-run board, Night | 1 | nav active tab |
 
 The hero's delta is severity crimson, the sparkline's last dot is severity
@@ -2065,9 +2126,9 @@ circle sits at rung 4.
 ## 15. Phase 2 — the containers, the states and the inputs
 
 Three folders — `sheet/`, `state/`, `input/` — and one rule that runs through
-all three: **none of these components emits light.** The amber lint's emitter
+both: **none of these components emits light.** The amber lint's emitter
 allowlist is still pinned at ten files and none of them is here; the census in
-`phase2_amber_test.dart` walks every state of every component in all three
+`phase2_amber_test.dart` walks every state of every component in both
 skins and counts flame-hued regions. The only lit objects it finds are the
 three sheet commit actions the ruling put on the ladder, and those are
 `TorchPrimaryButton` asking `TorchScope` exactly as it does everywhere else.
@@ -2101,8 +2162,7 @@ three sheet commit actions the ruling put on the ladder, and those are
 | `VerdictControl` | *(new — #392)* — the fraud queue's ruling | its commit |
 
 `SectionRule` is **not** in this list. It landed in Phase 1 and already
-generalises — count slot, action slot, empty line, the 2.0× wrap and the Veld
-above-the-rule form. Phase 2 adds nothing to it.
+generalises — count slot, action slot, empty line and the 2.0× wrap. Phase 2 adds nothing to it.
 
 ### 15.2 The one modal container, and the dialog that is gone
 
@@ -2113,15 +2173,15 @@ what happens to the amber underneath.
 
 `TorchSheetSpec` resolves it once:
 
-| | Night / Day | Veld |
-|---|---|---|
-| form | a sheet over a scrim | a **full-screen white route** |
-| scrim | `ground` @ 72% | none |
-| radius | 14, top two corners | 0 |
-| outline | 1px `edgeStructure`, top and sides | 2px, all four |
-| ceiling | 88% of the viewport | the route |
-| grabber | `#616465`, 40×4, declared | none — a 56dp Close row instead |
-| padding | gutter each side, 16 below the grabber, 24 + safe area at the foot | the same, at Veld's 24dp gutter |
+| | Night / Day |
+|---|---|
+| form | a sheet over a scrim |
+| scrim | `ground` @ 72% |
+| radius | 14, top two corners |
+| outline | 1px `edgeStructure`, top and sides |
+| ceiling | 88% of the viewport |
+| grabber | `#616465`, 40×4, declared |
+| padding | gutter each side, 16 below the grabber, 24 + safe area at the foot |
 
 Four rules carry the weight:
 
@@ -2145,7 +2205,7 @@ A sheet that needs a sheet cross-fades its own content through
 but no animator at all: `AnimatedSize` at zero duration still re-dirties itself
 inside its own `performLayout` when a pane arrives at a new height.
 
-**The grabber is a hex.** `#616465`, in all three skins, measured — not "ink-1
+**The grabber is a hex.** `#616465`, in both skins, measured — not "ink-1
 at 38%", which is a different grey on every surface it lands on. Opacity is
 banned as a colour channel for the same reason it is banned as a state channel.
 
@@ -2203,8 +2263,8 @@ exactly the ratio the device floor forbids. Rows and panels are their own 1px
 outline at their real geometry, empty. Nothing renders before 600ms; the
 travelling rule is 2px **Oatmeal** on a 1400ms loop, never amber, because a
 skeleton is loading and not live; after 10s the rule stops and a line appears.
-**Veld has no skeleton at all** — the word `Loading`, at the gutter, and
-nothing else.
+~~**Veld has no skeleton at all** — the word `Loading`, at the gutter, and
+nothing else.~~ **Struck 28 September 2026 — both skins get the skeleton.**
 
 **Empty state.** Left-aligned and top-anchored, never centred: a centred block
 grows in both directions and at 2.0× with a four-line Afrikaans headline it
@@ -2275,7 +2335,7 @@ in exactly the states that matter.
 A trough carries a **real edge on all four sides** at `edgeControl`: Night's
 `well` on Night's `ground` is 1.12:1, and a field identified by that fill and
 one bottom rule is a floating line on black. Focus **thickens** the rule
-1px → 2px (2 → 4 in Veld) as well as changing its hue, which is the channel a
+1px → 2px as well as changing its hue, which is the channel a
 reader who cannot separate two greys still gets. Read-only drops the fill, the
 edge and the rule entirely — it stops looking like a field, rather than being
 dimmed to 0.8, which is a state the contrast walk cannot see.
@@ -2299,7 +2359,7 @@ separator, and `1.5` typed on an Afrikaans phone is **accepted** and normalised
 rather than refused.
 
 **Count stepper** (unify §1.8, #407). The value trough leads and an adjacent
-`[−][+]` pair sits at the trailing edge, 56×56 each (64 in Veld) with a 1px
+`[−][+]` pair sits at the trailing edge, 56×56 each with a 1px
 rule between — the arrangement of every till and fuel pump in the country.
 `[−]` and `[+]` at opposite margins is 250dp of grip-shift per adjustment,
 twelve times a bay, for someone with a crate on their other arm.
@@ -2319,7 +2379,7 @@ Three rules there are about data rather than layout:
   `TorchBuzz.finding`, because the agent is looking at the shelf and zero is
   the most valuable thing they can record.
 
-**Toggle.** 52×32 (64×36 Veld), a 26dp thumb with a **tick drawn inside it**,
+**Toggle.** 52×32, a 26dp thumb with a **tick drawn inside it**,
 and **the state word is mandatory** — it has a default rather than being
 nullable, so a caller can localise it but cannot remove it. There is no
 indeterminate state: a toggle sitting at off is a recorded *no*, and an
@@ -2336,21 +2396,20 @@ broken.
 ink-1 border, a mark, weight 700. Three channels, never amber.
 **Nothing-selected is a state**, and it says so in words; re-tapping a selected
 option does not deselect it, because an accidental deselect in a shop loses a
-fact silently. The collapse to a column is measured on real width — and Veld is
-always a column, whatever the arithmetic says.
+fact silently. The collapse to a column is measured on real width — and a
+caller that declares its own stakes gets a column whatever the arithmetic says.
 
 **Filter chip and rail.** Selected is lifted + a 1px ink-1 border + a tick +
 weight 700, and **never amber, on any screen, in any skin**: a rail is a row of
 chips, a multi-select rail is three or four selected ones, and four amber edges
 in one horizontal scroller is the repeated-fill violation the amber law exists
 to prevent. A disabled filter stays visible with its count at zero — hiding a
-filter because it is empty hides the fact that it is empty. In Veld the rail
-does not scroll: horizontal-scroll discovery fails outdoors.
+filter because it is empty hides the fact that it is empty.
 
 ### 15.6 The guards
 
 * **`phase2_amber_test.dart`** — the pixel census over every state of every
-  component × three skins, plus a source scan proving no file in the three
+  component × two skins, plus a source scan proving no file in the two
   folders names a flame token, plus a check that none of them is on the emitter
   allowlist. It checks `takeException` *before* it counts: an `ErrorWidget` is
   crimson, so a component that failed to build would otherwise pass a test
@@ -2360,8 +2419,8 @@ does not scroll: horizontal-scroll discovery fails outdoors.
   block taller than a phone at 2.0× is a paragraph and every real screen
   scrolls; **the width is the instrument**, and what it catches is a pin.
 * **`phase2_golden_test.dart`** — text goldens of every resolved
-  `TorchSheetSpec` and `TroughSpec`, one file per skin, Night first and Veld
-  last. Regenerate with `UPDATE_PHASE2_GOLDENS=1`.
+  `TorchSheetSpec` and `TroughSpec`, one file per skin, Night first then Day.
+  Regenerate with `UPDATE_PHASE2_GOLDENS=1`.
 * **`sheet_test.dart`, `state_test.dart`, `input_test.dart`** — a test per
   state.
 
@@ -2567,21 +2626,24 @@ counts the gaps, and a single measured week between two gaps still draws a dot
 declines it. A trends route carries three charts, the budget is counted per
 route rather than per viewport, and the subject is already carried by weight
 (2dp against 1.5), by a solid stroke against a dashed one, and by the legend's
-word. `chart_test.dart` counts the flame-hued regions in all three skins and
+word. `chart_test.dart` counts the flame-hued regions in both skins and
 requires zero.
 
-### 17.2 Veld, and the table twin
+### 17.2 The table twin
 
-Veld draws no plot (unify §4). `TrendChart` renders `veldReplacement` and its
-legend instead, and on the trends screen the replacement is `TableTwin` — which
-is *also* what a screen reader gets, what a printer gets, and what the
-chart/table toggle offers everywhere else. The twin carries the unabbreviated
-period: the axis says `W26` because it has 40dp, the table says `2026-W26`
-because a manager quoting a week into a spreadsheet needs the year.
+~~Veld draws no plot (unify §4). `TrendChart` renders `veldReplacement` and its
+legend instead, and on the trends screen the replacement is `TableTwin`~~ —
+**struck 28 September 2026: there is no Veld, and `TrendChart.veldReplacement`
+is gone.** `TableTwin` stays, on the reason that was always its second and is
+now its only one: it is what a screen reader gets, what a printer gets, and
+what the chart/table toggle offers on every panel. A drag-scrub plot cannot be
+read without a pointer; this is the reading that can. The twin carries the
+unabbreviated period: the axis says `W26` because it has 40dp, the table says
+`2026-W26` because a manager quoting a week into a spreadsheet needs the year.
 
 ### 17.3 What the group's screens are
 
-| route | frame | Night | Day / Veld |
+| route | frame | Night | Day |
 |---|---|---|---|
 | `/territories` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
 | territory sheet, evidence pane | `TorchSheet` | 0 | 0 |
@@ -2591,7 +2653,7 @@ because a manager quoting a week into a spreadsheet needs the year.
 | `/trends` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
 | `/dispatch` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
 
-Every one of those is a test, per phase, in all three skins.
+Every one of those is a test, per phase, in both skins.
 
 ### 17.4 Two things the wire made the screens lie about
 
@@ -2731,7 +2793,7 @@ working. A dry run whose result is a snackbar is a dry run nobody read.
 
 ### 18.8 The census
 
-| screen | frame | Night | Day / Veld |
+| screen | frame | Night | Day |
 |---|---|---|---|
 | `/outlets` | `ConsoleFrame`, Menu slot | 1 — the nav tab | 0 |
 | `/outlets/create` | `TorchShell` + thumb zone | 1 armed, 0 blocked | the same |
@@ -2748,7 +2810,7 @@ The three pushed screens are `PageRouteBuilder`s over their list rather than
 router paths, which is why the nav is not on them and Night spends its second
 grant on nothing.
 
-Every cell is a test, per phase, in all three skins — loaded, empty, loading
+Every cell is a test, per phase, in both skins — loaded, empty, loading
 and error, not only the happy one.
 
 ### 18.9 What is not built, and why

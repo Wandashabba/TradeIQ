@@ -452,7 +452,7 @@ void main() {
       expect(census.objectCount, 2, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
         final image = await SyncImage.solid(tester);
         await pumpFloor(
@@ -556,14 +556,6 @@ void main() {
       expect(PlateSpec.heightFor(844), 312);
     });
 
-    test('Veld draws no plate at all', () {
-      final spec = PlateSpec.resolve(
-        skin: TiqSkin.veld(),
-        viewportHeight: 900,
-      );
-      expect(spec.form, PlateForm.none);
-      expect(spec.height, 0);
-    });
   });
 
   group('Afrikaans', () {

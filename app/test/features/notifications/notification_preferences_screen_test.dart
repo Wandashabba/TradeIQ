@@ -277,7 +277,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       // The agent's branch is pushed, so there is no nav and no tab — and it
       // declares no claim, because a preference saves itself on the flip.

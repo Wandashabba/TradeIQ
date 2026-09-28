@@ -598,7 +598,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {
         testWidgets('${skin.mode.name}, $phase: a record of what happened '

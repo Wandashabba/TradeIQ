@@ -311,24 +311,6 @@ void main() {
       expect(find.byType(FlutterMap), findsOneWidget);
     });
 
-    testWidgets('does not render in Veld, and says why', (tester) async {
-      // Maps do not render in the outdoor skin (unify §4). A dark basemap read
-      // in direct sun at 40% backlight is a black rectangle.
-      await _pump(
-        tester,
-        skin: TiqSkin.veld(),
-        agents: <AgentActivity>[_agent()],
-      );
-
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(
-        find.byKey(const ValueKey<String>('trail-map-veld')),
-        findsOneWidget,
-      );
-      // And the day is still a screen, not an absence.
-      expect(find.textContaining('1. Sandton Spar'), findsOneWidget);
-    });
-
     testWidgets('does not render on a phone with no room, without a note', (
       tester,
     ) async {
@@ -564,7 +546,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{

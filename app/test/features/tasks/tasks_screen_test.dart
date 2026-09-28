@@ -999,7 +999,7 @@ void main() {
       );
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
         await _pump(
           tester,
@@ -1062,13 +1062,12 @@ void main() {
     /// Every phase this route can settle in, in every skin, counted.
     ///
     /// The worklists nominate no content amber, so the arithmetic is the same
-    /// everywhere: Night paints the nav's active tab and nothing else; Day and
-    /// Veld paint nothing, because their one rung is the primary commit block
+    /// everywhere: Night paints the nav's active tab and nothing else; Day
+    /// paints nothing, because its one rung is the primary commit block
     /// and a worklist has none armed.
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{

@@ -52,18 +52,13 @@ Future<void> pumpRow(
   await tester.pump();
 }
 
-/// The five skin × density pairings a row actually ships in, in the ruling's
-/// sequence: Night first, then Day, Veld last.
-///
-/// `Veld × Console` is absent because it cannot be constructed —
-/// `TiqSkin.veld()` takes no density argument, which is the type system
-/// carrying a design rule.
+/// The four skin × density pairings a row actually ships in, in the ruling's
+/// sequence: Night first, then Day.
 const List<(String, TiqDensity?)> rowSkinMatrix = <(String, TiqDensity?)>[
   ('night-console', TiqDensity.console),
   ('night-field', TiqDensity.field),
   ('day-field', TiqDensity.field),
   ('day-console', TiqDensity.console),
-  ('veld', null),
 ];
 
 TiqSkin skinFor(String name) => switch (name) {
@@ -71,7 +66,6 @@ TiqSkin skinFor(String name) => switch (name) {
   'night-field' => TiqSkin.night(density: TiqDensity.field),
   'day-field' => TiqSkin.day(density: TiqDensity.field),
   'day-console' => TiqSkin.day(density: TiqDensity.console),
-  'veld' => TiqSkin.veld(),
   _ => throw ArgumentError('Unknown skin $name'),
 };
 

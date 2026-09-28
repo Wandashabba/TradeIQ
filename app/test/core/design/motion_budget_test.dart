@@ -5,33 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/motion_budget.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
-/// One boolean, three inputs, and the one that is not wired yet.
+/// One boolean, two inputs, and the one that is not wired yet.
 void main() {
   group('the arithmetic', () {
-    test('still is the OR of the three inputs', () {
+    test('still is the OR of the two inputs', () {
       expect(MotionBudget.moving.still, isFalse);
       expect(
-        const MotionBudget(
-          disableAnimations: true,
-          veld: false,
-          powerSave: false,
-        ).still,
+        const MotionBudget(disableAnimations: true, powerSave: false).still,
         isTrue,
       );
       expect(
-        const MotionBudget(
-          disableAnimations: false,
-          veld: true,
-          powerSave: false,
-        ).still,
-        isTrue,
-      );
-      expect(
-        const MotionBudget(
-          disableAnimations: false,
-          veld: false,
-          powerSave: true,
-        ).still,
+        const MotionBudget(disableAnimations: false, powerSave: true).still,
         isTrue,
       );
     });
@@ -41,10 +25,9 @@ void main() {
       expect(
         const MotionBudget(
           disableAnimations: true,
-          veld: true,
           powerSave: true,
         ).reason,
-        'reduce-motion + Veld + battery saver',
+        'reduce-motion + battery saver',
       );
     });
   });
@@ -88,18 +71,6 @@ void main() {
         expect(budget.still, isTrue);
         expect(budget.disableAnimations, isTrue);
       }
-    });
-
-    testWidgets('Veld is still without anyone asking', (tester) async {
-      final budget = await resolve(tester, skin: TiqSkin.veld());
-      expect(budget.veld, isTrue);
-      expect(
-        budget.still,
-        isTrue,
-        reason:
-            'Outdoors, motion is glare that moves. Veld kills every ambient '
-            'loop and it does not need a platform switch to do it.',
-      );
     });
 
     testWidgets('a scope pins the budget for a golden', (tester) async {

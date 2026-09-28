@@ -39,7 +39,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final p = skin.palette;
         for (final MapEntry(key: name, value: token) in <String, Color>{
@@ -209,7 +208,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       testWidgets('${skin.mode.name} — dashboard, loaded', (tester) async {
         await pumpAmberRoute(

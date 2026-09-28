@@ -490,7 +490,6 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final onList = skin.mode == SkinMode.night ? 1 : 0;
       final listPhases = <String, Future<void> Function(WidgetTester)>{

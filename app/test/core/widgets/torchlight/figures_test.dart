@@ -24,10 +24,9 @@ void main() {
       }
     });
 
-    test('track heights are 4 / 6 / 8 by density', () {
+    test('track heights are 4 / 6 by density', () {
       expect(Meter.trackHeight(TiqSkin.night()), 4);
       expect(Meter.trackHeight(TiqSkin.day()), 6);
-      expect(Meter.trackHeight(TiqSkin.veld()), 8);
     });
 
     testWidgets('a null value forces the empty state whatever was declared',
@@ -120,16 +119,6 @@ void main() {
         () => StatCluster(tiles: const <StatTile>[]),
         throwsA(isA<AssertionError>()),
       );
-    });
-
-    testWidgets('Veld takes two', (tester) async {
-      await tester.pumpWidget(
-        skinned(
-          TiqSkin.veld(),
-          SizedBox(width: 288, child: StatCluster(tiles: tiles(4))),
-        ),
-      );
-      expect(tester.takeException(), isA<AssertionError>());
     });
 
     testWidgets('the phone lays out one column of horizontal tiles',
@@ -231,7 +220,6 @@ void main() {
         );
         expect(token.uppercase, isTrue);
       }
-      expect(TiqType.veld.eyebrow.trackingPercent, 4);
     });
 
     testWidgets('it uppercases for display and keeps the sentence for readers',

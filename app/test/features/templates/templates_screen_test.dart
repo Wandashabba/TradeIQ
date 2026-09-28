@@ -200,7 +200,7 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {
         testWidgets('${skin.mode.name}, $phase, paints no amber at all', (
           tester,

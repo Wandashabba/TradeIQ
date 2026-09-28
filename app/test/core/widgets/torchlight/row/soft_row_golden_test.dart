@@ -5,7 +5,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
 import 'row_harness.dart';
 
-/// THE ROW GOLDENS — Night first, then Day, Veld last.
+/// THE ROW GOLDENS — Night first, then Day.
 ///
 /// A golden here is a **snapshot of every declared value the row resolves**,
 /// one line per configuration, checked in as text. It is not a PNG, and that
@@ -31,7 +31,7 @@ import 'row_harness.dart';
 void main() {
   final update = Platform.environment['UPDATE_ROW_GOLDENS'] == '1';
 
-  // Night before Day before Veld, which is the ruling's sequencing and the
+  // Night before Day, which is the ruling's sequencing and the
   // order these files should be read in.
   for (final name in rowSkinMatrix.map((e) => e.$1)) {
     test('$name — the resolved row spec matches its golden', () {

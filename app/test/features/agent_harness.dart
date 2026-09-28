@@ -21,8 +21,8 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 ///
 /// 1. **Pins the skin.** Both screens wrap themselves in a `TorchlightRoute`,
 ///    which reads `agentSkinProvider` and re-roots the theme. Overriding the
-///    provider is therefore the only way a test chooses Night, Day or Veld —
-///    and it is also the real code path, so a test cannot accidentally assert
+///    provider is therefore the only way a test chooses Night or Day — and it
+///    is also the real code path, so a test cannot accidentally assert
 ///    against a skin the running app can never produce.
 /// 2. **Puts the census boundary around the whole frame**, under the same key
 ///    `amberCensus` reads. The bottom region is a sibling of the scroll view,
@@ -31,10 +31,10 @@ import 'package:tradeiq_app/l10n/l10n.dart';
 /// 3. **Pins the size to a 360×640 phone**, because a connected-components
 ///    count is a function of the layout.
 
-/// The three skins in the order the design says to build them: Night first,
-/// then Day, and Veld last.
+/// The two skins in the order the design says to build them: Night first,
+/// then Day.
 List<SkinMode> get agentSkinModes =>
-    <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld];
+    <SkinMode>[SkinMode.night, SkinMode.day];
 
 /// Pins [agentSkinProvider] to one mode, through the real controller.
 class PinnedAgentSkin extends AgentSkinController {

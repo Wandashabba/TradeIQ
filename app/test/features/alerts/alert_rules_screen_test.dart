@@ -612,7 +612,7 @@ void main() {
       );
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
         await _pump(tester, skin: skin, rules: <AlertRule>[_rule()]);
 
@@ -655,13 +655,12 @@ void main() {
     /// Every phase this route can settle in, in every skin, counted.
     ///
     /// Alert rules nominates no content amber, so the arithmetic is the same
-    /// everywhere: Night paints the nav's active tab and nothing else; Day and
-    /// Veld paint nothing, because their one rung is the primary commit block
+    /// everywhere: Night paints the nav's active tab and nothing else; Day
+    /// paints nothing, because its one rung is the primary commit block
     /// and a configuration list has none armed.
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{
@@ -699,7 +698,7 @@ void main() {
       }
 
       // The form spends the one grant its skin has on the commit, and the
-      // route beneath has gone out — in Veld the sheet is a full-screen
+      // route beneath has gone out — the sheet is a
       // route, and the count is the same.
       testWidgets('${skin.mode.name}, form: 1', (tester) async {
         await _pump(tester, skin: skin, rules: <AlertRule>[_rule()]);

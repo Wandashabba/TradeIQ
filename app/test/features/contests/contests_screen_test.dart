@@ -327,10 +327,9 @@ void main() {
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       // Night paints the nav's active tab and nothing else: this route
-      // nominates no content amber. Day and Veld have one rung — the primary
+      // nominates no content amber. Day has one rung — the primary
       // commit block — and this route has no primary.
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{

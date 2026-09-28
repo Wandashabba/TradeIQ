@@ -619,27 +619,6 @@ void main() {
       expect(screenText(tester), contains('2 outlets'));
     });
 
-    testWidgets('Veld lists the outlets instead of drawing tiles', (
-      tester,
-    ) async {
-      // Map tiles in direct sun are a grey smear: the same answer, as rows.
-      await pumpView(
-        tester,
-        artifact('outlet_map', data: mapData),
-        skin: TiqSkin.veld(),
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(
-        find.byKey(const ValueKey<String>('stockout-row-o1')),
-        findsOneWidget,
-      );
-      final text = screenText(tester);
-      expect(text, contains('Kasi Spaza'));
-      expect(text, contains('Maps are not drawn in Veld'));
-    });
-
     testWidgets('an outlet whose count is unknown is a dash, never a 0', (
       tester,
     ) async {
@@ -658,7 +637,6 @@ void main() {
             ],
           },
         ),
-        skin: TiqSkin.veld(),
       );
 
       expect(tester.takeException(), isNull);

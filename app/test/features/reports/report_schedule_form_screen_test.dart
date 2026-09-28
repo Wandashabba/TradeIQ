@@ -303,7 +303,7 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+    for (final skin in <TiqSkin>[TiqSkin.day()]) {
       testWidgets('${skin.mode.name}: zero blocked, one armed', (tester) async {
         await pump(
           tester,

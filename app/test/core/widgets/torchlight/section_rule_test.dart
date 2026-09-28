@@ -244,16 +244,6 @@ void main() {
       expect(find.byType(CustomPaint), findsNothing);
     });
 
-    testWidgets('Veld draws none at all', (tester) async {
-      await pumpTorch(
-        tester,
-        skin: TiqSkin.veld(),
-        child: const Sparkline(points: <double>[61, 64, 58, 52]),
-      );
-
-      expect(find.byType(CustomPaint), findsNothing);
-    });
-
     testWidgets('it paints, and it is never amber', (tester) async {
       await pumpTorch(
         tester,

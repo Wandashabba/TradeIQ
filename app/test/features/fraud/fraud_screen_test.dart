@@ -806,12 +806,11 @@ void main() {
   group('the amber census, every phase in every skin', () {
     // A queue nominates nothing: no commit action is armed on a list, the
     // filter chips are lifted, the severity bars are severity and the flag
-    // chips are neutral. Night paints the nav's active tab; Day and Veld
+    // chips are neutral. Night paints the nav's active tab; Day
     // paint nothing.
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{
@@ -925,23 +924,6 @@ void main() {
       expect(confirmed.top, greaterThan(cleared.bottom - 1));
     });
 
-    testWidgets('Veld is built and the queue still names the person', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      await _pump(
-        tester,
-        skin: TiqSkin.veld(),
-        open: <FlaggedVisit>[_visit()],
-        outlets: _outlets,
-        users: _roster,
-      );
-
-      expect(find.byType(PersonRow), findsOneWidget);
-      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      handle.dispose();
-    });
   });
 
   // THE QUEUE AN AFRIKAANS MANAGER OPENS.

@@ -3,19 +3,59 @@
 Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refine-cinematic.json` and the owner's five standing decisions. Where the spec and an owner decision disagree, the owner decision wins (typeface: Onest + JetBrains Mono; nav: floating pill with a solid amber active tab and a separate circle). Where two designers disagree, one is picked below and the reason is one sentence.
 
 ---
+> **OWNER OVERRIDE — 28 September 2026. VELD IS REMOVED FROM THE PRODUCT.**
+>
+> Veld was the third skin: white ground, near-black ink, radius 0, 2px
+> borders, no gradient, shadow, rim, scrim or blur, nothing under 9:1 for a
+> word or 15:1 for a border, 56dp targets, 64dp rows, larger declared type
+> steps, the nav docked full-bleed, sheets becoming full-screen routes, and
+> no plate, sparkline, chart, map or thumbnail at all. It existed for one
+> reader: **a field agent reading this app in direct sunlight.**
+>
+> The owner was shown that trade and chose removal anyway. **What is given up
+> is outdoor legibility for field agents.** An agent standing in a forecourt
+> at 13:00 now reads the Day skin — Palladian paper, a 1px hairline grammar,
+> radius 22 cards, `ink1` at 11.12:1 on the well — which is a legible screen
+> in a car park and a compromised one in full sun on a 6-bit panel at 40%
+> backlight. Nothing replaces it: there is no high-contrast mode, no
+> outdoor trigger, and no solar-elevation entry.
+>
+> **The skin cycle keeps its place, its semantics label and its persistence
+> and becomes a two-state toggle**: paper (Day) and moon (Night), cycling
+> Day → Night → Day, 56dp in both. It is still on every screen, because the
+> control that gets a person out of a skin they cannot read is still the one
+> control no screen may be without.
+>
+> Every Veld clause below is struck through rather than deleted, so a reader
+> who finds the old rule finds the decision beside it. The code carries none
+> of it: `SkinMode.veld`, `TiqDensity.veld`, `TiqSkin.veld()`,
+> `TiqPalette.veld`, `TiqSpace.veld`, `TiqType.veld`, `TiqDepth.veld`,
+> `TiqRadii.flat`, `AppTheme.veld()`, `TiqSkin.textFloor`/`borderFloor` and
+> `MotionBudget.veld` are all gone.
+>
+> **What Veld justified and what survives it.** `TableTwin` and its
+> chart/table toggle stay: charts not rendering outdoors gave the twin a
+> purpose, but it is also the screen-reader-reachable and printable
+> equivalent of a drag-scrub plot, and that reason outlives the skin. The
+> panels that *forced* the table in Veld now simply offer the toggle, which
+> is what an indoor reader always had. `MarkShape`, the hatch kit, the
+> severity word beside every severity hue and the list halves of the map
+> panels are all likewise kept on their own merits.
+
+---
 
 ## 1. Contradictions — rulings
 
 ### 1.1 The amber budget and how it is counted
 | Surface | Said |
 |---|---|
-| Kit | TorchScope: 2 grants Night, 1 Day/Veld; nav active tab is a *reserved chrome grant* in Night; content gets 1 grant on tabbed routes, 2 untabbed. Ladder: primary → plate → chart focus → nav circle → live pulse → meter tick. |
+| Kit | TorchScope: 2 grants Night, 1 Day ~~/Veld~~; nav active tab is a *reserved chrome grant* in Night; content gets 1 grant on tabbed routes, 2 untabbed. Ladder: primary → plate → chart focus → nav circle → live pulse → meter tick. |
 | Figures | AmberLedger: 2 per screen, chrome counted, resolved statically per phase; data-layer amber exactly once in the product. |
-| Agent | Composed-frame lint: 2 Night, 1 Day/Veld; nav pill is object #1 on tab roots; allows an amber target tick on Outcome, the reward bar and the stat tile. |
+| Agent | Composed-frame lint: 2 Night, 1 Day ~~/Veld~~; nav pill is object #1 on tab roots; allows an amber target tick on Outcome, the reward bar and the stat tile. |
 | Manager | TiqLedger: nav active slot **exempt**, one content nomination. |
 | Assistant | 2 counted, nothing exempt; nav is a 3dp **underbar**; the pill **retracts on scroll**. |
 
-**Ruling — Kit's TorchScope is the mechanism, Figures' static resolution is how it runs, and the arithmetic every surface actually lands on is the same:** Night = the nav's amber tab (when the nav renders) + one content object on a tabbed route; two content objects on an untabbed route (inside a visit, a sheet, a full-screen state); Day/Veld = one, the primary commit block. The nav is *counted* as slot 1 (manager's "exempt" and kit's "reserved" produce the same number; "counted" is the honest word). The claim set is computed by the route's view model at construction and per declared phase (figures), never per frame, so a grant can never blink. The assistant's underbar becomes the pill (owner decision 3); the assistant's scroll-retracting nav is rejected — kit and manager both forbid chrome that changes on scroll, and a slot that came and went with a thumb would make the count flicker.
+**Ruling — Kit's TorchScope is the mechanism, Figures' static resolution is how it runs, and the arithmetic every surface actually lands on is the same:** Night = the nav's amber tab (when the nav renders) + one content object on a tabbed route; two content objects on an untabbed route (inside a visit, a sheet, a full-screen state); Day ~~/Veld~~ = one, the primary commit block. The nav is *counted* as slot 1 (manager's "exempt" and kit's "reserved" produce the same number; "counted" is the honest word). The claim set is computed by the route's view model at construction and per declared phase (figures), never per frame, so a grant can never blink. The assistant's underbar becomes the pill (owner decision 3); the assistant's scroll-retracting nav is rejected — kit and manager both forbid chrome that changes on scroll, and a slot that came and went with a thumb would make the count flicker.
 
 **Meter target tick: ink-1 everywhere. `TorchClaim.meterTick` is deleted from the ladder.** Figures and manager win over kit and agent: a target is an annotation, an annotation is a label, and the tick's silhouette (breaking the track's top edge) is what carries it. Agent's Outcome drops to 1 amber (Next store), What I've earned to 0, the agent stat tile to 0.
 
@@ -29,12 +69,12 @@ Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refi
 
 ### 1.2 Navigation geometry
 - **Bar:** radius 999, 64 tall, inset 16, 20 above safe area, `well` fully opaque, 1px edge-structure outline (kit). Agent/manager/assistant's radius-14 bars lose to owner decision 3.
-- **Active tab:** solid flame-600 pill, radius 999, 48 tall, inset 6, ink `#0B1017` (kit). Day/Veld: solid Abyssal block, ink Palladian/white — never amber.
+- **Active tab:** solid flame-600 pill, radius 999, 48 tall, inset 6, ink `#0B1017` (kit). Day ~~/Veld~~: solid Abyssal block, ink Palladian ~~/white~~ — never amber.
 - **Slots: four maximum** (kit's 360dp arithmetic). Manager: **Floor · Work · Ask · Menu**; Territories move into Menu under OPERATE. Agent: Today · My work · Map · Me.
-- **Circle: 64dp**, outside the bar, 12dp gap (kit; manager's 56 loses because it is the primary action and 56 is the Veld floor).
+- **Circle: 64dp**, outside the bar, 12dp gap (kit; manager's 56 loses because it is the primary action ~~and 56 is the Veld floor~~).
 - **Skin cycle is not on the nav row.** Agent put a 56dp skin cycle beside the pill; at 360dp that leaves 192dp for four slots. Ruling: on tab roots the skin cycle is the app header's single trailing icon button (kit's header allows exactly one; assistant already put it there); on every other agent screen it sits at the leading end of the thumb zone (agent).
 - **Large text:** the bar measures every localised label with a `TextPainter` and goes icon-only as a whole (kit). Agent's 76dp bar and 2×2 grid at ≥1.6× lose — a 132dp nav grid plus a circle plus a thumb zone is a third of a 640dp screen.
-- **Veld docks the nav** — full-bleed, 72dp, 2px top border, radius 0 (manager): a white pill floating on white under glare stops reading as a bar, and Veld has no radius but 0.
+- ~~**Veld docks the nav** — full-bleed, 72dp, 2px top border, radius 0 (manager): a white pill floating on white under glare stops reading as a bar, and Veld has no radius but 0.~~ **Struck 28 September 2026** — the nav floats in both remaining skins.
 
 ### 1.3 Rows — separation, height, fill
 | Surface | Row boundary in Night |
@@ -44,13 +84,13 @@ Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refi
 | Manager | no line, no radius, 12dp ground gap, optional hairline seam |
 | Assistant | 20dp clear space + hairline-decorative |
 
-> **OWNER OVERRIDE — 25 September 2026. The list-row half of this ruling is overturned.** The owner rejected the flush form twice against the running screens ("I hate this box style"; after #458, "it's still very boxy and I don't need that") and sent a reference with the instruction "this is the exact look I'm looking for, roundness — make it exactly as it is on this image." **A list row is a card:** radius 22 (`TiqRadii.card`), `surface` fill as a declared composited hex, **no outline**, an s5 margin so a bled list sits on the screen's gutter line, and an **s3 gap of ground** instead of a rule. The severity bar becomes an 8dp **dot** at the same lane. The press keeps two non-motion channels: the fill steps to `lifted` and the card *gains* a 1px edge-control edge. **Veld is exempt and keeps the flush form below** — radius 0, no fill, 2px borders, the bar — because a soft translucent row on white under glare stops reading as a row. The anti-slop concern below is answered rather than dropped: cards are the grammar for **lists of things a person acts on** and for the one figure block beside them; nothing else gains a radius, and the device-floor argument still holds because a card is identified by its silhouette, not by its 1.49:1 fill. Standalone rows are unchanged. Full reasoning: `docs/design/torchlight-aisle.md` §9c.
+> **OWNER OVERRIDE — 25 September 2026. The list-row half of this ruling is overturned.** The owner rejected the flush form twice against the running screens ("I hate this box style"; after #458, "it's still very boxy and I don't need that") and sent a reference with the instruction "this is the exact look I'm looking for, roundness — make it exactly as it is on this image." **A list row is a card:** radius 22 (`TiqRadii.card`), `surface` fill as a declared composited hex, **no outline**, an s5 margin so a bled list sits on the screen's gutter line, and an **s3 gap of ground** instead of a rule. The severity bar becomes an 8dp **dot** at the same lane. The press keeps two non-motion channels: the fill steps to `lifted` and the card *gains* a 1px edge-control edge. ~~**Veld is exempt and keeps the flush form below** — radius 0, no fill, 2px borders, the bar — because a soft translucent row on white under glare stops reading as a row.~~ **Struck 28 September 2026** — there is no exemption left, and every row in the product is a card. The anti-slop concern below is answered rather than dropped: cards are the grammar for **lists of things a person acts on** and for the one figure block beside them; nothing else gains a radius, and the device-floor argument still holds because a card is identified by its silhouette, not by its 1.49:1 fill. Standalone rows are unchanged. Full reasoning: `docs/design/torchlight-aisle.md` §9c.
 
 **Ruling — one component, two forms.** **List rows** are flush, radius 0, separated by a 1px rule inset to the text edge: edge-structure (3.73:1) between tappable rows, hairline-decorative between non-tappable (agent). **Standalone rows** (Next-up, day block, readiness block, outbox summary) are radius 14, `surface` fill, 1px edge-structure outline (kit). Manager's gap-only rows fail the device floor (a 12dp gap between two 1.12:1 fills is the circular argument kit already killed); kit's outline-per-row in a list is the "uniform rounded cards" anti-slop failure and closer to a hard box than owner decision 2 allows. Manager's 3px severity bar and its "content starts at 35dp whether or not a bar is present" alignment rule survive.
 
 **Heights — kit's three densities win:** compact 56 (Console lists), standard 64 (Field lists), tall 80 (two meta lines: Next-up, outbox, person, decision rows — manager's 76 rounds up). Tappable targets are ≥48 everywhere; manager's 44dp tappable rows and assistant's 48 both map to compact 56.
 
-**Pressed row (Night):** fill → lifted **and** the row's rule/outline steps to 2px edge-control, plus scale 0.98 and `Buzz.tick`. (Under the 25 September override a card has no resting outline, so it *gains* a 1px edge-control edge instead of doubling one — the same two non-motion channels.) Manager's 3px leading tick at x=0 is rejected — it collides with the severity bar's position vocabulary and Veld's 2px border — but its complaint (lifted-on-well is 1.49:1) is answered by the edge step.
+**Pressed row (Night):** fill → lifted **and** the row's rule/outline steps to 2px edge-control, plus scale 0.98 and `Buzz.tick`. (Under the 25 September override a card has no resting outline, so it *gains* a 1px edge-control edge instead of doubling one — the same two non-motion channels.) Manager's 3px leading tick at x=0 is rejected — it collides with the severity bar's position vocabulary ~~and Veld's 2px border~~ — but its complaint (lifted-on-well is 1.49:1) is answered by the edge step.
 
 ### 1.4 Stat tile
 - **Phone layout is horizontal** (figures): eyebrow `Expanded` left, figure right-aligned, meter beneath, delta beneath. Single column below 320dp inner width — which is every phone. Assistant's 272dp threshold (2×2 at 138dp cells) loses on its own arithmetic: "R 1,28 mln" at JBM 32 is ~192dp.
@@ -68,12 +108,12 @@ Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refi
 
 ### 1.6 Chips
 - **Flag chips are never crimson** (kit + agent over manager). Out of fence and flagged for review are facts, not verdicts. The single severity flag is **Sent back** (a human rejected the work).
-- **One neutral treatment:** fill well, 1px edge-control, glyph + word; visual height 28 inline / 32 Field / 40 Veld inside a 48dp hit box when tappable (manager's box-in-hit-area). Label 11/700 Console, 13/600 Field, 16/600 Veld, sentence case.
+- **One neutral treatment:** fill well, 1px edge-control, glyph + word; visual height 28 inline / 32 Field ~~/ 40 Veld~~ inside a 48dp hit box when tappable (manager's box-in-hit-area). Label 11/700 Console, 13/600 Field ~~, 16/600 Veld~~, sentence case.
 - **Selected filter chip** = lifted fill + 1px ink-1 border + tick + weight 700 (kit, three channels) — manager's edge-control-stays loses. Never amber, on any screen (spec's amber selected edge is overruled by all five).
 - **Follow-up chips** = the filter chip component, 48 tall.
 
 ### 1.7 Buttons
-- **Primary label:** 16/600 Field, 14/600 Console, 18/700 Veld (agent's argument — the commit action was carrying the smallest type on the screen).
+- **Primary label:** 16/600 Field, 14/600 Console ~~, 18/700 Veld~~ (agent's argument — the commit action was carrying the smallest type on the screen).
 - **Night press:** floods to flame-500 with `#0B1017` ink (kit) — one ramp step darker than the Day block so all skins press to the same colour; agent's flame-600 flood loses only on that consistency.
 - **Rim + 2dp top bleed is one object** (kit) — the assistant's cut of Send's bleed is reversed.
 - **Dialog is deleted.** A non-dismissible bottom sheet (agent's session-ended first appearance) covers every blocking case; one modal container.
@@ -87,7 +127,7 @@ Checkbox 28dp (agent; 48 at 2.0×), kit's mixed state stays deleted. Choice opti
 ### 1.10 Bottom sheet
 - **Scrim 72%** (kit/agent/manager/spec) — the assistant's 88% defeats #380's "held work visible behind it". The assistant's real finding is honoured a different way: **while a sheet is up, every amber on the route beneath goes out** (the nav tab drops to its ink form, the plate's light goes off), so the sheet's TorchScope genuinely owns the screen.
 - Grabber `#616465` declared hex (kit's opacity ban), max height 88%, horizontal padding = gutter, 16 below the grabber, 24 + safe area at the bottom. No stacking; a sheet that needs a sheet cross-fades its own content (kit + agent agree).
-- **Veld has no sheets and no scrims** (assistant): they become full-screen white routes with a 2px border and a 56dp Close row.
+- ~~**Veld has no sheets and no scrims** (assistant): they become full-screen white routes with a 2px border and a 56dp Close row.~~ **Struck 28 September 2026** — one shape, the bottom sheet, in both skins. `TorchSheetForm`, the Close row and `TorchSheet.closeLabel` are gone with it.
 
 ### 1.11 Skeleton
 Kit wins on colour: Night text-line blocks are **edge-structure fill** (3.33:1), rows and panels are their real outline at their real geometry, empty. The other four surfaces' `well` blocks are 1.12:1 — the thing the device floor forbids. The 1400ms Oatmeal travelling rule after 600ms stays (assistant's deletion loses: an 8s stall with nothing moving reads as frozen).
@@ -129,13 +169,13 @@ Kit's **fixed perspective fallback plus a sentence** wins over manager's data-dr
 - **Eyebrow is legal in three places only:** a stat tile's label, a hero/plate figure's label, a block label inside a panel ("WORST FIRST"). **Owner override, 25 September 2026: The Floor's one section marker is a fourth place** — `NEEDS A DECISION` is the uppercase kicker on the ground, with no rule and no count, because the reference the owner signed off has no line across that screen and a line there is one more box on a screen they twice asked to be less boxy. ~~Every other screen keeps the knocked-out rule; this is not a licence to delete it.~~ **SUPERSEDED, 25 September 2026 — same day, later.** The owner looked at the finished Floor and said to make its design *"global and everywhere on the app"*. The uppercase kicker on the ground is therefore **the** screen-level section marker, on every screen, and `SectionRule` is that component: no line, no count chip, `emptyLine` and the ghost action kept. The reasoning the original ruling rested on is answered rather than dropped — on a screen whose rows are cards with a gap of ground between them, a line across that air is a second boundary saying what the gap has already said, which is the "one more box" the owner objected to twice; and this kicker is not the one the component replaced, because that one was amber and numbered and this one is ink-2 with the count in its own words. **The string stays sentence case** — the uppercase is presentation, so a screen reader, a search index and the PDF exporter are handed the sentence, and the component still asserts against a call site that shouts in the data.
 - **Delta magnitude: unsigned, always. Owner override, 25 September 2026.** `Delta` printed the sign beside its own triangle on the argument that "the sign is the arithmetic and the triangle is the reading". The owner read `▼ −19 pts` on The Floor's hero and cut all three parts of the redundancy: the triangle already says *down*, in a silhouette that survives greyscale, a 1-bit render and a 40%-backlit panel, where a three-pixel glyph does not. **The unit is the caller's call and goes wherever it is noise** — on a score it is, because a territory-health figure is not measured in anything else and the hero above carries no suffix either. The word is not lost: it moves into the delta's semantics sentence, which already carries the direction word and the verdict word, so colour and shape are still not the only carriers. The formatter's true minus (U+2212, never a hyphen) is untouched — it is a property of `TiqNumber`, and every *level* that is genuinely negative still prints it.
 - **A screen that can be scoped can be unscoped, and says which slice it is showing.** The Floor shipped printing a territory name it had no control for — the fifth capability lost to a migration in this project. The window-and-territory control is one implementation (`features/dashboard/presentation/dashboard_filters.dart`) with two presentations: the overview's rail, and The Floor's plate. ~~The Floor's is the plate eyebrow, which is a control because the words already name both facts and the signed-off reference has no filter chrome.~~ **SUPERSEDED — owner override, 28 September 2026.** The invisible control was the honest reading of a reference with no filter chrome, and it failed the only test that matters: *"I wouldn't see it if I'm new on the app. Please make it a visible button or something matching the style of the app."* The Floor's presentation is now **`PlateScopeChip`**, at the top of the plate: the app's filter-chip grammar (radius `chip`, 1px `edgeControl` edge, the `label` role, the standard press, **never amber** per §1.6) with two departures, both because it stands on a picture rather than on the ground — it always carries a `surface` fill, since an unselected rail chip is transparent and a transparent label on a photograph is unreadable; and *filtered* is an `ink1` edge and a heavier name rather than a tick, because a tick means "chosen from these options" in a rail of several and there is one chip here. It prints the scope **and** the window, so it states where you are as well as offering to change it, and the eyebrow line is dropped from the hero cluster rather than naming the territory twice on one card. **It lives in the photographic band and not in the cluster, and that is arithmetic**: the cluster sits inside the plate's `FittedBox`, so every dp of control up there comes straight off the hero figure — the defect `floor_proportion_test.dart` exists to catch. Rules that came out of building it: the control **scopes every block or it is a lie** — a screen that relabels itself and keeps its figures claims an answer it did not compute; where the client cannot scope a block (`GET /alerts` and `GET /tasks` take no territory), that block is **withheld with a sentence**, never shown unscoped under a scoped heading; clearing is one tap and the clear affordance exists only while something is filtered; and the empty result is a designed state naming the slice, because an empty slice and an empty world are different facts.
-- **Trend chart:** 208 Console phone / 232 Field / 180 Veld / 260 at ≥600dp; assistant's 160 loses (with a 38dp gutter it leaves ~120dp of plot). Gridlines `lifted`. Ranked label wraps two lines then middle-truncates (assistant); cap 8 rows.
+- **Trend chart:** 208 Console phone / 232 Field ~~/ 180 Veld~~ / 260 at ≥600dp; assistant's 160 loses (with a 38dp gutter it leaves ~120dp of plot). Gridlines `lifted`. Ranked label wraps two lines then middle-truncates (assistant); cap 8 rows.
 
 ### 1.18 Progress-to-reward bar
 One component: 8dp track (12 at 2.0×), lifted fill + 1px edge-structure outline, `chart-neutral` fill, ink-1 milestone ticks breaking the top edge, the words always beneath. Reached: fill goes `good` and a filled circle sits at the tick (agent/manager); figures' "good after the first milestone" loses — clearing one of three milestones is not a verdict. Never amber (three surfaces over agent).
 
 ### 1.19 Meter track
-Figures wins: 4dp Console / 6dp Field / 8dp Veld, **outlined only in the empty, null, loading and hatched states** (a filled track needs no edge). Kit's always-outlined 6dp loses.
+Figures wins: 4dp Console / 6dp Field ~~/ 8dp Veld~~, **outlined only in the empty, null, loading and hatched states** (a filled track needs no edge). Kit's always-outlined 6dp loses.
 
 ### 1.20 Provisional / reconciliation
 - **The agent app never shows a provisional score** (agent); `visit_outcome_screen.dart`'s no-guess stands. Kit's numeric-field provisional state is deleted.
@@ -149,7 +189,7 @@ Merged: kit's **proof block** (counts in JBM, section-state glyphs leading each 
 Agent's version wins (consequence line under each reason, third-can't-confirm warning, check-in variant with different reasons, saved reason appears on the submit gate) with kit's states folded in (already skipped, no reasons configured, offline held, dismissal is safe).
 
 ### 1.23 Icon button toggled-on (torch, skin)
-Solid Abyssal block, **ink-1 glyph**, the word ON (agent's Phase 2). Kit's Day/Veld "amber glyph" — inherited from the spec — is overruled: a toggle state is a label. This is the one place the reconciled system corrects the spec's own text.
+Solid Abyssal block, **ink-1 glyph**, the word ON (agent's Phase 2). Kit's Day ~~/Veld~~ "amber glyph" — inherited from the spec — is overruled: a toggle state is a label. This is the one place the reconciled system corrects the spec's own text.
 
 ### 1.24 Session ended
 A **bottom sheet** over the live screen (agent/manager), non-dismissible on first appearance, held work visible behind it; kit's full-screen state loses because the sheet delivers the proof block *and* the screen. After "Not now", the 44dp persistent line under every header (agent) — the assistant's composer band is that line.
@@ -201,14 +241,14 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 1. **TiqSkin** — one `ThemeExtension`, three factories, two densities; SPACE s1–s11, five radii, four depth levels, motion scale. *Replaces* TiqColors, LumenPalette, LumenGlass, AppColors, status_pill_colors, 34 BoxShadow literals.
 2. **TorchScope** — resolves each route's declared amber claims by fixed precedence; asserts in debug, degrades in release. *New.*
 3. **TiqNumber + FigureSlot** — the one locale formatter and the one figure primitive (mono run, Onest affix, measured fitting, null = em dash). *Replaces* `NumberFormat('#,##0.#','en_US')` and every `toStringAsFixed`.
-4. **MotionBudget** — single `still` boolean (disableAnimations ∨ Veld ∨ powerSave). *New.*
+4. **MotionBudget** — single `still` boolean (disableAnimations ~~∨ Veld~~ ∨ powerSave). *New.*
 5. **HatchPaint registry** — four patterns (not-measured ↘, negative ↗, low-sample outline, provisional outline+dots); never on a glyph or under 4dp. *New.*
 6. **Separation tiers, glyph-scale rule, press/focus/haptics, fold budget, breakpoints** — cross-cutting rules (section 4). *New.*
 
 ### B. Chrome
 7. **Shell** (Agent / Console) — gutter, header ceiling, scroll frame, bottom region (tab-root row / thumb zone / skin-cycle-only zone). *Replaces* Scaffold+AppBar usage.
 8. **App header** — title, capped subtitle, one trailing icon button, flag-chip wrap with expander. *Replaces* AppBar.
-9. **Nav pill** — four slots, amber active pill in Night, measured labels, docked in Veld. *Replaces* the bottom nav.
+9. **Nav pill** — four slots, amber active pill in Night, measured labels ~~, docked in Veld~~. *Replaces* the bottom nav.
 10. **Nav circle** — the role's standing action; amber only when expected and no primary exists. *New.*
 11. **Skin cycle** — 56dp three-glyph toggle; header on tab roots, thumb zone elsewhere. *New.*
 12. **Thumb zone** — 96dp region with the primary and the skin cycle. *Replaces* ad-hoc bottom buttons.
@@ -221,7 +261,7 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 17. **Plate** — baked WebP, strip light, fold-budget height, fixed fallback + sentence. *New.*
 18. **Soft row** — list / standalone; compact / standard / tall; severity bar; live outbox, held-work and decision rows are configurations. *Replaces* ListTile/Card usage.
 19. **Section rule** — the knocked-out title.m marker; count and action slots; sticky. *Replaces* uppercase eyebrows as section markers.
-20. **Bottom sheet** — 72% scrim, no blur, no stacking, full-screen route in Veld. *Replaces* showModalBottomSheet styling.
+20. **Bottom sheet** — 72% scrim, no blur, no stacking ~~, full-screen route in Veld~~. *Replaces* showModalBottomSheet styling.
 21. **Decision sheet** — proof block + resume / start-over / confirm-destructive. *New (#374).*
 22. **Skip-reason picker** — reasons with consequences, check-in variant. *New (#395).*
 23. **Session-ended sheet** — a state, held work behind it; persistent line afterwards. *New (#380/#392).*
@@ -231,7 +271,7 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 27. **Pagination footer** — "Showing the 20 riskiest of 74" + unscored note. *New.*
 
 ### D. Controls
-28. **Primary button** — commit; rim + bleed Night, block Day/Veld; BarNote when disabled. *Replaces* ElevatedButton.
+28. **Primary button** — commit; rim + bleed Night, block Day ~~/Veld~~; BarNote when disabled. *Replaces* ElevatedButton.
 29. **Secondary button** — ghost. *Replaces* OutlinedButton.
 30. **Tertiary button** — underlined text action, 48dp target. *Replaces* TextButton.
 31. **Destructive button** — outlined crimson; solid only as a sheet's confirming press. *New.*
@@ -277,13 +317,15 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 
 ## 4. Cross-cutting rules
 
-**Amber.** Burning Flame is emitted light, never a label. Night: at most two amber objects in the composed frame, counted — the nav's active pill is object 1 whenever the nav renders; content has one grant on a tabbed route and two on an untabbed one (in-visit, sheet, full-screen state). Day/Veld: exactly one, the primary commit block, and zero when nothing is armed. Precedence: primary commit → plate strip light → chart focus (one bar or one series) → nav circle (only on a route with no primary) → live pulse (one per route, presence only). A route may declare one `subject` override. The text-field focus rule counts and fits because the keyboard hides the nav. Amber is never: a chip, flag, status, badge, tick, divider, gridline, axis, toggle, toast, skeleton, sparkline, delta, empty state, icon tint, section marker, word, or anything repeated. Tokens: flame-600 (light), flame-500 (pressed), flame-700 (focus rule), flame-bloom `#FFF1DE` (gradient stop); no others exist. Enforced three ways: TorchScope asserts on over-claim; a pixel golden connected-components every flame-hued region per route × phase × skin and fails above the budget; a lint forbids `flame*` outside an allowlist of emitter widgets. While a modal sheet is up, every amber beneath it is extinguished.
+**Amber.** Burning Flame is emitted light, never a label. Night: at most two amber objects in the composed frame, counted — the nav's active pill is object 1 whenever the nav renders; content has one grant on a tabbed route and two on an untabbed one (in-visit, sheet, full-screen state). Day ~~/Veld~~: exactly one, the primary commit block, and zero when nothing is armed. Precedence: primary commit → plate strip light → chart focus (one bar or one series) → nav circle (only on a route with no primary) → live pulse (one per route, presence only). A route may declare one `subject` override. The text-field focus rule counts and fits because the keyboard hides the nav. Amber is never: a chip, flag, status, badge, tick, divider, gridline, axis, toggle, toast, skeleton, sparkline, delta, empty state, icon tint, section marker, word, or anything repeated. Tokens: flame-600 (light), flame-500 (pressed), flame-700 (focus rule), flame-bloom `#FFF1DE` (gradient stop); no others exist. Enforced three ways: TorchScope asserts on over-claim; a pixel golden connected-components every flame-hued region per route × phase × skin and fails above the budget; a lint forbids `flame*` outside an allowlist of emitter widgets. While a modal sheet is up, every amber beneath it is extinguished.
 
 **Non-colour encoding.** Every hue-coded distinction carries a second channel — shape, weight, dash, hatch, outline, or a word — and the second channel is the one that must survive greyscale, deuteranopia, glare and a screen reader. Severity is crimson at two commitment levels (outline = Watch, solid = Critical) + silhouette + word; there is no amber warning. Held is Oatmeal + square + word; Truffle is the comparison series and nothing else. Selection is fill + weight + mark. Nothing is identified by a fill step alone in Night: anything with a perceivable boundary carries a real edge (edge-structure 3:1 for containers, edge-control for controls). Opacity is banned as a state channel; composited values are declared hexes. Every meaningful glyph has a `semanticLabel` bound in the same token as its hue.
 
 **2.0× text.** `textScaler` clamps at 2.0 (hero.figure at 1.6, applied to `TextScaler.scale()`, never a factor). Meaning-bearing glyphs scale with it (tile 28→48, triangle 8→16, chip glyph 16→32); decorative marks stay fixed; tracks scale at half rate. Every label wraps to two lines at every size; nothing is pinned; outlet names middle-truncate before status words. Nav labels are measured and go icon-only as a whole. Tile grids collapse on `LayoutBuilder` width, never on a text-scale guess. Headers cap at 40% of the viewport, then scroll. Sheets never resize under a thumb. Afrikaans: a pseudo-localisation CI pass renders every label at 1.4× width and fails on overflow.
 
-**Veld.** A third theme, single density, white ground, `#0E141A` ink, nothing under 9:1 for text or 15:1 for borders; every hairline a 2px `#1B2632` border; every shadow, gradient, rim, bloom, scrim and blur removed, not softened; sheets become full-screen routes; the nav docks. Type steps by declared members (body 17, label 16, meta 14, title.m 18, figure.m 24), 600 weight floor. Targets 56, rows 64, gutter 24, block gap 40. One amber block, the primary, ink `#0E141A` on it. Entered by the skin cycle, by solar elevation on a state change, or by memory; never auto-expires. Motion off. The plate, sparklines, trend charts, maps and thumbnails do not render; figure lists replace them.
+~~**Veld.** A third theme, single density, white ground, `#0E141A` ink, nothing under 9:1 for text or 15:1 for borders; every hairline a 2px `#1B2632` border; every shadow, gradient, rim, bloom, scrim and blur removed, not softened; sheets become full-screen routes; the nav docks. Type steps by declared members (body 17, label 16, meta 14, title.m 18, figure.m 24), 600 weight floor. Targets 56, rows 64, gutter 24, block gap 40. One amber block, the primary, ink `#0E141A` on it. Entered by the skin cycle, by solar elevation on a state change, or by memory; never auto-expires. Motion off. The plate, sparklines, trend charts, maps and thumbnails do not render; figure lists replace them.~~
+
+**Veld — STRUCK, 28 September 2026, by owner decision.** There are two skins: Night and Day. The paragraph above is kept struck through rather than deleted because it is the whole of what was removed, and a reader who finds it has to find the decision beside it. **What was given up is outdoor legibility for field agents**, and nothing replaces it: an agent in a forecourt at 13:00 reads Day. The contrast walk now iterates four skin × density pairs, `ContrastRole` has no `veldText`/`veldBorder`, and a skin declares no floor of its own — the role's floor is the whole requirement everywhere. See the block at the top of this document.
 
 **Blur / shadow / paint budget.** Zero `BackdropFilter`, `ShaderMask`, `ImageFiltered`, `saveLayer`. Night: zero `BoxShadow`; Day: sh1/sh2/sh3, ≤6 per screen. Every bloom is a `LinearGradient` in the existing draw call; ≤12 gradient decorations per screen, none inside a `ListView.builder` row (hatches are painter lines there). One app-wide `Ticker`, three subscribers. Plates are baked server-side (12% chroma, `#474747` ceiling, alpha dissolve, ≤60 kB WebP) and decoded at `cacheWidth`. Sparklines cache to a `Picture` in a `RepaintBoundary`. A profile test fails the build at p95 raster > 12 ms on the dashboard and answer routes.
 
@@ -306,7 +348,7 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 
 **Phase 3 — the expensive objects.** Plate (needs the server bake), RankedBarList, TrendChart + Frame + Legend + Scrub, Sparkline, ScoreHero + BandScale + DimensionBreakdown, TableTwin, Progress bar, Person row, Reconciliation line.
 
-**Screen migration, one feature folder at a time behind a green suite.** Agent: Today → check-in states → visit hub → stock counter (needs the null-count answer) → other sections → submit gate → outcome → My work. Manager: The Floor → Alerts/Tasks → Territories → scorecard → fraud queue/case (needs the verdict endpoint) → reports. Assistant last, because it needs the provenance schema to be more than Phase 0. Day goldens follow per component; Veld is sequenced last, once Night and Day components have stopped moving. GlassPane is deleted when its 61 call sites are empty, not first.
+**Screen migration, one feature folder at a time behind a green suite.** Agent: Today → check-in states → visit hub → stock counter (needs the null-count answer) → other sections → submit gate → outcome → My work. Manager: The Floor → Alerts/Tasks → Territories → scorecard → fraud queue/case (needs the verdict endpoint) → reports. Assistant last, because it needs the provenance schema to be more than Phase 0. Day goldens follow per component ~~; Veld is sequenced last, once Night and Day components have stopped moving~~ — **struck 28 September 2026: there is no third skin to sequence.** GlassPane is deleted when its 61 call sites are empty, not first.
 
 ---
 
@@ -321,10 +363,10 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 7. **One backend migration ticket** for every field the design assumes and the wire lacks: `decimals`, `sampleSize`, `baselineSampleSize`; figure `origin/readAt/publisher` and an outside flag on inline runs; `focus{artifactId,index}` and a `notice` reason on the answer; a server-stamped provisional score; `POST /fraud/visits/:id/verdict` with a lock; a resumed-visit marker; decoded payload size on enqueue; a null-tolerant stock count. *Recommend: one ticket, one owner, sequenced before Phase 3.*
 8. **Phase 2 camera.** Without it, capture is the OS camera behind a reminder card and the torch trigger is a worse heuristic. *Recommend: fund it; ship Phase 1 first and review Phase 2 as a separate item.*
 9. **Power-save channel.** ~40 lines per platform. *Recommend: schedule it in Phase 0 or delete "battery saver" from every sentence in the design.*
-10. **Ask TradeIQ for agents?** *Recommend: manager-only for the first release; a Veld smoke test rather than a full golden set for that surface.*
+10. **Ask TradeIQ for agents?** *Recommend: manager-only for the first release; a smoke test rather than a full golden set for that surface.* ~~(A Veld smoke test.)~~
 11. **Which three tiles on the phone dashboard.** *Recommend: on-shelf availability, coverage, open critical alerts; everything else in the table twin.*
 12. **Manager nav: Territories in the Menu.** Floor · Work · Ask · Menu, with Alerts and Tasks merged behind Work and separated by the filter rail. *Recommend: yes; revisit with usage data.*
-13. **Per-user UI preferences.** Handedness, the collapsed plate and Veld memory all need one. *Recommend: add a small per-user prefs table now — three features are waiting on it.*
+13. **Per-user UI preferences.** Handedness and the collapsed plate need one ~~, and so did Veld memory~~. *Recommend: add a small per-user prefs table now — two features are waiting on it.* **28 September 2026:** the skin cycle is session-scoped and unpersisted, as it always was, so no stored preference names a skin at all; nothing in the app can read back a `"veld"` that was never written.
 14. **The three empty-state drawings** (shelf, pin, envelope) do not exist. *Recommend: commission half a day of one illustrator before Phase 2; the enum refuses a stock import.*
 15. **Data-layer amber beyond the answer route.** Figures wanted it once in the product; the ladder lets the Territories list light its worst bar. *Recommend: let the ladder decide — the law is per screen.*
 16. **Person rows never show photos** (POPIA, bundle size). *Recommend: confirm; if a photo is ever wanted it is a scorecard-only feature behind consent.*

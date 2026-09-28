@@ -70,7 +70,7 @@ List<String> _sectionKeys(WidgetTester tester) => tester
     .toList();
 
 void main() {
-  for (final skin in <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld]) {
+  for (final skin in <SkinMode>[SkinMode.night, SkinMode.day]) {
     group(skin.name, () {
       testWidgets('no template: the hub is exactly the fixed audit', (
         tester,

@@ -17,11 +17,10 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 const Key torchBoundaryKey = ValueKey<String>('amber-golden-boundary');
 
 /// The three skins, in the order the design says to build them: Night first,
-/// then Day, and Veld last — after Night and Day have stopped moving.
+/// then Day — after Night and Day have stopped moving.
 List<TiqSkin> get torchSkins => <TiqSkin>[
   TiqSkin.night(density: TiqDensity.field),
   TiqSkin.day(),
-  TiqSkin.veld(),
 ];
 
 /// Pump [child] in [skin].

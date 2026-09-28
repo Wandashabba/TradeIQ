@@ -567,7 +567,6 @@ void main() {
     for (final (mode, expected) in <(SkinMode, int)>[
       (SkinMode.night, 1),
       (SkinMode.day, 1),
-      (SkinMode.veld, 1),
     ]) {
       testWidgets('${mode.name}: one object — the primary', (tester) async {
         await _pump(tester, skin: mode);

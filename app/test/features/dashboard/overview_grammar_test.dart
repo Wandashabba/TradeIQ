@@ -202,22 +202,5 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
     });
 
-    testWidgets('Veld draws no plot at all — the table twin instead', (
-      tester,
-    ) async {
-      await pump(tester, skin: TiqSkin.veld());
-
-      expect(find.byType(TrendChart), findsNothing);
-      // Both of them, reached by scrolling: Veld halves the density and the
-      // route is taller than any viewport a test should pretend to have.
-      for (final key in const <String>[
-        'dashboard-score-table',
-        'dashboard-availability-table',
-      ]) {
-        await scrollOverviewTo(tester, find.byKey(ValueKey<String>(key)));
-        expect(find.byKey(ValueKey<String>(key)), findsOneWidget, reason: key);
-      }
-      expect(find.byType(TrendChart), findsNothing);
-    });
   });
 }

@@ -317,11 +317,10 @@ String screenText(WidgetTester tester) => tester
     .map((w) => w.text.toPlainText())
     .join('\n');
 
-/// The three skins, Console density where a density applies.
+/// Both skins, at Console density.
 List<TiqSkin> get askSkins => <TiqSkin>[
   TiqSkin.night(density: TiqDensity.console),
   TiqSkin.day(density: TiqDensity.console),
-  TiqSkin.veld(),
 ];
 
 /// One answer block on its own, in a Torchlight skin, at a phone panel's

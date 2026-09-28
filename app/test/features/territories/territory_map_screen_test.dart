@@ -115,21 +115,6 @@ void main() {
   });
 
   group('the three ways there is no map', () {
-    testWidgets('Veld draws no basemap and says why', (tester) async {
-      await _pump(tester, outlets: _outlets, skin: TiqSkin.veld());
-
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(
-        find.text(
-          'The map is off in bright sun. Your stores are listed below, '
-          'nearest first.',
-        ),
-        findsOneWidget,
-      );
-      // The figure list that replaces it is the list that was always there.
-      expect(find.byType(SoftRow), findsNWidgets(2));
-    });
-
     testWidgets('no tiles is a designed state, not an error', (tester) async {
       TerritoryMapScreen.debugFailureThreshold = 0;
       addTearDown(() => TerritoryMapScreen.debugFailureThreshold = 6);

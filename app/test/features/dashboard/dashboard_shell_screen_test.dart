@@ -533,33 +533,6 @@ void main() {
     });
   });
 
-  group('Veld', () {
-    testWidgets('draws no chart and no map — the table and the list instead', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        skin: TiqSkin.veld(),
-        territories: const <Territory>[north],
-      );
-
-      expect(
-        find.byKey(const ValueKey<String>('dashboard-score-chart')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('dashboard-score-table')),
-        findsOneWidget,
-      );
-      // And no toggle either: a control with one working position is worse
-      // than none.
-      expect(
-        find.byKey(const ValueKey<String>('Execution score over time-view-chart')),
-        findsNothing,
-      );
-    });
-  });
-
   group('the filter rail', () {
     testWidgets('a window chip refetches over the window it names', (
       tester,
@@ -769,7 +742,7 @@ void main() {
             phase: phase,
           );
           // Nothing on this route is armed, so the nav tab is the whole of
-          // Night's spend and Day and Veld paint none.
+          // Night's spend and Day paints none.
           expect(
             census.objectCount,
             skin.mode == SkinMode.night ? 1 : 0,

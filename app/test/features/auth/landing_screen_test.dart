@@ -86,14 +86,14 @@ void main() {
       expect(find.byType(DimmedAisleBackdrop), findsOneWidget);
     });
 
-    for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
+    for (final skin in <SkinMode>[SkinMode.day]) {
       testWidgets('${skin.name} is paper — no footage at all', (tester) async {
         await pump(tester, skin: skin);
         expect(
           find.byType(DimmedAisleBackdrop),
           findsNothing,
           reason:
-              'unify §4: Veld renders no images, and a near-black video under '
+              'a near-black video under '
               'a white ground is a different screen rather than a lighter '
               'version of the same one',
         );

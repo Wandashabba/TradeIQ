@@ -13,7 +13,6 @@ void main() {
   final modes = <String, ThemeData Function()>{
     'night': AppTheme.night,
     'day': AppTheme.day,
-    'veld': AppTheme.veld,
   };
 
   group('every skin renders', () {
@@ -83,23 +82,6 @@ void main() {
       expect(copied.mode, night.mode);
     });
 
-    test('Veld cannot be constructed at Console density', () {
-      final veld = TiqSkin.veld();
-      expect(veld.density, TiqDensity.veld);
-      expect(veld.space, TiqSpace.veld);
-      // The type system carries the rule: TiqSkin.veld() has no density
-      // parameter, so `Veld × Console` has no spelling. The assert below is
-      // the other half — Night and Day may not borrow Veld's density either.
-      expect(
-        () => TiqSkin.night(density: TiqDensity.veld),
-        throwsA(isA<AssertionError>()),
-      );
-      expect(
-        () => TiqSkin.day(density: TiqDensity.veld),
-        throwsA(isA<AssertionError>()),
-      );
-    });
-
     test('SkinMode.of resolves auto from the platform brightness', () {
       expect(
         TiqSkin.of(SkinMode.auto, platformBrightness: Brightness.dark).mode,
@@ -109,7 +91,6 @@ void main() {
         TiqSkin.of(SkinMode.auto, platformBrightness: Brightness.light).mode,
         SkinMode.day,
       );
-      expect(TiqSkin.of(SkinMode.veld).mode, SkinMode.veld);
     });
 
     test('the spacing scale is base-4 and has no twelfth step', () {
@@ -117,11 +98,7 @@ void main() {
       for (final step in TiqSpace.scale) {
         expect(step % 4, 0, reason: '$step is not on the base-4 grid.');
       }
-      for (final space in <TiqSpace>[
-        TiqSpace.console,
-        TiqSpace.field,
-        TiqSpace.veld,
-      ]) {
+      for (final space in <TiqSpace>[TiqSpace.console, TiqSpace.field]) {
         for (final value in <double>[
           space.gutter,
           space.gutterWide,
@@ -187,11 +164,10 @@ void main() {
 
     test('the tap-target floor rises with the density', () {
       expect(TiqSpace.console.tapTarget, 44);
-      expect(TiqSpace.field.tapTarget, 48);
       expect(
-        TiqSpace.veld.tapTarget,
-        56,
-        reason: 'A thumb in the sun is imprecise.',
+        TiqSpace.field.tapTarget,
+        48,
+        reason: 'A thumb on a shelf is less precise than one on a mouse.',
       );
     });
   });
@@ -201,7 +177,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final c = TiqColors.fromSkin(skin);
         final p = skin.palette;
@@ -285,7 +260,7 @@ class _TokenSampler extends StatelessWidget {
                     style: skin.text.monoIdent.style(color: p.ink1),
                   ),
                   Divider(color: p.hairline, height: TiqSpace.s3),
-                  // L4: emitted. A gradient, never a blur, and never in Veld.
+                  // L4: emitted. A gradient, never a blur.
                   Container(
                     height: TiqSpace.s2,
                     decoration: skin.depth.allowsGradients

@@ -22,12 +22,11 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 /// `Navigator`).
 const Key phase2BoundaryKey = ValueKey<String>('amber-golden-boundary');
 
-/// Night first, then Day, Veld last — the order the design says to build them
-/// in, and therefore the order a failure should be read in.
+/// Night first, then Day — the order the design says to build them in, and
+/// therefore the order a failure should be read in.
 List<TiqSkin> get phase2Skins => <TiqSkin>[
   TiqSkin.night(density: TiqDensity.field),
   TiqSkin.day(),
-  TiqSkin.veld(),
 ];
 
 TiqSkin phase2SkinNamed(String name) => switch (name) {
@@ -35,7 +34,6 @@ TiqSkin phase2SkinNamed(String name) => switch (name) {
   'night.field' => TiqSkin.night(density: TiqDensity.field),
   'day.field' => TiqSkin.day(),
   'day.console' => TiqSkin.day(density: TiqDensity.console),
-  'veld' => TiqSkin.veld(),
   _ => throw ArgumentError('No skin named $name'),
 };
 
@@ -45,7 +43,6 @@ const List<String> phase2SkinNames = <String>[
   'night.field',
   'day.field',
   'day.console',
-  'veld',
 ];
 
 /// Pump [child] in [skin], at a pinned size and text scale.

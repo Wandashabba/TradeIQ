@@ -681,8 +681,8 @@ Future<void> scrollOpsSheetTo(WidgetTester tester, Finder finder) async {
 
 /// Open a [TorchPickerField] and choose the option whose label is [label].
 ///
-/// It scrolls the field into the viewport first: at Veld's densities and at
-/// 2.0x a form is taller than the fold, and a tap that lands on whatever the
+/// It scrolls the field into the viewport first: at 2.0x a form is taller
+/// than the fold, and a tap that lands on whatever the
 /// route happens to be painting at those coordinates is not a test of
 /// anything.
 Future<void> pickOption(WidgetTester tester, Key fieldKey, String label) async {
@@ -691,8 +691,8 @@ Future<void> pickOption(WidgetTester tester, Key fieldKey, String label) async {
   await tester.tap(field);
   await tester.pumpAndSettle();
 
-  // In Veld the sheet is a full-screen route rather than a `TorchSheet`, so
-  // the option is found by its words and not by its container.
+  // The option is found by its words and not by its container: a sheet whose
+  // list outruns the viewport has it below the fold.
   final option = find.text(label);
   if (option.evaluate().isEmpty) {
     await tester.dragUntilVisible(

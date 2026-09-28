@@ -495,9 +495,9 @@ void main() {
   group('the compare pane is readable without a drag', () {
     // The plot is wrapped in `excludeSemantics`, so a reader hears one
     // sentence and that sentence says "the exact figures are in the table
-    // view". Outside Veld there was no table view on this pane at all, and
-    // the only other way in was a horizontal drag-scrub — which a screen
-    // reader cannot perform and a printed page does not carry.
+    // view". There was no table view on this pane at all, and the only other
+    // way in was a horizontal drag-scrub — which a screen reader cannot
+    // perform and a printed page does not carry.
     for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
       testWidgets('${skin.mode.name}: the table its own hint promises', (
         tester,
@@ -670,8 +670,15 @@ void main() {
     ) async {
       // `ChartReading.sampleSize` was collected by every caller and read by
       // nothing.
-      await _pump(tester, skin: TiqSkin.veld(), report: _thin());
+      await _pump(tester, skin: TiqSkin.night(), report: _thin());
       await _compare(tester);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('trend-benchmark')),
+          matching: find.byKey(const ValueKey<String>('view-table')),
+        ),
+      );
+      await tester.pumpAndSettle();
 
       final twin = tester.widget<TableTwin>(
         find.byKey(const ValueKey<String>('benchmark-table')),
@@ -734,30 +741,6 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
-    });
-  });
-
-  group('Veld', () {
-    testWidgets('draws no chart at all; the table twin is the screen', (
-      tester,
-    ) async {
-      await _pump(tester, skin: TiqSkin.veld());
-
-      expect(find.byType(TrendChart), findsNothing);
-      expect(find.byType(TableTwin), findsNWidgets(3));
-      // And no toggle, because a control with one working position is chrome.
-      expect(find.byKey(const ValueKey<String>('view-chart')), findsNothing);
-    });
-
-    testWidgets('the comparison is a table too, both series in it', (
-      tester,
-    ) async {
-      await _pump(tester, skin: TiqSkin.veld(), report: _report());
-      await _compare(tester);
-
-      expect(find.byType(TrendChart), findsNothing);
-      expect(find.text('Gauteng North'), findsWidgets);
-      expect(find.text('Client average'), findsWidgets);
     });
   });
 

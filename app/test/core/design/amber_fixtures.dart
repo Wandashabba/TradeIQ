@@ -18,7 +18,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 /// A tabbed dashboard: nav pill on screen, one focus bar in a ranked list.
 ///
 /// Night: the nav's active tab is slot 1 and the focus bar is slot 2 — two
-/// lit objects, exactly the budget. Day and Veld: the tab is an Abyssal
+/// lit objects, exactly the budget. Day: the tab is an Abyssal
 /// block, the focus bar is ink-1, and the single amber is the primary commit
 /// block at the bottom.
 class AmberDashboardFixture extends StatelessWidget {
@@ -63,7 +63,7 @@ class AmberDashboardFixture extends StatelessWidget {
 /// An untabbed visit route: no nav, a plate with a strip light and a live
 /// pulse for the agent who is mid-visit.
 ///
-/// Night: two content grants, both taken. Day and Veld: the plate is unlit,
+/// Night: two content grants, both taken. Day: the plate is unlit,
 /// the pulse is a `lifted` dot and the word Live, and there is no amber at
 /// all — nothing is armed.
 class AmberVisitFixture extends StatelessWidget {

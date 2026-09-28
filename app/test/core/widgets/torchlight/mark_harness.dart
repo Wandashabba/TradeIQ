@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
-/// THE MARK GOLDEN HARNESS — Night first, then Day, Veld last.
+/// THE MARK GOLDEN HARNESS — Night first, then Day.
 ///
 /// This repository does not keep `matchesGoldenFile` PNGs, and deliberately:
 /// a byte-comparison golden fails on a font hint, passes on a semantic
@@ -132,11 +132,10 @@ double inkedFraction(Uint8List rgba, Color ground, {int tolerance = 8}) {
 }
 
 /// The three skins, in the order the design says to build them: Night first,
-/// then Day, Veld last.
+/// then Day.
 List<TiqSkin> get allSkins => <TiqSkin>[
   TiqSkin.night(),
   TiqSkin.day(),
-  TiqSkin.veld(),
 ];
 
 /// Wrap [child] in a skin for a plain widget test (no pixels).

@@ -135,39 +135,36 @@ void main() {
       );
     });
 
-    testWidgets('Day and Veld light exactly one — the primary block', (
-      tester,
-    ) async {
-      for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
-        await pumpTorch(
-          tester,
-          skin: skin,
-          navRenders: true,
-          tabbedRoute: true,
-          claims: routeClaims,
-          child: tabRootWithPrimary(),
-        );
-        final census = await amberCensus(tester);
-        expectWithinAmberBudget(
-          census,
-          skin,
-          route: 'today (tab root + primary)',
-          phase: 'loaded',
-        );
-        final primary = tester.getRect(find.byType(TorchPrimaryButton));
-        expect(
-          census.objectCount,
-          1,
-          reason:
-              '${skin.mode.name}: on a light ground amber is a carrier of '
-              'ink and there is exactly one of those.\n${census.describe()}',
-        );
-        expect(
-          primary.inflate(2).contains(census.regions.single.bounds.center),
-          isTrue,
-          reason: 'and it is the primary, never the nav',
-        );
-      }
+    testWidgets('Day lights exactly one — the primary block', (tester) async {
+      final skin = TiqSkin.day();
+      await pumpTorch(
+        tester,
+        skin: skin,
+        navRenders: true,
+        tabbedRoute: true,
+        claims: routeClaims,
+        child: tabRootWithPrimary(),
+      );
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        skin,
+        route: 'today (tab root + primary)',
+        phase: 'loaded',
+      );
+      final primary = tester.getRect(find.byType(TorchPrimaryButton));
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'on a light ground amber is a carrier of ink and there is exactly '
+            'one of those.\n${census.describe()}',
+      );
+      expect(
+        primary.inflate(2).contains(census.regions.single.bounds.center),
+        isTrue,
+        reason: 'and it is the primary, never the nav',
+      );
     });
 
     testWidgets('a sheet over the route puts both of them out', (tester) async {

@@ -84,18 +84,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.byType(StatTilesCard), findsOneWidget);
-        final veld = skin.density == TiqDensity.veld;
         var text = screenText(tester);
         expect(text, contains('48,210'));
         expect(text, contains('81%'));
-        // Four on a phone, two in Veld: two figures is a reading, four is
-        // analysis, and nobody does analysis in the sun.
-        if (veld) {
-          expect(text, isNot(contains('88%')));
-        } else {
-          expect(text, contains('88%'));
-          expect(text, contains('17'));
-        }
+        // Four on a phone.
+        expect(text, contains('88%'));
+        expect(text, contains('17'));
         expect(text, isNot(contains('NEUTRAL ONE')));
         // A fall is signed as a fall: the sign is the direction's, never a
         // '+' beside a down triangle.
@@ -291,9 +285,7 @@ void main() {
               : radius.topRight;
           final end = growsFromStart ? radius.topRight : radius.topLeft;
           expect(origin, Radius.zero, reason: 'bar $i is square at the origin');
-          if (skin.mode != SkinMode.veld) {
-            expect(end.x, greaterThan(0), reason: 'bar $i is shaped at its end');
-          }
+          expect(end.x, greaterThan(0), reason: 'bar $i is shaped at its end');
         }
       });
 

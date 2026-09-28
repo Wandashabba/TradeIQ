@@ -16,7 +16,7 @@ import 'ask_harness.dart';
 /// without asking, a bloom where no object was declared, three answers each
 /// reading one grant as their own.
 ///
-/// | phase | Night | Day | Veld |
+/// | phase | Night | Day |
 /// |---|---|---|---|
 /// | first run | 1 | 0 | 0 |
 /// | thinking | 2 | 0 | 0 |
@@ -27,7 +27,7 @@ import 'ask_harness.dart';
 /// | typing a follow-up (keyboard up) | 1 | 1 | 1 |
 /// | error, offline, session ended | 1 | 0 | 0 |
 ///
-/// Night's 1 is the nav's active tab; Day and Veld paint the tab as an ink
+/// Night's 1 is the nav's active tab; Day paints the tab as an ink
 /// block, so their only amber is Send's block — and only while it is armed.
 void main() {
   AskPhase phaseOf(WidgetTester tester) {

@@ -19,7 +19,7 @@ import 'overview_harness.dart';
 ///
 /// Two halves that must never disagree: a map of last *confirmed* check-ins,
 /// and the list that keeps it honest by carrying every agent including the
-/// ones the map cannot place. In Veld there is no map at all and the list is
+/// ones the map cannot place. Where there is no map the list is
 /// the whole panel, which is what it always was for a screen reader.
 
 /// Hosts [child] at a width the test controls directly, so a test can drive
@@ -474,33 +474,6 @@ void main() {
     });
   });
 
-  group('Veld', () {
-    testWidgets('draws no map — the list is the whole panel', (tester) async {
-      await _pump(
-        tester,
-        skin: TiqSkin.veld(),
-        agents: <AgentActivity>[
-          agent(
-            id: 'a1',
-            name: 'a@x.com',
-            state: AgentState.atStore,
-            stops: <AgentStop>[stop('Spar')],
-          ),
-        ],
-        outlets: <Outlet>[outlet('o1', 'Spar')],
-      );
-
-      expect(find.byType(FlutterMap), findsNothing);
-      expect(find.byKey(const ValueKey<String>('agent-row-a1')), findsOneWidget);
-      // And no "nothing to plot" apology either: in Veld there was never
-      // going to be a map, so there is nothing to explain away.
-      expect(
-        find.text('No outlets yet — add outlets to see them here.'),
-        findsNothing,
-      );
-    });
-  });
-
   group('the camera', () {
     // A scrollable can lay a child out before it has real space. flutter_map's
     // own one-shot `initialCameraFit` commits to that pass and never recovers;
@@ -676,7 +649,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         await _pump(
           tester,

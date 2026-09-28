@@ -362,12 +362,11 @@ void main() {
 
   group('the amber census, every phase in every skin', () {
     // A ranking has nothing armed: no commit action, no chart focus, no
-    // plate. Night paints the nav's active tab and nothing else; Day and Veld
+    // plate. Night paints the nav's active tab and nothing else; Day
     // paint nothing, because their one rung is the primary commit block.
     for (final skin in <TiqSkin>[
       TiqSkin.night(),
       TiqSkin.day(),
-      TiqSkin.veld(),
     ]) {
       final lit = skin.mode == SkinMode.night ? 1 : 0;
       final phases = <String, Future<void> Function(WidgetTester)>{
@@ -412,7 +411,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       // At 2.0x a 14-character name beside a 48dp tile and a trailing word
-      // middle-truncates on a 360dp row — the same case the Veld test below
+      // middle-truncates on a 360dp row — the same case the scale test below
       // names, and the ruling's own words: names truncate before status
       // words, and the FULL name is what a screen reader is handed whatever
       // the row painted.
@@ -432,18 +431,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Veld is built, and it still names the person', (tester) async {
-      final handle = tester.ensureSemantics();
-      await _pump(tester, skin: TiqSkin.veld(), entries: _board);
-
-      expect(find.byType(PersonRow), findsNWidgets(2));
-      // Veld sets body at 17 with a 24dp gutter, so a two-word name
-      // middle-truncates on a 360dp row — which is the ruling, and the reason
-      // the FULL name is what a screen reader is handed whatever is painted.
-      expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      handle.dispose();
-    });
   });
 
   // PROBE E found "Leaderboard", "Ranked", "Not ranked yet", "Contests" and

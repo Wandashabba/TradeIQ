@@ -58,7 +58,6 @@ void main() {
       for (final skin in <TiqSkin>[
         TiqSkin.night(),
         TiqSkin.day(),
-        TiqSkin.veld(),
       ]) {
         final p = skin.palette;
         final negative = HatchPaint.spec(skin, HatchPattern.negative);
@@ -82,28 +81,6 @@ void main() {
       }
     });
 
-    test('Veld gets a heavier line and no wash', () {
-      final veld = TiqSkin.veld();
-      final night = TiqSkin.night();
-      expect(
-        HatchPaint.spec(veld, HatchPattern.notMeasured).strokeWidth,
-        greaterThan(
-          HatchPaint.spec(night, HatchPattern.notMeasured).strokeWidth,
-        ),
-      );
-      expect(
-        HatchPaint.spec(veld, HatchPattern.notMeasured).fill,
-        isNull,
-        reason:
-            'Veld has no fill step to spend: a 1.12:1 wash is one '
-            'quantisation level on a budget LCD in highveld sun.',
-      );
-      expect(
-        HatchPaint.spec(veld, HatchPattern.notMeasured).pitch,
-        greaterThan(HatchPaint.spec(night, HatchPattern.notMeasured).pitch),
-        reason: 'A wider pitch survives glare; a tight one fills in.',
-      );
-    });
   });
 
   group('the two hard rules', () {

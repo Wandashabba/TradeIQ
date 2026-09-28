@@ -7,19 +7,17 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 void main() {
   final night = TiqSkin.night();
   final day = TiqSkin.day();
-  final veld = TiqSkin.veld();
 
   group('the budget', () {
-    test('Night is two, Day and Veld are one', () {
+    test('Night is two, Day is one', () {
       expect(TorchScope.budgetFor(night), 2);
       expect(TorchScope.budgetFor(day), 1);
-      expect(TorchScope.budgetFor(veld), 1);
     });
 
     test('the budget follows amberIsInk, not the mode name', () {
-      // A fourth skin added later gets the right budget without touching this
+      // A third skin added later gets the right budget without touching this
       // file, because the question being asked is "is amber light here".
-      for (final skin in <TiqSkin>[night, day, veld]) {
+      for (final skin in <TiqSkin>[night, day]) {
         expect(TorchScope.budgetFor(skin), skin.amberIsInk ? 1 : 2);
       }
     });
@@ -252,7 +250,7 @@ void main() {
     });
 
     test('nothing armed means zero amber, not one', () {
-      final a = TorchScope.resolve(skin: veld, claims: const <TorchClaim>[]);
+      final a = TorchScope.resolve(skin: day, claims: const <TorchClaim>[]);
       expect(a.granted, isEmpty);
     });
 

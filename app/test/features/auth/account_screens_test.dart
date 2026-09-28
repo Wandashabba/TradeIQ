@@ -423,9 +423,8 @@ void main() {
     /// The refused build was the one account screen with no length test, and
     /// it is the worst candidate to skip: three paragraphs and a sentence
     /// carrying two version numbers, on a phone whose owner cannot get past
-    /// it. Veld as well as Night, because Veld is the skin this screen is
-    /// most likely to be read in — outdoors, stuck.
-    for (final skin in <SkinMode>[SkinMode.night, SkinMode.veld]) {
+    /// it.
+    for (final skin in <SkinMode>[SkinMode.night]) {
       testWidgets('Afrikaans at 2.0× still lays out in ${skin.name}', (
         tester,
       ) async {
@@ -477,9 +476,9 @@ void main() {
   /// defaults to **Day**.
   ///
   /// So sign-in was Night and "Forgot password?" was white, and the cycle in
-  /// the thumb zone wrote a provider the two screens did not share: set Veld
-  /// on sign-in, walk to the reset code, and you were back in Day with no way
-  /// to tell why.
+  /// the thumb zone wrote a provider the two screens did not share: set Day
+  /// on sign-in, walk to the reset code, and you were back in Night with no
+  /// way to tell why.
   group('the signed-out screens wear the way in\'s skin', () {
     // The two providers are set APART on purpose. A screen that reads the
     // right one cannot pass this by accident.
@@ -490,11 +489,11 @@ void main() {
         tester,
         FakePasswordRepository(),
         skin: SkinMode.night,
-        entrySkin: SkinMode.veld,
+        entrySkin: SkinMode.day,
       );
       expect(
         _ground(tester).palette.ground,
-        entrySkinFor(SkinMode.veld).palette.ground,
+        entrySkinFor(SkinMode.day).palette.ground,
         reason:
             'the reset code is reached signed out, so the entry skin is the '
             'one that decides its ground',
@@ -516,21 +515,21 @@ void main() {
         path: '/update-required',
         overrides: <Override>[
           ...agentBaseOverrides(db: agentTestDb(), skin: SkinMode.night),
-          entrySkinProvider.overrideWith(() => PinnedEntrySkin(SkinMode.veld)),
+          entrySkinProvider.overrideWith(() => PinnedEntrySkin(SkinMode.day)),
         ],
       );
       expect(
         _ground(tester).palette.ground,
-        entrySkinFor(SkinMode.veld).palette.ground,
+        entrySkinFor(SkinMode.day).palette.ground,
       );
     });
 
     testWidgets('changing your own password needs a session, so it stays on '
         'the agent skin', (tester) async {
-      await _pumpChange(tester, FakePasswordRepository(), skin: SkinMode.veld);
+      await _pumpChange(tester, FakePasswordRepository(), skin: SkinMode.day);
       expect(
         _ground(tester).palette.ground,
-        agentSkinFor(SkinMode.veld).palette.ground,
+        agentSkinFor(SkinMode.day).palette.ground,
         reason:
             '/account/password is behind a session: there IS an agent here, '
             'and they keep the skin they were already in',

@@ -159,7 +159,7 @@ void main() {
 
   group('a populated Today is one fold on a 360×640 phone', () {
     // Night and Day, which are the two skins an agent works in indoors and in
-    // daylight. Veld is measured separately below, because its arithmetic is
+    // daylight. Its arithmetic is
     // genuinely different.
     for (final skin in <SkinMode>[SkinMode.night, SkinMode.day]) {
       testWidgets('${skin.name}: "Check in here" is above the fold', (
@@ -181,43 +181,6 @@ void main() {
         );
       });
     }
-
-    testWidgets('Veld gets the day and the store, and scrolls to the verb', (
-      tester,
-    ) async {
-      // VELD IS DIFFERENT ON PURPOSE, and this is the arithmetic rather than
-      // an excuse. Outdoors the nav DOCKS — a full-bleed 72dp bar — and the
-      // action circle floats 12dp above it, so the bottom region is 148dp
-      // against Night's 84. Every type role steps up, the gutter goes to 24
-      // and the block gap to 40. Veld is declared as "fewer things, further
-      // apart"; it cannot also be the skin that fits the most on a fold.
-      //
-      // What it must still do is answer the question: how much of the day is
-      // left, and which store is next. Both are above the fold; the verb is
-      // one flick, and it is a 64dp target when it arrives.
-      await _pump(tester, skin: SkinMode.veld);
-      final fold = _fold(tester);
-
-      for (final (what, finder) in <(String, Finder)>[
-        ('the day block', find.byKey(const ValueKey<String>('day-block'))),
-        ('the next store', find.text('Kasi Corner Spaza')),
-      ]) {
-        expect(
-          tester.getRect(finder).bottom,
-          lessThanOrEqualTo(fold),
-          reason: 'Veld: $what is below the fold',
-        );
-      }
-
-      await scrollAgentTo(
-        tester,
-        find.byKey(const ValueKey<String>('check-in-next')),
-      );
-      expect(
-        find.byKey(const ValueKey<String>('check-in-next')),
-        findsOneWidget,
-      );
-    });
 
     testWidgets('and so is everything above it, in order', (tester) async {
       await _pump(tester);

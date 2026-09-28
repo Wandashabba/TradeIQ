@@ -810,49 +810,6 @@ void main() {
     }
   });
 
-  group('Veld is built, not declared', () {
-    testWidgets('the summary is a 2px rectangle with no shadow', (
-      tester,
-    ) async {
-      await _pump(tester, sync: _held, skin: SkinMode.veld);
-      // A `DecoratedBox` and no longer a `Container` — the shadow slot went
-      // with the shadow, 26 September 2026.
-      final box = tester.widget<DecoratedBox>(
-        find.byKey(const ValueKey<String>('work-summary')),
-      );
-      final deco = box.decoration as BoxDecoration;
-      expect(deco.borderRadius, BorderRadius.circular(0));
-      expect((deco.border! as Border).top.width, 2);
-      expect(deco.boxShadow ?? const <BoxShadow>[], isEmpty);
-      expect(deco.gradient, isNull);
-      expect(deco.color, const Color(0xFFFFFFFF));
-      final button = tester.getSize(
-        find.byKey(const ValueKey<String>('send-now')),
-      );
-      expect(button.height, greaterThanOrEqualTo(56));
-    });
-
-    // AND NO SHADOW IN THE SKIN THAT HAS ONE. Veld's `depth.shadows` is empty,
-    // so the assertion above held whatever this block asked for. Day's is
-    // three stacked drops, and that is where the summary floated over rows
-    // that sit flat on the ground.
-    for (final skin in <SkinMode>[SkinMode.night, SkinMode.day]) {
-      testWidgets('${skin.name}: the summary sits flat on the ground', (
-        tester,
-      ) async {
-        await _pump(tester, sync: _held, skin: skin);
-        final deco =
-            tester
-                    .widget<DecoratedBox>(
-                      find.byKey(const ValueKey<String>('work-summary')),
-                    )
-                    .decoration
-                as BoxDecoration;
-        expect(deco.boxShadow ?? const <BoxShadow>[], isEmpty);
-      });
-    }
-  });
-
   group('the amber census', () {
     Future<void> showSummary(WidgetTester tester) async {
       // The summary block, with "Send now" in it, is at the top of the scroll
@@ -866,39 +823,39 @@ void main() {
         'held',
         _held,
         null,
-        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+        {SkinMode.night: 1, SkinMode.day: 0},
       ),
       // Stuck: "Send now" takes the one content grant.
       (
         'stuck',
         _stuck,
         null,
-        {SkinMode.night: 2, SkinMode.day: 1, SkinMode.veld: 1},
+        {SkinMode.night: 2, SkinMode.day: 1},
       ),
       // Signed out: "Sign in" takes it instead.
       (
         'signed-out',
         _signedOut,
         null,
-        {SkinMode.night: 2, SkinMode.day: 1, SkinMode.veld: 1},
+        {SkinMode.night: 2, SkinMode.day: 1},
       ),
       (
         'all-sent',
         _allSent,
         null,
-        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+        {SkinMode.night: 1, SkinMode.day: 0},
       ),
       (
         'empty',
         SyncStatus.empty,
         null,
-        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+        {SkinMode.night: 1, SkinMode.day: 0},
       ),
       (
         'error',
         null,
         StateError('boom'),
-        {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+        {SkinMode.night: 1, SkinMode.day: 0},
       ),
     ];
 

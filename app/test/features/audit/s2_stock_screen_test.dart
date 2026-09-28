@@ -326,8 +326,8 @@ void main() {
               textScale: scale,
               locale: locale,
             );
-            // Offstage on arrival wherever the header takes the whole fold
-            // (see the note on Veld below) — its HEIGHT is still the law.
+            // Offstage on arrival wherever the header takes the whole fold —
+            // its HEIGHT is still the law.
             final band = find.byKey(
               const ValueKey<String>('torch-shell-pinned'),
               skipOffstage: false,
@@ -377,18 +377,9 @@ void main() {
     // taller than the fold, so the sliver got no paint extent at all: at 2.0×
     // in Afrikaans an agent opening Stock saw the header and nothing else, and
     // the "only fixed chrome on a 60-SKU shelf" was not in the frame.
-    //
-    // Veld at 2.0× is absent from this list on purpose, and it is not the
-    // band's doing. Measured there: `TorchAppHeader` is 324dp against unify
-    // §4's 256dp ceiling — `chrome_scale_test` only ever asserted that ceiling
-    // in Night — and the bottom region takes 323dp, which leaves the scroll
-    // view 317dp of a 640dp screen. The header block alone is 364dp, so
-    // nothing at the top of that route is on the fold, band or not. When that
-    // arithmetic is fixed, add `2.0` to the Veld row here.
     for (final (skin, scales) in <(SkinMode, List<double>)>[
       (SkinMode.night, <double>[1.0, 1.4, 2.0]),
       (SkinMode.day, <double>[1.0, 1.4, 2.0]),
-      (SkinMode.veld, <double>[1.0, 1.4]),
     ]) {
       for (final scale in scales) {
         for (final locale in const <Locale>[Locale('en'), Locale('af')]) {
