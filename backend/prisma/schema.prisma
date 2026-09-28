@@ -88,6 +88,7 @@ model Client {
   promoCalendar                       PromoCalendar[]
   visits                              Visit[]
   territories                         Territory[]
+  placeImages                         PlaceImage[]
   campaigns                           Campaign[]
   beatPlans                           BeatPlan[]
   alertRules                          AlertRule[]
@@ -667,9 +668,69 @@ model Territory {
   beatPlans    BeatPlan[]
   salesTargets SalesTarget[]
   contests     Contest[]
+  placeImages  PlaceImage[]
 
   @@unique([clientId, code])
   @@map("territories")
+}
+
+/// A PICTURE OF A PLACE — never a picture of a shelf.
+///
+/// One illustrative view per territory (and one for the client's whole
+/// footprint, where `territoryId` is null), carried on The Floor's plate so the
+/// manager's home screen shows the area currently in scope and changes when the
+/// territory filter changes.
+///
+/// ## Why this is a table of its own and not a `Photo` row
+///
+/// Everything in `photos` is a reading somebody can act on: visit evidence, the
+/// review strip, the storefront that settles a pin dispute. Each carries a
+/// visit, a GPS tag and a capture time, and the fraud engine hashes every one
+/// of them. A place image has none of those and must never acquire them — it is
+/// context, not a measurement. Keeping it in a separate table makes that
+/// structural rather than a convention somebody later forgets: no query that
+/// reads evidence can reach these rows, and no `source` filter has to be
+/// remembered.
+///
+/// ## `source` is required
+///
+/// Today every row is `generated` — made once by
+/// `scripts/generate-place-images.ts` against the Gemini image API, committed
+/// under `backend/assets/places`, and loaded from disk by the seed. It is a
+/// column and not a constant so a commissioned photograph could sit beside them
+/// without the marker lying, and it travels all the way out: the API answers
+/// with `X-Image-Source`, and the plate says it aloud.
+///
+/// These are **seed data**. A generated image is never the stand-in for a
+/// missing real photograph — that path keeps its drawing and its sentence.
+model PlaceImage {
+  id          String     @id @default(uuid())
+  clientId    String     @map("client_id")
+  client      Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Null is the client's whole footprint — what The Floor shows under
+  /// "All territories", which is a scope a manager spends most of their time in
+  /// and so needs a picture of its own rather than one province's borrowed.
+  territoryId String?    @map("territory_id")
+  territory   Territory? @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  /// `generated` — see the note above. Never null: an image whose origin nobody
+  /// recorded is the one thing that must not reach this table.
+  source      String
+  /// The model that produced it, e.g. `gemini-3.1-flash-image`.
+  generator   String?
+  /// The prompt it was produced from, so the picture can be reproduced or
+  /// argued with.
+  prompt      String?
+  mimeType    String     @map("mime_type")
+  /// A `data:image/jpeg;base64,…` URL, held to the plate's ≤60 kB budget by the
+  /// generator and re-checked by the seed loader.
+  url         String
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  /// One picture per scope. The partial unique index for the null-territory row
+  /// is added by the migration: Postgres treats NULLs as distinct, so this
+  /// constraint alone would let a client collect several footprint images.
+  @@unique([clientId, territoryId])
+  @@map("place_images")
 }
 
 /// Assigns an agent (User) to a Territory they cover.

@@ -12,9 +12,11 @@ import {
   DEMO_USERS,
   SKUS,
   TERRITORIES,
+  TERRITORY_ID_BY_CODE,
   USERS,
   homeCoordinates,
 } from './catalog';
+import { GENERATED, loadSeedPlaceImages } from './placeImages';
 import { buildComms } from './comms';
 import { buildContests } from './contests';
 import { HistoryGenerator, MonthBatch, PhotoSpec, REUSED_PHOTO_POOL } from './history';
@@ -253,6 +255,8 @@ async function writeReferenceData(prisma: PrismaClient, world: World, passwordHa
     data: world.agents.map((agent) => ({ userId: agent.id, territoryId: agent.territoryId! })),
   });
 
+  await writePlaceImages(prisma);
+
   await prisma.sku.createMany({ data: SKUS.map((sku) => ({ ...sku, clientId: DEMO_CLIENT_ID })) });
 
   await prisma.outlet.createMany({
@@ -480,4 +484,61 @@ async function writeMonth(
       })),
     });
   }
+}
+
+/**
+ * THE PICTURE OF EACH PLACE, FROM DISK.
+ *
+ * One committed JPEG per territory plus one for the whole footprint, written
+ * into `place_images` with the provenance the manifest recorded: the model that
+ * made it, the prompt, and `source: 'generated'`.
+ *
+ * Three things this deliberately does not do:
+ *
+ * * **It does not call an API.** The images were generated once, by hand, with
+ *   `scripts/generate-place-images.ts`, and committed. A seed that needs a key
+ *   and a signal is a seed that fails for the next person who clones this.
+ * * **It does not write to `photos`.** These are context, not evidence. Nothing
+ *   here touches the table the visit sections, the review strip and the
+ *   pin-dispute storefront live in, and nothing there can reach this table.
+ * * **It does not invent a marker.** The `source` comes from the manifest, and
+ *   an entry that does not carry one is skipped loudly rather than defaulted:
+ *   an unmarked generated image is the one row that must never exist.
+ *
+ * Missing assets are not an error. A checkout with no `backend/assets/places`
+ * seeds no place images at all, and The Floor draws its designed no-picture
+ * state — which is the same thing it does for a real tenant whose territories
+ * have never been photographed.
+ */
+async function writePlaceImages(prisma: PrismaClient): Promise<void> {
+  const images = loadSeedPlaceImages();
+  if (images.length === 0) return;
+
+  const rows = [];
+  for (const image of images) {
+    if (image.source !== GENERATED) {
+      console.warn(`place image ${image.code}: unknown source "${image.source}" — skipped`);
+      continue;
+    }
+    // `ALL` is the whole-footprint scope The Floor shows under "All
+    // territories", and it is a null territory rather than a sentinel row: a
+    // territory called "ALL" would be a territory, and would turn up in the
+    // filter sheet, in coverage and in every list a manager reads.
+    const territoryId = image.code === 'ALL' ? null : TERRITORY_ID_BY_CODE[image.code];
+    if (territoryId === undefined) {
+      console.warn(`place image ${image.code}: no seeded territory with that code — skipped`);
+      continue;
+    }
+    rows.push({
+      clientId: DEMO_CLIENT_ID,
+      territoryId,
+      source: image.source,
+      generator: image.generator,
+      prompt: image.prompt,
+      mimeType: image.mimeType,
+      url: image.dataUrl,
+    });
+  }
+
+  await prisma.placeImage.createMany({ data: rows });
 }
