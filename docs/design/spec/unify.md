@@ -262,15 +262,15 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 
 ### 1.25 One spacing scale, and it is the manager's
 
-> **OWNER OVERRIDE — 29 September 2026. THE AGENT SIDE'S RHYTHM IS THE CONSOLE'S.**
+> **OWNER OVERRIDE — 29 September 2026. THERE IS ONE SPACING SCALE, AND IT IS THE CONSOLE'S.**
 >
 > > *"Fix the spacing also please check if everything matches with the manager side"*
 >
 > Said after *"match the manager side please"* and *"don't change the manager side, it looks perfect"* the same day. With type unified on a sibling branch (#488, *"There is one type scale, and it is the manager's"*), spacing is the last axis on which the agent side differs **by construction** rather than by drift.
 >
-> **NOTE FOR WHOEVER INTEGRATES THIS WITH #488.** This branch is cut from `feat/chip-pills`, which does **not** contain #488 — that PR merged into `feat/agent-row-marks` an hour after `feat/agent-row-marks` had already merged into `feat/chip-pills`, so the two are siblings rather than a stack. #488 adds a paragraph to §1.17 headed **"WHAT IS NOT STRUCK — spacing"**, which says `TiqSpace.field` is untouched and that *"a 44dp target on a phone used in a forecourt is a different change and nobody has asked for it"*. **That paragraph is superseded by this clause and should be struck, not deleted, when the two land together** — it was true on the day it was written, and it named the right condition: somebody has now asked. Git will not flag it, because the two changes touch different lines of the same file.
+> **NOTE FOR WHOEVER INTEGRATES THIS WITH #488.** This branch is cut from `feat/chip-pills`, which does **not** contain #488 — that PR merged into `feat/agent-row-marks` an hour after `feat/agent-row-marks` had already merged into `feat/chip-pills`, so the two are siblings rather than a stack. #488 adds a paragraph to §1.17 headed **"WHAT IS NOT STRUCK — spacing"**, which says `TiqSpace.field` is untouched and that *"a 44dp target on a phone used in a forecourt is a different change and nobody has asked for it"*. It also adds, to §1.6 and §1.7, the sentence that `TiqSpace.field` is deliberately untouched by the type unification. **Those sentences are superseded by this clause and should be struck, not deleted, when the two land together** — it was true on the day it was written, and it named the right condition: somebody has now asked. Git will not flag it, because the two changes touch different lines of the same file.
 >
-> **TWO KINDS OF TOKEN LIVE IN `TiqSpace`, AND THEY ARE NOT THE SAME QUESTION.** `gutterWide`, `rowMinHeight`, `blockGap` and `intraBlock` are **visual rhythm**: how much air a screen puts between things, and how tall a row stands when its content does not decide. `tapTarget`, `chipHeight` and `primaryActionHeight` are **thumb reach**: how big a thing has to be to be hit. Different evidence, so they move in separate commits and either can be reverted without the other. This clause is the rhythm half.
+> **TWO KINDS OF TOKEN LIVE IN `TiqSpace`, AND THEY ARE NOT THE SAME QUESTION.** `gutterWide`, `rowMinHeight`, `blockGap` and `intraBlock` are **visual rhythm**: how much air a screen puts between things, and how tall a row stands when its content does not decide. `tapTarget`, `chipHeight` and `primaryActionHeight` are **thumb reach**: how big a thing has to be to be hit. Different evidence, so they moved in separate commits and either can be reverted without the other.
 >
 > | token | was (field) | now | kind |
 > |---|---|---|---|
@@ -279,14 +279,24 @@ A **bottom sheet** over the live screen (agent/manager), non-dismissible on firs
 > | `rowMinHeight` | 64 | **44** | rhythm |
 > | `blockGap` | s7 | **s6** | rhythm |
 > | `intraBlock` | s4 | **s3** | rhythm |
+> | `tapTarget` | 48 | **44** | touch |
+> | `chipHeight` | 48 | **44** | touch |
+> | `primaryActionHeight` | s9 (56) | **44** | touch |
 >
 > **WHAT WAS TRADED, kept rather than deleted.** A 64dp row and a 32dp block gap are what a list looks like when it is scanned standing up, at arm's length, one-handed, on a cheap panel at 40% backlight, often in direct sunlight — the same premise that gave `TiqType.field` its larger prose, and the layout half of the same answer: more air per row means fewer rows compete for one glance, and a 64dp floor is tall enough that a two-line outlet name never crowds its status word. `gutterWide` held the phone gutter at every width because the field surface is phone-only and 1080dp was a case nobody had.
 >
 > **WHAT IT BUYS.** One rhythm across the product, which is what the owner asked for four times in one day. **WHAT IT COSTS:** about a third of each row's floor and a quarter of the air between blocks, on exactly the screens read outdoors — against which more of the screen is now the screen, which is the compensation the owner was after. Measured on the declared-shape goldens: the thumb zone loses 8dp on all five screens that have one (`intraBlock` twice), and My work's outbox returns a second row above the fold at 390×844.
 >
-> **This strikes §1.3's "standard 64 (Field lists)".**
+> **TOUCH — what it costs, said plainly.** Every tap target on the agent side drops from **48dp to 44dp**, every chip from 48 to 44, and the commit action from 56dp to 44dp. 48dp existed because an agent works one-handed, in direct sunlight, often with a box under the other arm and a phone that is not theirs; it is the Material floor and one step of margin above the accessibility one. **44dp is the WCAG 2.5.5 (AAA) minimum** — the floor rather than a margin above it — and it is what the manager side has run from the start with nobody filing it, so it is not out of contract and it is the number the owner is pointing at. That is the whole of the trade, and it is why the touch change is its own commit: reverting it is one revert and does not take the rhythm with it.
 >
-> **IF THE FIELD SCALE EVER RETURNS, ITS RATIONALE RETURNS WITH IT.** The paragraph above is not withdrawn, it is outranked, and it is kept in `TiqSpace.field`'s doc comment as well as here. A future reader restoring 64dp rows is restoring a decision, not a number, and the decision is written down in both places.
+> **ONE FLOOR DID NOT MOVE, and it is worth knowing before anyone panics.** `torchTapTarget` in `button/torch_button.dart` reads `skin.space.tapTarget < 48 ? 48 : skin.space.tapTarget` — a hard 48 for text and glyph actions at **both** densities, written before this change and unaffected by it. The smallest targets in the product therefore stay 48dp on both sides. What drops to 44 is the row floor, the chip, the block button and the generic `space.tapTarget` constraint.
+>
+> **`chipHeight` WAS A DEAD TOKEN.** Nothing in `lib/` read it: `TorchFilterChip.heightFor` restated 44/48 as its own switch on density, so the same ruling was written in two places, which is how two copies of one number drift apart. It reads `skin.space.chipHeight` now. The console value is 44 either way, so no manager pixel moved when it was rewired — proved by sha256, not assumed.
+>
+> **This strikes §1.3's "standard 64 (Field lists)" and its "tappable targets are ≥48 everywhere", and §1.6's "inside a 48dp hit box when tappable".** All three were density rulings about the thumb, and all three are overridden here rather than reinterpreted. §1.6's *visual* chip height of 28/32 is NOT struck — that is a separate number in a separate file and it still branches.
+>
+>
+> **IF THE FIELD SCALE EVER RETURNS, ITS RATIONALE RETURNS WITH IT.** The paragraphs above are not withdrawn, they are outranked, and they are kept in `TiqSpace.field`'s doc comment as well as here. A future reader restoring 64dp rows or 48dp targets is restoring a decision, not a number, and the decision is written down in both places.
 >
 > **WHAT THIS DOES NOT REACH.** Eight widgets outside `TiqSpace` still branch on `TiqDensity` for geometry that is not spacing, and they are unchanged because they are separate rulings with their own written reasons — header height 72/96 (§1.2), chip visual height 28/32 (§1.6), filter-chip height 44/48, trough min height 44/56, meter track 4/6 (§1.19), stat-tile inset 16/20 and floor 88/96 (§1.4), trend-chart plot 208/232 (§1.17), and the assistant card's copy of the last one. They are listed so nobody has to re-find them.
 

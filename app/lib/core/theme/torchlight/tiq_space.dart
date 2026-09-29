@@ -16,9 +16,9 @@ enum TiqDensity {
   /// The manager console: tight rows, 24px block gaps, a 44dp row floor.
   console,
 
-  /// The field agent's phone. Its rhythm is the console's, since
-  /// 29 September 2026; its touch tokens are still its own — 48dp targets,
-  /// 56dp primary actions.
+  /// The field agent's phone. Its [TiqSpace] is the console's, in every
+  /// field, since 29 September 2026 — see [TiqSpace.field] for what that
+  /// traded and how to put it back.
   field,
 }
 
@@ -94,13 +94,23 @@ class TiqSpace {
   /// 29 September 2026; see [field].
   final double intraBlock;
 
-  /// Minimum interactive box.
+  /// Minimum interactive box. **44 at both densities** since 29 September
+  /// 2026 — the WCAG 2.5.5 floor; see [field] for what that cost.
+  ///
+  /// It is not the smallest target in the product: `torchTapTarget` holds a
+  /// text or glyph action at 48 on both sides regardless of this value.
   final double tapTarget;
 
-  /// Height of the one primary commit action.
+  /// Height of the one primary commit action. **44 at both densities** since
+  /// 29 September 2026; see [field].
   final double primaryActionHeight;
 
-  /// Chip height.
+  /// Chip height. **44 at both densities** since 29 September 2026; see
+  /// [field].
+  ///
+  /// Nothing read this until that day — `TorchFilterChip.heightFor` restated
+  /// 44/48 as its own switch on density, so the token was declared and dead.
+  /// It is the single source now.
   final double chipHeight;
 
   static const TiqSpace console = TiqSpace(
@@ -115,27 +125,26 @@ class TiqSpace {
     chipHeight: 44,
   );
 
-  /// THE FIELD SCALE — **its rhythm is the console's, since 29 September
-  /// 2026.**
+  /// THE FIELD SCALE — **it is the console's, in every field, since
+  /// 29 September 2026.**
   ///
   /// > *"Fix the spacing also please check if everything matches with the
   /// > manager side"* — the owner, 29 September 2026, after *"match the
-  /// > manager side please"* and *"don't change the manager side, it looks
-  /// > perfect"* the same day.
+  /// > manager side please"*, *"don't change the manager side, it looks
+  /// > perfect"* and *"literally everything"* the same day.
   ///
-  /// Four tokens moved, and they are the four that made the agent side read
-  /// as a different application rather than as the same application at arm's
-  /// length: **`gutterWide` s5 → s8**, **`rowMinHeight` 64 → 44**,
-  /// **`blockGap` s7 → s6**, **`intraBlock` s4 → s3**. Every one of them now
-  /// holds the console's value.
+  /// Seven tokens moved; `gutter` was already the same. **`gutterWide`
+  /// s5 → s8**, **`rowMinHeight` 64 → 44**, **`blockGap` s7 → s6**,
+  /// **`intraBlock` s4 → s3**, **`tapTarget` 48 → 44**, **`chipHeight`
+  /// 48 → 44**, **`primaryActionHeight` s9 → 44**.
   ///
-  /// THE TWO KINDS OF TOKEN IN HERE, AND WHY ONLY ONE MOVED IN THIS CHANGE.
+  /// THE TWO KINDS OF TOKEN IN HERE, AND WHY THEY MOVED IN SEPARATE COMMITS.
   /// `gutterWide`, `rowMinHeight`, `blockGap` and `intraBlock` are **visual
   /// rhythm**: they say how much air a screen puts between things and how tall
   /// a row stands. [tapTarget], [primaryActionHeight] and [chipHeight] are
   /// **thumb reach**: they say how big a thing has to be to be hit. They are
-  /// separate questions with separate evidence, so they moved in separate
-  /// commits and either can be reverted without the other.
+  /// separate questions with separate evidence, so reverting the touch change
+  /// is one revert and does not take the rhythm change with it.
   ///
   /// WHAT THE RHYTHM SCALE WAS FOR — not withdrawn, **outranked**, and kept
   /// here in full so a reader knows what was traded. A 64dp row and a 32dp
@@ -160,10 +169,32 @@ class TiqSpace {
   /// Today's rest-of-the-day list, the visit hub's section ladder and Me's
   /// visit rows all return rows below the fold on a 360dp phone.
   ///
-  /// TO RESTORE: put the four values back below. **The rationale above comes
-  /// back with them** — it is the whole of why they were different, and a
-  /// future reader restoring 64dp rows without it would be restoring a number
-  /// rather than a decision.
+  /// WHAT THE TOUCH SCALE WAS FOR — the same premise, stated about the thumb
+  /// instead of the eye. 48dp exists because an agent works one-handed, in
+  /// direct sunlight, often with a box under the other arm and a phone that
+  /// is not theirs. It is the Material floor and one step of margin above the
+  /// accessibility one.
+  ///
+  /// WHAT THE TOUCH OVERRIDE COSTS, said plainly: **every target on the agent
+  /// side drops from 48dp to 44dp**, every chip from 48 to 44, and the commit
+  /// action from 56dp to 44dp. 44 is the **WCAG 2.5.5 (AAA) minimum** — the
+  /// floor rather than a margin above it — and it is what the manager side
+  /// has run from the start with nobody filing it. It is not out of contract,
+  /// and it is the number the owner is pointing at.
+  ///
+  /// ONE FLOOR DID NOT MOVE. `torchTapTarget` in
+  /// `core/widgets/torchlight/button/torch_button.dart` reads
+  /// `skin.space.tapTarget < 48 ? 48 : skin.space.tapTarget` — a hard 48 for
+  /// text and glyph actions at **both** densities, written before this change
+  /// and unaffected by it. So the smallest targets in the product stay 48dp
+  /// on both sides; what drops to 44 is the row floor, the chip, the block
+  /// button and the generic `space.tapTarget` constraint.
+  ///
+  /// TO RESTORE: put the seven values back below — they are listed in the
+  /// comments beside them. **The rationale above comes back with them**: it is
+  /// the whole of why they were different, and a future reader restoring 64dp
+  /// rows or 48dp targets without it would be restoring a number rather than a
+  /// decision.
   static const TiqSpace field = TiqSpace(
     density: TiqDensity.field,
     gutter: s5,
@@ -173,11 +204,12 @@ class TiqSpace {
     rowMinHeight: 44,
     blockGap: s6,
     intraBlock: s3,
-    // Thumb reach — still the field's own. A separate question with separate
-    // evidence; see the doc comment above.
-    tapTarget: 48,
-    primaryActionHeight: s9,
-    chipHeight: 48,
+    // Thumb reach — the console's too, since 29 September 2026, in its own
+    // commit so it can come back alone. Was: tapTarget 48, primaryActionHeight
+    // s9 (56), chipHeight 48.
+    tapTarget: 44,
+    primaryActionHeight: 44,
+    chipHeight: 44,
   );
 
   /// The horizontal gutter for a viewport [width] logical pixels wide.
