@@ -190,7 +190,21 @@ void main() {
 /// Day at the console density, which is what `pumpFloor` gives Night by
 /// default — so the only thing that differs between a `-day` image and its
 /// twin is the skin.
-final TiqSkin _day = TiqSkin.day();
+///
+/// THE DENSITY IS NAMED, and it has to be. `TiqSkin.day()` defaults to
+/// **field**, not console — the agent is the one who starts in Day, so the
+/// factory's default is written for them — while `TiqSkin.night()` defaults to
+/// console. A bare `TiqSkin.day()` here therefore did the opposite of what the
+/// sentence above promises: it rendered The Floor, a manager screen, at field
+/// density, so every `-day` image differed from its Night twin by the density
+/// as well as the skin — field's 64dp rows, 48dp targets and, until
+/// 29 September 2026, the field type scale. `tasks_look_test.dart` and
+/// `ask_look_test.dart` both name `TiqDensity.console` and were always right;
+/// this file was the odd one out. The real route is not affected — The Floor
+/// is a `ConsoleTorchlightRoute` and `consoleSkinFor` names the density — so
+/// this was a harness fault, and the three `-day` images it produced were of a
+/// screen the product never draws.
+final TiqSkin _day = TiqSkin.day(density: TiqDensity.console);
 
 /// The filter, already narrowed to one territory. See the override above.
 class _ScopedFilter extends DashboardFilterNotifier {
