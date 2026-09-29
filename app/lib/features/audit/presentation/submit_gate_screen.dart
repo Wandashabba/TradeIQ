@@ -579,8 +579,7 @@ class _GateSkeleton extends StatelessWidget {
       children: <Widget>[
         SkeletonLine(role: skin.text.body, widthFactor: 0.9),
         const SizedBox(height: TiqSpace.s4),
-        // The captured block is a card now, so its shell is a card.
-        const SkeletonShell(height: 96, card: true),
+const SkeletonShell(height: 96, outlined: true),
         const SizedBox(height: TiqSpace.s7),
         const SkeletonRows(count: 3),
       ],

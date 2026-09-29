@@ -1522,14 +1522,17 @@ class _HubSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // The readiness block's own silhouette, empty: a card's edge IS its
-        // fill, so a skeleton that drew an outline would promise a shape the
-        // screen no longer has.
+        // THE SKELETON KEEPS THE OUTLINE — unify §1.11, and the device floor
+        // behind it: a `surface` block on the Night ground is 1.49:1 and a
+        // skeleton nobody can see is worse than no skeleton.
         Container(
           height: 140,
           decoration: BoxDecoration(
-            color: skin.palette.surface,
-            borderRadius: BorderRadius.circular(skin.radii.card),
+            borderRadius: BorderRadius.circular(skin.radii.panel),
+            border: Border.all(
+              color: skin.palette.edgeStructure,
+              width: skin.depth.borderWidth,
+            ),
           ),
         ),
         const SizedBox(height: TiqSpace.s7),

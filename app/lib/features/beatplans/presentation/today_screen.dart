@@ -852,16 +852,21 @@ class _TodaySkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    // THE REAL OBJECT'S OWN SILHOUETTE. Both blocks arriving here are
-    // `TorchCard`s, and a card's edge *is* its fill — it carries no outline
-    // (unify §1.3's 25 September override). A skeleton that drew a radius-14
-    // outline would promise a shape the screen no longer has and snap to a
-    // different one the moment the route landed.
+    // THE SKELETON KEEPS THE OUTLINE, and it is the one place on this screen
+    // that still does. unify §1.11 is explicit — "rows and panels are their
+    // real outline at their real geometry, empty" — and the reason is the
+    // device floor: a `surface` block on the Night ground is 1.49:1, which is
+    // one quantisation level on a 6-bit panel at 40% backlight, so a filled
+    // card with no edge is a skeleton nobody can see. The blocks arriving are
+    // cards; their placeholder is drawn at the edge you can actually find.
     Widget block(double height) => Container(
       height: height,
       decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.card),
+        borderRadius: BorderRadius.circular(skin.radii.panel),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
       ),
     );
     return Column(
