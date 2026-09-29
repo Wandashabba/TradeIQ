@@ -10,7 +10,7 @@ import 'stat_tile.dart';
 /// 12dp of gap with a centred 1px `edge-structure` rule in Night, a hairline
 /// in Day (unify §1.4). Both, not either:
 ///
-/// * A **hairline alone** measures 1.72:1 on the Night surface. It is exempt
+/// * A **hairline alone** measures 1.92:1 on the Night surface. It is exempt
 ///   from 3:1 as a decorative rule, which is precisely why it cannot be the
 ///   thing that separates two readings of an instrument.
 /// * A **gap alone** was the manager surface's proposal, and it fails on its

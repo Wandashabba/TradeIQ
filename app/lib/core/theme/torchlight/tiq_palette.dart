@@ -115,8 +115,13 @@ class TiqPalette {
   ///
   /// **Moved in Phase 1** (unify §1.4). Night `#8B8271` → `#A39887`; Day
   /// `#676052` → `#5C5648`. The old Night value measured 3.01:1 against the
-  /// `lifted` track — the product's most-drawn graphic sitting on the AA floor
-  /// with 0.01 of margin, which on a 6-bit panel at 40% backlight is a smudge.
+  /// `lifted` track *of the day* — the product's most-drawn graphic sitting on
+  /// the AA floor with 0.01 of margin, which on a 6-bit panel at 40% backlight
+  /// is a smudge. (Against the warm-neutral `lifted` of 29 September 2026 the
+  /// old value would measure 3.80:1, so the recast would have relieved some of
+  /// that pressure on its own. It does not reopen the decision: `#A39887`
+  /// measures 5.09:1 on the new track, and the Day half of the move — a bar
+  /// that was byte-identical to a meta line — had nothing to do with Night.)
   /// The old Day value was byte-identical to Day [ink3], so a bar and a meta
   /// line were the same token by accident. The floor did not move (a bar is a
   /// graphic at 3:1, not text at 4.5:1); the margin did.
@@ -163,7 +168,7 @@ class TiqPalette {
   /// The **mark grade**: a fill, a dot, a bar, a solid block. It is a graphic
   /// at 3:1 and it carries [onGoodSolid] / [onBadSolid] when it is a block, so
   /// it is free to be more chromatic than the word grade. It is **not** an ink
-  /// for a word: Night [badSolid] is 3.66:1 on `surface`, which is what the
+  /// for a word: Night [badSolid] is 4.09:1 on `surface`, which is what the
   /// grade split exists to keep out of a sentence.
   final Color goodSolid;
   final Color onGoodSolid;
@@ -240,15 +245,95 @@ class TiqPalette {
     Color(0x00FFB162), // transparent
   ];
 
+  /// The Night surface ladder's generating rule: [ink1] washed over [night]'s
+  /// [ground] at `alpha`, quantised to 8 bits.
+  ///
+  /// It exists so the four tiers below are **provably one family** rather than
+  /// four hand-picked hexes that happen to sit near each other.
+  /// `tiq_palette_test.dart` recomputes each tier from its declared alpha and
+  /// fails if a byte drifts — the same discipline `tiq_contrast.dart` applies
+  /// to ratios, applied to the fills themselves.
+  ///
+  /// It cannot be called from the `const` constructor below, which is why the
+  /// tiers are still written as literals. The literal is the shipped value;
+  /// this is the proof it was derived.
+  static Color nightWash(double alpha) {
+    const Color bone = Color(0xFFEEE9DF);
+    const Color ground = Color(0xFF0B1017);
+    int channel(double bg, double fg) =>
+        ((bg + alpha * (fg - bg)) * 255).round().clamp(0, 255);
+    return Color.fromARGB(
+      0xFF,
+      channel(ground.r, bone.r),
+      channel(ground.g, bone.g),
+      channel(ground.b, bone.b),
+    );
+  }
+
+  /// The alpha each Night surface tier is [nightWash]ed at, in ladder order.
+  ///
+  /// `surface` and `raised` are **the approved artifact's own numbers** — its
+  /// soft row is `rgba(238,233,223,0.055)` and its lead row `0.085` — so the
+  /// two tiers a card is actually painted in are not an interpretation of the
+  /// design, they are the design. `well` and `lifted` extend the same line
+  /// down and up; the artifact's recessed and pressed fills (`0.05` for the
+  /// Ask panel, `0.10` for a progress track, `0.12` for a hover) bracket them.
+  static const Map<String, double> nightSurfaceAlpha = <String, double>{
+    'well': 0.030,
+    'surface': 0.055,
+    'raised': 0.085,
+    'lifted': 0.120,
+  };
+
   /// NIGHT — the near-black console. Warm off-white ink on a cool navy-black
   /// ground is what makes it read as lit rather than switched off.
   static const TiqPalette night = TiqPalette(
     ground: Color(0xFF0B1017),
     vignette: Color(0xFF0F1620),
-    well: Color(0xFF141D27),
-    surface: Color(0xFF1B2632),
-    raised: Color(0xFF22303E),
-    lifted: Color(0xFF2C3B4D),
+    // ── THE SURFACE LADDER IS ONE WASH AT FOUR STRENGTHS ────────────────
+    //
+    // MOVED 29 September 2026. The owner looked at The Floor in Night beside
+    // the approved artifact and said: *"Look at that grey, I need it on some
+    // of these cards instead this blue everywhere, this is on the dark
+    // theme."*
+    //
+    // The artifact's cards are not a colour. They are [ink1] — the bone
+    // #EEE9DF — washed over the ground at a few per cent, so every surface in
+    // it is the *same warm off-white* at a different strength and the ground's
+    // own navy is what shows through. The app's ladder was four separately
+    // chosen navies: measured as blue cast (B−R) they ran 19 / 23 / 28 / 33
+    // against the artifact's flat 9–11, and that rising cast is the "blue
+    // everywhere" the owner was pointing at. A card was not a lit version of
+    // the ground; it was a bluer one.
+    //
+    // So the ladder is derived now, not picked — see [nightWash] and
+    // [nightSurfaceAlpha]:
+    //
+    //   well    bone @ 0.030  #12171D   cast 11
+    //   surface bone @ 0.055  #171C22   cast 11   (the artifact's .srow)
+    //   raised  bone @ 0.085  #1E2228   cast 10   (the artifact's .srow.lead)
+    //   lifted  bone @ 0.120  #262A2F   cast  9
+    //
+    // `ground` and `vignette` did not move: they are the letterbox falloff's
+    // own stops and they already matched.
+    //
+    // WHAT IT COST, STATED PLAINLY. Every tier is darker than the one it
+    // replaces, so every ink and every edge measured on it gained contrast —
+    // the full table is in `torchlight_contrast_test.dart`, and nothing got
+    // harder. What got *smaller* is the step between adjacent tiers: 1.12 /
+    // 1.11 / 1.14 / 1.18 became 1.06 / 1.05 / 1.07 / 1.11. That is inside the
+    // range §2 already refuses to treat as a cue ("a 1.12–1.24:1 fill step is
+    // one or two quantisation levels on a budget LCD in sunlight"), and the
+    // rule it states is unchanged and still enforced: nothing is identified by
+    // a fill step alone and every perceivable boundary carries a real edge.
+    // Anchoring `surface` on the artifact's 0.055 is what compresses the
+    // bottom of the ladder — the whole span from ground to surface is only
+    // 1.11:1 — and that is a consequence of the approved design, not of this
+    // change's arithmetic.
+    well: Color(0xFF12171D),
+    surface: Color(0xFF171C22),
+    raised: Color(0xFF1E2228),
+    lifted: Color(0xFF262A2F),
     hairline: Color(0xFF3A4B60),
     edgeStructure: Color(0xFF5B718A),
     edgeControl: Color(0xFF7C93AC),

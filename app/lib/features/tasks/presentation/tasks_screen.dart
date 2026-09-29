@@ -483,7 +483,7 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
       TaskSlaState.open => null,
     };
     // ONE CRIMSON FOR BOTH COMMITMENT LEVELS, in the word grade. Overdue read
-    // `badSolid`, which is a FILL: it is 3.66:1 on Night's `surface`, and this
+    // `badSolid`, which is a FILL: it is 4.09:1 on Night's `surface`, and this
     // is a phrase on a card. The level is carried by the mark beside it —
     // `markKind` above is a filled triangle against an outlined one — which is
     // where a commitment level belongs.

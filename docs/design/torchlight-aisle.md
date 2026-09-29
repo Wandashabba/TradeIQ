@@ -122,7 +122,9 @@ perceivable boundary carries a real edge.
 > `#5A7088` and described it as "tuned to exactly 3.00:1" on `surface`. It
 > measures **2.9987:1** and therefore misses WCAG 1.4.11 — on the single most
 > used structural edge in Night. The token is `#5B718A`, the minimum step up the
-> same hue line, which measures 3.05:1 on `surface` and 3.79:1 on `ground`.
+> same hue line, which measures 3.41:1 on `surface` and 3.79:1 on `ground`.
+> (3.05:1 until the Night ladder was recast warm-neutral on 29 September 2026;
+> the surface went darker, so the edge on it got easier, not harder.)
 
 ### Ink
 
@@ -2040,7 +2042,7 @@ StatCluster(
 Four tiles maximum on a phone, three recommended. Cells are
 separated by a **12dp gap with a 1px rule centred in it** — `edgeStructure` in
 Night and the decorative hairline on paper. Both, not either: a
-hairline alone measures 1.72:1 and a gap alone loses because a tile's own rows
+hairline alone measures 1.92:1 and a gap alone loses because a tile's own rows
 are 8dp apart. Below 320dp of inner width (which is every phone) the cluster is
 one column of horizontal tiles; above it, a two-column grid of vertical cells,
 decided by `LayoutBuilder` and never by a text-scale guess.

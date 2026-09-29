@@ -162,7 +162,7 @@ void main() {
         rules,
         hasLength(1),
         reason:
-            'A hairline alone measures 1.72:1 on the Night surface and is '
+            'A hairline alone measures 1.92:1 on the Night surface and is '
             'invisible; a gap alone loses because a tile\'s own rows are 8dp '
             'apart and every inter-cell space must exceed every intra-cell '
             'one.',
