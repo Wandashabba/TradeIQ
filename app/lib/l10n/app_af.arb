@@ -137,6 +137,10 @@
   "visitSectionNotStarted": "Nie begin nie",
   "visitSectionOptional": "Opsioneel",
   "visitRequiredToSubmitBadge": "VERPLIGTEND OM IN TE DIEN",
+  "visitCantConfirmLabel": "Kan nie bevestig nie",
+  "@visitCantConfirmLabel": {
+    "description": "Label of the subordinate figure pair under the readiness figure."
+  },
   "visitRequiredToSubmit": "Verpligtend om in te dien",
   "visitRequiredShort": "NODIG",
   "visitSectionOutletInfo": "Winkelinligting",

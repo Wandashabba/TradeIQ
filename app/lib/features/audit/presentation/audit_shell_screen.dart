@@ -56,20 +56,45 @@ import 'submit_gate_screen.dart';
 ///   Kasi Corner Spaza            [ 12 held on this phone ]
 ///   In store 12 min
 ///   ┌───────────────────────────────────────────┐
-///   │ CAPTURED                                  │
-///   │ 5 /8        ( 3 sections still needed )   │
-///   │ ▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░░░░░░░░░░                │
+///   │ ▲ SECTIONS CAPTURED                       │
+///   │ 5 /8                                      │
+///   │ 3 still required                          │
+///   │ CAN’T CONFIRM                          1  │
 ///   └───────────────────────────────────────────┘
 ///   Do them in any order. Everything saves as you go.
-///   ── Sections ────────────────────────────────
-///   ◉ Outlet info           Confirmed at check-in
-///   ◑ Stock & availability  7 of 12    [Required]
-///   ⊘ Pricing               The product list did not load
-///   ⊘ Score                 Worked out when the visit sends   —
-///   ─────────────────────────────────────────────
+///   THE AUDIT
+///   ┌───────────────────────────────────────────┐
+///   │ ◉  Outlet info      Confirmed at check-in │
+///   └───────────────────────────────────────────┘
+///   ┌───────────────────────────────────────────┐
+///   │ ● ◑  Stock & availability                 │
+///   │      7 of 12                              │
+///   │      ▲ Required to submit                 │
+///   └───────────────────────────────────────────┘
+///   ┌───────────────────────────────────────────┐
+///   │ ⊘  Score            Worked out on send  — │
+///   └───────────────────────────────────────────┘
 ///   Stock and Pricing still need finishing.
 ///   [ ☾ ] [        Submit this visit        ]
 /// ```
+///
+/// ## The composition, amended 29 September 2026
+///
+/// The owner, a third time: *"Match the manager side please"*, and — resending
+/// the approved mockup — *"Look at this and please focus"*. The two previous
+/// rounds changed the chips and then the glyph tiles, one shared widget at a
+/// time, and the verdict was *"Literally you didnt change anything"*. The
+/// remaining difference was never the corner radius; it was the arrangement.
+///
+/// Three things in the diagram above are new, and each one is the manager's
+/// Tasks page rather than an invention:
+///
+/// * **the lead card leads** — a mark on the eyebrow, one very large figure,
+///   one supporting sentence, then label-left / figure-right subordinates,
+///   with no meter and no rules. See `_ReadinessBlock`;
+/// * **a row's severity is a small dot plus a word**, not a full-size crimson
+///   chip carrying `REQUIRED TO SUBMIT` on a line of its own;
+/// * **no chevrons**. Eight of them down a ladder read as a settings list.
 ///
 /// ## Amber
 ///
@@ -77,9 +102,10 @@ import 'submit_gate_screen.dart';
 /// spends at most one of them, deliberately: it is a reading screen. **A
 /// blocked submit emits nothing.** It does not declare a claim at all, so the
 /// screen paints zero amber objects while it is blocked and exactly one when
-/// it is armed. The readiness chip, the state glyphs, the REQUIRED badges, the
-/// section rule and the meter's fill are all labels, and the law bans amber
-/// from every one of them by name.
+/// it is armed — the armed `Submit visit`, which is the only object here a
+/// thumb commits with. The state glyphs, the severity marks, the section
+/// marker and every figure are labels, and the law bans amber from all of
+/// them by name.
 ///
 /// ## Can't confirm (#389)
 ///
@@ -742,6 +768,49 @@ class VisitFrame extends StatelessWidget {
 }
 
 /// THE READINESS BLOCK — "5 / 8", and what is still needed, in words.
+///
+/// ## It leads now — 29 September 2026
+///
+/// The owner, for the third time, on the agent side: *"Match the manager side
+/// please"*, and — sending the approved mockup again — *"Look at this and
+/// please focus"*. The verdict on the two previous rounds, which fixed the
+/// chips and then the glyph tiles, was *"Literally you didnt change
+/// anything"*, and it was fair: both rounds changed what the objects were made
+/// of and neither changed how they were arranged.
+///
+/// This block is arranged the way the manager's Tasks lead card is arranged,
+/// because that card is the frozen reference and this is its closest
+/// analogue — a worklist with a figure at the head of it:
+///
+/// 1. an **eyebrow with a small mark on the word**, never a mark in a gutter
+///    of its own;
+/// 2. one **very large luminous figure**, `heroFigureCompact` measured down a
+///    fit chain, in `ink1` — the denominator stays `figureM` in `ink3`, which
+///    is the mockup's `5` at 26 over `/9` at 15 in `#A79E8C`;
+/// 3. **one supporting sentence at meta weight**;
+/// 4. **subordinate figures as label-left / figure-right pairs**, separated by
+///    a gap and never by a rule.
+///
+/// ## What came off, and where each fact went
+///
+/// **The chip beside the figure.** A `StatusChip` at full size, bottom-aligned
+/// against the numeral, was the loudest object in the card and the first thing
+/// the eye landed on — a red rectangle winning against the number it was
+/// supposed to qualify. Its exact words are the supporting line now
+/// ([AppLocalizations.visitStillRequired], [AppLocalizations.visitReadyToSubmit]
+/// — the same two strings, not a rewrite), and its standing is the
+/// [SeverityMark] on the eyebrow. Three channels become two smaller ones that
+/// sit where the manager's do.
+///
+/// **The meter.** A track under the figure is a fourth drawing of `4 / 7`,
+/// and it is a horizontal line across a card in the exact place the owner had
+/// the Tasks card's rules removed from (*"let's remove this lined, rectangular
+/// style"*). The fraction is the progress. The spoken value is unchanged:
+/// `visitReadinessSemantics` is on the container, not on the track.
+///
+/// **The can't-confirm sentence** becomes a subordinate pair, which is the
+/// manager's form for a figure that qualifies the lead one. The count and the
+/// words both survive.
 class _ReadinessBlock extends StatelessWidget {
   const _ReadinessBlock({required this.progress});
 
@@ -759,7 +828,14 @@ class _ReadinessBlock extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: l10n.visitReadinessSemantics(done, total, blocking),
+      // The can't-confirm count is spoken here or nowhere: the container
+      // excludes its children, so the pair beneath the figure is drawn and not
+      // announced. It used to be drawn as a sentence and not announced either
+      // — this is the fact arriving in the spoken label rather than leaving it.
+      label: <String>[
+        l10n.visitReadinessSemantics(done, total, blocking),
+        if (unconfirmed > 0) l10n.visitCantConfirmCount(unconfirmed),
+      ].join('. '),
       excludeSemantics: true,
       // A CARD, since 29 September 2026. It lost its shadow on 26 September
       // and kept the standalone row's material — radius 14, `surface`, a 1px
@@ -771,62 +847,112 @@ class _ReadinessBlock extends StatelessWidget {
         key: const ValueKey<String>('visit-progress'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Eyebrow(l10n.visitSectionsCaptured),
-            const SizedBox(height: TiqSpace.s3),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: TiqSpace.s3,
-              runSpacing: TiqSpace.s2,
+            // 1. THE LABEL, with the silhouette on the word rather than in a
+            //    gutter of its own beside the figure.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    FigureSlot(value: done, role: skin.text.figureL),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: TiqSpace.s1),
-                      child: Text(
-                        '/$total',
-                        style: skin.text.figureM.style(
-                          color: skin.palette.ink3,
-                        ),
-                      ),
-                    ),
-                  ],
+                SeverityMark(
+                  kind: ready
+                      ? SeverityMarkKind.onTarget
+                      : SeverityMarkKind.critical,
+                ),
+                const SizedBox(width: 6),
+                Flexible(child: Eyebrow(l10n.visitSectionsCaptured)),
+              ],
+            ),
+            const SizedBox(height: TiqSpace.s2),
+
+            // 2. THE FIGURE, and the denominator it is read against. The
+            //    numerator is `Flexible`, which is what bounds the slot's
+            //    `LayoutBuilder` — the fit chain only means anything against a
+            //    real width, and an unbounded one always picks the largest.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Flexible(
+                  child: FigureSlot(
+                    key: const ValueKey<String>('visit-progress-figure'),
+                    value: done,
+                    role: skin.text.heroFigureCompact,
+                    fit: <TiqTypeToken>[
+                      skin.text.heroFigureCompact,
+                      skin.text.figureL,
+                      skin.text.figureM,
+                    ],
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: TiqSpace.s1),
-                  child: StatusChip(
-                    level: ready ? StatusLevel.onTarget : StatusLevel.watch,
-                    label: ready
-                        ? l10n.visitReadyToSubmit
-                        : l10n.visitStillRequired(blocking),
+                  padding: const EdgeInsets.only(bottom: TiqSpace.s2),
+                  child: Text(
+                    '/$total',
+                    style: skin.text.figureM.style(color: skin.palette.ink3),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: TiqSpace.s2),
+
+            // 3. THE SUPPORTING LINE — the chip's own two strings, at the
+            //    weight the manager's "Past the deadline and still open."
+            //    carries.
+            Text(
+              ready ? l10n.visitReadyToSubmit : l10n.visitStillRequired(blocking),
+              key: const ValueKey<String>('visit-progress-standing'),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+
+            // 4. THE SUBORDINATE. Two facts, not one figure: a section nobody
+            //    could measure is not a section somebody skipped.
             if (unconfirmed > 0) ...<Widget>[
-              const SizedBox(height: TiqSpace.s2),
-              Text(
-                // Two facts, not one figure. A section nobody could measure is
-                // not a section somebody skipped.
-                l10n.visitCantConfirmCount(unconfirmed),
-                style: skin.text.meta.style(color: skin.palette.ink2),
+              const SizedBox(height: TiqSpace.s3),
+              _ReadinessSubordinate(
+                key: const ValueKey<String>('visit-progress-cant-confirm'),
+                label: l10n.visitCantConfirmLabel,
+                value: unconfirmed,
               ),
             ],
-            const SizedBox(height: TiqSpace.s4),
-            Meter(
-              value: total == 0 ? 0 : done / total * 100,
-              semanticsValue: l10n.visitReadinessSemantics(
-                done,
-                total,
-                blocking,
-              ),
-            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One subordinate figure under the lead one: the label left, the figure
+/// right, on one row.
+///
+/// The manager's `_Subordinate` on Tasks, in the one arrangement that makes a
+/// column of these align on a single right edge — the label is `Expanded` and
+/// the figure is a bounded box. A subordinate never carries a severity ink: it
+/// is context for the figure above it, and a second coloured number in one
+/// card makes the reader hunt for which one the card is about.
+class _ReadinessSubordinate extends StatelessWidget {
+  const _ReadinessSubordinate({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(child: Eyebrow(label)),
+        const SizedBox(width: TiqSpace.s3),
+        FigureSlot(
+          value: value,
+          role: skin.text.figureM,
+          textAlign: TextAlign.end,
+        ),
+      ],
     );
   }
 }
@@ -902,39 +1028,75 @@ class _SectionRow extends StatelessWidget {
     return SoftRow(
       key: ValueKey<String>(entry.tileKey),
       title: entry.label,
-      leading: SectionStateGlyph(state: state, required_: showRequired),
+      leading: SectionStateGlyph(state: state),
+      // THE SEVERITY IS A SMALL DOT PLUS A WORD — 29 September 2026, matching
+      // the manager's rows. `watch` puts an outlined crimson dot in the lane
+      // the whole ladder already reserves, so no row shifts and the column
+      // stays a column.
+      severity: showRequired ? SoftRowSeverity.watch : SoftRowSeverity.none,
+      severityLabel: showRequired ? l10n.visitRequiredToSubmit : null,
       // The detail sits at META, not at body. The surface says "name at
       // title.m wrapping to 2, detail at meta 12 with figures in mono" — it
       // was a `body` 15 subtitle, a second prose voice under every rung of an
       // eight-rung ladder, which is 15dp a row an agent scrolls past nine
       // times a store.
       //
-      // The REQUIRED badge sits beneath it, under the name. Crimson at the
-      // outlined commitment level plus a silhouette plus the word — a
-      // standing fact about the row, and never carried by the hue alone.
+      // THE REQUIRED CHIP IS GONE. It was a `StatusChip(watch)` carrying five
+      // words — `REQUIRED TO SUBMIT` — on its own line under every unfinished
+      // row, and on a blocked hub that is four of them stacked down a phone.
+      // The fact was already being made three times: in that chip, in the
+      // count at the head of the screen, and in the blocking sentence under
+      // the primary that names every waiting section **by name**. The Tasks
+      // work deleted a section header for exactly this (a marker repeating the
+      // chip above it), and the approved mockup draws this marker as a tiny
+      // outlined mono pill rather than a full-size chip.
+      //
+      // What survives is the manager's own channel set, at the manager's
+      // scale: the dot in the lane, a small [SeverityMark] on the line, and
+      // the word in crimson beside the state. Three channels, none of them a
+      // rectangle, and the sentence under the primary is untouched.
+      //
+      // The standing takes a line of its own beneath the detail rather than
+      // riding the end of it. A can't-confirm section's detail is a whole
+      // sentence — "The product list did not load — this section can't be
+      // confirmed." — and appending to it cost the end of that sentence to an
+      // ellipsis. Stacked meta lines are also what the manager's task rows do
+      // with the SLA phrase, the priority and the owner.
       meta: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(detail),
-          if (showRequired) ...<Widget>[
-            const SizedBox(height: TiqSpace.s2),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: StatusChip(
-                level: StatusLevel.watch,
-                label: l10n.visitRequiredToSubmitBadge,
-              ),
+          if (showRequired)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: SeverityMark(kind: SeverityMarkKind.watch),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l10n.visitRequiredToSubmit,
+                    style: skin.text.meta.style(color: skin.palette.bad),
+                  ),
+                ),
+              ],
             ),
-          ],
         ],
       ),
-      trailing: entry.onTap == null ? null : const SoftRowChevron(),
+      // NO CHEVRON. The manager side dropped them from every row that is not
+      // a page in a stack of pages, and the argument the Ask work made is the
+      // one that applies hardest here: four stacked chevrons read as a
+      // settings list, and this ladder shows eight. The whole card is the
+      // target, it presses, and the state tile already says there is something
+      // to open.
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: l10n.visitSectionSemantics(
         entry.label,
         SectionStateToken.of(skin, state).word,
-        detail,
+        showRequired ? '$detail. ${l10n.visitRequiredToSubmit}' : detail,
       ),
       onTap: entry.onTap,
     );
