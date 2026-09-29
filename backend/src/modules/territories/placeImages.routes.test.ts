@@ -138,6 +138,48 @@ describe('place image routes', () => {
     expect(res.headers['access-control-expose-headers']).toContain('X-Image-Source');
   });
 
+  /**
+   * THE BUG THIS PINS, BECAUSE IT ALREADY HAPPENED.
+   *
+   * The owner handed over thirteen photographs. The import ran, the rows were
+   * right, this route served them — and the plate showed the previous day's
+   * generated pictures, because the response had said
+   * `max-age=86400, immutable` and the browser was holding a copy it had been
+   * told it never needed to question. `immutable` (RFC 8246) is a promise
+   * about a URL, not about a file: it is true of `/asset.a3f9c1.jpg` and false
+   * of every URL whose content is replaced underneath it, which is what a
+   * reseed does to this one.
+   *
+   * So: no `immutable`, and no freshness lifetime that lets a browser skip the
+   * question. Revalidation is not a cost here — the ETag turns an unchanged
+   * picture into a bodiless 304, which the second half of this test shows.
+   */
+  it('lets a reseed be seen: revalidates rather than promising the bytes never change', async () => {
+    const res = await request(app)
+      .get(`/territories/${territoryId}/place-image`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toContain('private');
+    // The two ways a browser is told not to ask again. Either one brings the
+    // stale-picture bug back.
+    expect(res.headers['cache-control']).not.toContain('immutable');
+    expect(res.headers['cache-control']).not.toMatch(/max-age=[1-9]/);
+
+    // And the reason giving that up costs nothing: the picture carries an
+    // ETag, so asking is cheap and only the changed ones travel.
+    const etag = res.headers.etag;
+    expect(etag).toBeTruthy();
+
+    const again = await request(app)
+      .get(`/territories/${territoryId}/place-image`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .set('If-None-Match', etag);
+
+    expect(again.status).toBe(304);
+    expect(again.body).toEqual({}); // 304 carries no body — nothing on the wire
+  });
+
   it('says supplied over a supplied photograph, and does not flatten it to generated', async () => {
     const res = await request(app)
       .get(`/territories/${suppliedTerritoryId}/place-image`)
