@@ -920,6 +920,12 @@ abstract class AppLocalizations {
   /// **'REQUIRED TO SUBMIT'**
   String get visitRequiredToSubmitBadge;
 
+  /// Label of the subordinate figure pair under the readiness figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t confirm'**
+  String get visitCantConfirmLabel;
+
   /// Screen-reader label for the short REQ pill.
   ///
   /// In en, this message translates to:

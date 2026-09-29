@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/design/torch_scope.dart';
 import '../../../../core/theme/torchlight/agent_skin.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../../core/widgets/torchlight/bleed.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../../core/widgets/torchlight/row/row.dart';
@@ -816,33 +817,50 @@ class _Entry extends StatelessWidget {
       key: ValueKey<String>('entry-$index'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (index > 0)
-          Container(
-            height: skin.depth.borderWidth,
-            color: skin.palette.edgeStructure,
+        // NO RULE BETWEEN ENTRIES — 29 September 2026. This was
+        // `Container(height: borderWidth, color: edgeStructure)`, the exact
+        // form the card grammar replaced: `SoftRowSpec` draws no rule between
+        // list rows at all, because "a line between two objects that already
+        // have edges is the table look the card grammar exists to leave
+        // behind". The entry's own header IS a card, and the s6 of ground
+        // under the previous entry's fields is the separation.
+        //
+        // AND IT IS BLED OUT, which is the other half of the same defect.
+        // `SoftRowSpec` gives a list row a margin of one gutter, because a
+        // list is bled to the screen edges by its screen and the margin is
+        // what puts the card's edge back on the gutter line. `TorchShell`
+        // already spends that gutter on the body, so this header was landing
+        // at **two** — 40dp in, while its own fields sat at 20 and the group
+        // rule above them at 20. `TorchBleed` appeared zero times under
+        // `sections/` and this is why it needed to. The remove button takes
+        // the gutter back explicitly, so it stops at the same line rather
+        // than riding out to the screen edge.
+        TorchBleed(
+          extra: skin.space.gutter * 2,
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: SoftRow(
+                  density: SoftRowDensity.compact,
+                  title: title,
+                  subtitle: subtitle,
+                  separator: SoftRowSeparator.none,
+                  semanticsLabel: '$title. $subtitle',
+                ),
+              ),
+              const SizedBox(width: TiqSpace.s2),
+              TorchIconButton(
+                key: ValueKey<String>('entry-remove-$index'),
+                icon: Icons.close,
+                semanticLabel: l10n.sectionRemoveEntry(
+                  l10n.sectionEntryNameLower(kind),
+                  position,
+                ),
+                onPressed: onRemove,
+              ),
+              SizedBox(width: skin.space.gutter),
+            ],
           ),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: SoftRow(
-                density: SoftRowDensity.compact,
-                title: title,
-                subtitle: subtitle,
-                separator: SoftRowSeparator.none,
-                semanticsLabel: '$title. $subtitle',
-              ),
-            ),
-            const SizedBox(width: TiqSpace.s2),
-            TorchIconButton(
-              key: ValueKey<String>('entry-remove-$index'),
-              icon: Icons.close,
-              semanticLabel: l10n.sectionRemoveEntry(
-                l10n.sectionEntryNameLower(kind),
-                position,
-              ),
-              onPressed: onRemove,
-            ),
-          ],
         ),
         const SizedBox(height: TiqSpace.s3),
         child,
