@@ -320,7 +320,10 @@ void main() {
       // and it is carrying the plate's tone.
       final painted = platedImage(tester);
       expect(painted, isNotNull, reason: 'no picture on the plate');
-      expect(painted!.colorFilter, TiqPlate.tone);
+      // The Floor's default skin is Night, so this is Night's tone — the
+      // tone is per skin since 29 September 2026 and `TiqPlate.tone` no
+      // longer exists, because a tone with no skin is the bug.
+      expect(painted!.colorFilter, TiqPlate.toneFor(TiqSkin.night().palette));
       // WHAT IT IS, IN THE SEMANTICS. The owner's reference of 25 September
       // 2026 has no caption line, so what the picture is gets said where a
       // reader of the screen still gets it. It names the scope and it says

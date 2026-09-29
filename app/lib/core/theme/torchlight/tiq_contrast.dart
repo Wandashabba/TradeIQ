@@ -287,16 +287,27 @@ class TorchlightContrast {
 
   /// The **darkest** pixel a plate's text-safe zone can produce in a skin.
   ///
-  /// Every plate pixel is luminance-capped at [TiqPalette.plateCeiling] before
+  /// Every plate pixel is mapped into `[p.plateLift, p.plateCeiling]` before
   /// the scrim goes over it, so the range of grounds the hero cluster can meet
-  /// runs from `plateScrim(p, black)` to `plateScrim(p, plateCeiling)`. On a
-  /// dark ground the ceiling end is the awkward one and it is already declared
-  /// (`plateScrimOverStripLight`). On a **light** ground it is the other end:
+  /// runs from `plateScrim(p, p.plateLift)` to `plateScrim(p, p.plateCeiling)`.
+  /// On a dark ground the ceiling end is the awkward one and it is already
+  /// declared (`plateScrimOverStripLight`). On a **light** ground it is the
+  /// other end — and since 29 September 2026 that end is no longer black:
   /// Palladian at 80% over a shadow composites to `#BEBAB2`, which is the
   /// darkest paper in the product and the ground that decides how bright a
   /// severity ink on the plate is allowed to be.
   ///
+  /// **It still assumes black**, deliberately, even though Day's `plateLift`
+  /// now guarantees no plate pixel is darker than `#999999`. Every severity
+  /// pairing below is measured against this ground and every one of them has
+  /// spare on it; re-deriving the floor from the lift would loosen four
+  /// declared pairings in exchange for nothing, and it would make the ink a
+  /// hostage of a tone token. Black is the bound that cannot be wrong.
+  ///
   /// It is computed, not typed, so it cannot drift from the ground.
+  ///
+  /// NOT [TiqPalette.plateLift], which is an input to the tone rather than an
+  /// output of the scrim. Two different quantities, two different names.
   static Color plateFloor(TiqPalette p) =>
       plateScrim(p, const Color(0xFF000000));
 
@@ -608,12 +619,33 @@ class TorchlightContrast {
             'to look disabled.',
       ),
       // ── PLATE ────────────────────────────────────────────────────────
+      // BOTH SKINS' UNSCRIMMED CEILING, because the ceiling is per skin now.
+      //
+      // The top band of the plate carries no scrim — the scope chip sits on it
+      // and, on the shortest plate, the top of the hero cluster reaches it. So
+      // the brightest pixel the tone can produce is a real ground for real ink
+      // and it is declared in both skins, not only the one whose ceiling
+      // happened to be a constant.
       ContrastPairing(
         skin: 'plate',
-        label: 'ink-1 on an unscrimmed plate pixel at the luminance ceiling',
+        label: 'night ink-1 on an unscrimmed plate pixel at the ceiling',
         foreground: n.ink1,
-        background: TiqPalette.plateCeiling,
+        background: n.plateCeiling,
         role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'plate',
+        label: 'day ink-1 on an unscrimmed plate pixel at the ceiling',
+        foreground: d.ink1,
+        background: d.plateCeiling,
+        role: ContrastRole.text,
+        note:
+            'Day was missing from this registry while the ceiling was one '
+            'static const shared by both skins — which is the same assumption '
+            'that left the Day plate failing at 2.63:1. The ceiling is the '
+            'BRIGHT end, so on paper it is the easy end; the hard end is the '
+            'lift, and that is measured over real photographs in '
+            'floor_plate_contrast_test.dart.',
       ),
       ContrastPairing(
         skin: 'plate',

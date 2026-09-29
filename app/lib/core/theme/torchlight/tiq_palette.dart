@@ -48,6 +48,8 @@ class TiqPalette {
     required this.amberPressed,
     required this.onAmberPressed,
     required this.scrim,
+    required this.plateCeiling,
+    required this.plateLift,
   });
 
   // ── Grounds and surfaces ─────────────────────────────────────────────
@@ -177,11 +179,52 @@ class TiqPalette {
   /// Sheet and dialog scrim.
   final Color scrim;
 
-  /// The maximum luminance any pixel of a baked photographic plate may reach.
-  /// A contrast floor, not a decoration: [ink1] on a plate pixel at this
-  /// ceiling is 7.68:1. Enforced server-side; the token exists so the client
-  /// test can assert the floor it implies.
-  static const Color plateCeiling = Color(0xFF474747);
+  // ── The photographic plate's tone — PER SKIN ─────────────────────────
+  //
+  // THE PLATE HAS TWO ENDS, AND WHICH ONE IS BINDING DEPENDS ON THE GROUND.
+  //
+  // It used to have one: a single `static const plateCeiling` of `#474747`,
+  // every channel multiplied by it, in both skins. On Night that is right —
+  // the ink is light, the picture is dark, and the ceiling is what keeps the
+  // hero legible. On **Day** it is the defect: the ink is dark and the
+  // picture is dark too, so the two converge and "Territory health" measured
+  // 2.63–2.99:1 against a 4.5 floor (§9g, and
+  // `floor_plate_contrast_test.dart`, which asserted the failure on purpose).
+  //
+  // A light ground needs the opposite operation. A ceiling pushes pixels
+  // DOWN; what dark ink on paper needs is the shadows pushed UP. So the tone
+  // is now a *range* — `[plateLift, plateCeiling]` — and each skin says where
+  // its own ends are. Night lifts nothing and raises its ceiling (the owner
+  // asked for luminosity and Night had headroom); Day lifts hard and lets the
+  // ceiling go nearly to white, because on paper the picture must be paler
+  // than the ink, not darker.
+
+  /// The brightest any pixel of the photographic plate may be, per skin.
+  ///
+  /// Night `#666666`, Day `#E6E6E6`. A neutral grey in both, so it composes
+  /// with the saturation matrix as a per-channel scale — see `plateToneMatrix`
+  /// in `core/widgets/torchlight/plate/plate.dart`.
+  ///
+  /// Night's was `#474747` until 29 September 2026. The owner said the
+  /// territory photographs "are made dark"; Night had the headroom to answer
+  /// that and still clear the floor, and it does — `ink1` on an unscrimmed
+  /// Night plate pixel at this ceiling is measured in `tiq_contrast.dart`.
+  final Color plateCeiling;
+
+  /// The DIMMEST any pixel of the photographic plate may be, per skin, as a
+  /// scalar share of full value: `0.0` means "no floor", `0.60` means no
+  /// channel lands below `#999999`.
+  ///
+  /// Night `0.0` — a dark ground wants its picture dark, and lifting it would
+  /// throw away the contrast the light ink depends on. Day `0.60` — on paper
+  /// the ink is `#1B2632` and the only way a photograph under it stays a
+  /// *ground* is if it stays paler than the ink.
+  ///
+  /// **Not to be confused with `TorchlightContrast.plateFloor`**, which is a
+  /// different quantity entirely: the darkest pixel the *scrimmed* text-safe
+  /// zone can produce. This is an input to the tone; that is an output of the
+  /// scrim. Hence `lift` rather than `floor`.
+  final double plateLift;
 
   /// The pixel a text scrim over a full-value amber strip light actually
   /// paints: `ground @ 80%` composited over `#FFB162`, quantised to 8 bits.
@@ -232,6 +275,10 @@ class TiqPalette {
     comparison: Color(0xFFE08E71),
     comparisonWash: Color(0xFF7A3A28),
     scrim: Color(0xB80B1017), // abyss-000 @ 72%
+    // The picture may reach 40% of full value, and has no floor: on a
+    // near-black ground the shadows of a photograph ARE the ground.
+    plateCeiling: Color(0xFF666666),
+    plateLift: 0.0,
   );
 
   /// DAY — Palladian paper. The field agent's default, and deliberately not
@@ -287,6 +334,11 @@ class TiqPalette {
     comparison: Color(0xFFA35139),
     comparisonWash: Color(0xFFF7DCD2),
     scrim: Color(0xB81B2632),
+    // Paper: the picture sits in the top 30% of the range, never below 60%.
+    // Dark ink on a light ground needs the photograph to be the pale half of
+    // the pairing, which is the exact inverse of what Night needs.
+    plateCeiling: Color(0xFFE6E6E6),
+    plateLift: 0.60,
   );
 
   TiqPalette lerp(TiqPalette other, double t) {
@@ -326,6 +378,8 @@ class TiqPalette {
       comparison: c(comparison, other.comparison),
       comparisonWash: c(comparisonWash, other.comparisonWash),
       scrim: c(scrim, other.scrim),
+      plateCeiling: c(plateCeiling, other.plateCeiling),
+      plateLift: plateLift + (other.plateLift - plateLift) * t,
     );
   }
 }
