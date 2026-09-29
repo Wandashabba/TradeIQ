@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:drift/native.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/geo/geofence.dart';
+import 'package:tradeiq_app/core/location/location_sharing.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
@@ -194,6 +195,32 @@ void main() {
           ],
         );
         await shot(tester, 'agent_02_today_empty_$name');
+      }, skip: !looking);
+
+      // THE LOCATION BANNER, which nothing in this repository has ever
+      // photographed.
+      //
+      // The harness leaves `locationSharingControllerProvider` alone, so
+      // `isAgent` is false and both banners render nothing at all — which is
+      // why every image above opens on the day block and the owner's own
+      // screenshots do not. "Your location is shared with your manager /
+      // Nothing is sent in the background" is the **first object** on Today,
+      // My work, Me and the map, and on 29 September 2026 it stopped being an
+      // outlined radius-14 rectangle. A change to the first thing an agent
+      // sees, on four screens, with no picture of it, is the same hole this
+      // whole file was written to close.
+      testWidgets('Today — with the location banner up, $name', (tester) async {
+        await pumpAgentScreen(
+          tester,
+          const TodayScreen(),
+          size: phone,
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: mode),
+            todayRouteProvider.overrideWith((ref) async => _todaysRoute),
+            locationSharingControllerProvider.overrideWith(_SharingOn.new),
+          ],
+        );
+        await shot(tester, 'agent_03_today_located_$name');
       }, skip: !looking);
     }
   });
@@ -986,6 +1013,26 @@ class _NoTemplateAnswers implements TemplateSectionRepository {
     required ClientTemplate template,
     required Map<String, Object?> answers,
   }) async {}
+}
+
+/// An agent who has said yes: the standing indicator, not the notice.
+///
+/// The indicator is the face that is up for the whole of a working day, so it
+/// is the one worth a picture.
+class _SharingOn extends LocationSharingController {
+  @override
+  LocationSharingState build() => LocationSharingState(
+    isAgent: true,
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          LocationDecision(
+            consent: LocationConsent.acknowledged,
+            noticeVersion: 'v1',
+            decidedAt: DateTime(2026, 9, 15),
+          ),
+        ),
+    running: true,
+  );
 }
 
 class _NoFlush implements QueueFlusher {
