@@ -5,6 +5,7 @@ import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -348,22 +349,13 @@ class _CapturedBlock extends StatelessWidget {
           ? l10n.submitCapturedSemantics(done, total, line)
           : l10n.submitCapturedUnreadSemantics(line),
       excludeSemantics: true,
-      // NO SHADOW, since 26 September 2026: `skin.depth.shadows` is empty in
-      // Night and three stacked drops in Day, so this block floated
-      // on the Day ground while the rows beneath it sat flat on it. Neither
-      // `TorchCard` nor `SoftRow` paints one in any skin. The rest is the
-      // standalone row's material, which is what this block is.
-      child: Container(
+      // A CARD, since 29 September 2026. It lost its shadow on 26 September
+      // and kept the standalone row's material — radius 14, `surface`, a 1px
+      // `edgeStructure` rim — above a list of radius-22 task cards with no
+      // outline. It is the gate's one figure block, which is the job The
+      // Floor's lead card does, and The Floor's is a `TorchCard`.
+      child: TorchCard(
         key: const ValueKey<String>('submit-captured'),
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        decoration: BoxDecoration(
-          color: skin.palette.surface,
-          borderRadius: BorderRadius.circular(skin.radii.panel),
-          border: Border.all(
-            color: skin.palette.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -541,17 +533,13 @@ class _NothingToRaise extends StatelessWidget {
     // The verdict it was carrying is not lost — it is where the system puts
     // it: the `onTarget` severity mark beside the headline, which survives
     // greyscale, and the headline's own words.
-    return Container(
+    //
+    // A CARD, since 29 September 2026. It stands in the slot the raised-task
+    // cards stand in — a clean store is a result, not an absence — so it takes
+    // their material rather than the harder radius-14 rim it kept when the
+    // green border came off.
+    return TorchCard(
       key: const ValueKey<String>('submit-clean'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -591,7 +579,8 @@ class _GateSkeleton extends StatelessWidget {
       children: <Widget>[
         SkeletonLine(role: skin.text.body, widthFactor: 0.9),
         const SizedBox(height: TiqSpace.s4),
-        const SkeletonShell(height: 96, outlined: true),
+        // The captured block is a card now, so its shell is a card.
+        const SkeletonShell(height: 96, card: true),
         const SizedBox(height: TiqSpace.s7),
         const SkeletonRows(count: 3),
       ],

@@ -7,6 +7,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/guided_capture_screen.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
@@ -230,24 +231,16 @@ class _Evidence extends StatelessWidget {
       child: Text(text, style: skin.text.body.style(color: skin.palette.ink2)),
     );
 
-    return Container(
-      key: const ValueKey<String>('pin-dispute-evidence'),
+    // A CARD, since 29 September 2026. It lost its shadow on 26 September and
+    // kept the standalone row's material while the screen around it — and the
+    // failed check-in's own distance block, which says the same number one
+    // route back — moved to the card grammar. The evidence for a wrong pin is
+    // a figure block, which is the one thing [TiqRadii] calls an object.
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-        // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-        // in Night and three stacked drops in Day, so this block
-        // floated on the Day ground while every card and row beside it sat
-        // flat on it — two grammars on one screen, in the one skin where it
-        // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
-      ),
-      child: Column(
+      child: TorchCard(
+        key: const ValueKey<String>('pin-dispute-evidence'),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Eyebrow(l10n.pinDisputeEvidenceEyebrow),
@@ -273,9 +266,10 @@ class _Evidence extends StatelessWidget {
               ],
             ),
           ),
-          line(l10n.pinDisputePositionLine),
-          if (photo) line(l10n.pinDisputePhotoLine),
-        ],
+            line(l10n.pinDisputePositionLine),
+            if (photo) line(l10n.pinDisputePhotoLine),
+          ],
+        ),
       ),
     );
   }

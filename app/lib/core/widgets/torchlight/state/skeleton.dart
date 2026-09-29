@@ -258,12 +258,27 @@ class SkeletonLine extends StatelessWidget {
 /// separator's position; a standalone row is radius-14 and outlined, so its
 /// shell is that outline. Both are the object's own edge — never a grey slab
 /// where a row will be.
+///
+/// ## The card form, 29 September 2026
+///
+/// A third case the two booleans could not express. Since the 25 September
+/// override a card has **no outline at all** — its silhouette is its `surface`
+/// fill at radius 22 — so a skeleton standing in for one had the choice of
+/// drawing an outline the arriving object does not have (the shape snaps when
+/// the data lands) or drawing a rule under a thing that is not a list row.
+/// [card] draws the real object's own edge, which is what this widget has
+/// always promised to do.
+///
+/// It is a **new** parameter and it defaults to false, so no caller that
+/// existed before it moves by a pixel. That matters: this widget is shared,
+/// and five of its call sites are manager screens.
 class SkeletonShell extends StatelessWidget {
   const SkeletonShell({
     super.key,
     required this.height,
     this.child,
     this.outlined = false,
+    this.card = false,
   });
 
   /// The **real** min-height of the thing arriving.
@@ -276,24 +291,32 @@ class SkeletonShell extends StatelessWidget {
   /// false for a list row (a separator rule at its foot).
   final bool outlined;
 
+  /// True where a `TorchCard` or a list-form soft row is arriving: radius 22,
+  /// a `surface` fill, and no edge. Takes precedence over [outlined].
+  final bool card;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final edge = skin.palette.edgeStructure;
     final width = skin.depth.borderWidth;
+    final framed = outlined || card;
     return ExcludeSemantics(
       child: Container(
         constraints: BoxConstraints(minHeight: height),
         decoration: BoxDecoration(
-          borderRadius: outlined
-              ? BorderRadius.circular(skin.radii.panel)
+          color: card ? skin.palette.surface : null,
+          borderRadius: framed
+              ? BorderRadius.circular(card ? skin.radii.card : skin.radii.panel)
               : null,
-          border: outlined
+          border: card
+              ? null
+              : outlined
               ? Border.all(color: edge, width: width)
               : Border(bottom: BorderSide(color: edge, width: width)),
         ),
         padding: EdgeInsets.symmetric(
-          horizontal: outlined ? skin.space.gutter : 0,
+          horizontal: framed ? skin.space.gutter : 0,
           vertical: skin.space.intraBlock,
         ),
         child: child,

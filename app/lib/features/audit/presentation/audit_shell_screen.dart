@@ -14,6 +14,7 @@ import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/format/relative_time.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/check_in_radar.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
@@ -760,22 +761,14 @@ class _ReadinessBlock extends StatelessWidget {
       container: true,
       label: l10n.visitReadinessSemantics(done, total, blocking),
       excludeSemantics: true,
-      child: Container(
+      // A CARD, since 29 September 2026. It lost its shadow on 26 September
+      // and kept the standalone row's material — radius 14, `surface`, a 1px
+      // `edgeStructure` rim — directly above a list of radius-22 section cards
+      // with no outline. It is the figure block at the top of an agent screen,
+      // which is the same job The Floor's lead card does, and The Floor's is a
+      // `TorchCard`.
+      child: TorchCard(
         key: const ValueKey<String>('visit-progress'),
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        decoration: BoxDecoration(
-          color: skin.palette.surface,
-          borderRadius: BorderRadius.circular(skin.radii.panel),
-          border: Border.all(
-            color: skin.palette.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-          // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-          // in Night and three stacked drops in Day, so this block floated on
-          // the Day ground while every card and row beside it sat flat on it —
-          // two grammars on one screen, in the one skin where it shows.
-          // Neither `TorchCard` nor `SoftRow` paints one in any skin.
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1132,8 +1125,25 @@ class _TooFar extends StatelessWidget {
 /// The distance, as the one thing this screen is about.
 ///
 /// The FIGURE is ink-1. A severity-coded figure at 56px is a hue doing a
-/// number's job — the severity is the 3px bar, the filled triangle and the
+/// number's job — the severity is the mark, the filled triangle and the
 /// sentence, all three of which survive greyscale.
+///
+/// ## A card and a dot, since 29 September 2026
+///
+/// It was a radius-14 `surface` block with a 1px `edgeStructure` rim **and** a
+/// 3px crimson bar running down its leading edge, and it is the exact object
+/// unify §1.17 struck on the manager's Execution overview two days earlier:
+/// *"a crimson rectangle among radius-22 cards"*. The same ruling gives the
+/// replacement, and it is the one `SoftRowSpec` already resolves for every
+/// card in the app — **the standing is the 8dp dot** (§1.3's 25 September
+/// override), at the same lane, inside a card with no outline.
+///
+/// Nothing is lost by the trade. The bar carried crimson and a straight edge;
+/// the dot carries the same crimson at the same commitment level, and the
+/// triangle beside the eyebrow and the sentence under the figure were already
+/// the two channels that survive greyscale, deuteranopia and a 6-bit panel.
+/// What goes is a silhouette that only reads as severity on a *flush* row —
+/// inside a radius-22 card it reads, as §1.3 puts it, as a scratch on the fill.
 class _DistanceHero extends StatelessWidget {
   const _DistanceHero({required this.metres});
 
@@ -1143,95 +1153,67 @@ class _DistanceHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    const barWidth = 3.0;
+    // The card's own severity geometry, resolved from the same spec every
+    // list row reads — so this dot is the dot, at the lane the rows use, and
+    // it grows with the text at the rate they grow at.
+    final spec = SoftRowSpec.resolve(
+      skin: skin,
+      severity: SoftRowSeverity.critical,
+      textScale: MediaQuery.textScalerOf(context).scale(1),
+    );
 
     return Semantics(
       container: true,
       label: l10n.visitTooFarSemantics(metres),
       excludeSemantics: true,
-      child: Container(
+      child: TorchCard(
         key: const ValueKey<String>('checkin-distance'),
-        decoration: BoxDecoration(
-          color: skin.palette.surface,
-          borderRadius: BorderRadius.circular(skin.radii.panel),
-          border: Border.all(
-            color: skin.palette.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-          // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-          // in Night and three stacked drops in Day, so this block floated on
-          // the Day ground while every card and row beside it sat flat on it —
-          // two grammars on one screen, in the one skin where it shows.
-          // Neither `TorchCard` nor `SoftRow` paints one in any skin.
-        ),
-        // The severity bar is an OVERLAY, not a stretch child of a Row inside
-        // an `IntrinsicHeight` — the same reason `StatCluster`'s rule is one.
-        // A `FigureSlot` measures itself with a `LayoutBuilder`, a
-        // `LayoutBuilder` cannot answer an intrinsic query, and
-        // `IntrinsicHeight` over one throws at layout: *"LayoutBuilder does
-        // not support returning intrinsic dimensions"*. The whole too-far
-        // screen went down with it, which is how this was found.
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(
-                barWidth + TiqSpace.s4,
-                TiqSpace.s4,
-                TiqSpace.s4,
-                TiqSpace.s4,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      TiqMark(
-                        shape: MarkShape.criticalTriangle,
-                        color: skin.palette.bad,
-                        size: MarkScale.glyph(context, 12),
-                      ),
-                      const SizedBox(width: TiqSpace.s2),
-                      Eyebrow(l10n.visitCheckInEyebrow),
-                    ],
-                  ),
-                  const SizedBox(height: TiqSpace.s3),
-                  FigureSlot(
-                    value: metres,
-                    role: skin.text.heroFigureCompact,
-                    fit: <TiqTypeToken>[
-                      skin.text.heroFigureCompact,
-                      skin.text.display,
-                      skin.text.figureL,
-                    ],
-                    unit: TiqUnit.worded(l10n.unitMetres),
-                    semanticsLabel: l10n.visitTooFarSemantics(metres),
-                  ),
-                  const SizedBox(height: TiqSpace.s3),
-                  Text(
-                    metres < 80
-                        ? l10n.visitTooFarClose
-                        : metres > 2000
-                        ? l10n.visitTooFarWrongStore
-                        : l10n.visitTooFarNeedWithin(metres),
-                    style: skin.text.body.style(color: skin.palette.ink2),
-                  ),
-                ],
-              ),
-            ),
-            PositionedDirectional(
-              top: 0,
-              bottom: 0,
-              start: 0,
-              width: barWidth,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: skin.palette.bad,
-                  borderRadius: BorderRadiusDirectional.horizontal(
-                    start: Radius.circular(skin.radii.panel),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // THE STANDING, as the dot §1.3 declares — solid, because a
+                // failed fence is critical and not a watch.
+                Container(
+                  width: spec.barWidth,
+                  height: spec.barHeight,
+                  decoration: BoxDecoration(
+                    color: spec.barFill,
+                    shape: BoxShape.circle,
                   ),
                 ),
-              ),
+                SizedBox(width: spec.severityLane - spec.barWidth),
+                TiqMark(
+                  shape: MarkShape.criticalTriangle,
+                  color: skin.palette.bad,
+                  size: MarkScale.glyph(context, 12),
+                ),
+                const SizedBox(width: TiqSpace.s2),
+                Eyebrow(l10n.visitCheckInEyebrow),
+              ],
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            FigureSlot(
+              value: metres,
+              role: skin.text.heroFigureCompact,
+              fit: <TiqTypeToken>[
+                skin.text.heroFigureCompact,
+                skin.text.display,
+                skin.text.figureL,
+              ],
+              unit: TiqUnit.worded(l10n.unitMetres),
+              semanticsLabel: l10n.visitTooFarSemantics(metres),
+            ),
+            const SizedBox(height: TiqSpace.s3),
+            Text(
+              metres < 80
+                  ? l10n.visitTooFarClose
+                  : metres > 2000
+                  ? l10n.visitTooFarWrongStore
+                  : l10n.visitTooFarNeedWithin(metres),
+              style: skin.text.body.style(color: skin.palette.ink2),
             ),
           ],
         ),
@@ -1540,14 +1522,14 @@ class _HubSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        // The readiness block's own silhouette, empty: a card's edge IS its
+        // fill, so a skeleton that drew an outline would promise a shape the
+        // screen no longer has.
         Container(
           height: 140,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(skin.radii.panel),
-            border: Border.all(
-              color: skin.palette.edgeStructure,
-              width: skin.depth.borderWidth,
-            ),
+            color: skin.palette.surface,
+            borderRadius: BorderRadius.circular(skin.radii.card),
           ),
         ),
         const SizedBox(height: TiqSpace.s7),

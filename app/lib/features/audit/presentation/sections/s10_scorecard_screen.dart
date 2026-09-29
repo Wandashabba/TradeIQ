@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/rating_band.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../../core/widgets/torchlight/card.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../../core/widgets/torchlight/marks.dart';
 import '../../../../core/widgets/torchlight/row/row.dart';
@@ -211,19 +212,13 @@ class _ScoreHero extends StatelessWidget {
       RatingBand.gap => StatusLevel.critical,
       null => null,
     };
-    return Container(
+    // A CARD, since 29 September 2026. The weighted total is the section's one
+    // figure block — the same object The Floor's lead card is — and it kept
+    // the radius-14 rim while the dimension rows beneath it were already the
+    // card grammar. No shadow in either form: this scrolls with the section
+    // body and the paint budget allows none in a scrolling surface.
+    return TorchCard(
       key: const ValueKey<String>('score-total'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-        // No shadow: this panel scrolls with the section body, and the paint
-        // budget allows no shadow in a scrolling surface.
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

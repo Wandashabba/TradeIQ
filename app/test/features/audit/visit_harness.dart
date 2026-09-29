@@ -233,6 +233,7 @@ Future<void> pumpVisit(
   SyncStatus sync = SyncStatus.empty,
   bool progressThrows = false,
   bool settle = true,
+  Size size = const Size(360, 640),
   List<Override> extraOverrides = const <Override>[],
 }) async {
   final db = agentTestDb();
@@ -240,6 +241,7 @@ Future<void> pumpVisit(
     tester,
     const AuditShellScreen(outletId: 'o1'),
     path: '/audit/o1',
+    size: size,
     overrides: <Override>[
       ...agentBaseOverrides(db: db, skin: skin, sync: sync),
       outletsRepositoryProvider.overrideWithValue(

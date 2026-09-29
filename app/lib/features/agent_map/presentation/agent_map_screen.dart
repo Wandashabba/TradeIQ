@@ -489,7 +489,7 @@ class _MapSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           if (agentMapHeight(context) > 0)
-            SkeletonShell(height: agentMapHeight(context), outlined: true),
+            SkeletonShell(height: agentMapHeight(context), card: true),
           SizedBox(height: skin.space.blockGap),
           const SkeletonRows(count: 4),
         ],
