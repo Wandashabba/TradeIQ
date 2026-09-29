@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/torch_press.dart';
+import '../chrome/nav_pill.dart' show torchPillRadius;
 import '../mark/tiq_mark.dart';
 
 /// One option in a [ChoiceRow].
@@ -47,9 +48,11 @@ enum ChoiceLayout {
 /// selected is an honest *not answered yet*, and that difference is the
 /// difference between a shelf somebody looked at and a shelf nobody did.
 ///
-/// Radius 6 — the chip material (unify §1.9), so there is **one** selected
-/// vocabulary across chips and choices: `lifted` fill, a 1px ink-1 border, a
-/// tick or a disc, and weight 700. Three channels, never amber.
+/// The chip material (unify §1.9), so there is **one** selected vocabulary
+/// across chips and choices: `lifted` fill, a tick or a disc, and weight 700.
+/// Three channels, never amber. The 1px ink-1 border that used to be a fourth
+/// went with the rest of the lines on 29 September 2026 — an unselected
+/// option is a `surface` pill now, not an empty box. See `_Option.build`.
 ///
 /// Re-tapping a selected option does **not** deselect it. Clearing an answer
 /// is an explicit action beneath the group, because an accidental deselect in
@@ -296,22 +299,49 @@ class _Option<T> extends StatelessWidget {
     final p = skin.palette;
     final enabled = option.enabled && onTap != null;
     final height = column ? 56.0 : skin.space.tapTarget;
-    final radius = BorderRadius.circular(skin.radii.chip);
+
+    // A PILL SIDE BY SIDE, A CARD FULL-WIDTH — owner override, 29 September
+    // 2026, extending #479 from the filter rail to the choice group.
+    //
+    // Radius 6 and a 1px edge is what the owner was looking at when they said
+    // *"let's remove this lined, rectangular style"*, and the Critical / High
+    // / Normal selector on the action-plan section is three of them in a row.
+    //
+    // The two layouts take two radii because they are two shapes, and the
+    // approved mockup does the same: its inline multi-option selector is
+    // `border-radius: var(--r-pill)` with `border: 0`, and a full-width row
+    // with a title and a subtitle under it is `--r-row`, 22px — this
+    // product's `radii.card`, which is what #483 has just made every agent
+    // block. A 56dp full-width option with a consequence line is that row; a
+    // 48dp Critical/High/Normal tile is that pill.
+    final radius = BorderRadius.circular(
+      column ? skin.radii.card : torchPillRadius,
+    );
 
     final Color? fill;
-    final Color border;
+    final Color? border;
     final Color ink;
     if (!enabled) {
+      // A DISABLED OPTION KEEPS ITS OUTLINE — #479's rule, still binding. It
+      // has no fill to be seen by, and `inkMute` on the bare ground is the
+      // one state where the silhouette really is all there is. It also keeps
+      // the strike, below.
       fill = null;
       border = p.inkMute;
       ink = p.inkMute;
     } else if (selected) {
+      // Unchanged but for the edge. The three channels unify §1.6 names —
+      // `lifted` fill, the disc, weight 700 — all survive, and the ink is
+      // still chosen against the fill rather than against the skin.
       fill = p.lifted;
-      border = p.ink1;
+      border = null;
       ink = torchOnAbyssal(skin);
     } else {
-      fill = null;
-      border = p.edgeControl;
+      // Was a bare outline over nothing, so the group read as three empty
+      // boxes. `surface` is exactly what #479 gave the unselected filter
+      // chip; ink-2 on it is 9.58:1 (Night) / 9.04:1 (Day).
+      fill = p.surface;
+      border = null;
       ink = p.ink2;
     }
 
@@ -375,7 +405,9 @@ class _Option<T> extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         borderRadius: radius,
-        border: Border.all(color: border, width: skin.depth.borderWidth),
+        border: border == null
+            ? null
+            : Border.all(color: border, width: skin.depth.borderWidth),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: TiqSpace.s3,

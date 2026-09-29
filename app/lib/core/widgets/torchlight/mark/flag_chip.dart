@@ -69,18 +69,47 @@ class FlagKindToken {
   /// and `flag_chip_test.dart` asserts that it stays one.
   bool get isSeverity => kind == FlagKind.sentBack;
 
+  /// ## SEVEN MEMBERS, NO OUTLINES
+  ///
+  /// The easiest of the three families to argue, because it was designed for
+  /// exactly this: **six of the seven already share one treatment and are
+  /// told apart by silhouette and word alone**, with no colour difference
+  /// between them at all. Deleting a border they all carry equally cannot
+  /// separate them any less than it already does — the border was never a
+  /// channel here, it was a container.
+  ///
+  /// So the per-member argument is short:
+  ///
+  /// - **Out of fence, For review, Unfinished, Skipped, Held, No GPS** — one
+  ///   neutral fill, ink-2 at 8.93:1 (Night) / 8.50:1 (Day), and six distinct
+  ///   drawn silhouettes plus six words. Unchanged in every channel but the
+  ///   corner and the line.
+  /// - **Sent back** — the one severity, and it was the one bare outline. It
+  ///   is a crimson wash now, ink at 5.14:1 / 6.26:1, with the return-arrow
+  ///   silhouette and the word. It reads apart from the six on hue, on fill
+  ///   and on shape.
+  /// - **Cleared** (a modifier, not a member) — ink-2 drops to ink-3 and the
+  ///   word "Cleared" is appended. Its border was `edge-control`, the same
+  ///   border the six already had, so it never distinguished anything; the
+  ///   appended word always did. ink-3 on the new fill is 6.02:1 / 5.48:1,
+  ///   which is **better** than the 6.79:1 / 4.52:1 it had on `well` in the
+  ///   skin that was close to the floor.
   static FlagKindToken of(TiqSkin skin, FlagKind kind) {
     final p = skin.palette;
-    // The neutral treatment, shared by six of the seven: fill `well`, a 1px
-    // `edge-control` border, ink-2 label and glyph. `edge-structure` is not
-    // used here because on the Day well it measures 2.99:1.
+    // The neutral treatment, shared by six of the seven: fill `raised`,
+    // no border, ink-2 label and glyph.
+    //
+    // `well` → `raised` for the reason `StatusLevelToken.held` gives at
+    // length: a neutral wash would put ink-3 on a darkened Day well, and
+    // `ink-3 on well` is already the tightest pairing in the Day set at
+    // 4.52:1. `raised` is more visible on Night (1.19:1 against 1.06:1) and
+    // safer on Day (5.48:1 against 4.52:1) — both directions improve.
     FlagKindToken neutral(String word, MarkShape shape) => FlagKindToken(
       kind: kind,
       word: word,
       shape: shape,
       ink: p.ink2,
-      fill: p.well,
-      border: p.edgeControl,
+      fill: p.raised,
     );
     return switch (kind) {
       FlagKind.outOfFence => neutral('Out of fence', MarkShape.flagBrokenRing),
@@ -95,7 +124,7 @@ class FlagKindToken {
         word: 'Sent back',
         shape: MarkShape.flagReturnArrow,
         ink: p.bad,
-        border: p.bad,
+        fill: torchChipWash(skin, p.bad),
       ),
     };
   }
@@ -166,8 +195,20 @@ class FlagChip extends StatelessWidget {
       label: word,
       detail: detailParts.isEmpty ? null : detailParts.join(' · '),
       ink: cleared ? skin.palette.ink3 : token.ink,
-      fill: token.fill,
-      border: cleared ? skin.palette.edgeControl : token.border,
+      // A CLEARED FLAG IS NEUTRAL, INCLUDING ITS FILL.
+      //
+      // The old rule swapped the *border* to `edge-control` when cleared,
+      // which for six of the seven was the border they already had and did
+      // nothing; the one place it did something was Sent back, where it
+      // stopped the chip being crimson-edged. That job now belongs to the
+      // fill, and it has to: ink-3 on the crimson wash measures **4.28:1 on
+      // Day**, under the 4.5 floor. On the neutral fill it is 5.48:1.
+      //
+      // Which is the answer the meaning wanted anyway. A flag somebody has
+      // resolved is not a severity any more, so it should not be sitting in
+      // severity's colour with the label faded out on top of it.
+      fill: cleared ? skin.palette.raised : token.fill,
+      border: token.border,
       glyphBase: 14,
       onTap: onTap,
       semanticsLabel: semanticsLabel,
