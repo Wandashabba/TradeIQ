@@ -24,16 +24,33 @@ double torchBlockHeight(TiqSkin skin) => skin.space.primaryActionHeight;
 double torchTapTarget(TiqSkin skin) =>
     skin.space.tapTarget < 48 ? 48 : skin.space.tapTarget;
 
-/// The block-button label role.
+/// The block-button label role: `body.strong`, **14/600 at both densities**.
 ///
-/// unify §1.7: **16/600 Field, 14/600 Console** — the agent's argument that
-/// the commit action was carrying the smallest type on the screen. Both land
-/// exactly on an existing role, so this is a lookup and not a new token:
-/// Console `body.strong` is 14/600 and Field `title.m` is 16/600.
-TiqTypeToken torchBlockLabelToken(TiqSkin skin) =>
-    skin.density == TiqDensity.console
-    ? skin.text.bodyStrong
-    : skin.text.titleM;
+/// > *"Make the font on the agentside the same as the manager side, literally
+/// > everything including colours"* — the owner, 29 September 2026.
+///
+/// SUPERSEDED: unify §1.7's **16/600 Field, 14/600 Console**, which read
+/// `skin.density == TiqDensity.console ? skin.text.bodyStrong :
+/// skin.text.titleM`. It is kept here in words because it was sound, and
+/// because the reason it is no longer sound is worth more than the ruling was.
+///
+/// §1.7 was granted on the agent's argument that **the commit action was
+/// carrying the smallest type on the screen, below body at 15**. That premise
+/// was true and the fix was free — the button is 56dp tall, so the label had
+/// room. The premise has now been **removed rather than outvoted**: with one
+/// type scale, `body` is 14 everywhere, so `body.strong` at 14/600 is body's
+/// own size at a heavier weight, not below it. The complaint §1.7 answered
+/// cannot recur at this scale, which is also why the console has lived with
+/// 14/600 on its commit actions from the start without anyone filing it.
+///
+/// So this is not the owner overruling a considered decision. It is a
+/// decision whose input changed. Had `TiqType.forDensity` returned `console`
+/// on the day §1.7 was written, §1.7 would not have been written.
+///
+/// TO RESTORE, if the field type scale ever comes back (see `TiqType.field`):
+/// the two have to move together, because 16/600 only ever meant "a step above
+/// a 15pt body". Restoring this alone would be a step above nothing.
+TiqTypeToken torchBlockLabelToken(TiqSkin skin) => skin.text.bodyStrong;
 
 /// The text-action label role: `label` 13/500.
 TiqTypeToken torchTextLabelToken(TiqSkin skin) => skin.text.label;

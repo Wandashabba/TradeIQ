@@ -21,6 +21,6 @@ nav.docked = no
 skin.cycle = header
 primary.armed = yes
 primary.blocked.named = no
-primary.height = 57
+primary.height = 58
 rows.onscreen = 1
 amber.objects = 2
