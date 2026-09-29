@@ -2,22 +2,23 @@
  * THE PICTURES THE OWNER SUPPLIED, ONE ENTRY PER TERRITORY.
  *
  * `prompts.ts` is the catalogue of scenes a model was asked for. This is the
- * catalogue of photographs that arrived instead, for **twelve of the thirteen
- * territories**. North West and the whole-footprint view keep their generated
- * images, and the two catalogues sit side by side rather than one replacing
- * the other: `place_images.source` is a column precisely so both can be true
- * at once.
+ * catalogue of photographs that arrived instead, for **all thirteen
+ * territories**. Only the whole-footprint view keeps its generated image, and
+ * the two catalogues sit side by side rather than one replacing the other:
+ * `place_images.source` is a column precisely so both can be true at once.
  *
- * ## North West is deliberately not here
+ * ## North West is here, and it is a photograph of Seattle
  *
- * A `North West.jpg` was supplied with the second batch and is **not** in this
- * list. It is a photograph of Seattle — the Space Needle with Mount Rainier
- * behind it. North West province is Rustenburg, Mahikeng and the
- * Magaliesberg, and a Pacific Northwest skyline standing in for it would be
- * wrong to every South African who opens the app. `NW` stays on its generated
- * image, which is at least of somewhere the territory could be, until a
- * replacement arrives. Leaving a territory generated is a state this system
- * already supports; putting the wrong continent on the plate is not.
+ * It was held out at first and then added at the owner's express instruction,
+ * given twice after the subject had been identified to them. The `NW` entry
+ * at the foot of this list carries the whole account: what is in the frame,
+ * that North West province is Rustenburg and Mahikeng and the Magaliesberg
+ * rather than the Pacific Northwest, and how to swap it.
+ *
+ * It is written down rather than smoothed over because a wrong picture that
+ * somebody chose and a wrong picture that slipped through need different
+ * responses from whoever finds it next, and only the record can tell them
+ * apart.
  *
  * ## What is different about a supplied image, and what is not
  *
@@ -224,5 +225,28 @@ export const SUPPLIED_PLACES: readonly SuppliedPlace[] = [
     description:
       'Vineyard rows running away to a farmstead at sunset, with the sun ' +
       'breaking through a heavy cloud bank over the hills.',
+  },
+  {
+    code: 'NW',
+    label: 'North West',
+    originalFile: 'supplied/NW-original.jpg',
+    description:
+      'A city skyline at dusk with a snow-capped volcano on the horizon, ' +
+      'an observation tower on the left and a waterfront beyond the ' +
+      'downtown blocks.',
+    note:
+      'THE PHOTOGRAPH IS OF SEATTLE, WASHINGTON — the Space Needle, Mount ' +
+      'Rainier, Climate Pledge Arena and the Seattle Great Wheel are all in ' +
+      'frame. North West province is Rustenburg, Mahikeng, Klerksdorp and ' +
+      'the Magaliesberg, so this is a picture of a different continent to ' +
+      'the territory it is filed under, and the `description` above is ' +
+      'written literally rather than naming a place it is not of. ' +
+      'INCLUDED AT THE OWNER’S EXPRESS INSTRUCTION, given twice after the ' +
+      'subject was identified to them — it is the owner’s app and the ' +
+      'owner’s call, and this note exists so that nobody downstream ' +
+      'mistakes it for one that went in unnoticed. The likely origin of the ' +
+      'mix-up is worth recording too: a search for “North West” returns the ' +
+      'American Pacific Northwest, and Seattle is its usual postcard. ' +
+      'Replacing it is one photograph and one `npm run import-place-images`.',
   },
 ];
