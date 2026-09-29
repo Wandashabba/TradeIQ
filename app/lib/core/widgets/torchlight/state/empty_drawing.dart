@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
@@ -23,27 +25,42 @@ enum EmptyDrawing {
   envelope,
 }
 
-/// THE PLACEHOLDER — and it is meant to look like one.
+/// THE THREE DRAWINGS, DRAWN.
 ///
-/// **The three drawings do not exist yet.** They are commissioned under
-/// **#404** (unify open question 14: "commission half a day of one
-/// illustrator before Phase 2; the enum refuses a stock import"). Until that
-/// lands, this paints each silhouette as a crude single-stroke schematic
-/// inside a **dashed frame**.
+/// They were a placeholder for a long time: a crude single-stroke schematic
+/// inside a **dashed frame**, on the argument that a placeholder which looks
+/// finished is a placeholder that ships. It shipped anyway, and a dashed box
+/// around a stick drawing does not read as "artwork pending" to a manager
+/// looking at their own territory — it reads as an image that failed to load.
+/// Every genuine empty state in the product wore it.
 ///
-/// The dashed frame is not decoration and is not shyness about the schematic.
-/// It is the signal, to anyone reviewing a screenshot of this app, that the
-/// artwork is pending: no commissioned drawing in this system will ever sit
-/// inside a dashed box, so a dashed box on a screen means one thing and only
-/// one thing. A placeholder that looks finished is a placeholder that ships.
+/// So they are drawn properly here, in the vocabulary that was already in the
+/// building: [MarkShape]'s idiom, one step larger. All geometry is expressed
+/// against the shortest side, so a drawing is the same shape at 48dp and at
+/// 96dp; nothing calls `saveLayer`, nothing casts a shadow, and nothing is
+/// hatched.
 ///
-/// **#404 replaces this file and nothing else.** The API is the enum and
-/// [EmptyStateDrawing]; the illustrator's three assets are dropped in behind
-/// it, the dashed frame goes, and no call site changes. Nothing in
-/// `lib/features` ever names this painter.
+/// ## One family, one rule
 ///
-/// And under no circumstances is a stock illustration imported in the
-/// meantime. That is the failure the closed enum exists to make impossible.
+/// Each drawing is **an outline at [strokeFor], with exactly one solid part**.
+/// That is what separates these from a schematic: a line says "diagram", and a
+/// solid says "object". The shelf's boards are filled because a plank is a
+/// plank; the pin's eye is filled because a fix is a point; the envelope's
+/// flap is filled because a flap catches the light. Three drawings that share
+/// a rule read as one hand, which is the thing a stock icon set can never do.
+///
+/// ## Still no import, and still three
+///
+/// Drawn paths only. No asset, no font glyph, no stock outline set, no emoji —
+/// the closed enum exists to make that impossible and it still does. Nothing
+/// in `lib/features` names this painter; the API is the enum and
+/// [EmptyStateDrawing], and **#404** — should the owner still want an
+/// illustrator's hand on them — replaces the bodies of the three `case` arms
+/// below and nothing else.
+///
+/// They are decorative in every state. The headline is the header and the body
+/// is the instruction; a drawing that announced itself would be a screen
+/// reader reading out a picture of a shelf.
 class EmptyStateDrawing extends StatelessWidget {
   const EmptyStateDrawing({
     super.key,
@@ -71,13 +88,11 @@ class EmptyStateDrawing extends StatelessWidget {
     final skin = context.skin;
     final size = extent ?? extentFor(skin);
     return ExcludeSemantics(
-      // Decorative, always. The headline is the header and the body is the
-      // instruction; a drawing that announced itself would be a screen reader
-      // reading out a picture of a shelf.
+      // Decorative, always. See the class doc.
       child: SizedBox.square(
         dimension: size,
         child: CustomPaint(
-          painter: _PlaceholderPainter(
+          painter: _EmptyDrawingPainter(
             drawing: drawing,
             color: color ?? skin.palette.edgeControl,
             strokeWidth: strokeFor(skin),
@@ -88,8 +103,8 @@ class EmptyStateDrawing extends StatelessWidget {
   }
 }
 
-class _PlaceholderPainter extends CustomPainter {
-  const _PlaceholderPainter({
+class _EmptyDrawingPainter extends CustomPainter {
+  const _EmptyDrawingPainter({
     required this.drawing,
     required this.color,
     required this.strokeWidth,
@@ -101,87 +116,167 @@ class _PlaceholderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final s = size.shortestSide;
+    if (s <= 0) return;
+
+    final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
+      ..strokeCap = StrokeCap.butt
       ..strokeJoin = StrokeJoin.round;
-    final s = size.shortestSide;
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
 
-    _dashedFrame(canvas, size, paint);
-
-    // Inset from the frame, so the schematic and the "pending" frame do not
-    // read as one object.
-    final inset = s * 0.22;
-    final box = Rect.fromLTRB(inset, inset, s - inset, s - inset);
+    // The drawing sits in a square inset from the extent, so two of these
+    // stacked in a review sheet have air between them and a stroke at the
+    // edge is never clipped by a parent that rounds.
+    final box = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: s,
+      height: s,
+    ).deflate(s * 0.08);
 
     switch (drawing) {
       case EmptyDrawing.shelf:
-        // Three shelves and two uprights.
-        for (var i = 0; i < 3; i++) {
-          final y = box.top + box.height * (i / 2);
-          canvas.drawLine(Offset(box.left, y), Offset(box.right, y), paint);
-        }
-        canvas.drawLine(box.topLeft, box.bottomLeft, paint);
-        canvas.drawLine(box.topRight, box.bottomRight, paint);
+        _shelf(canvas, box, stroke, fill);
       case EmptyDrawing.pin:
-        // A teardrop: an arc over a point, with a hole in it.
-        final head = Rect.fromCircle(
-          center: Offset(box.center.dx, box.top + box.width * 0.36),
-          radius: box.width * 0.36,
-        );
-        canvas.drawArc(head, 3.6651, 5.7596, false, paint);
-        canvas.drawLine(
-          Offset(box.center.dx - box.width * 0.29, box.top + box.width * 0.58),
-          Offset(box.center.dx, box.bottom),
-          paint,
-        );
-        canvas.drawLine(
-          Offset(box.center.dx + box.width * 0.29, box.top + box.width * 0.58),
-          Offset(box.center.dx, box.bottom),
-          paint,
-        );
-        canvas.drawCircle(head.center, box.width * 0.12, paint);
+        _pin(canvas, box, stroke, fill);
       case EmptyDrawing.envelope:
-        final body = Rect.fromLTRB(
-          box.left,
-          box.top + box.height * 0.16,
-          box.right,
-          box.bottom - box.height * 0.16,
-        );
-        canvas.drawRect(body, paint);
-        canvas.drawLine(body.topLeft, body.center, paint);
-        canvas.drawLine(body.topRight, body.center, paint);
+        _envelope(canvas, box, stroke, fill);
     }
   }
 
-  /// The "artwork pending" signal. 4-on, 4-off, drawn as line segments — this
-  /// painter runs inside scrolling regions and this system has a zero-
-  /// `saveLayer`, zero-`PathEffect` budget.
-  void _dashedFrame(Canvas canvas, Size size, Paint base) {
-    final paint = Paint()
-      ..color = base.color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..strokeCap = StrokeCap.butt;
-    const dash = 4.0;
-    final w = size.width;
-    final h = size.height;
-    for (var x = 0.0; x < w; x += dash * 2) {
-      final end = (x + dash).clamp(0.0, w);
-      canvas.drawLine(Offset(x, 0), Offset(end, 0), paint);
-      canvas.drawLine(Offset(x, h), Offset(end, h), paint);
+  /// NO CONTENT — a shelving unit, face on, with nothing on it.
+  ///
+  /// Two uprights and three solid boards. The boards **overhang** the uprights
+  /// by design: rungs that stop inside their rails are a ladder, and a ladder
+  /// is not what an empty list means. The emptiness is carried by the air
+  /// between the boards, which is the whole drawing — there is deliberately
+  /// nothing standing on them.
+  void _shelf(Canvas canvas, Rect r, Paint stroke, Paint fill) {
+    // Wider than tall. A square unit with three equal bands across it is a
+    // window; a shelf is a piece of furniture and stands in a wider frame.
+    final unit = Rect.fromCenter(
+      center: r.center,
+      width: r.width,
+      height: r.height * 0.88,
+    );
+    final w = unit.width;
+    final h = unit.height;
+    final board = math.max(strokeWidth, h * 0.07);
+    // Only just proud of the uprights. Rungs flush inside their rails are a
+    // ladder; boards that overhang hard are a film strip. Four per cent is
+    // the width of the difference.
+    final left = unit.left + w * 0.04;
+    final right = unit.right - w * 0.04;
+
+    canvas
+      ..drawLine(Offset(left, unit.top), Offset(left, unit.bottom), stroke)
+      ..drawLine(Offset(right, unit.top), Offset(right, unit.bottom), stroke);
+
+    // Three planks: top, middle, bottom, each a solid bar seen edge-on rather
+    // than a rule. The air between them is the drawing — there is deliberately
+    // nothing standing on them.
+    for (var i = 0; i < 3; i++) {
+      final cy = unit.top + board / 2 + (h - board) * (i / 2);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset(unit.center.dx, cy),
+          width: w,
+          height: board,
+        ),
+        fill,
+      );
     }
-    for (var y = 0.0; y < h; y += dash * 2) {
-      final end = (y + dash).clamp(0.0, h);
-      canvas.drawLine(Offset(0, y), Offset(0, end), paint);
-      canvas.drawLine(Offset(w, y), Offset(w, end), paint);
+  }
+
+  /// NO LOCATION — a map pin: a true teardrop, with a solid eye.
+  ///
+  /// The sides are the real tangents from the point to the head, computed
+  /// rather than eyeballed, so the silhouette closes without a kink. The eye
+  /// is filled: a pin is a claim about one point, and a hollow ring inside a
+  /// hollow outline is two rings and no claim.
+  void _pin(Canvas canvas, Rect r, Paint stroke, Paint fill) {
+    final s = r.shortestSide;
+    final radius = s * 0.30;
+    final centre = Offset(r.center.dx, r.top + radius + strokeWidth / 2);
+    final apex = Offset(r.center.dx, r.bottom - strokeWidth / 2);
+    final d = apex.dy - centre.dy;
+    // The head is always well clear of the point at these proportions, but a
+    // caller may pass a very small extent: fall back to the head alone rather
+    // than taking the acos of a number outside [-1, 1].
+    if (d <= radius) {
+      canvas
+        ..drawCircle(centre, radius, stroke)
+        ..drawCircle(centre, radius * 0.34, fill);
+      return;
     }
+    // The tangent touches the head where the angle off the centre→apex axis
+    // is acos(r / d). The axis points straight down, which is +π/2 in canvas
+    // angles, so the two touch points are at π/2 ± α.
+    final alpha = math.acos(radius / d);
+    final head = Rect.fromCircle(center: centre, radius: radius);
+    final start = math.pi / 2 + alpha;
+    final path = Path()
+      // The long way round the head — everything except the arc between the
+      // two tangent points on the apex's side.
+      ..arcTo(head, start, 2 * math.pi - 2 * alpha, true)
+      ..lineTo(apex.dx, apex.dy)
+      ..close();
+
+    canvas
+      ..drawPath(path, stroke)
+      ..drawCircle(centre, radius * 0.34, fill);
+  }
+
+  /// NOTHING SENT OR RECEIVED — an envelope, closed, with a solid flap.
+  ///
+  /// The body is a rounded rectangle because a real envelope has soft corners
+  /// and a hard-cornered box at 64dp is a box. The flap is the one solid part,
+  /// and it stops at 46% of the body rather than at its centre: a V that
+  /// reaches the middle of the rectangle turns the whole drawing into an
+  /// hourglass at a glance.
+  void _envelope(Canvas canvas, Rect r, Paint stroke, Paint fill) {
+    final w = r.width;
+    // 3:2, centred in the square: an envelope is not square, and a square one
+    // reads as a picture frame.
+    final h = w * 0.68;
+    final body = Rect.fromCenter(
+      center: r.center,
+      width: w,
+      height: h,
+    ).deflate(strokeWidth / 2);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(body, Radius.circular(w * 0.06)),
+      stroke,
+    );
+
+    final tip = Offset(body.center.dx, body.top + body.height * 0.46);
+    canvas
+      ..drawPath(
+        Path()
+          ..moveTo(body.left, body.top)
+          ..lineTo(tip.dx, tip.dy)
+          ..lineTo(body.right, body.top)
+          ..close(),
+        fill,
+      )
+      // The fold, stroked over the fill, so the flap has an edge where it
+      // meets the body's top rather than bleeding into it.
+      ..drawPath(
+        Path()
+          ..moveTo(body.left, body.top)
+          ..lineTo(tip.dx, tip.dy)
+          ..lineTo(body.right, body.top),
+        stroke,
+      );
   }
 
   @override
-  bool shouldRepaint(_PlaceholderPainter old) =>
+  bool shouldRepaint(_EmptyDrawingPainter old) =>
       old.drawing != drawing ||
       old.color != color ||
       old.strokeWidth != strokeWidth;

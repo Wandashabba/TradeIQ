@@ -67,9 +67,13 @@ Future<void> pumpGate(
   Locale locale = const Locale('en'),
   double textScale = 1.0,
   bool settle = true,
+  // 360×640 is the arithmetic every assertion in this file was written
+  // against. `ask_look_test.dart` renders the same gate at a phone's real
+  // size, which is a picture and not a measurement.
+  Size size = const Size(360, 640),
 }) async {
   tester.view
-    ..physicalSize = const Size(360, 640)
+    ..physicalSize = size
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -77,7 +81,7 @@ Future<void> pumpGate(
   await tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData(
-        size: const Size(360, 640),
+        size: size,
         devicePixelRatio: 1.0,
         textScaler: TextScaler.linear(textScale),
         disableAnimations: true,

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
+import '../display_headline.dart';
 import 'empty_drawing.dart';
 
 /// Where an empty state sits, which is what decides whether it gets a drawing.
@@ -41,17 +42,19 @@ enum EmptyScope {
 ///
 /// [EmptyScope.inPanel] and [EmptyScope.inline] get **no drawing** (unify
 /// §1.12): a 64dp illustration inside a panel that is itself 200dp tall is a
-/// decoration competing with the sentence beside it. The three drawings are
-/// commissioned under **#404** and do not exist yet — [EmptyStateDrawing]
-/// ships an obvious placeholder behind the same API.
+/// decoration competing with the sentence beside it.
+///
+/// And the drawing is for **an empty state**, which is the only placement
+/// §1.12 grants. A screen that is inviting the reader to do something rather
+/// than reporting that there is nothing is not one of these, however
+/// convenient this widget is — see `AskFirstRun`, which used to open with the
+/// shelf and now opens on its headline.
 ///
 /// ## The headline fits by line count
 ///
-/// `display` was the one prose role with no fitting rule while `hero.figure`
-/// had one keyed to glyph count. It is now keyed to **line count after
-/// layout**: 1–2 lines stay at 40, 3 lines step to 32, 4 or more to 26, floor
-/// 26. An Afrikaans headline at 2.0× therefore has a defined shape instead of
-/// eating the screen. See [displaySizeFor].
+/// See [TorchDisplayHeadline], which owns the rule: 1–2 lines stay at 40, 3
+/// lines step to 32, 4 or more to 26, floor 26. [displaySizeFor] forwards to
+/// it.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -83,37 +86,26 @@ class EmptyState extends StatelessWidget {
   /// destination, never "Refresh" where a pull-to-refresh already exists.
   final Widget? action;
 
-  /// The three steps of the display fitting rule.
-  static const List<double> displaySteps = <double>[40, 32, 26];
+  /// The three steps of the display fitting rule. Lives on
+  /// [TorchDisplayHeadline] now; kept here because this is the name the scale
+  /// tests call.
+  static const List<double> displaySteps = TorchDisplayHeadline.steps;
 
-  /// THE LINE-COUNT FITTING RULE, as a pure function.
-  ///
-  /// Lay the headline out at 40 and count the lines it takes; 1 or 2 keeps 40,
-  /// 3 steps to 32, 4 or more to 26. The floor is 26 and there is no fourth
-  /// step: below 26 a display headline is a title, and a title is what the
-  /// in-panel scope already uses.
+  /// THE LINE-COUNT FITTING RULE — see [TorchDisplayHeadline.sizeFor], which
+  /// is where it lives and what this forwards to.
   static double displaySizeFor({
     required String headline,
     required TiqTypeToken role,
     required double maxWidth,
     required TextScaler scaler,
     required TextDirection direction,
-  }) {
-    if (!maxWidth.isFinite || maxWidth <= 0) return displaySteps.first;
-    final painter = TextPainter(
-      text: TextSpan(
-        text: headline,
-        style: role.copyWith(size: displaySteps.first).style(),
-      ),
-      textDirection: direction,
-      textScaler: scaler,
-    )..layout(maxWidth: maxWidth);
-    final lines = painter.computeLineMetrics().length;
-    painter.dispose();
-    if (lines <= 2) return displaySteps[0];
-    if (lines == 3) return displaySteps[1];
-    return displaySteps[2];
-  }
+  }) => TorchDisplayHeadline.sizeFor(
+    headline: headline,
+    role: role,
+    maxWidth: maxWidth,
+    scaler: scaler,
+    direction: direction,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +124,7 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: TiqSpace.s6),
           ],
           if (whole)
-            _FittedHeadline(headline: headline)
+            TorchDisplayHeadline(headline)
           else
             Semantics(
               header: true,
@@ -160,37 +152,6 @@ class EmptyState extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _FittedHeadline extends StatelessWidget {
-  const _FittedHeadline({required this.headline});
-
-  final String headline;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = EmptyState.displaySizeFor(
-          headline: headline,
-          role: skin.text.display,
-          maxWidth: constraints.maxWidth,
-          scaler: MediaQuery.textScalerOf(context),
-          direction: Directionality.of(context),
-        );
-        return Semantics(
-          header: true,
-          child: Text(
-            headline,
-            style: skin.text.display
-                .copyWith(size: size)
-                .style(color: skin.palette.ink1),
-          ),
-        );
-      },
     );
   }
 }
