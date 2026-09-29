@@ -200,8 +200,9 @@ void main() {
       const k = 0x47 / 0xFF;
       expect(m[0], closeTo(k * (0.2126 * 0.88 + 0.12), 1e-9));
       expect(m[1], closeTo(k * 0.7152 * 0.88, 1e-9));
+      expect(m[2], closeTo(k * 0.0722 * 0.88, 1e-9));
       expect(m[6], closeTo(k * (0.7152 * 0.88 + 0.12), 1e-9));
-      expect(m[12], closeTo(k * 0.0722 * 0.88, 1e-9));
+      expect(m[12], closeTo(k * (0.0722 * 0.88 + 0.12), 1e-9));
     });
 
     test('the offset column is lift x 255, not lift', () {
@@ -317,14 +318,14 @@ void main() {
             'a pixel brighter than the #666666 ceiling: the plate is not a '
             'ground any more. Brightest was ${sample.maxChannel}.',
       );
-      // (ceiling - lift) x chroma x 255 = 0.40 x 0.55 x 255 = 56. Wider than
+      // (ceiling - lift) x chroma x 255 = 0.40 x 0.55 x 255 = 56.1. Wider than
       // the 8.5 the 12% treatment allowed, on purpose and on the owner's
       // instruction — and still a long way under the 71 the multiply-only
       // treatment let through, which is the rainbow this file was written for.
       final bound =
           ((night.plateCeiling.r - night.plateLift) * TiqPlate.chroma * 255)
               .ceil();
-      expect(bound, 56);
+      expect(bound, 57);
       expect(
         sample.maxSpread,
         lessThanOrEqualTo(bound + 4),
