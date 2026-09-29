@@ -907,7 +907,18 @@ paths:
       parameters:
         - name: status
           in: query
+          description: The exact stored status. Mutually exclusive with `state`.
           schema: { type: string, enum: [open, in_progress, closed] }
+        - name: state
+          in: query
+          description: >-
+            The worklist's own axis, which is not the status column.
+            `open` means every task that is NOT closed (`open` and
+            `in_progress` both — a task somebody has started is still
+            outstanding); `overdue` means not closed and `slaDueAt <= now`;
+            `done` means closed; `all` is the default. Sending `state` and
+            `status` together is a 400.
+          schema: { type: string, enum: [all, open, overdue, done] }
         - name: priority
           in: query
           schema: { type: string, enum: [critical, high, normal] }
@@ -918,18 +929,33 @@ paths:
         - { name: cursor, in: query, schema: { type: string }, description: '`nextCursor` from the previous page' }
       responses:
         '200':
-          description: One page of tasks scoped to the caller's client
+          description: One page of tasks scoped to the caller's client, with the whole-set breakdown
           content:
             application/json:
               schema:
                 type: object
-                required: [data, nextCursor, total]
+                required: [data, nextCursor, total, counts]
                 properties:
                   data: { type: array, items: { type: object } }
                   nextCursor: { type: string, nullable: true }
                   total: { type: integer, description: Every task the filters match, ignoring the cursor — so a cut list can say how much it left out }
+                  counts:
+                    type: object
+                    description: >-
+                      The breakdown of the WHOLE set, tenant-scoped exactly as
+                      the list is and narrowed by `priority`/`outletId` exactly
+                      as the list is — but never by `state`, because the chips
+                      that read these numbers are the state filter. Every field
+                      is always present: a 0 here is a measured nought.
+                    required: [all, open, overdue, done, awaitingVerification]
+                    properties:
+                      all: { type: integer }
+                      open: { type: integer, description: Not closed — `open` and `in_progress` together }
+                      overdue: { type: integer, description: Not closed, and `slaDueAt <= now` }
+                      done: { type: integer, description: Closed, verified or not }
+                      awaitingVerification: { type: integer, description: Closed and not yet verified }
         '400':
-          description: Invalid filter value
+          description: Invalid filter value, or `status` and `state` sent together
         '401':
           description: Missing or invalid token
   /tasks/{id}:
