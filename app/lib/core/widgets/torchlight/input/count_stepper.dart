@@ -270,8 +270,12 @@ class _CountStepperState extends State<CountStepper> {
     // The other call site, `orders/order_form_screen.dart`, passes
     // `zeroIsFinding: false` ("nought on an order is a decision, not a
     // finding"), so it cannot reach this branch at all.
-    final figureInk = _isFinding && skin.standingColoursFigures
-        ? skin.palette.bad
+    // `spec.ink` is `bad` for the whole finding state, so the fall-through
+    // has to name `ink1` rather than defer to it — the trough is right to
+    // wear the finding everywhere else, and the FIGURE is the one part of it
+    // §9h takes back on a near-black ground.
+    final figureInk = _isFinding
+        ? (skin.standingColoursFigures ? skin.palette.bad : skin.palette.ink1)
         : widget.value == null
         ? skin.palette.ink3
         : spec.ink;
