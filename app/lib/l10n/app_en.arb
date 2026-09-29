@@ -11752,5 +11752,32 @@
   "artifactToolTrend": "Trend",
   "@artifactToolTrend": {
     "description": "The name of the tool behind this artifact."
+  },
+  "plateImageGenerated": "{place}. An illustration of the area, not a photograph from a visit.",
+  "@plateImageGenerated": {
+    "description": "The Floor plate's spoken label when the picture behind the hero figure was drawn by a model (X-Image-Source: generated). It says what the picture IS and what it is NOT: the first clause stops a drawing being read as a capture, the second stops any place picture being read as evidence a manager could act on. {place} is the territory in scope, or \"All territories\".",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "plateImageSupplied": "{place}. A photograph of the area, not from a visit.",
+  "@plateImageSupplied": {
+    "description": "The same label when the picture is a real photograph the owner supplied (X-Image-Source: supplied). The first clause changes because calling a photograph an illustration is as false as the reverse; the second clause does NOT change, because \"not from a visit\" is a fact about which table the picture lives in rather than about how it was made. {place} is the territory in scope.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "plateImageUnattributed": "{place}. A picture of the area. Its origin was not stated, and it is not from a visit.",
+  "@plateImageUnattributed": {
+    "description": "The same label when the server sent no X-Image-Source, or one this build does not recognise. It says the origin is unstated rather than guessing at \"illustration\" or \"photograph\" — a default would put a claim on screen that nothing backs. {place} is the territory in scope.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -8636,4 +8636,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artifactToolTrend => 'Trend';
+
+  @override
+  String plateImageGenerated(String place) {
+    return '$place. An illustration of the area, not a photograph from a visit.';
+  }
+
+  @override
+  String plateImageSupplied(String place) {
+    return '$place. A photograph of the area, not from a visit.';
+  }
+
+  @override
+  String plateImageUnattributed(String place) {
+    return '$place. A picture of the area. Its origin was not stated, and it is not from a visit.';
+  }
 }

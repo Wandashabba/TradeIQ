@@ -12,6 +12,7 @@ import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/first_run_board.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
 import '../../core/design/amber_golden.dart';
 import 'floor_harness.dart';
@@ -338,6 +339,81 @@ void main() {
         find.bySemanticsLabel(RegExp('Kasi Corner Spaza.*photograph')),
         findsNothing,
         reason: 'the plate attributes itself to no outlet at all now',
+      );
+      handle.dispose();
+    });
+
+    testWidgets(
+      'a supplied photograph is called a photograph — and still not evidence',
+      (tester) async {
+        // PIN ADDED, 29 September 2026. The owner supplied real photographs
+        // for twelve of the thirteen territories, and the sentence above went
+        // from true to false for those: a screen reader saying "an
+        // illustration of the area" over a photograph of the Union Buildings
+        // is the same error as the reverse, and this screen refuses it in both
+        // directions.
+        //
+        // What must NOT move is the second clause. `place_images` has no
+        // `visitId`, no GPS tag and no capture time whichever way the picture
+        // was made, and a real photograph is if anything more mistakable for
+        // evidence than a drawing is.
+        final handle = tester.ensureSemantics();
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          plateImage: await SyncImage.solid(tester),
+          plateImageSource: PlaceImageSource.supplied,
+          alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
+          outlets: twoOutlets,
+        );
+
+        expect(
+          find.bySemanticsLabel(
+            RegExp('All territories. A photograph of the area, not from a visit'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.bySemanticsLabel(RegExp('illustration')),
+          findsNothing,
+          reason: 'a photograph described as a drawing is as false as the '
+              'other way round',
+        );
+        handle.dispose();
+      },
+    );
+
+    testWidgets('an origin the server did not state is said to be unstated', (
+      tester,
+    ) async {
+      // The header was absent, or carried a word this build does not know.
+      // There is exactly one honest sentence left and it is not either of the
+      // other two: defaulting to "illustration" would libel a photograph and
+      // defaulting to "photograph" would promote a drawing to a capture. The
+      // clause that never moves still holds.
+      final handle = tester.ensureSemantics();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        plateImage: await SyncImage.solid(tester),
+        plateImageSource: null,
+        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
+        outlets: twoOutlets,
+      );
+
+      expect(
+        find.bySemanticsLabel(
+          RegExp(
+            'All territories. A picture of the area. Its origin was not '
+            'stated, and it is not from a visit',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(RegExp('illustration')), findsNothing);
+      expect(
+        find.bySemanticsLabel(RegExp('A photograph of the area')),
+        findsNothing,
       );
       handle.dispose();
     });

@@ -16,6 +16,8 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../l10n/l10n.dart';
+import '../../territories/data/territories_repository.dart' show PlaceImageSource;
 import '../../territories/data/territories_view.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
@@ -742,11 +744,15 @@ class _FloorPlate extends ConsumerWidget {
     //
     // ≤60 kB, LRU-cached, authed bytes. `Image.network` cannot carry the
     // bearer token on web, so bytes is also the only route that works at all.
-    final image = ref.watch(plateImageResolverProvider)(ref, view.territoryId);
+    final picture = ref.watch(plateImageResolverProvider)(ref, view.territoryId);
 
     return _PlateFor(
       view: view,
-      image: image,
+      image: picture.image,
+      // WHAT THE PICTURE IS, CARRIED RATHER THAN ASSUMED. The plate speaks one
+      // sentence about it and the sentence has to be true of the bytes above
+      // it: see [_PlateFor.imageSentence].
+      imageSource: picture.source,
       // THE SCOPE CONTROL, AND NOW IT LOOKS LIKE ONE.
       //
       // It was the eyebrow: the words `GAUTENG NORTH · WEEK 38` were the
@@ -767,12 +773,50 @@ class _PlateFor extends StatelessWidget {
   const _PlateFor({
     required this.view,
     required this.image,
+    this.imageSource,
     this.onScopeTap,
     this.onClearTerritory,
   });
 
   final FloorView view;
   final ImageProvider<Object>? image;
+
+  /// What [image] is, from the server's `X-Image-Source`. Null when nothing
+  /// said — see [imageSentence].
+  final PlaceImageSource? imageSource;
+
+  /// THE ONE SENTENCE A READER IS GIVEN ABOUT THE PICTURE, AND IT HAS TO BE
+  /// TRUE OF THE PICTURE.
+  ///
+  /// Two clauses, and only the first one moves:
+  ///
+  /// * **What it is.** `generated` is an illustration a model drew;
+  ///   `supplied` is a photograph the owner handed over. This clause was
+  ///   hardcoded to "An illustration of the area" while every seeded picture
+  ///   was generated, and went false on 29 September 2026 the moment twelve
+  ///   territories got real photographs. A screen reader saying "illustration"
+  ///   over a photograph of the Union Buildings is not a smaller error than
+  ///   the other way round — it is the same error, and this screen exists to
+  ///   refuse it in both directions.
+  /// * **What it is not.** *Not from a visit.* This clause does not move,
+  ///   because it is not a fact about how the picture was made. It is a fact
+  ///   about which table it lives in: `place_images` has no `visitId`, no GPS
+  ///   tag and no capture time, and a photograph of Bloemfontein is still not
+  ///   a reading of a shelf in it. A real photograph is if anything MORE
+  ///   mistakable for evidence than a drawing, so this is the clause that
+  ///   earns its place hardest now.
+  ///
+  /// A source nobody stated gets neither claim. It says the origin is
+  /// unstated, which is the only true thing left to say — defaulting to either
+  /// word would put an assertion on screen that nothing backs.
+  String imageSentence(BuildContext context) {
+    final place = view.territoryName;
+    return switch (imageSource) {
+      PlaceImageSource.generated => context.l10n.plateImageGenerated(place),
+      PlaceImageSource.supplied => context.l10n.plateImageSupplied(place),
+      null => context.l10n.plateImageUnattributed(place),
+    };
+  }
 
   /// Opens the scope sheet. Null in a test that pumps the plate alone — and
   /// the chip is then absent rather than inert, because a control that does
@@ -823,14 +867,13 @@ class _PlateFor extends StatelessWidget {
       fallbackSentence: view.territoryId == null
           ? 'No picture of your territories yet.'
           : 'No picture of ${view.territoryName} yet.',
-      // WHAT IT IS, AND THAT IT IS NOT EVIDENCE. The seeded place images are
-      // generated, and a reader of the screen is told so rather than left to
-      // assume a photograph — this plate used to carry a shelf from a named
-      // outlet, and the sentence that replaced it has to close that reading
-      // rather than go quiet.
-      semanticLabel:
-          '${view.territoryName}. An illustration of the area, not a '
-          'photograph from a visit.',
+      // WHAT IT IS, AND THAT IT IS NOT EVIDENCE. A reader of the screen is
+      // told which kind of picture this is rather than left to assume — this
+      // plate used to carry a shelf from a named outlet, and the sentence that
+      // replaced it has to close that reading rather than go quiet. See
+      // [imageSentence], which is why the sentence is built from the server's
+      // mark instead of being typed here.
+      semanticLabel: imageSentence(context),
       // THE SCOPE CONTROL, AT THE TOP OF THE PLATE — visible, 48dp, and
       // carrying the two facts it sets. See [PlateScopeChip].
       scopeControl: onScopeTap == null
