@@ -96,6 +96,36 @@ class TiqBasemapLabels extends StatelessWidget {
 /// "Tide Guide" world the maps spec calls for. A separate layer (not a tile
 /// filter) so markers and labels above it stay at full brightness. Wrapped
 /// in IgnorePointer so it never eats map gestures.
+///
+/// ## OPEN, 29 September 2026: the two raw colours below
+///
+/// `0x3312294A` and `0x66081226` are off-skin — the only hardcoded colours on
+/// any map route, and the reason they survive the style ledger is that the
+/// ledger reads `lib/features/**` and this file is in `lib/core/`. Over a real
+/// tile they are a navy vignette on a neutral dark-grey canvas, which is what
+/// the owner was describing when they said of the manager side, "this blue
+/// everywhere". (In a widget test the tiles never arrive, so what the wash
+/// sits on is flutter_map's own pale `backgroundColor` and the band comes out
+/// grey — do not conclude from a test render that the wash is absent.)
+///
+/// It is **not** changed here, and the reason is a constraint rather than an
+/// opinion. This one widget is drawn by five screens, four of them the
+/// manager's:
+///
+/// ```text
+///   territory_map_screen.dart:328    manager   the territory map
+///   dashboard_shell_screen.dart      manager   The Floor's live-agent map
+///   assistant/…/outlet_map_card.dart manager   an Ask answer's map card
+///   agents/…/trail_map.dart          manager   the visit trail
+///   agent_map/…/outlet_map.dart      agent     the agent's Map
+/// ```
+///
+/// So a skin-derived wash either moves the manager's render — which the owner
+/// has ruled out ("don't change the manager side, it looks perfect") — or it
+/// is applied to the agent's map alone, which would make the two maps differ
+/// in the one respect where they currently agree, and the standing instruction
+/// is "make them align". Both maps wear the same wash today. Whether it should
+/// go is a decision about **both** at once, and it is the owner's.
 class TiqNavyTint extends StatelessWidget {
   const TiqNavyTint({super.key});
 
