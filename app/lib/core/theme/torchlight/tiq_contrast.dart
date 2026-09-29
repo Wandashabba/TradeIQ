@@ -281,8 +281,23 @@ class BannedPairing {
 class TorchlightContrast {
   TorchlightContrast._();
 
-  static final TiqSkin _night = TiqSkin.night();
-  static final TiqSkin _day = TiqSkin.day();
+  /// The two skins the declared pairs are computed against.
+  ///
+  /// **BOTH ARE CONSOLE, AND THAT IS NOW SAID RATHER THAN INHERITED.** `_day`
+  /// was a bare `TiqSkin.day()`, which meant **field** until 29 September
+  /// 2026 — so the Night half of this contract was walked at one density and
+  /// the Day half at another, and the asymmetry was invisible because neither
+  /// call named anything. It reached the declared pairs through
+  /// `torchChipWash` and through every `role:` on the Day side, whose text
+  /// sizes come from `TiqType.forDensity`.
+  ///
+  /// Density is deliberately the *same* on both sides here: this class
+  /// declares colour pairs, and a pair's ratio is a property of two colours,
+  /// not of how tall a row is. Where density genuinely matters — the large-text
+  /// rule, which turns on a role's size and weight — [allSkinsAndDensities]
+  /// walks all four combinations, and it always did.
+  static final TiqSkin _night = TiqSkin.night(density: TiqDensity.console);
+  static final TiqSkin _day = TiqSkin.day(density: TiqDensity.console);
 
   /// The scrim that sits under any text block laid over a plate:
   /// `ground @ 80%`. The worst case a hero number can meet is this scrim over
