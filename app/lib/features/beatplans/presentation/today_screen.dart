@@ -371,7 +371,7 @@ class _Route extends ConsumerWidget {
       routeName: route.planName,
       children: <Widget>[
         _DayBlock(route: route),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
 
         // NEXT UP. The section disappears when the route is done rather than
         // showing an empty card — there is no next store, and a card that
@@ -380,7 +380,7 @@ class _Route extends ConsumerWidget {
           SectionRule(l10n.todayNextUpHeading),
           const SizedBox(height: TiqSpace.s5),
           _NextUpCard(stop: next, hasLocation: route.hasLocation),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: skin.space.blockGap),
         ],
 
         if (rest.isNotEmpty) ...<Widget>[
@@ -406,7 +406,7 @@ class _Route extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: skin.space.blockGap),
         ],
 
         // The plan is a plan, not a cage. A store can be shut, or a manager
@@ -518,7 +518,7 @@ class _DayBlock extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: TiqSpace.s4),
+            SizedBox(height: skin.space.intraBlock),
             // THE ONE VISUAL. `chartNeutral`, and not the mockup's amber
             // fill: the progress bar declares no claim, so under the ladder
             // it takes its neutral form — see the amber note on [TodayScreen].
@@ -545,7 +545,7 @@ class _DayBlock extends StatelessWidget {
             // "Not location error": the agent turned it off, or the phone
             // cannot see the sky. Either way the route still works.
             if (!route.hasLocation) ...<Widget>[
-              const SizedBox(height: TiqSpace.s3),
+              SizedBox(height: skin.space.intraBlock),
               Text(
                 l10n.todayDistancesOff,
                 style: skin.text.meta.style(color: skin.palette.ink3),
@@ -613,7 +613,7 @@ class _NextUpCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           // THE SCREEN'S AMBER. A primary on a tab root lives in the BODY,
           // never in a thumb zone the nav already occupies.
           //
@@ -832,11 +832,11 @@ class _TodayMessage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         ExcludeSemantics(
           child: Icon(glyph, size: 64, color: skin.palette.edgeControl),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Semantics(
           header: true,
           child: Text(
@@ -847,7 +847,7 @@ class _TodayMessage extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
@@ -855,7 +855,7 @@ class _TodayMessage extends StatelessWidget {
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         // LEFT-ALIGNED AT ITS NATURAL WIDTH.
         //
         // The empty-state grammar says "one secondary button, 56dp,
@@ -951,15 +951,15 @@ class _TodaySkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         block(128),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         block(176),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         for (var i = 0; i < 3; i++) ...<Widget>[
           SizedBox(
             height: TiqSpace.s5,
             child: ColoredBox(color: skin.palette.edgeStructure),
           ),
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: skin.space.blockGap),
         ],
       ],
     );
