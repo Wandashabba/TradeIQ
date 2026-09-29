@@ -355,11 +355,43 @@ class _HerePainter extends CustomPainter {
 ///
 /// ```text
 ///   ✓  visited today      a filled disc with a tick knocked out of it
-///   ▲  next up            a filled triangle
-///   ○  on today's route   a ring
-///   □  in your patch      a square outline
+///   ▲  next up            a filled triangle, inscribed in that same circle
+///   ◉  on today's route   an open ring with a centre dot
+///   •  in your patch      a small plain dot
 ///   ⃠   under review       any of the above, crossed by a bar
 /// ```
+///
+/// ## Why these four and not the four that were here (29 September 2026)
+///
+/// "On today's route" was a bare ring and "in your patch" was a **square
+/// outline**. The owner, looking at this screen:
+///
+/// > "This is not it, the map is not good. there's still a lot of rectangular
+/// > and not matching with the manager side"
+///
+/// and, still binding from earlier the same day:
+///
+/// > "make them align and don't change the manager side, it looks perfect"
+///
+/// "In your patch" is the most numerous pin on the screen — a patch around
+/// Johannesburg draws about thirty of them — so the square was the single
+/// biggest source of rectangle on a screen whose every other object had just
+/// been rounded. It is now a dot. Nothing rectangular is left in the set.
+///
+/// The two states the manager's territory map **also has** are now that map's
+/// own marks rather than near-misses of them: `doneToday` is
+/// `OutletVisitGlyph(visited: true)` and `plannedAhead` is
+/// `OutletVisitGlyph(visited: false)`, number for number, halo for halo — see
+/// `_VisitPinPainter` in `territory_map_screen.dart`, which stays the source
+/// of truth and did not move. `pin_vocabulary_test.dart` renders the two pairs
+/// and fails on a single differing pixel, so "align" is a check rather than a
+/// claim. The manager's map is untouched.
+///
+/// **The non-colour channel survives.** Four silhouettes, four footprints:
+/// a filled disc, a triangle, a hollow ring, a small dot. They separate in
+/// greyscale, at 40% backlight and on a printed page, which is the whole
+/// reason the set exists — and the legend under the map still names each one
+/// in words.
 class MapPinGlyph extends StatelessWidget {
   const MapPinGlyph({
     super.key,
@@ -446,48 +478,95 @@ class _PinPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final r = math.min(size.width, size.height) / 2;
     final centre = Offset(size.width / 2, size.height / 2);
-    final fill = Paint()..color = ink;
-    final line = Paint()
-      ..color = ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke;
+    // The MANAGER'S radius, arrived at by the manager's own line — see
+    // `_VisitPinPainter` in `territory_map_screen.dart`. Two of the four cases
+    // below are that painter's two cases number for number, so this has to be
+    // its number too.
+    final radius = size.width / 2 - stroke;
+    // A shape in the ground colour under every silhouette, wider than the
+    // mark, so a pin reads over a pale road as well as over a dark block. Two
+    // fills, no shadow: the paint budget forbids a `BoxShadow` on this route
+    // and a halo is a `saveLayer`. Again the manager's device — the bare
+    // triangle with no ground under it was the one mark here that could be
+    // lost against a white arterial.
+    final halo = Paint()..color = ground;
 
     switch (state) {
       case MapPinState.doneToday:
-        canvas.drawCircle(centre, r - stroke / 2, fill);
-        // The tick is knocked out of the disc in the ground colour, so the
-        // mark still reads as "done" in greyscale and at 40% backlight.
+        // IDENTICAL to the manager's "visited", and asserted so. A filled disc
+        // carrying a tick: the strongest silhouette, for the state that needs
+        // no further action. The tick is knocked out in the ground colour, so
+        // the mark still reads as "done" in greyscale and at 40% backlight.
+        canvas
+          ..drawCircle(centre, radius + stroke / 2, halo)
+          ..drawCircle(centre, radius, Paint()..color = ink);
         final tick = Path()
-          ..moveTo(centre.dx - r * 0.42, centre.dy)
-          ..lineTo(centre.dx - r * 0.1, centre.dy + r * 0.34)
-          ..lineTo(centre.dx + r * 0.45, centre.dy - r * 0.34);
+          ..moveTo(centre.dx - radius * 0.45, centre.dy)
+          ..lineTo(centre.dx - radius * 0.1, centre.dy + radius * 0.38)
+          ..lineTo(centre.dx + radius * 0.5, centre.dy - radius * 0.35);
         canvas.drawPath(
           tick,
           Paint()
             ..color = ground
             ..style = PaintingStyle.stroke
-            ..strokeWidth = math.max(stroke, r * 0.28)
+            ..strokeWidth = stroke
             ..strokeCap = StrokeCap.round
             ..strokeJoin = StrokeJoin.round,
         );
       case MapPinState.nextUp:
+        // A triangle INSCRIBED in the circle the other three states work
+        // inside, rather than one spanning the whole marker box corner to
+        // corner. The box version carried about 290dp² of solid ink at 24dp —
+        // more than a filled disc — which is why it read as a slab beside the
+        // manager's rings rather than as a sibling of them, and why the
+        // leading lane of the "Next up" row looked like a different component
+        // to the lane above it. Inscribed it is about 130dp²: still the
+        // boldest of the three outstanding marks, which is what "next" means,
+        // without being the heaviest object on the screen.
         final triangle = Path()
-          ..moveTo(centre.dx, centre.dy - r + stroke / 2)
-          ..lineTo(centre.dx + r - stroke / 2, centre.dy + r - stroke)
-          ..lineTo(centre.dx - r + stroke / 2, centre.dy + r - stroke)
+          ..moveTo(centre.dx, centre.dy - radius)
+          ..lineTo(centre.dx + radius * 0.866, centre.dy + radius * 0.5)
+          ..lineTo(centre.dx - radius * 0.866, centre.dy + radius * 0.5)
           ..close();
-        canvas.drawPath(triangle, fill);
+        canvas
+          // The halo taken around the silhouette, since this one has no
+          // circle to put a disc under. A centred stroke of `stroke` reaches
+          // the same half-a-track outward that the manager's ground disc
+          // does, so all four marks are haloed by the same amount.
+          ..drawPath(
+            triangle,
+            Paint()
+              ..color = ground
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = stroke
+              ..strokeJoin = StrokeJoin.round,
+          )
+          ..drawPath(triangle, Paint()..color = ink);
       case MapPinState.plannedAhead:
-        canvas.drawCircle(centre, r - stroke, line);
+        // IDENTICAL to the manager's "outstanding", and asserted so: an open
+        // ring with a centre dot. Hollow reads as outstanding, and the dot
+        // keeps it from being mistaken for a smudge at 24dp.
+        canvas
+          ..drawCircle(centre, radius + stroke / 2, halo)
+          ..drawCircle(
+            centre,
+            radius,
+            Paint()
+              ..color = ink
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = stroke,
+          )
+          ..drawCircle(centre, radius * 0.28, Paint()..color = ink);
       case MapPinState.territory:
-        canvas.drawRect(
-          Rect.fromCenter(
-            center: centre,
-            width: (r - stroke / 2) * 1.6,
-            height: (r - stroke / 2) * 1.6,
-          ),
-          line,
-        );
+        // The quietest of the four and by far the most numerous — a plain
+        // dot, no ring, at half the ring's radius. It was a SQUARE OUTLINE:
+        // the only rectangle in a set of discs, drawn thirty times at once
+        // over a patch, on a screen where every other object had just become
+        // a rounded card. Smaller is also truer, since this is the one state
+        // that asks nothing of the agent today.
+        canvas
+          ..drawCircle(centre, _dot(radius) + stroke / 2, halo)
+          ..drawCircle(centre, _dot(radius), Paint()..color = ink);
     }
 
     if (!disputed) return;
@@ -495,24 +574,39 @@ class _PinPainter extends CustomPainter {
     // review is still on the route or still in the patch, so it keeps its
     // silhouette and takes a bar across it rather than becoming a fifth shape
     // nobody has learned.
+    //
+    // Its reach follows the mark it crosses rather than the marker box. The
+    // box was the same length for every state while every state filled the
+    // box; now that "in your patch" is a dot, a box-length bar over it is a
+    // bar with a crumb under it, and what a reader sees is the bar. Over the
+    // dot the bar is the dot's own width plus an overhang, so the crossed-out
+    // thing is still a dot.
+    final reach = state == MapPinState.territory
+        ? _dot(radius) + stroke * 2.5
+        : r;
     canvas
       ..drawLine(
-        Offset(centre.dx - r, centre.dy + r),
-        Offset(centre.dx + r, centre.dy - r),
+        Offset(centre.dx - reach, centre.dy + reach),
+        Offset(centre.dx + reach, centre.dy - reach),
         Paint()
           ..color = ground
           ..strokeWidth = stroke * 2.4
           ..strokeCap = StrokeCap.round,
       )
       ..drawLine(
-        Offset(centre.dx - r, centre.dy + r),
-        Offset(centre.dx + r, centre.dy - r),
+        Offset(centre.dx - reach, centre.dy + reach),
+        Offset(centre.dx + reach, centre.dy - reach),
         Paint()
           ..color = ink
           ..strokeWidth = stroke
           ..strokeCap = StrokeCap.round,
       );
   }
+
+  /// "In your patch", as a radius — half the ring's, so the two never read as
+  /// the same mark, and big enough that the bar of "under review" crosses it
+  /// rather than replaces it.
+  static double _dot(double radius) => radius * 0.5;
 
   @override
   bool shouldRepaint(_PinPainter old) =>
