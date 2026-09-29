@@ -558,12 +558,12 @@ class _PinPainter extends CustomPainter {
           )
           ..drawCircle(centre, radius * 0.28, Paint()..color = ink);
       case MapPinState.territory:
-        // The quietest of the four and by far the most numerous — a plain dot,
-        // no ring, at half the ring's radius. It was a SQUARE
-        // OUTLINE: the only rectangle in a set of discs, drawn thirty times at
-        // once over a patch, on a screen where every other object had just
-        // become a rounded card. Smaller is also truer, since this is the one
-        // state that asks nothing of the agent today.
+        // The quietest of the four and by far the most numerous — a plain
+        // dot, no ring, at half the ring's radius. It was a SQUARE OUTLINE:
+        // the only rectangle in a set of discs, drawn thirty times at once
+        // over a patch, on a screen where every other object had just become
+        // a rounded card. Smaller is also truer, since this is the one state
+        // that asks nothing of the agent today.
         canvas
           ..drawCircle(centre, _dot(radius) + stroke / 2, halo)
           ..drawCircle(centre, _dot(radius), Paint()..color = ink);
