@@ -416,8 +416,22 @@ class _CapturedBlock extends StatelessWidget {
   }
 }
 
-/// ONE ACCUSATION. The severity is the bar and the silhouette; the priority is
-/// always in the word, never carried by the hue alone.
+/// ONE ACCUSATION. The severity is a small dot and a word, never a hue alone.
+///
+/// ## The leading mark came off — 29 September 2026
+///
+/// *"Match the manager side please."* This row drew a [SeverityMark] in the
+/// **leading slot**, which is the 40dp lane a state tile lives in — so a
+/// crimson triangle was rendered at tile scale down the left of the gate, and
+/// the row's own severity dot was drawn beside it. Two marks for one fact, one
+/// of them four times the size it is anywhere else in the product.
+///
+/// The manager's rows put severity in exactly two places and both are small:
+/// the dot in the reserved lane, and a `SeverityMark` inline before the reason
+/// line at meta size. That is what this row does now, and the leading lane
+/// goes back to being empty — which also lines these rows up with the
+/// can't-confirm rows beneath them, whose leading slot carries a real state
+/// tile.
 class _TaskRow extends StatelessWidget {
   const _TaskRow({required this.task, required this.last});
 
@@ -430,19 +444,38 @@ class _TaskRow extends StatelessWidget {
     final title = task.titleIn(l10n);
     final line = l10n.submitTaskForManager(l10n.submitPriority(task.priority));
 
+    final skin = context.skin;
     return SoftRow(
       key: ValueKey<String>('task-$title'),
       title: title,
-      subtitle: line,
-      leading: SeverityMark(
-        kind: task.isUrgent
-            ? SeverityMarkKind.critical
-            : SeverityMarkKind.watch,
-      ),
       severity: task.isUrgent
           ? SoftRowSeverity.critical
           : SoftRowSeverity.watch,
       severityLabel: title,
+      // The reason line, behind its own small silhouette — the manager's task
+      // row, line for line.
+      meta: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SeverityMark(
+              kind: task.isUrgent
+                  ? SeverityMarkKind.critical
+                  : SeverityMarkKind.watch,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              line,
+              style: skin.text.meta.style(
+                color: task.isUrgent ? skin.palette.bad : skin.palette.ink2,
+              ),
+            ),
+          ),
+        ],
+      ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       // Severity first, so a reader knows what kind of thing is coming before
       // they hear what it is.

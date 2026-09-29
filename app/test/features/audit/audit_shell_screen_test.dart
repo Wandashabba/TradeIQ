@@ -256,9 +256,38 @@ void main() {
       );
       // Two facts, not one figure: a section nobody could measure is not a
       // section somebody skipped.
+      //
+      // It was the sentence "1 section can’t be confirmed", drawn under the
+      // fraction. On 29 September 2026 the card took the manager's lead-card
+      // arrangement, in which a figure that qualifies the lead one is a
+      // subordinate PAIR — the label left, the figure right, aligned on one
+      // edge — so the same two facts are now a label and a numeral. The old
+      // assertion described the old drawing, not the fact.
+      final block = find.byKey(const ValueKey<String>('visit-progress'));
+      final pair = find.descendant(
+        of: block,
+        matching: find.byKey(
+          const ValueKey<String>('visit-progress-cant-confirm'),
+        ),
+      );
+      expect(pair, findsOneWidget);
+      // The label is an `Eyebrow`, which uppercases for presentation and hands
+      // a screen reader the sentence — so the drawn string is the shout.
       expect(
-        find.text('1 section can’t be confirmed'),
+        find.descendant(of: pair, matching: find.text('CAN’T CONFIRM')),
         findsOneWidget,
+      );
+      expect(find.descendant(of: pair, matching: find.text('1')), findsOneWidget);
+
+      // And the sentence itself is SPOKEN, which it never was: the block
+      // excludes its children's semantics, so before this the count was drawn
+      // and announced nowhere.
+      expect(
+        tester
+            .getSemantics(block)
+            .label
+            .contains('1 section can’t be confirmed'),
+        isTrue,
       );
     });
   });

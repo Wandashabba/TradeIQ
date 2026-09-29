@@ -5,6 +5,7 @@ import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../../core/widgets/torchlight/card.dart';
 import '../../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../core/widgets/torchlight/marks.dart';
@@ -34,8 +35,20 @@ import 'section_photo.dart';
 /// ## Amber
 ///
 /// One object, and only when there is something to commit: the inline Save.
-/// Zero is a finding and the finding is a bar, a silhouette and two sentences
-/// — never a light.
+/// That is the single grant this screen spends, and it spends it on the only
+/// control here a thumb commits with. A finding is **never** a light: zero is
+/// a crimson wash on the product's card, a crimson count and the words "Out of
+/// stock", and every one of those three is a label.
+///
+/// ## The shelf is a list of cards — 29 September 2026
+///
+/// The products were flush blocks divided by 1px rules, which is the table
+/// form the card grammar replaced everywhere else in the product when the
+/// owner overruled unify §1.3 on 25 September (*"it's still very boxy and I
+/// don't need that"*, and then three times on the agent side, most recently
+/// *"Match the manager side please"*). Each product is a `TorchCard` now, with
+/// a gap of ground between them at `SoftRowSpec`'s own `gapAfter`. See
+/// [_SkuBlock].
 class S2StockScreen extends ConsumerWidget {
   const S2StockScreen({
     super.key,
@@ -278,7 +291,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
                 sku: sku,
                 value: _units[sku.id],
                 contextLine: _contextLine(l10n, TiqNumber.of(context), sku),
-                first: i == 0,
+                last: i == widget.skus.length - 1,
                 onChanged: (v) => _touch(() => _units[sku.id] = v),
               ),
           ],
@@ -447,23 +460,72 @@ class _SummaryDetail extends StatelessWidget {
 }
 
 /// ONE SKU: the name and its recommended price, the server's context, and the
-/// stepper. Separated by a real rule rather than wrapped in a card — twelve
-/// rounded boxes down a phone is the uniform-cards failure, and the rule is
-/// what the row grammar uses everywhere else.
+/// stepper.
+///
+/// ## A card, not a rule — amending this file's own comment, 29 September 2026
+///
+/// What stood here was: *"Separated by a real rule rather than wrapped in a
+/// card — twelve rounded boxes down a phone is the uniform-cards failure, and
+/// the rule is what the row grammar uses everywhere else."* Both halves of
+/// that were overtaken.
+///
+/// The "uniform rounded cards" failure is unify §1.3's wording, and **the
+/// owner overruled §1.3 on 25 September 2026** after looking at the running
+/// screens twice — *"I hate this box style"*, *"it's still very boxy and I
+/// don't need that"* — which is recorded in `SoftRowForm` and in
+/// `docs/design/spec/unify.md`. And the rule is emphatically **not** what the
+/// row grammar uses everywhere else any more: `SoftRowSpec` resolves a list
+/// row to a radius-22 `surface` card with a gap of ground and **no rule at
+/// all**, because "a line between two objects that already have edges is the
+/// table look the card grammar exists to leave behind".
+///
+/// So this block stopped being the one place in the product that still drew
+/// `Container(height: borderWidth, color: edgeStructure)` between repeated
+/// things. The owner's note on the agent side, three times and most recently
+/// on 29 September 2026 — *"Match the manager side please"* — is about exactly
+/// this: the manager's lists are objects on a ground and this one was a table.
+///
+/// ## The finding is three channels and none of them is a bar
+///
+/// A product counted at zero used to carry **five**: a 3px crimson bar down
+/// the leading edge, a 12dp indent to clear it, the stepper's crimson count,
+/// the word "Out of stock" and the shoppers-switch sentence. The approved
+/// mockup gives it three — the row washes, the count goes crimson, the chip
+/// says "Out of stock" — and three is what it has:
+///
+/// * the **card washes** `torchChipWash(skin, bad)`, the same declared
+///   composite the chips and the state tiles use;
+/// * the **count** goes crimson, from `CountStepper`'s own `zeroIsFinding`;
+/// * the **word** "Out of stock" says it.
+///
+/// The bar and its indent are gone. A 3px stripe inside a radius-22
+/// silhouette is a scratch on the fill, which is the argument `SoftRowSpec`
+/// made when the rows' severity bars became dots.
+///
+/// **The `IntrinsicHeight` hazard goes with it.** The bar had to be a `Stack`
+/// overlay because `FigureSlot` measures itself with a `LayoutBuilder`, a
+/// `LayoutBuilder` cannot answer an intrinsic query, and a stretch child of a
+/// `Row` inside an `IntrinsicHeight` asks one — which took the whole too-far
+/// screen down once already. A fill is painted by the card's own
+/// `DecoratedBox` and asks nothing of its child's height. The shoppers-switch
+/// sentence stays: it is information, not a fourth severity channel.
 class _SkuBlock extends StatelessWidget {
   const _SkuBlock({
     super.key,
     required this.sku,
     required this.value,
     required this.contextLine,
-    required this.first,
+    required this.last,
     required this.onChanged,
   });
 
   final Sku sku;
   final int? value;
   final String contextLine;
-  final bool first;
+
+  /// The last product on the shelf takes no gap of ground beneath it — the
+  /// body's own block gap follows.
+  final bool last;
   final ValueChanged<int?> onChanged;
 
   @override
@@ -471,15 +533,10 @@ class _SkuBlock extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final finding = value == 0;
-    const barWidth = 3.0;
 
-    final block = Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        finding ? barWidth + TiqSpace.s3 : 0,
-        TiqSpace.s4,
-        0,
-        TiqSpace.s4,
-      ),
+    final block = TorchCard(
+      key: finding ? ValueKey<String>('finding-${sku.id}') : null,
+      fill: finding ? torchChipWash(skin, skin.palette.bad) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -545,35 +602,12 @@ class _SkuBlock extends StatelessWidget {
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (!first)
-          Container(
-            height: skin.depth.borderWidth,
-            color: skin.palette.edgeStructure,
-          ),
-        if (!finding)
-          block
-        else
-          // The severity bar is an OVERLAY, never a stretch child of a Row
-          // inside an `IntrinsicHeight`: `FigureSlot` measures itself with a
-          // `LayoutBuilder`, and a `LayoutBuilder` cannot answer an intrinsic
-          // query — which took the whole too-far screen down once already.
-          Stack(
-            key: ValueKey<String>('finding-${sku.id}'),
-            children: <Widget>[
-              block,
-              PositionedDirectional(
-                top: 0,
-                bottom: 0,
-                start: 0,
-                width: barWidth,
-                child: ColoredBox(color: skin.palette.bad),
-              ),
-            ],
-          ),
-      ],
+    // A gap of ground between the cards, never a rule — `SoftRowSpec`'s
+    // `gapAfter`, at the same s3, so a shelf of products and a list of rows
+    // are spaced identically.
+    return Padding(
+      padding: EdgeInsets.only(bottom: last ? 0 : TiqSpace.s3),
+      child: block,
     );
   }
 }
