@@ -503,6 +503,19 @@ class TorchlightContrast {
       ),
       ContrastPairing(
         skin: 'night',
+        label: "the console's held-work square: comparison on its own wash",
+        foreground: n.comparison,
+        background: torchChipWash(_night, n.comparison),
+        role: ContrastRole.graphic,
+        note:
+            'A SILHOUETTE, not a word — a row mark tile carries no text. '
+            'Truffle means "them, unlit" and is never a severity, so it takes '
+            'the same wash the two severities take rather than a tier of its '
+            'own. 4.99:1 here against 7.10:1 on the well it used to sit on: '
+            'the wash is the brighter ground, and a graphic needs 3:1.',
+      ),
+      ContrastPairing(
+        skin: 'night',
         label: 'a cleared flag, and the not-started ring: ink-3 on raised',
         foreground: n.ink3,
         background: n.raised,
@@ -872,6 +885,18 @@ class TorchlightContrast {
         foreground: d.ink2,
         background: d.raised,
         role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: "the console's held-work square: comparison on its own wash",
+        foreground: d.comparison,
+        background: torchChipWash(_day, d.comparison),
+        role: ContrastRole.graphic,
+        note:
+            'A SILHOUETTE, not a word. 4.06:1 against the 4.02:1 it measured '
+            'on the Day well it used to sit on — the tile changed material '
+            'and the mark got very slightly easier to see, which is the one '
+            'direction this change was allowed to move it.',
       ),
       ContrastPairing(
         skin: 'day',
