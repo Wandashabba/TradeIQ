@@ -3,6 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+// The chip wash is imported rather than restated for the reason at the head
+// of this file: the production code and the test may not compute it
+// differently. If the alpha or the tier under it ever moves, every pairing
+// below moves with it and CI says so.
+import '../../widgets/torchlight/mark/tiq_chip.dart' show torchChipWash;
 import 'tiq_skin.dart';
 
 /// WCAG 2.x relative luminance and contrast ratio.
@@ -463,6 +468,59 @@ class TorchlightContrast {
         background: n.well,
         role: ContrastRole.text,
       ),
+      // ── THE CHIP WASHES ──────────────────────────────────────────────
+      //
+      // Every filled chip level and every filled state-glyph tile, measured
+      // on the fill it is actually printed on. These exist because #483's
+      // successor took the outline off the whole chip family: the fill is no
+      // longer belt-and-braces over a border, it is the only thing under the
+      // label, and a tier that gets tuned later must not be able to quietly
+      // take a level under the floor.
+      //
+      // `torchChipWash` composites over `raised`, so each of these is one
+      // colour per skin rather than one per ground — see its doc comment for
+      // why that is the only version Day survives.
+      ContrastPairing(
+        skin: 'night',
+        label: 'Watch / Sent back / REQUIRED TO SUBMIT: bad on its own wash',
+        foreground: n.bad,
+        background: torchChipWash(_night, n.bad),
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'On target / section done: good on its own wash',
+        foreground: n.good,
+        background: torchChipWash(_night, n.good),
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'Held, Live and the six neutral flags: ink-2 on raised',
+        foreground: n.ink2,
+        background: n.raised,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'a cleared flag, and the not-started ring: ink-3 on raised',
+        foreground: n.ink3,
+        background: n.raised,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'night',
+        label: 'a required section ring: ink-3 on the ink-1 wash',
+        foreground: n.ink3,
+        background: torchChipWash(_night, n.ink1),
+        role: ContrastRole.graphic,
+        note:
+            'A SILHOUETTE, not a word — the tile carries no text. 4.05:1 as a '
+            'graphic, and it is 6.01:1 for the ink-2 glyphs that share the '
+            'tile. The required tile is the one that took an ink-1 wash in '
+            'place of a 2px ink-1 border; the row states the same fact twice '
+            'in words beside it.',
+      ),
       ContrastPairing(
         skin: 'night',
         label: 'good on surface — a coloured figure on a card',
@@ -781,6 +839,62 @@ class TorchlightContrast {
       // colours on the numbers and graphs that make sense." Day is where the
       // margin is thinnest, so every ground a coloured figure can land on is
       // written down here as well as swept by `generatedFor`.
+      // ── THE CHIP WASHES, DAY ─────────────────────────────────────────
+      //
+      // This is the skin the recipe was designed around, not Night. The
+      // mockup is drawn in the Night palette and its 14% is comfortable
+      // there; Day's severity inks are dark inks picked to *just* clear 4.5
+      // on paper, so they have almost nothing to spend. `good on well` is
+      // 5.03:1 and a 14% wash of `good` over that well leaves 4.17:1 — under
+      // the floor. Over `raised` the same 14% leaves 4.99:1, which is the
+      // whole reason `torchChipWash` names its tier.
+      ContrastPairing(
+        skin: 'day',
+        label: 'Watch / Sent back / REQUIRED TO SUBMIT: bad on its own wash',
+        foreground: d.bad,
+        background: torchChipWash(_day, d.bad),
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'On target / section done: good on its own wash',
+        foreground: d.good,
+        background: torchChipWash(_day, d.good),
+        role: ContrastRole.text,
+        note:
+            'THE TIGHTEST OF THE WASHES, at 4.99:1 on a 4.5 floor. Day good '
+            'is #14664A and it is the ink that decides the alpha; if this '
+            'pairing ever has to move, move the alpha, not the tier.',
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'Held, Live and the six neutral flags: ink-2 on raised',
+        foreground: d.ink2,
+        background: d.raised,
+        role: ContrastRole.text,
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'a cleared flag, and the not-started ring: ink-3 on raised',
+        foreground: d.ink3,
+        background: d.raised,
+        role: ContrastRole.text,
+        note:
+            'THE PAIRING THIS CHANGE WAS BUILT AROUND. It was ink-3 on the '
+            'Day well — 4.52:1, the tightest declared pairing in this skin, '
+            'with 0.02 of margin. That is why the neutral chip levels take '
+            'the `raised` tier rather than the ink-1 wash the mockup uses: a '
+            'wash would have darkened the fill under an already-floored ink. '
+            'On raised it is 5.48:1.',
+      ),
+      ContrastPairing(
+        skin: 'day',
+        label: 'a required section ring: ink-3 on the ink-1 wash',
+        foreground: d.ink3,
+        background: torchChipWash(_day, d.ink1),
+        role: ContrastRole.graphic,
+        note: 'A silhouette, not a word. 4.20:1 as a graphic.',
+      ),
       ContrastPairing(
         skin: 'day',
         label: 'good on card (surface) — a coloured figure on a card',

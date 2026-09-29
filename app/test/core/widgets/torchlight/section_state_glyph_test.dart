@@ -161,4 +161,63 @@ void main() {
       }
     });
   });
+
+  group('the tile is filled, not outlined (§1.5, 29 September 2026)', () {
+    testWidgets('no state, required or not, draws a border', (tester) async {
+      // THE RATCHET for the override. §1.5 protects the four silhouettes —
+      // proved above, in greyscale, untouched by this change — not the box
+      // they sat in. The box was three radius-6 rectangles down the visit
+      // hub's leading lane, two of them at 2px, and the owner said the agent
+      // side is still rectangular.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final state in SectionState.values) {
+          for (final required_ in <bool>[false, true]) {
+            await tester.pumpWidget(
+              skinned(
+                skin,
+                SectionStateGlyph(state: state, required_: required_),
+              ),
+            );
+            final box = tester.widget<Container>(
+              find
+                  .descendant(
+                    of: find.byType(SectionStateGlyph),
+                    matching: find.byType(Container),
+                  )
+                  .first,
+            );
+            final decoration = box.decoration! as BoxDecoration;
+            expect(
+              decoration.border,
+              isNull,
+              reason: '${skin.brightness.name}/${state.name}/$required_',
+            );
+            expect(
+              decoration.color,
+              isNotNull,
+              reason:
+                  '${skin.brightness.name}/${state.name}/$required_ has '
+                  'neither fill nor border, so the tile is gone entirely — '
+                  'which is what an earlier survey rightly refused.',
+            );
+          }
+        }
+      }
+    });
+
+    test('a required tile is a brighter tile, since it is no longer a thicker '
+        'edge', () {
+      // The one channel `required_` has left. It is weaker than the 2px ink-1
+      // border it replaces and is asserted as a direction rather than a
+      // ratio: its only call site prints "Not started" and a crimson REQUIRED
+      // TO SUBMIT chip in the same row.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        expect(
+          torchChipWash(skin, skin.palette.ink1),
+          isNot(skin.palette.raised),
+          reason: '${skin.brightness.name}: required and optional look alike.',
+        );
+      }
+    });
+  });
 }
