@@ -796,7 +796,7 @@ void main() {
             'The hero is ink-1 at every band on Night. Section 16.2 has said '
             'so since the visit outcome shipped — a severity-coded figure at '
             '72px is a hue doing a number\'s job, and it is the one object '
-            "large enough that its colour reads as the whole message. The "
+            'large enough that its colour reads as the whole message. The '
             "artifact's own hero `72` is bone beside a crimson delta.",
       );
       expect(
