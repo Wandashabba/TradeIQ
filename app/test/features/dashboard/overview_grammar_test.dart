@@ -206,25 +206,68 @@ void main() {
 
   // ── The semantic colour, 28 September 2026 ────────────────────────────
   group('a figure and a run carry their standing', () {
-    testWidgets('the headline figure is crimson under its standard', (
+    // THIS USED TO LOOP BOTH SKINS AND EXPECT `bad` FROM EACH. It asserted the
+    // 28 September decision that a figure's ground does not change whether it
+    // carries a verdict; the owner reversed that for Night on 29 September.
+    // Split rather than relaxed, so neither ground's answer can rot into the
+    // other's.
+    testWidgets('Day: the headline figure is crimson under its standard', (
       tester,
     ) async {
-      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
-        await pump(tester, skin: skin, current: kpis(execution: 67.8));
-        final tile = tester.widget<StatTile>(
-          find.byKey(const ValueKey<String>('kpi-execution-score')),
-        );
-        expect(
-          tile.figureInk,
-          skin.palette.bad,
-          reason:
-              '${skin.mode.name}: 67.8 against a published 75 is a gap, and '
-              'the card said so only in ink-3 at 12px after two other facts.',
-        );
-        // The words are still the carrier: the supporting line states the
-        // target and the delta beside the figure carries its own sentiment.
-        expect(tile.subordinates, contains('75'));
-      }
+      final skin = TiqSkin.day();
+      await pump(tester, skin: skin, current: kpis(execution: 67.8));
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(
+        tile.figureInk,
+        skin.palette.bad,
+        reason:
+            '67.8 against a published 75 is a gap, and the card said so only '
+            'in ink-3 at 12px after two other facts.',
+      );
+      // The words are still the carrier: the supporting line states the
+      // target and the delta beside the figure carries its own sentiment.
+      expect(tile.subordinates, contains('75'));
+    });
+
+    testWidgets('Night: a watch-band headline is luminous, not crimson', (
+      tester,
+    ) async {
+      final skin = TiqSkin.night();
+      await pump(tester, skin: skin, current: kpis(execution: 67.8));
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(
+        tile.figureInk,
+        isNull,
+        reason:
+            'Null is how a StatTile asks FigureSlot for ink-1. A headline '
+            'keeps crimson on Night only at `critical`; 67.8 against 75 is '
+            'inside the watch band, and the target on the supporting line is '
+            'what says so.',
+      );
+      expect(tile.subordinates, contains('75'));
+    });
+
+    testWidgets('Night: a genuinely critical headline still is', (
+      tester,
+    ) async {
+      // THE ONE EXCEPTION THE ARTIFACT KEEPS, and the reason `FigureRank`
+      // exists rather than a blanket "Night figures are never coloured": Ask's
+      // `-43,6%` is crimson beside a bone `481 615`. A headline is the number
+      // the panel exists to report, and a critical one is the answer.
+      final skin = TiqSkin.night();
+      await pump(tester, skin: skin, current: kpis(execution: 58));
+      final tile = tester.widget<StatTile>(
+        find.byKey(const ValueKey<String>('kpi-execution-score')),
+      );
+      expect(
+        tile.figureInk,
+        skin.palette.bad,
+        reason: '58 against a published 75 is well past the watch band.',
+      );
     });
 
     testWidgets('a headline over its standard is green', (tester) async {
