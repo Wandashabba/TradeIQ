@@ -99,17 +99,24 @@ class ChartThreshold {
   final String label;
 }
 
-/// The plot's height, by density and viewport.
+/// The plot's height, by density and viewport. **The one source.**
 ///
 /// unify §1.17: 208 Console phone / 232 Field / 260 at ≥600dp.
 /// The assistant surface's 160 lost on its own arithmetic — with a 38dp
 /// gutter it leaves about 120dp of plot.
-double trendChartHeight(BuildContext context) {
-  final skin = context.skin;
-  final width = MediaQuery.sizeOf(context).width;
+///
+/// `TrendChartCard.plotHeightFor` in `features/assistant/view_specs/` held a
+/// second copy of these three numbers, with the density arms written the
+/// other way round, until 29 September 2026. Two copies of a number are two
+/// numbers; it delegates here now.
+double trendChartHeightFor(TiqSkin skin, double width) {
   if (width >= 600) return 260;
   return skin.space.density == TiqDensity.console ? 208 : 232;
 }
+
+/// [trendChartHeightFor], reading the skin and width off a [BuildContext].
+double trendChartHeight(BuildContext context) =>
+    trendChartHeightFor(context.skin, MediaQuery.sizeOf(context).width);
 
 /// The range a metric can physically take, when it has one.
 ///

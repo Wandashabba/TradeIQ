@@ -112,10 +112,21 @@ class TroughSpec {
     final p = skin.palette;
     final border = skin.depth.borderWidth;
 
-    final minHeight = switch (skin.density) {
-      TiqDensity.console => 44.0,
-      TiqDensity.field => TiqSpace.s9,
-    };
+    // AN INPUT IS AS TALL AS THE BUTTON THAT COMMITS IT.
+    //
+    // This was `console => 44, field => s9 (56)` — the same number
+    // `primaryActionHeight` already held, restated as a literal switch, which
+    // is how the two drifted apart on 29 September 2026. #490 brought the
+    // field's commit button to 44 and this switch did not follow, leaving a
+    // 56dp input above a 44dp button on the one screen where they stack.
+    //
+    // > *"check if everything matches with the manager side"* — the owner,
+    // > 29 September 2026.
+    //
+    // Reading the token is the fix and the guard: a field and the button
+    // under it cannot disagree again, because there is only one number now.
+    // `chipHeight` was rewired the same way and for the same reason.
+    final minHeight = skin.space.primaryActionHeight;
 
     // READ-ONLY stops looking like a field entirely: no fill, no edge, no
     // rule, ink-1 text. The previous draft dimmed it to 0.8, which is a state
