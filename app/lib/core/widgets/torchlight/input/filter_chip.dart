@@ -3,12 +3,13 @@ import 'package:flutter/widgets.dart';
 import '../../../design/figure_slot.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/torch_press.dart';
+import '../chrome/nav_pill.dart' show torchPillRadius;
 import '../mark/tiq_mark.dart';
 
 /// NARROWING A LIST — territory, date window, status.
 ///
-/// Selected is **lifted fill + a 1px ink-1 border + a tick + weight 700**, and
-/// it is **never amber**, on any screen, in any skin (unify §1.6). The written
+/// Selected is **lifted fill + a tick + weight 700 + ink-1**, and it is
+/// **never amber**, on any screen, in any skin (unify §1.6). The written
 /// direction specified an amber selected edge; all five design surfaces
 /// overruled it, and the reason is arithmetic rather than taste — a rail is a
 /// row of chips, a selected chip in a multi-select rail is three or four of
@@ -59,22 +60,54 @@ class TorchFilterChip extends StatelessWidget {
     final skin = context.skin;
     final p = skin.palette;
     final enabled = onSelected != null;
-    final radius = BorderRadius.circular(skin.radii.chip);
 
+    // A PILL, NOT A BOX — owner override, 29 September 2026.
+    //
+    // `radii.chip` is 6, and at 44dp tall that is a rectangle with the corners
+    // taken off. Looking at the Tasks rail the owner said *"let's remove this
+    // lined, rectangular style"*, which is the second time the same note has
+    // landed on the same shape — "It's still very boxy and I don't need that"
+    // was the first, and it is what made a list row a radius-22 card.
+    //
+    // 999, and it is the approved mockup's own number: every chip in it is
+    // `border-radius: 999px` over a quiet fill with **no border at all**.
+    // `TiqRadii` deliberately carries no 999 — see its doc comment — because
+    // the pill belonged to the nav alone; this is the second grant, recorded
+    // the same way the nav's was rather than smuggled in as a token change.
+    // `radii.chip` keeps its 6 for the ladder glyph tiles that also use it, so
+    // this is a decision about *this control* and not a silent edit to
+    // twenty-three call sites.
+    final radius = BorderRadius.circular(torchPillRadius);
+
+    // AND NO OUTLINE, which is the other half of "rectangular". The unselected
+    // chip was a bare outline — no fill, a 1px `edgeControl` box — so the rail
+    // read as four empty boxes. It is a filled pill now.
+    //
+    // The honest trade-off, written down rather than discovered later: a fill
+    // step on a near-black ground is small in ratio terms — `surface` is
+    // 1.24:1 on `ground` and `lifted` 1.67:1, both under WCAG 1.4.11's 3:1 —
+    // so the FILL is not what identifies the control or its state. Four other
+    // channels do, and every one survives greyscale: the label itself at full
+    // text contrast, the tick disc on the selected chip, the weight step
+    // (700 against 500), and the ink step (the selected chip's ink is chosen
+    // against its own dark fill, the unselected chip's against the surface).
+    // The outline was belt-and-braces over those, and the owner has now twice
+    // said the braces are what they can see.
     final Color? fill;
-    final Color border;
     final Color ink;
     if (!enabled) {
       fill = null;
-      border = p.inkMute;
       ink = p.inkMute;
     } else if (selected) {
       fill = p.lifted;
-      border = p.ink1;
+      // `torchOnAbyssal`, NOT `ink1`. `lifted` is a dark navy in BOTH skins —
+      // it is the one fill that does not flip with the ground — so Day's
+      // `ink1` (`#1B2632`) on it is dark on dark. Rendering the Day chip after
+      // this change is what caught it; the ink has to be chosen against the
+      // fill, not against the skin.
       ink = torchOnAbyssal(skin);
     } else {
-      fill = null;
-      border = p.edgeControl;
+      fill = p.surface;
       ink = p.ink2;
     }
 
@@ -130,7 +163,15 @@ class TorchFilterChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: pressed ? torchPressSurface(skin).fill : fill,
             borderRadius: radius,
-            border: Border.all(color: border, width: skin.depth.borderWidth),
+            // A DISABLED CHIP KEEPS ITS OUTLINE. It has no fill to be seen by
+            // and `inkMute` on the bare ground is the one state where the
+            // silhouette really is all there is.
+            border: enabled
+                ? null
+                : Border.all(
+                    color: p.inkMute,
+                    width: skin.depth.borderWidth,
+                  ),
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: TiqSpace.s3,
