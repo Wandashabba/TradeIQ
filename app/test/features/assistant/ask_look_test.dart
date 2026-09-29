@@ -29,8 +29,8 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// | image | what it has to get right |
 /// |---|---|
 /// | `opening` | the invitation: a headline that leads, no placeholder frame above it |
-/// | `offline` | the rows held, each saying why, with the promise still legible |
-/// | `loading` | the rows as skeletons while the headline and the promise stay |
+/// | `offline` | the rows held, the held banner saying why once, the promise still legible |
+/// | `loading` | the rows held while the headline and the promise stay at full strength |
 /// | `not-enabled` | the envelope, drawn, on the route's own gate |
 /// | `drawings` | all three at 64dp on real ground, plus the error colour |
 ///
@@ -88,14 +88,10 @@ void main() {
     // ── 2. Offline ───────────────────────────────────────────────────────
     //
     // The teaching text stays at full strength because it is still true; the
-    // rows go to ink-mute and each one says why it cannot be pressed.
+    // rows go to ink-mute and take no press. The reason is said once, by the
+    // route's held banner above the composer — not four times, once per row.
     testWidgets('Ask — the opening offline, $name', (tester) async {
-      await pumpAsk(
-        tester,
-        skin: console(night),
-        size: phone,
-        online: false,
-      );
+      await pumpAsk(tester, skin: console(night), size: phone, online: false);
 
       await expectLater(
         find.byKey(askBoundaryKey),
@@ -107,8 +103,9 @@ void main() {
     // ── 3. Loading ───────────────────────────────────────────────────────
     //
     // The headline and the promise are already true and are shown at once;
-    // only the rows are skeletons. Rendered as a component, because no call
-    // site in the app passes `loading` today — see the flag's own doc.
+    // only the rows are held. Rendered as a component rather than through the
+    // route, because no call site in the app passes `loading` today — the gate
+    // renders its own skeleton instead. See the flag's own doc.
     testWidgets('Ask — the opening loading, $name', (tester) async {
       await _pumpFirstRun(
         tester,
@@ -187,16 +184,19 @@ Future<void> _pumpFirstRun(
         localizationsDelegates: appLocalizationsDelegates,
         home: RepaintBoundary(
           key: _frameKey,
-          child: ColoredBox(
-            color: skin.palette.ground,
-            child: Padding(
-              padding: EdgeInsets.all(skin.space.gutter),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: AskFirstRun(
-                  onAsk: (_) {},
-                  enabled: enabled,
-                  loading: loading,
+          child: DefaultTextStyle(
+            style: skin.text.body.style(color: skin.palette.ink1),
+            child: ColoredBox(
+              color: skin.palette.ground,
+              child: Padding(
+                padding: EdgeInsets.all(skin.space.gutter),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: AskFirstRun(
+                    onAsk: (_) {},
+                    enabled: enabled,
+                    loading: loading,
+                  ),
                 ),
               ),
             ),
@@ -210,10 +210,7 @@ Future<void> _pumpFirstRun(
 
 /// The three silhouettes side by side, twice: the empty state's colour on the
 /// top row and the error state's on the bottom.
-Future<void> _pumpDrawings(
-  WidgetTester tester, {
-  required TiqSkin skin,
-}) async {
+Future<void> _pumpDrawings(WidgetTester tester, {required TiqSkin skin}) async {
   const size = Size(390, 220);
   tester.view
     ..physicalSize = size
@@ -273,7 +270,7 @@ Future<void> _loadIcons() async {
     '${cache.path}/artifacts/material_fonts/MaterialIcons-Regular.otf',
   );
   if (!font.existsSync()) return;
-  await (FontLoader('MaterialIcons')
-        ..addFont(font.readAsBytes().then((b) => ByteData.view(b.buffer))))
-      .load();
+  await (FontLoader(
+    'MaterialIcons',
+  )..addFont(font.readAsBytes().then((b) => ByteData.view(b.buffer)))).load();
 }

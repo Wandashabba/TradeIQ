@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state/empty_drawing.dart';
 import 'package:tradeiq_app/features/assistant/answer/ask_turn.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/agent_scorecard_card.dart';
@@ -26,6 +28,61 @@ void main() {
       await disposeAsk(tester);
     });
 
+    testWidgets('opens as an invitation, not as an empty state', (
+      tester,
+    ) async {
+      await pumpAsk(tester);
+
+      // No drawing. Unify §1.12 grants a 64dp drawing to a whole-screen
+      // EMPTY state, and nothing on this screen is missing — there is a
+      // capability the reader has not used yet. The dashed placeholder this
+      // opening used to wear read as a broken image at the top of a
+      // manager's own territory.
+      expect(
+        find.byType(EmptyStateDrawing),
+        findsNothing,
+        reason:
+            'The opening is an invitation. A drawing here is either the "no '
+            'data" grammar on a screen where nothing is missing, or artwork '
+            'on a surface no rule in the design law covers.',
+      );
+
+      // No chevron. A chevron promises a page on the other side of the tap;
+      // these put a question in the composer and send it, which is why the
+      // spoken label begins "Ask:". Four of them down the fold were the one
+      // thing making an invitation read as a settings list.
+      expect(
+        find.byType(SoftRowChevron),
+        findsNothing,
+        reason:
+            'A suggestion does not navigate. The row is already a card and a '
+            'card that presses does not need an arrow to say so.',
+      );
+
+      await disposeAsk(tester);
+    });
+
+    testWidgets('makes the read-only promise once, where it is read', (
+      tester,
+    ) async {
+      // The screen used to carry it twice: the body's sentence and a closing
+      // footnote saying the same thing in meta/ink-3, below the fold. A
+      // screen that reassures in two places on every load is the defect §19
+      // names on Tasks. The promise is real, so it stays where it is read.
+      await pumpAsk(tester);
+
+      expect(find.textContaining('I cannot change anything'), findsOneWidget);
+      expect(
+        find.textContaining('Read-only'),
+        findsNothing,
+        reason:
+            'The footnote was the weaker of the two: meta/ink-3, at the '
+            'bottom, off the first screenful on a 390x844 phone.',
+      );
+
+      await disposeAsk(tester);
+    });
+
     testWidgets('a suggestion row sends its exact question', (tester) async {
       // A blank chat box is the hardest possible first move.
       final repository = ScriptedRepository(const <AssistantEvent>[
@@ -40,7 +97,10 @@ void main() {
       await tester.tap(row);
       await tester.pumpAndSettle();
 
-      expect(repository.sent.single, 'Which outlets keep running out of stock?');
+      expect(
+        repository.sent.single,
+        'Which outlets keep running out of stock?',
+      );
       await disposeAsk(tester);
     });
 
@@ -226,7 +286,9 @@ void main() {
     });
 
     testWidgets('sending an empty message does nothing', (tester) async {
-      final repository = ScriptedRepository(const <AssistantEvent>[DoneEvent()]);
+      final repository = ScriptedRepository(const <AssistantEvent>[
+        DoneEvent(),
+      ]);
       await pumpAsk(tester, repository: repository);
 
       await ask(tester, '   ');
@@ -280,7 +342,8 @@ void main() {
         repository: ScriptedRepository(const <AssistantEvent>[
           ErrorEvent(
             code: 'internal',
-            message: 'TypeError: Cannot read properties of undefined '
+            message:
+                'TypeError: Cannot read properties of undefined '
                 '(reading "rows") at Object.run (/srv/app/tools.js:12:9)',
           ),
         ]),
@@ -354,15 +417,19 @@ void main() {
 
       final question =
           'Which outlets in Soweto ran out of the 500ml line last week, '
-          'and how does that compare with the same week last month, and '
-          'which agents visited them, and what did they report about the '
-          'shelf, and was there a promotion running at the time? ' * 2;
+              'and how does that compare with the same week last month, and '
+              'which agents visited them, and what did they report about the '
+              'shelf, and was there a promotion running at the time? ' *
+          2;
       await pumpAsk(tester, repository: ScriptedRepository(tilesTurn()));
       await ask(tester, question);
 
       final bubble = tester.widget<Text>(
         find
-            .descendant(of: find.byType(QuestionBubble), matching: find.byType(Text))
+            .descendant(
+              of: find.byType(QuestionBubble),
+              matching: find.byType(Text),
+            )
             .first,
       );
       // Six lines, then a way to the rest — never a fade over the text.
@@ -525,7 +592,9 @@ void main() {
       tester,
     ) async {
       final semantics = tester.ensureSemantics();
-      final repository = ScriptedRepository(const <AssistantEvent>[DoneEvent()]);
+      final repository = ScriptedRepository(const <AssistantEvent>[
+        DoneEvent(),
+      ]);
       await pumpAsk(tester, repository: repository, online: false);
 
       expect(screenText(tester), contains('No connection'));
@@ -577,7 +646,10 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey<String>('ask-history-chip')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey<String>('ask-history-0')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('ask-history-0')),
+        findsOneWidget,
+      );
       await disposeAsk(tester);
     });
 
@@ -594,7 +666,9 @@ void main() {
       await ask(tester, 'first question');
       await tester.tap(find.byKey(const ValueKey<String>('ask-history-chip')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('ask-start-over-row')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask-start-over-row')),
+      );
       await tester.pumpAndSettle();
 
       // A decision, not an instant wipe.
@@ -617,10 +691,12 @@ void main() {
       // The pill may go icon-only as a whole when a label does not fit; the
       // labels it measured, and speaks, are the reader's.
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      expect(
-        pill.slots.map((s) => s.label),
-        <String>['Vloer', 'Werk', 'Vra', 'Kieslys'],
-      );
+      expect(pill.slots.map((s) => s.label), <String>[
+        'Vloer',
+        'Werk',
+        'Vra',
+        'Kieslys',
+      ]);
       expect(screenText(tester), contains('Vra oor jou gebied.'));
       await disposeAsk(tester);
     });
@@ -674,7 +750,10 @@ void main() {
     });
 
     testWidgets('a measured zero is a zero', (tester) async {
-      await pumpAsk(tester, repository: ScriptedRepository(tilesTurn(value: 0)));
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(tilesTurn(value: 0)),
+      );
       await ask(tester, 'How is sell-in?');
       expect(screenText(tester), isNot(contains('Nothing measured')));
       expect(
@@ -689,45 +768,44 @@ void main() {
 
   group('a figure recomputed while she reads it', () {
     /// The same card, patched in place: `stat_tiles` under one id (#410).
-    List<AssistantEvent> patched({num? second = 1290000}) =>
-        <AssistantEvent>[
-          const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
-          const ToolEndEvent(name: 'getSalesPerformance', ok: true),
-          const ArtifactEvent(
-            id: 'getSalesPerformance-stat_tiles-1',
-            type: 'stat_tiles',
-            params: <String, dynamic>{},
-            data: <String, dynamic>{
-              'outsideData': false,
-              'tiles': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'label': 'Sell-in, units',
-                  'value': 1284990.5,
-                  'unit': 'units',
-                  'origin': 'internal',
-                },
-              ],
+    List<AssistantEvent> patched({num? second = 1290000}) => <AssistantEvent>[
+      const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
+      const ToolEndEvent(name: 'getSalesPerformance', ok: true),
+      const ArtifactEvent(
+        id: 'getSalesPerformance-stat_tiles-1',
+        type: 'stat_tiles',
+        params: <String, dynamic>{},
+        data: <String, dynamic>{
+          'outsideData': false,
+          'tiles': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'label': 'Sell-in, units',
+              'value': 1284990.5,
+              'unit': 'units',
+              'origin': 'internal',
             },
-          ),
-          ArtifactEvent(
-            id: 'getSalesPerformance-stat_tiles-1',
-            type: 'stat_tiles',
-            params: const <String, dynamic>{},
-            data: <String, dynamic>{
-              'outsideData': false,
-              'tiles': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'label': 'Sell-in, units',
-                  'value': second,
-                  'unit': 'units',
-                  'origin': 'internal',
-                },
-              ],
+          ],
+        },
+      ),
+      ArtifactEvent(
+        id: 'getSalesPerformance-stat_tiles-1',
+        type: 'stat_tiles',
+        params: const <String, dynamic>{},
+        data: <String, dynamic>{
+          'outsideData': false,
+          'tiles': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'label': 'Sell-in, units',
+              'value': second,
+              'unit': 'units',
+              'origin': 'internal',
             },
-          ),
-          const TokenEvent('Sell-in held steady.'),
-          const DoneEvent(),
-        ];
+          ],
+        },
+      ),
+      const TokenEvent('Sell-in held steady.'),
+      const DoneEvent(),
+    ];
 
     testWidgets('says what she saw and when it stopped being true', (
       tester,
