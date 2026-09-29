@@ -196,6 +196,13 @@ void main() {
         outletName: 'Kasi Corner Spaza',
       ),
     ];
+    const counted = TaskCounts(
+      all: 74,
+      open: 40,
+      overdue: 11,
+      done: 34,
+      awaitingVerification: 3,
+    );
 
     test('a page that is the whole list has no footer', () {
       expect(TasksView.resolve(entries, _now).footer(figure), isNull);
@@ -208,7 +215,10 @@ void main() {
         nextCursor: 'c',
       ).footer(figure)!;
       expect(footer.summary, 'Showing the first 2. There are more.');
-      expect(footer.scope, 'The counts above are of these 2.');
+      // No `counts` on the wire, so the figures above the list really are of
+      // the page and the footer still says so. This is the sentence the
+      // counting server retires, and it must not go with it.
+      expect(footer.scope, 'The figures above are of these 2.');
     });
 
     test('a counted cut names the total and the order it was cut in', () {
@@ -232,6 +242,109 @@ void main() {
         total: 2,
       ).footer(figure)!;
       expect(footer.summary, 'Showing the first 2. There are more.');
+    });
+
+    test('the scope line goes the moment the server counts', () {
+      // THE LINE THIS WHOLE CHANGE EXISTS TO DELETE. "The counts above are of
+      // these 50" was true, and it was the defect: the chips and the lead
+      // figure were of the page because nothing had counted the rest.
+      final footer = TasksView.resolve(
+        entries,
+        _now,
+        filter: TaskFilter.open,
+        nextCursor: 'c',
+        total: 40,
+        counts: counted,
+      ).footer(figure)!;
+      expect(footer.scope, isNull);
+      // And the summary names the slice, because the server applied it: the
+      // rows really are a page of the open tasks and not of everything.
+      expect(
+        footer.summary,
+        'Showing the 2 open tasks with the earliest deadlines, of 40.',
+      );
+    });
+
+    test('the summary names whichever slice was asked for', () {
+      String summaryFor(TaskFilter filter, int total) => TasksView.resolve(
+        entries,
+        _now,
+        filter: filter,
+        nextCursor: 'c',
+        total: total,
+        counts: counted,
+      ).footer(figure)!.summary;
+
+      expect(
+        summaryFor(TaskFilter.overdue, 11),
+        'Showing the 2 overdue tasks with the earliest deadlines, of 11.',
+      );
+      expect(
+        summaryFor(TaskFilter.done, 34),
+        'Showing the 2 closed tasks with the earliest deadlines, of 34.',
+      );
+      expect(
+        summaryFor(TaskFilter.all, 74),
+        'Showing the 2 tasks with the earliest deadlines, of 74.',
+      );
+    });
+  });
+
+  group('the figures above the list', () {
+    final entries = <TaskEntry>[
+      TaskEntry(task: _task(), outletName: 'Kasi Corner Spaza'),
+    ];
+    const counted = TaskCounts(
+      all: 32368,
+      open: 1190,
+      overdue: 1122,
+      done: 31178,
+      awaitingVerification: 43,
+    );
+
+    test('are the server\'s where it counted, never the page\'s', () {
+      final view = TasksView.resolve(
+        entries,
+        _now,
+        filter: TaskFilter.open,
+        nextCursor: 'c',
+        counts: counted,
+      );
+      expect(view.rows, hasLength(1));
+      expect(view.overdue, 1122);
+      expect(view.open, 1190);
+      expect(view.closed, 31178);
+      expect(view.awaitingVerification, 43);
+      expect(view.all, 32368);
+      expect(view.countsAreMeasured, isTrue);
+      // One number per chip, off one switch.
+      expect(view.countFor(TaskFilter.open), 1190);
+      expect(view.countFor(TaskFilter.overdue), 1122);
+      expect(view.countFor(TaskFilter.done), 31178);
+      expect(view.countFor(TaskFilter.all), 32368);
+    });
+
+    test('fall back to the page where the server did not count', () {
+      final view = TasksView.resolve(
+        entries,
+        _now,
+        filter: TaskFilter.all,
+        nextCursor: 'c',
+      );
+      expect(view.countsAreMeasured, isFalse);
+      expect(view.open, 1);
+      expect(view.overdue, 0);
+      expect(view.all, 1);
+    });
+
+    test('a whole page IS the whole set, and says so', () {
+      // Not a consolation prize: an account whose list fits in one page has
+      // nothing unmeasured about it, and withholding its zero would be the
+      // same lie in the other direction.
+      final view = TasksView.resolve(entries, _now, filter: TaskFilter.all);
+      expect(view.hasMore, isFalse);
+      expect(view.countsAreMeasured, isTrue);
+      expect(view.overdue, 0);
     });
   });
 

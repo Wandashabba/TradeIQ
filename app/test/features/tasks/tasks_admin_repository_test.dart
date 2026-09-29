@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/api_client.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 
 /// A fake HTTP layer that returns a canned body, following the pattern in
@@ -11,6 +10,10 @@ import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 class _RecordingAdapter implements HttpClientAdapter {
   _RecordingAdapter(this.body);
   final String body;
+
+  /// The query the last request carried, so a test can assert what was asked
+  /// for rather than only what came back.
+  Map<String, dynamic> lastQuery = const <String, dynamic>{};
 
   @override
   void close({bool force = false}) {}
@@ -21,6 +24,7 @@ class _RecordingAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    lastQuery = Map<String, dynamic>.from(options.queryParameters);
     return ResponseBody.fromString(
       body,
       200,
@@ -97,24 +101,74 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test(
-      'parses the {data, nextCursor} envelope into a PaginatedResponse',
-      () async {
-        dio.httpClientAdapter = _RecordingAdapter(
-          '{"data": [{"id": "t1", "findingType": "out_of_stock", '
-          '"requiredFix": "Restock SKU 42", "priority": "critical", '
-          '"status": "open", "closureVerified": false, "outletId": "o1", '
-          '"slaDueAt": "2026-08-01T10:00:00.000Z"}], '
-          '"nextCursor": "cursor-1"}',
-        );
+    const oneTask =
+        '{"id": "t1", "findingType": "out_of_stock", '
+        '"requiredFix": "Restock SKU 42", "priority": "critical", '
+        '"status": "open", "closureVerified": false, "outletId": "o1", '
+        '"slaDueAt": "2026-08-01T10:00:00.000Z"}';
 
-        final page = await DioTasksAdminRepository().listTasks();
+    test('parses the {data, nextCursor} envelope', () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [$oneTask], "nextCursor": "cursor-1"}',
+      );
 
-        expect(page, isA<PaginatedResponse<TaskItem>>());
-        expect(page.data, hasLength(1));
-        expect(page.data.first.id, 't1');
-        expect(page.nextCursor, 'cursor-1');
-      },
-    );
+      final page = await DioTasksAdminRepository().listTasks();
+
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 't1');
+      expect(page.nextCursor, 'cursor-1');
+    });
+
+    test('parses the whole-set breakdown beside the page', () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [$oneTask], "nextCursor": "cursor-1", "total": 1190, '
+        '"counts": {"all": 32368, "open": 1190, "overdue": 1122, '
+        '"done": 31178, "awaitingVerification": 43}}',
+      );
+
+      final page = await DioTasksAdminRepository().listTasks(
+        state: TaskState.open,
+      );
+
+      expect(page.total, 1190);
+      final counts = page.counts!;
+      expect(counts.all, 32368);
+      expect(counts.open, 1190);
+      expect(counts.overdue, 1122);
+      expect(counts.done, 31178);
+      expect(counts.awaitingVerification, 43);
+      expect(counts.forState(TaskState.overdue), 1122);
+    });
+
+    test('a server that does not count answers a null breakdown', () async {
+      // Not zeros. The screen renders an unknown differently from a measured
+      // nought, and a `counts` object invented out of absence here is exactly
+      // the confident wrong number the whole change exists to stop.
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [$oneTask], "nextCursor": null}',
+      );
+      expect((await DioTasksAdminRepository().listTasks()).counts, isNull);
+    });
+
+    test('half a breakdown is no breakdown', () async {
+      // A partial object cannot be added up, and four real figures beside one
+      // silently-zero fifth is worse than five honest unknowns.
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [$oneTask], "nextCursor": null, '
+        '"counts": {"all": 5, "open": 2, "overdue": 1}}',
+      );
+      expect((await DioTasksAdminRepository().listTasks()).counts, isNull);
+    });
+
+    test('sends the state the screen asked for', () async {
+      final adapter = _RecordingAdapter('{"data": [], "nextCursor": null}');
+      dio.httpClientAdapter = adapter;
+
+      await DioTasksAdminRepository().listTasks(state: TaskState.overdue);
+      expect(adapter.lastQuery['state'], 'overdue');
+
+      await DioTasksAdminRepository().listTasks();
+      expect(adapter.lastQuery.containsKey('state'), isFalse);
+    });
   });
 }

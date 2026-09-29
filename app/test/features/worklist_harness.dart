@@ -312,7 +312,10 @@ class FakeTasksRepository implements TasksAdminRepository {
     this.listFailure,
     this.closeFailure,
     this.listPending = false,
-  });
+    this.serverCounts = true,
+    this.counts,
+    DateTime Function()? clock,
+  }) : clock = clock ?? DateTime.now;
 
   final List<TaskItem> tasks;
   final String? nextCursor;
@@ -325,19 +328,70 @@ class FakeTasksRepository implements TasksAdminRepository {
   /// The list never arrives, so the screen stays in its loading phase.
   final bool listPending;
 
+  /// WHETHER THIS FAKE'S SERVER COUNTS THE WHOLE SET.
+  ///
+  /// True is the real one. False is the server this endpoint was until the
+  /// counts landed, and it is not a legacy case worth deleting: it is the one
+  /// condition under which the worklist's honest-unknown machinery still
+  /// fires, so every test of an em dash over a cut page sets it.
+  final bool serverCounts;
+
+  /// An explicit breakdown, for a fake that is standing in for an account
+  /// bigger than the rows it holds. Null derives one from [tasks].
+  final TaskCounts? counts;
+
+  /// What "overdue" is measured against. The same instant the screen's own
+  /// clock is pinned to, or the fake and the screen disagree about a deadline.
+  final DateTime Function() clock;
+
   String? closedId;
   String? closedPhotoUrl;
   String? verifiedId;
 
+  /// Every `state` the screen asked the server for, in order — so a test can
+  /// tell a chip that FETCHED its slice from one that filtered the page it
+  /// already had.
+  final List<TaskState?> requestedStates = <TaskState?>[];
+
   @override
-  Future<PaginatedResponse<TaskItem>> listTasks({
+  Future<TaskListPage> listTasks({
+    TaskState? state,
     String? status,
     String? priority,
     String? outletId,
   }) async {
     if (listFailure != null) throw listFailure!;
-    if (listPending) return Completer<PaginatedResponse<TaskItem>>().future;
-    return PaginatedResponse(data: tasks, nextCursor: nextCursor, total: total);
+    requestedStates.add(state);
+    if (listPending) return Completer<TaskListPage>().future;
+    // The server's own definitions, copied rather than approximated: a fake
+    // that filtered differently would let a screen pass against a page no
+    // server can produce.
+    final now = clock();
+    bool closed(TaskItem t) => t.status == 'closed';
+    bool overdue(TaskItem t) => !closed(t) && !now.isBefore(t.slaDueAt);
+    final rows = tasks.where((t) => switch (state) {
+      TaskState.open => !closed(t),
+      TaskState.overdue => overdue(t),
+      TaskState.done => closed(t),
+      TaskState.all || null => true,
+    }).toList();
+    return TaskListPage(
+      data: rows,
+      nextCursor: nextCursor,
+      total: total,
+      counts: !serverCounts
+          ? null
+          : counts ??
+                TaskCounts(
+                  all: tasks.length,
+                  open: tasks.where((t) => !closed(t)).length,
+                  overdue: tasks.where(overdue).length,
+                  done: tasks.where(closed).length,
+                  awaitingVerification: tasks
+                      .where((t) => closed(t) && !t.closureVerified)
+                      .length,
+                ),
+    );
   }
 
   @override
@@ -443,6 +497,7 @@ Future<void> pumpWorklist(
   List<AppUser> users = const <AppUser>[],
   String path = '/screen',
   bool settle = true,
+  bool banner = true,
 }) async {
   tester.view
     ..physicalSize = size
@@ -468,6 +523,11 @@ Future<void> pumpWorklist(
             ...overrides,
           ],
           child: MaterialApp.router(
+            // TRUE EVERYWHERE BUT A LOOK TEST. The debug banner is a red
+            // barber-pole across the top-right corner, which is noise in a
+            // picture somebody is looking at to decide whether a screen is
+            // finished — and which nothing else about this harness needs.
+            debugShowCheckedModeBanner: banner,
             theme: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
             locale: locale,
             supportedLocales: appSupportedLocales,

@@ -25,11 +25,40 @@ import 'tasks_admin_repository.dart';
 ///    from the outlet list and the owner from the roster; an id with no match
 ///    becomes words ("Outlet name unavailable") or, for the owner, silence.
 
-/// Which slice of the page the rail is showing. The axis is **state**: Open is
+/// Which slice of the list the rail is showing. The axis is **state**: Open is
 /// all open work (overdue included — overdue is a focus subset, not a separate
 /// state), Overdue narrows to open work past its SLA, Done is closed, All is
 /// everything.
-enum TaskFilter { open, overdue, done, all }
+///
+/// **It is the server's filter, not a client-side one.** It used to be a
+/// `where` over the fifty rows in hand, which is why pressing `Open` on an
+/// account with 1,190 open tasks produced an empty list: the page is ordered by
+/// deadline across every status, so the fifty oldest deadlines are the closed
+/// ones. The chips now ask the server for their own slice — [TaskState] is the
+/// same four words on the wire — and the list underneath a chip is the list
+/// that chip names.
+enum TaskFilter {
+  open,
+  overdue,
+  done,
+  all;
+
+  TaskState get state => switch (this) {
+    TaskFilter.open => TaskState.open,
+    TaskFilter.overdue => TaskState.overdue,
+    TaskFilter.done => TaskState.done,
+    TaskFilter.all => TaskState.all,
+  };
+
+  /// The section's name, and the chip's label with it. One string, so a rail
+  /// and the list beneath it can never disagree about what is being shown.
+  String get label => switch (this) {
+    TaskFilter.open => 'Open',
+    TaskFilter.overdue => 'Overdue',
+    TaskFilter.done => 'Done',
+    TaskFilter.all => 'All',
+  };
+}
 
 /// Where a task stands against its deadline.
 enum TaskSlaState {
@@ -149,56 +178,122 @@ class TaskRow {
 
 /// The whole worklist, resolved against one instant.
 class TasksView {
-  const TasksView({required this.rows, this.nextCursor, this.total});
+  const TasksView({
+    required this.rows,
+    required this.filter,
+    this.nextCursor,
+    this.total,
+    this.counts,
+  });
 
   /// What a row says when its outlet id is not on the outlet list. Words,
   /// never the UUID (#399/#400).
   static const String unnamedOutlet = 'Outlet name unavailable';
 
+  /// The rows on this page — already the slice [filter] names, because the
+  /// server applied it.
   final List<TaskRow> rows;
+
+  /// Which slice the server was asked for. The rows are that slice; the
+  /// [counts] are the whole account, whatever this says.
+  final TaskFilter filter;
 
   /// The server's cursor for the page after this one.
   final String? nextCursor;
 
-  /// Every task the server holds for this manager, counted ignoring the page.
-  /// Null from a server that does not count: the footer then says "there are
-  /// more" and never a fabricated total.
+  /// Every task matching this filter, counted ignoring the page. Null from a
+  /// server that does not count: the footer then says "there are more" and
+  /// never a fabricated total.
   final int? total;
 
+  /// THE WHOLE SET, COUNTED BY THE SERVER.
+  ///
+  /// Null from a server that does not count, and that null is the difference
+  /// between the figures on this screen being measured and being guesses over
+  /// fifty rows. Every getter below prefers it and falls back to the page —
+  /// and [countsAreMeasured] is what the screen reads to decide whether it may
+  /// print a zero at all.
+  final TaskCounts? counts;
+
   bool get hasMore => nextCursor != null;
+
+  /// Whether the figures above the list describe the account or only the page.
+  ///
+  /// Two ways to be true: the server counted, or the page is the whole list
+  /// and counting it is counting everything. The second is not a consolation
+  /// prize — a small account genuinely has nothing unmeasured about it.
+  bool get countsAreMeasured => counts != null || !hasMore;
 
   /// What the pagination footer says, or null when this page is the whole
   /// list.
   ///
   /// The server sends tasks by deadline, earliest first, so a cut page is
   /// "the N with the earliest deadlines" — the order the server actually
-  /// applied, not a ranking it did not do. The second line scopes every count
-  /// above the list to the page in hand.
-  ({String summary, String scope})? footer(String Function(int) figure) {
+  /// applied, not a ranking it did not do.
+  ///
+  /// **The second line is gone.** It read "The counts above are of these 50",
+  /// which was true and was the whole defect: the figures above the list were
+  /// of the page because nothing had counted the rest. They are of the account
+  /// now, so the footer scopes the *list* — which is the only thing on the
+  /// screen that is still a page — and says which slice it is a page of.
+  ({String summary, String? scope})? footer(String Function(int) figure) {
     if (!hasMore) return null;
     final shown = figure(rows.length);
     final whole = total;
+    final noun = switch (filter) {
+      TaskFilter.open => 'open tasks',
+      TaskFilter.overdue => 'overdue tasks',
+      TaskFilter.done => 'closed tasks',
+      TaskFilter.all => 'tasks',
+    };
     return (
       summary: whole == null || whole <= rows.length
           ? 'Showing the first $shown. There are more.'
-          : 'Showing the $shown tasks with the earliest deadlines, of '
+          : 'Showing the $shown $noun with the earliest deadlines, of '
                 '${figure(whole)}.',
-      scope: 'The counts above are of these $shown.',
+      // Only where the counts are the page's own, which is now only a server
+      // that did not count. It is the honest sentence in that case and it must
+      // not disappear with the defect it described.
+      scope: counts == null ? 'The figures above are of these $shown.' : null,
     );
   }
 
-  int get overdue => rows.where((r) => r.isOverdue).length;
+  /// Past the deadline and still open, across the whole account.
+  int get overdue =>
+      counts?.overdue ?? rows.where((r) => r.isOverdue).length;
 
-  int get open => rows.where((r) => !r.isClosed).length;
+  /// Outstanding — not closed — across the whole account.
+  int get open => counts?.open ?? rows.where((r) => !r.isClosed).length;
 
-  int get closed => rows.where((r) => r.isClosed).length;
+  /// Closed, across the whole account.
+  int get closed => counts?.done ?? rows.where((r) => r.isClosed).length;
 
+  /// Closed and not yet verified, across the whole account.
   int get awaitingVerification =>
+      counts?.awaitingVerification ??
       rows.where((r) => r.slaState == TaskSlaState.closed).length;
 
-  List<TaskRow> visible(TaskFilter filter) {
+  /// Every task, across the whole account.
+  int get all => counts?.all ?? total ?? rows.length;
+
+  /// The figure for one chip.
+  int countFor(TaskFilter which) => switch (which) {
+    TaskFilter.open => open,
+    TaskFilter.overdue => overdue,
+    TaskFilter.done => closed,
+    TaskFilter.all => all,
+  };
+
+  /// The rows to draw.
+  ///
+  /// The server already applied the filter, so this is a sort and not a
+  /// `where` — with one exception that earns its keep. A page fetched under
+  /// one filter is still in the provider's cache when the manager presses
+  /// another chip, and re-filtering it locally is what keeps a stale page from
+  /// showing rows the new chip does not name while the new page is in flight.
+  List<TaskRow> visible(TaskFilter which) {
     final out = rows.where((r) {
-      return switch (filter) {
+      return switch (which) {
         TaskFilter.open => !r.isClosed,
         TaskFilter.overdue => r.isOverdue,
         TaskFilter.done => r.isClosed,
@@ -216,13 +311,17 @@ class TasksView {
   static TasksView resolve(
     List<TaskEntry> entries,
     DateTime now, {
+    TaskFilter filter = TaskFilter.all,
     String? nextCursor,
     int? total,
+    TaskCounts? counts,
     Map<String, String> owners = const <String, String>{},
   }) {
     return TasksView(
+      filter: filter,
       nextCursor: nextCursor,
       total: total,
+      counts: counts,
       rows: <TaskRow>[for (final entry in entries) _rowFor(entry, now, owners)]
         ..sort(TaskRow.compare),
     );
@@ -365,22 +464,51 @@ class TasksView {
   ).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
 }
 
-/// One page of tasks, with the outlet names attached and the cursor kept.
+/// One page of tasks, with the outlet names attached, the cursor kept and the
+/// server's whole-set breakdown beside it.
 class TasksPage {
-  const TasksPage({required this.entries, this.nextCursor, this.total});
+  const TasksPage({
+    required this.entries,
+    this.nextCursor,
+    this.total,
+    this.counts,
+  });
 
   final List<TaskEntry> entries;
   final String? nextCursor;
   final int? total;
+
+  /// The whole account, counted by the server — null from one that does not.
+  final TaskCounts? counts;
 }
 
-/// The tasks page, merged with the outlet names it needs to be readable.
+/// The tasks page for one filter, merged with the outlet names it needs to be
+/// readable.
 ///
 /// It reads the repository rather than [tasksListProvider] because that
 /// provider drops `nextCursor` on the floor, and a worklist that cannot say it
 /// was cut reads as the whole truth. The Floor keeps watching the plain list.
-final tasksPageProvider = FutureProvider<TasksPage>((ref) async {
-  final page = await ref.read(tasksAdminRepositoryProvider).listTasks();
+///
+/// ## Why it takes the filter
+///
+/// The chips used to be a `where` over whatever page had arrived. On an
+/// account of any size that is a filter over the wrong fifty rows: the server
+/// orders by deadline across every status, so the page is the oldest deadlines
+/// — which are the closed ones — and `Open` filtered fifty closed tasks down
+/// to an empty list under a chip that said there were 1,190.
+///
+/// A family keyed by the filter is what makes the list underneath a chip the
+/// list that chip names. Each filter keeps its own cache, so going back to one
+/// already fetched is instant and does not flash a skeleton; the counts come
+/// back with every one of them and are identical across all four, because the
+/// server computes them before the state filter.
+final tasksPageProvider = FutureProvider.family<TasksPage, TaskFilter>((
+  ref,
+  filter,
+) async {
+  final page = await ref
+      .read(tasksAdminRepositoryProvider)
+      .listTasks(state: filter.state);
 
   // A base layer, never a blocker: a slow or failed outlet list must not take
   // the worklist down with it.
@@ -392,6 +520,7 @@ final tasksPageProvider = FutureProvider<TasksPage>((ref) async {
   return TasksPage(
     nextCursor: page.nextCursor,
     total: page.total,
+    counts: page.counts,
     entries: <TaskEntry>[
       for (final task in page.data)
         TaskEntry(

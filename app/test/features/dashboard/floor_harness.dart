@@ -200,11 +200,12 @@ class FakeTasksRepository implements TasksAdminRepository {
   final List<TaskItem> tasks;
 
   @override
-  Future<PaginatedResponse<TaskItem>> listTasks({
+  Future<TaskListPage> listTasks({
+    TaskState? state,
     String? status,
     String? priority,
     String? outletId,
-  }) async => PaginatedResponse(data: tasks, nextCursor: null);
+  }) async => TaskListPage(data: tasks, nextCursor: null);
 
   @override
   Future<TaskItem> closeTask({
