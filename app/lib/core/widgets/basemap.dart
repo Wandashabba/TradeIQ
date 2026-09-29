@@ -109,7 +109,7 @@ class TiqBasemapLabels extends StatelessWidget {
 /// grey — do not conclude from a test render that the wash is absent.)
 ///
 /// It is **not** changed here, and the reason is a constraint rather than an
-/// opinion. This one widget is drawn by five screens — three of them the
+/// opinion. This one widget is drawn by five screens, four of them the
 /// manager's:
 ///
 /// ```text
