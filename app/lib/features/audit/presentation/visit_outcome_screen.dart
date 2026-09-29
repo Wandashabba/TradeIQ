@@ -6,6 +6,7 @@ import '../../../core/rating_band.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -418,6 +419,18 @@ class _DeltaLine extends StatelessWidget {
 }
 
 /// ONE DIMENSION: its name, its figure, and the bar that explains it.
+///
+/// ## A card, not a hairline — 29 September 2026
+///
+/// Six dimensions separated by `Border(bottom: hairline)` is a table, and the
+/// breakdown was the last one on the agent side. The owner's note is *"Match
+/// the manager side please"*, and the manager's answer to a column of
+/// repeated things is `SoftRowSpec`'s: a `surface` card with a gap of ground
+/// and no rule anywhere, because a line between two objects that already have
+/// edges is the look the card grammar exists to leave behind.
+///
+/// `last` stops meaning "draw no rule" and starts meaning "take no gap", which
+/// is the same job one step along.
 class _DimensionRow extends StatelessWidget {
   const _DimensionRow({
     required this.label,
@@ -445,22 +458,11 @@ class _DimensionRow extends StatelessWidget {
           ? l10n.outcomeDimensionSemantics(label, value.round())
           : l10n.outcomeDimensionUnmeasuredSemantics(label, reason),
       excludeSemantics: true,
-      child: Container(
+      child: Padding(
         key: ValueKey<String>('dimension-$label'),
-        padding: const EdgeInsets.symmetric(vertical: TiqSpace.s3),
-        decoration: BoxDecoration(
-          // A non-tappable row takes the decorative hairline; the 3:1
-          // edge-structure rule is for rows a thumb can open.
-          border: last
-              ? null
-              : Border(
-                  bottom: BorderSide(
-                    color: skin.palette.hairline,
-                    width: skin.depth.borderWidth,
-                  ),
-                ),
-        ),
-        child: Column(
+        padding: EdgeInsets.only(bottom: last ? 0 : TiqSpace.s3),
+        child: TorchCard(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
@@ -506,7 +508,8 @@ class _DimensionRow extends StatelessWidget {
                   reason,
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

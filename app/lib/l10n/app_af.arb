@@ -137,15 +137,6 @@
   "visitSectionNotStarted": "Nie begin nie",
   "visitSectionOptional": "Opsioneel",
   "visitRequiredToSubmitBadge": "VERPLIGTEND OM IN TE DIEN",
-  "visitDetailRequired": "{detail} · Vereis om in te dien",
-  "@visitDetailRequired": {
-    "description": "A hub row's detail line when the section still blocks the submit: the state word, then the standing.",
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
   "visitCantConfirmLabel": "Kan nie bevestig nie",
   "@visitCantConfirmLabel": {
     "description": "Label of the subordinate figure pair under the readiness figure."

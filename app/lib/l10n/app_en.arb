@@ -623,15 +623,6 @@
   "@visitRequiredToSubmitBadge": {
     "description": "Small uppercase badge on a required section that is not done."
   },
-  "visitDetailRequired": "{detail} · Required to submit",
-  "@visitDetailRequired": {
-    "description": "A hub row's detail line when the section still blocks the submit: the state word, then the standing.",
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
-  },
   "visitCantConfirmLabel": "Can’t confirm",
   "@visitCantConfirmLabel": {
     "description": "Label of the subordinate figure pair under the readiness figure."

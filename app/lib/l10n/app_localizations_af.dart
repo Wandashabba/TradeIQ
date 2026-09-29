@@ -529,11 +529,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get visitRequiredToSubmitBadge => 'VERPLIGTEND OM IN TE DIEN';
 
   @override
-  String visitDetailRequired(String detail) {
-    return '$detail · Vereis om in te dien';
-  }
-
-  @override
   String get visitCantConfirmLabel => 'Kan nie bevestig nie';
 
   @override

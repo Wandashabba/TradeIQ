@@ -920,12 +920,6 @@ abstract class AppLocalizations {
   /// **'REQUIRED TO SUBMIT'**
   String get visitRequiredToSubmitBadge;
 
-  /// A hub row's detail line when the section still blocks the submit: the state word, then the standing.
-  ///
-  /// In en, this message translates to:
-  /// **'{detail} · Required to submit'**
-  String visitDetailRequired(String detail);
-
   /// Label of the subordinate figure pair under the readiness figure.
   ///
   /// In en, this message translates to:

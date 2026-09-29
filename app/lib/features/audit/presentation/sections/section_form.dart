@@ -806,7 +806,6 @@ class _Entry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     final l10n = context.l10n;
     final position = l10n.sectionEntryPosition(index + 1, total);
     final title = '${l10n.sectionEntryName(kind)} $position';
@@ -816,11 +815,13 @@ class _Entry extends StatelessWidget {
       key: ValueKey<String>('entry-$index'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (index > 0)
-          Container(
-            height: skin.depth.borderWidth,
-            color: skin.palette.edgeStructure,
-          ),
+        // NO RULE BETWEEN ENTRIES — 29 September 2026. This was
+        // `Container(height: borderWidth, color: edgeStructure)`, the exact
+        // form the card grammar replaced: `SoftRowSpec` draws no rule between
+        // list rows at all, because "a line between two objects that already
+        // have edges is the table look the card grammar exists to leave
+        // behind". The entry's own header IS a card, and the s6 of ground
+        // under the previous entry's fields is the separation.
         Row(
           children: <Widget>[
             Expanded(

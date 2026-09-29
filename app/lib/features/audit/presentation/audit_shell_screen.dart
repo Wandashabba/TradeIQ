@@ -68,7 +68,8 @@ import 'submit_gate_screen.dart';
 ///   └───────────────────────────────────────────┘
 ///   ┌───────────────────────────────────────────┐
 ///   │ ● ◑  Stock & availability                 │
-///   │      ▲ 7 of 12 · Required to submit       │
+///   │      7 of 12                              │
+///   │      ▲ Required to submit                 │
 ///   └───────────────────────────────────────────┘
 ///   ┌───────────────────────────────────────────┐
 ///   │ ⊘  Score            Worked out on send  — │
@@ -1054,8 +1055,20 @@ class _SectionRow extends StatelessWidget {
       // scale: the dot in the lane, a small [SeverityMark] on the line, and
       // the word in crimson beside the state. Three channels, none of them a
       // rectangle, and the sentence under the primary is untouched.
-      meta: showRequired
-          ? Row(
+      //
+      // The standing takes a line of its own beneath the detail rather than
+      // riding the end of it. A can't-confirm section's detail is a whole
+      // sentence — "The product list did not load — this section can't be
+      // confirmed." — and appending to it cost the end of that sentence to an
+      // ellipsis. Stacked meta lines are also what the manager's task rows do
+      // with the SLA phrase, the priority and the owner.
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(detail),
+          if (showRequired)
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Padding(
@@ -1065,13 +1078,14 @@ class _SectionRow extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    l10n.visitDetailRequired(detail),
+                    l10n.visitRequiredToSubmit,
                     style: skin.text.meta.style(color: skin.palette.bad),
                   ),
                 ),
               ],
-            )
-          : Text(detail),
+            ),
+        ],
+      ),
       // NO CHEVRON. The manager side dropped them from every row that is not
       // a page in a stack of pages, and the argument the Ask work made is the
       // one that applies hardest here: four stacked chevrons read as a
@@ -1082,7 +1096,7 @@ class _SectionRow extends StatelessWidget {
       semanticsLabel: l10n.visitSectionSemantics(
         entry.label,
         SectionStateToken.of(skin, state).word,
-        showRequired ? l10n.visitDetailRequired(detail) : detail,
+        showRequired ? '$detail. ${l10n.visitRequiredToSubmit}' : detail,
       ),
       onTap: entry.onTap,
     );

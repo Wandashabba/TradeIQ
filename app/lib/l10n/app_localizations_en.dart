@@ -522,11 +522,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visitRequiredToSubmitBadge => 'REQUIRED TO SUBMIT';
 
   @override
-  String visitDetailRequired(String detail) {
-    return '$detail · Required to submit';
-  }
-
-  @override
   String get visitCantConfirmLabel => 'Can’t confirm';
 
   @override
