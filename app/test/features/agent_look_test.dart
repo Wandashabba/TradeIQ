@@ -48,6 +48,8 @@ import 'package:tradeiq_app/features/audit/presentation/submit_gate_screen.dart'
 import 'package:tradeiq_app/features/audit/presentation/visit_outcome_screen.dart';
 import 'package:tradeiq_app/features/audit/presentation/visit_outlet_picker_screen.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
+import 'package:tradeiq_app/features/me/data/my_record_repository.dart'
+    show IncentiveScheme;
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
@@ -628,6 +630,43 @@ void main() {
       testWidgets("the agent's own record, $name", (tester) async {
         await pumpMe(tester, skin: mode, size: phone);
         await shot(tester, 'agent_61_me_$name');
+      }, skip: !looking);
+
+      // THE TWO STATES THE STANDING CARD AND THE INCENTIVE CARD EXIST FOR,
+      // photographed, because "it looks right" about a screen whose whole
+      // subject is unknown-versus-zero has to mean the empty readings too.
+      //
+      // `rank: null` is the server's answer to every caller who is not a
+      // field agent, and `/me` is open to managers on purpose. It must read
+      // as an em dash with its reason beside it — never as a zero, and never
+      // as the `leaderboard.length + 1` it was once given.
+      testWidgets("the agent's own record — not ranked, $name", (tester) async {
+        await pumpMe(
+          tester,
+          skin: mode,
+          size: phone,
+          repository: FakeMyRecordRepository(
+            earnings: earningsFixture(rank: null),
+          ),
+        );
+        await shot(tester, 'agent_62_me_unranked_$name');
+      }, skip: !looking);
+
+      // No scheme running: the bar does not render at all and a sentence says
+      // so, because an empty bar reads as zero progress — which is a
+      // different and false statement about a period in which nothing was on
+      // offer. The card stays, so the sentence is not left lying on the
+      // ground between two cards.
+      testWidgets("the agent's own record — no scheme, $name", (tester) async {
+        await pumpMe(
+          tester,
+          skin: mode,
+          size: phone,
+          repository: FakeMyRecordRepository(
+            earnings: earningsFixture(schemes: const <IncentiveScheme>[]),
+          ),
+        );
+        await shot(tester, 'agent_63_me_no_scheme_$name');
       }, skip: !looking);
     }
   });
