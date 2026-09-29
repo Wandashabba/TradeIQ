@@ -44,14 +44,20 @@ export 'plate_spec.dart';
 ///
 /// ## The bake this widget is still waiting for
 ///
-/// The plate is specified as a server-baked asset: 12% chroma, no pixel above
-/// `TiqPalette.plateCeiling` (#474747), an alpha edge dissolve, and a hard
-/// 60 kB WebP cap. That bake does not exist yet — see the follow-up ticket
-/// referenced on [tone] — so this widget applies the **tone** half of it
-/// client-side: the chroma reduction *and* the luminance ceiling, composed
-/// into one `ColorFilter.matrix` that rides on the image's own draw call. The
-/// alpha dissolve and the byte cap stay on the server, because a client cannot
-/// fix a 900 kB download by dimming it.
+/// The plate is specified as a server-baked asset: a chroma reduction, a
+/// luminance range, an alpha edge dissolve, and a hard 60 kB WebP cap. That
+/// bake does not exist yet — see the follow-up ticket referenced on [toneFor]
+/// — so this widget applies the **tone** half of it client-side: the chroma
+/// reduction *and* the luminance range, composed into one `ColorFilter.matrix`
+/// that rides on the image's own draw call. The alpha dissolve and the byte
+/// cap stay on the server, because a client cannot fix a 900 kB download by
+/// dimming it.
+///
+/// **The tone is per skin, and that is not a convenience.** Night maps the
+/// picture into `[0, #666666]` and Day into `[#999999, #E6E6E6]`. A light
+/// ground cannot use a ceiling: its ink is dark, so a darkened photograph
+/// converges on the text instead of receding behind it. See
+/// `TiqPalette.plateLift`.
 ///
 /// Only the luminance half used to be applied here, and what that leaves out
 /// shows the moment a shelf photograph has any saturation in it: a multiply by
@@ -134,28 +140,43 @@ class TiqPlate extends StatelessWidget {
   /// Overrides the ambient DPR when choosing `cacheWidth`. Tests pin it.
   final double? devicePixelRatio;
 
-  /// How much of a photograph's chroma survives the bake. `direction-
-  /// torchlight.json` says 12%, and 12% is a number this file may not round:
-  /// it is what makes a plate a ground rather than a picture of a ground.
-  static const double chroma = 0.12;
+  /// How much of a photograph's chroma survives the bake.
+  ///
+  /// **55% since 29 September 2026, up from 12%.** Twelve percent was the
+  /// spec's number and this file was forbidden from rounding it, because at
+  /// the time the alternative on the table was *no* desaturation at all and a
+  /// plate that rendered as a dim rainbow. The owner has since looked at the
+  /// running screen and asked for the opposite correction — the territory
+  /// photographs "are made dark, give them a bit of colour and luminous
+  /// towards them" — and an owner asking for colour outranks a spec number
+  /// written before anyone had seen the screen. `direction-torchlight.json`
+  /// carries the override, the way the soft-rows one is carried.
+  ///
+  /// It is still a reduction and it still has to be one: a plate is a
+  /// photographic *ground*, and at 100% a red end-cap is a red block behind a
+  /// number. More than half the hue survives now; none of the picture's own
+  /// exposure does — that is what [TiqPalette.plateCeiling] and
+  /// [TiqPalette.plateLift] are for.
+  static const double chroma = 0.55;
 
-  /// The luminance ceiling: no pixel of the plate may exceed
-  /// `TiqPalette.plateCeiling`, which is what makes `ink1` on the scrim a
-  /// 7.68:1 pairing rather than a hope.
-  static const Color ceiling = TiqPalette.plateCeiling;
-
-  /// THE INTERIM, CLIENT-SIDE HALF OF THE SERVER BAKE, AS ONE FILTER.
+  /// THE INTERIM, CLIENT-SIDE HALF OF THE SERVER BAKE, AS ONE FILTER — in
+  /// [palette]'s skin, because the tone is not the same in both.
   ///
   /// Two operations, composed into a single 4×5 colour matrix:
   ///
   /// 1. **Chroma to [chroma]** — a saturation matrix on Rec. 709 luma
-  ///    weights, so a red end-cap becomes a dark warm grey instead of a dark
-  ///    red block.
-  /// 2. **The [ceiling]** — the multiply that used to be the whole treatment.
-  ///    `#474747` is a neutral grey, so multiplying by it is a uniform scale
-  ///    of every channel by `0x47/0xFF`; composing it with the saturation
-  ///    matrix is therefore just that matrix scaled. White lands exactly on
-  ///    the ceiling and everything else lands under it.
+  ///    weights, so a red end-cap becomes a warm dark grey rather than a red
+  ///    block, without being drained to a photocopy.
+  /// 2. **The range** — every channel mapped into
+  ///    `[TiqPalette.plateLift, TiqPalette.plateCeiling]`. The ceiling is the
+  ///    old multiply and the lift is new: white lands exactly on the ceiling,
+  ///    black lands exactly on the lift, and nothing lands outside either.
+  ///
+  /// The lift is what makes this per skin. On Night it is zero, so the shape
+  /// is exactly the old one and only the constants differ. On Day it is 0.60,
+  /// which is the whole repair: `#1B2632` ink over a picture that used to be
+  /// capped at `#474747` measured 2.63–2.99:1, and a ceiling cannot fix that
+  /// because the ink and the picture were failing on the *same* side.
   ///
   /// It is applied as `DecorationImage.colorFilter`, which `paintImage` hands
   /// straight to `drawImageRect`'s `Paint` — one parameter on one draw call.
@@ -163,12 +184,16 @@ class TiqPlate extends StatelessWidget {
   /// which rasterises as a `saveLayer` on every frame the plate scrolls, and
   /// the paint budget forbids it.
   ///
-  /// FOLLOW-UP: the real bake (12% chroma, #474747 luminance ceiling, alpha
-  /// edge dissolve, ≤60 kB WebP, served from the photo endpoint) is tracked as
-  /// the plate-bake ticket filed with the Torchlight plate PR. When it lands,
-  /// delete this filter — a baked pixel is already toned, and toning it again
-  /// would crush the plate twice.
-  static ColorFilter get tone => plateTone();
+  /// FOLLOW-UP: the real bake (the chroma, the per-skin range, an alpha edge
+  /// dissolve, ≤60 kB WebP, served from the photo endpoint) is tracked as the
+  /// plate-bake ticket filed with the Torchlight plate PR. A per-skin tone
+  /// makes that bake **two** bakes or one untoned original plus this filter;
+  /// until it is decided, the filter stays and a baked pixel must not be
+  /// toned twice.
+  static ColorFilter toneFor(TiqPalette palette) => plateTone(
+    ceiling: palette.plateCeiling,
+    lift: palette.plateLift,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +242,8 @@ class TiqPlate extends StatelessWidget {
           fallbackSentence: fallbackSentence,
           semanticLabel: semanticLabel,
           scopeControl: scopeControl,
-          tone: tone,
+          // The tone is the skin's, not the widget's: see [toneFor].
+          tone: toneFor(skin.palette),
           devicePixelRatio:
               devicePixelRatio ??
               MediaQuery.maybeDevicePixelRatioOf(context) ??
@@ -227,21 +253,29 @@ class TiqPlate extends StatelessWidget {
   }
 }
 
-/// THE PLATE'S TONE, as one 4×5 colour matrix. See [TiqPlate.tone].
+/// THE PLATE'S TONE, as one 4×5 colour matrix. See [TiqPlate.toneFor].
 ///
 /// `chroma` is the share of the original saturation that survives; `ceiling`
-/// is the grey every channel is multiplied by. Exposed as a function, and
-/// pure, so the numbers can be asserted in a unit test instead of eyeballed in
-/// a screenshot — the last time this treatment was half-applied, nothing
-/// failed.
+/// and `lift` are the two ends of the range the result is mapped into.
+/// Exposed as a function, and pure, so the numbers can be asserted in a unit
+/// test instead of eyeballed in a screenshot — the last time this treatment
+/// was half-applied, nothing failed.
+///
+/// `ceiling` and `lift` are **required**, with no default, and that is
+/// deliberate: they are per-skin tokens now, and a default would be one skin's
+/// numbers silently applied to the other, which is the exact defect this
+/// change exists to close.
 ///
 /// The luma weights are Rec. 709, the same ones every greyscale conversion in
 /// the display pipeline uses. The matrix operates on sRGB-encoded values, like
 /// the multiply it replaces.
 ColorFilter plateTone({
   double chroma = TiqPlate.chroma,
-  Color ceiling = TiqPlate.ceiling,
-}) => ColorFilter.matrix(plateToneMatrix(chroma: chroma, ceiling: ceiling));
+  required Color ceiling,
+  required double lift,
+}) => ColorFilter.matrix(
+  plateToneMatrix(chroma: chroma, ceiling: ceiling, lift: lift),
+);
 
 /// The tone's twenty numbers, before they become a [ColorFilter].
 ///
@@ -249,32 +283,60 @@ ColorFilter plateTone({
 /// treatment that was half-applied for a release is exactly the thing that
 /// has to be assertable arithmetic rather than a screenshot somebody looks at.
 ///
-/// Row `i` is `ceiling[i] × (saturation row i)`: the saturation rows
-/// interpolate each channel towards Rec. 709 luma, keeping [chroma] of the
-/// distance, and the ceiling is a neutral grey so multiplying by it is a
-/// per-channel scale that folds straight into those rows. Two operations, one
-/// matrix, one draw call.
+/// ## The arithmetic
 ///
-/// A consequence worth naming, because it is what the pixel test asserts: for
-/// any input, `out.max − out.min = ceiling × chroma × (in.max − in.min)`. At
-/// `#474747` and 12% that is at most **8.5 of 255** — a plate cannot carry a
-/// colour cast wider than that however loud the photograph is.
+/// One operation per channel, written as it is meant to be read:
+///
+/// ```text
+///   out_i = lift + (k_i − lift) × sat_i(in)
+/// ```
+///
+/// `sat_i` is the saturation row — each channel interpolated towards Rec. 709
+/// luma, keeping [chroma] of the distance — and `k_i` is the ceiling colour's
+/// channel, normalised to 0..1. So a saturated input is first flattened
+/// towards grey and then mapped out of `[0, 1]` and into `[lift, k_i]`. Two
+/// operations, one matrix, one draw call.
+///
+/// `lift = 0` collapses it to `k_i × sat_i(in)` — exactly the shape this
+/// matrix had when it was only a ceiling, with a different constant. The
+/// generalisation is a strict superset and Night still takes that path.
+///
+/// ## Why the offset is × 255
+///
+/// `ColorFilter.matrix` runs on **0..255** values and the fifth column is a
+/// constant added in that same unnormalised space. `lift` is a 0..1 scalar, so
+/// the constant is `lift × 255`. Getting this wrong is silent: at `lift = 0`
+/// the term vanishes and every test still passes.
+///
+/// ## What it bounds
+///
+/// For any input, `out.max − out.min = (k − lift) × chroma × (in.max − in.min)`
+/// when the ceiling is neutral — so the plate's colour cast is capped, however
+/// loud the photograph. And the range itself is closed at both ends: no pixel
+/// above `ceiling`, and on Day no pixel below `lift`. `floor_plate_tone_test`
+/// asserts both ends, per skin.
 List<double> plateToneMatrix({
   double chroma = TiqPlate.chroma,
-  Color ceiling = TiqPlate.ceiling,
+  required Color ceiling,
+  required double lift,
 }) {
   const double lumaR = 0.2126;
   const double lumaG = 0.7152;
   const double lumaB = 0.0722;
   final double keep = chroma;
   final double drop = 1 - chroma;
-  final double kr = ceiling.r;
-  final double kg = ceiling.g;
-  final double kb = ceiling.b;
+  // The span each channel is mapped across: from `lift` up to the ceiling's
+  // own channel. Folded into the saturation rows exactly as the bare ceiling
+  // used to be, so this stays one matrix.
+  final double sr = ceiling.r - lift;
+  final double sg = ceiling.g - lift;
+  final double sb = ceiling.b - lift;
+  // The fifth column is added in 0..255 space, not 0..1. See above.
+  final double offset = lift * 255;
   return <double>[
-    kr * (lumaR * drop + keep), kr * lumaG * drop, kr * lumaB * drop, 0, 0, //
-    kg * lumaR * drop, kg * (lumaG * drop + keep), kg * lumaB * drop, 0, 0, //
-    kb * lumaR * drop, kb * lumaG * drop, kb * (lumaB * drop + keep), 0, 0, //
+    sr * (lumaR * drop + keep), sr * lumaG * drop, sr * lumaB * drop, 0, offset,
+    sg * lumaR * drop, sg * (lumaG * drop + keep), sg * lumaB * drop, 0, offset,
+    sb * lumaR * drop, sb * lumaG * drop, sb * (lumaB * drop + keep), 0, offset,
     0, 0, 0, 1, 0,
   ];
 }
@@ -546,7 +608,7 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
 /// the ceiling multiply, and structurally incapable of a saturation matrix.
 /// `DecorationImage` takes an arbitrary `ColorFilter` and `paintImage` puts it
 /// on the `Paint` of a single `drawImageRect`, which is the one way to get
-/// [TiqPlate.tone] onto the plate without a `ColorFilteredLayer` and the
+/// [TiqPlate.toneFor] onto the plate without a `ColorFilteredLayer` and the
 /// `saveLayer` it rasterises to.
 ///
 /// What `Image` was giving us and this has to keep giving: the decode cap, the
@@ -670,8 +732,9 @@ class _FrameState extends State<_Frame> {
         image: DecorationImage(
           image: provider,
           fit: BoxFit.cover,
-          // THE TONE: 12% chroma and the #474747 ceiling, as one filter on the
-          // image's own paint. See [TiqPlate.tone].
+          // THE TONE: the chroma reduction and the skin's own luminance
+          // range, as one filter on the image's own paint. See
+          // [TiqPlate.toneFor].
           colorFilter: widget.tone,
           // A photograph that will not decode is the same state as no
           // photograph: the drawing and the sentence, never a broken-image

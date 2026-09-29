@@ -293,7 +293,14 @@ void main() {
       'night ink on pressed amber block (flame-500)': 8.59,
       'night decorative hairline on ground': 2.14,
       'night disabled ink-mute on surface': 2.38,
-      'plate ink-1 on an unscrimmed plate pixel at the luminance ceiling': 7.68,
+      // THE CEILING IS PER SKIN SINCE 29 SEPTEMBER 2026, and it moved. Night
+      // was 7.68:1 against #474747; the owner asked for the pictures to be
+      // luminous, the ceiling went to #666666, and this is what that costs —
+      // 4.75:1, which still clears the 4.5 a text pairing needs and has very
+      // little left over. Any further lift of the Night ceiling has to be
+      // argued against this line, not against a screenshot.
+      'plate night ink-1 on an unscrimmed plate pixel at the ceiling': 4.75,
+      'plate day ink-1 on an unscrimmed plate pixel at the ceiling': 12.28,
       'plate ink-1 on the mandatory scrim over a full-value strip light': 10.56,
       'plate ink-2 eyebrow on that same worst-case scrimmed amber': 7.15,
       'day ink-1 on ground': 12.67,

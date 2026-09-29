@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
@@ -16,16 +17,30 @@ import 'floor_harness.dart';
 /// THE FLOOR, RENDERED, SO SOMEBODY CAN LOOK AT IT.
 ///
 /// Every other test in this folder asserts a number. This one produces the
-/// three images the owner and the reviewer compare against the mockup: a
-/// 390×844 phone and a 360×640 one unfiltered, and a 390×844 one scoped to a
-/// territory — populated, with a **real committed place image** on the plate
-/// and **Onest and JetBrains Mono loaded**. The test font is wider than Onest,
-/// so a screen rendered in it wraps sooner and measures taller — a picture of
-/// the wrong screen.
+/// images the owner and the reviewer compare against the mockup: populated,
+/// with a **real committed place image** on the plate and **Onest and
+/// JetBrains Mono loaded**. The test font is wider than Onest, so a screen
+/// rendered in it wraps sooner and measures taller — a picture of the wrong
+/// screen.
 ///
 /// The scoped one is not a luxury: the scope chip wears a heavier name and an
 /// `ink1` edge when a territory is chosen, and the picture behind it is of a
 /// different place. Both of those are things somebody has to look at.
+///
+/// ## Day is in the set now, and it should have been from the start
+///
+/// This harness was Night-only, and the plate's tone was one `#474747`
+/// ceiling applied to both skins. The two facts are connected: on paper that
+/// ceiling put dark ink over a dark picture at 2.63:1, it was measured and
+/// recorded as an open defect in §9g, and **nobody had an image of it to
+/// look at**. The tone is per skin as of 29 September 2026 and so is this
+/// set.
+///
+/// Two supplied photographs are rendered beside the generated `ALL`, because
+/// a tone is a claim about photographs and the generated ones are the easy
+/// case: `FS` is the Bloemfontein townscape and `EC-NMB` is one of the two
+/// map composites — a pale near-white polygon with printed town names on it,
+/// which is the hardest thing the plate carries.
 ///
 /// ## Why it does not run in CI
 ///
@@ -42,8 +57,13 @@ import 'floor_harness.dart';
 /// FLOOR_LOOK=1 flutter test \
 ///   test/features/dashboard/floor_look_test.dart --update-goldens
 /// ```
+///
+/// `FLOOR_LOOK_DIR` redirects them somewhere else — a scratch folder to send
+/// somebody, without touching the committed set. Same switch
+/// `overview_look_test.dart` and `colour_look_test.dart` already carry.
 void main() {
   final looking = Platform.environment['FLOOR_LOOK'] == '1';
+  final dir = Platform.environment['FLOOR_LOOK_DIR'] ?? 'goldens/';
 
   setUpAll(loadAgentFonts);
 
@@ -100,18 +120,24 @@ void main() {
   // what a manager sees after choosing that territory.
   const places = '../backend/assets/places';
 
-  for (final (name, size, place, territory) in <(String, Size, String, String?)>[
-    ('390x844', Size(390, 844), '$places/ALL.jpg', null),
-    ('360x640', Size(360, 640), '$places/ALL.jpg', null),
-    ('390x844-scoped', Size(390, 844), '$places/GP-TSH.jpg', 't-gp-tsh'),
-  ]) {
-    testWidgets('The Floor at $name, populated, Night x Console', (
-      tester,
-    ) async {
+  for (final (name, size, place, territory, skin)
+      in <(String, Size, String, String?, TiqSkin?)>[
+        ('390x844', Size(390, 844), '$places/ALL.jpg', null, null),
+        ('360x640', Size(360, 640), '$places/ALL.jpg', null, null),
+        ('390x844-scoped', Size(390, 844), '$places/GP-TSH.jpg', 't-gp-tsh', null),
+        // ── The same phone in Day, and over the owner's own photographs ──
+        ('390x844-day', Size(390, 844), '$places/ALL.jpg', null, _day),
+        ('390x844-supplied', Size(390, 844), '$places/FS.jpg', null, null),
+        ('390x844-supplied-day', Size(390, 844), '$places/FS.jpg', null, _day),
+        ('390x844-map', Size(390, 844), '$places/EC-NMB.jpg', null, null),
+        ('390x844-map-day', Size(390, 844), '$places/EC-NMB.jpg', null, _day),
+      ]) {
+    testWidgets('The Floor at $name, populated', (tester) async {
       await pumpFloor(
         tester,
         const TheFloorScreen(),
         size: size,
+        skin: skin,
         territories: territory == null
             ? const <Territory>[]
             : <Territory>[
@@ -155,11 +181,16 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('goldens/floor_$name.png'),
+        matchesGoldenFile('${dir}floor_$name.png'),
       );
     }, skip: !looking);
   }
 }
+
+/// Day at the console density, which is what `pumpFloor` gives Night by
+/// default — so the only thing that differs between a `-day` image and its
+/// twin is the skin.
+final TiqSkin _day = TiqSkin.day();
 
 /// The filter, already narrowed to one territory. See the override above.
 class _ScopedFilter extends DashboardFilterNotifier {

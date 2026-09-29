@@ -12,116 +12,237 @@ import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
 import 'floor_harness.dart';
 
-/// THE PLATE IS A GROUND, NOT A COLOUR FIELD.
+/// THE PLATE IS A GROUND, NOT A COLOUR FIELD — AND IT IS A DIFFERENT GROUND IN
+/// EACH SKIN.
 ///
-/// `direction-torchlight.json` bakes a plate at 12% chroma under a `#474747`
-/// luminance ceiling. Only the ceiling was ever applied on the device, as a
-/// multiply — and a multiply by a neutral grey scales all three channels
-/// equally, which darkens a colour and never desaturates it. Against the
-/// seeded dev data, whose shelf photos are blocks of fully saturated random
-/// colour, the plate came out a dim rainbow.
+/// This file exists because the treatment was once **half** applied and nothing
+/// failed: `direction-torchlight.json` baked a plate at reduced chroma under a
+/// luminance ceiling, only the ceiling ever reached the device, and a multiply
+/// by a neutral grey darkens a colour without ever desaturating it. Against
+/// the seeded dev data, whose shelf photos are blocks of fully saturated random
+/// colour, the plate came out a dim rainbow. Nothing measured it.
 ///
-/// Nothing failed, because nothing measured it. These tests measure it twice:
-/// once in arithmetic, where the filter's twenty numbers are pinned, and once
-/// in pixels, on the real screen, against a fixture that reproduces the seed's
-/// own generator.
+/// **That is still the spirit and it is now a bigger claim.** As of 29
+/// September 2026 the tone is a chroma reduction *and* a map into a per-skin
+/// range `[plateLift, plateCeiling]` — Night `[0, #666666]`, Day
+/// `[#999999, #E6E6E6]`. So there are three operations to keep honest and two
+/// skins to keep them honest in:
+///
+/// 1. the chroma really is reduced (not a ceiling pretending to be a tone),
+/// 2. nothing lands **above** the skin's ceiling,
+/// 3. nothing lands **below** the skin's lift — which is the half that is new,
+///    and the half that closes the Day contrast defect. A lift that quietly
+///    went back to zero would leave every "no pixel above the ceiling" test
+///    green and put the Day plate straight back under 4.5:1.
+///
+/// Measured twice: once in arithmetic, where the filter's twenty numbers are
+/// pinned, and once in pixels, on the real screen, against a fixture that
+/// reproduces the seed's own generator.
 void main() {
-  const ceiling = TiqPalette.plateCeiling;
+  final night = TiqSkin.night().palette;
+  final day = TiqSkin.day().palette;
 
   /// The filter, applied by hand, so a claim about a photograph is a claim
   /// about a number.
   ({int r, int g, int b}) toned(
-    Color source, {
-    double chroma = TiqPlate.chroma,
+    Color source,
+    TiqPalette skin, {
+    double? chroma,
   }) {
-    final m = plateToneMatrix(chroma: chroma, ceiling: ceiling);
+    final m = plateToneMatrix(
+      chroma: chroma ?? TiqPlate.chroma,
+      ceiling: skin.plateCeiling,
+      lift: skin.plateLift,
+    );
     final r = source.r * 255, g = source.g * 255, b = source.b * 255;
-    int row(int i) => (m[i * 5] * r + m[i * 5 + 1] * g + m[i * 5 + 2] * b)
-        .round()
-        .clamp(0, 255);
+    int row(int i) =>
+        (m[i * 5] * r + m[i * 5 + 1] * g + m[i * 5 + 2] * b + m[i * 5 + 4])
+            .round()
+            .clamp(0, 255);
     return (r: row(0), g: row(1), b: row(2));
   }
 
+  /// Every corner and midpoint of the colour cube the plate has to survive.
+  const probes = <Color>[
+    Color(0xFF000000),
+    Color(0xFFFFFFFF),
+    Color(0xFFFF0000),
+    Color(0xFF00FF00),
+    Color(0xFF0000FF),
+    Color(0xFFFFFF00),
+    Color(0xFF00FFFF),
+    Color(0xFFFF00FF),
+    Color(0xFF808080),
+    Color(0xFFEBEBE4),
+    Color(0xFF1B2632),
+  ];
+
   group('the tone, as arithmetic', () {
-    test('is the ceiling AND the chroma, not one of the two', () {
-      // The old treatment, for comparison: a multiply against the ceiling.
-      // Pure red kept every scrap of its hue and simply got dark.
-      final wasRed = (
-        r: (255 * ceiling.r).round(),
-        g: 0,
-        b: 0,
-      );
-      expect(wasRed, (r: 71, g: 0, b: 0));
-      expect(wasRed.r - wasRed.b, 71, reason: 'a dark red block');
-
-      final red = toned(const Color(0xFFFF0000));
-      expect(
-        red.r - red.b,
-        lessThanOrEqualTo(9),
-        reason: 'the same pixel, now a warm dark grey: $red',
-      );
-    });
-
-    test('white lands exactly on the ceiling, and nothing lands above it', () {
-      final white = toned(const Color(0xFFFFFFFF));
-      expect(white.r, 0x47);
-      expect(white.g, 0x47);
-      expect(white.b, 0x47);
-
-      for (final source in <Color>[
-        const Color(0xFFFF0000),
-        const Color(0xFF00FF00),
-        const Color(0xFF0000FF),
-        const Color(0xFFFFFF00),
-        const Color(0xFF00FFFF),
-        const Color(0xFFFF00FF),
-        const Color(0xFF808080),
-        const Color(0xFFEBEBE4),
+    test('is the range AND the chroma, not one of the two', () {
+      // The defect this file was written for: a treatment that is only a
+      // multiply. Pure red keeps every scrap of its hue and simply gets dark.
+      for (final skin in <(String, TiqPalette)>[
+        ('night', night),
+        ('day', day),
       ]) {
-        final out = toned(source);
+        final multiplyOnly = (255 * skin.$2.plateCeiling.r).round();
+        final red = toned(const Color(0xFFFF0000), skin.$2);
+        final blue = toned(const Color(0xFF0000FF), skin.$2);
         expect(
-          math.max(out.r, math.max(out.g, out.b)),
-          lessThanOrEqualTo(0x47),
-          reason: '$source came out above the ceiling as $out',
+          red.r - red.b,
+          lessThan(multiplyOnly),
+          reason:
+              '${skin.$1}: pure red came out as $red — as wide a spread as a '
+              'bare multiply by the ceiling would give. The chroma half of '
+              'the tone is not being applied.',
+        );
+        // AND THE CHROMA IS NOT TOTAL EITHER. The owner asked for colour on
+        // 29 September 2026 and got 55% of it; a tone that drained the hue
+        // completely would pass every bound in this file and be the thing the
+        // owner complained about.
+        expect(
+          red.r - red.b,
+          greaterThan(10),
+          reason:
+              '${skin.$1}: pure red came out neutral ($red). The plate is a '
+              'ground, not a greyscale conversion — the owner asked for a bit '
+              'of colour.',
+        );
+        expect(
+          blue.b - blue.r,
+          greaterThan(10),
+          reason: '${skin.$1}: pure blue came out neutral ($blue)',
         );
       }
     });
 
-    test('a neutral stays neutral and is scaled, not shifted', () {
-      final grey = toned(const Color(0xFF808080));
-      expect(grey.r, grey.g);
-      expect(grey.g, grey.b);
-      expect(grey.r, (128 * ceiling.r).round());
+    test('white lands exactly on the ceiling, in both skins', () {
+      final nightWhite = toned(const Color(0xFFFFFFFF), night);
+      expect((nightWhite.r, nightWhite.g, nightWhite.b), (0x66, 0x66, 0x66));
+      final dayWhite = toned(const Color(0xFFFFFFFF), day);
+      expect((dayWhite.r, dayWhite.g, dayWhite.b), (0xE6, 0xE6, 0xE6));
     });
 
-    test('no input can produce a channel spread wider than 8.5 of 255', () {
-      // ceiling × chroma × 255 = 0.278 × 0.12 × 255. It is the whole point of
-      // composing the two operations rather than picking one.
-      final bound = ceiling.r * TiqPlate.chroma * 255;
-      expect(bound, closeTo(8.52, 0.01));
-      for (var i = 0; i < 512; i++) {
-        final source = Color.fromARGB(
-          255,
-          (i * 97) % 256,
-          (i * 37) % 256,
-          (i * 211) % 256,
-        );
-        final out = toned(source);
-        final spread =
-            math.max(out.r, math.max(out.g, out.b)) -
-            math.min(out.r, math.min(out.g, out.b));
-        expect(spread, lessThanOrEqualTo(bound.ceil()), reason: '$source');
+    test('black lands exactly on the lift, in both skins', () {
+      // THE HALF THAT IS NEW, AND THE HALF THAT CLOSES THE DAY DEFECT.
+      //
+      // Night lifts nothing — on a near-black ground the shadows of a
+      // photograph ARE the ground — so black stays black and the matrix has
+      // exactly the shape it had when it was a ceiling alone.
+      final nightBlack = toned(const Color(0xFF000000), night);
+      expect((nightBlack.r, nightBlack.g, nightBlack.b), (0, 0, 0));
+
+      // Day lifts to 60%: the darkest pixel a Day plate may paint is #999999,
+      // because `ink1` is #1B2632 and a picture darker than the ink is a
+      // picture the ink disappears into. That was 2.63:1 before this existed.
+      final dayBlack = toned(const Color(0xFF000000), day);
+      expect((dayBlack.r, dayBlack.g, dayBlack.b), (0x99, 0x99, 0x99));
+    });
+
+    test('NO PIXEL escapes the skin\'s range, either end', () {
+      for (final skin in <(String, TiqPalette)>[
+        ('night', night),
+        ('day', day),
+      ]) {
+        final ceiling = (skin.$2.plateCeiling.r * 255).round();
+        final lift = (skin.$2.plateLift * 255).round();
+        // The probes, plus 512 pseudo-random pixels — a photograph is not a
+        // colour wheel and the bound has to hold for whatever is in the frame.
+        final sources = <Color>[
+          ...probes,
+          for (var i = 0; i < 512; i++)
+            Color.fromARGB(255, (i * 97) % 256, (i * 37) % 256, (i * 211) % 256),
+        ];
+        for (final source in sources) {
+          final out = toned(source, skin.$2);
+          expect(
+            math.max(out.r, math.max(out.g, out.b)),
+            lessThanOrEqualTo(ceiling + 1),
+            reason: '${skin.$1}: $source came out ABOVE the ceiling as $out',
+          );
+          expect(
+            math.min(out.r, math.min(out.g, out.b)),
+            greaterThanOrEqualTo(lift - 1),
+            reason:
+                '${skin.$1}: $source came out BELOW the lift as $out. On Day '
+                'that is the contrast defect returning: the plate is darker '
+                'than the ink that sits on it.',
+          );
+        }
       }
     });
 
-    test('chroma is 12%, and the filter the plate hands out is this one', () {
-      expect(TiqPlate.chroma, 0.12);
-      expect(TiqPlate.ceiling, ceiling);
-      expect(TiqPlate.tone, ColorFilter.matrix(plateToneMatrix()));
+    test('a neutral stays neutral, and is mapped across the whole range', () {
+      for (final skin in <TiqPalette>[night, day]) {
+        final grey = toned(const Color(0xFF808080), skin);
+        expect(grey.r, grey.g);
+        expect(grey.g, grey.b);
+        final expected =
+            (skin.plateLift * 255 +
+                    (skin.plateCeiling.r - skin.plateLift) * 128)
+                .round();
+        expect(grey.r, closeTo(expected, 1));
+      }
+    });
+
+    test('lift = 0 is exactly the old ceiling-only matrix', () {
+      // The generalisation has to be a provable superset, not a rewrite: with
+      // no lift, row i is still `ceiling[i] x (saturation row i)` and the
+      // offset column is still zero. Night takes this path.
+      final m = plateToneMatrix(
+        chroma: 0.12,
+        ceiling: const Color(0xFF474747),
+        lift: 0,
+      );
+      expect(m[4], 0);
+      expect(m[9], 0);
+      expect(m[14], 0);
+      const k = 0x47 / 0xFF;
+      expect(m[0], closeTo(k * (0.2126 * 0.88 + 0.12), 1e-9));
+      expect(m[1], closeTo(k * 0.7152 * 0.88, 1e-9));
+      expect(m[2], closeTo(k * 0.0722 * 0.88, 1e-9));
+      expect(m[6], closeTo(k * (0.7152 * 0.88 + 0.12), 1e-9));
+      expect(m[12], closeTo(k * (0.0722 * 0.88 + 0.12), 1e-9));
+    });
+
+    test('the offset column is lift x 255, not lift', () {
+      // `ColorFilter.matrix` runs on 0..255 values and the fifth column is a
+      // constant in that same space. Getting it wrong is silent at lift = 0
+      // and a 0.6/255 no-op at lift = 0.6, which is the Day defect unfixed
+      // and every other test in this file still green.
+      final m = plateToneMatrix(
+        ceiling: day.plateCeiling,
+        lift: day.plateLift,
+      );
+      expect(m[4], closeTo(0.60 * 255, 1e-9));
+      expect(m[9], closeTo(0.60 * 255, 1e-9));
+      expect(m[14], closeTo(0.60 * 255, 1e-9));
+      expect(m[19], 0, reason: 'alpha is untouched');
+    });
+
+    test('the tokens, and the filter each skin actually hands out', () {
+      expect(TiqPlate.chroma, 0.55, reason: 'the owner asked for colour');
+      expect(night.plateCeiling, const Color(0xFF666666));
+      expect(night.plateLift, 0.0);
+      expect(day.plateCeiling, const Color(0xFFE6E6E6));
+      expect(day.plateLift, 0.60);
+      // AND THE TWO SKINS DO NOT SHARE A TONE. One `static const plateCeiling`
+      // for both skins is the assumption that left Day failing at 2.63:1.
+      expect(
+        TiqPlate.toneFor(night),
+        isNot(TiqPlate.toneFor(day)),
+        reason: 'the plate is toned the same way on paper as on a console',
+      );
+      expect(
+        TiqPlate.toneFor(night),
+        ColorFilter.matrix(
+          plateToneMatrix(ceiling: night.plateCeiling, lift: night.plateLift),
+        ),
+      );
       // The thing that regressed: a treatment that is only the ceiling.
       expect(
-        TiqPlate.tone,
-        isNot(ColorFilter.mode(ceiling, BlendMode.multiply)),
+        TiqPlate.toneFor(night),
+        isNot(ColorFilter.mode(night.plateCeiling, BlendMode.multiply)),
       );
     });
   });
@@ -189,20 +310,29 @@ void main() {
         except: chip.inflate(2),
       );
 
+      // The Floor renders in Night, so these are Night's two ends.
       expect(
         sample.maxChannel,
-        lessThanOrEqualTo(0x47 + 2),
+        lessThanOrEqualTo(0x66 + 2),
         reason:
-            'a pixel brighter than the #474747 ceiling: the plate is not a '
-            'dim ground. Brightest was ${sample.maxChannel}.',
+            'a pixel brighter than the #666666 ceiling: the plate is not a '
+            'ground any more. Brightest was ${sample.maxChannel}.',
       );
+      // (ceiling - lift) x chroma x 255 = 0.40 x 0.55 x 255 = 56.1. Wider than
+      // the 8.5 the 12% treatment allowed, on purpose and on the owner's
+      // instruction — and still a long way under the 71 the multiply-only
+      // treatment let through, which is the rainbow this file was written for.
+      final bound =
+          ((night.plateCeiling.r - night.plateLift) * TiqPlate.chroma * 255)
+              .ceil();
+      expect(bound, 57);
       expect(
         sample.maxSpread,
-        lessThanOrEqualTo(12),
+        lessThanOrEqualTo(bound + 4),
         reason:
-            'a colour cast of ${sample.maxSpread}/255 on the plate. The bake '
-            'allows 8.5 and the multiply-only treatment allowed 71 — this is '
-            'the rainbow.',
+            'a colour cast of ${sample.maxSpread}/255 on the plate, against a '
+            'bound of $bound. The multiply-only treatment allowed 71 — this '
+            'is the rainbow.',
       );
     });
 
@@ -217,7 +347,7 @@ void main() {
         outlets: <Outlet>[outlet('o1', 'Kasi Corner Spaza')],
       );
 
-      expect(platedImage(tester)?.colorFilter, TiqPlate.tone);
+      expect(platedImage(tester)?.colorFilter, TiqPlate.toneFor(night));
       // unify §4's paint budget: zero saveLayer. `ColorFiltered` is the
       // obvious way to write this and it pushes a ColorFilterLayer, which is
       // a saveLayer per frame in a list that scrolls.

@@ -28,6 +28,22 @@ import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 /// with a near-white polygon over most of the frame. So this stops being a
 /// theoretical bound and starts being a measurement.
 ///
+/// ## Day was a declared defect here, and this file is where it closed
+///
+/// This file used to assert, deliberately, that **every** Day figure was
+/// **below** 4.5:1, with a note saying that if one ever went above it somebody
+/// had fixed the scrim and the test should be deleted. Somebody did — on 29
+/// September 2026, via the tone rather than the scrim. The plate is no longer
+/// capped at `#474747` in both skins: it is mapped into a per-skin range, and
+/// Day's has a **lift** of 0.60, so no plate pixel on paper is darker than
+/// `#999999`. Dark ink over a dark picture was the whole defect and a ceiling
+/// could never have fixed it, because the ink and the picture were failing on
+/// the same side.
+///
+/// So the inequality is inverted and the test is a pin instead of a confession.
+/// It fails if anyone lowers Day's lift, raises either ceiling, or lands a
+/// picture these numbers do not survive.
+///
 /// ## How the background is sampled
 ///
 /// The hero cluster is the last thing drawn in the plate's stack and it sits
@@ -70,6 +86,80 @@ void main() {
           ..sort();
   });
 
+  /// Both figures over every committed picture, in one skin.
+  ///
+  /// The worst pixel is the brightest on a dark ground and the darkest on a
+  /// light one — `dark` is which side of that the skin is on.
+  Future<Map<String, ({double figure, double meta})>> measure(
+    WidgetTester tester,
+    TiqSkin skin, {
+    required bool dark,
+  }) async {
+    (hero, health) = await _inkRects(tester);
+    final out = <String, ({double figure, double meta})>{};
+    for (final code in codes) {
+      final image = await _decode(tester, '$places/$code.jpg');
+      final plate = await _pumpBarePlate(tester, image, skin);
+      final frame = await _grab(tester);
+      out[code] = (
+        figure: contrastRatio(
+          skin.palette.ink1,
+          _worstPixel(frame, hero.shift(plate.topLeft), dark: dark),
+        ),
+        meta: contrastRatio(
+          skin.palette.ink2,
+          _worstPixel(frame, health.shift(plate.topLeft), dark: dark),
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// The measurement, printed. The owner asked for the numbers rather than a
+  /// green tick, and a table in a test log is the only version of them that
+  /// cannot go stale.
+  void report(String skin, Map<String, ({double figure, double meta})> m) {
+    // ignore: avoid_print
+    print('\n  $skin — 390x844, worst pixel in each ink\'s own box');
+    // ignore: avoid_print
+    print('  ${'code'.padRight(10)}${'hero (ink1)'.padRight(14)}health (ink2)');
+    for (final e in m.entries) {
+      // ignore: avoid_print
+      print(
+        '  ${e.key.padRight(10)}'
+        '${'${e.value.figure.toStringAsFixed(2)}:1'.padRight(14)}'
+        '${e.value.meta.toStringAsFixed(2)}:1',
+      );
+    }
+  }
+
+  void pin(
+    String skin,
+    Map<String, ({double figure, double meta})> m,
+    double floor,
+  ) {
+    for (final e in m.entries) {
+      expect(
+        e.value.figure,
+        greaterThanOrEqualTo(floor),
+        reason:
+            '${e.key}: the hero figure measures '
+            '${e.value.figure.toStringAsFixed(2)}:1 on the $skin plate, under '
+            'the $floor floor. Either the picture is unusable on this skin or '
+            'somebody moved the plate tone — check plateLift and plateCeiling '
+            'before blaming the photograph.',
+      );
+      expect(
+        e.value.meta,
+        greaterThanOrEqualTo(floor),
+        reason:
+            '${e.key}: the "Territory health" line measures '
+            '${e.value.meta.toStringAsFixed(2)}:1 on the $skin plate, under '
+            'the $floor floor.',
+      );
+    }
+  }
+
   testWidgets('there are committed place images to measure', (tester) async {
     // A guard, not a formality: if the assets folder is ever emptied or moved,
     // every assertion below becomes vacuously green and this file starts
@@ -79,111 +169,83 @@ void main() {
 
   testWidgets('the plate ink clears 4.5:1 on Night over every committed '
       'picture, supplied and generated alike', (tester) async {
-    (hero, health) = await _inkRects(tester);
-    final skin = TiqSkin.night();
-    final worst = <String, double>{};
+    final m = await measure(tester, TiqSkin.night(), dark: true);
+    report('NIGHT', m);
+    pin('Night', m, floor);
 
-    for (final code in codes) {
-      final image = await _decode(tester, '$places/$code.jpg');
-      final plate = await _pumpBarePlate(tester, image, skin);
-      final frame = await _grab(tester);
-      final figure = contrastRatio(
-        skin.palette.ink1,
-        _worstPixel(frame, hero.shift(plate.topLeft), dark: true),
-      );
-      final meta = contrastRatio(
-        skin.palette.ink2,
-        _worstPixel(frame, health.shift(plate.topLeft), dark: true),
-      );
-      worst[code] = math.min(figure, meta);
-      expect(
-        figure,
-        greaterThanOrEqualTo(floor),
-        reason:
-            '$code: the hero figure measures ${figure.toStringAsFixed(2)}:1 on '
-            'the Night plate. A picture bright enough to push it under $floor '
-            'is a picture the #474747 ceiling is not saving — reshoot it or '
-            'crop away the blown-out part.',
-      );
-      expect(
-        meta,
-        greaterThanOrEqualTo(floor),
-        reason:
-            '$code: the "Territory health" line measures '
-            '${meta.toStringAsFixed(2)}:1 on the Night plate.',
-      );
-    }
-    // Measured 29 September 2026: 8.40 (GP-EKU) to 10.59 (ALL) for the meta
-    // line and 8.88 (WC) to 13.16 (ALL) for the figure. The margin is wide on
-    // purpose — this exists to catch a future picture that is nothing like
-    // these, not to pin a number to two decimal places across rasterisers.
-    expect(worst.values.reduce(math.min), greaterThan(6.0));
+    // Measured 29 September 2026, after the ceiling moved from #474747 to
+    // #666666 on the owner's instruction to make the pictures luminous. The
+    // margin is narrower than it was and still wide — this exists to catch a
+    // future picture that is nothing like these, and to catch a ceiling that
+    // creeps up again, not to pin a number to two decimal places across
+    // rasterisers.
+    final worst = m.values
+        .map((v) => math.min(v.figure, v.meta))
+        .reduce(math.min);
+    expect(
+      worst,
+      greaterThan(5.0),
+      reason:
+          'the worst Night pairing is ${worst.toStringAsFixed(2)}:1. Night had '
+          'headroom and spent some of it on luminosity; it has not got this '
+          'much more to spend.',
+    );
   });
 
-  testWidgets('DAY IS THE KNOWN GAP, and it is not the pictures', (
-    tester,
-  ) async {
-    // THIS TEST ASSERTS A DEFECT, DELIBERATELY, AND IT IS WRITTEN TO DELETE
-    // ITSELF.
+  testWidgets('DAY CLEARS 4.5:1 TOO, which is the defect this file used to '
+      'assert', (tester) async {
+    // THIS TEST USED TO ASSERT THE FAILURE.
     //
-    // PR #473 reported that the Day meta line over the plate measures 2.92:1
-    // against a 4.5 minimum, and that the plate scrim is under-specified for a
-    // light ground: it ramps `ground` from 0% at the top of the text zone to
-    // 80% at the foot, so the "Territory health" line sits at roughly 57% and
+    // PR #473 reported that the Day meta line over the plate measured 2.92:1
+    // against a 4.5 minimum, and that the plate was under-specified for a
+    // light ground: the scrim ramps `ground` from 0% at the top of the text
+    // zone to 80% at the foot, so "Territory health" sits at roughly 57% and
     // the hero figure's cap height at about 17%. On a dark ground that is
     // fine — the ink is light and the picture is dark. On a light ground the
-    // ink is dark and the picture is ALSO dark, because every plate pixel is
-    // capped at #474747, so the two converge.
+    // ink is dark and the picture was ALSO dark, because every plate pixel was
+    // capped at #474747 in both skins. The two converged.
     //
-    // Twelve supplied photographs were the obvious thing to blame for it, so
-    // it is measured here with a generated picture beside them: the band is
-    // the same either way, which means the scrim is the defect and the
-    // pictures are not. If this test ever fails because a figure went ABOVE
-    // 4.5, somebody fixed the scrim — delete this test and the note in §9g of
-    // docs/design/torchlight-aisle.md.
-    (hero, health) = await _inkRects(tester);
-    final skin = TiqSkin.day();
-    final metas = <String, double>{};
+    // The repair is not the scrim. It is the tone: Day maps the picture into
+    // [#999999, #E6E6E6] instead of [black, #474747], so the photograph is now
+    // the PALE half of the pairing, which is what dark ink on paper needs. The
+    // assertion below is the old one with the inequality turned round, and it
+    // is the thing that stops the lift being quietly dialled back.
+    final m = await measure(tester, TiqSkin.day(), dark: false);
+    report('DAY', m);
+    pin('Day', m, floor);
 
-    for (final code in codes) {
-      final image = await _decode(tester, '$places/$code.jpg');
-      final plate = await _pumpBarePlate(tester, image, skin);
-      final frame = await _grab(tester);
-      metas[code] = contrastRatio(
-        skin.palette.ink2,
-        _worstPixel(frame, health.shift(plate.topLeft), dark: false),
-      );
-    }
-
-    for (final entry in metas.entries) {
-      expect(
-        entry.value,
-        lessThan(floor),
-        reason:
-            '${entry.key} measures ${entry.value.toStringAsFixed(2)}:1, which '
-            'is ABOVE the 4.5 floor. That is good news and this test is now '
-            'wrong: the plate scrim was fixed. Delete this test.',
-      );
-    }
-
-    // AND THE SUPPLIED PICTURES DID NOT MOVE IT. `ALL` and `NW` are the two
-    // still generated, and the whole supplied set sits inside a tenth of a
-    // point of them. Measured 29 September 2026: generated 2.77 and 2.82,
-    // supplied 2.63 (EC-BCM) to 2.99 (GP-TSH).
-    final generated = <double>[metas['ALL']!, metas['NW']!];
-    final supplied = metas.entries
+    // AND THE SUPPLIED PICTURES ARE NOT THE WEAK ONES. `ALL` and `NW` are the
+    // two still generated; the supplied set has to sit with them rather than
+    // dragging the number down. Kept from the version of this test that
+    // asserted the defect, because it answers a different question: not "does
+    // the plate work" but "did a new picture make it worse".
+    final generated = <double>[m['ALL']!.meta, m['NW']!.meta];
+    final supplied = m.entries
         .where((e) => e.key != 'ALL' && e.key != 'NW')
-        .map((e) => e.value)
+        .map((e) => e.value.meta)
         .toList();
     expect(
       supplied.reduce(math.min),
       greaterThan(generated.reduce(math.min) - 0.4),
       reason:
           'a supplied picture is materially worse for the Day meta line than '
-          'the generated ones were. The Day gap is pre-existing, but a new '
-          'picture making it worse is a new problem and belongs to whoever '
-          'added the picture.',
+          'the generated ones. The tone holds a floor for every picture, so a '
+          'picture that still drags is a picture with a problem of its own '
+          'and it belongs to whoever added it.',
     );
+  });
+
+  testWidgets('the tone tokens are what the measurement was made at', (
+    tester,
+  ) async {
+    // The numbers above are a measurement, and a measurement is only a pin if
+    // the thing it was measured at is pinned too. Lowering Day's lift or
+    // raising either ceiling would show up here first, with the reason
+    // attached, instead of as fourteen opaque contrast failures.
+    expect(TiqSkin.day().palette.plateLift, 0.60);
+    expect(TiqSkin.day().palette.plateCeiling, const Color(0xFFE6E6E6));
+    expect(TiqSkin.night().palette.plateLift, 0.0);
+    expect(TiqSkin.night().palette.plateCeiling, const Color(0xFF666666));
   });
 }
 
