@@ -2969,3 +2969,120 @@ recur.
   fact about every order in the account on a slow link or a 502. Loading says
   loading, a failure says the list did not load, and the honest claim is kept
   for the case that is genuinely loaded and genuinely absent.
+
+---
+
+## 19. The worklist could not count — 29 September 2026
+
+The owner, looking at Tasks: *"seems very plain and not nice as the other
+pages, that sign next to Overdue is not nice, the symbol."*
+
+The symbol was `SeverityMarkKind.notMeasured`, and it was **right**. `GET
+/tasks` served one page and a total, so every figure above the list was
+derived from the fifty rows in hand; a zero over a cut page is an unknown and
+not a measured nought, and the mark and the em dash said exactly that. The
+screen was not lying. It was apologising, in four places, on every load.
+
+What made it unbearable is arithmetic. The page is ordered by deadline across
+every status, and on the seeded database **31,178 of 32,368 tasks are closed**
+— so the fifty oldest deadlines are all closed work, and the screen read:
+
+```text
+Overdue  —      None among the 50 tasks loaded. The rest was not fetched.
+( Open 0 )( Overdue 0 )( Done 50 )( All 50 )
+Showing the 50 tasks with the earliest deadlines, of 32,368.
+The counts above are of these 50.
+```
+
+An account with 1,190 open tasks and 1,122 overdue ones, described as four
+noughts and an apology.
+
+### The fix is the data, not the mark
+
+`GET /tasks` answers a `counts` object beside the page — `all`, `open`,
+`overdue`, `done`, `awaitingVerification` — over the whole tenant-scoped set.
+Three things about it are rules rather than implementation:
+
+* **It rides on the list, not on a `/tasks/summary`.** One snapshot, so the
+  chips cannot disagree with the rows beneath them; one `where`, so the tenant
+  scoping exists once rather than twice — a count that drifts from the list's
+  scope is the one defect here that *leaks*, because it answers how much work
+  exists in an account the caller cannot open.
+* **It is measured, not feared.** On the real database: `groupBy` 8.1–8.5 ms,
+  the overdue count 7.4–10.3 ms, the page itself 1.8–3.5 ms. The `groupBy`
+  also supplies the `total` that used to need a `count()` of its own, so the
+  net addition is one query.
+* **The overdue definition is the app's, copied rather than re-derived**,
+  boundary included: `status <> 'closed'` and `slaDueAt <= now`, which is
+  `TasksView._slaStateFor`'s `!now.isBefore(slaDueAt)`. Two definitions of
+  overdue is two screens disagreeing about one task.
+
+`open` is deliberately **not** `status = 'open'`: a task somebody has started
+is still outstanding, so it is `status <> 'closed'`. The wire carries that as
+`state`, a second spelling of the status axis, and sending `state` and
+`status` together is a 400 rather than a precedence puzzle.
+
+### The counts alone would have made it worse
+
+A chip reading `Open 1 190` above an empty list is a worse screen than four
+honest noughts, and that is what real counts over a client-side filter
+produce — the page being filtered is the fifty closed rows. **So the filter is
+the server's.** `tasksPageProvider` is a family keyed by the chip, each slice
+has its own cache, and the list underneath a chip is the list that chip names.
+`tasksListProvider` asks for `state: open` for the same reason: The Floor and
+the Execution overview both took that page and dropped every closed row from
+it, which on a real account left them showing no tasks at all.
+
+### What the honest-unknown machinery is for now
+
+It is **not deleted**, and this is the half that is easy to get wrong. A
+server that answers no `counts` still gets the em dash, the barred square and
+the sentence, and the footer still says "The figures above are of these 50".
+The condition is simply false on a counting server, so the mark disappears
+because the unknown did — which is the only legitimate way to remove one.
+`tasks_view_test.dart` and `tasks_screen_test.dart` pin both sides.
+
+`SeverityMarkKind.notMeasured` keeps its barred square. Moving it to the
+barred *ring* (`sectionBarredRing`, the same meaning in the section-state set)
+was considered and rejected here: the shape is pinned in `chips_test.dart`,
+Alerts draws the same mark for the same reason, and restyling a shared
+severity mark to improve a screen it no longer appears on is a change to the
+law wearing a cosmetic argument.
+
+### The composition, which was the second half of the ask
+
+| | before | now |
+|---|---|---|
+| lead block | a `SeverityMark` in a gutter beside a horizontal `StatTile`: a floating box next to a right-aligned figure | four things in one card — the mark **on** the eyebrow, the figure at `hero.figure.compact` (measured, so a six-digit account steps down), one supporting sentence, and the subordinates under a rule |
+| subordinates | `12 open · 4 awaiting verification`, one `meta` line | two figures in the `StatCluster` grammar — 12dp gap, 1px rule, label left, figure right |
+| figure ink | plain | `severityInk` — the third channel, after the silhouette and the word |
+| section marker | `SectionRule('Open', count: 50)` under a chip reading `Open 1 190` | **gone.** The selected chip names the section and counts it; §9f's example of two numbers in one column under one word |
+| empty (nothing at all) | an in-panel headline under a lead card reading `OVERDUE 0` and four zeroed chips | the whole-screen state: the shelf drawing, a `display` headline, and where tasks come from |
+| empty (filtered) | "Clear the filter to see the rest" + a full-width outlined button | what **is** there, in counted figures — "1,190 tasks are open and inside their deadline" — and a ghost link back, which is The Floor's treatment for the same control |
+| header | a seventeen-word paragraph in `facts` | one clause, which is what `facts` is and what Alerts already does |
+
+**The filter chip did not change, and that is a decision.** A rail of radius-22
+pills would be the card grammar applied to a control, which §9c scopes out by
+name, and 999 belongs to the nav alone. Filling the unselected chip with
+`well` was measured and rejected: `well` on `ground` is **1.12:1** in Night and
+about 1.2:1 in Day, which is the sub-perceptual fill step §6's device floor
+exists to forbid — the edge is what makes a chip perceivable, which is why it
+is there. What actually changed about the rail is that its four numbers became
+true. If the owner wants a different chip silhouette, that is a new radius for
+the control material and it is argued as a change to §6, not applied to one
+screen.
+
+### Where it is looked at
+
+`app/test/features/tasks/tasks_look_test.dart`, gated behind `TASKS_LOOK=1`
+with a `TASKS_LOOK_DIR` override, renders 390×844 in **both** skins in four
+states: overdue work over a cut page, a measured zero, a filter that found
+nothing, and an account with no tasks. It is off in CI for the reason
+`floor_look_test.dart` gives. It loads the icon font out of the SDK cache,
+silently — a picture with a hollow box where the refresh control should be is
+a picture somebody reads as a broken screen.
+
+```sh
+TASKS_LOOK=1 TASKS_LOOK_DIR=/somewhere/ flutter test \
+  test/features/tasks/tasks_look_test.dart --update-goldens
+```

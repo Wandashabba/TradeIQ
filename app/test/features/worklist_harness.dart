@@ -497,6 +497,7 @@ Future<void> pumpWorklist(
   List<AppUser> users = const <AppUser>[],
   String path = '/screen',
   bool settle = true,
+  bool banner = true,
 }) async {
   tester.view
     ..physicalSize = size
@@ -522,6 +523,11 @@ Future<void> pumpWorklist(
             ...overrides,
           ],
           child: MaterialApp.router(
+            // TRUE EVERYWHERE BUT A LOOK TEST. The debug banner is a red
+            // barber-pole across the top-right corner, which is noise in a
+            // picture somebody is looking at to decide whether a screen is
+            // finished — and which nothing else about this harness needs.
+            debugShowCheckedModeBanner: banner,
             theme: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
             locale: locale,
             supportedLocales: appSupportedLocales,
