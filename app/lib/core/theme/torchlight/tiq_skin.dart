@@ -126,8 +126,30 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     standingColoursFigures: false,
   );
 
-  /// DAY. Field by default — it is the agent's skin.
-  factory TiqSkin.day({TiqDensity density = TiqDensity.field}) => TiqSkin(
+  /// DAY. **Console by default, since 29 September 2026** — symmetrical with
+  /// [TiqSkin.night] above.
+  ///
+  /// IT USED TO DEFAULT TO FIELD, on the true observation that the agent is
+  /// the one who starts in Day. That default was a measurement trap and it
+  /// caught things for weeks. `TiqSkin.night()` means console and
+  /// `TiqSkin.day()` meant field, so **every test that paired the two to hold
+  /// the density still and vary the skin was varying both** — and there are
+  /// 118 bare `TiqSkin.day()` calls under `test/`, including three manager
+  /// look harnesses (`floor_look_test.dart`, `overview_look_test.dart`,
+  /// `manager_chip_look_test.dart` via [of]) that were photographing manager
+  /// screens at the agent's density and calling the result a manager screen.
+  /// `tiq_contrast.dart` built the whole declared Day contrast contract off a
+  /// bare call, so the Day walk ran at one type scale and the Night walk at
+  /// another.
+  ///
+  /// A default cannot carry that meaning. Nothing in production relied on it:
+  /// `agent_skin.dart`, `entry_skin.dart`, `console_skin.dart` and
+  /// `app_theme.dart` all name the density at every call site, which is why
+  /// this changes no shipping pixel — proved by sha256 over the 26 manager
+  /// look renders, not assumed. A surface with a density opinion states it;
+  /// a bare call now means "the Day token set, no density opinion", and the
+  /// two factories answer the same way.
+  factory TiqSkin.day({TiqDensity density = TiqDensity.console}) => TiqSkin(
     mode: SkinMode.day,
     brightness: Brightness.light,
     palette: TiqPalette.day,
@@ -145,6 +167,12 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
 
   /// Build the skin a [SkinMode] asks for. [platformBrightness] only matters
   /// for [SkinMode.auto].
+  ///
+  /// [density] defaults to console on **both** arms, since 29 September 2026
+  /// and for the reason on [TiqSkin.day]: a caller that hands this a mode and
+  /// no density is asking for a skin, not for a surface, and it should not
+  /// silently get the agent's geometry on the Day arm and the manager's on
+  /// the Night one. `manager_chip_look_test.dart` was doing exactly that.
   static TiqSkin of(
     SkinMode mode, {
     Brightness platformBrightness = Brightness.dark,
@@ -153,11 +181,11 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     SkinMode.night => TiqSkin.night(
       density: density ?? TiqDensity.console,
     ),
-    SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.field),
+    SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.console),
     SkinMode.auto =>
       platformBrightness == Brightness.dark
           ? TiqSkin.night(density: density ?? TiqDensity.console)
-          : TiqSkin.day(density: density ?? TiqDensity.field),
+          : TiqSkin.day(density: density ?? TiqDensity.console),
   };
 
   /// The default ink for a body of text on this skin's ground.

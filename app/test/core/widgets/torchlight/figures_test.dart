@@ -25,8 +25,12 @@ void main() {
     });
 
     test('track heights are 4 / 6 by density', () {
-      expect(Meter.trackHeight(TiqSkin.night()), 4);
-      expect(Meter.trackHeight(TiqSkin.day()), 6);
+      // BOTH DENSITIES ARE NAMED. `TiqSkin.day()` meant field until
+      // 29 September 2026 and means console now, so a test about density that
+      // leans on a factory default is a test that reads its own answer off a
+      // default. This one wanted field and now says so.
+      expect(Meter.trackHeight(TiqSkin.night(density: TiqDensity.console)), 4);
+      expect(Meter.trackHeight(TiqSkin.day(density: TiqDensity.field)), 6);
     });
 
     testWidgets('a null value forces the empty state whatever was declared',
