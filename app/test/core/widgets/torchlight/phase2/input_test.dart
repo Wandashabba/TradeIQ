@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/figure_slot.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -341,6 +342,62 @@ void main() {
             'arm\'s length in a dark aisle.',
       );
     });
+
+    // §9h, and the last call site in the product that was breaking it. The
+    // figure was painted `bad` for a finding on BOTH grounds, without reading
+    // `skin.standingColoursFigures` — so on a near-black ground the loudest
+    // object on the screen was drawn in a hue *darker* than the ink around it.
+    // The standing is carried four other ways here, which is §9h's own
+    // precondition for letting the hue go: the trough's finding outline, the
+    // "Out of stock" chip at critical, the finding line, and the screen
+    // reader's "Zero." Day is the opposite case and keeps the crimson.
+    for (final (name, skin, crimson) in <(String, TiqSkin, bool)>[
+      ('Night', TiqSkin.night(density: TiqDensity.field), false),
+      ('Day', TiqSkin.day(density: TiqDensity.field), true),
+    ]) {
+      testWidgets('$name: the finding figure asks the skin, not the widget', (
+        tester,
+      ) async {
+        await pumpPhase2(
+          tester,
+          skin: skin,
+          child: CountStepper(
+            label: 'Units on shelf',
+            value: 0,
+            zeroIsFinding: true,
+            findingWord: 'Out of stock',
+            findingLine: 'Out of stock. This raises a task for the manager.',
+            onChanged: (_) {},
+          ),
+        );
+
+        // The `RichText` the value's own `FigureSlot` built — the ink is on
+        // the span, not on a `Text` widget's style.
+        final rich = tester.widget<RichText>(
+          find
+              .descendant(
+                of: find.byType(FigureSlot),
+                matching: find.byType(RichText),
+              )
+              .first,
+        );
+        expect(
+          _inkOf(rich.text) == skin.palette.bad,
+          crimson,
+          reason: crimson
+              ? 'On paper a page of figures in one ink says nothing, so the '
+                    'standing still colours the figure.'
+              : 'On a near-black ground a figure is luminous and the verdict '
+                    'lives on the mark beside it (§9h).',
+        );
+        // Whatever the ground, the standing never rests on the hue alone.
+        expect(find.text('Out of stock'), findsOneWidget);
+        expect(
+          find.text('Out of stock. This raises a task for the manager.'),
+          findsOneWidget,
+        );
+      });
+    }
 
     testWidgets('opens a sheet to type, so a stray tap cannot replace a '
         'count', (tester) async {
@@ -882,4 +939,27 @@ void main() {
       });
     }
   });
+}
+
+/// The ink of the first leaf run in a `FigureSlot`'s span tree.
+///
+/// `Text.rich` nests the span it is given inside one of its own, so the runs
+/// are two levels down; walking to the first leaf is what makes this
+/// independent of how many wrappers `Text` adds.
+Color? _inkOf(InlineSpan span) {
+  Color? found;
+  void walk(InlineSpan s) {
+    if (found != null) return;
+    if (s is TextSpan) {
+      if (s.children == null || s.children!.isEmpty) {
+        found = s.style?.color;
+        return;
+      }
+      for (final child in s.children!) {
+        walk(child);
+      }
+    }
+  }
+  walk(span);
+  return found;
 }

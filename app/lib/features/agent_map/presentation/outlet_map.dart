@@ -9,7 +9,6 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/basemap.dart';
-import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
@@ -91,30 +90,31 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
     if (height <= 0) return const SizedBox.shrink();
 
     final offline = _failures >= AgentOutletMap.debugFailureThreshold;
-    return TorchBleed(
-      extra: skin.space.gutter * 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // The band is the map's height; the panel that replaces it takes its
-          // own. Reserving 300dp of nothing to say "there is no map" would
-          // spend the fold on an absence.
-          if (offline)
-            const _TilesOff()
-          else
-            SizedBox(
-              height: height,
-              child: _Basemap(view: widget.view, onTileError: _tileFailed),
-            ),
-          if (!offline) ...<Widget>[
-            SizedBox(height: skin.space.intraBlock),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: skin.space.gutter),
-              child: MapLegend(view: widget.view),
-            ),
-          ],
+    // ON THE GUTTER LINE, since 29 September 2026, and no longer bled to the
+    // screen's edges. A full-bleed band is the right shape for a square one —
+    // it reads as a *stratum* of the screen — and the wrong one for a card: a
+    // radius-22 object with its corners pressed against the bezel is the one
+    // rounded thing on the screen that does not hang off the same line as the
+    // header, the section markers and every row beneath it. The manager's live
+    // map sits on its panel's inset for the same reason.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // The band is the map's height; the panel that replaces it takes its
+        // own. Reserving 300dp of nothing to say "there is no map" would
+        // spend the fold on an absence.
+        if (offline)
+          const _TilesOff()
+        else
+          SizedBox(
+            height: height,
+            child: _Basemap(view: widget.view, onTileError: _tileFailed),
+          ),
+        if (!offline) ...<Widget>[
+          SizedBox(height: skin.space.intraBlock),
+          MapLegend(view: widget.view),
         ],
-      ),
+      ],
     );
   }
 }
@@ -173,13 +173,25 @@ class _Basemap extends StatelessWidget {
           maxZoom: 16,
         );
 
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: skin.palette.edgeStructure,
-              width: skin.depth.borderWidth,
-            ),
-          ),
+        // A CLIPPED CARD, since 29 September 2026, and not a square band
+        // inside a 1px `edgeStructure` frame.
+        //
+        // This is the same correction the manager's live-agent map took on
+        // The Floor's overview, in the same words its own comment uses:
+        // *"the card radius, not the panel's — every other object on this
+        // route is radius 22 and a 14 on the one rectangle big enough to
+        // notice reads as a different material."* Here it was not a 14, it was
+        // a **0**: the largest object on the agent's Map was the one thing on
+        // the screen with square corners and a drawn outline, above a list of
+        // radius-22 cards. That is what the owner is pointing at with *"the
+        // map is off on the agent side, it's not like the manager side."*
+        //
+        // The outline goes with the corners, for the reason a card has none:
+        // the tile raster is its own silhouette and a frame around a
+        // photograph is a second boundary saying what the picture already
+        // says. The manager's map carries no outline either.
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(skin.radii.card),
           child: FlutterMap(
             // Keyed on what is plotted, so a refreshed route re-fits rather
             // than keeping a camera pointed at yesterday's stores.
@@ -625,15 +637,15 @@ class _TilesOff extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
+    // It stands in the map band's own slot, so it takes the map band's own
+    // shape: radius 22, no outline. A square outlined block where a rounded
+    // one was is a screen that changes material when the signal drops.
     return Container(
       alignment: AlignmentDirectional.centerStart,
       padding: EdgeInsets.all(skin.space.gutter),
       decoration: BoxDecoration(
-        color: skin.palette.well,
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.card),
       ),
       child: EmptyState(
         headline: l10n.mapTilesOffTitle,

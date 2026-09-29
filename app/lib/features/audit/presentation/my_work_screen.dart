@@ -9,6 +9,7 @@ import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
@@ -405,28 +406,22 @@ class _Summary extends ConsumerWidget {
       ),
     };
 
-    // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty in
-    // Night and three stacked drops in Day, so this block floated on
-    // the Day ground while the outbox rows under it sat flat on it — two
-    // grammars on one screen, in the one skin where it shows. Neither
-    // `TorchCard` nor `SoftRow` paints a shadow in any skin. Everything else
-    // is the standalone row's material, which is what this is: unify §1.3
-    // names "the outbox summary" as one of that form's cases.
-    return DecoratedBox(
+    // A CARD, since 29 September 2026. It lost its shadow on 26 September and
+    // kept the standalone row's material — radius 14, `surface`, a 1px
+    // `edgeStructure` rim — while the outbox rows directly beneath it became
+    // radius-22 cards with no outline. Two grammars, one screen, and the
+    // harder one on top: this is the block the owner was looking at when they
+    // said the agent side is still rectangular.
+    //
+    // It is a card and not a panel because it is an *object*, in [TiqRadii]'s
+    // sense: the queue, as one thing, with the action that empties it. The
+    // manager's equivalent — The Floor's one figure block, Alerts' and Tasks'
+    // lead card — has been a `TorchCard` since the override.
+    return TorchCard(
       key: const ValueKey<String>('work-summary'),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
             // The state is ONE node for a screen reader, and it leads with the
             // state word. The button below is a second, separate node — a
             // summary that swallowed its own action would announce "12 items
@@ -485,17 +480,20 @@ class _Summary extends ConsumerWidget {
                   ? null
                   : () => ref.read(syncNowProvider)(),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
 /// The session ended under the queue. Not a load failure and not a stuck
-/// capture: the work is fine, the token is not. So the block wears the
-/// structural edge like every other surface — never crimson — and the "Sign
-/// in" amber inside it is the call to action (unify §1.13).
+/// capture: the work is fine, the token is not. So the block wears the card
+/// material like every other surface on this screen — never crimson — and the
+/// "Sign in" amber inside it is the call to action (unify §1.13).
+///
+/// It stands in the summary's own slot, so it takes the summary's own shape:
+/// two blocks that alternate in one position and disagree about their radius
+/// is a screen that changes material when the token expires.
 class _SignedOutBlock extends StatelessWidget {
   const _SignedOutBlock({required this.count});
 
@@ -505,17 +503,8 @@ class _SignedOutBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    return Container(
+    return TorchCard(
       key: const ValueKey<String>('signed-out'),
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

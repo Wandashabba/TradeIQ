@@ -2604,12 +2604,27 @@ most. Whole-screen gets a 64dp drawing from a **closed enum of three** — shelf
 pin, envelope — plus a display headline under the line-count fitting rule (1–2
 lines 40, 3 lines 32, 4+ 26, floor 26). In-panel and inline get **no drawing**.
 
-The three drawings are commissioned under **#404** and do not exist yet.
-`EmptyStateDrawing` ships a placeholder behind the same API: a crude
-single-stroke schematic inside a **dashed frame**. The dashed frame is the
-signal — no commissioned drawing in this system will ever sit inside one, so a
-dashed box on a screen means artwork pending and nothing else. #404 replaces
-`state/empty_drawing.dart` and no call site: the API is the enum. **A stock
+The three drawings are **drawn**, as of 29 September 2026. They spent months as
+a placeholder — a crude single-stroke schematic inside a **dashed frame**, on
+the argument that no commissioned drawing would ever sit inside one, so a
+dashed box meant artwork pending and nothing else. It shipped anyway, on every
+genuine empty state in the product, and the signal did not survive contact with
+a reader: on a phone a dashed box round a stick drawing reads as an image that
+failed to load, not as a note to the reviewer.
+
+They are drawn in `MarkShape`'s idiom one step larger — geometry against the
+shortest side, no `saveLayer`, no hatch, **drawn paths only**. One family rule:
+an outline at the declared 2dp stroke with exactly one solid part, because a
+line says "diagram" and a solid says "object". The shelf's boards, the pin's
+eye, the envelope's flap. `state_test.dart` counts the pixels: each drawing
+inks between 2% and 45% of its extent, the three differ from one another, and
+**nothing may ink the outer ring** — which is the assertion that stops the
+frame coming back.
+
+The scope #404 described is met: `state/empty_drawing.dart` changed and no call
+site did, the API is still the enum, and the enum is still closed at three.
+What #404 asked for and did not get is an **illustrator's** hand; whether it
+still wants one is an owner's call, and the ticket stays open for it. **A stock
 illustration is never imported**, which is the whole reason the enum is closed.
 
 **Error state.** `TorchErrorMessage` is a closed set of six kinds and the
@@ -2757,8 +2772,10 @@ filter because it is empty hides the fact that it is empty.
 
 ### 15.7 What is not built yet, and why
 
-* **The three empty-state drawings** (#404). The placeholder is deliberately
-  obvious; see §15.4.
+* **An illustrator's hand on the three empty-state drawings** (#404). The
+  drawings themselves landed on 29 September 2026 and the dashed placeholder is
+  gone; what is still open is whether the commission is wanted on top. See
+  §15.4.
 * **The amber text-field focus rule.** Argued above; one token, one allowlist
   entry, one claim when it lands.
 * **`Menu sheet`** — on the canonical list, still waiting on a screen that
@@ -3309,3 +3326,194 @@ a picture somebody reads as a broken screen.
 TASKS_LOOK=1 TASKS_LOOK_DIR=/somewhere/ flutter test \
   test/features/tasks/tasks_look_test.dart --update-goldens
 ```
+
+---
+
+## 20. The card override reaches the agent side — 29 September 2026
+
+The owner, looking at the running agent app beside the manager's:
+
+> *"Now look at the manager side of the app. The agent side is looking
+> completely off and not like the manager side. Please make them align and
+> don't change the manager side, it looks perfect"*
+
+and, looking again:
+
+> *"The agent side is still rectangular"*
+
+and, on the Map:
+
+> *"The map is off on the agent side, it's not like the manager side."*
+
+§9f did this for the Execution overview. This is the same job on the other
+surface, and the same sentence names it — *remove the rectangular style*.
+
+### The shape, named
+
+The card override (§9c, 25 September) moved every list row in the app to
+radius 22, a `surface` fill and no outline. §9d and §9f then moved the
+manager's **figure blocks** onto the same material: The Floor's lead card, the
+Alerts and Tasks lead cards, the overview's headline. The agent side got
+exactly one block of that treatment — Today's day block, 26 September — and
+the migration stopped there.
+
+So every agent screen opened with the same defect, and it is one defect
+repeated nine times:
+
+```text
+┌───────────────────────────────┐   radius 14, surface, 1px edgeStructure
+│ SECTIONS CAPTURED             │   ← the figure block
+│ 4/7   ( Ready to submit )     │
+└───────────────────────────────┘
+╭───────────────────────────────╮   radius 22, surface, no outline
+│ ◉  Stock & availability     › │   ← the rows under it
+╰───────────────────────────────╯
+```
+
+Two grammars, 20dp apart, on every screen an agent uses all day.
+
+### Panel or card, decided per use — not a blanket 14 → 22
+
+`TiqRadii` draws the line and §6 states it: **a panel is a container and a card
+is an object.** Thirteen agent uses of `radii.panel`, read one at a time:
+
+| use | what it is | ruling |
+|---|---|---|
+| `today/_NextUpCard` | the next store, at the head of a list of stop cards | **card** |
+| `my_work/_Summary` | the queue as one thing, with the action that empties it | **card** |
+| `my_work/_SignedOutBlock` | the summary's own slot in another state | **card** |
+| `audit_shell/_ReadinessBlock` | `4 / 7` — the hub's figure block | **card** |
+| `audit_shell/_DistanceHero` | the too-far figure block | **card**, and see below |
+| `submit_gate/_Captured` | the gate's figure block | **card** |
+| `submit_gate/_NothingToRaise` | a clean result, in the raised-task slot | **card** |
+| `s10/_ScoreHero` | the weighted total | **card** |
+| `pin_dispute/_Evidence` | the wrong-pin distance block | **card** |
+| `today/_TodaySkeleton`, `audit_shell/_HubSkeleton` | the two above, empty | **stays a panel** — see below |
+| `audit_shell/_CodeBlock` | a mono trough with a Copy action | **stays** — it is `radii.control` already, which is where §6 puts an input |
+| `section_photo` thumbnail | a 72dp photo tile | **stays** — `radii.control`, which is where §6 puts a thumbnail |
+| `today/_SequenceTile` | a glyph tile | **stays** — the chip material, §1.6 |
+| `section_photo/_FramingCard`, `guided_capture/_FramingCard` | a drawing and an instruction | **stays a panel** — a container, not an object in a list, and the second one is reached from the manager's task-closure flow |
+
+The reason they mostly land on *card* is not that 14 is wrong. It is that the
+agent side has **no instrument panels**: it has no AI cluster, its forms are
+full-screen routes, and its sheets are `TorchSheet`s. Every block the audit
+found was the standalone-row form of §1.3 doing a figure block's job, which is
+the job §9d gave to `TorchCard`.
+
+### The distance hero loses its bar, exactly as the overview did
+
+`_DistanceHero` was a radius-14 block with a 1px rim **and** a 3px crimson bar
+down its leading edge — the object §9f struck one day earlier and in these
+words: *"a crimson rectangle among radius-22 cards"*. The replacement is the
+one §9c already declares and `SoftRowSpec` already resolves: **the standing is
+an 8dp dot**, at the lane every card in the app reserves.
+
+Nothing is lost. The bar carried crimson and a straight edge; the dot carries
+the same crimson at the same commitment level, and the `criticalTriangle`
+beside the eyebrow and the sentence under the figure were already the two
+channels that survive greyscale, deuteranopia and a 40%-backlit 6-bit panel.
+What goes is a silhouette that only reads as severity on a **flush** row —
+inside a radius-22 card it is, in §9c's own words, a scratch on the fill.
+
+### The map
+
+`dashboard_shell_screen.dart` had already written the ruling, for the manager's
+live-agent map:
+
+> *"The card radius, not the panel's. Every other object on this route is
+> radius 22 and a 14 on the one rectangle big enough to notice reads as a
+> different material."*
+
+The agent's map was not a 14. It was a **0**: a square band, bled to both
+bezels, inside a drawn 1px `edgeStructure` frame — the largest object on the
+screen and the only one on it with corners. It is now a `ClipRRect` at
+`radii.card`, with no outline (the tile raster is its own silhouette; a frame
+around a photograph is a second boundary saying what the picture says), and it
+sits **on the gutter line** rather than full-bleed, because a rounded object
+with its corners against the bezel is the one card on the screen that does not
+hang off the line the header and every row hang off. `_TilesOff` takes the same
+shape, so the screen does not change material when the signal drops.
+
+**The territories map (`/territories/:id/map`) still has the square band.** It
+is a manager route and the manager side is frozen, so it was left alone and is
+recorded here as a known inconsistency on the console rather than fixed
+quietly. The two manager maps disagree with each other; the agent's now matches
+the one an owner actually looks at.
+
+### What the freeze forbade
+
+Three shared widgets were read for call sites before anything was touched, and
+one thing the approved mockup asks for could not be done:
+
+* **The skeletons keep the outline, and §1.11 is right about it.** The first
+  cut of this work gave `_TodaySkeleton`, `_HubSkeleton` and two
+  `SkeletonShell` call sites a radius-22 `surface` block, on the reading that
+  a skeleton draws the arriving object's own edge and the arriving object is
+  now a card. §1.11 says otherwise — "rows and panels are their real outline
+  at their real geometry, empty" — and the device floor is why it wins: a
+  `surface` block on the Night ground is **1.49:1**, one quantisation level on
+  a 6-bit panel at 40% backlight, so a filled card with no edge is a skeleton
+  nobody can see. This is the one place in the product where the placeholder
+  deliberately does not have the arriving object's silhouette. `SkeletonShell`
+  is therefore untouched, and **the only shared widget this work changes is
+  `count_stepper.dart`.**
+* **`CountStepper`'s finding figure was the last crimson row figure on Night.**
+  `count_stepper.dart` painted the value `bad` whenever a zero was a finding,
+  on both grounds, without reading `skin.standingColoursFigures` — so §9h's
+  rule was broken at a call site that never asked the token. It is gated now.
+  §9h's precondition is met four times over, so nothing is lost: the trough
+  wears the `finding` outline, the field carries the "Out of stock"
+  `StatusChip` at critical, the finding line says it in words, and a screen
+  reader hears "Zero." first. The hue was the fifth channel. **It moves no
+  manager pixel**, and not by luck: the control's other call site,
+  `orders/order_form_screen.dart:344`, passes `zeroIsFinding: false` — *"nought
+  on an order is a decision, not a finding"* — so the branch is unreachable
+  there. Day is untouched.
+* **`OfflineHeldBanner`** and **`BackgroundLocationBanner`** live in `core/`
+  and read as shared, but every renderer of both is an agent screen. They were
+  still left alone: a banner is a standing notice, not an object in a list.
+* **The section-state glyph tile is the one thing left undone, and it needs an
+  owner decision.** The approved agent mockup draws it at radius 11 with a
+  tinted fill and no border; the shipped `SectionStateGlyph` and `RowMarkTile`
+  draw a 28dp tile at `radii.chip` (6) inside a 2px `edgeControl` border, which
+  is the last boxy silhouette on the visit hub. Both are kit marks with manager
+  call sites — `visit_detail_screen.dart:925`, `first_run_board.dart:221`,
+  `proof_block.dart:100`, `person_row.dart:270` — so changing them moves the
+  manager side, and scoping them to the agent would ship two different
+  section-state glyphs in one kit, which is the drift the kit exists to
+  prevent. The right fix is to move both surfaces together, and that is a
+  change to §6's chip material, argued once, not applied to one screen.
+
+### The amber, unchanged
+
+The mockup carries four amber objects on Today at once — the stop tile, the
+CTA, the progress fill and the FAB. **The law is stricter than the mockup and
+the law came after it** (§3): Night is the nav's active tab plus one content
+object on a tabbed route, Day is one. Nothing here re-allocates a grant. Today
+still spends its one on "Check in here", My work on "Send now" (or "Sign in",
+never both), the hub on an armed "Submit visit" and nothing at all while it is
+blocked, the gate on its primary, and the Map declares only the nav circle. The
+amber census walks the real pixels on every one of those screens and passed
+unchanged.
+
+### Where it is looked at
+
+`app/test/features/goldens/agent_look_test.dart`, gated behind `AGENT_LOOK=1`
+with an `AGENT_LOOK_DIR` override, renders fourteen agent frames at 390×844 in
+**both** skins — Today, My work, the visit hub, the too-far check-in, the
+submit gate (populated and clean), the outcome, the store picker and the Map,
+several of them also on a 1800dp-tall device so a whole scroll is one picture.
+It is off in CI for the reason `floor_look_test.dart` gives. The agent side had
+only text goldens before this, and *"it looks rectangular"* is a judgement about
+shapes that a list of declared numbers cannot answer.
+
+```sh
+AGENT_LOOK=1 AGENT_LOOK_DIR=/somewhere/ flutter test \
+  test/features/goldens/agent_look_test.dart --update-goldens
+```
+
+**`grammar_look_test.dart` and `soft_look_test.dart` take no directory
+override** — they write straight into `test/features/goldens/goldens/`. Running
+either with `--update-goldens` rewrites committed files. They are skipped
+without their switch, so the committed set is compared against by nobody and
+regenerating it is always an accident.

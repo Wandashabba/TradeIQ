@@ -382,12 +382,26 @@ void main() {
         findsOneWidget,
       );
 
-      final block = tester.widget<Container>(
-        find.byKey(const ValueKey<String>('signed-out')),
+      // NEVER CRIMSON — and since 29 September 2026 it has no edge at all to
+      // be crimson with. The block was a hand-built radius-14 surface inside
+      // a 1px `edgeStructure` rim, and this assertion read that rim's colour
+      // to prove it was structural rather than a severity. The block is now
+      // the card material the outbox rows beneath it already wore — radius
+      // 22, `surface`, no outline — so the claim is made against what a card
+      // actually has: the fill, and the absence of a border.
+      final block = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey<String>('signed-out')),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
       );
-      final edge = ((block.decoration! as BoxDecoration).border! as Border).top;
-      expect(edge.color, skin.palette.edgeStructure);
-      expect(edge.color, isNot(skin.palette.bad));
+      final decoration = block.decoration as BoxDecoration;
+      expect(decoration.color, skin.palette.surface);
+      expect(decoration.color, isNot(skin.palette.bad));
+      expect(decoration.border, isNull);
+      expect(decoration.borderRadius, BorderRadius.circular(skin.radii.card));
 
       final row = await _see(tester, 5);
       expect(row.state, isNot(OutboxState.stuck));

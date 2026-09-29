@@ -506,7 +506,20 @@ class _DayBlock extends StatelessWidget {
   }
 }
 
-/// THE NEXT STORE — a standalone row with the screen's one commit on it.
+/// THE NEXT STORE — the one store the agent is about to walk into, with the
+/// screen's one commit on it.
+///
+/// **A card, since 29 September 2026.** It was the standalone row's material —
+/// radius 14, `surface`, a 1px `edgeStructure` rim — and it sat between the day
+/// block above it (a `TorchCard` since 26 September) and the stop rows below it
+/// (radius-22 cards with no outline since the 25 September override). Three
+/// grammars down one 390dp column, and the owner read the middle one as the
+/// odd shape: *"the agent side is still rectangular"*.
+///
+/// It is a card and not a panel by the distinction [TiqRadii] draws: a panel is
+/// a container and a card is an object. This is the same object as the rows
+/// under it — a store on the plan — held one step apart by being the next one,
+/// which is a difference in position and in what it carries, not in material.
 class _NextUpCard extends StatelessWidget {
   const _NextUpCard({required this.stop, required this.hasLocation});
 
@@ -518,25 +531,9 @@ class _NextUpCard extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
-    // NO SHADOW. `skin.depth.shadows` is empty in Night and three stacked
-    // drops in Day, so this block floated on the Day ground while the
-    // cards beside it sat flat on it — two grammars on one screen, in the one
-    // skin where it shows. Neither `TorchCard` nor `SoftRow` paints a shadow
-    // in any skin, and this is the standalone row's material: radius 14,
-    // `surface`, a 1px `edgeStructure` rim (unify §1.3).
-    return DecoratedBox(
+    return TorchCard(
       key: const ValueKey<String>('next-stop'),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        child: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // The meta line, at the sizes the surface declares: the sequence in
@@ -574,8 +571,7 @@ class _NextUpCard extends StatelessWidget {
             icon: Icons.chevron_right,
             onPressed: () => context.go('/audit/${stop.outlet.id}'),
           ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -856,6 +852,13 @@ class _TodaySkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    // THE SKELETON KEEPS THE OUTLINE, and it is the one place on this screen
+    // that still does. unify §1.11 is explicit — "rows and panels are their
+    // real outline at their real geometry, empty" — and the reason is the
+    // device floor: a `surface` block on the Night ground is 1.49:1, which is
+    // one quantisation level on a 6-bit panel at 40% backlight, so a filled
+    // card with no edge is a skeleton nobody can see. The blocks arriving are
+    // cards; their placeholder is drawn at the edge you can actually find.
     Widget block(double height) => Container(
       height: height,
       decoration: BoxDecoration(

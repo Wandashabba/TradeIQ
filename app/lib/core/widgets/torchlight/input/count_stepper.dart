@@ -248,8 +248,34 @@ class _CountStepperState extends State<CountStepper> {
           : TroughState.filled,
     );
 
+    // THE FINDING'S HUE IS THE SKIN'S CALL, not this widget's — 29 September
+    // 2026. A zero that raises a task painted the figure `bad` on both
+    // grounds, which is §9h's rule broken at a call site that never asked the
+    // token: on Night a figure is luminous bone and the verdict lives on the
+    // mark beside it, and a crimson number on a near-black ground is *darker*
+    // than the ink around it, so the loudest object on the screen becomes the
+    // dimmest. `standingInk` and `severityInk` both read
+    // `skin.standingColoursFigures`; this one did not, so it is the last
+    // crimson row figure in the product on Night.
+    //
+    // §9h's own precondition is met four times over, so nothing is lost: the
+    // trough wears the `finding` state's outline, the field carries the
+    // "Out of stock" `StatusChip` at critical, the finding line says it in
+    // words, and the screen reader hears "Zero. <findingLine>". The hue was
+    // the fifth channel.
+    //
+    // Day is untouched — `standingColoursFigures` is true on paper, where a
+    // page of figures in one colour is the opposite problem.
+    //
+    // The other call site, `orders/order_form_screen.dart`, passes
+    // `zeroIsFinding: false` ("nought on an order is a decision, not a
+    // finding"), so it cannot reach this branch at all.
+    // `spec.ink` is `bad` for the whole finding state, so the fall-through
+    // has to name `ink1` rather than defer to it — the trough is right to
+    // wear the finding everywhere else, and the FIGURE is the one part of it
+    // §9h takes back on a near-black ground.
     final figureInk = _isFinding
-        ? skin.palette.bad
+        ? (skin.standingColoursFigures ? skin.palette.bad : skin.palette.ink1)
         : widget.value == null
         ? skin.palette.ink3
         : spec.ink;
