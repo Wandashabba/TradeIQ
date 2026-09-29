@@ -233,6 +233,11 @@ Future<void> pumpVisit(
   SyncStatus sync = SyncStatus.empty,
   bool progressThrows = false,
   bool settle = true,
+  // 360×640 stays the default because the amber census is a function of the
+  // fold and every existing test here is measured on that phone. The look
+  // harness (`agent_look_test.dart`) asks for 390×844, which is the size the
+  // manager screens are photographed at.
+  Size size = const Size(360, 640),
   List<Override> extraOverrides = const <Override>[],
 }) async {
   final db = agentTestDb();
@@ -240,6 +245,7 @@ Future<void> pumpVisit(
     tester,
     const AuditShellScreen(outletId: 'o1'),
     path: '/audit/o1',
+    size: size,
     overrides: <Override>[
       ...agentBaseOverrides(db: db, skin: skin, sync: sync),
       outletsRepositoryProvider.overrideWithValue(
