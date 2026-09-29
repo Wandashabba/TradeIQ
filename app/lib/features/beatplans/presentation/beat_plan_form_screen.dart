@@ -288,7 +288,7 @@ class _BeatPlanFormState extends ConsumerState<_BeatPlanForm> {
                   setState(() => _territoryId = id.isEmpty ? null : id),
             ),
           ),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: skin.space.blockGap),
 
           outlets.when(
             loading: () => Skeleton(
@@ -404,7 +404,7 @@ class _StopBuilder extends StatelessWidget {
           count: selectedIds.isEmpty ? null : selectedIds.length,
           emptyLine: selectedIds.isEmpty ? l10n.beatPlanFormStopsEmpty : null,
         ),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         if (selectedIds.isNotEmpty)
           TorchBleed(
             extra: gutter.left * 2,
@@ -461,14 +461,14 @@ class _StopBuilder extends StatelessWidget {
               ],
             ),
           ),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
 
         SectionRule(
           l10n.beatPlanFormAvailableHeading,
           count: available.isEmpty ? null : available.length,
           emptyLine: available.isEmpty ? l10n.beatPlanFormAvailableEmpty : null,
         ),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         if (available.isNotEmpty)
           TorchBleed(
             extra: gutter.left * 2,

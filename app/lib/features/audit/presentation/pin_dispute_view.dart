@@ -151,7 +151,7 @@ class _PinDisputeViewState extends ConsumerState<PinDisputeView> {
       ),
       children: <Widget>[
         Eyebrow(l10n.pinDisputeEyebrow),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         Semantics(
           header: true,
           child: Text(
@@ -162,15 +162,15 @@ class _PinDisputeViewState extends ConsumerState<PinDisputeView> {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         _Evidence(metres: metres, photo: photo != null),
-        const SizedBox(height: TiqSpace.s5),
+        SizedBox(height: skin.space.blockGap),
         Text(
           l10n.pinDisputeExplain,
           key: const ValueKey<String>('pin-dispute-explain'),
           style: skin.text.body.style(color: skin.palette.ink2),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         TorchTextField(
           key: const ValueKey<String>('pin-dispute-note'),
           label: l10n.pinDisputeNoteLabel,
@@ -181,7 +181,7 @@ class _PinDisputeViewState extends ConsumerState<PinDisputeView> {
           minLines: 2,
           maximumLines: 5,
         ),
-        const SizedBox(height: TiqSpace.s5),
+        SizedBox(height: skin.space.blockGap),
         if (photo != null) ...<Widget>[
           Text(
             l10n.pinDisputePhotoAdded,
@@ -202,7 +202,7 @@ class _PinDisputeViewState extends ConsumerState<PinDisputeView> {
           ),
         ),
         if (error != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: skin.space.intraBlock),
           Text(
             l10n.pinDisputeFailed(error),
             key: const ValueKey<String>('pin-dispute-error'),
@@ -227,7 +227,7 @@ class _Evidence extends StatelessWidget {
     final l10n = context.l10n;
 
     Widget line(String text) => Padding(
-      padding: const EdgeInsets.only(top: TiqSpace.s3),
+      padding: EdgeInsets.only(top: skin.space.intraBlock),
       child: Text(text, style: skin.text.body.style(color: skin.palette.ink2)),
     );
 
@@ -244,7 +244,7 @@ class _Evidence extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Eyebrow(l10n.pinDisputeEvidenceEyebrow),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           Semantics(
             container: true,
             label: l10n.pinDisputeDistanceSemantics(metres),

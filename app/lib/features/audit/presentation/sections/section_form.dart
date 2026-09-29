@@ -358,11 +358,11 @@ class SectionFormState extends ConsumerState<SectionForm> {
           widget.intro!,
           style: skin.text.body.style(color: skin.palette.ink2),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
       ],
       if (skip != null) ...<Widget>[
         _CantConfirmLine(skip: skip, onUndo: _unskip),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
       ],
       // Locked, not dimmed: opacity is banned as a state channel, so the
       // answers stay legible and the controls simply stop answering. The line
@@ -373,25 +373,25 @@ class SectionFormState extends ConsumerState<SectionForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             for (final (i, group) in widget.children.indexed) ...<Widget>[
-              if (i > 0) const SizedBox(height: TiqSpace.s7),
+              if (i > 0) SizedBox(height: skin.space.blockGap),
               group,
             ],
             if (widget.photo != null) ...<Widget>[
-              const SizedBox(height: TiqSpace.s7),
+              SizedBox(height: skin.space.blockGap),
               widget.photo!,
             ],
           ],
         ),
       ),
       if (widget.readOnlyActions.isNotEmpty) ...<Widget>[
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         for (final action in widget.readOnlyActions) ...<Widget>[
           Align(alignment: AlignmentDirectional.centerStart, child: action),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
         ],
       ],
       if (widget.onSave != null && skip == null) ...<Widget>[
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         _SaveAction(
           state: state,
           onSave: _save,
@@ -399,16 +399,16 @@ class SectionFormState extends ConsumerState<SectionForm> {
         ),
         if (state == SectionSavePhase.saved &&
             widget.savedLine != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           _SavedLine(line: widget.savedLine!, at: _savedAt!),
         ],
         if (state == SectionSavePhase.failed) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           const _FailedLine(),
         ],
       ],
       if (widget.skip != null && skip == null) ...<Widget>[
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
@@ -579,7 +579,7 @@ class _CantConfirmLine extends StatelessWidget {
           l10n.sectionCantConfirmHeld,
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TorchTertiaryButton(
@@ -620,13 +620,13 @@ class _LeaveSheet extends StatelessWidget {
             label: l10n.sectionSaveAndBack,
             onPressed: () => Navigator.of(context).pop(_LeaveOutcome.save),
           ),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: context.skin.space.intraBlock),
           TorchSecondaryButton(
             key: const ValueKey<String>('leave-discard'),
             label: l10n.sectionLeaveWithoutSaving,
             onPressed: () => Navigator.of(context).pop(_LeaveOutcome.discard),
           ),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: context.skin.space.intraBlock),
           Align(
             child: TorchTertiaryButton(
               key: const ValueKey<String>('leave-stay'),
@@ -762,7 +762,7 @@ class SectionEntries extends StatelessWidget {
             emptyLine!,
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
         ],
         for (final (i, entry) in entries.indexed) ...<Widget>[
           _Entry(
@@ -862,9 +862,9 @@ class _Entry extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         child,
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
       ],
     );
   }

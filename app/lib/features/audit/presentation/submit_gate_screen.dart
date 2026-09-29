@@ -147,7 +147,7 @@ class SubmitGateScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: TiqSpace.s5),
+              SizedBox(height: context.skin.space.blockGap),
             ],
             ...children,
           ],
@@ -207,14 +207,14 @@ class SubmitGateScreen extends ConsumerWidget {
                   color: context.skin.palette.ink2,
                 ),
               ),
-              const SizedBox(height: TiqSpace.s4),
+              SizedBox(height: context.skin.space.intraBlock),
               _CapturedBlock(
                 sectionsDone: progress?.doneCount,
                 sectionsTotal: progress?.captureCount,
                 line: review.capturedLineIn(l10n),
                 unconfirmed: cantConfirm.length,
               ),
-              const SizedBox(height: TiqSpace.s7),
+              SizedBox(height: context.skin.space.blockGap),
               if (raised == 0 && !progressUnread)
                 const _NothingToRaise()
               else ...<Widget>[
@@ -250,7 +250,7 @@ class SubmitGateScreen extends ConsumerWidget {
                 // The whole sentence, off the row: a row caps its lines, and
                 // this is the one line on the gate that must not be cut.
                 if (progressUnread) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   Text(
                     l10n.submitSectionsUnreadNote,
                     key: const ValueKey<String>('submit-sections-unread-note'),
@@ -260,7 +260,7 @@ class SubmitGateScreen extends ConsumerWidget {
                   ),
                 ],
                 if (raised > 0) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   Text(
                     l10n.submitAccusation(raised),
                     style: context.skin.text.meta.style(
@@ -393,7 +393,7 @@ class _CapturedBlock extends StatelessWidget {
             // not a section somebody skipped, and it is excluded from the
             // readiness count rather than failing it.
             if (unconfirmed > 0) ...<Widget>[
-              const SizedBox(height: TiqSpace.s3),
+              SizedBox(height: skin.space.intraBlock),
               Row(
                 key: const ValueKey<String>('submit-unconfirmed'),
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,9 +611,9 @@ class _GateSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         SkeletonLine(role: skin.text.body, widthFactor: 0.9),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
 const SkeletonShell(height: 96, outlined: true),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         const SkeletonRows(count: 3),
       ],
     );

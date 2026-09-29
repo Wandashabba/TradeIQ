@@ -299,7 +299,7 @@ class _ScoredState extends ConsumerState<_Scored> {
           ],
         ),
         if (changed) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           ReconciliationLine(
             key: const ValueKey<String>('outcome-reconciled'),
             finalValue: total,
@@ -313,7 +313,7 @@ class _ScoredState extends ConsumerState<_Scored> {
             semanticsLabel: l10n.outcomeReconciledSemantics(total, seenBefore),
           ),
         ],
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         SectionRule(l10n.outcomeHowScored),
         const SizedBox(height: TiqSpace.s5),
         for (final (i, entry) in kDimensionLabels.entries.indexed)
@@ -464,7 +464,7 @@ class _DimensionRow extends StatelessWidget {
       excludeSemantics: true,
       child: Padding(
         key: ValueKey<String>('dimension-$label'),
-        padding: EdgeInsets.only(bottom: last ? 0 : TiqSpace.s3),
+        padding: EdgeInsets.only(bottom: last ? 0 : skin.space.intraBlock),
         child: TorchCard(
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,21 +557,21 @@ class _HeldOnPhone extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           Text(
             unreachable
                 ? l10n.outcomeHeldBodyUnreachable
                 : l10n.outcomeHeldBodyNoSignal,
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: skin.space.blockGap),
           OfflineHeldBanner(
             key: const ValueKey<String>('outcome-held-banner'),
             state: SyncState.held,
             label: l10n.outcomeScoredWhenSends,
             subtitle: l10n.outcomeScoredOnServer,
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           // Not showing a number here is deliberate, and worth one sentence:
           // an agent shown 74 in the shop who finds 68 in the morning will not
           // trust the third one. The refusal is stated, not left as a gap.
@@ -601,7 +601,7 @@ class _ScoringSkeleton extends StatelessWidget {
           SkeletonLine(role: skin.text.eyebrow, widthFactor: 0.4),
           const SizedBox(height: TiqSpace.s2),
           SkeletonLine(role: skin.text.heroFigure, widthFactor: 0.5),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: skin.space.blockGap),
           const SkeletonRows(count: 6, rowHeight: 64),
         ],
       ),
