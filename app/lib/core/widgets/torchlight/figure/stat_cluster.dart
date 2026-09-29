@@ -41,9 +41,12 @@ class StatCluster extends StatelessWidget {
          'reader least often acts on; it belongs in the table twin, not in '
          'the fold.',
        ),
-       assert(tiles.isNotEmpty, 'StatCluster: an empty cluster is an empty '
-           'state, not a cluster. Render the empty state instead — a cluster '
-           'of four em dashes reads as a broken screen.');
+       assert(
+         tiles.isNotEmpty,
+         'StatCluster: an empty cluster is an empty '
+         'state, not a cluster. Render the empty state instead — a cluster '
+         'of four em dashes reads as a broken screen.',
+       );
 
   final List<StatTile> tiles;
 
@@ -67,8 +70,8 @@ class StatCluster extends StatelessWidget {
       label: semanticsLabel,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final column = constraints.maxWidth < StatTile.consoleWidth ||
-              tiles.length == 1;
+          final column =
+              constraints.maxWidth < StatTile.consoleWidth || tiles.length == 1;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

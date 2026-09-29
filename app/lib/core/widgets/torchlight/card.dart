@@ -22,12 +22,7 @@ import '../../theme/torchlight/tiq_skin.dart';
 /// Cost: one `DecoratedBox`. No shadow, no gradient, no `saveLayer`, and
 /// nothing that may not appear inside a `ListView.builder`.
 class TorchCard extends StatelessWidget {
-  const TorchCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.fill,
-  });
+  const TorchCard({super.key, required this.child, this.padding, this.fill});
 
   final Widget child;
 

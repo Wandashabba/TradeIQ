@@ -115,11 +115,11 @@ class TorchFilterChip extends StatelessWidget {
       ink = p.ink2;
     }
 
-    final labelStyle = skin.text.label
-        .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w500)
-        .style(color: ink);
-
-    final children = <Widget>[
+    // Built per frame against the ink the fade is currently on, so the mark,
+    // the label and the count arrive with the fill rather than a frame ahead
+    // of it. The WEIGHT does not animate and must not: 500 → 700 is one of the
+    // two non-motion channels that carry `selected` on their own.
+    List<Widget> childrenWith(Color ink) => <Widget>[
       if (selected)
         TiqMark(
           shape: MarkShape.sectionTickDisc,
@@ -133,7 +133,9 @@ class TorchFilterChip extends StatelessWidget {
       Flexible(
         child: Text(
           label,
-          style: labelStyle,
+          style: skin.text.label
+              .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w500)
+              .style(color: ink),
           // Never ellipsised: a truncated filter name is a filter you cannot
           // identify. At 2.0× the chip grows and wraps instead.
           maxLines: 2,
@@ -162,27 +164,54 @@ class TorchFilterChip extends StatelessWidget {
       child: TorchPressable(
         onPressed: onSelected,
         borderRadius: radius,
-        builder: (context, pressed) => Container(
-          constraints: BoxConstraints(minHeight: heightFor(skin)),
-          decoration: BoxDecoration(
-            color: pressed ? torchPressSurface(skin).fill : fill,
-            borderRadius: radius,
-            // A DISABLED CHIP KEEPS ITS OUTLINE. It has no fill to be seen by
-            // and `inkMute` on the bare ground is the one state where the
-            // silhouette really is all there is.
-            border: enabled
-                ? null
-                : Border.all(
-                    color: p.inkMute,
-                    width: skin.depth.borderWidth,
-                  ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: TiqSpace.s3,
-            vertical: TiqSpace.s2,
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: children),
-        ),
+        // `TiqMotion.press` is documented as "press, toggle, CHIP SELECT" —
+        // this is the third of those, and the one that was still snapping. A
+        // filter rail is the manager's most-tapped control on Tasks and on
+        // Alerts, and selecting a chip moved the fill, the ink, the glyph and
+        // the count all in a single frame.
+        //
+        // The two non-motion channels are untouched and still carry the state
+        // on their own: the label steps to 700 and the tick disc appears.
+        builder: (context, pressed) {
+          final duration = torchStateDuration(context, TiqMotion.press);
+          // The chip's ink is chosen against `fill` and deliberately does NOT
+          // step on press — that is the existing behaviour and this change is
+          // motion only. (It leaves a real contrast bug alone on purpose: a
+          // *selected* Day chip presses to the pale `well` while keeping the
+          // Palladian ink it was given for the dark `lifted`. Reported, not
+          // fixed here, because fixing it is a rendering change and this
+          // branch is not allowed to make one.)
+          return TorchInk(
+            color: ink,
+            duration: duration,
+            builder: (context, ink) => AnimatedContainer(
+              duration: duration,
+              curve: TiqMotion.stateCurve,
+              constraints: BoxConstraints(minHeight: heightFor(skin)),
+              decoration: BoxDecoration(
+                color: pressed ? torchPressSurface(skin).fill : fill,
+                borderRadius: radius,
+                // A DISABLED CHIP KEEPS ITS OUTLINE. It has no fill to be seen
+                // by and `inkMute` on the bare ground is the one state where
+                // the silhouette really is all there is.
+                border: enabled
+                    ? null
+                    : Border.all(
+                        color: p.inkMute,
+                        width: skin.depth.borderWidth,
+                      ),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: TiqSpace.s3,
+                vertical: TiqSpace.s2,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: childrenWith(ink),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

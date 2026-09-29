@@ -155,15 +155,11 @@ class DecisionRow extends StatelessWidget {
           // carries the level. Colour is not the only signal here and never
           // was — `severity` paints that dot and `severityLabel` is announced
           // first in this row's own semantics label, below.
-          color: severityInk(
-            skin,
-            switch (severity) {
-              SoftRowSeverity.critical => SeverityMarkKind.critical,
-              SoftRowSeverity.watch => SeverityMarkKind.watch,
-              SoftRowSeverity.none => null,
-            },
-            state: figureState,
-          ),
+          color: severityInk(skin, switch (severity) {
+            SoftRowSeverity.critical => SeverityMarkKind.critical,
+            SoftRowSeverity.watch => SeverityMarkKind.watch,
+            SoftRowSeverity.none => null,
+          }, state: figureState),
           textAlign: TextAlign.end,
           semanticsLabel: valueSemanticsLabel,
         ),

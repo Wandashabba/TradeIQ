@@ -130,7 +130,10 @@ class TrendChart extends StatefulWidget {
 /// Public and static so the legend swatch, the run, the area wash and the end
 /// dot cannot drift apart — a key whose swatch is a different colour from the
 /// line it names is worse than no key.
-Color subjectInk(TiqSkin skin, SeverityMarkKind? standing) => switch (standing) {
+Color subjectInk(
+  TiqSkin skin,
+  SeverityMarkKind? standing,
+) => switch (standing) {
   // The word grade, not the mark grade: a 2dp run is a hairline at arm's
   // length and Night's `badSolid` is 3.21:1 on `raised`.
   SeverityMarkKind.critical || SeverityMarkKind.watch => skin.palette.bad,
@@ -209,12 +212,8 @@ class _TrendChartState extends State<TrendChart> {
                 unit: widget.unit,
                 decimals: widget.decimals,
                 number: TiqNumber.of(context),
-                axisStyle: skin.text.axisLabel.style(
-                  color: skin.palette.ink3,
-                ),
-                figureStyle: skin.text.figureS.style(
-                  color: skin.palette.ink1,
-                ),
+                axisStyle: skin.text.axisLabel.style(color: skin.palette.ink3),
+                figureStyle: skin.text.figureS.style(color: skin.palette.ink1),
                 axisScale:
                     TiqTextScale.sizeOf(
                       MediaQuery.maybeTextScalerOf(context) ??
@@ -282,7 +281,6 @@ class _TrendChartState extends State<TrendChart> {
     );
   }
 }
-
 
 /// THE PLOT. Public so its arithmetic can be exercised without a widget tree.
 ///
@@ -417,8 +415,8 @@ class TrendChartPainter extends CustomPainter {
   /// other. The previous build reserved a doubled band and then drew 12dp
   /// labels into it.
   late final TextStyle _axis = axisStyle.copyWith(
-    fontSize: (axisStyle.fontSize ?? TrendChartPainter.axisBand / 2) *
-        axisScale,
+    fontSize:
+        (axisStyle.fontSize ?? TrendChartPainter.axisBand / 2) * axisScale,
   );
 
   late final TextStyle _figure = figureStyle.copyWith(
@@ -543,37 +541,44 @@ class TrendChartPainter extends CustomPainter {
     }
     final run = subjectInk ?? skin.palette.chartNeutral;
     final wash = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: <Color>[
-          run.withValues(alpha: 0.26),
-          run.withValues(alpha: 0.08),
-          run.withValues(alpha: 0),
-        ],
-        // A mid stop, so the wash falls away quickly under the run and is
-        // genuinely gone by the baseline. A straight two-stop ramp over a
-        // 170dp band leaves 11% alpha across the middle third, which reads as
-        // a tinted block with a soft top rather than as a fade.
-        stops: const <double>[0, 0.55, 1],
-      ).createShader(
-        Rect.fromLTRB(
-          plot.left,
-          crest,
-          plot.right,
-          math.max(crest + 1, plot.bottom),
-        ),
-      );
-    _runs(readings, x: x, y: y, count: count, onRun: (points) {
-      if (points.length < 2) return;
-      canvas.drawPath(
-        monotonePath(points)
-          ..lineTo(points.last.dx, plot.bottom)
-          ..lineTo(points.first.dx, plot.bottom)
-          ..close(),
-        wash,
-      );
-    });
+      ..shader =
+          LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              run.withValues(alpha: 0.26),
+              run.withValues(alpha: 0.08),
+              run.withValues(alpha: 0),
+            ],
+            // A mid stop, so the wash falls away quickly under the run and is
+            // genuinely gone by the baseline. A straight two-stop ramp over a
+            // 170dp band leaves 11% alpha across the middle third, which reads as
+            // a tinted block with a soft top rather than as a fade.
+            stops: const <double>[0, 0.55, 1],
+          ).createShader(
+            Rect.fromLTRB(
+              plot.left,
+              crest,
+              plot.right,
+              math.max(crest + 1, plot.bottom),
+            ),
+          );
+    _runs(
+      readings,
+      x: x,
+      y: y,
+      count: count,
+      onRun: (points) {
+        if (points.length < 2) return;
+        canvas.drawPath(
+          monotonePath(points)
+            ..lineTo(points.last.dx, plot.bottom)
+            ..lineTo(points.first.dx, plot.bottom)
+            ..close(),
+          wash,
+        );
+      },
+    );
 
     // ── The baseline. `edge-structure`, not ink-1: an axis is chrome, and
     // chrome painted in the brightest ink in the palette outshouts a 2dp data

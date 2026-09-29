@@ -84,10 +84,7 @@ class NotMeasured extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 8),
-        Text(
-          reason,
-          style: skin.text.meta.style(color: skin.palette.ink3),
-        ),
+        Text(reason, style: skin.text.meta.style(color: skin.palette.ink3)),
       ],
     );
   }

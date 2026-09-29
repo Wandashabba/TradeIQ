@@ -190,10 +190,8 @@ class TiqPlate extends StatelessWidget {
   /// makes that bake **two** bakes or one untoned original plus this filter;
   /// until it is decided, the filter stays and a baked pixel must not be
   /// toned twice.
-  static ColorFilter toneFor(TiqPalette palette) => plateTone(
-    ceiling: palette.plateCeiling,
-    lift: palette.plateLift,
-  );
+  static ColorFilter toneFor(TiqPalette palette) =>
+      plateTone(ceiling: palette.plateCeiling, lift: palette.plateLift);
 
   @override
   Widget build(BuildContext context) {
@@ -334,10 +332,26 @@ List<double> plateToneMatrix({
   // The fifth column is added in 0..255 space, not 0..1. See above.
   final double offset = lift * 255;
   return <double>[
-    sr * (lumaR * drop + keep), sr * lumaG * drop, sr * lumaB * drop, 0, offset,
-    sg * lumaR * drop, sg * (lumaG * drop + keep), sg * lumaB * drop, 0, offset,
-    sb * lumaR * drop, sb * lumaG * drop, sb * (lumaB * drop + keep), 0, offset,
-    0, 0, 0, 1, 0,
+    sr * (lumaR * drop + keep),
+    sr * lumaG * drop,
+    sr * lumaB * drop,
+    0,
+    offset,
+    sg * lumaR * drop,
+    sg * (lumaG * drop + keep),
+    sg * lumaB * drop,
+    0,
+    offset,
+    sb * lumaR * drop,
+    sb * lumaG * drop,
+    sb * (lumaB * drop + keep),
+    0,
+    offset,
+    0,
+    0,
+    0,
+    1,
+    0,
   ];
 }
 
