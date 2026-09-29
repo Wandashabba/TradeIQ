@@ -98,7 +98,7 @@ class _Picker extends ConsumerWidget {
               onPressed: () => ref.invalidate(assignedOutletsProvider),
             ),
           ),
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: context.skin.space.intraBlock),
           // What the failure did not touch, said at `meta` under the error —
           // an agent who cannot load the store list is otherwise left
           // wondering about the captures on the phone.
@@ -121,7 +121,7 @@ class _Picker extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(onlyMyTerritoriesProvider.notifier).set(value),
           ),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: context.skin.space.blockGap),
           if (list.isEmpty)
             EmptyState(
               headline: l10n.pickerEmptyTitle,
@@ -244,7 +244,7 @@ class _ScopeControl extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         // THE HONESTY LINE. A narrowed list must announce that it is narrowed
         // and where the rest are — and it says the count, so "nothing here"
         // and "nothing anywhere" are never the same sentence.

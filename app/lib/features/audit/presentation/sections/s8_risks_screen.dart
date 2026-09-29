@@ -128,7 +128,7 @@ class _S8State extends ConsumerState<S8RisksScreen> {
                     ),
                   ),
                   if (entry.severity != 'normal') ...<Widget>[
-                    const SizedBox(height: TiqSpace.s3),
+                    SizedBox(height: context.skin.space.intraBlock),
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: StatusChip(
