@@ -9,6 +9,7 @@ import {
 import { addDays } from './calendar';
 import { DEMO_CLIENT_ID, TERRITORIES } from './catalog';
 import { seedDemoData } from './index';
+import { GENERATED, SUPPLIED, isPlaceImageSource } from './placeImages';
 import { resetDemoData } from './reset';
 
 const prisma = new PrismaClient();
@@ -84,11 +85,18 @@ describe('seedDemoData (end to end)', () => {
     }
   });
 
-  it('gives every territory a place image, marked as generated, and the '
+  it('gives every territory a place image, marked with what it is, and the '
     + 'footprint one of its own', async () => {
     const images = await prisma.placeImage.findMany({
       where: { clientId: DEMO_CLIENT_ID },
-      select: { territoryId: true, source: true, generator: true, url: true, mimeType: true },
+      select: {
+        territoryId: true,
+        source: true,
+        generator: true,
+        prompt: true,
+        url: true,
+        mimeType: true,
+      },
     });
 
     // One per territory plus the null-territory footprint row, which is what
@@ -101,17 +109,36 @@ describe('seedDemoData (end to end)', () => {
     for (const image of images) {
       // THE MARK. It travels from the manifest to here to the API's
       // `X-Image-Source` header to a sentence the plate speaks. A row without
-      // it is a generated picture nothing downstream can tell from a capture.
-      expect(image.source).toBe('generated');
-      expect(image.generator).toMatch(/^gemini-/);
+      // it is a picture nothing downstream can describe truthfully — neither
+      // as the illustration a model made nor as the photograph the owner
+      // supplied.
+      expect(isPlaceImageSource(image.source)).toBe(true);
+      if (image.source === GENERATED) {
+        expect(image.generator).toMatch(/^gemini-/);
+        expect(image.prompt).not.toBeNull();
+      } else {
+        // A supplied photograph has no model and no prompt. Null, not blank:
+        // "does not apply" is a different fact from "we forgot".
+        expect(image.generator).toBeNull();
+        expect(image.prompt).toBeNull();
+      }
       expect(image.url.startsWith(`data:${image.mimeType};base64,`)).toBe(true);
     }
 
+    // Both sources actually reach the database, so neither branch above is
+    // vacuously green — the owner supplied six of the fourteen on
+    // 29 September 2026 and the rest are still generated.
+    expect(images.some((i) => i.source === GENERATED)).toBe(true);
+    expect(images.some((i) => i.source === SUPPLIED)).toBe(true);
+
     // AND NOT IN `photos`. That table is evidence — visit sections, the review
     // strip, the pin-dispute storefront — and a place image must never be
-    // reachable by a query looking for one.
+    // reachable by a query looking for one. Both sources, because a real
+    // photograph of Bloemfontein is a picture of a place and not a reading of
+    // a shelf in it: the separation is structural, not a property of how the
+    // picture was made.
     const leaked = await prisma.photo.count({
-      where: { clientId: DEMO_CLIENT_ID, source: 'generated' },
+      where: { clientId: DEMO_CLIENT_ID, source: { in: [GENERATED, SUPPLIED] } },
     });
     expect(leaked).toBe(0);
   });

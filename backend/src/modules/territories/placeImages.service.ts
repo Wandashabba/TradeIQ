@@ -16,10 +16,13 @@ import { NotFoundError } from '../../middleware/errorHandler';
  * picture above a list of shelf decisions must not be mistakable for a reading
  * of one of them.
  *
- * Every row today is `source: 'generated'` — made once by
- * `scripts/generate-place-images.ts`, committed, and loaded off disk by the
- * seed. The marker leaves with the bytes (`X-Image-Source`) so the client can
- * say so out loud rather than assume.
+ * Every row carries a `source`: `generated` for one made by
+ * `scripts/generate-place-images.ts`, `supplied` for a photograph the owner
+ * handed over and `scripts/import-place-images.ts` brought in. Both are
+ * committed and loaded off disk by the seed. The marker leaves with the bytes
+ * (`X-Image-Source`) so the client can say which it is out loud rather than
+ * assume — and this module passes it through untouched, because a default
+ * chosen here would be a sentence on a manager's screen that is not true.
  */
 
 /** What a place image is stored as: `data:<mime>;base64,…`. */
@@ -28,9 +31,9 @@ const DATA_URL = /^data:([^;,]+);base64,(.+)$/s;
 export interface PlaceImageBytes {
   contentType: string;
   bytes: Buffer;
-  /** `generated` today. Echoed to the client, never inferred there. */
+  /** `generated` or `supplied`. Echoed to the client, never inferred there. */
   source: string;
-  /** The model that made it, when one did. */
+  /** The model that made it, when one did. Null for a supplied photograph. */
   generator: string | null;
 }
 

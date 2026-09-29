@@ -24,11 +24,14 @@ territoriesRouter.use(requireAuth);
  * and for the same reason — `Image.network` cannot carry a bearer token on web,
  * so the app fetches image bytes through its authed client.
  *
- * `X-Image-Source` leaves with every one of them. Today it is always
- * `generated`: these are seed fixtures made once by
- * `scripts/generate-place-images.ts` and committed. The header is what lets the
- * app say so in the plate's spoken label instead of assuming, and it is why a
- * place image can never be quietly read as a capture.
+ * `X-Image-Source` leaves with every one of them, carrying the row's own value
+ * and never a default. It is `generated` for a picture
+ * `scripts/generate-place-images.ts` made from a prompt and `supplied` for a
+ * photograph the owner handed over, which `scripts/import-place-images.ts`
+ * brought in; both are committed seed fixtures. The header is what lets the app
+ * say which one it is in the plate's spoken label instead of assuming, and it
+ * is why a place image can never be quietly read as a capture — nor a real
+ * photograph quietly described as a drawing.
  *
  * 404 when the scope has no picture. The client then draws its designed
  * no-picture state — a drawing that is visibly a drawing, and a sentence.
