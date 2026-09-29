@@ -27,12 +27,16 @@ import 'audit_shell_screen.dart' show VisitFrame;
 ///   PERFECT-STORE SCORE
 ///   71 /100   ◺ Watch
 ///   ▲ +6  from your last visit here (65).
-///   ── How it was scored ───────────────────────
-///   Availability                              83
-///   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬╎▬▬
-///   Share of shelf                             —
-///   ▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨
-///   No competitor on shelf — not counted against you.
+///   HOW IT WAS SCORED
+///   ┌───────────────────────────────────────────┐
+///   │ Availability                           83 │
+///   │ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬╎▬▬               │
+///   └───────────────────────────────────────────┘
+///   ┌───────────────────────────────────────────┐
+///   │ Share of shelf                          — │
+///   │ ▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨              │
+///   │ No competitor on shelf — not counted.     │
+///   └───────────────────────────────────────────┘
 ///   [ ☾ ] [            Next store              ]
 /// ```
 ///
