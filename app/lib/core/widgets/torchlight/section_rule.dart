@@ -127,11 +127,7 @@ class SectionRule extends StatelessWidget {
               // is what once ran an action 168dp off the right of a 360dp
               // phone. This is the same measurement the rule form made, with
               // the rule's own minimum run taken out of it.
-              final stacked = _actionStacks(
-                context,
-                skin,
-                constraints.maxWidth,
-              );
+              final stacked = _actionStacks(context, skin, constraints.maxWidth);
               if (stacked) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

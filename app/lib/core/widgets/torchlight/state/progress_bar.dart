@@ -10,7 +10,11 @@ import '../mark/tiq_mark.dart';
 /// A milestone on a progress-to-reward bar.
 @immutable
 class ProgressMilestone {
-  const ProgressMilestone({required this.at, this.label, this.reward = false});
+  const ProgressMilestone({
+    required this.at,
+    this.label,
+    this.reward = false,
+  });
 
   /// Where it sits, in the same units as the bar's `value` and `total`.
   final num at;
@@ -248,7 +252,10 @@ class _TorchProgressBarState extends State<TorchProgressBar>
           ],
           if (widget.note != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s1),
-            Text(widget.note!, style: skin.text.meta.style(color: p.ink3)),
+            Text(
+              widget.note!,
+              style: skin.text.meta.style(color: p.ink3),
+            ),
           ],
         ],
       ),
@@ -297,8 +304,7 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final direction = Directionality.of(context);
 
     return LayoutBuilder(

@@ -101,7 +101,8 @@ class FigureSampling {
   final bool thinWithoutCount;
 
   /// Whether the **current** window is too thin to show at full commitment.
-  bool get isLowSample => thinWithoutCount || TiqSample.isLow(kind, n);
+  bool get isLowSample =>
+      thinWithoutCount || TiqSample.isLow(kind, n);
 
   /// Whether the **baseline** window is too thin to compare against. On a
   /// load-shedding calendar this is the common case, not the edge case.

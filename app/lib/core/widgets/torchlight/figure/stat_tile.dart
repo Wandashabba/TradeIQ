@@ -290,9 +290,7 @@ class StatTile extends StatelessWidget {
       TiqDensity.field => 96.0,
     };
 
-    final baselineDelta = deltaOnBaseline
-        ? _baselineDelta(context, skin)
-        : null;
+    final baselineDelta = deltaOnBaseline ? _baselineDelta(context, skin) : null;
     final figure = baselineDelta == null
         ? _figure(skin)
         : _figureWithDelta(context, _figure(skin), baselineDelta);
@@ -350,8 +348,7 @@ class StatTile extends StatelessWidget {
       ],
     );
 
-    final outlined =
-        lead &&
+    final outlined = lead &&
         (severity == SeverityMarkKind.watch ||
             severity == SeverityMarkKind.critical);
 
@@ -436,9 +433,8 @@ class StatTile extends StatelessWidget {
   /// Above 1.6× it becomes a `Wrap` and the delta falls underneath.
   Widget _figureWithDelta(BuildContext context, Widget figure, Widget delta) {
     final scale =
-        (MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling).scale(
-          1.0,
-        );
+        (MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling)
+            .scale(1.0);
     if (scale >= 1.6) {
       return Wrap(
         crossAxisAlignment: WrapCrossAlignment.end,
@@ -477,8 +473,8 @@ class StatTile extends StatelessWidget {
   );
 
   String _figureWords() => switch (figureState) {
-    FigureState.missing ||
-    FigureState.notMeasured => noDataReason ?? strings.notScored,
+    FigureState.missing || FigureState.notMeasured =>
+      noDataReason ?? strings.notScored,
     FigureState.lowSample => _sampleWords(),
     FigureState.provisional => strings.provisional,
     FigureState.measured => '',
@@ -570,9 +566,11 @@ class StatTile extends StatelessWidget {
   /// and cause arrive together.
   String _spokenValue(BuildContext context) {
     if (value == null) return noDataReason!;
-    final spoken = TiqNumber.of(
-      context,
-    ).format(value, unit: unit, decimals: decimals);
+    final spoken = TiqNumber.of(context).format(
+      value,
+      unit: unit,
+      decimals: decimals,
+    );
     return sampling.isLowSample ? '$spoken, ${_sampleWords()}' : spoken;
   }
 }

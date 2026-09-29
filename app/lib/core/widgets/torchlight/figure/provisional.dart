@@ -144,8 +144,7 @@ class ReconciliationLine extends StatelessWidget {
     };
 
     return Semantics(
-      label:
-          semanticsLabel ??
+      label: semanticsLabel ??
           '$lead $finalText. $tail $seenText.'
               '${reason == null ? '' : ' $reason'}',
       excludeSemantics: true,
