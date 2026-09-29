@@ -5,12 +5,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 /// Which density a skin is laid out at.
+///
+/// **The two [TiqSpace] scales no longer differ in their rhythm** — see
+/// [TiqSpace.field]. The enum stays because eight widgets outside this file
+/// still branch on it for geometry that is not spacing (header height, chip
+/// visual height, meter track, stat-tile inset and floor, trough height,
+/// trend-chart plot height), and because it is how a caller says which
+/// surface it is.
 enum TiqDensity {
   /// The manager console: tight rows, 24px block gaps, a 44dp row floor.
   console,
 
-  /// The field agent's phone: 64dp rows, 48dp tap targets, 56dp primary
-  /// actions.
+  /// The field agent's phone. Its rhythm is the console's, since
+  /// 29 September 2026; its touch tokens are still its own — 48dp targets,
+  /// 56dp primary actions.
   field,
 }
 
@@ -66,17 +74,24 @@ class TiqSpace {
   /// Side gutter on a phone. Everything on a screen hangs off this one line.
   final double gutter;
 
-  /// Side gutter at ≥1080 logical pixels (Console only; the other densities
-  /// hold their phone gutter because they are phone-only).
+  /// Side gutter at ≥1080 logical pixels.
+  ///
+  /// It was Console-only — the field surface held its phone gutter at every
+  /// width because it is phone-only and 1080dp was a case nobody had. Since
+  /// 29 September 2026 both scales carry s8, so a field skin pointed at a
+  /// tablet does the console's thing instead of nothing. See [field].
   final double gutterWide;
 
-  /// Minimum height of a list row.
+  /// Minimum height of a list row. **44 at both densities** since
+  /// 29 September 2026; see [field].
   final double rowMinHeight;
 
-  /// Between two sections.
+  /// Between two sections. **s6 at both densities** since 29 September 2026;
+  /// see [field].
   final double blockGap;
 
-  /// Between two things inside one section.
+  /// Between two things inside one section. **s3 at both densities** since
+  /// 29 September 2026; see [field].
   final double intraBlock;
 
   /// Minimum interactive box.
@@ -100,13 +115,66 @@ class TiqSpace {
     chipHeight: 44,
   );
 
+  /// THE FIELD SCALE — **its rhythm is the console's, since 29 September
+  /// 2026.**
+  ///
+  /// > *"Fix the spacing also please check if everything matches with the
+  /// > manager side"* — the owner, 29 September 2026, after *"match the
+  /// > manager side please"* and *"don't change the manager side, it looks
+  /// > perfect"* the same day.
+  ///
+  /// Four tokens moved, and they are the four that made the agent side read
+  /// as a different application rather than as the same application at arm's
+  /// length: **`gutterWide` s5 → s8**, **`rowMinHeight` 64 → 44**,
+  /// **`blockGap` s7 → s6**, **`intraBlock` s4 → s3**. Every one of them now
+  /// holds the console's value.
+  ///
+  /// THE TWO KINDS OF TOKEN IN HERE, AND WHY ONLY ONE MOVED IN THIS CHANGE.
+  /// `gutterWide`, `rowMinHeight`, `blockGap` and `intraBlock` are **visual
+  /// rhythm**: they say how much air a screen puts between things and how tall
+  /// a row stands. [tapTarget], [primaryActionHeight] and [chipHeight] are
+  /// **thumb reach**: they say how big a thing has to be to be hit. They are
+  /// separate questions with separate evidence, so they moved in separate
+  /// commits and either can be reverted without the other.
+  ///
+  /// WHAT THE RHYTHM SCALE WAS FOR — not withdrawn, **outranked**, and kept
+  /// here in full so a reader knows what was traded. A 64dp row and a 32dp
+  /// block gap are what a list looks like when it is scanned standing up, at
+  /// arm's length, one-handed, on a cheap panel at 40% backlight, often in
+  /// direct sunlight — the same premise that gave `TiqType.field` its larger
+  /// prose. Looser vertical rhythm is the layout half of that answer: more
+  /// air per row means fewer rows compete for one glance, and a 64dp row is
+  /// tall enough that a two-line outlet name never crowds its status word.
+  /// `gutterWide` held the phone gutter because the field surface is
+  /// phone-only and a wide gutter on a 1080dp tablet was a case nobody had.
+  ///
+  /// WHAT THE OVERRIDE BUYS. One rhythm across the product. The owner has
+  /// spent the day with the two surfaces side by side and has ruled, four
+  /// times, that the manager side is the reference. After #488 unified type,
+  /// spacing was the last axis on which the agent side differed **by
+  /// construction** rather than by drift.
+  ///
+  /// WHAT IT COSTS. About a third of each row's height on the screens read
+  /// outdoors, and a quarter of the air between blocks. The compensation is
+  /// real and is the reason the owner asked: more of the screen is the screen.
+  /// Today's rest-of-the-day list, the visit hub's section ladder and Me's
+  /// visit rows all return rows below the fold on a 360dp phone.
+  ///
+  /// TO RESTORE: put the four values back below. **The rationale above comes
+  /// back with them** — it is the whole of why they were different, and a
+  /// future reader restoring 64dp rows without it would be restoring a number
+  /// rather than a decision.
   static const TiqSpace field = TiqSpace(
     density: TiqDensity.field,
     gutter: s5,
-    gutterWide: s5,
-    rowMinHeight: 64,
-    blockGap: s7,
-    intraBlock: s4,
+    // Rhythm — the console's, since 29 September 2026. Was, in order:
+    // gutterWide s5, rowMinHeight 64, blockGap s7, intraBlock s4.
+    gutterWide: s8,
+    rowMinHeight: 44,
+    blockGap: s6,
+    intraBlock: s3,
+    // Thumb reach — still the field's own. A separate question with separate
+    // evidence; see the doc comment above.
     tapTarget: 48,
     primaryActionHeight: s9,
     chipHeight: 48,

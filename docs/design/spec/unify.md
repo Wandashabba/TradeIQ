@@ -132,7 +132,7 @@ Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refi
 
 **Ruling — one component, two forms.** **List rows** are flush, radius 0, separated by a 1px rule inset to the text edge: edge-structure (3.73:1) between tappable rows, hairline-decorative between non-tappable (agent). **Standalone rows** (Next-up, day block, readiness block, outbox summary) are radius 14, `surface` fill, 1px edge-structure outline (kit). Manager's gap-only rows fail the device floor (a 12dp gap between two 1.12:1 fills is the circular argument kit already killed); kit's outline-per-row in a list is the "uniform rounded cards" anti-slop failure and closer to a hard box than owner decision 2 allows. Manager's 3px severity bar and its "content starts at 35dp whether or not a bar is present" alignment rule survive.
 
-**Heights — kit's three densities win:** compact 56 (Console lists), standard 64 (Field lists), tall 80 (two meta lines: Next-up, outbox, person, decision rows — manager's 76 rounds up). Tappable targets are ≥48 everywhere; manager's 44dp tappable rows and assistant's 48 both map to compact 56.
+**Heights — kit's three densities win:** compact 56 (Console lists), ~~standard 64 (Field lists)~~, tall 80 (two meta lines: Next-up, outbox, person, decision rows — manager's 76 rounds up). ~~Tappable targets are ≥48 everywhere; manager's 44dp tappable rows and assistant's 48 both map to compact 56.~~ **Both struck, 29 September 2026 — see §1.25.**
 
 **Pressed row (Night):** fill → lifted **and** the row's rule/outline steps to 2px edge-control, plus scale 0.98 and `Buzz.tick`. (Under the 25 September override a card has no resting outline, so it *gains* a 1px edge-control edge instead of doubling one — the same two non-motion channels.) Manager's 3px leading tick at x=0 is rejected — it collides with the severity bar's position vocabulary ~~and Veld's 2px border~~ — but its complaint (lifted-on-well is 1.49:1) is answered by the edge step.
 
@@ -259,6 +259,36 @@ Solid Abyssal block, **ink-1 glyph**, the word ON (agent's Phase 2). Kit's Day ~
 A **bottom sheet** over the live screen (agent/manager), non-dismissible on first appearance, held work visible behind it; kit's full-screen state loses because the sheet delivers the proof block *and* the screen. After "Not now", the 44dp persistent line under every header (agent) — the assistant's composer band is that line.
 
 ---
+
+### 1.25 One spacing scale, and it is the manager's
+
+> **OWNER OVERRIDE — 29 September 2026. THE AGENT SIDE'S RHYTHM IS THE CONSOLE'S.**
+>
+> > *"Fix the spacing also please check if everything matches with the manager side"*
+>
+> Said after *"match the manager side please"* and *"don't change the manager side, it looks perfect"* the same day. With type unified on a sibling branch (#488, *"There is one type scale, and it is the manager's"*), spacing is the last axis on which the agent side differs **by construction** rather than by drift.
+>
+> **NOTE FOR WHOEVER INTEGRATES THIS WITH #488.** This branch is cut from `feat/chip-pills`, which does **not** contain #488 — that PR merged into `feat/agent-row-marks` an hour after `feat/agent-row-marks` had already merged into `feat/chip-pills`, so the two are siblings rather than a stack. #488 adds a paragraph to §1.17 headed **"WHAT IS NOT STRUCK — spacing"**, which says `TiqSpace.field` is untouched and that *"a 44dp target on a phone used in a forecourt is a different change and nobody has asked for it"*. **That paragraph is superseded by this clause and should be struck, not deleted, when the two land together** — it was true on the day it was written, and it named the right condition: somebody has now asked. Git will not flag it, because the two changes touch different lines of the same file.
+>
+> **TWO KINDS OF TOKEN LIVE IN `TiqSpace`, AND THEY ARE NOT THE SAME QUESTION.** `gutterWide`, `rowMinHeight`, `blockGap` and `intraBlock` are **visual rhythm**: how much air a screen puts between things, and how tall a row stands when its content does not decide. `tapTarget`, `chipHeight` and `primaryActionHeight` are **thumb reach**: how big a thing has to be to be hit. Different evidence, so they move in separate commits and either can be reverted without the other. This clause is the rhythm half.
+>
+> | token | was (field) | now | kind |
+> |---|---|---|---|
+> | `gutter` | s5 | s5 | — already the same |
+> | `gutterWide` | s5 | **s8** | rhythm |
+> | `rowMinHeight` | 64 | **44** | rhythm |
+> | `blockGap` | s7 | **s6** | rhythm |
+> | `intraBlock` | s4 | **s3** | rhythm |
+>
+> **WHAT WAS TRADED, kept rather than deleted.** A 64dp row and a 32dp block gap are what a list looks like when it is scanned standing up, at arm's length, one-handed, on a cheap panel at 40% backlight, often in direct sunlight — the same premise that gave `TiqType.field` its larger prose, and the layout half of the same answer: more air per row means fewer rows compete for one glance, and a 64dp floor is tall enough that a two-line outlet name never crowds its status word. `gutterWide` held the phone gutter at every width because the field surface is phone-only and 1080dp was a case nobody had.
+>
+> **WHAT IT BUYS.** One rhythm across the product, which is what the owner asked for four times in one day. **WHAT IT COSTS:** about a third of each row's floor and a quarter of the air between blocks, on exactly the screens read outdoors — against which more of the screen is now the screen, which is the compensation the owner was after. Measured on the declared-shape goldens: the thumb zone loses 8dp on all five screens that have one (`intraBlock` twice), and My work's outbox returns a second row above the fold at 390×844.
+>
+> **This strikes §1.3's "standard 64 (Field lists)".**
+>
+> **IF THE FIELD SCALE EVER RETURNS, ITS RATIONALE RETURNS WITH IT.** The paragraph above is not withdrawn, it is outranked, and it is kept in `TiqSpace.field`'s doc comment as well as here. A future reader restoring 64dp rows is restoring a decision, not a number, and the decision is written down in both places.
+>
+> **WHAT THIS DOES NOT REACH.** Eight widgets outside `TiqSpace` still branch on `TiqDensity` for geometry that is not spacing, and they are unchanged because they are separate rulings with their own written reasons — header height 72/96 (§1.2), chip visual height 28/32 (§1.6), filter-chip height 44/48, trough min height 44/56, meter track 4/6 (§1.19), stat-tile inset 16/20 and floor 88/96 (§1.4), trend-chart plot 208/232 (§1.17), and the assistant card's copy of the last one. They are listed so nobody has to re-find them.
 
 ## 2. Duplicates to merge
 
