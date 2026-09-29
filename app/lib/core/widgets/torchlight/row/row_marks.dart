@@ -130,6 +130,31 @@ class RowMarkTile extends StatelessWidget {
   }
 }
 
+/// One silhouette, drawn on its own, with no tile under it.
+///
+/// Exactly one caller: `PersonRow`'s unknown person, which needs the barred
+/// ring inside **§1.15's** person tile rather than inside §1.5's row-mark tile.
+/// It borrowed the whole [RowMarkTile] until 29 September 2026, which is how a
+/// queue-state component came to render on nine manager screens; see
+/// `person_row.dart`. The size and the stroke are [RowMarkTile]'s own, so the
+/// two can never drift.
+class RowMarkGlyph extends StatelessWidget {
+  const RowMarkGlyph({super.key, required this.mark, required this.colour});
+
+  final RowMark mark;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: Size.square(RowMarkTile._glyphExtent(context)),
+    painter: _MarkPainter(
+      mark: mark,
+      colour: colour,
+      stroke: context.skin.depth.borderWidth * 2,
+    ),
+  );
+}
+
 /// Which ink a mark takes. Three tones, and none of them is amber.
 enum RowMarkTone {
   /// Oatmeal — held, queued, sending, waiting.

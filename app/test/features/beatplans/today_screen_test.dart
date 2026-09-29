@@ -230,28 +230,69 @@ void main() {
       );
     });
 
-    testWidgets('the Next-up meta line is the card\'s smallest voice', (
+    // REWRITTEN 29 September 2026. The assertion this replaces said the
+    // outlet name is "the loudest thing in the card, and by a margin" and
+    // pinned it to `title.l` (24) over a bare `figure.s` numeral. That
+    // described the composition the owner rejected: the app stacked a naked
+    // number, then a 24pt name, then the code, then the button, where the
+    // approved mockup has **a tile and the name on one row** at `.ttl` 12.5px
+    // — row scale — with the button beneath. A 24pt name is a heading, and a
+    // heading is what made this card read as a block about a store rather
+    // than as the first stop in the list under it.
+    testWidgets('the Next-up card is a stop row, not a heading block', (
       tester,
     ) async {
       await _pump(tester, route: _route());
       final card = find.byKey(const ValueKey<String>('next-stop'));
       final skin = agentSkinFor(SkinMode.night);
 
-      // The sequence: mono 16, not 22. It is a badge, not a headline.
+      // The sequence: mono 16, in a tile, not a bare numeral.
       final sequence = tester.widget<FigureSlot>(
         find.descendant(of: card, matching: find.byType(FigureSlot)).first,
       );
       expect(sequence.role.name, 'figure.s');
       expect(sequence.role.size, 16);
 
-      // The outlet name is the loudest thing in the card, and by a margin.
-      final name = tester.widget<Text>(
-        find.descendant(of: card, matching: find.text('Sunrise Spaza')),
+      // ROW SCALE — the same role a stop row's own title takes, so the next
+      // stop and the rest of the day are one series read at one size.
+      final nameFinder = find.descendant(
+        of: card,
+        matching: find.text('Sunrise Spaza'),
       );
-      expect(name.style!.fontSize, skin.text.titleL.size);
-      expect(name.style!.fontSize! > sequence.role.size, isTrue);
+      final name = tester.widget<Text>(nameFinder);
+      expect(name.style!.fontSize, skin.text.titleM.size);
+
+      // ON ONE ROW: the tile is to the left of the name and they overlap
+      // vertically. Measured, because "one row" is a layout claim and a
+      // Column of the same two widgets would satisfy every other assertion
+      // here.
+      final tile = tester.getRect(
+        find.descendant(of: card, matching: find.byType(FigureSlot)).first,
+      );
+      final title = tester.getRect(nameFinder);
+      expect(tile.right, lessThanOrEqualTo(title.left));
+      expect(tile.top, lessThan(title.bottom));
+      expect(title.top, lessThan(tile.bottom));
     });
 
+    testWidgets('and the check-in is a filled block, not an outlined one', (
+      tester,
+    ) async {
+      // The owner: the outlined amber block "reads weak and boxy". The
+      // mockup's `.cta` is `background:#FFB162; color:#16202B`. `filled` is
+      // scoped to this call site — `TorchPrimaryButton`'s default, and so the
+      // sign-in screen, is untouched.
+      await _pump(tester, route: _route());
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('check-in-next')),
+      );
+      expect(button.filled, isTrue);
+      expect(
+        button.icon,
+        isNull,
+        reason: 'the mockup centres the label and carries no chevron',
+      );
+    });
   });
 
   group('distance is a figure or a sentence, never a guess', () {

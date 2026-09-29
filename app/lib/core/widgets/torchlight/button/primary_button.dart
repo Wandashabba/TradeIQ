@@ -44,6 +44,9 @@ import 'torch_press.dart';
 ///   The rim and the bleed touch, so the pixel census counts them as **one**
 ///   object, which is what unify §1.7 means by "rim + 2dp top bleed is one
 ///   object". The block itself is not amber; it is a dark block that is *lit*.
+/// * **Night, granted, [filled]** — a solid `flame600` block carrying
+///   `onAmber` at 10.65:1, no rim and no bleed. One call site (Today's
+///   "Check in here"), by owner decision on 29 September 2026; see [filled].
 /// * **Day** — a solid amber block with dark ink on it. On a light
 ///   ground amber stops being light and becomes a carrier of ink, and there is
 ///   exactly one of those per screen.
@@ -63,6 +66,7 @@ class TorchPrimaryButton extends StatelessWidget {
     this.busy = false,
     this.icon,
     this.semanticLabel,
+    this.filled = false,
   }) : assert(
          onPressed != null || busy || blockedReason != null,
          'A disabled primary carries a BarNote naming exactly what is '
@@ -94,6 +98,41 @@ class TorchPrimaryButton extends StatelessWidget {
   /// Overrides the spoken label where the visible verb is not the whole
   /// sentence.
   final String? semanticLabel;
+
+  /// **THE FILLED FORM — one call site, by owner decision, 29 September 2026.**
+  ///
+  /// When this button is *granted* the route's light in **Night**, it paints a
+  /// solid `flame600` block carrying `onAmber` (10.65:1) instead of the
+  /// `lifted` block with the 2px flame rim and the 2dp top bleed. Day is
+  /// unaffected: the Day granted form has been a solid amber block all along,
+  /// which is why this is one branch and not two. Denied, pressed and disabled
+  /// are all untouched, and so is [TiqRadii.control] — the radius does not
+  /// move, because moving it would move the sign-in screen, and that is a
+  /// question the owner is answering separately.
+  ///
+  /// ## Why it is a parameter rather than the new default
+  ///
+  /// §1.7's Night primary is deliberately *not* amber: "a dark block that is
+  /// **lit**", on the reading that on a dark ground amber is light rather than
+  /// paint, and a 2px rim plus a touching 2dp bleed is one object to the pixel
+  /// census. That reading is intact and is still what every other primary in
+  /// the app does.
+  ///
+  /// What it does not survive is the one screen the owner photographed. The
+  /// approved mockup's Today draws this exact control as `.cta` — `background:
+  /// #FFB162; color: #16202B; border-radius: 16px` for the in-row variant,
+  /// which is `radii.control` **exactly** — and the owner's note on the
+  /// running build was that Check in here "reads weak and boxy". An outlined
+  /// block among filled cards is the same complaint as an outlined tile among
+  /// filled chips, one component up.
+  ///
+  /// It changes no budget. The census counts connected flame-hued *regions*,
+  /// not area: a rim is one region and a filled block is one region, so Today
+  /// still lights two objects in Night (the nav's active tab, then this) and
+  /// one in Day (this; the tab has no amber form on a light ground). The lit
+  /// *fraction* of the frame grows, which the census reports and does not
+  /// budget.
+  final bool filled;
 
   /// The claim a route declares for a primary with this [id].
   static TorchClaim claim(String id) => TorchClaim.primaryCommit(id);
@@ -251,6 +290,19 @@ class TorchPrimaryButton extends StatelessWidget {
         ink: p.onAmber,
         edge: p.ink1,
         edgeWidth: skin.depth.borderWidth,
+        bleed: false,
+      );
+    }
+    if (filled) {
+      // Night, granted, FILLED — see [filled]. A solid flame block carrying
+      // `onAmber` at 10.65:1, and no rim: the rim exists to make a dark block
+      // read as lit, and a block that IS the light has nothing to be rimmed
+      // against. One connected region either way, so the budget does not move.
+      return _PrimaryLook(
+        fill: p.flame600,
+        ink: p.onAmber,
+        edge: null,
+        edgeWidth: 0,
         bleed: false,
       );
     }

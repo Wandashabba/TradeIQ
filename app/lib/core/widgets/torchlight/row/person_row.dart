@@ -257,6 +257,27 @@ class PersonRow extends StatelessWidget {
 
 /// Initials on the `well`, in a radius-6 tile with a real edge. Never a photo,
 /// never a silhouette icon.
+///
+/// ## The unknown state stopped borrowing the queue's tile, 29 September 2026
+///
+/// It rendered a [RowMarkTile] — the leading tile of an *outbox* row — and
+/// that made `PersonRow` the one path by which a queue-state component reached
+/// nine manager screens: users, dispatch, fraud, alerts, the leaderboard, both
+/// contest screens, the agent trail and the territory sheet. It fires whenever
+/// `name` is null or carries no letters, which `nonBlankName` can hand it for
+/// a user with no display name and `directory[...]` can hand it for an agent
+/// who is not in the roster — rare, but reachable, and not what an earlier
+/// survey concluded.
+///
+/// So the barred ring is drawn in **this** tile now, at this tile's geometry,
+/// pixel for pixel what `RowMarkTile` painted here before the row marks became
+/// filled squircles. §1.15 owns a person's tile and §1.5 owns a row mark's,
+/// and the two were only ever the same object by accident.
+///
+/// It leaves this tile a radius-6 outlined box in both of its states, which on
+/// the agent's own contest standings is one more rectangle. That is §1.15's
+/// ruling and a manager component, and moving it is a separate decision from
+/// this one.
 class _InitialsTile extends StatelessWidget {
   const _InitialsTile({required this.name, required this.deactivated});
 
@@ -265,32 +286,32 @@ class _InitialsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = _initialsOf(name);
-    if (initials == null) {
-      return RowMarkTile(
-        mark: RowMark.barredRing,
-        tone: deactivated ? RowMarkTone.muted : RowMarkTone.neutral,
-      );
-    }
     final skin = context.skin;
+    final initials = _initialsOf(name);
+    final ink = deactivated ? skin.palette.inkMute : skin.palette.ink2;
     return ExcludeSemantics(
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: skin.palette.well,
           borderRadius: BorderRadius.circular(skin.radii.chip),
           border: Border.all(
-            color: skin.palette.edgeStructure,
+            // The unknown tile kept `edgeControl` when it was a row mark, and
+            // it keeps it here: this is a move, not a restyle, and the manager
+            // side is proved byte-identical over it.
+            color: initials == null
+                ? skin.palette.edgeControl
+                : skin.palette.edgeStructure,
             width: skin.depth.borderWidth,
           ),
         ),
         child: Center(
-          child: Text(
-            initials,
-            maxLines: 1,
-            style: skin.text.figureS.style(
-              color: deactivated ? skin.palette.inkMute : skin.palette.ink2,
-            ),
-          ),
+          child: initials == null
+              ? RowMarkGlyph(mark: RowMark.barredRing, colour: ink)
+              : Text(
+                  initials,
+                  maxLines: 1,
+                  style: skin.text.figureS.style(color: ink),
+                ),
         ),
       ),
     );

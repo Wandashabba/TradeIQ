@@ -389,10 +389,16 @@ void main() {
         skin: TiqSkin.night(),
         child: const PersonRow(role: 'Field agent', outlet: 'Kasi Corner'),
       );
+      // The ring, and NOT a `RowMarkTile`: a person's tile is §1.15's and a
+      // row mark's is §1.5's, and the unknown state stopped borrowing the
+      // queue's whole tile on 29 September 2026 — which is what kept the row
+      // marks' new filled squircle off nine manager screens. What is drawn
+      // here is the same silhouette at the same size in the same person tile.
       expect(
-        tester.widget<RowMarkTile>(find.byType(RowMarkTile)).mark,
+        tester.widget<RowMarkGlyph>(find.byType(RowMarkGlyph)).mark,
         RowMark.barredRing,
       );
+      expect(find.byType(RowMarkTile), findsNothing);
     });
 
     testWidgets('with no name the role leads and the id drops to a third line',
