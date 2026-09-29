@@ -84,9 +84,13 @@ class TorchFilterChip extends StatelessWidget {
     // read as four empty boxes. It is a filled pill now.
     //
     // The honest trade-off, written down rather than discovered later: a fill
-    // step on a near-black ground is small in ratio terms — `surface` is
-    // 1.24:1 on `ground` and `lifted` 1.67:1, both under WCAG 1.4.11's 3:1 —
-    // so the FILL is not what identifies the control or its state. Four other
+    // step on a near-black ground is small in ratio terms, and it gets
+    // SMALLER, not larger, as the ladder is tuned. Measured on `ground`:
+    // `surface` 1.24:1 and `lifted` 1.67:1 against the blue ladder this landed
+    // on; 1.11:1 and 1.32:1 once the warm-neutral ladder recasts the tiers.
+    // Every one of those is under WCAG 1.4.11's 3:1, on either ladder, which
+    // is the point — the FILL is not what identifies the control or its
+    // state, and no future tuning of the tiers will make it so. Four other
     // channels do, and every one survives greyscale: the label itself at full
     // text contrast, the tick disc on the selected chip, the weight step
     // (700 against 500), and the ink step (the selected chip's ink is chosen
