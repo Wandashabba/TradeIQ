@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show FadeTransition, MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -55,7 +54,7 @@ import '../../features/assistant/presentation/assistant_gate.dart';
 import '../../features/notifications/presentation/notification_preferences_screen.dart';
 import '../auth/session_controller.dart';
 import '../network/app_version.dart';
-import 'manager_page.dart';
+import 'torch_page.dart';
 import 'session_refresh_listenable.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -172,23 +171,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // THE ONLY PLAIN `builder` LEFT IN THIS FILE, and deliberately: the
+      // splash is the app's first frame. Nothing transitions *to* it, and the
+      // one transition it owns — the dissolve into sign-in — belongs to
+      // `/login`, which declares it. Everything else here goes through
+      // `torchPage` with a named [TorchPageKind].
       GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
       GoRoute(
         path: '/login',
         // Splash → sign-in is the spec's crossfade: the splash's dimmed world
-        // dissolves into the sign-in card rather than snapping.
-        pageBuilder: (context, state) => CustomTransitionPage(
+        // dissolves into the sign-in card rather than snapping. It was the one
+        // hand-written transition in this file and it is now the named kind
+        // for exactly that shape.
+        pageBuilder: (context, state) => torchPage(
+          const LoginScreen(),
           key: state.pageKey,
-          child: const LoginScreen(),
-          transitionDuration: const Duration(milliseconds: 350),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
+          kind: TorchPageKind.arrival,
         ),
       ),
       // The manager's home, migrated to Torchlight (#412/#413 + The Floor).
       GoRoute(
         path: '/dashboard',
-        pageBuilder: (context, state) => managerPage(const TheFloorScreen()),
+        pageBuilder: (context, state) => torchPage(const TheFloorScreen()),
       ),
       // The old multi-panel console. The Floor replaces its KPI header and its
       // needs-attention counters; it does NOT replace the trend, benchmark,
@@ -198,93 +202,116 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard/overview',
         pageBuilder: (context, state) =>
-            managerPage(const DashboardShellScreen()),
+            torchPage(const DashboardShellScreen()),
       ),
       // The field agent's home: their route for the day.
-      GoRoute(path: '/today', builder: (context, state) => const TodayScreen()),
+      GoRoute(
+        path: '/today',
+        pageBuilder: (context, state) => torchPage(const TodayScreen()),
+      ),
       // Where their stores are. The nav's third slot, and the reason it exists
       // again (#383's sibling): a tab with no destination was cut at
       // migration rather than faked.
-      GoRoute(path: '/map', builder: (context, state) => const AgentMapScreen()),
+      GoRoute(
+        path: '/map',
+        pageBuilder: (context, state) => torchPage(const AgentMapScreen()),
+      ),
       // The field agent's own record: their visits, their points, and the
       // honest story about a score that changed (#383/#384). Self-scoped on
       // the server, so it is not in `managerOnly` and not guarded here — a
       // manager who opens it sees their own (empty) record, which is true.
-      GoRoute(path: '/me', builder: (context, state) => const MyRecordScreen()),
+      GoRoute(
+        path: '/me',
+        pageBuilder: (context, state) => torchPage(const MyRecordScreen()),
+      ),
       GoRoute(
         path: '/audit',
-        builder: (context, state) => const VisitOutletPickerScreen(),
+        // The door into the capture flow, not a fifth destination: it has no
+        // nav bar and a back chip, so it arrives over the day rather than
+        // beside it.
+        pageBuilder: (context, state) => torchPage(
+          const VisitOutletPickerScreen(),
+          kind: TorchPageKind.forward,
+        ),
       ),
       // The agent's sync queue. Shared with managers deliberately: a manager
       // asked "did the agent's visit actually reach us?" should be able to look.
       GoRoute(
         path: '/my-work',
-        builder: (context, state) => const MyWorkScreen(),
+        pageBuilder: (context, state) => torchPage(const MyWorkScreen()),
       ),
       GoRoute(
         path: '/audit/:outletId',
-        builder: (context, state) =>
-            AuditShellScreen(outletId: state.pathParameters['outletId']!),
+        pageBuilder: (context, state) => torchPage(
+          AuditShellScreen(outletId: state.pathParameters['outletId']!),
+          kind: TorchPageKind.forward,
+        ),
       ),
       // Where a visit ends: its score. Reached with `go`, never `push` — there
       // is no way back into a visit that has been submitted.
       GoRoute(
         path: '/audit/:outletId/done',
-        builder: (context, state) => VisitOutcomeScreen(
-          outletId: state.pathParameters['outletId']!,
-          visitDraftId: state.uri.queryParameters['draft'] ?? '',
-          outletName: state.uri.queryParameters['name'] ?? 'This store',
+        // An arrival, not a push: the route's own comment says there is no way
+        // back into a submitted visit, and a slide would promise one.
+        pageBuilder: (context, state) => torchPage(
+          VisitOutcomeScreen(
+            outletId: state.pathParameters['outletId']!,
+            visitDraftId: state.uri.queryParameters['draft'] ?? '',
+            outletName: state.uri.queryParameters['name'] ?? 'This store',
+          ),
+          kind: TorchPageKind.arrival,
         ),
       ),
       GoRoute(
         path: '/outlets',
-        pageBuilder: (context, state) => managerPage(const OutletsListScreen()),
+        pageBuilder: (context, state) => torchPage(const OutletsListScreen()),
       ),
       GoRoute(
         path: '/outlets/create',
         pageBuilder: (context, state) =>
-            managerPage(const CreateOutletScreen()),
+            torchPage(const CreateOutletScreen(), kind: TorchPageKind.forward),
       ),
       // One outlet, where a wrongly pinned store gets fixed (#386). Registered
       // AFTER /outlets/create, or "create" is read as an outlet id and the
       // create form becomes unreachable.
       GoRoute(
         path: '/outlets/:id',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           OutletDetailScreen(outletId: state.pathParameters['id']!),
+          kind: TorchPageKind.forward,
         ),
       ),
       GoRoute(
         path: '/tasks',
-        pageBuilder: (context, state) => managerPage(const TasksScreen()),
+        pageBuilder: (context, state) => torchPage(const TasksScreen()),
       ),
       GoRoute(
         path: '/campaigns',
-        pageBuilder: (context, state) => managerPage(const CampaignsScreen()),
+        pageBuilder: (context, state) => torchPage(const CampaignsScreen()),
       ),
       GoRoute(
         path: '/contests',
-        pageBuilder: (context, state) => managerPage(const ContestsScreen()),
+        pageBuilder: (context, state) => torchPage(const ContestsScreen()),
       ),
       // One contest's full standings. A sibling route, not a menu destination:
       // the rail keeps Contests selected under /contests/.
       GoRoute(
         path: '/contests/:id',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           ContestStandingsScreen(contestId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
         path: '/alerts',
-        pageBuilder: (context, state) => managerPage(const AlertsScreen()),
+        pageBuilder: (context, state) => torchPage(const AlertsScreen()),
       ),
       GoRoute(
         path: '/alert-rules',
-        pageBuilder: (context, state) => managerPage(const AlertRulesScreen()),
+        pageBuilder: (context, state) => torchPage(const AlertRulesScreen()),
       ),
       GoRoute(
         path: '/territories',
-        pageBuilder: (context, state) => managerPage(const TerritoriesScreen()),
+        pageBuilder: (context, state) => torchPage(const TerritoriesScreen()),
       ),
       // The create form. Registered BEFORE /territories/:id/map so `new` is
       // never read as a territory id — the same ordering rule /outlets/create
@@ -292,7 +319,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/territories/new',
         pageBuilder: (context, state) =>
-            managerPage(const TerritoryFormScreen()),
+            torchPage(const TerritoryFormScreen(), kind: TorchPageKind.forward),
       ),
       // One territory as ground: every outlet in it, whether anyone has been,
       // and the list that replaces the map when there are no tiles.
@@ -302,44 +329,46 @@ final routerProvider = Provider<GoRouter>((ref) {
       // the territories list can open one.
       GoRoute(
         path: '/territories/:territoryId/map',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           TerritoryMapGate(territoryId: state.pathParameters['territoryId']!),
+          kind: TorchPageKind.forward,
         ),
       ),
       GoRoute(
         path: '/agents/activity',
-        pageBuilder: (context, state) => managerPage(const AgentTrailScreen()),
+        pageBuilder: (context, state) => torchPage(const AgentTrailScreen()),
       ),
       GoRoute(
         path: '/orders',
-        pageBuilder: (context, state) => managerPage(const OrdersScreen()),
+        pageBuilder: (context, state) => torchPage(const OrdersScreen()),
       ),
       GoRoute(
         path: '/beatplans',
-        pageBuilder: (context, state) => managerPage(const BeatPlansScreen()),
+        pageBuilder: (context, state) => torchPage(const BeatPlansScreen()),
       ),
       GoRoute(
         path: '/leaderboard',
-        pageBuilder: (context, state) => managerPage(const LeaderboardScreen()),
+        pageBuilder: (context, state) => torchPage(const LeaderboardScreen()),
       ),
       // The agent's Contests view, reached from the leaderboard (#124).
       // Declared before /leaderboard/:agentId so `contests` is never read as
       // an agent id. An agent screen, so a plain builder like /today.
       GoRoute(
         path: '/leaderboard/contests',
-        builder: (context, state) => const MyContestsScreen(),
+        pageBuilder: (context, state) =>
+            torchPage(const MyContestsScreen(), kind: TorchPageKind.forward),
       ),
       // Drill-down from a leaderboard row (#124). A sibling route, not a menu
       // destination: the rail keeps Leaderboard selected under /leaderboard/.
       GoRoute(
         path: '/leaderboard/:agentId',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           AgentPointsScreen(agentId: state.pathParameters['agentId']!),
         ),
       ),
       GoRoute(
         path: '/fraud',
-        pageBuilder: (context, state) => managerPage(const FraudScreen()),
+        pageBuilder: (context, state) => torchPage(const FraudScreen()),
       ),
       // The rollout flag is checked inside AssistantGate rather than here.
       // A router redirect would have to await `/clients/me` before it could
@@ -348,7 +377,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // immediately and resolves in place.
       GoRoute(
         path: '/assistant',
-        pageBuilder: (context, state) => managerPage(const AssistantGate()),
+        pageBuilder: (context, state) => torchPage(const AssistantGate()),
       ),
       // Expanded mode for one artifact. A real route, so the browser back
       // button, deep links and sharing all work without bespoke state
@@ -357,36 +386,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       // of whoever follows the link.
       GoRoute(
         path: '/artifact/:id',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           ArtifactScreen(artifactId: state.pathParameters['id']!),
+          kind: TorchPageKind.forward,
         ),
       ),
       GoRoute(
         path: '/reports',
-        pageBuilder: (context, state) => managerPage(const ReportsScreen()),
+        pageBuilder: (context, state) => torchPage(const ReportsScreen()),
       ),
       // Reached from the Reports top bar. A sibling route, not a menu
       // destination: the rail keeps Reports selected under /reports/.
       GoRoute(
         path: '/reports/schedules',
         pageBuilder: (context, state) =>
-            managerPage(const ReportSchedulesScreen()),
+            torchPage(const ReportSchedulesScreen()),
       ),
       GoRoute(
         path: '/messages',
-        pageBuilder: (context, state) => managerPage(const MessagesScreen()),
+        pageBuilder: (context, state) => torchPage(const MessagesScreen()),
       ),
       GoRoute(
         path: '/users',
-        pageBuilder: (context, state) => managerPage(const UsersScreen()),
+        pageBuilder: (context, state) => torchPage(const UsersScreen()),
       ),
       // A manager resets someone's password (#400). The user rides along as
       // `extra` from the list; on a cold start the screen looks them up.
       GoRoute(
         path: '/users/:id/password',
-        builder: (context, state) => UserPasswordScreen(
-          userId: state.pathParameters['id']!,
-          user: state.extra is AppUser ? state.extra! as AppUser : null,
+        pageBuilder: (context, state) => torchPage(
+          UserPasswordScreen(
+            userId: state.pathParameters['id']!,
+            user: state.extra is AppUser ? state.extra! as AppUser : null,
+          ),
+          kind: TorchPageKind.forward,
         ),
       ),
       // The account screens (#400): redeem a manager's code while signed out,
@@ -394,63 +427,74 @@ final routerProvider = Provider<GoRouter>((ref) {
       // the server has refused can show.
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => ForgotPasswordScreen(
-          initialEmail: state.extra is String ? state.extra! as String : null,
+        pageBuilder: (context, state) => torchPage(
+          ForgotPasswordScreen(
+            initialEmail: state.extra is String ? state.extra! as String : null,
+          ),
+          kind: TorchPageKind.forward,
         ),
       ),
       GoRoute(
         path: '/account/password',
-        builder: (context, state) => const ChangePasswordScreen(),
+        pageBuilder: (context, state) => torchPage(
+          const ChangePasswordScreen(),
+          kind: TorchPageKind.forward,
+        ),
       ),
       GoRoute(
         path: '/update-required',
-        builder: (context, state) => const UpdateRequiredScreen(),
+        // The server refused this build. Nobody navigated here and there is
+        // nowhere to go back to.
+        pageBuilder: (context, state) => torchPage(
+          const UpdateRequiredScreen(),
+          kind: TorchPageKind.arrival,
+        ),
       ),
       GoRoute(
         path: '/incentives',
-        pageBuilder: (context, state) => managerPage(const IncentivesScreen()),
+        pageBuilder: (context, state) => torchPage(const IncentivesScreen()),
       ),
       GoRoute(
         path: '/webhooks',
-        pageBuilder: (context, state) => managerPage(const WebhooksScreen()),
+        pageBuilder: (context, state) => torchPage(const WebhooksScreen()),
       ),
       GoRoute(
         path: '/client-config',
-        pageBuilder: (context, state) =>
-            managerPage(const ClientConfigScreen()),
+        pageBuilder: (context, state) => torchPage(const ClientConfigScreen()),
       ),
       GoRoute(
         path: '/audit-templates',
-        pageBuilder: (context, state) => managerPage(const TemplatesScreen()),
+        pageBuilder: (context, state) => torchPage(const TemplatesScreen()),
       ),
       GoRoute(
         path: '/audit-templates/:templateId/preview',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           TemplateFormScreen(templateId: state.pathParameters['templateId']!),
+          kind: TorchPageKind.forward,
         ),
       ),
       GoRoute(
         path: '/dispatch',
-        pageBuilder: (context, state) => managerPage(const DispatchScreen()),
+        pageBuilder: (context, state) => torchPage(const DispatchScreen()),
       ),
       GoRoute(
         path: '/trends',
-        pageBuilder: (context, state) => managerPage(const TrendsScreen()),
+        pageBuilder: (context, state) => torchPage(const TrendsScreen()),
       ),
       // Monthly sell-in targets per SKU (#119). Manager/admin only: its API
       // refuses field agents outright.
       GoRoute(
         path: '/sales-targets',
-        pageBuilder: (context, state) =>
-            managerPage(const SalesTargetsScreen()),
+        pageBuilder: (context, state) => torchPage(const SalesTargetsScreen()),
       ),
       // One visit, for review (#208). Pushed from alerts, the fraud review and
       // the agent trail, so the back chip returns to the list it came from.
       GoRoute(
         path: '/visits/:id',
-        pageBuilder: (context, state) => managerPage(
+        pageBuilder: (context, state) => torchPage(
           VisitDetailScreen(visitId: state.pathParameters['id']!),
           key: state.pageKey,
+          kind: TorchPageKind.forward,
         ),
       ),
       // Push notification settings (#67). Shared by every role, so it sits in
@@ -458,16 +502,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       // other screens, a manager's is a console page.
       GoRoute(
         path: '/notifications',
-        pageBuilder: (context, state) =>
-            ref.read(sessionControllerProvider).value?.role == 'field_agent'
-            ? MaterialPage<void>(
-                key: state.pageKey,
-                child: const NotificationPreferencesScreen(),
-              )
-            : managerPage(
-                const NotificationPreferencesScreen(),
-                key: state.pageKey,
-              ),
+        // THE ONE ROUTE THAT BRANCHES, and it branches for a reason rather
+        // than by omission. `NotificationPreferencesScreen` renders two
+        // different shapes: the manager's is a `ConsoleFrame` with the Menu
+        // tab lit, so it wears the nav bar and is a peer; the agent's is a
+        // `TorchShell` with no nav and a back chip, so it arrived over their
+        // day. Same rule as everywhere else in this file — it just happens to
+        // resolve differently for the two roles, which is what the screen
+        // itself already decided.
+        pageBuilder: (context, state) => torchPage(
+          const NotificationPreferencesScreen(),
+          key: state.pageKey,
+          kind: ref.read(sessionControllerProvider).value?.role == 'field_agent'
+              ? TorchPageKind.forward
+              : TorchPageKind.peer,
+        ),
       ),
     ],
   );
