@@ -752,21 +752,162 @@ void main() {
       );
     });
 
-    testWidgets('a hero on target is green, in both grounds', (tester) async {
-      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          skin: skin,
-          // 88 against 75, and 97% against 95.
-          current: kpis(osa: 97, execution: 88),
-          previous: kpis(osa: 96, execution: 87),
-          outlets: twoOutlets,
+    testWidgets('a hero on target is green on Day', (tester) async {
+      // THIS USED TO SAY "in both grounds" AND LOOP BOTH SKINS. It asserted
+      // the 28 September decision — that a figure's ground does not change
+      // whether it carries a verdict — and the owner reversed that for Night
+      // the next day. Day is what is left of it, unchanged.
+      final skin = TiqSkin.day();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        // 88 against 75, and 97% against 95.
+        current: kpis(osa: 97, execution: 88),
+        previous: kpis(osa: 96, execution: 87),
+        outlets: twoOutlets,
+      );
+      expect(
+        inkOf(tester, '88'),
+        skin.palette.good,
+        reason: 'A score over its standard is good news on paper.',
+      );
+    });
+
+    // ── NIGHT, 29 September 2026 ──────────────────────────────────────
+    testWidgets('the Night hero is luminous below its standard', (
+      tester,
+    ) async {
+      final skin = TiqSkin.night();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        // The same 73-against-75 and 61%-against-95 the Day test above uses,
+        // where both render crimson.
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        outlets: twoOutlets,
+      );
+      expect(
+        inkOf(tester, '73'),
+        skin.palette.ink1,
+        reason:
+            'The hero is ink-1 at every band on Night. Section 16.2 has said '
+            'so since the visit outcome shipped — a severity-coded figure at '
+            '72px is a hue doing a number\'s job, and it is the one object '
+            'large enough that its colour reads as the whole message. The '
+            "artifact's own hero `72` is bone beside a crimson delta.",
+      );
+      expect(
+        inkOf(tester, '61'),
+        skin.palette.ink1,
+        reason:
+            'The availability tile is a row figure. Its verdict is on the '
+            "sparkline's crimson last dot, exactly as the artifact's lead row "
+            'draws it.',
+      );
+    });
+
+    testWidgets('the Night hero is luminous on target too', (tester) async {
+      final skin = TiqSkin.night();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        current: kpis(osa: 97, execution: 88),
+        previous: kpis(osa: 96, execution: 87),
+        outlets: twoOutlets,
+      );
+      expect(
+        inkOf(tester, '88'),
+        skin.palette.ink1,
+        reason:
+            'Green left the Night figures with crimson. The owner asked for '
+            'luminous, not for a different hue.',
+      );
+    });
+
+    testWidgets('and the standing is on the plate in words instead', (
+      tester,
+    ) async {
+      // THE CUE THAT REPLACED THE COLOUR. Taking the hue off the hero would
+      // have left the plate carrying only the DELTA, and a delta says whether
+      // the score moved, not whether it is where it should be — the screen's
+      // own comment makes exactly that distinction. So the standing is printed
+      // on the health line now, out of the semantics label where only a screen
+      // reader could reach it.
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: TiqSkin.night(),
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        outlets: twoOutlets,
+      );
+      expect(
+        find.text('Territory health \u00b7 Close to the standard'),
+        findsOneWidget,
+        reason:
+            'A luminous hero with no word beside it is a number with no '
+            'verdict. 73 against a published 75 is inside the watch band.',
+      );
+    });
+
+    testWidgets('a Night row figure is luminous, and its dot is not', (
+      tester,
+    ) async {
+      // THE OWNER'S ACTUAL COMPLAINT, AS A TEST: "make the numbers lumunuous
+      // white and not red". The decision rows were the crimson they were
+      // looking at. The dot beside the name still carries the verdict, which
+      // is the only reason the colour may leave the figure at all.
+      final skin = TiqSkin.night();
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        skin: skin,
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        now: DateTime.utc(2026, 9, 18, 18),
+        alerts: <AlertItem>[
+          alert(
+            id: 'watch',
+            severity: 'warning',
+            message: 'Price above the published band',
+            outletId: 'o2',
+            createdAt: DateTime.utc(2026, 9, 18, 12),
+          ),
+          alert(
+            id: 'crit',
+            message: 'Out of stock since Tuesday',
+            outletId: 'o1',
+            createdAt: DateTime.utc(2026, 9, 18, 6),
+          ),
+        ],
+        outlets: twoOutlets,
+      );
+      // The figures themselves: bone, both of them, on a critical row and a
+      // watch row alike.
+      for (final hours in <String>['12', '6']) {
+        expect(inkOf(tester, hours), skin.palette.ink1);
+      }
+      final rows = tester.widgetList<DecisionRow>(find.byType(DecisionRow));
+      expect(rows, isNotEmpty);
+      for (final row in rows) {
+        expect(
+          row.severity,
+          isNot(SoftRowSeverity.none),
+          reason:
+              'If a row has no severity bar then its figure WAS the only '
+              'signal and the colour may not leave it. THIS is the assertion '
+              'that makes the reversal safe rather than merely requested.',
         );
         expect(
-          inkOf(tester, '88'),
-          skin.palette.good,
-          reason: '${skin.mode.name}: a score over its standard is good news.',
+          row.severityLabel,
+          isNotNull,
+          reason:
+              'And the word is announced first in the row label, so a reader '
+              'who sees neither hue nor bar still gets the verdict.',
         );
       }
     });

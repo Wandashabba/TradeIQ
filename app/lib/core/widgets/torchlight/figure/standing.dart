@@ -29,7 +29,7 @@ import '../mark/status_chip.dart';
 ///    and it outranks the standing.
 /// 2. **The word grade, never the mark grade.** `good` and `bad` carry text at
 ///    4.5:1 on every fill in every skin; `goodSolid` and `badSolid` are fills
-///    and do not (Night `badSolid` is 3.66:1 on `surface`). A figure therefore
+///    and do not (Night `badSolid` is 4.09:1 on `surface`). A figure therefore
 ///    takes one crimson whichever commitment level it is at — the *mark*
 ///    beside it is what carries the level, by fill against outline.
 /// 3. **Colour is never the only signal.** Nothing here produces a colour on
@@ -39,6 +39,13 @@ import '../mark/status_chip.dart';
 ///
 /// Amber is not in this file and cannot be: amber marks the expected next
 /// move. Green and crimson carry judgement; amber does not.
+///
+/// ## The fourth consequence, added 29 September 2026: the ground gets a vote
+///
+/// Everything above still holds. What changed is that "may this figure be
+/// coloured" now has a second question after it — *on this ground?* — and the
+/// answer is [TiqSkin.standingColoursFigures]. See [FigureRank] and the
+/// reversal recorded on [severityInk].
 
 /// On the standard, within [watchBand] of it, or breaching it.
 ///
@@ -66,6 +73,30 @@ SeverityMarkKind? severityFor(StatusLevel level) => switch (level) {
   _ => null,
 };
 
+/// WHAT A FIGURE IS ON ITS SCREEN — and, on Night, whether it may be crimson.
+///
+/// The distinction only bites where [TiqSkin.standingColoursFigures] is false.
+/// On paper both ranks take their verdict's ink exactly as they always have.
+enum FigureRank {
+  /// One figure among several of its kind: a row's trailing value, an
+  /// indicator's rate, a cell in a cluster. **Never coloured on Night.** The
+  /// artifact's `.srow .val` is bone while the dot beside it is crimson, and
+  /// that is the whole reading: the dot carries the verdict, the figure
+  /// carries the number.
+  row,
+
+  /// The one figure a screen is *about* — the headline of a panel, where the
+  /// number IS the answer to the question the screen asked.
+  ///
+  /// On Night a headline keeps crimson **only at [StatusLevel.critical]**, and
+  /// nothing else does. The artifact draws exactly one such figure: Ask's
+  /// `−43,6%`, crimson, beside a `481 615` that is bone. A watch-band headline
+  /// is not that, and neither is a hero — §16.2 already rules that a hero is
+  /// ink-1 at every band, because a figure large enough for its colour to read
+  /// as the whole message must not have one.
+  headline,
+}
+
 /// The ink a figure takes from its standing, or **null for plain ink**.
 ///
 /// Null is the common answer and the safe one: a caller passes the result
@@ -75,6 +106,7 @@ Color? standingInk(
   TiqSkin skin,
   StatusLevel? level, {
   FigureState state = FigureState.measured,
+  FigureRank rank = FigureRank.row,
 }) {
   // A figure that cannot be judged is never coloured — the em dash, the
   // never-measured cell, the thin sample and the provisional all keep the ink
@@ -82,6 +114,15 @@ Color? standingInk(
   // computed from a value the screen is not confident in is a verdict the
   // screen has not earned.
   if (state != FigureState.measured) return null;
+  // THE GROUND'S VOTE. On a near-black ground a figure is luminous bone and
+  // the verdict is somewhere else; on paper it is the verdict. See
+  // [TiqSkin.standingColoursFigures] for why, and [severityInk] for the
+  // instruction that reversed this.
+  if (!skin.standingColoursFigures) {
+    return rank == FigureRank.headline && level == StatusLevel.critical
+        ? skin.palette.bad
+        : null;
+  }
   return switch (level) {
     // One crimson for both commitment levels. The level is carried by the
     // mark beside the figure — a filled dot against an outlined one — because
@@ -96,16 +137,61 @@ Color? standingInk(
 
 /// The ink a figure takes from the severity its own row is already showing.
 ///
-/// The owner's second rule: *"severity figures on rows should match the row's
-/// own severity mark rather than sitting in neutral ink beside a crimson
-/// dot"*. The figure and the dot are one reading, and a row that draws them in
-/// two different inks is a row that reads as two.
+/// ## A REVERSAL, ON THE RECORD. Do not re-apply the 28 September rule.
+///
+/// Both instructions below are the same owner's, one day apart, and the second
+/// overrides the first **on Night only**. The first is kept here in full,
+/// because deleting it is how it comes back: somebody reads a row of bone
+/// figures beside crimson dots in six months, has exactly the thought the
+/// owner had on 28 September, and undoes this.
+///
+/// **28 September 2026 — the rule this function was written for:**
+///
+/// > *"severity figures on rows should match the row's own severity mark
+/// > rather than sitting in neutral ink beside a crimson dot"*
+///
+/// The reasoning was that the figure and the dot are one reading, and a row
+/// that draws them in two different inks is a row that reads as two. That is
+/// a good argument about a *row*. It is not an argument about a *screen*.
+///
+/// **29 September 2026 — the instruction that supersedes it**, written looking
+/// at The Floor in the dark theme beside the approved artifact:
+///
+/// > *"Look at that grey, I need it on some of these cards instead this blue
+/// > everywhere, this is on the dark theme and make the numbers lumunuous
+/// > white and not red and some grey like the ones up here."*
+///
+/// What the first instruction could not see is what the rule looks like at
+/// scale. Applied per row it is one crimson number beside one crimson dot;
+/// applied down a list it is every number on the screen in crimson, on a
+/// ground where crimson is *darker* than the ink around it — so the figures,
+/// which are the brightest and most important objects on a console, become the
+/// dimmest. The artifact resolves it the other way and is explicit about it:
+/// `.srow .val` sets **no colour at all** and inherits the bone `#EEE9DF`,
+/// while the `.dot` beside it is `#FF7D8C`. The dot carries the verdict. The
+/// figure carries the number.
+///
+/// Note what did **not** reverse. The 28 September rule's own premise — that a
+/// row must not state its severity in one place only — is not just intact, it
+/// is load-bearing: this function may only return null where the mark it was
+/// named after is actually drawn. Every caller is checked for that, and a
+/// caller that has no mark gets one rather than keeping its colour.
+///
+/// And Day is untouched. The owner said "this is on the dark theme", so the
+/// reversal is scoped by [TiqSkin.standingColoursFigures] rather than applied
+/// to both grounds — see its own note for why paper needs the opposite answer.
 Color? severityInk(
   TiqSkin skin,
   SeverityMarkKind? kind, {
   FigureState state = FigureState.measured,
+  FigureRank rank = FigureRank.row,
 }) {
   if (state != FigureState.measured) return null;
+  if (!skin.standingColoursFigures) {
+    return rank == FigureRank.headline && kind == SeverityMarkKind.critical
+        ? skin.palette.bad
+        : null;
+  }
   return switch (kind) {
     SeverityMarkKind.critical || SeverityMarkKind.watch => skin.palette.bad,
     SeverityMarkKind.onTarget => skin.palette.good,

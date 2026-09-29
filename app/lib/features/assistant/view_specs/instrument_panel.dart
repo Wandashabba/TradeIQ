@@ -35,7 +35,7 @@ class PanelBlock {
 /// ## Separation is a gap *and* a rule
 ///
 /// 24dp of clear space between blocks with a full-bleed 1px `edgeStructure`
-/// rule centred in it. The previous build used a 1.72:1 hairline as the sole
+/// rule centred in it. The previous build used a 1.92:1 hairline as the sole
 /// divider with no gap at all; a decorative line is permitted only where a
 /// compliant separation is already doing the work.
 ///

@@ -484,7 +484,7 @@ class TorchlightContrast {
         background: n.surface,
         role: ContrastRole.graphic,
         note:
-            'A MARK, not a word. badSolid is 3.66:1 as text on this fill, '
+            'A MARK, not a word. badSolid is 4.09:1 as text on this fill, '
             'which is why a figure, a phrase and a sparkline stroke all take '
             'the word grade (`bad`) and only the dot, the bar and the solid '
             'block take this one.',
@@ -942,10 +942,19 @@ class TorchlightContrast {
   ///   and, on Day, the nav-active ink block, and the only thing set on it is
   ///   the skin's own `ground` colour.
   /// * **`edgeStructure`** bounds an L2 container, which sits on the ground or
-  ///   is the surface. It never bounds an L3 `raised` (2.67:1 in Night) —
-  ///   an L3 lives inside an L2 that already has an edge and is divided by
-  ///   hairlines — and it never bounds an L1 `well`, which is banned outright
-  ///   on Day at 2.99:1 and is a surface whose job is to recede.
+  ///   is the surface. It never bounds an L3 `raised` — an L3 lives inside an
+  ///   L2 that already has an edge and is divided by hairlines — and it never
+  ///   bounds an L1 `well`, which is banned outright on Day at 2.99:1 and is a
+  ///   surface whose job is to recede.
+  ///
+  ///   **The arithmetic that used to be half of that reason is gone.** This
+  ///   read "(2.67:1 in Night)", and on the old blue ladder an L3 edge was
+  ///   simply illegal. The warm-neutral recast of 29 September 2026 darkened
+  ///   `raised` and the same edge now measures 3.17:1 there — it would pass.
+  ///   It is still not swept, and the structural half of the reason is why: a
+  ///   container edge inside a container edge is two outlines around one
+  ///   thing. A rule that survives only because a number was inconvenient is
+  ///   not a rule, so this says which half is load-bearing now.
   /// * **`edgeControl`** bounds a control, and a control may sit anywhere,
   ///   including in a trough.
   static List<ContrastPairing> generatedFor(TiqSkin skin) {
@@ -975,7 +984,7 @@ class TorchlightContrast {
     // * **`goodSolid` / `badSolid`** — the mark grade. They are fills, dots,
     //   bars and solid blocks at a 3:1 graphic floor, and their ink pairings
     //   (`onGoodSolid` / `onBadSolid`) are declared by hand. Night `badSolid`
-    //   is 3.66:1 on `surface`; sweeping it as text would fail on a pairing
+    //   is 4.09:1 on `surface`; sweeping it as text would fail on a pairing
     //   nothing draws, which is how a generated test gets switched off.
     // * **`comparison`** — Truffle is a dashed 1.5dp line and a legend
     //   swatch, never a word. On the Day well it is 4.02:1, which is not a

@@ -335,7 +335,16 @@ class _ScoreCard extends StatelessWidget {
       // after two other facts. The word is still there and the sparkline still
       // carries the same verdict; this is the third cue, on the object a
       // manager actually looks at.
-      figureInk: measured ? standingInk(context.skin, status) : null,
+      //
+      // THE ONE FIGURE ON THIS SCREEN THAT IS A HEADLINE, declared as one on
+      // 29 September 2026. Night stopped colouring row figures that day; a
+      // headline is the exception the artifact keeps (`−43,6%` crimson beside
+      // a bone `481 615`) and this is it — the number the panel exists to
+      // report. It still only goes crimson at `critical`: a watch-band
+      // headline stays luminous and says so in the target words below.
+      figureInk: measured
+          ? standingInk(context.skin, status, rank: FigureRank.headline)
+          : null,
       // NO SEVERITY. `lead` plus a severity is what drew the outlined
       // rectangle; the standing is in the supporting line's target and in the
       // delta beside the figure, and the indicator rows below are where a
@@ -872,12 +881,9 @@ String indicatorNote(AppLocalizations l10n, String id) => switch (id) {
 // on 28 September 2026, so The Floor can read a figure against the same
 // published standard this screen does and colour it the same way.
 
-String standingWord(AppLocalizations l10n, StatusLevel level) =>
-    switch (level) {
-      StatusLevel.critical => l10n.dashStandingCritical,
-      StatusLevel.watch => l10n.dashStandingWatch,
-      _ => l10n.dashStandingOnTarget,
-    };
+// `standingWord` moved to `standards.dart` on 29 September 2026, beside the
+// lines it names a standing against, so The Floor's plate can print the same
+// three words this screen does.
 
 /// The movement against the like-for-like window before this one (#365).
 ///

@@ -16,6 +16,19 @@ import 'torch_harness.dart';
 /// — do not colour a number just to brighten the screen."* This is that rule
 /// as a test, because a rule that lives only in a doc comment is a rule the
 /// next screen will not follow.
+///
+/// ## THE GROUND GOT A VOTE — 29 September 2026
+///
+/// Everything above still holds and none of it was weakened. What changed is
+/// that the answer is now per skin: the owner looked at The Floor in the dark
+/// theme and asked for *"the numbers lumunuous white and not red"*, so on
+/// Night a row figure stays `ink1` and the mark beside it carries the verdict.
+/// Day is untouched.
+///
+/// Several tests below used to loop `allSkins` and assert one answer for both.
+/// They asserted the old decision — that a figure's ground does not matter —
+/// and they are split rather than relaxed: each now states what Day does AND
+/// what Night does, so neither half can rot into the other.
 void main() {
   group('standingInk — colour only where there is a judgement', () {
     test('a figure with no standing is plain ink in every skin', () {
@@ -61,23 +74,33 @@ void main() {
             );
           }
         }
+        // ...and a measured figure with a verdict DOES take the colour —
+        // where its ground allows one. On Night only a headline does; see the
+        // split below.
         expect(
-          standingInk(skin, StatusLevel.critical),
+          standingInk(skin, StatusLevel.critical, rank: FigureRank.headline),
           skin.palette.bad,
-          reason: 'A measured figure with a verdict does take the colour.',
+          reason: 'A measured headline with a verdict does take the colour.',
         );
       }
     });
 
     // THE GRADE SPLIT, WHICH IS A CONTRAST RULE AND NOT A TASTE ONE.
+    //
+    // Asked of the figures that ARE coloured on each ground: every level on
+    // Day, and the headline on Night. The question the grade split answers —
+    // `bad` or `badSolid` — is the same on both.
     test('a figure takes the word grade, never the mark grade', () {
       for (final skin in allSkins) {
+        final rank = skin.standingColoursFigures
+            ? FigureRank.row
+            : FigureRank.headline;
         for (final level in <StatusLevel>[
           StatusLevel.critical,
-          StatusLevel.watch,
+          if (skin.standingColoursFigures) StatusLevel.watch,
         ]) {
           expect(
-            standingInk(skin, level),
+            standingInk(skin, level, rank: rank),
             skin.palette.bad,
             reason:
                 '${skin.mode.name}: ${level.name} must set a figure in `bad`, '
@@ -88,8 +111,111 @@ void main() {
                 'against an outline.',
           );
         }
-        expect(standingInk(skin, StatusLevel.onTarget), skin.palette.good);
+        if (skin.standingColoursFigures) {
+          expect(standingInk(skin, StatusLevel.onTarget), skin.palette.good);
+        }
       }
+    });
+
+    // ── THE SPLIT ITSELF, 29 September 2026 ────────────────────────────
+    //
+    // The reversal is on `severityInk`'s doc comment with both quotes and
+    // both dates. This is the arithmetic half: what each ground actually
+    // returns, so neither can drift into the other unnoticed.
+    group('the ground decides whether a figure may be crimson', () {
+      test('Night: a row figure is luminous at every band', () {
+        final night = TiqSkin.night();
+        for (final level in StatusLevel.values) {
+          expect(
+            standingInk(night, level),
+            isNull,
+            reason:
+                'A ${level.name} row figure took colour on Night. Null is '
+                'what FigureSlot needs to fall back to ink1 — the bone the '
+                'artifact sets every `.srow .val` in. The verdict belongs to '
+                'the dot beside it.',
+          );
+        }
+      });
+
+      test('Night: a headline keeps crimson, but only at critical', () {
+        final night = TiqSkin.night();
+        expect(
+          standingInk(night, StatusLevel.critical, rank: FigureRank.headline),
+          night.palette.bad,
+          reason:
+              'The one coloured figure the artifact draws is a critical '
+              "headline — Ask's -43,6%, beside a bone 481 615.",
+        );
+        for (final level in <StatusLevel>[
+          StatusLevel.watch,
+          StatusLevel.onTarget,
+          StatusLevel.held,
+          StatusLevel.live,
+        ]) {
+          expect(
+            standingInk(night, level, rank: FigureRank.headline),
+            isNull,
+            reason:
+                'A ${level.name} headline took colour on Night. Only a '
+                'genuinely critical headline does; a watch-band headline says '
+                'so in its target words.',
+          );
+        }
+      });
+
+      test('Day did not move — the owner said "this is on the dark theme"', () {
+        final day = TiqSkin.day();
+        for (final rank in FigureRank.values) {
+          expect(
+            standingInk(day, StatusLevel.critical, rank: rank),
+            day.palette.bad,
+          );
+          expect(
+            standingInk(day, StatusLevel.watch, rank: rank),
+            day.palette.bad,
+          );
+          expect(
+            standingInk(day, StatusLevel.onTarget, rank: rank),
+            day.palette.good,
+          );
+        }
+      });
+
+      test('the law is a skin value, not a mode check', () {
+        // If this ever becomes `skin.mode == SkinMode.night` at a call site,
+        // the next skin has to be added in N places instead of one. The whole
+        // reason `amberIsInk` has this shape.
+        expect(TiqSkin.night().standingColoursFigures, isFalse);
+        expect(TiqSkin.day().standingColoursFigures, isTrue);
+        final forced = TiqSkin.night().copyWith(standingColoursFigures: true);
+        expect(
+          standingInk(forced, StatusLevel.watch),
+          forced.palette.bad,
+          reason:
+              'standingInk reads the value and nothing else. A skin that says '
+              'it colours figures colours them, whatever its mode is called.',
+        );
+      });
+
+      // AND THE STATE STILL OUTRANKS ALL OF IT. A figure that cannot be judged
+      // is not coloured on either ground at either rank — unify section 4 was
+      // not part of the reversal.
+      test('an unjudgeable figure is plain ink on both grounds, both ranks', () {
+        for (final skin in allSkins) {
+          for (final rank in FigureRank.values) {
+            expect(
+              standingInk(
+                skin,
+                StatusLevel.critical,
+                state: FigureState.lowSample,
+                rank: rank,
+              ),
+              isNull,
+            );
+          }
+        }
+      });
     });
 
     test('the word grade clears 4.5:1 on every fill a figure sits on', () {
@@ -139,21 +265,63 @@ void main() {
       expect(severityFor(StatusLevel.onTarget), isNull);
       expect(severityFor(StatusLevel.watch), SeverityMarkKind.watch);
       expect(severityFor(StatusLevel.critical), SeverityMarkKind.critical);
-      for (final skin in allSkins) {
-        expect(standingInk(skin, StatusLevel.onTarget), skin.palette.good);
-      }
+      // The green is Day's, since 29 September 2026. On Night an on-target
+      // figure is luminous bone like every other row figure, and "on the
+      // standard" is the word on its meta line.
+      expect(
+        standingInk(TiqSkin.day(), StatusLevel.onTarget),
+        TiqSkin.day().palette.good,
+      );
+      expect(standingInk(TiqSkin.night(), StatusLevel.onTarget), isNull);
     });
   });
 
-  group('severityInk — a row figure matches its row', () {
-    test('a verdict colours, an absence does not', () {
+  group('severityInk — the row figure and the ground it sits on', () {
+    // THIS GROUP WAS NAMED "a row figure matches its row" AND ASSERTED IT FOR
+    // BOTH SKINS. That was the 28 September decision and it was reversed on
+    // Night the next day; see the quotes on `severityInk` itself. The old
+    // assertions are kept for Day, where the rule never changed.
+    test('Day: a verdict colours, an absence does not', () {
+      final skin = TiqSkin.day();
+      expect(severityInk(skin, SeverityMarkKind.critical), skin.palette.bad);
+      expect(severityInk(skin, SeverityMarkKind.watch), skin.palette.bad);
+      expect(severityInk(skin, SeverityMarkKind.onTarget), skin.palette.good);
+      expect(severityInk(skin, SeverityMarkKind.held), isNull);
+      expect(severityInk(skin, SeverityMarkKind.notMeasured), isNull);
+      expect(severityInk(skin, null), isNull);
+    });
+
+    test('Night: nothing at row rank, and only critical at headline', () {
+      final skin = TiqSkin.night();
+      for (final kind in SeverityMarkKind.values) {
+        expect(
+          severityInk(skin, kind),
+          isNull,
+          reason: 'A ${kind.name} row figure took colour on Night.',
+        );
+      }
+      expect(
+        severityInk(skin, SeverityMarkKind.critical, rank: FigureRank.headline),
+        skin.palette.bad,
+      );
+      expect(
+        severityInk(skin, SeverityMarkKind.watch, rank: FigureRank.headline),
+        isNull,
+      );
+    });
+
+    test('an absence is never a verdict on either ground', () {
+      // `held` is Oatmeal and `notMeasured` is an absence. Neither was ever a
+      // verdict and the reversal did not make either one.
       for (final skin in allSkins) {
-        expect(severityInk(skin, SeverityMarkKind.critical), skin.palette.bad);
-        expect(severityInk(skin, SeverityMarkKind.watch), skin.palette.bad);
-        expect(severityInk(skin, SeverityMarkKind.onTarget), skin.palette.good);
-        expect(severityInk(skin, SeverityMarkKind.held), isNull);
-        expect(severityInk(skin, SeverityMarkKind.notMeasured), isNull);
-        expect(severityInk(skin, null), isNull);
+        for (final rank in FigureRank.values) {
+          expect(severityInk(skin, SeverityMarkKind.held, rank: rank), isNull);
+          expect(
+            severityInk(skin, SeverityMarkKind.notMeasured, rank: rank),
+            isNull,
+          );
+          expect(severityInk(skin, null, rank: rank), isNull);
+        }
       }
     });
   });
@@ -249,13 +417,13 @@ void main() {
     });
   });
 
-  group('the decision row figure matches its own dot', () {
+  group('the decision row figure, on each ground', () {
     for (final (name, severity, wants) in <(String, SoftRowSeverity, bool)>[
       ('critical', SoftRowSeverity.critical, true),
       ('watch', SoftRowSeverity.watch, true),
       ('none', SoftRowSeverity.none, false),
     ]) {
-      testWidgets('a $name row', (tester) async {
+      testWidgets('a $name row on Day', (tester) async {
         final skin = TiqSkin.day();
         await pumpTorch(
           tester,

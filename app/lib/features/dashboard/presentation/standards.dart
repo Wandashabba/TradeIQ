@@ -11,6 +11,24 @@
 /// figure with no line here is never coloured: see `standing.dart`.
 library;
 
+import '../../../core/widgets/torchlight/marks.dart' show StatusLevel;
+import '../../../l10n/l10n.dart';
+
+/// The standing, in the three words the console prints for it.
+///
+/// Here rather than on the Execution overview, where it lived until
+/// 29 September 2026, for the reason the file's own preamble gives: The Floor
+/// and the overview read the same figures against the same lines, so they have
+/// to name a gap with the same word. The Floor's plate started printing it
+/// that day, when Night stopped colouring the hero and the standing needed a
+/// carrier that was not a hue.
+String standingWord(AppLocalizations l10n, StatusLevel level) =>
+    switch (level) {
+      StatusLevel.critical => l10n.dashStandingCritical,
+      StatusLevel.watch => l10n.dashStandingWatch,
+      _ => l10n.dashStandingOnTarget,
+    };
+
 /// The client's published execution-score standard.
 const double executionScoreTarget = 75;
 

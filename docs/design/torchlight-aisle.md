@@ -122,7 +122,9 @@ perceivable boundary carries a real edge.
 > `#5A7088` and described it as "tuned to exactly 3.00:1" on `surface`. It
 > measures **2.9987:1** and therefore misses WCAG 1.4.11 — on the single most
 > used structural edge in Night. The token is `#5B718A`, the minimum step up the
-> same hue line, which measures 3.05:1 on `surface` and 3.79:1 on `ground`.
+> same hue line, which measures 3.41:1 on `surface` and 3.79:1 on `ground`.
+> (3.05:1 until the Night ladder was recast warm-neutral on 29 September 2026;
+> the surface went darker, so the edge on it got easier, not harder.)
 
 ### Ink
 
@@ -1396,6 +1398,161 @@ at.
 
 ---
 
+## 9h. Night goes warm-neutral, and the figures stop bleeding — 29 September 2026
+
+Two instructions in one sentence, written looking at The Floor in the **dark
+theme** beside the approved artifact:
+
+> *"Look at that grey, I need it on some of these cards instead this blue
+> everywhere, this is on the dark theme and make the numbers lumunuous white
+> and not red and some grey like the ones up here."*
+
+Both are scoped to Night by the owner's own words. **Day is untouched** by
+everything in this section.
+
+### The cards were a bluer room, not a lit one
+
+The artifact's surfaces are not a colour. Every card, row, panel, track and
+nav body in it is the bone `#EEE9DF` — the same ink the text is set in —
+washed over `--abyss-deep #0B1017` at a few per cent. So every surface is the
+*same* warm off-white at a different strength, and what shows through is the
+ground's own navy, undiluted.
+
+Night's ladder was four separately chosen navies. Measured as **blue cast**
+(B−R, the simplest statement of "how much bluer than red this is") they ran:
+
+| tier | was | cast | is | cast | alpha |
+|---|---|---|---|---|---|
+| `well` | `#141D27` | 19 | `#12171D` | 11 | bone @ 0.030 |
+| `surface` | `#1B2632` | 23 | `#171C22` | 11 | bone @ 0.055 |
+| `raised` | `#22303E` | 28 | `#1E2228` | 10 | bone @ 0.085 |
+| `lifted` | `#2C3B4D` | 33 | `#262A2F` | 9 | bone @ 0.120 |
+
+The artifact holds 9–11 across everything it draws. The old ladder's cast
+*climbed* as the surface lightened, which is the "blue everywhere" in one
+number: a card was not the ground with more light on it, it was a bluer
+ground.
+
+`surface` and `raised` are **the artifact's own alphas** — its soft row is
+`rgba(238,233,223,0.055)` and its lead row `0.085` — so the two tiers a card
+is actually painted in are the design rather than an interpretation of it.
+`well` and `lifted` extend the same line; the artifact's Ask panel (`0.05`),
+progress track (`0.10`) and hover (`0.12`) bracket them.
+
+`ground` and `vignette` did not move. They already matched `--abyss-deep` and
+`--abyss` and they are the letterbox falloff's stops, not cards.
+
+**The ladder is derived, and a test says so.** `TiqPalette.nightWash(alpha)`
+and `TiqPalette.nightSurfaceAlpha` are the generating rule;
+`torchlight_surface_ladder_test.dart` recomputes every tier from its declared
+alpha. Four hexes that happen to sit near each other are not a family and the
+next person to nudge one would have nothing to tell them otherwise.
+
+### What it cost, both directions
+
+Every tier is **darker** than the one it replaced, so every ink and every edge
+measured on one gained contrast. Twenty-five declared Night pairings moved and
+all twenty-five moved up; the numbers are recomputed in
+`torchlight_contrast_test.dart`, not adjusted to fit. Nothing was exempted,
+widened or reclassified.
+
+Three prose ratios elsewhere in the codebase went stale with it and are
+corrected: `badSolid` on `surface` 3.66 → **4.09** (still under the 4.5 that
+keeps it out of a sentence, so the grade split's argument survives its
+number), the decorative hairline on `surface` 1.72 → **1.92**, and
+`edgeStructure` on `surface` 3.05 → **3.41**.
+
+One argument changed rather than one number. `edgeStructure` is kept out of
+the generated sweep against `raised`, and half the stated reason was that it
+measured 2.67:1 there and could not pass. It measures **3.17:1** now and
+would. The structural half — a container edge inside a container edge is two
+outlines around one thing — is what is left, and the comment says so. A rule
+that survives only because a number was inconvenient is not a rule.
+
+**What got smaller is the step between adjacent tiers**: 1.12 / 1.11 / 1.14 /
+1.18 became 1.06 / 1.05 / 1.07 / 1.11. Anchoring `surface` on the artifact's
+0.055 is what does it — the whole span from ground to surface is only 1.11:1,
+so anything placed between them is close to both. This is inside the range §2
+already refuses to treat as a cue ("a 1.12–1.24:1 fill step is one or two
+quantisation levels on a budget LCD in sunlight"), and the rule §2 states
+instead is unchanged and still enforced: **nothing is identified by a fill
+step alone and every perceivable boundary carries a real edge**. The
+compression is a consequence of the approved design, not of this change's
+arithmetic, and it is pinned in the ladder test so that "fixing" it by
+lightening a tier is a visible edit.
+
+### The figure is luminous; the mark beside it carries the verdict
+
+This **reverses the owner's own rule of 28 September**, and the reversal is
+recorded in `standing.dart` with both quotes and both dates rather than the
+old rationale being deleted — otherwise somebody has the 28 September thought
+again in six months and undoes this.
+
+The old rule was *"severity figures on rows should match the row's own
+severity mark rather than sitting in neutral ink beside a crimson dot"*. That
+is a good argument about a **row**. It is not an argument about a **screen**:
+applied down a list it puts every number on The Floor in crimson, on a ground
+where crimson is *darker* than the ink around it, so the console's brightest
+and most important objects become its dimmest.
+
+The artifact settles it the other way and is explicit about it. `.srow .val`
+sets **no colour at all** and inherits the bone; the `.dot` beside it is
+`#FF7D8C`. The hero `72` is bone; its `▼ 19` is crimson. The dot and the delta
+carry the verdict. The figure carries the number. The greys the owner points
+at are already in the ladder and stay where they are: `ink2`/`ink3` for
+subordinate figures, units, denominators and meta, exactly as the artifact
+uses `#C9C1B1` and `#A79E8C`.
+
+Scoped to Night by **`TiqSkin.standingColoursFigures`** — the same shape as
+`amberIsInk`, a law as a value and not an `if (isNight)`. Day keeps its
+semantic colour: on paper `ink1` is a navy and a page of figures is otherwise
+one colour, which is what the 28 September note was originally about and what
+has not been withdrawn.
+
+`FigureRank` carries the one exception the artifact keeps. A **headline**
+figure at `critical` stays crimson — the artifact draws exactly one, Ask's
+`−43,6%`, beside a `481 615` that is bone. A row figure never is. Neither is a
+hero: §16.2 has ruled since the visit outcome shipped that a hero is ink-1 at
+every band, because a figure large enough for its colour to read as the whole
+message must not have one.
+
+### Colour was never the only signal, checked per site
+
+The reversal is only safe where something else beside the figure says the same
+thing. Five sites, four of which already did:
+
+| site | what still carries the standing |
+|---|---|
+| `DecisionRow` (The Floor's list) | the severity dot, and `severityLabel` announced first |
+| The Floor's availability tile | the `Sparkline`'s severity stroke and crimson last dot — now identical to the artifact's lead row |
+| The overview's indicator rows | a `SoftRow` severity mark plus the target words |
+| The overview's territory rows | a `SoftRow` severity mark plus `standingWord` |
+| **The Floor's plate hero** | **nothing — this one needed work** |
+
+The plate hero's only other carrier was the delta, and the screen's own
+comment argues that a delta says whether the score *moved*, which is a
+different question from whether it is *where it should be*: "a score can fall
+nineteen points and still be fine, and rise two and still be a gap". Taking
+the hue off it would have left the plate answering one question again. So the
+standing moved onto the plate in words — `Territory health · Below the
+standard` — out of the semantics label where only a screen reader could reach
+it. It stays `ink2` and is never coloured: a severity word in severity ink
+beside a plain figure is two severity systems on one plate.
+
+`standingWord` moved to `standards.dart` with it, beside the lines it names a
+standing against, so The Floor and the overview say a gap in the same three
+words.
+
+### The correction this work turned up
+
+`severityInk` was believed to be what painted the crimson row figures. **It
+had no production callers at all.** `DecisionRow` carried an inline copy of
+its body, so the function a reader would go and open was not the code that
+ran — which is exactly how the two could have drifted, and is why the
+duplicate is gone and the row calls the law.
+
+---
+
 ## 9f. The card override reaches the Execution overview — 28 September 2026
 
 The overview (`/dashboard/overview`) migrated to Torchlight in #453, **before**
@@ -2040,7 +2197,7 @@ StatCluster(
 Four tiles maximum on a phone, three recommended. Cells are
 separated by a **12dp gap with a 1px rule centred in it** — `edgeStructure` in
 Night and the decorative hairline on paper. Both, not either: a
-hairline alone measures 1.72:1 and a gap alone loses because a tile's own rows
+hairline alone measures 1.92:1 and a gap alone loses because a tile's own rows
 are 8dp apart. Below 320dp of inner width (which is every phone) the cluster is
 one column of horizontal tiles; above it, a two-column grid of vertical cells,
 decided by `LayoutBuilder` and never by a text-scale guess.

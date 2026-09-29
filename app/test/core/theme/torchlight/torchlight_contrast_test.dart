@@ -262,37 +262,37 @@ void main() {
     // them that way.
     const claims = <String, double>{
       'night ink-1 on ground': 15.77,
-      'night ink-1 on surface': 12.67,
-      'night ink-1 on raised': 11.12,
+      'night ink-1 on surface': 14.16,
+      'night ink-1 on raised': 13.20,
       'night ink-2 on ground': 10.67,
-      'night ink-2 on surface': 8.57,
+      'night ink-2 on surface': 9.58,
       'night ink-3 (12px meta) on ground': 7.19,
-      'night ink-3 (12px meta) on raised — the binding case': 5.07,
+      'night ink-3 (12px meta) on raised — the binding case': 6.02,
       'night hero figure flame-600 on ground': 10.65,
       'night amber text flame-700 on ground': 12.92,
-      'night focus ring flame-700 on surface': 10.38,
-      'night focus ring flame-700 on raised': 9.11,
-      'night amber rim flame-600 on raised': 7.51,
-      'night active-tab underbar flame-600 on nav body (well)': 9.49,
-      'night focus bar flame-600 on chart track (lifted)': 6.37,
-      'night neutral bar chart-neutral on chart track (lifted)': 4.02,
+      'night focus ring flame-700 on surface': 11.60,
+      'night focus ring flame-700 on raised': 10.82,
+      'night amber rim flame-600 on raised': 8.91,
+      'night active-tab underbar flame-600 on nav body (well)': 10.05,
+      'night focus bar flame-600 on chart track (lifted)': 8.06,
+      'night neutral bar chart-neutral on chart track (lifted)': 5.09,
       'night good on ground': 11.76,
-      'night good on raised': 8.30,
+      'night good on raised': 9.85,
       'night bad on ground': 7.78,
-      'night bad on raised': 5.49,
-      'night bad on well': 6.94,
+      'night bad on raised': 6.51,
+      'night bad on well': 7.34,
       'night comparison on ground': 7.52,
-      'night comparison on raised': 5.30,
+      'night comparison on raised': 6.30,
       'night edge-control on ground': 6.02,
-      'night edge-control on surface': 4.84,
-      'night edge-control on raised': 4.25,
-      'night edge-structure on surface — the Panel outline': 3.05,
+      'night edge-control on surface': 5.41,
+      'night edge-control on raised': 5.04,
+      'night edge-structure on surface — the Panel outline': 3.41,
       'night edge-structure on ground': 3.79,
-      'night nav ink inactive on nav body (well)': 6.32,
+      'night nav ink inactive on nav body (well)': 6.69,
       'night ink on amber block': 10.65,
       'night ink on pressed amber block (flame-500)': 8.59,
       'night decorative hairline on ground': 2.14,
-      'night disabled ink-mute on surface': 2.38,
+      'night disabled ink-mute on surface': 2.66,
       // THE CEILING IS PER SKIN SINCE 29 SEPTEMBER 2026, and it moved. Night
       // was 7.68:1 against #474747; the owner asked for the pictures to be
       // luminous, the ceiling went to #666666, and this is what that costs —
@@ -325,12 +325,12 @@ void main() {
       // colours on the numbers and graphs that make sense." Every pairing
       // that change created, recomputed here so the owner's note has an
       // arithmetic record rather than a screenshot.
-      'night good on surface — a coloured figure on a card': 9.45,
-      'night bad on surface — a coloured figure on a card': 6.25,
-      'night critical mark badSolid on surface — the row dot': 3.66,
-      'night subject run ink-1 on the card it is plotted in (surface)': 12.67,
-      'night good run on the card it is plotted in (surface)': 9.45,
-      'night bad run on the card it is plotted in (surface)': 6.25,
+      'night good on surface — a coloured figure on a card': 10.57,
+      'night bad on surface — a coloured figure on a card': 6.99,
+      'night critical mark badSolid on surface — the row dot': 4.09,
+      'night subject run ink-1 on the card it is plotted in (surface)': 14.16,
+      'night good run on the card it is plotted in (surface)': 10.57,
+      'night bad run on the card it is plotted in (surface)': 6.99,
       'day good on card (surface) — a coloured figure on a card': 6.49,
       'day good on well — the darkest Day fill a figure sits on': 5.03,
       'day bad on card (surface) — a coloured figure on a card': 8.51,
@@ -422,7 +422,9 @@ void main() {
       // THE TRADE, RECORDED. Phase 1 moved chart-neutral from #8B8271 to
       // #A39887 (unify §1.4) because the old value measured 3.01:1 against its
       // own track — the product's most-drawn graphic sitting on the AA floor
-      // with 0.01 of margin. It now measures 4.02:1 there, and the price was
+      // with 0.01 of margin. It now measures 5.09:1 there (4.02:1 until the
+      // Night ladder was recast warm-neutral and the track went darker
+      // with it), and the price was
       // this number: the neutral moved *up* the luminance range, towards the
       // focus amber, and the greyscale separation between the two fell from
       // 2.42:1 to 1.58:1.
