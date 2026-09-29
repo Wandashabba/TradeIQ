@@ -172,7 +172,8 @@ what makes Night look lit rather than switched off.
 | `comparison` | `#E08E71` | `#A35139` | Competitor share, prior period, benchmark. Also the held/queued warm neutral. **Never a severity.** |
 | `comparisonWash` | `#7A3A28` | `#F7DCD2` | Wash behind a "held" chip; the 2px edge on an underexposed photo. |
 | `chartNeutral` | `#A39887` | `#5C5648` | The fill of every non-focus bar and series. |
-| `plateCeiling` | `#474747` | — | The maximum luminance any pixel of a baked photographic plate may reach. Enforced server-side; a contrast floor, not a decoration. |
+| `plateCeiling` | `#666666` | `#E6E6E6` | The brightest any pixel of a photographic plate may be. **Per skin since 29 September 2026** — one shared `#474747` is what left the Day plate at 2.63:1 (§9g). |
+| `plateLift` | `0.00` | `0.60` (`#999999`) | The *dimmest* any plate pixel may be, as a share of full value. Night has no floor; on paper the picture must stay paler than the ink. Not `TorchlightContrast.plateFloor`, which is the darkest pixel the **scrimmed** text zone can produce — an output of the scrim, where this is an input to the tone. |
 
 `chartNeutral` exists because Burning Flame and Oatmeal have **identical**
 relative luminance — 1.00:1. They are the same bar in greyscale, in
@@ -1205,9 +1206,9 @@ Where the rules sit:
   them. A generated logo is a real company's mark on a picture it never
   authorised.
 * **≤60 kB each**, the plate's declared budget, met by walking the JPEG quality
-  down rather than by cropping — the plate paints at 12% chroma under a #474747
-  ceiling, so the whole picture lands in a near-neutral band where encoder
-  artefacts have nowhere to show.
+  down rather than by cropping — the plate compresses every picture into a
+  narrow luminance band (see the tone table in §9g), so encoder artefacts have
+  much less room to show than they would at full range.
 
 "All territories" — the scope the screen opens in — gets its own generated
 image, a national trade route at first light, rather than borrowing one
@@ -1289,9 +1290,11 @@ over a photograph. Rendered at 390×844 in both skins:
 * In **Day** they are the most legible text on the plate. More legible than
   "Territory health", which is the line the plate is actually trying to say.
 
-The plate is a photographic *ground*: at 12% chroma under a #474747 ceiling,
-type in the picture does not disappear, it flattens to grey marks that read as
-smudge or as a competing caption. **These two are shipped as supplied and
+The plate is a photographic *ground*: the tone flattens type in the picture
+rather than removing it, so printed names read as smudge or as a competing
+caption. **This got worse on Day with the tone repair of 29 September 2026**,
+not better — the picture is pale now and the printed type is dark, so the town
+names are more legible than they were, not less. See the end of §9g. **These two are shipped as supplied and
 flagged rather than quietly cropped**, because the map may well be the point —
 a manager who cannot place Bethelsdorp on a map is exactly who a map helps.
 That is the owner's call, and the options are:
@@ -1310,6 +1313,9 @@ That is the owner's call, and the options are:
 real plate over every committed picture and measures the ink against the worst
 pixel in the band it occupies. At 390×844, 29 September 2026:
 
+Measured under the **ceiling-only tone** — 12% chroma, every plate pixel in
+both skins multiplied by `#474747`:
+
 | | hero figure (`ink1`) | "Territory health" (`ink2`) |
 |---|---|---|
 | **Night**, generated | 10.29 – 13.16 | 8.61 – 10.59 |
@@ -1317,19 +1323,76 @@ pixel in the band it occupies. At 390×844, 29 September 2026:
 | **Day**, generated | 1.00 – 1.02 | 2.77 – 2.82 |
 | **Day**, supplied | 1.01 – 1.44 | 2.63 – 2.99 |
 
-Night clears 4.5:1 everywhere with a wide margin, and that is now pinned.
+Night cleared 4.5:1 everywhere with a wide margin. **Day did not, and it did
+not before these pictures arrived either.** PR #473 reported the meta line at
+2.92:1 against a 4.5 minimum and called the plate under-specified for a light
+ground; these numbers made it concrete. The scrim ramps `ground` from 0% at the
+top of the text zone to 80% at the foot, so "Territory health" sits at about
+57% and the hero figure's cap height at about 17% — and on a light ground the
+ink is dark while the picture was *also* dark, because every plate pixel was
+capped at `#474747` **in both skins**. The two converged. The worst supplied
+figure (`EC-BCM`, 2.63) was 0.14 below the worst generated one (`ALL`, 2.77):
+the supplied pictures did not materially move a number that was already
+failing. The fix was never the photographs.
 
-**Day does not, and it did not before these pictures arrived either.** PR #473
-reported the meta line at 2.92:1 against a 4.5 minimum and called the plate
-scrim under-specified for a light ground; these numbers make it concrete. The
-scrim ramps `ground` from 0% at the top of the text zone to 80% at the foot, so
-"Territory health" sits at about 57% and the hero figure's cap height at about
-17% — and on a light ground the ink is dark while the picture is *also* dark,
-because every plate pixel is capped at #474747. The two converge. The worst
-supplied figure (`EC-BCM`, 2.63) is 0.14 below the worst generated one
-(`ALL`, 2.77): **the supplied pictures did not materially move a number that
-was already failing.** The fix is the scrim, not the photographs, and it is
-still open.
+### The repair — 29 September 2026: the tone is a range, per skin
+
+It was also never the scrim. A scrim is a wash of `ground` over the picture, so
+strengthening it on paper would have pushed the plate towards Palladian and
+ended with a photograph nobody can see under a number nobody has to read. The
+defect is upstream of it: **a ceiling is the wrong operation for a light
+ground.** A ceiling pushes pixels down, and dark ink needs the picture pushed
+*up*. The two were failing on the same side.
+
+So the tone stops being one number shared by both skins and becomes a range
+each skin declares for itself — `out_i = lift + (k_i − lift) × sat_i(in)`:
+
+| | chroma | lift | ceiling | what it is |
+|---|---|---|---|---|
+| **Night** | 55% | `0.00` | `#666666` | a ceiling, as before, raised |
+| **Day** | 55% | `0.60` (`#999999`) | `#E6E6E6` | a **floor**, which is the repair |
+
+`lift = 0` collapses the matrix to `k_i × sat_i(in)` — the shape it already
+had — so the generalisation is a provable superset and Night still takes that
+path. `TiqPalette.plateCeiling` is an instance field now rather than a
+`static const`, beside `TiqPalette.plateLift`.
+
+The chroma moved with it, and that half is an owner decision rather than a
+contrast repair. The owner looked at the running screen and said the territory
+photographs *"are made dark, give them a bit of colour and luminous towards
+them"*. 12% was written before anyone had seen the screen, against the opposite
+failure — a plate that rendered as a dim rainbow because only the ceiling had
+ever been applied. `direction-torchlight.json` carries the override.
+
+Re-measured, same harness, same 390×844:
+
+| | hero figure (`ink1`) | "Territory health" (`ink2`) |
+|---|---|---|
+| **Night**, generated | 8.30 – 11.18 | 8.35 – 10.15 |
+| **Night**, supplied | 7.13 – 11.73 | 7.63 – 9.76 |
+| **Day**, generated | 7.38 – 7.46 | 6.12 – 6.14 |
+| **Day**, supplied | 6.94 – 8.34 | 5.98 – 6.27 |
+
+Every one of the fourteen clears 4.5:1 for both inks in both skins, and
+`floor_plate_contrast_test.dart` now **pins** that instead of asserting the
+failure: the Day test used to require every figure to be *below* 4.5 with a
+note saying that if one ever went above it somebody had fixed the plate and the
+test should be deleted. The inequality is inverted, the note is this section,
+and the test fails if anyone lowers Day's lift or raises either ceiling.
+
+Night paid for its luminosity out of headroom it had. The declared pairing
+`ink-1 on an unscrimmed plate pixel at the ceiling` was 7.68:1 against
+`#474747` and is **4.75:1** against `#666666` — over the 4.5 a text pairing
+needs, with very little left over. That line, not a screenshot, is what any
+further request to brighten Night has to be argued against.
+
+**One thing got worse, and it is the thing §9g already flagged.** The two map
+composites print their town names more legibly on a Day plate than they did,
+because the picture is now pale and the printed type is dark. The tone did not
+create that — the section above recommends a plain photograph for `EC-NMB` and
+`EC-BCM` for reasons that have nothing to do with contrast — but it does
+sharpen it. `floor_390x844-map-day.png` in the look set is the image to look
+at.
 
 ---
 
@@ -2123,9 +2186,12 @@ the zone — `Kasi Corner Spaza · 17 Sep 06:40` — is what makes the image vis
 specimen and the hero cluster visibly about the territory. An uncaptioned plate
 is the one state this component may not have.
 
-**The bake is still owed.** The spec calls for a server-baked asset: 12% chroma,
-no pixel above `plateCeiling` #474747, an alpha edge dissolve, ≤60 kB WebP. That
-does not exist yet. Until it does the plate reads the existing ≤60 kB thumbnail
+**The bake is still owed, and it is now a harder question.** The spec calls for
+a server-baked asset: the chroma reduction, every pixel inside the skin's own
+`[plateLift, plateCeiling]` range, an alpha edge dissolve, ≤60 kB WebP. That
+does not exist yet — and since the tone became per skin (§9g) a baked asset is
+either **two** bakes or one untoned original with this filter still on it. Until
+that is decided, the filter stays and a baked pixel must not be toned twice. Until it does the plate reads the existing ≤60 kB thumbnail
 route and applies the *luminance* half of the bake client-side, as a `multiply`
 blend on the image's own paint — one paint parameter, no `ColorFiltered` and so
 no `saveLayer`. The chroma reduction, the dissolve and the byte cap stay on the
