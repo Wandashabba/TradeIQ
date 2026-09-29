@@ -124,6 +124,48 @@ void main() {
       expect(consoleSkinFor(null, ambient), same(ambient));
     });
 
+    /// THE CASE THE TEST ABOVE NEVER ASKED, WHICH IS WHY IT WENT UNSEEN.
+    ///
+    /// Its `ambient` is `TiqSkin.night()`, and that is console density, so
+    /// `consoleSkinFor(null, ambient)` handing the object straight back was
+    /// both the right answer and a passing test. The ambient in the shipping
+    /// app is not that: `main.dart` builds `theme:` from `AppTheme.day()`,
+    /// whose density defaults to **field**, so a manager in light mode who has
+    /// never touched the skin cycle had a FIELD skin as her ambient — and got
+    /// the agent's geometry on every migrated console route.
+    ///
+    /// "Follow the app" is about brightness. It was never about density, and
+    /// a console route is console density by definition.
+    test('a console route never inherits field density from the app theme', () {
+      // Exactly what `main.dart` registers on its light arm.
+      final shipped = AppTheme.day();
+      final ambient = shipped.extension<TiqSkin>()!;
+      expect(
+        ambient.space.density,
+        TiqDensity.field,
+        reason: "main.dart's light theme registers a field skin — if this "
+            'ever stops being true, the defect below is gone at the source '
+            'and this test is the place to say so',
+      );
+
+      final resolved = consoleSkinFor(null, ambient);
+      expect(
+        resolved.space.density,
+        TiqDensity.console,
+        reason: 'a manager who has never cycled the skin still gets the '
+            "manager's geometry",
+      );
+      // The brightness she chose is untouched — only the density is corrected.
+      expect(resolved.mode, SkinMode.day);
+      expect(resolved.brightness, Brightness.light);
+      expect(resolved.palette.ground, ambient.palette.ground);
+
+      // And the console skin is a whole, consistent one rather than a field
+      // skin with one field swapped.
+      expect(resolved.space, same(TiqSpace.console));
+      expect(resolved.text, same(TiqType.console));
+    });
+
     test('the skin cycle is a closed two-state loop', () {
       expect(TorchSkinCycle.next(SkinMode.day), SkinMode.night);
       expect(TorchSkinCycle.next(SkinMode.night), SkinMode.day);

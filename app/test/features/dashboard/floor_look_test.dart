@@ -191,19 +191,37 @@ void main() {
 /// default — so the only thing that differs between a `-day` image and its
 /// twin is the skin.
 ///
-/// THE DENSITY IS NAMED, and it has to be. `TiqSkin.day()` defaults to
-/// **field**, not console — the agent is the one who starts in Day, so the
-/// factory's default is written for them — while `TiqSkin.night()` defaults to
-/// console. A bare `TiqSkin.day()` here therefore did the opposite of what the
-/// sentence above promises: it rendered The Floor, a manager screen, at field
-/// density, so every `-day` image differed from its Night twin by the density
-/// as well as the skin — field's 64dp rows, 48dp targets and, until
-/// 29 September 2026, the field type scale. `tasks_look_test.dart` and
-/// `ask_look_test.dart` both name `TiqDensity.console` and were always right;
-/// this file was the odd one out. The real route is not affected — The Floor
-/// is a `ConsoleTorchlightRoute` and `consoleSkinFor` names the density — so
-/// this was a harness fault, and the three `-day` images it produced were of a
-/// screen the product never draws.
+/// THE DENSITY IS NAMED, and it has to be. A bare `TiqSkin.day()` here once
+/// rendered The Floor, a manager screen, at FIELD density, so every `-day`
+/// image differed from its Night twin by the density as well as the skin —
+/// field's 64dp rows, 48dp targets and, until 29 September 2026, the field
+/// type scale. `tasks_look_test.dart` and `ask_look_test.dart` both name
+/// `TiqDensity.console` and were always right; this file was the odd one out.
+///
+/// TWO SENTENCES THAT STOOD HERE WERE WRONG, and both are corrected on
+/// 29 September 2026 rather than deleted, because each one hid something.
+///
+/// It said `TiqSkin.day()` **defaults to field**. It did; #490 made both
+/// factories default to console the same day, so the claim outlived the code
+/// by hours. Naming the density here is still right — it is now a statement
+/// rather than a correction.
+///
+/// It said *"The real route is not affected — The Floor is a
+/// `ConsoleTorchlightRoute` and `consoleSkinFor` names the density"*, and
+/// concluded this was a harness fault over a screen the product never draws.
+/// **The product drew it.** `consoleSkinFor` named the density on two of its
+/// three arms and returned the ambient skin untouched on the third — the
+/// `auto`/null arm, which is the default, because the skin cycle starts unset.
+/// `main.dart` builds its light theme from `AppTheme.day()`, whose density
+/// defaults to field. So a manager in light mode who had never cycled the skin
+/// saw a field-density Floor: the harness was photographing the defect
+/// accurately and this comment is why nobody looked.
+///
+/// Fixed in `console_skin.dart` on the owner's ruling — *"don't change the
+/// manager side, it looks perfect"* protects the console they approved, and a
+/// manager screen wearing the agent's geometry was never approved. The route
+/// is genuinely unaffected now, and there is a test for the case this comment
+/// asserted without one.
 final TiqSkin _day = TiqSkin.day(density: TiqDensity.console);
 
 /// The filter, already narrowed to one territory. See the override above.
