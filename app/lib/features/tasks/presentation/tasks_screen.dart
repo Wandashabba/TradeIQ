@@ -330,12 +330,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 ///
 /// They were a `meta` sentence — `12 open · 4 awaiting verification` — under
 /// the figure, which is a run-on line a reader has to parse rather than two
-/// numbers they can read. They are the [StatCluster] grammar now: a 12dp gap
-/// with a 1px rule centred in it, the label left and the figure right, so the
-/// two figures align on one right edge the way an instrument panel does.
-/// Stacked rather than side by side because "AWAITING VERIFICATION" in half a
-/// card at 2.0× is an ellipsis, and a label the reader cannot finish is not a
-/// label.
+/// numbers they can read. They are stacked figures now: the label left and the
+/// figure right, so the two align on one right edge the way an instrument
+/// panel does. Stacked rather than side by side because "AWAITING
+/// VERIFICATION" in half a card at 2.0× is an ellipsis, and a label the reader
+/// cannot finish is not a label.
+///
+/// **Owner override, 29 September 2026 — the rules are gone.** They were
+/// [StatCluster.rule]s, a 1px line centred in each 12dp gap, and three of them
+/// inside one card turned it into a table: *"let's remove this lined,
+/// rectangular style"*. Separation is the gap alone now. The alignment the
+/// rules were there to advertise does not need them — two figures on one right
+/// edge already read as a pair, and the approved mockup separates its own stat
+/// block with space rather than lines.
 class _LeadBlock extends StatelessWidget {
   const _LeadBlock({required this.view});
 
@@ -420,9 +427,7 @@ class _LeadBlock extends StatelessWidget {
             //    an em dash on its own is a puzzle — and worth having when it
             //    is not, because "1 122" does not say what was counted.
             Text(supporting, style: skin.text.meta.style(color: skin.palette.ink3)),
-            const SizedBox(height: StatCluster.gap / 2),
-            StatCluster.rule(skin),
-            const SizedBox(height: StatCluster.gap / 2),
+            const SizedBox(height: StatCluster.gap),
 
             // 4. THE SUBORDINATES.
             _Subordinate(
@@ -432,9 +437,7 @@ class _LeadBlock extends StatelessWidget {
               measured: view.countsAreMeasured,
               scopeNote: 'among the $loaded tasks loaded',
             ),
-            const SizedBox(height: StatCluster.gap / 2),
-            StatCluster.rule(skin),
-            const SizedBox(height: StatCluster.gap / 2),
+            const SizedBox(height: StatCluster.gap),
             _Subordinate(
               key: const ValueKey<String>('tasks-subordinate-awaiting'),
               label: 'Awaiting verification',
