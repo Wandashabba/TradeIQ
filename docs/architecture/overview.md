@@ -16,20 +16,30 @@ TradeIQ Phase 1 is a monorepo:
 - `docs/` — this documentation system.
 - `backend/scripts/` — the backend demo-data seed (`backend/scripts/seed.ts`,
   run via `npm run seed`) and the hand-run maintenance scripts beside it.
-- `backend/assets/places/` — **committed, generated place images**, one per
-  seeded territory plus `ALL.jpg` for the whole footprint. The Floor's plate
-  shows the place currently in scope, and it changes when the territory filter
-  changes. They are made **once, by hand**, by
-  `backend/scripts/generate-place-images.ts` against the Gemini image API
-  (`npm run generate-place-images`, or `npm run generate-place-images -- GP-TSH`
-  for one; needs `GEMINI_API_KEY` in `backend/.env`) and committed with a
-  `manifest.json` recording the model, the prompt and the date beside each file.
-  **The seed never calls an API** — it reads them off disk. Every row lands in
-  `place_images` with `source: 'generated'`, which travels out through the API's
-  `X-Image-Source` header to a sentence the plate speaks; a generated image is
-  seed data and is never a stand-in for a missing real photograph. Look at what
-  the generator produced before committing it. See
-  `docs/design/torchlight-aisle.md` §9e.
+- `backend/assets/places/` — **committed place images**, one per seeded
+  territory plus `ALL.jpg` for the whole footprint, all at 1024×572 and all
+  inside the plate's ≤60 kB budget. The Floor's plate shows the place currently
+  in scope, and it changes when the territory filter changes. Two pipelines
+  write them, both **once, by hand**, and both committing their output:
+  - `backend/scripts/generate-place-images.ts` draws one from a prompt against
+    the Gemini image API (`npm run generate-place-images`, or
+    `-- GP-TSH` for one; needs `GEMINI_API_KEY` in `backend/.env`);
+  - `backend/scripts/import-place-images.ts` brings in a photograph the owner
+    supplied (`npm run import-place-images`), centre-cropping the original —
+    committed under `assets/places/supplied/` — and handing it to the
+    generator's own `fitToBudget`, so there is one encoder and not two. It
+    needs no key and no network.
+
+  `manifest.json` records, beside each file, either the model and the prompt or
+  what the photograph is of and which original it came from, plus a standing
+  note that **supplied images are the owner's to license and the generator's
+  no-signage / no-faces constraints do not apply to them**. **The seed never
+  calls an API** — it reads them off disk. Every row lands in `place_images`
+  with `source: 'generated'` or `'supplied'`, which travels out through the
+  API's `X-Image-Source` header to a sentence the plate speaks; an unrecognised
+  value throws rather than defaulting. Neither kind is ever a stand-in for a
+  missing real photograph. Look at what came out **on the plate** before
+  committing it. See `docs/design/torchlight-aisle.md` §9e and §9g.
 
 ## Request flow (proof-of-concept slice)
 

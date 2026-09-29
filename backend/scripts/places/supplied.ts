@@ -96,12 +96,16 @@ export const SUPPLIED_PLACES: readonly SuppliedPlace[] = [
       'The East London city hall in morning light, with a pale outline of the ' +
       'Buffalo City metro and its towns laid over it.',
     note:
-      'A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH. The outline is the brightest ' +
-      'thing in the frame and the printed names (Bisho, Mdantsane, East London) ' +
-      'sit across the middle of it. Under the plate’s 12% chroma and #474747 ' +
-      'ceiling the outline flattens to a mid-grey field and the names to darker ' +
-      'grey marks inside it, directly behind the hero figure. Rendered and ' +
-      'flagged for the owner rather than cropped: the map may well be the point.',
+      'A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH, AND IT DOES NOT READ WELL ON ' +
+      'THE PLATE. Rendered at 390×844 in both skins on 29 September 2026: the ' +
+      'printed “BUFFALO CITY” lands immediately right of the hero figure and ' +
+      'reads as a second caption competing with it, and King William’s Town, ' +
+      'Zwelitsha, Berlin, Potsdam, Beacon Bay, East London and Kidd’s Beach ' +
+      'read as grey marks scattered across the picture — in Day they are the ' +
+      'most legible text on the plate, more legible than “Territory health”. ' +
+      'SHIPPED AS SUPPLIED AND FLAGGED, not quietly cropped: the map may well ' +
+      'be the point, and that is the owner’s call. Options are in §9g of ' +
+      'docs/design/torchlight-aisle.md.',
   },
   {
     code: 'EC-NMB',
@@ -111,9 +115,12 @@ export const SUPPLIED_PLACES: readonly SuppliedPlace[] = [
       'The Gqeberha seafront at sunset, with a pale outline of the Nelson ' +
       'Mandela Bay metro and its towns laid over it.',
     note:
-      'A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH — the same treatment as EC-BCM, ' +
-      'and the same flag. The outline covers most of the right two-thirds of ' +
-      'the frame and the names run down the middle of it.',
+      'A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH — the same treatment as EC-BCM ' +
+      'and the same flag. The outline covers the right two-thirds of the frame ' +
+      'and Uitenhage, KwaNobuhle, Despatch, Swartkops, Bethelsdorp, Port ' +
+      'Elizabeth and Summerstrand run down the middle of it, straight through ' +
+      'the hero figure’s band. “NELSON MANDELA BAY” falls in the lit strip at ' +
+      'the top. Shipped as supplied and flagged; see §9g.',
   },
   {
     code: 'FS',
