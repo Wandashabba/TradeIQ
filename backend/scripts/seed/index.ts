@@ -16,7 +16,7 @@ import {
   USERS,
   homeCoordinates,
 } from './catalog';
-import { GENERATED, loadSeedPlaceImages } from './placeImages';
+import { loadSeedPlaceImages, placeImageSource } from './placeImages';
 import { buildComms } from './comms';
 import { buildContests } from './contests';
 import { HistoryGenerator, MonthBatch, PhotoSpec, REUSED_PHOTO_POOL } from './history';
@@ -501,9 +501,12 @@ async function writeMonth(
  * * **It does not write to `photos`.** These are context, not evidence. Nothing
  *   here touches the table the visit sections, the review strip and the
  *   pin-dispute storefront live in, and nothing there can reach this table.
- * * **It does not invent a marker.** The `source` comes from the manifest, and
- *   an entry that does not carry one is skipped loudly rather than defaulted:
- *   an unmarked generated image is the one row that must never exist.
+ * * **It does not invent a marker.** The `source` comes from the manifest and
+ *   is `generated` or `supplied` — an illustration a model made, or a
+ *   photograph the owner handed over. Anything else stops the seed rather than
+ *   being defaulted: an unmarked place image is the one row that must never
+ *   exist, because everything downstream — the API header, the sentence the
+ *   plate speaks — reads this field and would have to guess.
  *
  * Missing assets are not an error. A checkout with no `backend/assets/places`
  * seeds no place images at all, and The Floor draws its designed no-picture
@@ -516,10 +519,12 @@ async function writePlaceImages(prisma: PrismaClient): Promise<void> {
 
   const rows = [];
   for (const image of images) {
-    if (image.source !== GENERATED) {
-      console.warn(`place image ${image.code}: unknown source "${image.source}" — skipped`);
-      continue;
-    }
+    // Loud, and a throw rather than a skip. A skipped image is a territory
+    // whose plate silently falls back to the no-picture state, which reads as
+    // "this place has never been pictured" — a different and untrue statement.
+    // The loader already gates this; asserting it again here is what keeps the
+    // gate from being quietly removed from one side.
+    const source = placeImageSource(image.source, `place image ${image.code}`);
     // `ALL` is the whole-footprint scope The Floor shows under "All
     // territories", and it is a null territory rather than a sentinel row: a
     // territory called "ALL" would be a territory, and would turn up in the
@@ -532,7 +537,7 @@ async function writePlaceImages(prisma: PrismaClient): Promise<void> {
     rows.push({
       clientId: DEMO_CLIENT_ID,
       territoryId,
-      source: image.source,
+      source,
       generator: image.generator,
       prompt: image.prompt,
       mimeType: image.mimeType,

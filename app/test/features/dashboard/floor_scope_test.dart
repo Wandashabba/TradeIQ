@@ -302,7 +302,10 @@ void main() {
         extraOverrides: <Override>[
           plateImageResolverProvider.overrideWithValue((ref, territoryId) {
             asked.add(territoryId);
-            return picture;
+            return PlatePicture(
+              image: picture,
+              source: PlaceImageSource.generated,
+            );
           }),
         ],
       );

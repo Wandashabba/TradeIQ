@@ -9,7 +9,8 @@ import { issueToken } from '../auth/auth.service';
  * What these hold down, in order:
  *
  * 1. the bytes come back, and they come back **marked** — `X-Image-Source` is
- *    what lets the app say "illustration" instead of assuming a photograph;
+ *    what lets the app say "illustration" over a generated picture and
+ *    "photograph" over one the owner supplied, instead of assuming either;
  * 2. the whole-footprint scope has a picture of its own, not one province's;
  * 3. another tenant's territory id misses, rather than handing back a picture
  *    of somewhere it names;
@@ -31,6 +32,7 @@ describe('place image routes', () => {
   let clientId: string;
   let otherClientId: string;
   let territoryId: string;
+  let suppliedTerritoryId: string;
   let picturelessTerritoryId: string;
   let otherTerritoryId: string;
   let managerToken: string;
@@ -56,6 +58,14 @@ describe('place image routes', () => {
       data: { clientId, name: 'Gauteng North', code: 'PLACE-GP-TSH' },
     });
     territoryId = territory.id;
+
+    // A territory whose picture is a photograph the owner supplied rather than
+    // one a model made. Same table, same route, different mark — and the mark
+    // is the whole reason both can live here.
+    const suppliedTerritory = await prisma.territory.create({
+      data: { clientId, name: 'Free State', code: 'PLACE-FS' },
+    });
+    suppliedTerritoryId = suppliedTerritory.id;
 
     const pictureless = await prisma.territory.create({
       data: { clientId, name: 'Never Photographed', code: 'PLACE-NONE' },
@@ -94,6 +104,14 @@ describe('place image routes', () => {
           url: DATA_URL,
         },
         {
+          clientId,
+          territoryId: suppliedTerritoryId,
+          // A photograph the owner handed over: no model, no prompt.
+          source: 'supplied',
+          mimeType: 'image/jpeg',
+          url: DATA_URL,
+        },
+        {
           clientId: otherClientId,
           territoryId: otherTerritoryId,
           source: 'generated',
@@ -117,6 +135,20 @@ describe('place image routes', () => {
     expect(res.headers['x-image-source']).toBe('generated');
     // And a browser can read it: a cross-origin fetch sees only the exposed
     // headers, so an unexposed mark is a mark that goes missing on web.
+    expect(res.headers['access-control-expose-headers']).toContain('X-Image-Source');
+  });
+
+  it('says supplied over a supplied photograph, and does not flatten it to generated', async () => {
+    const res = await request(app)
+      .get(`/territories/${suppliedTerritoryId}/place-image`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    // THE OTHER HALF OF THE MARK. The plate's spoken label is built from this
+    // header: `generated` gets "an illustration of the area", `supplied` gets
+    // "a photograph of the area". Echoing one value for both would put a
+    // sentence on a manager's screen that contradicts the picture above it.
+    expect(res.headers['x-image-source']).toBe('supplied');
     expect(res.headers['access-control-expose-headers']).toContain('X-Image-Source');
   });
 

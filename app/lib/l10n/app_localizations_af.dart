@@ -8712,4 +8712,19 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get artifactToolTrend => 'Tendens';
+
+  @override
+  String plateImageGenerated(String place) {
+    return '$place. ’n Illustrasie van die omgewing, nie ’n foto van ’n besoek nie.';
+  }
+
+  @override
+  String plateImageSupplied(String place) {
+    return '$place. ’n Foto van die omgewing, nie van ’n besoek nie.';
+  }
+
+  @override
+  String plateImageUnattributed(String place) {
+    return '$place. ’n Prent van die omgewing. Die herkoms is nie gemeld nie, en dit kom nie van ’n besoek nie.';
+  }
 }

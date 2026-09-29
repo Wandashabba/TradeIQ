@@ -13797,6 +13797,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Trend'**
   String get artifactToolTrend;
+
+  /// The Floor plate's spoken label when the picture behind the hero figure was drawn by a model (X-Image-Source: generated). It says what the picture IS and what it is NOT: the first clause stops a drawing being read as a capture, the second stops any place picture being read as evidence a manager could act on. {place} is the territory in scope, or "All territories".
+  ///
+  /// In en, this message translates to:
+  /// **'{place}. An illustration of the area, not a photograph from a visit.'**
+  String plateImageGenerated(String place);
+
+  /// The same label when the picture is a real photograph the owner supplied (X-Image-Source: supplied). The first clause changes because calling a photograph an illustration is as false as the reverse; the second clause does NOT change, because "not from a visit" is a fact about which table the picture lives in rather than about how it was made. {place} is the territory in scope.
+  ///
+  /// In en, this message translates to:
+  /// **'{place}. A photograph of the area, not from a visit.'**
+  String plateImageSupplied(String place);
+
+  /// The same label when the server sent no X-Image-Source, or one this build does not recognise. It says the origin is unstated rather than guessing at "illustration" or "photograph" — a default would put a claim on screen that nothing backs. {place} is the territory in scope.
+  ///
+  /// In en, this message translates to:
+  /// **'{place}. A picture of the area. Its origin was not stated, and it is not from a visit.'**
+  String plateImageUnattributed(String place);
 }
 
 class _AppLocalizationsDelegate

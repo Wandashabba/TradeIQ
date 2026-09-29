@@ -2357,6 +2357,18 @@
   "@feedMoreFailed": {
     "description": "The next page of a feed failed. What is on screen stays; this line says why there is no more."
   },
+  "plateImageGenerated": "{place}. ’n Illustrasie van die omgewing, nie ’n foto van ’n besoek nie.",
+  "@plateImageGenerated": {
+    "description": "Die Vloer se plaat: wat die prent agter die hoofsyfer is wanneer ’n model dit geteken het."
+  },
+  "plateImageSupplied": "{place}. ’n Foto van die omgewing, nie van ’n besoek nie.",
+  "@plateImageSupplied": {
+    "description": "Dieselfde etiket wanneer die prent ’n werklike foto is wat die eienaar verskaf het. Die tweede deel bly dieselfde: dit kom steeds nie van ’n besoek nie."
+  },
+  "plateImageUnattributed": "{place}. ’n Prent van die omgewing. Die herkoms is nie gemeld nie, en dit kom nie van ’n besoek nie.",
+  "@plateImageUnattributed": {
+    "description": "Dieselfde etiket wanneer die bediener nie gesê het waar die prent vandaan kom nie."
+  },
   "webhookDeliveriesShowing": "Wys die {shown} mees onlangse. Daar is meer.",
   "@webhookDeliveriesShowing": {
     "description": "Footer under a webhook's delivery log when the page was cut. Never a fabricated total.",

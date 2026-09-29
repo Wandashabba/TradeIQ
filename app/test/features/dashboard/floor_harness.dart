@@ -289,11 +289,17 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
   /// to make possible.
   final Map<String, Uint8List> placeImages = <String, Uint8List>{};
 
+  /// What the fake server says these are. `generated` by default, because
+  /// that is what most of the suite is about; a test that cares about the
+  /// other kind sets it to [PlaceImageSource.supplied] or to null, which is
+  /// the header-absent case.
+  PlaceImageSource? placeImageSource = PlaceImageSource.generated;
+
   @override
   Future<PlaceImage> placeImage(String? territoryId) async {
     final bytes = placeImages[territoryId ?? ''];
     if (bytes == null) throw StateError('no picture of this place');
-    return PlaceImage(bytes: bytes, source: 'generated');
+    return PlaceImage(bytes: bytes, source: placeImageSource);
   }
 
   @override
@@ -510,6 +516,11 @@ List<Override> floorOverrides({
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
+  /// What the server says [plateImage] is. `generated` by default; the
+  /// plate's spoken sentence is built from it, so a test about the
+  /// supplied photographs sets it and a test about the header being
+  /// absent passes null.
+  PlaceImageSource? plateImageSource = PlaceImageSource.generated,
   DateTime? now,
   List<Override> extraOverrides = const <Override>[],
 }) => <Override>[
@@ -538,9 +549,15 @@ List<Override> floorOverrides({
   // photograph of one outlet. A decoded frame rather than an HTTP round trip,
   // because `Image.memory` decodes on the engine's clock and the frame the
   // amber census measures would otherwise arrive after the assertion.
+  //
+  // The seam carries the PROVENANCE with the pixels, because the sentence the
+  // plate speaks is built from it: a frame handed over with no source would
+  // make every test here assert the unattributed sentence, which is not the
+  // screen anybody ships.
   if (plateImage != null)
     plateImageResolverProvider.overrideWithValue(
-      (ref, territoryId) => plateImage,
+      (ref, territoryId) =>
+          PlatePicture(image: plateImage, source: plateImageSource),
     ),
   nowProvider.overrideWithValue(() => now ?? DateTime.utc(2026, 9, 18, 18)),
   ...extraOverrides,
@@ -565,6 +582,11 @@ Future<void> pumpFloor(
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
+  /// What the server says [plateImage] is. `generated` by default; the
+  /// plate's spoken sentence is built from it, so a test about the
+  /// supplied photographs sets it and a test about the header being
+  /// absent passes null.
+  PlaceImageSource? plateImageSource = PlaceImageSource.generated,
   TiqSkin? skin,
   Size size = const Size(360, 640),
   double textScale = 1.0,
@@ -594,6 +616,7 @@ Future<void> pumpFloor(
         photoBytes: photoBytes,
         photosFail: photosFail,
         plateImage: plateImage,
+        plateImageSource: plateImageSource,
         now: now,
         extraOverrides: extraOverrides,
       ),
@@ -655,6 +678,11 @@ Future<GoRouter> pumpFloorRoute(
   Uint8List? photoBytes,
   bool photosFail = false,
   ImageProvider<Object>? plateImage,
+  /// What the server says [plateImage] is. `generated` by default; the
+  /// plate's spoken sentence is built from it, so a test about the
+  /// supplied photographs sets it and a test about the header being
+  /// absent passes null.
+  PlaceImageSource? plateImageSource = PlaceImageSource.generated,
   TiqSkin? skin,
   Size size = const Size(360, 640),
   double textScale = 1.0,
@@ -705,6 +733,7 @@ Future<GoRouter> pumpFloorRoute(
         photoBytes: photoBytes,
         photosFail: photosFail,
         plateImage: plateImage,
+        plateImageSource: plateImageSource,
         now: now,
         extraOverrides: extraOverrides,
       ),

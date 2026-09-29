@@ -550,16 +550,44 @@ final placeImageProvider = FutureProvider.autoDispose
 /// decodes on the engine's clock and the frame the amber census measures would
 /// otherwise arrive after the assertion.
 typedef PlateImageResolver =
-    ImageProvider<Object>? Function(WidgetRef ref, String? territoryId);
+    PlatePicture Function(WidgetRef ref, String? territoryId);
+
+/// WHAT THE PLATE IS HANDED: the pixels, and what they are.
+///
+/// The two travel together because they are one fact. The resolver used to
+/// return only an `ImageProvider`, and the plate's spoken label was therefore a
+/// hardcoded sentence about an illustration — which was true while every
+/// seeded picture was generated and became false the moment the owner supplied
+/// real photographs on 29 September 2026. A picture whose provenance is
+/// dropped one layer below the sentence that describes it is a sentence that
+/// can only be right by luck.
+@immutable
+class PlatePicture {
+  const PlatePicture({this.image, this.source});
+
+  /// Nothing to draw: the scope has no picture, or it has not arrived. The
+  /// plate draws its designed no-picture state and substitutes nothing.
+  static const PlatePicture none = PlatePicture();
+
+  final ImageProvider<Object>? image;
+
+  /// The server's `X-Image-Source`, parsed. Null is an origin nobody stated,
+  /// which the plate speaks as exactly that — never as one kind or the other.
+  final PlaceImageSource? source;
+}
 
 /// The default: the ≤60 kB, LRU-cached, authed place-image route — the only
 /// byte budget worth spending on a prepaid bundle, and the only route that can
 /// carry a bearer token on web.
-ImageProvider<Object>? defaultPlateImage(WidgetRef ref, String? territoryId) {
-  final bytes = ref
+PlatePicture defaultPlateImage(WidgetRef ref, String? territoryId) {
+  final image = ref
       .watch(placeImageProvider(territoryId))
-      .maybeWhen(data: (image) => image.bytes, orElse: () => null);
-  return bytes == null ? null : MemoryImage(bytes);
+      .maybeWhen<PlaceImage?>(data: (image) => image, orElse: () => null);
+  if (image == null) return PlatePicture.none;
+  return PlatePicture(
+    image: MemoryImage(image.bytes),
+    source: image.source,
+  );
 }
 
 final plateImageResolverProvider = Provider<PlateImageResolver>(

@@ -85,6 +85,45 @@ class TerritoryCoverage {
   }
 }
 
+/// WHERE A PLACE IMAGE CAME FROM — the server's `X-Image-Source`, as a type.
+///
+/// Two values, and they make two different claims:
+///
+/// * [generated] — a model drew it from a prompt. It is an **illustration**,
+///   and the plate says so, because a picture nobody photographed must never
+///   be readable as one somebody did.
+/// * [supplied] — the owner handed over a real photograph of the place. It is
+///   a **photograph**, and calling it an illustration would be exactly as
+///   false as the other way round.
+///
+/// What neither of them is, is evidence from a visit. That half of the
+/// sentence the plate speaks does not move with the source, because it is not
+/// a fact about how the picture was made — it is a fact about which table it
+/// lives in.
+///
+/// There is no third value and no `unknown` member on purpose: a header this
+/// client does not recognise parses to **null**, which the plate speaks as an
+/// origin nobody stated. Widening this enum without giving the plate a
+/// sentence for the new value would be a silent default, and a silent default
+/// here is a false statement on a manager's screen.
+enum PlaceImageSource {
+  generated('generated'),
+  supplied('supplied');
+
+  const PlaceImageSource(this.wire);
+
+  /// The value `X-Image-Source` carries. Matched exactly, never inferred.
+  final String wire;
+
+  /// [header] as a source, or null when it is absent or unrecognised.
+  static PlaceImageSource? parse(String? header) {
+    for (final value in PlaceImageSource.values) {
+      if (value.wire == header) return value;
+    }
+    return null;
+  }
+}
+
 /// A PICTURE OF A PLACE — and never a picture of a shelf.
 ///
 /// The bytes The Floor's plate paints: a view of the territory in scope, or of
@@ -93,28 +132,29 @@ class TerritoryCoverage {
 /// of the place switches too.
 ///
 /// [source] is the server's `X-Image-Source`, carried rather than assumed. It
-/// is `generated` for every image the seed ships: these are illustrations made
-/// by a model, and the plate says so out loud in its spoken label. That is the
-/// one fact about them that may never get lost between the database and the
-/// screen — a townscape is context, and it must never be readable as evidence
-/// a manager could act on.
+/// is [PlaceImageSource.generated] for an illustration a model made and
+/// [PlaceImageSource.supplied] for a photograph the owner handed over, and the
+/// plate says which out loud in its spoken label. That is the one fact about
+/// these pictures that may never get lost between the database and the screen
+/// — a townscape is context, and it must never be readable as evidence a
+/// manager could act on, whichever way it was made.
 ///
 /// Nothing here touches `PhotosRepository`. Visit evidence, the review strip
 /// and the pin-dispute storefront are real captures on a different route, and a
-/// generated image is never substituted for one of them.
+/// place image is never substituted for one of them.
 @immutable
 class PlaceImage {
   const PlaceImage({required this.bytes, required this.source});
 
   final Uint8List bytes;
 
-  /// `generated`, or whatever the server said. Null when the header was absent
-  /// — an origin nobody stated, which the plate treats as unattributed rather
-  /// than as a photograph.
-  final String? source;
+  /// What the server said this is. Null when the header was absent or carried
+  /// a value this build does not know — an origin nobody stated, which the
+  /// plate speaks as exactly that rather than promoting it to either kind.
+  final PlaceImageSource? source;
 
   /// Whether this picture was made by a model rather than taken by a person.
-  bool get isGenerated => source == 'generated';
+  bool get isGenerated => source == PlaceImageSource.generated;
 }
 
 abstract class TerritoriesRepository {
@@ -201,8 +241,9 @@ class DioTerritoriesRepository implements TerritoriesRepository {
     final image = PlaceImage(
       bytes: Uint8List.fromList(response.data!),
       // Read, never inferred. A picture whose origin the server did not state
-      // is not promoted to a photograph here.
-      source: response.headers.value('x-image-source'),
+      // — or stated in a word this build does not know — is not promoted to
+      // either kind here; it parses to null and the plate says so.
+      source: PlaceImageSource.parse(response.headers.value('x-image-source')),
     );
     // Only a successful fetch is cached, so a retry after a dead-signal
     // moment actually retries.

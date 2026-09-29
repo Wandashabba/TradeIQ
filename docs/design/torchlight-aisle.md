@@ -1180,14 +1180,19 @@ the filter changes — which is the control demonstrating what it just did.
 
 Where the rules sit:
 
-* **Generated, and marked at every layer.** `backend/scripts/generate-place-images.ts`
-  calls the Gemini image API **once, by hand**; the JPEGs are committed under
-  `backend/assets/places/` with a manifest recording the model, the prompt and
-  the date. The seed reads them off disk and never makes a network call — a seed
-  that needs a key and a signal is a seed that fails for the next person.
-  `place_images.source` is `NOT NULL` and is `generated`; the API answers
-  `X-Image-Source` (CORS-exposed, or a web build loses it); the plate speaks
-  *"an illustration of the area, not a photograph from a visit"*.
+* **Marked at every layer, with what it actually is.** Two pipelines write
+  these and both commit their output under `backend/assets/places/` with a
+  manifest entry: `generate-place-images.ts` calls the Gemini image API once,
+  by hand, recording the model and the prompt; `import-place-images.ts` brings
+  in a photograph the owner supplied, recording what it is of and which
+  committed original it came from. The seed reads whichever is there off disk
+  and never makes a network call — a seed that needs a key and a signal is a
+  seed that fails for the next person. `place_images.source` is `NOT NULL` and
+  is `generated` or `supplied`; the API answers `X-Image-Source` (CORS-exposed,
+  or a web build loses it); the plate speaks *"an illustration of the area, not
+  a photograph from a visit"* or *"a photograph of the area, not from a visit"*
+  accordingly, and an origin nobody stated is spoken as exactly that rather
+  than defaulted to either. See §9g.
 * **A table of its own, never `photos`.** Everything in `photos` is a reading —
   visit evidence, the review strip, the pin-dispute storefront — each with a
   visit, a GPS tag and a capture time, each hashed by the fraud engine. A place
@@ -1215,16 +1220,116 @@ carry the same rulings. The pins are `floor_scope_test.dart` (the control is
 painted, it is outside the cluster, it prints the scope, and it still rescopes
 every block), `floor_plate_tone_test.dart` (the tone, measured with the
 control's rect cut out — it is a control, not a photograph),
-`the_floor_test.dart` (the plate names no outlet and says "illustration"),
-`placeImages.routes.test.ts` (the mark on the wire) and
-`scripts/seed/placeImages.test.ts` (the committed fixtures are covered,
-budgeted and marked). Look at it with
+`the_floor_test.dart` (the plate names no outlet and says which kind of
+picture it is carrying, in all three cases),
+`floor_plate_contrast_test.dart` (the ink measured over every committed
+picture, §9g), `placeImages.routes.test.ts` (the mark on the wire, both values)
+and `scripts/seed/placeImages.test.ts` (the committed fixtures are covered,
+budgeted, the one stored size, and marked with a source this product knows). Look at it with
 `FLOOR_LOOK=1 flutter test test/features/dashboard/floor_look_test.dart --update-goldens`.
 
 Regenerate the pictures with `cd backend && npm run generate-place-images`
 (needs `GEMINI_API_KEY` in `backend/.env`), or one of them with
-`npm run generate-place-images -- GP-TSH`. **Look at what comes back before
-committing it.**
+`npm run generate-place-images -- GP-TSH`. Re-import the supplied ones with
+`npm run import-place-images`, or one with `npm run import-place-images -- FS`;
+it needs no key and no signal, because the originals are committed. **Look at
+what comes back ON THE PLATE before committing it** — the tone treatment is
+severe and a picture that reads well in a viewer can read as grey noise behind
+the hero figure. §9g is the worked example of exactly that.
+
+---
+
+## 9g. The owner's own photographs — 29 September 2026
+
+Twelve of the thirteen territories now carry a photograph the owner supplied
+instead of the one the image API drew. "All territories" and North West stay
+generated.
+
+### Rights, and the constraints that do not apply
+
+**Supplied place images are the owner's to license.** This repository did not
+acquire them, did not clear them and makes no claim to them. The generated set
+is ours because a script made it; this set is not, and anyone reusing the
+dataset needs the owner's permission. The line is written into
+`backend/assets/places/manifest.json` under `supplied.rights` by the importer,
+so it travels with the assets rather than living in somebody's memory.
+
+**The generator's constraints do not apply to them.** Every line of
+`scripts/places/prompts.ts` carries "no readable text, no shop signage, no
+brand names or logos, no recognisable faces", because a generated logo is a
+real company's mark on a picture it never authorised and a generated face is a
+person who does not exist. Those are constraints on a *model*. A photograph the
+owner took or licensed is under no such rule: `GP` carries lit brand signage
+across the Johannesburg skyline and an illuminated billboard, and `GP-TSH`
+carries the Mandela statue at the Union Buildings. **That is the owner's call
+on the owner's photographs, and it is recorded rather than assumed** — so
+nobody later reads it as a defect the prompt constraints failed to catch, and
+nobody later "fixes" it.
+
+### North West is still generated, on purpose
+
+A file was supplied for it and is not in the set: it is a photograph of
+**Seattle** — the Space Needle with Mount Rainier behind it. North West is
+Rustenburg, Mahikeng and the Magaliesberg. Leaving a territory on its generated
+image is a state this system already supports and says out loud; putting the
+wrong continent on the plate is not.
+
+### The two map composites, and what to do about them
+
+`EC-NMB` and `EC-BCM` are **not plain photographs**. Each is a pale
+near-white outline of the metro, with its towns printed on it in black, laid
+over a photograph. Rendered at 390×844 in both skins:
+
+* The printed **"BUFFALO CITY"** lands immediately to the right of the hero
+  figure and reads as a second caption competing with `73`.
+* King William's Town, Zwelitsha, Berlin, Potsdam, Beacon Bay, East London,
+  Kidd's Beach — and on `EC-NMB`, Uitenhage, KwaNobuhle, Despatch, Swartkops,
+  Bethelsdorp, Port Elizabeth, Summerstrand — read as grey marks scattered
+  across the picture, straight through the band the hero sits in.
+* In **Day** they are the most legible text on the plate. More legible than
+  "Territory health", which is the line the plate is actually trying to say.
+
+The plate is a photographic *ground*: at 12% chroma under a #474747 ceiling,
+type in the picture does not disappear, it flattens to grey marks that read as
+smudge or as a competing caption. **These two are shipped as supplied and
+flagged rather than quietly cropped**, because the map may well be the point —
+a manager who cannot place Bethelsdorp on a map is exactly who a map helps.
+That is the owner's call, and the options are:
+
+1. **Accept it.** The map is the point and the marks are acceptable.
+2. **Crop to the photographic part.** Both originals have usable photography
+   underneath — the East London city hall, the Gqeberha seafront at sunset.
+   This throws away the map, which is the reason to ask first.
+3. **Send a plain photograph** for these two, as for the other ten. This is the
+   recommendation: it is the only option that gives the plate a ground and
+   keeps the map available for a surface that can actually carry type.
+
+### Contrast, measured rather than assumed
+
+`app/test/features/dashboard/floor_plate_contrast_test.dart` rasterises the
+real plate over every committed picture and measures the ink against the worst
+pixel in the band it occupies. At 390×844, 29 September 2026:
+
+| | hero figure (`ink1`) | "Territory health" (`ink2`) |
+|---|---|---|
+| **Night**, generated | 10.29 – 13.16 | 8.61 – 10.59 |
+| **Night**, supplied | 8.88 – 13.06 | 8.40 – 10.17 |
+| **Day**, generated | 1.00 – 1.02 | 2.77 – 2.82 |
+| **Day**, supplied | 1.01 – 1.44 | 2.63 – 2.99 |
+
+Night clears 4.5:1 everywhere with a wide margin, and that is now pinned.
+
+**Day does not, and it did not before these pictures arrived either.** PR #473
+reported the meta line at 2.92:1 against a 4.5 minimum and called the plate
+scrim under-specified for a light ground; these numbers make it concrete. The
+scrim ramps `ground` from 0% at the top of the text zone to 80% at the foot, so
+"Territory health" sits at about 57% and the hero figure's cap height at about
+17% — and on a light ground the ink is dark while the picture is *also* dark,
+because every plate pixel is capped at #474747. The two converge. The worst
+supplied figure (`EC-BCM`, 2.63) is 0.14 below the worst generated one
+(`ALL`, 2.77): **the supplied pictures did not materially move a number that
+was already failing.** The fix is the scrim, not the photographs, and it is
+still open.
 
 ---
 
