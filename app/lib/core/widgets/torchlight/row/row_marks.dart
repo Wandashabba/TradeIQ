@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../../design/motion_budget.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
+import '../mark/section_state_glyph.dart' show torchGlyphTileRadius;
+import '../mark/tiq_chip.dart' show torchChipWash;
 
 /// The silhouettes a row's leading tile can carry.
 ///
@@ -49,11 +51,35 @@ enum RowMark {
   barredRing,
 }
 
-/// A drawn mark in a radius-6 tile, sized to the row's leading slot.
+/// A drawn mark in a **filled** [torchGlyphTileRadius] tile, sized to the
+/// row's leading slot.
 ///
 /// A `CustomPaint` and nothing else: no gradient, no shadow, no blur, and the
 /// only moving member ([RowMark.dots]) keeps its own `RepaintBoundary` and
 /// stops dead when `MotionBudget.still`.
+///
+/// ## The outline goes and the eight silhouettes stay — amending §1.5
+///
+/// Owner override, 29 September 2026, looking at Me, My work and Today after
+/// the chip round shipped: *"Literally you didnt change anything"*. They were
+/// right about these three screens. Every row on every one of them opens with
+/// this tile, and it was still a `well` box at `radii.chip` (6) inside a 1px
+/// `edgeControl` border — the outlined square holding ◎ on every row of Me,
+/// and the numbered squares on Today's rest-of-the-day list. It is the single
+/// most repeated rectangle on the agent side.
+///
+/// This is **exactly** the treatment [SectionStateGlyph] took on the same
+/// day, deliberately so: radius [torchGlyphTileRadius], no border, and a fill
+/// tinted from the mark's own ink by the chip family's recipe
+/// ([torchChipWash]) for the tones that have a colour, `raised` flat for the
+/// tones whose ink is neutral. One arithmetic exercise, not two.
+///
+/// §1.5 declares this component as a tile carrying silhouettes, and the
+/// silhouettes are untouched — a square, a hollow square, three dots, a
+/// circular arrow, a half-filled triangle, a disc in a ring, a chain link and
+/// a barred ring, at the same 16dp, in the same inks. **What §1.5 protects is
+/// the silhouette set, not the border.** The mark is the greyscale channel and
+/// it survives this change intact.
 class RowMarkTile extends StatelessWidget {
   const RowMarkTile({
     super.key,
@@ -75,14 +101,8 @@ class RowMarkTile extends StatelessWidget {
     final ink = tone.inkOf(skin);
     final tile = DecoratedBox(
       decoration: BoxDecoration(
-        color: skin.palette.well,
-        borderRadius: BorderRadius.circular(skin.radii.chip),
-        border: Border.all(
-          color: tone == RowMarkTone.severe
-              ? skin.palette.bad
-              : skin.palette.edgeControl,
-          width: skin.depth.borderWidth,
-        ),
+        color: tone.fillOf(skin),
+        borderRadius: BorderRadius.circular(torchGlyphTileRadius),
       ),
       child: Center(
         child: mark == RowMark.dots
@@ -108,6 +128,31 @@ class RowMarkTile extends StatelessWidget {
     final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     return math.min(16.0 * scaler.scale(1.0).clamp(1.0, 2.0), 32.0);
   }
+}
+
+/// One silhouette, drawn on its own, with no tile under it.
+///
+/// Exactly one caller: `PersonRow`'s unknown person, which needs the barred
+/// ring inside **§1.15's** person tile rather than inside §1.5's row-mark tile.
+/// It borrowed the whole [RowMarkTile] until 29 September 2026, which is how a
+/// queue-state component came to render on nine manager screens; see
+/// `person_row.dart`. The size and the stroke are [RowMarkTile]'s own, so the
+/// two can never drift.
+class RowMarkGlyph extends StatelessWidget {
+  const RowMarkGlyph({super.key, required this.mark, required this.colour});
+
+  final RowMark mark;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: Size.square(RowMarkTile._glyphExtent(context)),
+    painter: _MarkPainter(
+      mark: mark,
+      colour: colour,
+      stroke: context.skin.depth.borderWidth * 2,
+    ),
+  );
 }
 
 /// Which ink a mark takes. Three tones, and none of them is amber.
@@ -136,6 +181,29 @@ extension RowMarkToneInk on RowMarkTone {
     RowMarkTone.settled => skin.palette.good,
     RowMarkTone.comparison => skin.palette.comparison,
     RowMarkTone.muted => skin.palette.inkMute,
+  };
+
+  /// The tile the mark is printed on, by [SectionStateGlyph]'s rule.
+  ///
+  /// A tone whose ink carries a **hue** takes that hue quietly, at the chip
+  /// family's alpha, over `raised`. A tone whose ink is **neutral** takes
+  /// `raised` flat: a neutral wash is ink-1 over the tier, and on Day that
+  /// darkens the tile under an oatmeal silhouette — `raised` is the safer and
+  /// the more visible answer, and it is the same call the neutral chip levels
+  /// and the three neutral section states already make.
+  ///
+  /// [RowMarkTone.muted] is neutral for this purpose even though it is the
+  /// disabled tone. Its ink is `inkMute`, which is deliberately sub-AA on
+  /// every tier it has ever sat on (2.79:1 on the Night well before this
+  /// change, 2.48:1 on `raised` after it; 2.26:1 → 2.74:1 on Day), because a
+  /// disabled control is exempt under 1.4.3 and has to look disabled. Giving
+  /// it a wash of its own would be inventing a fifth tier to carry an ink
+  /// that is not trying to be read.
+  Color fillOf(TiqSkin skin) => switch (this) {
+    RowMarkTone.neutral || RowMarkTone.muted => skin.palette.raised,
+    RowMarkTone.severe ||
+    RowMarkTone.settled ||
+    RowMarkTone.comparison => torchChipWash(skin, inkOf(skin)),
   };
 }
 

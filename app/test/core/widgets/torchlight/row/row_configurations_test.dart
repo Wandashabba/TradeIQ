@@ -3,6 +3,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/mark/section_state_glyph.dart'
+    show torchGlyphTileRadius;
+import 'package:tradeiq_app/core/widgets/torchlight/mark/tiq_chip.dart'
+    show torchChipWash;
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
 import 'row_harness.dart';
@@ -385,10 +389,16 @@ void main() {
         skin: TiqSkin.night(),
         child: const PersonRow(role: 'Field agent', outlet: 'Kasi Corner'),
       );
+      // The ring, and NOT a `RowMarkTile`: a person's tile is §1.15's and a
+      // row mark's is §1.5's, and the unknown state stopped borrowing the
+      // queue's whole tile on 29 September 2026 — which is what kept the row
+      // marks' new filled squircle off nine manager screens. What is drawn
+      // here is the same silhouette at the same size in the same person tile.
       expect(
-        tester.widget<RowMarkTile>(find.byType(RowMarkTile)).mark,
+        tester.widget<RowMarkGlyph>(find.byType(RowMarkGlyph)).mark,
         RowMark.barredRing,
       );
+      expect(find.byType(RowMarkTile), findsNothing);
     });
 
     testWidgets('with no name the role leads and the id drops to a third line',
@@ -499,6 +509,79 @@ void main() {
       await tester.longPress(find.byType(SoftRow));
       await tester.pump();
       expect(copies, 1);
+    });
+  });
+
+  // The owner, 29 September 2026, looking at Me, My work and Today after the
+  // chip round shipped: *"Literally you didnt change anything"*. This tile is
+  // the rectangle they were looking at — it opens every row on all three
+  // screens — and it took the treatment `SectionStateGlyph` took the same
+  // day. These two tests are the ones that describe the new shape; the old
+  // shape was a `well` box at `radii.chip` inside a 1px `edgeControl` border
+  // and nothing asserted it.
+  group('the row mark tile is filled, not outlined (§1.5, 29 September 2026)',
+      () {
+    testWidgets('no tone draws a border, and every one draws a fill at the '
+        'glyph tile radius', (tester) async {
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final tone in RowMarkTone.values) {
+          await pumpRow(
+            tester,
+            skin: skin,
+            child: RowMarkTile(mark: RowMark.square, tone: tone),
+          );
+          final decoration =
+              tester
+                      .widget<DecoratedBox>(find.byType(DecoratedBox).first)
+                      .decoration
+                  as BoxDecoration;
+          final name = '${skin.brightness.name}/${tone.name}';
+          expect(
+            decoration.border,
+            isNull,
+            reason: '$name still draws the outline the owner was looking at.',
+          );
+          expect(
+            decoration.color,
+            tone.fillOf(skin),
+            reason: '$name has lost its fill, so the tile is gone entirely.',
+          );
+          expect(
+            decoration.borderRadius,
+            BorderRadius.circular(torchGlyphTileRadius),
+            reason: '$name is not the squircle the state glyph became.',
+          );
+        }
+      }
+    });
+
+    test('a hued tone takes its own ink as a wash; a neutral one takes raised',
+        () {
+      // The state glyph's rule, restated here because this is the component
+      // that has five tones rather than four states. A neutral wash is ink-1
+      // over the tier and on Day it darkens the tile under an oatmeal
+      // silhouette, which is why `neutral` and `muted` take `raised` flat.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final tone in <RowMarkTone>[
+          RowMarkTone.severe,
+          RowMarkTone.settled,
+          RowMarkTone.comparison,
+        ]) {
+          expect(
+            tone.fillOf(skin),
+            torchChipWash(skin, tone.inkOf(skin)),
+            reason:
+                '${skin.brightness.name}/${tone.name} is a hue and has to be '
+                'tinted by the chip family recipe, not by a second one.',
+          );
+        }
+        for (final tone in <RowMarkTone>[
+          RowMarkTone.neutral,
+          RowMarkTone.muted,
+        ]) {
+          expect(tone.fillOf(skin), skin.palette.raised);
+        }
+      }
     });
   });
 }

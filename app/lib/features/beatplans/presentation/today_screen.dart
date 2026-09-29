@@ -26,30 +26,57 @@ import '../data/today_route.dart';
 /// ```text
 ///   Today                       [ 12 held on this phone ]  [ ☾ ]
 ///   ┌───────────────────────────────────────────┐
-///   │ ROUTE                                     │
-///   │ 4  of 11 stores            ( 7 left )     │
+///   │ 4  of 11 stores                   7 left  │
 ///   │ ▬▬▬▬▬▬▬▬▬░░░░░░░░░░░░░░░░                 │
 ///   └───────────────────────────────────────────┘
 ///   ── Next up ─────────────────────────────────
 ///   ┌───────────────────────────────────────────┐
-///   │ 03 · 1,2 km                               │
-///   │ Kasi Corner Spaza                         │
-///   │ KC-0412                                   │
-///   │ [        Check in here         ]          │
+///   │ ▢3  Kasi Corner Spaza                     │
+///   │     KC-0412 · 1,2 km                      │
+///   │ ███████ Check in here ████████            │
 ///   └───────────────────────────────────────────┘
 ///   ── The rest of the day ─────────────────────
-///   ▏04  Sunrise Spaza      KC-0413      2,1 km
-///   ▏05  Khumalo Superette  KS-0014      3,4 km
+///   ▢4  Sunrise Spaza      KC-0413 · 2,1 km
+///   ▢5  Khumalo Superette  KS-0014 · 3,4 km
 ///   [ nav pill ] ( + )
 /// ```
 ///
-/// ## The two ambers, counted
+/// ## The composition is the mockup's, since 29 September 2026
+///
+/// The owner, looking at the running screen: *"Literally you didnt change
+/// anything"*, and then, re-sending the approved mockup, *"please focus"*.
+/// Three things moved, and none of them is a radius — the point of the note
+/// was that fixing corners inside the wrong layout does not answer it:
+///
+/// * **The figure leads its card.** The `ROUTE` eyebrow is gone; the mockup
+///   opens on the count, on a screen whose header already says Today and
+///   whose date line already names the plan. "Distances are off — this phone
+///   will not say where it is" is a real state the mockup never had to show
+///   and it stays, but on its own line under the meter at meta/ink-3 rather
+///   than joined to "7 left" by a middot on the figure's own baseline.
+/// * **A stop is a tile and a name on one row.** Next-up stacked a bare
+///   numeral, a `title.l` name, the code and the button — a heading block.
+///   It is now the same anatomy as the rows under it, at row scale.
+/// * **One tile object for every stop number**, filled, at the radius the
+///   state glyph and the row marks took the same day.
+///
+/// ## The two ambers, counted — and the mockup's four
 ///
 /// A tab root, so the nav pill's active tab is object 1 whenever the nav
 /// renders and the content has exactly one grant left. It goes to
-/// **"Check in here"** — the one thing the agent is about to do. The nav
-/// circle declares rung 4 honestly and the allocator denies it outright
-/// (`circleWithPrimary`), so the light never moves while a thumb scrolls.
+/// **"Check in here"** — the one thing the agent is about to do, and since 29
+/// September a *filled* amber block rather than a rimmed dark one
+/// (`TorchPrimaryButton.filled`). The nav circle declares rung 4 honestly and
+/// the allocator denies it outright (`circleWithPrimary`), so the light never
+/// moves while a thumb scrolls.
+///
+/// The mockup lights **four** objects here: that CTA, the nav circle, the next
+/// stop's glyph tile (`rgba(255,177,98,0.16)` under a `#FFCB94` numeral, which
+/// is flame-700 and inside the census's flame box) and the progress fill
+/// (`#FFB162`). The law came later and is stricter, and it is not a matter of
+/// taste which two survive: the allocator's rungs decide it. The tile and the
+/// bar declare no claim at all, so they take their neutral forms — `raised`
+/// and `chartNeutral` — and the circle is denied by rank, not by budget.
 ///
 /// When the route is done there is no next stop and therefore no primary, and
 /// the circle takes the grant instead: *start a visit somewhere else* is then
@@ -435,8 +462,15 @@ class _DayBlock extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Eyebrow(l10n.todayRouteEyebrow),
-            const SizedBox(height: TiqSpace.s3),
+            // NO EYEBROW, since 29 September 2026. The approved mockup's
+            // route card opens on the figure — `4` at 30/700 with "of 9
+            // stores" on its baseline — and puts no kick label above it. The
+            // owner re-sent that mockup with the word "focus", and a card
+            // whose first line is the word ROUTE on a screen whose header
+            // already says Today and whose date line already names the plan
+            // is the third statement of a fact made twice above it. The
+            // figure leads.
+            //
             // One baseline in a Wrap: at 2.0× the figure and its unit stack
             // instead of the figure shrinking or the unit truncating.
             Wrap(
@@ -473,24 +507,21 @@ class _DayBlock extends StatelessWidget {
                 // which on a 360×640 phone is the difference between the next
                 // section marker being on the first fold and being under it.
                 //
-                // "Not location error": the agent turned it off, or the phone
-                // cannot see the sky. Either way the route still works.
                 Padding(
                   padding: const EdgeInsets.only(bottom: TiqSpace.s1),
                   child: Text(
-                    <String>[
-                      complete
-                          ? l10n.todayRouteDone
-                          : l10n.todayStoresLeft(route.remaining),
-                      if (!route.hasLocation) l10n.todayDistancesOff,
-                    ].join(' · '),
+                    complete
+                        ? l10n.todayRouteDone
+                        : l10n.todayStoresLeft(route.remaining),
                     style: skin.text.meta.style(color: skin.palette.ink2),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: TiqSpace.s4),
-            // THE ONE VISUAL.
+            // THE ONE VISUAL. `chartNeutral`, and not the mockup's amber
+            // fill: the progress bar declares no claim, so under the ladder
+            // it takes its neutral form — see the amber note on [TodayScreen].
             Meter(
               value: route.total == 0 ? 0 : done / route.total * 100,
               semanticsValue: l10n.todayRouteSemantics(
@@ -499,6 +530,27 @@ class _DayBlock extends StatelessWidget {
                 route.remaining,
               ),
             ),
+            // THE SENTENCE THE MOCKUP NEVER HAD TO SHOW.
+            //
+            // "Distances are off — this phone will not say where it is" is a
+            // real state and it belongs on the screen, but it was joined to
+            // "6 left" by a middot and run along the figure's own baseline,
+            // where a 46-character sentence wrapped and swamped the count it
+            // was standing beside. It is supporting text about the ROWS
+            // BELOW — why none of them carries a distance — so it goes under
+            // the card's visual, at meta, in ink-3, on its own line. The
+            // 25dp that earlier arithmetic was protecting is bought back by
+            // the eyebrow this card no longer carries.
+            //
+            // "Not location error": the agent turned it off, or the phone
+            // cannot see the sky. Either way the route still works.
+            if (!route.hasLocation) ...<Widget>[
+              const SizedBox(height: TiqSpace.s3),
+              Text(
+                l10n.todayDistancesOff,
+                style: skin.text.meta.style(color: skin.palette.ink3),
+              ),
+            ],
           ],
         ),
       ),
@@ -534,45 +586,87 @@ class _NextUpCard extends StatelessWidget {
     return TorchCard(
       key: const ValueKey<String>('next-stop'),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // The meta line, at the sizes the surface declares: the sequence in
-          // mono 16 and the distance in the small mono role beside it. It was
-          // `figure.m` (22) over `figure.s` (16) — a sequence number set
-          // larger than the day block's unit and nearly as large as the store
-          // name it belongs to.
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: TiqSpace.s2,
-            runSpacing: TiqSpace.s1,
+          // THE STOP, ON ONE ROW. Tile, then name over identity — the same
+          // anatomy as the rows beneath it, which is what makes this card
+          // read as the first stop rather than as a heading block.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              _SequenceFigure(sequence: stop.sequence),
-              _DistanceFigure(stop: stop, role: skin.text.axisLabel),
+              _SequenceTile(sequence: stop.sequence, done: false),
+              const SizedBox(width: TiqSpace.s3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      stop.outlet.name,
+                      maxLines: 2,
+                      style: skin.text.titleM.style(color: skin.palette.ink1),
+                    ),
+                    const SizedBox(height: TiqSpace.s1),
+                    _StopIdentity(stop: stop),
+                  ],
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: TiqSpace.s3),
-          Text(
-            stop.outlet.name,
-            maxLines: 2,
-            style: skin.text.titleL.style(color: skin.palette.ink1),
-          ),
-          const SizedBox(height: TiqSpace.s1),
-          Text(
-            stop.outlet.code,
-            style: skin.text.monoIdent.style(color: skin.palette.ink3),
           ),
           const SizedBox(height: TiqSpace.s4),
           // THE SCREEN'S AMBER. A primary on a tab root lives in the BODY,
           // never in a thumb zone the nav already occupies.
+          //
+          // FILLED and with no chevron, since 29 September 2026. The approved
+          // mockup draws this control as a solid amber block with a centred
+          // label — `background:#FFB162; color:#16202B; border-radius:16px`,
+          // and 16 is `radii.control` already, so nothing about the geometry
+          // moves. `filled` is scoped to this one call site and changes only
+          // the Night granted form; see `TorchPrimaryButton.filled` for why
+          // it is a parameter and not the new default.
           TorchPrimaryButton(
             key: const ValueKey<String>('check-in-next'),
             claimId: TodayScreen.checkInClaimId,
             label: l10n.todayCheckInHere,
-            icon: Icons.chevron_right,
+            filled: true,
             onPressed: () => context.go('/audit/${stop.outlet.id}'),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// `KC-0412 · 1,2 km` — the identity line under a stop's name.
+///
+/// The code is its own `Text` and the distance is its own [FigureSlot], joined
+/// by a middot: a distance is a figure or it is nothing, so it cannot be
+/// interpolated into a string here. Where the phone will not say where it is
+/// there is no distance and no middot, and the day block has already said in
+/// one sentence why.
+class _StopIdentity extends StatelessWidget {
+  const _StopIdentity({required this.stop});
+
+  final RouteStop stop;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final ink = skin.palette.ink3;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: TiqSpace.s2,
+      runSpacing: TiqSpace.s1,
+      children: <Widget>[
+        Text(
+          stop.outlet.code,
+          style: skin.text.monoIdent.style(color: ink),
+        ),
+        if (stop.distance != null) ...<Widget>[
+          Text('·', style: skin.text.meta.style(color: ink)),
+          _DistanceFigure(stop: stop, role: skin.text.axisLabel),
+        ],
+      ],
     );
   }
 }
@@ -600,9 +694,16 @@ class _StopRow extends StatelessWidget {
       // An outlet name middle-truncates, so the branch survives when the
       // chain does not: "Pick n Pay …Vosloorus" beats "Pick n Pay Liber…".
       titleTruncation: SoftRowTruncation.middle,
-      subtitle: stop.outlet.code,
+      // THE IDENTITY LINE, and nothing in the trailing lane. It was the code
+      // as a subtitle with a two-line trailing column beside it — the
+      // distance over the word "To do" — and the mockup carries neither: the
+      // ordinal tile and the row's position in the list already say a stop is
+      // still to come, and the distance belongs next to the code it qualifies
+      // rather than in a column of its own. The words are not lost; they are
+      // in `semanticsLabel`, which is where a screen reader was always going
+      // to hear them.
+      meta: _StopIdentity(stop: stop),
       leading: _SequenceTile(sequence: stop.sequence, done: done),
-      trailing: _StopTrailing(stop: stop, done: done),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: l10n.todayStopSemantics(
         stop.outlet.name,
@@ -616,7 +717,27 @@ class _StopRow extends StatelessWidget {
   }
 }
 
-/// The sequence badge: the number in mono, or a tick once the stop is done.
+/// THE STOP NUMBER — one object, on every stop on the screen.
+///
+/// **Filled, since 29 September 2026.** There were two of these and neither
+/// was the mockup's: a bare mono numeral inside the Next-up card, and an
+/// outlined `radii.chip` square down the leading lane of the rest of the day.
+/// The mockup has one object for both — `.glyph`, 30 × 30, `border-radius:
+/// 11px`, a filled tint and no border — and the owner re-sent it saying
+/// "focus". So it is the same tile [SectionStateGlyph] and [RowMarkTile]
+/// became on the same day: [MarkScale.tile] square, [torchGlyphTileRadius],
+/// `raised`, no outline, the numeral in ink-2.
+///
+/// ## It is NOT amber, and the mockup's is
+///
+/// The mockup tints the next stop's tile `rgba(255,177,98,0.16)` with a
+/// `#FFCB94` numeral. `#FFCB94` is flame-700 — hue 30.8°, value 1.00 — which
+/// is inside the census's flame box, so that numeral is a **lit object**, and
+/// it is the fourth on a screen the law allows two. It declares no claim, so
+/// it takes its neutral form; see the amber note on [TodayScreen] for the
+/// whole allocation. The next stop is told apart from the rest by being in a
+/// card of its own with the screen's one commit under it, which is a stronger
+/// signal than a 16% tint.
 class _SequenceTile extends StatelessWidget {
   const _SequenceTile({required this.sequence, required this.done});
 
@@ -625,6 +746,8 @@ class _SequenceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A done stop is the section glyph's tick disc — already this exact tile
+    // in `good`'s own wash, at this exact radius, since 29 September 2026.
     if (done) {
       return const SectionStateGlyph(state: SectionState.done);
     }
@@ -635,60 +758,15 @@ class _SequenceTile extends StatelessWidget {
       height: tile,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(skin.radii.chip),
-        border: Border.all(
-          color: skin.palette.edgeControl,
-          width: skin.depth.borderWidth,
-        ),
+        color: skin.palette.raised,
+        borderRadius: BorderRadius.circular(torchGlyphTileRadius),
       ),
       child: FigureSlot(
         value: sequence,
         role: skin.text.figureS,
         textAlign: TextAlign.center,
+        semanticsLabel: context.l10n.todayStopNumber('$sequence'),
       ),
-    );
-  }
-}
-
-/// `03` in mono 16, for the next-up card's meta line. The surface says 16/500
-/// here; it is the card's smallest voice, not its loudest.
-class _SequenceFigure extends StatelessWidget {
-  const _SequenceFigure({required this.sequence});
-
-  final int sequence;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    return FigureSlot(
-      value: sequence,
-      role: skin.text.figureS,
-      semanticsLabel: context.l10n.todayStopNumber('$sequence'),
-    );
-  }
-}
-
-/// The trailing column of a stop row: the distance over a state word.
-class _StopTrailing extends StatelessWidget {
-  const _StopTrailing({required this.stop, required this.done});
-
-  final RouteStop stop;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        _DistanceFigure(stop: stop, role: skin.text.figureS),
-        Text(
-          done ? l10n.todayStopDoneTag : l10n.todayStopUpcoming,
-          style: skin.text.meta.style(color: skin.palette.ink3),
-        ),
-      ],
     );
   }
 }
