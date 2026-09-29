@@ -924,6 +924,22 @@ class _PlateFor extends StatelessWidget {
           // 72px, which is large text at a 3:1 floor — measured against the
           // worst pixel the plate's scrim can produce on either ground and
           // declared in `tiq_contrast.dart`.
+          //
+          // NIGHT NO LONGER COLOURS IT, from 29 September 2026, and it is
+          // [FigureRank.row] rather than a headline on purpose. §16.2 has
+          // ruled since the visit outcome shipped that a hero is ink-1 at
+          // every band — "a severity-coded figure at 72px is a hue doing a
+          // number's job, and it is the one object on the screen large enough
+          // that its colour reads as the whole message" — and the artifact
+          // agrees: its hero `72` is bone while the `▼ 19` beside it is
+          // crimson. On Day it still takes its verdict's ink, and that is what
+          // the two plate-hero pairings in `tiq_contrast.dart` measure.
+          //
+          // THE STANDING DID NOT GO WITH THE COLOUR. Taking the hue off the
+          // hero would have left the plate stating only the *movement* — and
+          // the paragraph above is the argument that movement and standing are
+          // two different questions. So the health line names the standing in
+          // words now; see [_healthLine] below.
           color: standingInk(
             skin,
             measured
@@ -1016,9 +1032,15 @@ class _PlateFor extends StatelessWidget {
               ? null
               : _heroDeltaSentence(context, delta.change!),
         ),
-        healthLine: Text(
-          'Territory health',
-          style: skin.text.label.style(color: skin.palette.ink2),
+        healthLine: _healthLine(
+          skin,
+          context.l10n,
+          measured
+              ? againstStandard(
+                  current.executionScore,
+                  executionScoreTarget,
+                )
+              : null,
         ),
         // The decomposition: what the composite figure is made of. A
         // composite number nobody can open is a number you cannot act on.
@@ -1026,6 +1048,35 @@ class _PlateFor extends StatelessWidget {
       ),
     );
   }
+
+  /// `Territory health` — and, since 29 September 2026, the standing after it.
+  ///
+  /// The label was `Territory health` alone while the hero carried its verdict
+  /// in crimson. Night stopped colouring the hero that day, so the plate would
+  /// otherwise have been left stating only the *movement*: the delta says the
+  /// score fell nineteen points, which is not the same claim as "it is under
+  /// the published 75" and can be true when the other is false.
+  ///
+  /// So the word moved onto the plate from the semantics label, where it was
+  /// already required and where only a screen reader could reach it. It is
+  /// `Below the standard` / `Close to the standard` / `On the standard` — the
+  /// same three strings every other standing in the console prints, from
+  /// [standingWord], so the plate and the overview say a gap the same way.
+  ///
+  /// It stays ink-2 and it is never coloured. A severity word in severity ink
+  /// beside a figure in plain ink is two severity systems on one plate; §16.2
+  /// gives the word to the *mark* and the ink to nothing here, and the delta
+  /// beside the figure is the mark.
+  static Widget _healthLine(
+    TiqSkin skin,
+    AppLocalizations l10n,
+    StatusLevel? standing,
+  ) => Text(
+    standing == null
+        ? 'Territory health'
+        : 'Territory health · ${standingWord(l10n, standing)}',
+    style: skin.text.label.style(color: skin.palette.ink2),
+  );
 
   /// "Down 19 points against the window before, which is bad."
   ///

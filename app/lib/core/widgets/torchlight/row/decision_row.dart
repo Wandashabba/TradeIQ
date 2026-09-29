@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../../../design/figure_slot.dart';
 import '../../../design/tiq_number.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
+import '../figure/standing.dart';
+import '../mark/severity_mark.dart';
 import 'soft_row.dart';
 
 /// The manager's "needs a decision" list item: one outlet that needs somebody
@@ -137,19 +139,31 @@ class DecisionRow extends StatelessWidget {
           unit: unit,
           decimals: decimals,
           state: figureState,
-          // The row's own verdict, in the word grade — one crimson for both
-          // commitment levels, because the dot beside the name is what carries
-          // the level and `badSolid` is a fill that fails 4.5:1 as a word on
-          // Night's `surface`. Null everywhere else, including every state but
-          // a plain measurement: `FigureSlot` then decides, and an em dash
-          // stays ink-3.
-          color: figureState != FigureState.measured
-              ? null
-              : switch (severity) {
-                  SoftRowSeverity.critical ||
-                  SoftRowSeverity.watch => skin.palette.bad,
-                  SoftRowSeverity.none => null,
-                },
+          // THE ROW'S OWN VERDICT — asked of `severityInk` rather than
+          // decided here.
+          //
+          // This switch used to be an inline copy of that function's body,
+          // which is why `severityInk` had no callers and why the two could
+          // drift: when the owner reversed the rule on 29 September 2026 the
+          // function was the obvious place to look and it was not the place
+          // the pixels came from. The duplicate is gone. The law — including
+          // which ground allows a crimson figure at all — lives in exactly one
+          // file now, and this row reads it.
+          //
+          // [FigureRank.row] is the default and the right one: a decision list
+          // is rows all the way down, and the dot beside the name is what
+          // carries the level. Colour is not the only signal here and never
+          // was — `severity` paints that dot and `severityLabel` is announced
+          // first in this row's own semantics label, below.
+          color: severityInk(
+            skin,
+            switch (severity) {
+              SoftRowSeverity.critical => SeverityMarkKind.critical,
+              SoftRowSeverity.watch => SeverityMarkKind.watch,
+              SoftRowSeverity.none => null,
+            },
+            state: figureState,
+          ),
           textAlign: TextAlign.end,
           semanticsLabel: valueSemanticsLabel,
         ),

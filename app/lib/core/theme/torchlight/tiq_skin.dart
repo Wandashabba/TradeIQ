@@ -49,6 +49,7 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     required this.depth,
     required this.motion,
     required this.amberIsInk,
+    required this.standingColoursFigures,
   });
 
   /// Which of the two skins this is. Never [SkinMode.auto] — auto is a
@@ -79,6 +80,34 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
   /// ranked-bar focus channel, the live pulse) is something else there.
   final bool amberIsInk;
 
+  /// WHETHER A FIGURE IS ALLOWED TO CARRY ITS OWN VERDICT IN INK, as a value.
+  ///
+  /// True on paper, false on the console, and the asymmetry is the ground's
+  /// rather than a preference:
+  ///
+  /// * On **Day** the ground is Palladian and [TiqPalette.ink1] is a navy so
+  ///   dark that a page of figures is one colour. Severity ink is the cheapest
+  ///   way to tell a good number from a bad one there, and the owner asked for
+  ///   it in as many words on 28 September 2026. It stays.
+  /// * On **Night** the ground is near-black and [TiqPalette.ink1] is a warm
+  ///   bone that *emits*. A figure set in [TiqPalette.bad] on that ground is
+  ///   darker than the ink around it, so the screen's brightest objects become
+  ///   its least important ones and a list of rows reads as damage. The
+  ///   verdict is carried by the mark and the word instead, which is what
+  ///   §16.2 already ruled for the visit-outcome hero and what the approved
+  ///   artifact does on every row it draws.
+  ///
+  /// It is a value and not an `if (isNight)` for the reason this whole class
+  /// is: a skin is a value set, and the one place that reads this is
+  /// `standingInk` / `severityInk` in
+  /// `core/widgets/torchlight/figure/standing.dart`. No widget asks.
+  ///
+  /// It does **not** mute severity generally. Marks, dots, bars, severity
+  /// words, phrases, chips, sparkline strokes and deltas keep their hue in
+  /// both skins — only the figure gives its colour up, and only where
+  /// something else beside it still says the same thing.
+  final bool standingColoursFigures;
+
   TiqDensity get density => space.density;
 
   /// NIGHT. Console by default — it is the manager's skin.
@@ -92,6 +121,9 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: TiqDepth.night,
     motion: TiqMotion.on,
     amberIsInk: false,
+    // A bone figure on a near-black ground is the luminous object the console
+    // is built around. The verdict goes on the mark beside it.
+    standingColoursFigures: false,
   );
 
   /// DAY. Field by default — it is the agent's skin.
@@ -105,6 +137,10 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: TiqDepth.day,
     motion: TiqMotion.on,
     amberIsInk: true,
+    // Dark ink on paper: without the severity hue a page of figures is one
+    // colour. The owner asked for it on 28 September 2026 and has not
+    // withdrawn it.
+    standingColoursFigures: true,
   );
 
   /// Build the skin a [SkinMode] asks for. [platformBrightness] only matters
@@ -149,6 +185,7 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     TiqDepth? depth,
     TiqMotion? motion,
     bool? amberIsInk,
+    bool? standingColoursFigures,
   }) => TiqSkin(
     mode: mode ?? this.mode,
     brightness: brightness ?? this.brightness,
@@ -159,6 +196,8 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: depth ?? this.depth,
     motion: motion ?? this.motion,
     amberIsInk: amberIsInk ?? this.amberIsInk,
+    standingColoursFigures:
+        standingColoursFigures ?? this.standingColoursFigures,
   );
 
   /// Colours and radii interpolate; a type scale, a density and a depth budget
@@ -178,6 +217,10 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
       depth: past ? depth : other.depth,
       motion: past ? motion : other.motion,
       amberIsInk: past ? amberIsInk : other.amberIsInk,
+      // A law, not a colour: it snaps at the midpoint with the rest of them.
+      standingColoursFigures: past
+          ? standingColoursFigures
+          : other.standingColoursFigures,
     );
   }
 }
