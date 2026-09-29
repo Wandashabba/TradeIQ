@@ -2604,12 +2604,27 @@ most. Whole-screen gets a 64dp drawing from a **closed enum of three** — shelf
 pin, envelope — plus a display headline under the line-count fitting rule (1–2
 lines 40, 3 lines 32, 4+ 26, floor 26). In-panel and inline get **no drawing**.
 
-The three drawings are commissioned under **#404** and do not exist yet.
-`EmptyStateDrawing` ships a placeholder behind the same API: a crude
-single-stroke schematic inside a **dashed frame**. The dashed frame is the
-signal — no commissioned drawing in this system will ever sit inside one, so a
-dashed box on a screen means artwork pending and nothing else. #404 replaces
-`state/empty_drawing.dart` and no call site: the API is the enum. **A stock
+The three drawings are **drawn**, as of 29 September 2026. They spent months as
+a placeholder — a crude single-stroke schematic inside a **dashed frame**, on
+the argument that no commissioned drawing would ever sit inside one, so a
+dashed box meant artwork pending and nothing else. It shipped anyway, on every
+genuine empty state in the product, and the signal did not survive contact with
+a reader: on a phone a dashed box round a stick drawing reads as an image that
+failed to load, not as a note to the reviewer.
+
+They are drawn in `MarkShape`'s idiom one step larger — geometry against the
+shortest side, no `saveLayer`, no hatch, **drawn paths only**. One family rule:
+an outline at the declared 2dp stroke with exactly one solid part, because a
+line says "diagram" and a solid says "object". The shelf's boards, the pin's
+eye, the envelope's flap. `state_test.dart` counts the pixels: each drawing
+inks between 2% and 45% of its extent, the three differ from one another, and
+**nothing may ink the outer ring** — which is the assertion that stops the
+frame coming back.
+
+The scope #404 described is met: `state/empty_drawing.dart` changed and no call
+site did, the API is still the enum, and the enum is still closed at three.
+What #404 asked for and did not get is an **illustrator's** hand; whether it
+still wants one is an owner's call, and the ticket stays open for it. **A stock
 illustration is never imported**, which is the whole reason the enum is closed.
 
 **Error state.** `TorchErrorMessage` is a closed set of six kinds and the
@@ -2757,8 +2772,10 @@ filter because it is empty hides the fact that it is empty.
 
 ### 15.7 What is not built yet, and why
 
-* **The three empty-state drawings** (#404). The placeholder is deliberately
-  obvious; see §15.4.
+* **An illustrator's hand on the three empty-state drawings** (#404). The
+  drawings themselves landed on 29 September 2026 and the dashed placeholder is
+  gone; what is still open is whether the commission is wanted on top. See
+  §15.4.
 * **The amber text-field focus rule.** Argued above; one token, one allowlist
   entry, one claim when it lands.
 * **`Menu sheet`** — on the canonical list, still waiting on a screen that

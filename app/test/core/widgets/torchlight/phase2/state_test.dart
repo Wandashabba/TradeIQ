@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,6 +120,66 @@ void main() {
       );
     });
 
+    // ── The drawings are drawings, counted from pixels ──────────────────
+    //
+    // These three shipped for months as a crude schematic inside a **dashed
+    // frame**, on the argument that a placeholder which looks finished is a
+    // placeholder that ships. It shipped anyway, on every genuine empty state
+    // in the product, and on a phone it read as an image that failed to load.
+    //
+    // The assertions below are the ratchet that stops it coming back. They
+    // count ink rather than matching a golden, because a golden of a drawing
+    // is a picture of the drawing and this repository's goldens do not run in
+    // CI (the Onest rasterisation difference on `ubuntu-latest`).
+    testWidgets('each drawing inks its middle and leaves its edge alone', (
+      tester,
+    ) async {
+      for (final drawing in EmptyDrawing.values) {
+        final pixels = await _inkOf(tester, drawing);
+
+        expect(
+          pixels.inked / pixels.total,
+          greaterThan(0.02),
+          reason:
+              '${drawing.name} paints almost nothing. A drawing that is not '
+              'there is worse than the placeholder it replaced.',
+        );
+        expect(
+          pixels.inked / pixels.total,
+          lessThan(0.45),
+          reason:
+              '${drawing.name} is nearly solid. These are silhouettes at a '
+              '2dp stroke with one filled part, not a block.',
+        );
+
+        // THE ONE THAT MATTERS. The dashed frame ran around the outside of
+        // the 64dp box. Nothing in this system's drawings may touch that
+        // ring: a box around a drawing is the "artwork pending" signal that
+        // a manager reads as a broken image.
+        expect(
+          pixels.edgeInked,
+          0,
+          reason:
+              '${drawing.name} paints on the outer edge of its extent. That '
+              'is where the dashed placeholder frame used to be, and no '
+              'drawing in this system sits inside a box.',
+        );
+      }
+    });
+
+    testWidgets('the three do not paint the same shape', (tester) async {
+      final counts = <EmptyDrawing, int>{
+        for (final d in EmptyDrawing.values) d: (await _inkOf(tester, d)).inked,
+      };
+      expect(
+        counts.values.toSet(),
+        hasLength(EmptyDrawing.values.length),
+        reason:
+            'Two of the three ink identically, which means the enum has '
+            'three names and fewer than three drawings: $counts',
+      );
+    });
+
     testWidgets('has exactly three drawings, and the enum is the guard', (
       tester,
     ) async {
@@ -133,7 +196,6 @@ void main() {
             'stock outline set, which is the slop this enum exists to refuse.',
       );
     });
-
   });
 
   group('the error state', () {
@@ -509,4 +571,60 @@ void main() {
       handle.dispose();
     });
   });
+}
+
+/// What one drawing put on the canvas.
+typedef _Ink = ({int inked, int total, int edgeInked});
+
+/// Render one [EmptyDrawing] alone on a transparent ground and count it.
+///
+/// Transparent, so "inked" is simply "not transparent" and no palette value
+/// has to be guessed. The drawing is the only thing in the boundary.
+Future<_Ink> _inkOf(WidgetTester tester, EmptyDrawing drawing) async {
+  const key = ValueKey<String>('drawing-boundary');
+  await pumpPhase2(
+    tester,
+    skin: TiqSkin.night(density: TiqDensity.field),
+    child: RepaintBoundary(
+      key: key,
+      child: EmptyStateDrawing(
+        drawing: drawing,
+        color: const Color(0xFFFFFFFF),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(key));
+
+  // `toImage` hands the layer tree to the rasteriser, which lives outside the
+  // test binding's fake clock. Awaiting it on the fake clock deadlocks — the
+  // test hangs with no output. `runAsync` is the escape hatch
+  // `matchesGoldenFile` and `amberCensus` use for the same reason.
+  final ink = await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final w = image.width;
+    final h = image.height;
+    image.dispose();
+    if (data == null) {
+      throw StateError('The render boundary produced no pixels.');
+    }
+    final bytes = data.buffer.asUint8List();
+    var inked = 0;
+    var edgeInked = 0;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        // Transparent ground, so "inked" is simply "not transparent" and no
+        // palette value has to be guessed.
+        if (bytes[(y * w + x) * 4 + 3] <= 8) continue;
+        inked++;
+        // The outermost ring, one device pixel thick.
+        if (x == 0 || y == 0 || x == w - 1 || y == h - 1) edgeInked++;
+      }
+    }
+    return (inked: inked, total: w * h, edgeInked: edgeInked);
+  });
+  if (ink == null) throw StateError('The ink count did not run.');
+  return ink;
 }
