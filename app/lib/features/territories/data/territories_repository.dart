@@ -216,10 +216,15 @@ class DioTerritoriesRepository implements TerritoriesRepository {
   ///
   /// The whole reason this control is worth having is that a manager flips
   /// between territories to compare them, and re-downloading 60 kB on every
-  /// flip back is the kind of thing a prepaid bundle notices. A place image is
-  /// replaced by a reseed and never edited in place — the server serves it
-  /// `immutable` — so a cached one cannot go stale within a session. The bound
-  /// is small because a client has territories in the dozens, not thousands.
+  /// flip back is the kind of thing a prepaid bundle notices. The bound is
+  /// small because a client has territories in the dozens, not thousands.
+  ///
+  /// This cache lives and dies with the repository, which is the whole reason
+  /// it is safe: a reseed lands between sessions, and a reload gets a fresh
+  /// one. The HTTP layer deliberately does NOT hold place images across a
+  /// reload — it used to, under `immutable`, and a day of the owner's own
+  /// photographs went unseen behind a copy the browser had been told never to
+  /// question. See the Cache-Control comment in `territories.routes.ts`.
   final _placeImageCache = <String, PlaceImage>{};
   static const placeImageCacheCap = 24;
 

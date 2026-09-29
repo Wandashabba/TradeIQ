@@ -60,8 +60,24 @@ async function sendPlaceImage(req: AuthedRequest, res: Response, territoryId: st
     .set('X-Image-Source', image.source)
     .set('Access-Control-Expose-Headers', 'X-Image-Source')
     // private: tenant-scoped bytes must not land in a shared cache.
-    // immutable: a place image is replaced by a reseed, never edited in place.
-    .set('Cache-Control', 'private, max-age=86400, immutable')
+    //
+    // no-cache: STORE IT, BUT ASK FIRST. This URL is stable and its bytes are
+    // not — a reseed replaces the picture behind `/territories/:id/place-image`
+    // without the address changing. It used to say `max-age=86400, immutable`,
+    // and `immutable` (RFC 8246) is a promise that the bytes at this URL will
+    // never change, so a browser holding one skips revalidation even on an
+    // ordinary reload. On 29 September 2026 that promise cost the owner their
+    // own photographs: the import ran, the database held them, this route
+    // served them, and the plate still showed yesterday's generated picture,
+    // because the browser had a day-old copy it had been told never to
+    // question. `immutable` is only ever true of a URL that carries its own
+    // version — a content hash in the path — and this one does not.
+    //
+    // The bandwidth this looks like it gives up, it does not: Express already
+    // sends an ETag, so an unchanged image revalidates to a bodiless 304 and
+    // the 60 kB stays on the wire exactly once. What changes is that a reseed
+    // is visible on the next reload instead of a day later.
+    .set('Cache-Control', 'private, no-cache')
     .send(image.bytes);
 }
 
