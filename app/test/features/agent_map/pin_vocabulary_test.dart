@@ -286,7 +286,12 @@ class _SkinColumn extends StatelessWidget {
                   _Block(
                     skin: skin,
                     heading: 'On the map',
-                    fill: p.ground,
+                    // NIGHT'S ground in both columns, because the basemap is
+                    // the same dark canvas in every skin (see `TiqTileLayer`)
+                    // and that is what `onDarkGround: true` paints against. A
+                    // Day-ground block here would be a picture of a map this
+                    // app does not have.
+                    fill: TiqSkin.night().palette.ground,
                     onDarkGround: true,
                     l10n: l10n,
                   ),
@@ -326,7 +331,10 @@ class _Block extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = skin.palette;
+    // The words take the ground's own skin, not the column's: on the dark map
+    // block a Day ink is a Day ink on a near-black card, and the sheet would
+    // be illegible in exactly the half it exists to show.
+    final p = (onDarkGround ? TiqSkin.night() : skin).palette;
     Widget line(Widget glyph, String word) => Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
