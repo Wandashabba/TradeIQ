@@ -132,17 +132,31 @@ class TiqChip extends StatelessWidget {
   };
 
   /// The chip label role, derived from `label` so it is a token and not a
-  /// seventeenth text style: 11/700 Console, 13/600 Field.
-  static TiqTypeToken labelRole(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => skin.text.label.copyWith(
-      size: 11,
-      weight: FontWeight.w700,
-    ),
-    TiqDensity.field => skin.text.label.copyWith(
-      size: 13,
-      weight: FontWeight.w600,
-    ),
-  };
+  /// seventeenth text style: **11/700 at both densities**.
+  ///
+  /// > *"Make the font on the agentside the same as the manager side,
+  /// > literally everything including colours"* — the owner, 29 September
+  /// > 2026.
+  ///
+  /// SUPERSEDED: unify §1.6's **11/700 Console, 13/600 Field**, which read
+  /// `TiqDensity.field => skin.text.label.copyWith(size: 13, weight:
+  /// FontWeight.w600)`. The Field step existed for the same reason the field
+  /// type scale did — a chip read at arm's length in sunlight — and it goes
+  /// for the same reason: there is one type scale now, and a chip is the
+  /// smallest labelled object in the product, so it is the last place that
+  /// should be carrying a size nothing else does.
+  ///
+  /// Note what does **not** move with it. The chip's **visual height stays
+  /// 28 inline / 32 Field** ([visualHeight], directly above) and its 48dp hit
+  /// box is untouched: §1.6's geometry is a density ruling about the thumb,
+  /// not a type ruling, and `TiqSpace.field` is deliberately not part of this
+  /// change. A 13pt word in a 32dp pill becomes an 11pt word in a 32dp pill —
+  /// more air around the label, not a smaller chip.
+  ///
+  /// TO RESTORE: give [TiqDensity.field] back its own arm of the switch. It
+  /// is independent of the button role next door, unlike that one.
+  static TiqTypeToken labelRole(TiqSkin skin) =>
+      skin.text.label.copyWith(size: 11, weight: FontWeight.w700);
 
   @override
   Widget build(BuildContext context) {

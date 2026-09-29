@@ -92,16 +92,35 @@ void main() {
           ],
         ),
       );
-      final before = tester.getRect(find.byType(TorchAppHeader)).top;
-      await tester.drag(find.byType(TorchShell), const Offset(0, -200));
+      // THE DRAG IS MEASURED OFF THE HEADER, not a constant.
+      //
+      // This used to drag a flat 200dp, which silently assumed the header
+      // would still be mounted afterwards to be measured. That held only while
+      // the header was taller than the drag: at `title.l` 24 this header
+      // measured 198dp, so 200dp of drag left 14dp of it on screen. On
+      // 29 September 2026 the agent side took the console type scale
+      // (`TiqType.forDensity`), the same header measured 178dp, and 200dp took
+      // the last of it past the top edge — the lazy list disposed it and
+      // `getRect` threw on an empty finder. The header had not stopped
+      // scrolling; it had finished, which is the thing this test wants.
+      //
+      // Half the header's own height always leaves something to measure and
+      // still fails a pinned header, so the assertion now survives any type or
+      // spacing change instead of depending on one.
+      final rect = tester.getRect(find.byType(TorchAppHeader));
+      final before = rect.top;
+      final drag = rect.height / 2;
+      await tester.drag(find.byType(TorchShell), Offset(0, -drag));
       await tester.pump();
       expect(
         tester.getRect(find.byType(TorchAppHeader)).top,
-        lessThan(before),
+        closeTo(before - drag, 0.5),
         reason:
             'the header is the first thing in the scroll view, so the body '
-            'always gets the fold back. That is what "then scroll" means, and '
-            'it is why the 40% number never has to be measured at runtime.',
+            'always gets the fold back — and it travels the full distance of '
+            'the drag, which a pinned header would not. That is what "then '
+            'scroll" means, and it is why the 40% number never has to be '
+            'measured at runtime.',
       );
     });
   });

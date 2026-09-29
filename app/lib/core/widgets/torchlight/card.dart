@@ -22,7 +22,12 @@ import '../../theme/torchlight/tiq_skin.dart';
 /// Cost: one `DecoratedBox`. No shadow, no gradient, no `saveLayer`, and
 /// nothing that may not appear inside a `ListView.builder`.
 class TorchCard extends StatelessWidget {
-  const TorchCard({super.key, required this.child, this.padding});
+  const TorchCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.fill,
+  });
 
   final Widget child;
 
@@ -30,12 +35,29 @@ class TorchCard extends StatelessWidget {
   /// is what the rows use.
   final EdgeInsetsGeometry? padding;
 
+  /// Overrides the `surface` material — for a card carrying a **finding**,
+  /// and for nothing else.
+  ///
+  /// Added 29 September 2026 for the stock section, where a product counted at
+  /// zero washes crimson. It is one of the three channels the approved mockup
+  /// gives that state (the wash, the count's ink, the word), and it replaces a
+  /// 3px bar drawn down the block's leading edge — the same bar
+  /// `SoftRowSpec` dropped for a dot when the rows became cards, and for the
+  /// same reason: inside a radius-22 silhouette a 3px stripe reads as a
+  /// scratch on the fill.
+  ///
+  /// A caller passes a **declared composited colour** — `torchChipWash(skin,
+  /// …)`, the one recipe the chips and the state tiles already use — never an
+  /// opacity. Null is the default and every existing call site keeps it, so
+  /// the signed-off console screens render byte for byte what they did.
+  final Color? fill;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: skin.palette.surface,
+        color: fill ?? skin.palette.surface,
         borderRadius: BorderRadius.circular(skin.radii.card),
       ),
       child: Padding(
