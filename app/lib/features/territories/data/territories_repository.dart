@@ -228,6 +228,28 @@ class DioTerritoriesRepository implements TerritoriesRepository {
   final _placeImageCache = <String, PlaceImage>{};
   static const placeImageCacheCap = 24;
 
+  /// A ONE-TIME BREAK OF POISONED CACHES. Not a version of the picture.
+  ///
+  /// Until 29 September 2026 this route answered with `max-age=86400,
+  /// immutable`, which tells a browser the bytes at that address can never
+  /// change and it therefore never needs to ask again. Browsers that were told
+  /// that are still holding the reply, and **they cannot be talked out of it
+  /// by fixing the header**, because the whole meaning of the old header is
+  /// that they will not ask to hear the new one. A reload does not reach them
+  /// either: a reload bypasses the cache for the page, not for the requests
+  /// the page's own code makes afterwards, which is what this is.
+  ///
+  /// Changing the URL is the one thing that does reach them, because a URL
+  /// they have never seen cannot be in a cache. That is all this is for, and
+  /// it has done its job the first time each browser fetches with it.
+  ///
+  /// **Do not bump this when a picture changes.** The server now answers
+  /// `no-cache` and revalidates against an ETag, so new pictures arrive on
+  /// their own; a token that gets bumped per release quietly turns every
+  /// revalidation back into a full download. It moves only if a caching
+  /// mistake of this kind is ever made again.
+  static const placeImageCacheBreak = '2026-09-29';
+
   @override
   Future<PlaceImage> placeImage(String? territoryId) async {
     final key = territoryId ?? '';
@@ -241,6 +263,7 @@ class DioTerritoriesRepository implements TerritoriesRepository {
       territoryId == null
           ? '/territories/place-image'
           : '/territories/$territoryId/place-image',
+      queryParameters: const <String, String>{'cb': placeImageCacheBreak},
       options: Options(responseType: ResponseType.bytes),
     );
     final image = PlaceImage(
