@@ -192,16 +192,28 @@ class StatCluster extends StatelessWidget {
     semanticsHint: tile.semanticsHint,
   );
 
+  Widget _rule(TiqSkin skin) => rule(skin);
+
+  Color _ruleColour(TiqSkin skin) => ruleColour(skin);
+
   /// The separator. `edge-structure` in Night at 3:1 against the surface it
   /// divides; the decorative hairline on paper, where the fill step is already
   /// visible.
-  Widget _rule(TiqSkin skin) => SizedBox(
+  ///
+  /// **Public, because a caller that stacks its own figures needs the same
+  /// line.** The Tasks worklist's lead card puts two subordinate figures under
+  /// its hero, which is a cluster in everything but the tile type — and a
+  /// screen that reached for `edgeStructure` itself would be a screen carrying
+  /// its own copy of the Night/Day branch in [ruleColour], which is the one
+  /// thing §1 of the design document says a widget may not do.
+  static Widget rule(TiqSkin skin) => SizedBox(
     height: skin.depth.borderWidth,
     width: double.infinity,
-    child: ColoredBox(color: _ruleColour(skin)),
+    child: ColoredBox(color: ruleColour(skin)),
   );
 
-  Color _ruleColour(TiqSkin skin) => skin.brightness == Brightness.dark
+  /// The separator's ink. See [rule].
+  static Color ruleColour(TiqSkin skin) => skin.brightness == Brightness.dark
       ? skin.palette.edgeStructure
       : skin.palette.hairline;
 }

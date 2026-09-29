@@ -13,7 +13,6 @@ import '../../../core/widgets/torchlight/evidence_thumb.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
-import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../audit/data/photos_repository.dart';
 import '../../users/data/users_repository.dart';
@@ -25,32 +24,63 @@ import 'close_with_photo_sheet.dart';
 ///
 /// ```text
 ///   Tasks                                         [ ⟳ ]
-///   Risks, stockouts and price deviations open a task
-///   automatically, with a due date set by priority.
-///   ┌────────────────────────────────────────┐
-///   │ ▲  OVERDUE                          3  │
-///   │    12 open · 4 awaiting verification    │
-///   └────────────────────────────────────────┘
-///   ( Open 12 )( Overdue 3 )( Done )( All )
-///   ── Open 12 ──────────────────────────────
-///   ▌ Shelf talker missing              [img]
-///   ▌ Overdue by 2 days · replace the shelf talker
-///   ▌ Kasi Corner Spaza
-///   ▌ Assigned to Thandi Mokoena
-///   ▌ Close with photo
+///   Risks, stockouts and price deviations open a task automatically.
+///   ╭────────────────────────────────────────╮
+///   │ ▲ OVERDUE                              │
+///   │ 1 122                                  │
+///   │ Past the deadline and still open.      │
+///   │ ──────────────────────────────────     │
+///   │ OPEN                           1 190   │
+///   │ ──────────────────────────────────     │
+///   │ AWAITING VERIFICATION             43   │
+///   ╰────────────────────────────────────────╯
+///   ( ✓ Open 1 190 )( Overdue 1 122 )( Done 31 178 )( All 32 368 )
+///   ╭────────────────────────────────────────╮
+///   │ ▌ Kasi Corner Spaza               [img]│
+///   │ ▌ Shelf talker missing                 │
+///   │ ▌ ▲ Overdue by 2 days · replace the …  │
+///   │ ▌ Critical priority                    │
+///   │ ▌ Assigned to Thandi Mokoena           │
+///   │ ▌ Close with photo                     │
+///   ╰────────────────────────────────────────╯
 ///   …
-///   Showing the 50 tasks with the earliest deadlines, of 74.
-///   The counts above are of these 50.
+///   Showing the 50 open tasks with the earliest deadlines, of 1 190.
 ///   [ nav pill ]
 /// ```
+///
+/// ## The page could not count, so it apologised
+///
+/// Until the counts landed, `GET /tasks` answered one page and a total, and
+/// every figure above the list was derived from the fifty rows in hand. On a
+/// real account that is fifty **closed** tasks — the server orders by deadline
+/// across every status, and 31,178 of 32,368 tasks are closed — so the screen
+/// read `Open 0 · Overdue 0 · Done 50 · All 50` over an account with 1,190
+/// open tasks, and withheld its lead figure behind an em dash and a
+/// not-measured mark because a zero over a cut page is genuinely an unknown.
+/// The mark was right. The data was the defect.
+///
+/// Two changes end it, and the second is the reason the first is not enough:
+///
+/// 1. **The server counts the whole set.** `counts` rides on the list's own
+///    answer — see `tasks.service.ts` for why it is not an endpoint of its
+///    own — so the chips and the lead figure are measured figures, and the
+///    footer's "the counts above are of these 50" line has nothing left to
+///    say. The honest-unknown machinery is untouched and still fires for a
+///    server that does not count.
+/// 2. **The filter is the server's, not a `where` over the page.** Real counts
+///    on their own would have made the screen more obviously wrong, not less:
+///    a chip reading `Open 1 190` above an empty list, because the page it was
+///    filtering was the fifty oldest deadlines and those are closed. Each chip
+///    now fetches its own slice.
 ///
 /// ## The one amber, counted
 ///
 /// A tab root: the nav pill's active tab is slot 1 and this screen nominates
 /// nothing. The overdue lead figure and the SLA phrasing carry the urgency —
-/// a crimson outline, a filled triangle and a word — and the earlier draft's
-/// reasoning that the filter chip should be lit *because a slot was free* is
-/// not a possibility the ruling leaves open. Day paints zero.
+/// a filled triangle, the crimson `bad` ink on the figure and a word — and the
+/// earlier draft's reasoning that the filter chip should be lit *because a
+/// slot was free* is not a possibility the ruling leaves open. Day paints
+/// zero.
 ///
 /// The one lit object in this feature is `Close task`, and it lives on the
 /// closure sheet, where the amber beneath it has already gone out.
@@ -59,7 +89,9 @@ import 'close_with_photo_sheet.dart';
 ///
 /// [clock] is the screen's one time source, read once per build and threaded
 /// down, so every "overdue" on the screen agrees on the same instant and a
-/// test can pin it.
+/// test can pin it. The server reads its own clock for the `overdue` count and
+/// uses the app's definition to the boundary instant — `slaDueAt <= now`,
+/// status not closed — so the figure and the rows beneath it agree too.
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key, this.clock = DateTime.now});
 
@@ -73,7 +105,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   TaskFilter _filter = TaskFilter.open;
 
   void _refresh() {
-    ref.invalidate(tasksPageProvider);
+    // Every slice, not only the one on screen. Closing a task changes the
+    // overdue count and the done count at once, and a cached `Done` page that
+    // still predates the closure is a manager pressing a chip and seeing the
+    // task they just closed as open.
+    for (final filter in TaskFilter.values) {
+      ref.invalidate(tasksPageProvider(filter));
+    }
     // The Floor reads the plain list; keeping them in step means a manager who
     // closes a task here does not walk back to a board that still shows it.
     ref.invalidate(tasksListProvider);
@@ -81,7 +119,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final page = ref.watch(tasksPageProvider);
+    final page = ref.watch(tasksPageProvider(_filter));
 
     return page.when(
       loading: () => _frame(
@@ -113,8 +151,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         TasksView.resolve(
           data.entries,
           widget.clock(),
+          filter: _filter,
           nextCursor: data.nextCursor,
           total: data.total,
+          counts: data.counts,
           owners: <String, String>{
             for (final user in ref.watch(userDirectoryProvider).values)
               user.id: user.label,
@@ -130,10 +170,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       active: ConsoleSlot.work,
       header: TorchAppHeader(
         title: 'Tasks',
+        // ONE CLAUSE, not a paragraph. `facts` is a middot-joined line of
+        // facts capped at two lines, and Alerts — the sibling worklist, same
+        // frame, same grammar — carries six words there. This carried
+        // seventeen across two lines, which is a third of the header's own
+        // ceiling spent restating what the rows below say better. The
+        // qualifier that went ("with a due date set by priority") is the
+        // priority line on every row.
         facts: const <String>[
-          'Risks, stockouts and price deviations open a task automatically, '
-              'with a due date set by priority.',
+          'Risks, stockouts and price deviations open a task automatically.',
         ],
+        // The header allows exactly one trailing control and on a console
+        // worklist the one worth having is the refetch — the same choice
+        // Alerts, Territories and Messages made, for the same reason.
         trailing: TorchIconButton(
           key: const ValueKey<String>('tasks-refresh'),
           icon: Icons.refresh,
@@ -151,19 +200,57 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final numbers = TiqNumber.of(context);
     final footer = view.footer((n) => numbers.format(n));
 
-    return _frame(
-      phase: view.rows.isEmpty
-          ? 'empty'
-          : visible.isEmpty
-          ? 'filtered-empty'
-          : 'loaded',
-      children: <Widget>[
-        // THE LEAD INDICATOR. Overdue is the dominant figure because the SLA
-        // is the axis that costs something; open and awaiting-verification are
-        // its subordinates, not its peers.
-        _LeadIndicator(view: view),
-        const SizedBox(height: TiqSpace.s6),
+    // NOTHING AT ALL IS ITS OWN SCREEN, not a scoreboard of noughts.
+    //
+    // An account with no tasks under a lead card reading `OVERDUE 0` and four
+    // chips reading zero is the same failure The Floor refuses with its
+    // first-run board: a wall of measured noughts that says nothing except
+    // that the product is on. The whole-screen empty state — a drawing, a
+    // display headline and the sentence naming where tasks come from — is what
+    // the rest of this app does with an empty route.
+    //
+    // It is gated on the *counted* set, never on the page: `rows.isEmpty` with
+    // a cursor in hand would be a filter that found nothing on page one, which
+    // is a different fact and has different words.
+    if (view.countsAreMeasured && view.all == 0) {
+      return _frame(
+        phase: 'empty',
+        children: const <Widget>[
+          EmptyState(
+            key: ValueKey<String>('tasks-empty'),
+            scope: EmptyScope.wholeScreen,
+            // The closed enum of three. A shelf, because a task is raised
+            // against something that was wrong on one.
+            drawing: EmptyDrawing.shelf,
+            headline: 'No tasks yet.',
+            body:
+                'Tasks open automatically from risks, stockouts and price '
+                'deviations on a submitted visit.',
+          ),
+        ],
+      );
+    }
 
+    return _frame(
+      phase: visible.isEmpty ? 'filtered-empty' : 'loaded',
+      children: <Widget>[
+        // THE LEAD BLOCK. Overdue is the dominant figure because the SLA is
+        // the axis that costs something; open and awaiting-verification are
+        // its subordinates, not its peers.
+        _LeadBlock(view: view),
+        const SizedBox(height: TiqSpace.s4),
+
+        // THE RAIL IS THE SECTION MARKER on this screen, and that is why there
+        // is no `SectionRule` under it any more.
+        //
+        // The marker printed the filter's name and the number of rows on the
+        // page — `OPEN · 50` — directly beneath a chip printing the same word
+        // and the account's own figure. Two numbers in one column under one
+        // word is the failure §9f of the design document names by example on
+        // the Execution overview, and with the counts landing it became a
+        // contradiction rather than a duplication: `OPEN · 50` under
+        // `Open 1 190`. The selected chip names the section and counts it, in
+        // one object, and the footer says how much of it is on screen.
         TorchBleed(
           extra: gutter * 2,
           child: _Filters(
@@ -172,32 +259,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             onChanged: (f) => setState(() => _filter = f),
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        const SizedBox(height: TiqSpace.s4),
 
-        SectionRule(
-          _sectionName(),
-          count: visible.isEmpty ? null : visible.length,
-        ),
-        const SizedBox(height: TiqSpace.s5),
-
-        if (view.rows.isEmpty)
-          const EmptyState(
-            scope: EmptyScope.inPanel,
-            headline: 'Nothing outstanding.',
-            body:
-                'Tasks open automatically from risks, stockouts and price '
-                'deviations on a submitted visit.',
-          )
-        else if (visible.isEmpty)
-          EmptyState(
-            scope: EmptyScope.inPanel,
-            headline: _filteredEmptyHeadline(),
-            body: 'Clear the filter to see the rest.',
-            action: TorchSecondaryButton(
-              key: const ValueKey<String>('clear-filters'),
-              label: 'Show all tasks',
-              onPressed: () => setState(() => _filter = TaskFilter.all),
-            ),
+        if (visible.isEmpty)
+          _FilteredEmpty(
+            filter: _filter,
+            view: view,
+            onShowAll: () => setState(() => _filter = TaskFilter.all),
           )
         else
           TorchBleed(
@@ -216,11 +284,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             ),
           ),
 
-        // Only where the list was cut, and without an offer to narrow: the
-        // state filter is client-side over this page and cannot reach the
-        // rest.
+        // Only where the list was cut. There is no offer to narrow: the rail
+        // above IS the narrowing, and it has already been applied by the
+        // server — this sentence exists to say that the rows are a page of
+        // that slice, not that the figures are.
         if (footer != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s6),
+          const SizedBox(height: TiqSpace.s5),
           TorchBleed(
             extra: gutter * 2,
             child: PaginationFooter(
@@ -233,98 +302,294 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ],
     );
   }
-
-  String _sectionName() => switch (_filter) {
-    TaskFilter.open => 'Open',
-    TaskFilter.overdue => 'Overdue',
-    TaskFilter.done => 'Done',
-    TaskFilter.all => 'All tasks',
-  };
-
-  String _filteredEmptyHeadline() => switch (_filter) {
-    TaskFilter.open => 'Nothing outstanding.',
-    TaskFilter.overdue => 'Nothing is overdue.',
-    TaskFilter.done => 'Nothing closed yet.',
-    TaskFilter.all => 'Nothing outstanding.',
-  };
 }
 
-/// Overdue, as the one figure that costs something.
+/// THE HEAD OF THE PAGE: one figure that costs something, and two that
+/// explain it.
 ///
-/// Three channels: the crimson `bad` outline, the filled triangle beside it,
-/// and the word in the eyebrow. Never amber.
-class _LeadIndicator extends StatelessWidget {
-  const _LeadIndicator({required this.view});
+/// Four things in one card, which is what §9f of the design document settled
+/// for a lead card after the Execution overview's crimson rectangle came out:
+/// the label with its mark, the figure, one supporting line, and the
+/// subordinate figures under a rule.
+///
+/// ## Three channels, and none of them is a box
+///
+/// The standing is carried by the **silhouette** beside the eyebrow (a filled
+/// triangle for overdue work, a filled circle for none, a barred square for a
+/// count nobody could make), by the **word** in the eyebrow and the supporting
+/// line, and by the **ink** on the figure — `bad` or `good` in the word grade,
+/// from [severityInk], which is the one function in the product that decides
+/// when a figure may carry a judgement.
+///
+/// It draws no outline. `StatTile(lead: true, severity: …)` is the one
+/// configuration in the kit that does, at `radii.chip` — a radius-6 crimson
+/// rectangle around the loudest object on a screen where everything else is
+/// radius 22 — and §9f took it off the overview for exactly that reason.
+///
+/// ## The subordinates are figures, not a caption
+///
+/// They were a `meta` sentence — `12 open · 4 awaiting verification` — under
+/// the figure, which is a run-on line a reader has to parse rather than two
+/// numbers they can read. They are the [StatCluster] grammar now: a 12dp gap
+/// with a 1px rule centred in it, the label left and the figure right, so the
+/// two figures align on one right edge the way an instrument panel does.
+/// Stacked rather than side by side because "AWAITING VERIFICATION" in half a
+/// card at 2.0× is an ellipsis, and a label the reader cannot finish is not a
+/// label.
+class _LeadBlock extends StatelessWidget {
+  const _LeadBlock({required this.view});
 
   final TasksView view;
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
     final overdue = view.overdue;
-    // The page was cut, so every count here is a count of what was loaded.
-    // The server orders tasks by deadline across all statuses, so overdue
-    // work can sit unloaded on page 2 — which makes a zero here an UNKNOWN,
-    // not a measured nought, and a green on-target circle over it a claim
-    // nobody measured.
-    final partial = view.hasMore;
-    final unknown = partial && overdue == 0;
-    final loaded = TiqNumber.of(context).format(view.rows.length);
 
-    // A CARD, AND NO CRIMSON BOX — 26 September 2026.
-    //
-    // The Floor's one figure block is a `TorchCard` holding a `StatTile(lead:
-    // true)`, and this is the same object on a worklist, so it wears the same
-    // material: radius 22, `surface`, no outline. It was a bare `Row` on the
-    // ground whose tile drew a 1px crimson `bad` outline around itself —
-    // the only coloured box left in the product, and a shape the card grammar
-    // has no form for.
-    //
-    // The severity is not lost, and it never depended on that outline. The
-    // `SeverityMark` beside the figure is the silhouette (filled for
-    // critical, a barred ring for an unmeasured page, a circle for clear), the
-    // eyebrow is the word, and the figure is the count. Three channels, and
-    // the two that survive greyscale are the two that are left.
+    // THE ONE REMAINING UNKNOWN, and it is no longer this screen's normal
+    // state. The server counts the whole set, so a zero here is a measured
+    // nought. Where it does NOT — an older or stubbed server that answers no
+    // `counts` — a zero over a cut page still says nothing about the rest of
+    // the list, and the em dash and the barred square still say so. Removing
+    // that with the defect it described would have been replacing an honest
+    // unknown with a confident wrong number.
+    final unknown = !view.countsAreMeasured && overdue == 0;
+    final state = unknown ? FigureState.missing : FigureState.measured;
+    final mark = unknown
+        ? SeverityMarkKind.notMeasured
+        : overdue > 0
+        ? SeverityMarkKind.critical
+        : SeverityMarkKind.onTarget;
+    final loaded = TiqNumber.of(context).format(view.rows.length);
+    final supporting = unknown
+        ? 'None among the $loaded tasks loaded. The rest of the list was not '
+              'fetched.'
+        : overdue > 0
+        ? !view.countsAreMeasured
+              ? 'At least this many: counted over the $loaded tasks loaded.'
+              : 'Past the deadline and still open.'
+        : 'Nothing is past its deadline.';
+
     return TorchCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(top: TiqSpace.s5),
-            child: SeverityMark(
-              kind: overdue > 0
-                  ? SeverityMarkKind.critical
-                  : partial
-                  ? SeverityMarkKind.notMeasured
-                  : SeverityMarkKind.onTarget,
+      key: const ValueKey<String>('tasks-lead'),
+      child: Semantics(
+        container: true,
+        label: 'Overdue',
+        value: unknown ? supporting : '$overdue',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // 1. THE LABEL, with the silhouette on its own line rather than in
+            //    a column of its own beside the figure. The mark used to sit
+            //    in a 12dp gutter to the left of the whole tile, which made it
+            //    a free-floating box next to a number instead of a mark on a
+            //    word.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SeverityMark(kind: mark),
+                const SizedBox(width: 6),
+                const Flexible(child: Eyebrow('Overdue')),
+              ],
             ),
-          ),
-          const SizedBox(width: TiqSpace.s3),
-          Expanded(
-            child: StatTile(
-              eyebrow: 'Overdue',
-              // A measured zero renders 0 and keeps its place: nothing overdue
-              // is a fact worth reading, not an absence. A zero over a cut page
-              // is not that zero, and it renders as the em dash and the reason.
+            const SizedBox(height: TiqSpace.s2),
+
+            // 2. THE FIGURE. `hero.figure.compact` first, measured: on a
+            //    390dp phone a four-digit count fits it and gets the presence
+            //    the head of a page needs, and a six-digit one steps down to
+            //    `figure.l` by measurement rather than by a guess about how
+            //    big the account is.
+            FigureSlot(
+              key: const ValueKey<String>('tasks-overdue-figure'),
               value: unknown ? null : overdue,
-              noDataReason: unknown
-                  ? 'None among the $loaded tasks loaded. The rest of the list '
-                        'was not fetched.'
-                  : null,
-              stateLine: partial && overdue > 0
-                  ? 'At least this many: counted over the $loaded tasks loaded.'
-                  : null,
-              lead: true,
-              subordinates:
-                  '${view.open} open · ${view.awaitingVerification} awaiting '
-                  'verification',
+              role: skin.text.heroFigureCompact,
+              fit: <TiqTypeToken>[
+                skin.text.heroFigureCompact,
+                skin.text.figureL,
+                skin.text.figureM,
+              ],
+              state: state,
+              color: severityInk(skin, mark, state: state),
+              semanticsLabel: unknown ? supporting : null,
             ),
-          ),
-        ],
+            const SizedBox(height: TiqSpace.s2),
+
+            // 3. THE SUPPORTING LINE. Mandatory when the figure is absent —
+            //    an em dash on its own is a puzzle — and worth having when it
+            //    is not, because "1 122" does not say what was counted.
+            Text(supporting, style: skin.text.meta.style(color: skin.palette.ink3)),
+            const SizedBox(height: StatCluster.gap / 2),
+            StatCluster.rule(skin),
+            const SizedBox(height: StatCluster.gap / 2),
+
+            // 4. THE SUBORDINATES.
+            _Subordinate(
+              key: const ValueKey<String>('tasks-subordinate-open'),
+              label: 'Open',
+              value: view.open,
+              measured: view.countsAreMeasured,
+              scopeNote: 'among the $loaded tasks loaded',
+            ),
+            const SizedBox(height: StatCluster.gap / 2),
+            StatCluster.rule(skin),
+            const SizedBox(height: StatCluster.gap / 2),
+            _Subordinate(
+              key: const ValueKey<String>('tasks-subordinate-awaiting'),
+              label: 'Awaiting verification',
+              value: view.awaitingVerification,
+              measured: view.countsAreMeasured,
+              scopeNote: 'among the $loaded tasks loaded',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// One subordinate figure: the label left, the figure right, on one row.
+///
+/// The label is `Expanded` and the figure is a bounded box, which is the
+/// [StatTile] horizontal layout's own arrangement and the reason a column of
+/// these aligns on one right edge.
+///
+/// A subordinate never carries a severity ink. It is context for the figure
+/// above it, and a second coloured number in the same card would make the
+/// reader hunt for which one the card is about.
+class _Subordinate extends StatelessWidget {
+  const _Subordinate({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.measured,
+    required this.scopeNote,
+  });
+
+  final String label;
+  final int value;
+
+  /// False where the figure is the page's own count rather than the account's.
+  /// The figure still renders — it is a real number, just of a smaller thing —
+  /// and the scope is said in words beside it rather than being implied.
+  final bool measured;
+
+  final String scopeNote;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Eyebrow(label),
+              if (!measured)
+                Text(
+                  scopeNote,
+                  style: skin.text.meta.style(color: skin.palette.ink3),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: TiqSpace.s3),
+        FigureSlot(value: value, role: skin.text.figureM, textAlign: TextAlign.end),
+      ],
+    );
+  }
+}
+
+/// A filter with nothing in it — which, now that the counts are real, is a
+/// fact about the account rather than about the page.
+///
+/// Three things separate this from the plain "No data" it replaces:
+///
+/// * the headline says which absence it is, per filter;
+/// * the body says what **is** there, using the counted figures — "1 190 tasks
+///   are open and inside their deadline" is the sentence a manager wanted when
+///   they pressed Overdue and got nothing, and "Clear the filter to see the
+///   rest" was not;
+/// * the way back is a [TorchTertiaryButton] rather than a full-width outlined
+///   block. It is the treatment The Floor uses for exactly this control — the
+///   one-tap way out of a scope that found nothing — and a full-width
+///   secondary button was the loudest object on an empty screen.
+class _FilteredEmpty extends StatelessWidget {
+  const _FilteredEmpty({
+    required this.filter,
+    required this.view,
+    required this.onShowAll,
+  });
+
+  final TaskFilter filter;
+  final TasksView view;
+  final VoidCallback onShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final numbers = TiqNumber.of(context);
+    String n(int value) => numbers.format(value);
+
+    final headline = switch (filter) {
+      TaskFilter.open => 'Nothing is outstanding.',
+      TaskFilter.overdue => 'Nothing is overdue.',
+      TaskFilter.done => 'Nothing has been closed yet.',
+      TaskFilter.all => 'Nothing to show.',
+    };
+
+    // What is there instead, in the account's own figures. Only where they are
+    // measured: a page-derived "0 open" beside an empty list would be the
+    // screen agreeing with itself about a number it never checked.
+    final body = !view.countsAreMeasured
+        ? 'Nothing on this page matches. The rest of the list was not fetched.'
+        : switch (filter) {
+            TaskFilter.overdue when view.open > 0 =>
+              '${n(view.open)} tasks are open and inside their deadline.',
+            TaskFilter.overdue =>
+              'Every task in the account is closed.',
+            TaskFilter.open when view.closed > 0 =>
+              'All ${n(view.closed)} tasks in the account are closed.',
+            TaskFilter.open => 'Nothing is open.',
+            TaskFilter.done =>
+              '${n(view.open)} tasks are still open. A task closes with a '
+                  'photograph of the fix.',
+            TaskFilter.all => 'There is nothing filed under this account.',
+          };
+
+    return EmptyState(
+      key: const ValueKey<String>('tasks-filtered-empty'),
+      scope: EmptyScope.inPanel,
+      headline: headline,
+      body: body,
+      // Only where there is somewhere to go back to. On `All` this button
+      // would re-select the filter that is already selected.
+      action: filter == TaskFilter.all
+          ? null
+          : TorchTertiaryButton(
+              key: const ValueKey<String>('clear-filters'),
+              label: 'Show all tasks',
+              onPressed: onShowAll,
+            ),
+    );
+  }
+}
+
+/// THE RAIL, carrying the account's own figures.
+///
+/// Every chip is a real count of the whole set, which is what makes the rail
+/// worth reading: it used to print `Open 0 · Overdue 0 · Done 50 · All 50`
+/// over an account of 32,368 tasks, which is four numbers about a page nobody
+/// asked about.
+///
+/// Selected is `lifted` + a 1px ink-1 border + a tick + weight 700, and it is
+/// **never amber** (unify §1.6) — four channels, three of which survive
+/// greyscale. The chip is the chip material at `radii.chip`; a rail of
+/// radius-22 pills would be the card grammar applied to a control, which §9c
+/// scopes out by name.
 class _Filters extends StatelessWidget {
   const _Filters({
     required this.filter,
@@ -341,34 +606,14 @@ class _Filters extends StatelessWidget {
     return TorchFilterRail(
       semanticsLabel: 'Filters',
       chips: <Widget>[
-        TorchFilterChip(
-          key: const ValueKey<String>('filter-open'),
-          label: 'Open',
-          count: view.open,
-          selected: filter == TaskFilter.open,
-          onSelected: () => onChanged(TaskFilter.open),
-        ),
-        TorchFilterChip(
-          key: const ValueKey<String>('filter-overdue'),
-          label: 'Overdue',
-          count: view.overdue,
-          selected: filter == TaskFilter.overdue,
-          onSelected: () => onChanged(TaskFilter.overdue),
-        ),
-        TorchFilterChip(
-          key: const ValueKey<String>('filter-done'),
-          label: 'Done',
-          count: view.closed,
-          selected: filter == TaskFilter.done,
-          onSelected: () => onChanged(TaskFilter.done),
-        ),
-        TorchFilterChip(
-          key: const ValueKey<String>('filter-all'),
-          label: 'All',
-          count: view.rows.length,
-          selected: filter == TaskFilter.all,
-          onSelected: () => onChanged(TaskFilter.all),
-        ),
+        for (final f in TaskFilter.values)
+          TorchFilterChip(
+            key: ValueKey<String>('filter-${f.name}'),
+            label: f.label,
+            count: view.countFor(f),
+            selected: filter == f,
+            onSelected: () => onChanged(f),
+          ),
       ],
     );
   }

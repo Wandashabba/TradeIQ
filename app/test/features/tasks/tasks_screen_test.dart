@@ -11,6 +11,7 @@ import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -109,6 +110,8 @@ class _Harness {
     Object? listFailure,
     Object? closeFailure,
     bool listPending = false,
+    bool serverCounts = true,
+    TaskCounts? counts,
   }) : tasks = FakeTasksRepository(
          tasks: tasks,
          nextCursor: nextCursor,
@@ -116,6 +119,12 @@ class _Harness {
          listFailure: listFailure,
          closeFailure: closeFailure,
          listPending: listPending,
+         serverCounts: serverCounts,
+         counts: counts,
+         // The fake's overdue and the screen's overdue are read at the same
+         // instant, or a deadline is past on one side of the wire and not the
+         // other.
+         clock: () => _now,
        );
 
   final FakeTasksRepository tasks;
@@ -132,6 +141,8 @@ Future<_Harness> _pump(
   Object? listFailure,
   Object? closeFailure,
   bool listPending = false,
+  bool serverCounts = true,
+  TaskCounts? counts,
   bool cameraCancels = false,
   double? luma,
   LocationService? location,
@@ -146,6 +157,8 @@ Future<_Harness> _pump(
     listFailure: listFailure,
     closeFailure: closeFailure,
     listPending: listPending,
+    serverCounts: serverCounts,
+    counts: counts,
   );
   await pumpWorklist(
     tester,
@@ -212,6 +225,13 @@ Future<void> _openClosureSheet(
   if (capture) await _takePhoto(tester);
 }
 
+/// The one hero figure in the lead card. Named, because the two subordinate
+/// figures beside it are also numbers and a bare `find.text('0')` inside the
+/// card matches whichever of the three happens to be nought.
+final Finder _overdueFigure = find.byKey(
+  const ValueKey<String>('tasks-overdue-figure'),
+);
+
 void main() {
   group('the worklist', () {
     testWidgets('leads with overdue and subordinates the rest', (tester) async {
@@ -225,8 +245,143 @@ void main() {
         ],
       );
 
-      expect(find.text('OVERDUE'), findsOneWidget);
-      expect(find.text('2 open · 1 awaiting verification'), findsOneWidget);
+      // The label, the figure, and the two subordinates as FIGURES rather
+      // than as a run-on sentence in a caption. `1 open · 1 awaiting
+      // verification` was one string a reader had to parse; these are three
+      // numbers on three baselines.
+      final lead = find.byKey(const ValueKey<String>('tasks-lead'));
+      expect(lead, findsOneWidget);
+      expect(find.descendant(of: lead, matching: find.text('OVERDUE')),
+          findsOneWidget);
+      expect(
+        find.descendant(of: _overdueFigure, matching: find.text('1')),
+        findsOneWidget,
+      );
+      expect(find.descendant(of: lead, matching: find.text('OPEN')),
+          findsOneWidget);
+      expect(
+        find.descendant(
+          of: lead,
+          matching: find.text('AWAITING VERIFICATION'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Past the deadline and still open.'), findsOneWidget);
+    });
+
+    testWidgets('the figures are the account\'s, not the page\'s', (
+      tester,
+    ) async {
+      // THE DEFECT, IN ONE TEST. The page holds two rows; the account holds
+      // 32,368 tasks. Every figure above the list is the account's.
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'late', due: _now.subtract(const Duration(days: 2))),
+          _task(id: 'open'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 1190,
+        counts: const TaskCounts(
+          all: 32368,
+          open: 1190,
+          overdue: 1122,
+          done: 31178,
+          awaitingVerification: 43,
+        ),
+      );
+
+      final numbers = TiqNumber.en;
+      final lead = find.byKey(const ValueKey<String>('tasks-lead'));
+      expect(
+        find.descendant(
+          of: _overdueFigure,
+          matching: find.text(numbers.format(1122)),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: lead, matching: find.text(numbers.format(1190))),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: lead, matching: find.text('43')),
+        findsOneWidget,
+      );
+      // No em dash and no not-measured mark: the count was made.
+      expect(
+        find.descendant(of: lead, matching: find.text(emDash)),
+        findsNothing,
+      );
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.descendant(
+              of: lead,
+              matching: find.byType(SeverityMark),
+            ))
+            .single
+            .kind,
+        SeverityMarkKind.critical,
+      );
+    });
+
+    testWidgets('every chip counts the whole account', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        nextCursor: 'cursor-2',
+        counts: const TaskCounts(
+          all: 32368,
+          open: 1190,
+          overdue: 1122,
+          done: 31178,
+          awaitingVerification: 43,
+        ),
+      );
+
+      int countOn(String key) => tester
+          .widget<TorchFilterChip>(find.byKey(ValueKey<String>('filter-$key')))
+          .count!;
+      expect(countOn('open'), 1190);
+      expect(countOn('overdue'), 1122);
+      // `Open 0 · Overdue 0 · Done 50 · All 50` is what this rail printed
+      // over that account.
+      await scrollRailTo(tester, find.byKey(const ValueKey<String>('filter-all')));
+      expect(countOn('done'), 31178);
+      expect(countOn('all'), 32368);
+    });
+
+    testWidgets('a chip fetches its own slice rather than filtering the page', (
+      tester,
+    ) async {
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 'closed', status: 'closed', outletId: 'o2'),
+        ],
+      );
+
+      expect(harness.tasks.requestedStates.toSet(), <TaskState>{
+        TaskState.open,
+      });
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-done')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-done')));
+      await tester.pumpAndSettle();
+      // The server was asked. Filtering the page in hand is what made `Open`
+      // an empty list on an account with 1,190 open tasks: the page is the
+      // oldest deadlines, and those are the closed ones.
+      expect(harness.tasks.requestedStates.toSet(), <TaskState>{
+        TaskState.open,
+        TaskState.done,
+      });
+      expect(harness.tasks.requestedStates.last, TaskState.done);
     });
 
     testWidgets('a measured zero renders 0 and keeps its place', (
@@ -235,13 +390,14 @@ void main() {
       await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
 
       expect(
-        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
+        find.descendant(of: _overdueFigure, matching: find.text('0')),
         findsOneWidget,
       );
       expect(
-        find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
+        find.descendant(of: _overdueFigure, matching: find.text(emDash)),
         findsNothing,
       );
+      expect(find.text('Nothing is past its deadline.'), findsOneWidget);
     });
 
     testWidgets('a High task and a Normal task can be told apart', (
@@ -475,7 +631,7 @@ void main() {
 
   group('the filter rail', () {
     testWidgets('opens on Open, which includes overdue', (tester) async {
-      await _pump(
+      final harness = await _pump(
         tester,
         outlets: _outlets,
         tasks: <TaskItem>[
@@ -484,10 +640,21 @@ void main() {
         ],
       );
 
-      await scrollWorklistTo(tester, find.byType(SectionRule));
-      final rule = tester.widget<SectionRule>(find.byType(SectionRule));
-      expect(rule.name, 'Open');
-      expect(rule.count, 1);
+      // The rail IS the section marker now: the selected chip names the slice
+      // and counts it, and the `SectionRule` that used to sit 20dp beneath it
+      // printing the same word and a different number is gone.
+      expect(find.byType(SectionRule), findsNothing);
+      final chip = tester.widget<TorchFilterChip>(
+        find.byKey(const ValueKey<String>('filter-open')),
+      );
+      expect(chip.selected, isTrue);
+      expect(chip.label, 'Open');
+      expect(chip.count, 1);
+      expect(harness.tasks.requestedStates.toSet(), <TaskState>{
+        TaskState.open,
+      });
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsOneWidget);
     });
 
     testWidgets('Done shows closed work and All shows everything', (
@@ -749,13 +916,74 @@ void main() {
   });
 
   group('the settled states', () {
-    testWidgets('empty is a designed state, not a centred "No data"', (
+    testWidgets('nothing at all is a designed screen, not a wall of noughts', (
       tester,
     ) async {
       await _pump(tester, outlets: _outlets);
 
-      expect(find.text('Nothing outstanding.'), findsOneWidget);
-      expect(find.byType(SectionRule), findsOneWidget);
+      // An account with no tasks under `OVERDUE 0` and four chips reading
+      // zero is the scoreboard of noughts The Floor refuses with its
+      // first-run board. The whole-screen empty state — the drawing, the
+      // display headline and where tasks come from — is what the rest of this
+      // app does with an empty route.
+      final empty = tester.widget<EmptyState>(
+        find.byKey(const ValueKey<String>('tasks-empty')),
+      );
+      expect(empty.scope, EmptyScope.wholeScreen);
+      expect(empty.drawing, EmptyDrawing.shelf);
+      expect(find.text('No tasks yet.'), findsOneWidget);
+      expect(find.byType(EmptyStateDrawing), findsOneWidget);
+      // No lead figure, no rail, no section marker.
+      expect(find.byKey(const ValueKey<String>('tasks-lead')), findsNothing);
+      expect(find.byType(TorchFilterRail), findsNothing);
+      expect(find.byType(SectionRule), findsNothing);
+    });
+
+    testWidgets('a filter with nothing in it says what IS there', (
+      tester,
+    ) async {
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(id: 't-closed', status: 'closed')],
+        counts: const TaskCounts(
+          all: 1190,
+          open: 1190,
+          overdue: 0,
+          done: 0,
+          awaitingVerification: 0,
+        ),
+      );
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-overdue')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-overdue')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nothing is overdue.'), findsOneWidget);
+      // The counted figure, not "Clear the filter to see the rest."
+      expect(
+        find.text('1,190 tasks are open and inside their deadline.'),
+        findsOneWidget,
+      );
+      // A ghost link, not a full-width outlined block — the treatment The
+      // Floor uses for the one-tap way out of a scope that found nothing.
+      expect(
+        find.byKey(const ValueKey<String>('clear-filters')),
+        findsOneWidget,
+      );
+      expect(
+        tester.widgetList<TorchSecondaryButton>(
+          find.byType(TorchSecondaryButton),
+        ),
+        isEmpty,
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('clear-filters')));
+      await tester.pumpAndSettle();
+      // The way back is one tap and it really re-asks: `All` is a slice of the
+      // server's, not a `where` over the page already in hand.
+      expect(harness.tasks.requestedStates.last, TaskState.all);
     });
 
     testWidgets('a failure is sanitised and offers one retry', (tester) async {
@@ -785,7 +1013,28 @@ void main() {
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
       expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
       expect(find.textContaining('Narrow'), findsNothing);
-      expect(find.text('The counts above are of these 2.'), findsOneWidget);
+      // THE LINE THAT WENT. The figures above the list are the account's now,
+      // so scoping them to the page would be false.
+      expect(find.textContaining('figures above are of these'), findsNothing);
+      expect(find.textContaining('counts above are of these'), findsNothing);
+    });
+
+    testWidgets('a server that does not count keeps the scope sentence', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't2', outletId: 'o2'),
+        ],
+        nextCursor: 'cursor-2',
+        serverCounts: false,
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(find.text('The figures above are of these 2.'), findsOneWidget);
     });
 
     testWidgets('a cut list withholds the overdue verdict instead of '
@@ -793,18 +1042,22 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        // Two closed tasks, nothing overdue ON THIS PAGE — and a server that
-        // holds 74. The server orders by deadline across all statuses, so the
-        // overdue work is on page 2.
+        // Two open tasks, neither of them overdue ON THIS PAGE — and a server
+        // that holds 74 and counts nothing. The page is ordered by deadline,
+        // so overdue work can sit unloaded on page 2 and a zero here says
+        // nothing about it.
         tasks: <TaskItem>[
-          _task(id: 't1', status: 'closed'),
-          _task(id: 't2', status: 'closed', outletId: 'o2'),
+          _task(id: 't1'),
+          _task(id: 't2', outletId: 'o2'),
         ],
         nextCursor: 'cursor-2',
         total: 74,
+        // The server this machinery exists for: one that answers a page and a
+        // total and counts nothing.
+        serverCounts: false,
       );
 
-      final tile = find.byType(StatTile);
+      final tile = _overdueFigure;
       // Not a measured nought: an em dash and the reason, because zero
       // overdue among the loaded rows says nothing about the rest.
       expect(
@@ -847,7 +1100,7 @@ void main() {
       // on-target mark. Withholding it everywhere would be the same lie in
       // the other direction.
       expect(
-        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
+        find.descendant(of: _overdueFigure, matching: find.text('0')),
         findsOneWidget,
       );
       expect(
@@ -870,10 +1123,11 @@ void main() {
         ],
         nextCursor: 'cursor-2',
         total: 74,
+        serverCounts: false,
       );
 
       expect(
-        find.descendant(of: find.byType(StatTile), matching: find.text('1')),
+        find.descendant(of: _overdueFigure, matching: find.text('1')),
         findsOneWidget,
       );
       expect(
@@ -898,8 +1152,12 @@ void main() {
       );
 
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      // The slice is named, because the server applied it: these are a page
+      // of the OPEN tasks, not of everything.
       expect(
-        find.text('Showing the 2 tasks with the earliest deadlines, of 74.'),
+        find.text(
+          'Showing the 2 open tasks with the earliest deadlines, of 74.',
+        ),
         findsOneWidget,
       );
     });
@@ -1052,7 +1310,10 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    await scrollWorklistTo(tester, find.byType(SectionRule));
+    await scrollWorklistTo(
+      tester,
+      find.byKey(const ValueKey<String>('tasks-lead')),
+    );
     await scrollWorklistTo(tester, find.byType(SoftRow).first);
     expect(find.byType(SoftRow), findsWidgets);
     expect(tester.takeException(), isNull);
@@ -1141,7 +1402,7 @@ void main() {
       expect(total, isNot(contains(',')));
       expect(
         find.text(
-          'Showing the 2 tasks with the earliest deadlines, of $total.',
+          'Showing the 2 open tasks with the earliest deadlines, of $total.',
         ),
         findsOneWidget,
       );
