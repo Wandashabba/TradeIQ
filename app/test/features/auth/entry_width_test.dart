@@ -177,6 +177,21 @@ void main() {
       );
     });
 
+    testWidgets('2.0x Afrikaans does not overflow the page, and the page '
+        'gives way to a scroll when the column stops fitting', (tester) async {
+      await _pumpLogin(
+        tester,
+        size,
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      expect(tester.takeException(), isNull);
+      // The column grows past the free height and the Center stops centring;
+      // nothing is pinned, so the page simply becomes a long page.
+      expect(find.byType(TorchThumbZone), findsNothing);
+      expect(find.text('Teken in'), findsWidgets);
+    });
+
     testWidgets('the form is centred vertically, and its height is what the '
         'page threshold is set against', (tester) async {
       await _pumpLogin(tester, size);
@@ -209,10 +224,17 @@ void main() {
   });
 }
 
-Future<void> _pumpLogin(WidgetTester tester, Size size) => pumpEntryScreen(
+Future<void> _pumpLogin(
+  WidgetTester tester,
+  Size size, {
+  double textScale = 1.0,
+  Locale locale = const Locale('en'),
+}) => pumpEntryScreen(
   tester,
   const LoginScreen(),
   size: size,
+  textScale: textScale,
+  locale: locale,
   overrides: entryBaseOverrides(db: entryTestDb(), skin: SkinMode.night),
   extraRoutes: <GoRoute>[
     namedRoute('/forgot-password', 'FORGOT'),
