@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/display_headline.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
@@ -35,10 +35,36 @@ import 'entry_brand.dart';
 /// Pass the active [l10n] (`context.l10n`); without it the English copy is
 /// used.
 String loginErrorMessage(Object error, [AppLocalizations? l10n]) {
-  if (error is DioException && error.response?.statusCode == 401) {
-    return (l10n ?? englishLocalizations).loginInvalidCredentials;
+  final l = l10n ?? englishLocalizations;
+  if (error is DioException) {
+    final status = error.response?.statusCode;
+    if (status == 401) return l.loginInvalidCredentials;
+    // THE LOCKOUT, IN ITS OWN WORDS (30 September 2026). The shared 429 copy
+    // — "Too many attempts. Wait a few minutes, then try again." — is written
+    // for a screen where the person was doing something and got told to slow
+    // down. Here they are trying to get *in*, and the question the pause
+    // raises is not "how long" but "is my account gone". So this sentence
+    // explains the rule and then answers that question, which the shared one
+    // has no reason to.
+    if (status == 429) return l.loginTooManyBody;
   }
-  return humanErrorMessage(error, l10n);
+  return humanErrorMessage(error, l);
+}
+
+/// The headline a sign-in failure is announced under.
+///
+/// A 401 and a 429 are **not the same story** and did not used to be told
+/// apart: both printed "We could not sign you in", so the screen said the
+/// person's credentials had been refused when in fact nothing had been
+/// checked at all. The rate limit is a rule they tripped, not a judgement on
+/// who they are, and the headline is where that difference is either made or
+/// lost.
+String loginErrorHeadline(Object error, [AppLocalizations? l10n]) {
+  final l = l10n ?? englishLocalizations;
+  if (error is DioException && error.response?.statusCode == 429) {
+    return l.loginTooManyTitle;
+  }
+  return l.loginFailedTitle;
 }
 
 /// Which kind of failure a sign-in error is, in the kit's closed set.
@@ -205,6 +231,7 @@ class _SignInState extends ConsumerState<_SignIn> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final skin = context.skin;
     final session = ref.watch(sessionControllerProvider);
     final held = ref.watch(sessionEndedProvider);
     final missing = _missing(l10n);
@@ -213,7 +240,7 @@ class _SignInState extends ConsumerState<_SignIn> {
 
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
-        skin: context.skin,
+        skin: skin,
         phase: _sending
             ? 'sending'
             : failure != null
@@ -227,14 +254,28 @@ class _SignInState extends ConsumerState<_SignIn> {
         claims: <TorchClaim>[if (armed) TorchPrimaryButton.claim('sign-in')],
         child: TorchShell(
           profile: TorchShellProfile.agent,
-          header: TorchAppHeader(
-            title: l10n.loginSignIn,
-            back: TorchIconButton(
-              icon: Icons.arrow_back,
-              semanticLabel: l10n.loginBackTooltip,
-              onPressed: () => context.go('/'),
-            ),
-          ),
+          // NO APP HEADER, AND THE TWO REASONS ARE SEPARATE.
+          //
+          // **The title said what the headline now says.** A `TorchAppHeader`
+          // prints its title at `title.l` — the same 20sp "Tasks" and "Ask
+          // TradeIQ" carry — and then this screen printed "Sign in" again on
+          // the button in the thumb zone. Ask's opening is the shape this
+          // screen wants and it has exactly one of each: a mark that says
+          // which product, and a display headline that says what to do. Two
+          // chrome-scale statements of "Sign in" above a form is the
+          // duplication §1.6 and §9f keep deleting, one component up.
+          //
+          // **The back arrow went nowhere.** It ran `go('/')`, and `/` is the
+          // splash, which holds for five seconds and then routes an
+          // unauthenticated visitor straight back to `/login`. It was a
+          // five-second round trip to the screen you were already on, and it
+          // cost the 48dp row the header reserves above its title on the one
+          // screen in the product with the least room to spare — see the
+          // 360x640 renders, where "Remember me" was being clipped by the
+          // thumb zone. Nothing is unreachable without it: the splash is a
+          // brand hold and not a destination, and `/forgot-password` is
+          // reached from the link that is still on this screen.
+          //
           // Not a tab root: the cycle sits at the leading end of the thumb
           // zone. Never a screen without it.
           skinCycle: const EntrySkinCycle(),
@@ -247,8 +288,28 @@ class _SignInState extends ConsumerState<_SignIn> {
             onPressed: armed ? _submit : null,
           ),
           children: <Widget>[
-            const EntryBrand(monogram: 40, compact: true),
-            const SizedBox(height: TiqSpace.s6),
+            // THE MASTHEAD — a mark, a headline, a sentence. Ask TradeIQ's
+            // opening, which is the manager screen this one is actually like:
+            // mostly one headline and a small number of controls, and an
+            // invitation rather than a report of absence. `unify` §1.12's
+            // no-drawing rule follows from the same reading and is why there
+            // is no silhouette here.
+            //
+            // The mark is **small on purpose**. At 40dp beside a tracked
+            // wordmark it was the largest object on the screen and the only
+            // one saying nothing — it sat in the masthead's slot doing
+            // decoration's job. At 24 it does what "Ask TradeIQ" does in the
+            // header of the screen this is modelled on: it says which product
+            // you are signing in to, and then gets out of the headline's way.
+            const EntryBrand(monogram: 24, compact: true),
+            SizedBox(height: skin.space.intraBlock),
+            TorchDisplayHeadline(l10n.loginHeadline),
+            SizedBox(height: skin.space.intraBlock),
+            Text(
+              l10n.loginSubtitle,
+              style: skin.text.body.style(color: skin.palette.ink2),
+            ),
+            SizedBox(height: skin.space.blockGap),
             if (held != null && !held.isEmpty) ...<Widget>[
               SessionHeldLine(
                 key: const ValueKey<String>('login-held-line'),
@@ -256,15 +317,8 @@ class _SignInState extends ConsumerState<_SignIn> {
                 actionLabel: l10n.sessionHeldWhatIsHeld,
                 onPressed: () => _showHeldWork(l10n, held),
               ),
-              const SizedBox(height: TiqSpace.s6),
+              SizedBox(height: skin.space.blockGap),
             ],
-            Text(
-              l10n.loginSubtitle,
-              style: context.skin.text.body.style(
-                color: context.skin.palette.ink2,
-              ),
-            ),
-            const SizedBox(height: TiqSpace.s6),
             // ABOVE the fields, not under the button. A refusal here is about
             // the two things directly beneath it, and on a 360×640 phone the
             // foot of this form is already past the fold: an error printed
@@ -276,12 +330,12 @@ class _SignInState extends ConsumerState<_SignIn> {
                 scope: ErrorScope.inline,
                 message: TorchErrorMessage(
                   kind: loginErrorKind(failure),
-                  headline: l10n.loginFailedTitle,
+                  headline: loginErrorHeadline(failure, l10n),
                   body: loginErrorMessage(failure, l10n),
                   offersRetry: false,
                 ),
               ),
-              const SizedBox(height: TiqSpace.s6),
+              SizedBox(height: skin.space.blockGap),
             ],
             TorchTextField(
               key: const ValueKey<String>('login-email'),
@@ -315,21 +369,20 @@ class _SignInState extends ConsumerState<_SignIn> {
                 if (armed) _submit();
               },
             ),
-            const SizedBox(height: TiqSpace.s3),
+            SizedBox(height: skin.space.intraBlock),
             TorchCheckbox(
               key: const ValueKey<String>('login-show-password'),
               label: l10n.loginShowPassword,
               value: _show,
               onChanged: (v) => setState(() => _show = v),
             ),
-            const SizedBox(height: TiqSpace.s3),
             TorchCheckbox(
               key: const ValueKey<String>('login-remember-me'),
               label: l10n.loginRememberMe,
               value: _remember,
               onChanged: (v) => setState(() => _remember = v),
             ),
-            const SizedBox(height: TiqSpace.s4),
+            SizedBox(height: skin.space.intraBlock),
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: TorchTertiaryButton(

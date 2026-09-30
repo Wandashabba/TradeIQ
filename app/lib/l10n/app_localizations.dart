@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// Sign-in error on a 401 (wrong email or password).
   ///
   /// In en, this message translates to:
-  /// **'Invalid credentials'**
+  /// **'We do not recognise that email and password.'**
   String get loginInvalidCredentials;
 
   /// Tooltip on the sign-in screen's back button (to the splash).
@@ -308,11 +308,29 @@ abstract class AppLocalizations {
   /// **'Sign in'**
   String get loginSignIn;
 
-  /// Sign-in screen subtitle.
+  /// Sign-in screen subtitle, under the headline.
   ///
   /// In en, this message translates to:
-  /// **'Use your TradeIQ work account.'**
+  /// **'Use your work email and password.'**
   String get loginSubtitle;
+
+  /// The sign-in screen's display headline — the invitation the screen opens with, the way Ask TradeIQ opens with one.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to get to work.'**
+  String get loginHeadline;
+
+  /// Headline for a 429 on sign-in. Deliberately not the 401's headline: a rate limit is a rule the person tripped, not a refusal of who they are.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many sign-in attempts'**
+  String get loginTooManyTitle;
+
+  /// Body for a 429 on sign-in. It explains the rule and says the account is fine, because the fear a lockout creates is that the account is gone. It never names the exact threshold, which would only help somebody pace their attempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account — wait, then try again.'**
+  String get loginTooManyBody;
 
   /// Sign-in email field label.
   ///

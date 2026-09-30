@@ -161,7 +161,7 @@
   "@photoFieldRetake": {
     "description": "Button to re-take a captured photo."
   },
-  "loginInvalidCredentials": "Invalid credentials",
+  "loginInvalidCredentials": "We do not recognise that email and password.",
   "@loginInvalidCredentials": {
     "description": "Sign-in error on a 401 (wrong email or password)."
   },
@@ -177,9 +177,21 @@
   "@loginSignIn": {
     "description": "Sign-in screen title and submit button."
   },
-  "loginSubtitle": "Use your TradeIQ work account.",
+  "loginSubtitle": "Use your work email and password.",
   "@loginSubtitle": {
-    "description": "Sign-in screen subtitle."
+    "description": "Sign-in screen subtitle, under the headline."
+  },
+  "loginHeadline": "Sign in to get to work.",
+  "@loginHeadline": {
+    "description": "The sign-in screen's display headline \u2014 the invitation the screen opens with, the way Ask TradeIQ opens with one."
+  },
+  "loginTooManyTitle": "Too many sign-in attempts",
+  "@loginTooManyTitle": {
+    "description": "Headline for a 429 on sign-in. Deliberately not the 401's headline: a rate limit is a rule the person tripped, not a refusal of who they are."
+  },
+  "loginTooManyBody": "Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account \u2014 wait, then try again.",
+  "@loginTooManyBody": {
+    "description": "Body for a 429 on sign-in. It explains the rule and says the account is fine, because the fear a lockout creates is that the account is gone. It never names the exact threshold, which would only help somebody pace their attempts."
   },
   "loginEmailLabel": "Email",
   "@loginEmailLabel": {

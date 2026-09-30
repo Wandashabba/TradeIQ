@@ -9,6 +9,7 @@ import 'package:tradeiq_app/core/auth/session_ended.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/display_headline.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
@@ -175,11 +176,22 @@ void main() {
       expect(state.message.kind, TorchErrorKind.rejected);
       expect(state.message.offersRetry, isFalse);
       expect(find.text('We could not sign you in'), findsOneWidget);
-      expect(find.text('Invalid credentials'), findsOneWidget);
+      expect(
+        find.text('We do not recognise that email and password.'),
+        findsOneWidget,
+      );
       // The body is the one sentence and nothing that would separate "no
       // such user" from "wrong password" — the whole reason this screen has
       // one message.
-      expect(state.message.body, 'Invalid credentials');
+      //
+      // The sentence changed on 30 September 2026 and the fact did not: it
+      // was "Invalid credentials", which is the jargon a server logs rather
+      // than anything a person says, and it treats the pair as one unit for
+      // exactly the reason the tells below are banned.
+      expect(
+        state.message.body,
+        'We do not recognise that email and password.',
+      );
       for (final tell in <String>[
         'no such',
         'not found',
@@ -206,7 +218,10 @@ void main() {
       await tester.tap(_key('login-submit'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Invalid credentials'), findsOneWidget);
+      expect(
+        find.text('We do not recognise that email and password.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('no signal is a network failure and offers no Retry', (
@@ -220,20 +235,59 @@ void main() {
       final state = tester.widget<ErrorState>(_key('login-error'));
       expect(state.message.kind, TorchErrorKind.network);
       expect(find.textContaining('Could not reach the server'), findsOneWidget);
-      expect(find.text('Invalid credentials'), findsNothing);
+      expect(
+        find.text('We do not recognise that email and password.'),
+        findsNothing,
+      );
     });
 
-    testWidgets('a 429 says wait rather than "wrong password"', (tester) async {
+    /// THE LOCKOUT IS A DESIGNED STATE, NOT AN EDGE CASE.
+    ///
+    /// The server refuses after **10 attempts in 15 minutes, by IP**, so this
+    /// is a screen a real person reaches on a real morning — and reaches
+    /// while already unable to get in. Until 30 September 2026 it printed the
+    /// 401's headline, "We could not sign you in", over the shared 429 body:
+    /// the screen said their credentials had been refused when in fact
+    /// nothing had been checked at all.
+    ///
+    /// What this test holds down is that the two stories stay apart, and that
+    /// the lockout's own sentence answers the question a pause actually
+    /// raises. It is not "how long" — it is *is my account gone*.
+    testWidgets('a 429 is a rule, not a refusal of who you are', (
+      tester,
+    ) async {
       await _pump(tester, auth: _FailingAuthRepository(_status(429)));
       await _fill(tester);
       await tester.tap(_key('login-submit'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Invalid credentials'), findsNothing);
+      final state = tester.widget<ErrorState>(_key('login-error'));
+      expect(state.message.offersRetry, isFalse);
+
+      // Not the 401's words, in either half.
+      expect(find.text('We could not sign you in'), findsNothing);
       expect(
-        tester.widget<ErrorState>(_key('login-error')).message.offersRetry,
-        isFalse,
+        find.text('We do not recognise that email and password.'),
+        findsNothing,
       );
+
+      expect(state.message.headline, 'Too many sign-in attempts');
+      expect(
+        state.message.body,
+        contains('Nothing is wrong with your account'),
+        reason: 'a lockout that does not say this reads as a closed account',
+      );
+
+      // It never names the threshold. "10 attempts per 15 minutes" on the
+      // screen is a number that helps nobody who is signing in honestly and
+      // helps somebody pacing a guess.
+      for (final number in <String>['10', '15', 'ten', 'fifteen']) {
+        expect(
+          find.textContaining(number, skipOffstage: false),
+          findsNothing,
+          reason: 'naming the limit only helps somebody pace their attempts',
+        );
+      }
     });
 
     test('a 500 is a server failure, not a rejection', () {
@@ -362,16 +416,42 @@ void main() {
       expect(find.text('FORGOT SCREEN'), findsOneWidget);
     });
 
-    testWidgets('the back button names where it goes, and goes there', (
+    /// THE BACK ARROW IS GONE, AND SO IS THE HEADER IT SAT IN.
+    ///
+    /// **A design intention overridden, not a fact that moved.** This test
+    /// used to assert that the arrow named where it went ("Back to welcome")
+    /// and went there, and it was right on its own terms: the destination was
+    /// real and the label was honest.
+    ///
+    /// What it could not see is that the destination comes straight back.
+    /// `/` is the splash; the splash holds for five seconds and then routes
+    /// an unauthenticated visitor to `/login`. Pressing back put a person who
+    /// cannot sign in through a five-second brand hold and returned them to
+    /// the screen they pressed it on. The router's own redirect is the proof
+    /// — see `app_router.dart`, where `/` is exempt so nothing cuts the hold
+    /// short, and `LandingScreen._maybeAdvance` sends a null role to
+    /// `/login`.
+    ///
+    /// It also cost the row a `TorchAppHeader` reserves above its title, on
+    /// the one screen in the product with the least room: at 360x640 that row
+    /// was the difference between "Remember me" being clipped by the thumb
+    /// zone and the whole form fitting.
+    ///
+    /// Nothing became unreachable. The splash is a brand hold, not a
+    /// destination, and `/forgot-password` is still one press away.
+    testWidgets('there is no back arrow, and no header to hold one', (
       tester,
     ) async {
       await _pump(tester);
-      final back = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
-      expect(back.back!.semanticLabel, 'Back to welcome');
 
-      await tester.tap(find.byWidget(back.back!));
-      await tester.pumpAndSettle();
-      expect(find.text('SPLASH'), findsOneWidget);
+      expect(find.byType(TorchAppHeader), findsNothing);
+      expect(find.bySemanticsLabel('Back to welcome'), findsNothing);
+
+      // The screen still names itself — as a headline, which announces as a
+      // header node, so a reader has not lost the landmark the app header's
+      // title used to give them.
+      expect(find.byType(TorchDisplayHeadline), findsOneWidget);
+      expect(find.text('Sign in to get to work.'), findsOneWidget);
     });
 
     // #436: the kit once had every button announce itself and do nothing
@@ -443,13 +523,25 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('a reader can press the back button', (tester) async {
+    /// The back arrow this used to activate is gone — see "there is no back
+    /// arrow, and no header to hold one" above for why. What a reader must
+    /// not lose with it is the **landmark**: the app header announced its
+    /// title as a header node, and that was the one node a screen reader
+    /// could jump to on arrival.
+    ///
+    /// `TorchDisplayHeadline` announces itself as a header for exactly this
+    /// reason ("this is the first thing on the route"), so the landmark
+    /// survives the header's removal. This test is what says so.
+    testWidgets('the headline is still a header node a reader can find', (
+      tester,
+    ) async {
       await _pump(tester);
       final handle = tester.ensureSemantics();
 
-      await activate(tester, find.bySemanticsLabel('Back to welcome').first);
-      await tester.pumpAndSettle();
-      expect(find.text('SPLASH'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.text('Sign in to get to work.')),
+        matchesSemantics(label: 'Sign in to get to work.', isHeader: true),
+      );
       handle.dispose();
     });
   });
