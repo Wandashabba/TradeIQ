@@ -251,7 +251,15 @@ void main() {
       // All territories.
       expect(find.textContaining('73'), findsWidgets, reason: 'the hero');
       expect(find.textContaining('61'), findsWidgets, reason: 'availability');
-      expect(find.text('SaveMor Glenwood'), findsOneWidget);
+      // THE LIST IS BELOW THE FOLD since the briefing and the composer landed
+      // on this screen, so the row has to be scrolled to. It is the same row,
+      // in the same order, scoped by the same coverage request — what moved
+      // is how far down the screen it sits. `findsWidgets`, not
+      // `findsOneWidget`: the briefing's worst-outlet line names the same
+      // outlet, which is the point of that line.
+      await revealDecisions(tester);
+      expect(find.text('SaveMor Glenwood'), findsWidgets);
+      await revealPlate(tester);
 
       await choose(tester, 't-gn');
 
@@ -263,7 +271,8 @@ void main() {
       expect(find.textContaining('44'), findsWidgets, reason: 'availability');
       expect(find.textContaining('73'), findsNothing);
       // And the decision list, which the server cannot scope for us.
-      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
+      await revealDecisions(tester);
+      expect(find.text('Kasi Corner Spaza'), findsWidgets);
       expect(
         find.text('SaveMor Glenwood'),
         findsNothing,
@@ -354,7 +363,8 @@ void main() {
 
       expect(onTheChip('All territories'), findsOneWidget);
       expect(find.textContaining('73'), findsWidgets);
-      expect(find.text('SaveMor Glenwood'), findsOneWidget);
+      await revealDecisions(tester);
+      expect(find.text('SaveMor Glenwood'), findsWidgets);
     });
 
     testWidgets('unfiltered, there is no Clear — it would clear nothing', (

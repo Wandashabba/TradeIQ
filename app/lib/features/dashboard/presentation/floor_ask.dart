@@ -90,6 +90,16 @@ class _BriefCard extends StatelessWidget {
         builder: (context, pressed) => TorchCard(
           key: ValueKey<String>('floor-brief-${brief.id}'),
           fill: pressed ? torchPressSurface(skin).fill : null,
+          // COMPACT, AND IT HAS TO BE. `TorchCard`'s default inset is s4 on
+          // every side, which is the grammar for a card a reader stops at.
+          // A briefing line is a card a reader scans past, the mockup draws
+          // it at roughly this inset, and on a 360x640 phone the difference
+          // across three cards is exactly what decides whether the third line
+          // clears the composer — see `floor_proportion_test.dart`.
+          padding: const EdgeInsets.symmetric(
+            horizontal: TiqSpace.s4,
+            vertical: TiqSpace.s3,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -174,24 +184,41 @@ class FloorSuggestionChips extends StatelessWidget {
   /// visible: hiding it would hide the fact that there is something to ask.
   final bool enabled;
 
+  /// TWO, WHICH IS THE MOCKUP'S COUNT AND ALSO AN ARITHMETIC RESULT.
+  ///
+  /// [floorSuggestions] can derive three. A third chip wraps to a second row
+  /// on a 360dp phone, the row is pinned above the composer, and the 44dp it
+  /// costs comes straight off the briefing — which is the block this screen
+  /// exists to show. Two fits one line on every supported phone.
+  static const int maximum = 2;
+
   @override
   Widget build(BuildContext context) {
     if (suggestions.isEmpty) return const SizedBox.shrink();
-    return Wrap(
-      spacing: TiqSpace.s2,
-      runSpacing: TiqSpace.s2,
-      children: <Widget>[
-        for (final suggestion in suggestions)
-          TorchFilterChip(
-            key: ValueKey<String>('floor-suggestion-${suggestion.id}'),
-            label: suggestion.label,
-            selected: false,
-            semanticsLabel: enabled
-                ? 'Ask: ${suggestion.label}'
-                : 'Ask: ${suggestion.label}, not available right now',
-            onSelected: enabled ? () => onAsk(suggestion.label) : null,
-          ),
-      ],
+    // ONE LINE THAT SCROLLS, never a `Wrap`. A wrapping row changes its own
+    // height with the length of a territory's name, and this row is pinned
+    // above the composer where a height change pushes the briefing off the
+    // fold. A suggestion is an offer; an offer may sit just off the edge.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final suggestion in suggestions.take(maximum))
+            Padding(
+              padding: const EdgeInsets.only(right: TiqSpace.s2),
+              child: TorchFilterChip(
+                key: ValueKey<String>('floor-suggestion-${suggestion.id}'),
+                label: suggestion.label,
+                selected: false,
+                semanticsLabel: enabled
+                    ? 'Ask: ${suggestion.label}'
+                    : 'Ask: ${suggestion.label}, not available right now',
+                onSelected: enabled ? () => onAsk(suggestion.label) : null,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -339,6 +366,43 @@ Future<void> showFloorDestinations(BuildContext context, FloorView view) {
           onTap: () {
             Navigator.of(rowContext).pop();
             rowContext.go('/dashboard/overview');
+          },
+        ),
+      ),
+      const SizedBox(height: TiqSpace.s6),
+
+      // THE STANDING ACTION'S TWO VERBS, which lost their circle when the nav
+      // row left. The circle sat beside the nav pill and went with it, and its
+      // label has promised "Raise a task or assign a visit" since it was
+      // drawn. Both rows are the same two destinations `showFloorStandingAction`
+      // opened, so the capability moved rather than went — and a manager who
+      // wants either can now also just ask for it in the composer, which is
+      // the whole point of the screen they are standing on.
+      const SectionRule('Put somebody on a problem'),
+      const SizedBox(height: TiqSpace.s3),
+      Builder(
+        builder: (rowContext) => SoftRow(
+          key: const ValueKey<String>('floor-standing-raise-task'),
+          density: SoftRowDensity.compact,
+          title: 'Raise a task',
+          subtitle: 'Against a finding on the work queue',
+          trailing: const SoftRowChevron(),
+          onTap: () {
+            Navigator.of(rowContext).pop();
+            rowContext.go('/tasks');
+          },
+        ),
+      ),
+      Builder(
+        builder: (rowContext) => SoftRow(
+          key: const ValueKey<String>('floor-standing-assign-visit'),
+          density: SoftRowDensity.compact,
+          title: 'Assign a visit',
+          subtitle: 'Send an agent to an outlet today',
+          trailing: const SoftRowChevron(),
+          onTap: () {
+            Navigator.of(rowContext).pop();
+            rowContext.go('/dispatch');
           },
         ),
       ),

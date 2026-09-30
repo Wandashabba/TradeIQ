@@ -718,6 +718,18 @@ Future<void> revealDecisions(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// BACK TO THE TOP, so the plate and its two controls are hit-testable again.
+///
+/// The companion to [revealDecisions]. A test that reads the list and then
+/// changes the territory has to come back up first: the scope chip lives on
+/// the plate, and `tap()` on a widget scrolled off the top reports an offset
+/// outside the render tree rather than a missing control, which is a
+/// confusing way to learn that the screen got taller.
+Future<void> revealPlate(WidgetTester tester) async {
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
+  await tester.pumpAndSettle();
+}
+
 /// THE FLOOR INSIDE A ROUTER, so a press can be asserted on where it went.
 ///
 /// [pumpFloor] stands the screen up on its own, which is right for everything

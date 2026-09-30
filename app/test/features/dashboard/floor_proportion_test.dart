@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/figure/stat_tile.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
+import 'package:tradeiq_app/features/assistant/answer/composer.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
@@ -112,19 +114,44 @@ void main() {
         await pump(tester, size);
 
         final hero = figureHeight(tester, of: find.byType(PlateHeroCluster));
-        final supporting = figureHeight(tester, of: find.byType(StatTile));
+        // THE SUPPORTING FIGURE IS A BRIEFING LINE NOW. It was the
+        // availability `StatTile`, which went when the briefing took that
+        // figure — see the note in `the_floor_test.dart`. What this measures
+        // is unchanged: the hero against the largest figure under it.
+        final supporting = figureHeight(
+          tester,
+          of: find.byType(FloorBriefingBlock),
+        );
 
         expect(
           hero,
           greaterThan(supporting * 1.5),
           reason:
-              'territory health renders ${hero}dp and on-shelf availability '
-              '${supporting}dp. The hero is the screen; availability is a '
-              'lead tile under it.',
+              'territory health renders ${hero}dp and the briefing\'s '
+              'largest figure ${supporting}dp. The hero is the screen; the '
+              'briefing is three lines under it.',
         );
-        // And it is at its declared face, not a scaled-down one: hero.figure
-        // is 72/0.92, so about 66dp of painted line.
-        expect(hero, greaterThan(60));
+
+        // AND IT IS AT A DECLARED FACE, NOT A SCALED-DOWN ONE — and the floor
+        // is the COMPACT face now, not the full one.
+        //
+        // This asserted 60dp, which is `hero.figure` at 72/0.92. The plate is
+        // 30% of the viewport since 30 September 2026 rather than up to 312dp,
+        // so on anything under an ~867dp viewport it resolves below the 260dp
+        // mark where `PlateSpec` steps to `heroFigureCompact` — 56/0.92, about
+        // 51dp painted. That is the mockup's hero, which is visibly smaller
+        // than the one this pin was written against.
+        //
+        // The rule the pin protects is the one that matters and it is
+        // untouched: the hero is at one of its two declared faces and has NOT
+        // fallen through to the `FittedBox` rung of the fitting ladder.
+        expect(
+          hero,
+          greaterThan(48),
+          reason:
+              'the hero came out ${hero}dp, below the compact face. That is '
+              'the FittedBox rung, which is the last resort and not a layout.',
+        );
       });
     }
 
@@ -140,12 +167,15 @@ void main() {
       await pump(tester, const Size(360, 640));
 
       final hero = figureHeight(tester, of: find.byType(PlateHeroCluster));
-      final supporting = figureHeight(tester, of: find.byType(StatTile));
+      final supporting = figureHeight(
+        tester,
+        of: find.byType(FloorBriefingBlock),
+      );
 
       expect(
         hero / supporting,
         greaterThan(0.9),
-        reason: 'hero ${hero}dp against availability ${supporting}dp',
+        reason: 'hero ${hero}dp against the briefing\'s ${supporting}dp',
       );
     });
   });
@@ -209,37 +239,52 @@ void main() {
       // reads as `s6 + 16` however tidy its rect looks. So this measures the
       // eyebrow, the last line of supports, the rule and the first row — the
       // marks on the screen.
+      // THE GAPS ARE SEMANTIC TOKENS NOW, not `sN` literals.
+      //
+      // The screen's new blocks hang off `blockGap` and `intraBlock` rather
+      // than off `s4`/`s3`, which is what unify asks for and what #492 spent
+      // a PR undoing on the agent side. The numbers are currently the same —
+      // `blockGap` is s6 and the plate-to-briefing gap is one block — so this
+      // is a rename with teeth: a screen re-tuned by changing `blockGap` moves
+      // together, and this test follows it instead of pinning it.
+      final skin = TiqSkin.night();
       final plate = tester.getRect(find.byType(TiqPlate));
-      final card = tester.getRect(find.byType(TorchCard));
-      final marker = tester.getRect(find.text('NEEDS A DECISION'));
-      final row = tester.getRect(find.byType(DecisionRow).first);
+      final kick = tester.getRect(find.byType(Eyebrow).first);
+      final cards = find.descendant(
+        of: find.byType(FloorBriefingBlock),
+        matching: find.byType(TorchCard),
+      );
+      final firstCard = tester.getRect(cards.first);
+      final secondCard = tester.getRect(cards.at(1));
 
-      // Card to card, now that the blocks have edges a reader can see: the
-      // gaps used to be measured between marks because the blocks were
-      // invisible, and a card's own edge is the mark.
       expect(
-        card.top - plate.bottom,
-        TiqSpace.s4,
-        reason: 'the plate card to the lead card',
+        kick.top - plate.bottom,
+        skin.space.blockGap,
+        reason: 'the plate to the briefing\'s kick is one block gap',
       );
       expect(
-        marker.top - card.bottom,
-        TiqSpace.s4,
-        reason: 'the lead card to the section marker',
+        firstCard.top - kick.bottom,
+        skin.space.intraBlock,
+        reason: 'the kick to its first line is inside one block',
       );
       expect(
-        row.top - marker.bottom,
-        TiqSpace.s3,
-        reason: 'the marker to the first decision card',
+        secondCard.top - firstCard.bottom,
+        skin.space.intraBlock,
+        reason:
+            'two briefing lines are one block, not two — a reader scans them '
+            'as a list, and a block gap between them would make three',
       );
     });
 
     testWidgets('every card hangs off the same gutter', (tester) async {
       await pump(tester, const Size(360, 640));
 
+      await revealDecisions(tester);
       final gutter = tester.getRect(find.text('NEEDS A DECISION')).left;
+      await revealPlate(tester);
       expect(tester.getRect(find.byType(TiqPlate)).left, gutter);
-      expect(tester.getRect(find.byType(TorchCard)).left, gutter);
+      expect(tester.getRect(find.byType(TorchCard).first).left, gutter);
+      await revealDecisions(tester);
       // The decision list is bled out to the screen's edges and each card
       // puts its own edge back on the gutter line, which is the whole reason
       // the row's margin is the gutter and not a number of its own.
@@ -264,6 +309,7 @@ void main() {
   group('the decision cards are compact', () {
     testWidgets('the reason takes one line, not two', (tester) async {
       await pump(tester, const Size(360, 640));
+      await revealDecisions(tester);
 
       final row = tester.widget<SoftRow>(
         find
@@ -282,53 +328,93 @@ void main() {
       );
     });
 
-    /// THE COUNT THE OWNER'S REFERENCE SHOWS, AT THE SIZE THEY LOOKED AT IT.
+    /// ── WHAT CLEARS THE FOLD NOW, AND WHAT THE OWNER TRADED FOR IT ──────
     ///
-    /// Three rows on a 390x844 phone is the measurement the plate's fold
-    /// budget was cut to (0.44/360 down to 0.40/320) and the reason the
-    /// decision row dropped from the 80dp tall density to compact. It is the
-    /// first thing a layout change eats, so it fails CI rather than a review.
+    /// **This group used to count decision cards above the nav pill**: three
+    /// on a 390×844 phone, two on a 360×640. That was the measurement The
+    /// Floor's whole fold budget was cut to, and it is the one thing this
+    /// change deliberately spends.
     ///
-    /// Measured in Onest and JetBrains Mono (see `setUpAll` above), because
-    /// a fold is a fact about the typeface the app ships. The pictures are in
-    /// `floor_look_test.dart`.
-    for (final (name, size, atLeast) in <(String, Size, int)>[
-      ('390x844 phone', Size(390, 844), 3),
-      ('412x915 phone', Size(412, 915), 3),
-      ('360x640 phone', Size(360, 640), 2),
+    /// The approved arrangement puts the briefing and the composer between the
+    /// plate and the list, so on a 640dp phone **no decision card clears the
+    /// fold at all** — the list is a scroll away. That is not a capability
+    /// going missing and it is not an accident:
+    ///
+    /// * the briefing's first line is the same question answered shorter
+    ///   ("Overdue work · 12 · across 4 outlets"), it is above the fold on
+    ///   every supported phone, and it opens `/tasks`;
+    /// * the list itself is unchanged below it — same rank, same five, same
+    ///   more-row — and `revealDecisions` in the harness is how the tests that
+    ///   care about it reach it;
+    /// * Work is also one tap away in the destinations sheet, with its count
+    ///   printed on the row.
+    ///
+    /// So the pin moves to what the fold is actually for now: **the briefing
+    /// is complete above the composer**. A briefing whose third line is under
+    /// the chip row is the same defect the old three-card pin existed to
+    /// catch, one block higher up the screen.
+    for (final (name, size) in <(String, Size)>[
+      ('390x844 phone', Size(390, 844)),
+      ('412x915 phone', Size(412, 915)),
+      ('360x640 phone', Size(360, 640)),
     ]) {
-      testWidgets('$atLeast of them clear the nav on a $name', (tester) async {
+      testWidgets('the whole briefing clears the composer on a $name', (
+        tester,
+      ) async {
         await pump(tester, size);
 
-        final fold = tester.getRect(find.byType(TorchNavPill)).top;
-        final visible = <int>[];
-        for (
-          var i = 0;
-          i < tester.widgetList(find.byType(DecisionRow)).length;
-          i++
-        ) {
-          // The CARD's painted box, not the row widget's: the row's rect
-          // includes the gap of ground it holds under itself, and a gap is
-          // not something that has to be above the fold.
-          final card = tester.getRect(
-            find
-                .descendant(
-                  of: find.byType(DecisionRow).at(i),
-                  matching: find.byType(DecoratedBox),
-                )
-                .first,
-          );
-          if (card.bottom <= fold) visible.add(i);
-        }
-        expect(
-          visible.length,
-          greaterThanOrEqualTo(atLeast),
-          reason:
-              'only ${visible.length} decision card(s) clear the nav on a '
-              '$name. The screen answers what is broken and who is fixing '
-              'it — one row is a headline, not a list.',
+        // The fold is the top of the pinned band — the suggestion chips when
+        // there are any, the composer otherwise. It is a sibling of the
+        // scroll view rather than an overlay, so its top IS the fold.
+        final chips = find.byType(FloorSuggestionChips);
+        final fold = tester
+            .getRect(
+              chips.evaluate().isEmpty
+                  ? find.byType(QuestionComposer)
+                  : chips,
+            )
+            .top;
+
+        final cards = find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(TorchCard),
         );
+        expect(
+          cards,
+          findsNWidgets(3),
+          reason: 'the briefing is three lines on a populated screen',
+        );
+        for (var i = 0; i < 3; i++) {
+          expect(
+            tester.getRect(cards.at(i)).bottom,
+            lessThanOrEqualTo(fold),
+            reason:
+                'briefing line ${i + 1} is under the composer on a $name. '
+                'The briefing is the whole of what this screen says before it '
+                'is asked anything, and a line below the fold is a line that '
+                'is not said.',
+          );
+        }
       });
     }
+
+    testWidgets('the decision list is still there, below the briefing', (
+      tester,
+    ) async {
+      await pump(tester, const Size(360, 640));
+
+      // Nothing above the fold — stated, so the trade is visible in the suite
+      // rather than only in a render.
+      expect(find.byType(DecisionRow), findsNothing);
+
+      await revealDecisions(tester);
+      expect(
+        find.byType(DecisionRow),
+        findsWidgets,
+        reason:
+            'the list moved below the fold; it did not leave. If this fails, '
+            'the manager has lost the worklist rather than scrolled to it.',
+      );
+    });
   });
 }

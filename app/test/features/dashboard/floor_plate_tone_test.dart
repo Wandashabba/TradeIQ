@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -284,11 +285,31 @@ void main() {
       // not subject to the bake. Cutting its rect out is the honest way to
       // keep measuring the picture; narrowing the band to dodge it would have
       // left a few pixels of band and nothing at all on a 360dp phone.
-      final spec = PlateSpec.resolve(skin: TiqSkin.night(), viewportHeight: 640);
-      final plate = tester.getRect(find.byType(TiqPlate));
-      final chip = tester.getRect(
-        find.byKey(const ValueKey<String>('floor-scope-chip')),
+      // RESOLVED WITH THE SCREEN'S OWN TWO NUMBERS, not `PlateSpec`'s
+      // defaults. The Floor stopped using the defaults on 30 September 2026
+      // when the plate learned to shrink, and a spec resolved from the old
+      // ones describes a 312dp plate where a 192dp one is drawn — so the
+      // "clean band above the strip light" computed below reached down into
+      // the light's own bloom and this test read the bloom as a bright
+      // photograph.
+      final spec = PlateSpec.resolve(
+        skin: TiqSkin.night(),
+        viewportHeight: 640,
+        ground: TheFloorScreen.plateGroundFor(640, shrunk: false),
+        shortest: TheFloorScreen.plateShortest,
       );
+      final plate = tester.getRect(find.byType(TiqPlate));
+      // BOTH controls on the band, not just the chip. The destinations
+      // control joined it when the nav pill left, and it wears the same
+      // `surface` fill and edge — a control, not a photograph, and not
+      // subject to the bake.
+      final chip = tester
+          .getRect(find.byKey(const ValueKey<String>('floor-scope-chip')))
+          .expandToInclude(
+            tester.getRect(
+              find.byKey(const ValueKey<String>('floor-destinations')),
+            ),
+          );
       final top = plate.top.ceil() + 2;
       final bottom =
           (plate.top + spec.stripLightY - spec.bloomHeight).floor() - 2;

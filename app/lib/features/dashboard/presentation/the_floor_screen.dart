@@ -86,6 +86,33 @@ class TheFloorScreen extends ConsumerWidget {
   /// The [TorchClaim] id the plate's strip light is declared under.
   static const String plateClaimId = 'floor-plate-strip-light';
 
+  /// ── THE PLATE'S TWO HEIGHTS, AS A SHARE OF THE VIEWPORT ──────────────
+  ///
+  /// Public because they are not an implementation detail of one widget: the
+  /// plate's geometry is what `floor_proportion_test.dart` measures and what
+  /// `floor_plate_tone_test.dart` has to resolve a [PlateSpec] with in order
+  /// to know which band of the picture is clean enough to sample. A test that
+  /// re-derives these from `PlateSpec`'s own defaults measures a plate this
+  /// screen does not draw — which is exactly how the tone test started
+  /// sampling the strip light's own bloom.
+  ///
+  /// The numbers are the mockup's: its plate is 196px of a 649px screen at
+  /// rest and 124px once answered, which is 30.2% and 19.1%. See
+  /// [_PlateFor.shrunk] for why it is a share rather than two dp constants.
+  static const double plateShareAtRest = 0.30;
+  static const double plateShareAnswering = 0.19;
+
+  /// The shortest photographic plate this screen accepts — below
+  /// [PlateSpec.floorShortest], because the answering height is below it on
+  /// both supported phones and a plate that drops its photograph while a
+  /// manager is reading an answer about that territory has dropped the point.
+  static const double plateShortest = 120;
+
+  /// What sits under the plate at each of the two heights. The `ground`
+  /// [PlateSpec.heightFor] takes: *what the screen needs below the picture*.
+  static double plateGroundFor(double viewportHeight, {required bool shrunk}) =>
+      viewportHeight * (1 - (shrunk ? plateShareAnswering : plateShareAtRest));
+
   /// The nav circle's id. It is declared and then *denied*, every time: the
   /// plate takes the one content grant at rung 2 and the circle sits at rung
   /// 4. Naming it anyway is what makes the denial visible in
@@ -303,6 +330,13 @@ class FloorScaffold extends StatelessWidget {
 }
 
 /// THE STANDING ACTION'S TWO VERBS.
+///
+/// **THE FLOOR ITSELF NO LONGER OPENS THIS**, since 30 September 2026. The
+/// circle sat *in* the nav row and left with it when the composer took the
+/// bottom of the screen; the two verbs are two rows in
+/// [showFloorDestinations] now, leading to the same two routes. This sheet is
+/// still live for [FirstRunBoard], which has no composer, keeps its nav pill
+/// and keeps its circle.
 ///
 /// The circle's own label has always promised "Raise a task or assign a
 /// visit", and `surface-manager.json` says in as many words that tapping it
@@ -986,15 +1020,6 @@ class _PlateFor extends StatelessWidget {
   /// rather than being a second set of numbers to keep in step.
   final bool shrunk;
 
-  /// The plate's share of the viewport, at rest and once a question is asked.
-  static const double shareAtRest = 0.30;
-  static const double shareAnswering = 0.19;
-
-  /// The shortest photographic plate this screen will accept. Below the
-  /// answering height on both supported phones, so the picture survives the
-  /// shrink; see [shrunk].
-  static const double shortest = 120;
-
   final ImageProvider<Object>? image;
 
   /// What [image] is, from the server's `X-Image-Source`. Null when nothing
@@ -1067,13 +1092,15 @@ class _PlateFor extends StatelessWidget {
     final current = snapshot.current;
     final measured = view.phase == FloorPhase.measured;
     final viewportHeight = MediaQuery.sizeOf(context).height;
-    final ground =
-        viewportHeight * (1 - (shrunk ? shareAnswering : shareAtRest));
+    final ground = TheFloorScreen.plateGroundFor(
+      viewportHeight,
+      shrunk: shrunk,
+    );
     final spec = PlateSpec.resolve(
       skin: skin,
       viewportHeight: viewportHeight,
       ground: ground,
-      shortest: shortest,
+      shortest: TheFloorScreen.plateShortest,
     );
 
     final delta = snapshot.of((k) => k.executionScore);
@@ -1096,7 +1123,7 @@ class _PlateFor extends StatelessWidget {
       // from the ones the hero was sized against is how a plate ends up with
       // a figure fitted to a height it does not have.
       ground: ground,
-      shortest: shortest,
+      shortest: TheFloorScreen.plateShortest,
       image: image,
       // Null, not the string: the reference has no caption line, so what the
       // picture is goes in [semanticLabel] below.
