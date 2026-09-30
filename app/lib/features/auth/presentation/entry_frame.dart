@@ -133,7 +133,12 @@ class EntryFrame extends StatelessWidget {
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-        if (!isPage(skin, size)) {
+        // An unbounded height is not a tall viewport, it is no viewport: the
+        // page shape centres against a free height and there is none to
+        // measure. Nothing in the app puts this frame in an unbounded box
+        // today; the guard is here so that if something ever does, the way in
+        // degrades to the phone shape rather than to an infinite constraint.
+        if (!constraints.hasBoundedHeight || !isPage(skin, size)) {
           // The phone shape, unchanged. The column is only wrapped when the
           // cap would actually bite, so at 390 and 360 the tree beneath the
           // shell is the one #494 shipped — a lazy `ListView` of the screen's
