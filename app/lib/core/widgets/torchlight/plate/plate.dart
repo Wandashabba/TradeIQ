@@ -84,17 +84,31 @@ class TiqPlate extends StatelessWidget {
     this.caption,
     this.fallbackSentence,
     this.semanticLabel,
-    this.scopeControl,
+    this.topSlot,
     this.devicePixelRatio,
+    this.ground = PlateSpec.floorGround,
+    this.tallest = PlateSpec.floorTallest,
   });
 
   /// The [TorchClaim.plateStripLight] id this plate's light was declared under.
   /// The widget asks; it never decides.
+  ///
+  /// **A claim id is not a grant.** An id the route never declared is simply
+  /// never lit, which is a supported way to use this widget and not a bug:
+  /// `/login` renders the plate with the light in its unlit form in *both*
+  /// skins, because the door's one amber object is the way through it. See
+  /// `entry_plate.dart`.
   final String claimId;
 
   /// The height the plate may draw into — the viewport, because the plate runs
   /// full-bleed to the top edge and suppresses the shell's falloff there.
   final double viewportHeight;
+
+  /// What the screen needs *under* the plate, and the tallest the plate may
+  /// get. Both default to The Floor's, which is where they came from — see
+  /// [PlateSpec.heightFor], which is where the two literals used to live.
+  final double ground;
+  final double tallest;
 
   /// The hero cluster. Expected to be a [PlateHeroCluster]; typed as a widget
   /// so a screen can put its own eyebrow strings and figure in without this
@@ -116,11 +130,19 @@ class TiqPlate extends StatelessWidget {
   /// label, which this widget supplies itself.
   final String? semanticLabel;
 
-  /// ONE CONTROL, AT THE TOP OF THE PICTURE.
+  /// ONE SMALL THING, AT THE TOP OF THE PICTURE.
   ///
   /// The plate is the screen's header, so the thing that says *where you are*
-  /// and offers to change it belongs at the top of it — see [PlateScopeChip],
-  /// which is what The Floor puts here.
+  /// belongs at the top of it. Two screens put something different here and
+  /// both answers are that same sentence:
+  ///
+  /// * **The Floor** puts a [PlateScopeChip] — the territory and the window,
+  ///   and a control that changes them. "Where you are", signed in.
+  /// * **`/login`** puts the wordmark. Before sign-in there is no territory to
+  ///   name and no scope to change, so what the top of the picture says is
+  ///   *which product* — see `entry_plate.dart`. It is not a control and it
+  ///   takes no taps, which is why this parameter is named for the slot and
+  ///   not for the chip that was the first thing in it.
   ///
   /// It sits in the photographic band and **not** in the hero cluster, and
   /// that is arithmetic rather than taste. The cluster is laid out inside a
@@ -135,7 +157,7 @@ class TiqPlate extends StatelessWidget {
   /// losing them to the scrim. On the shortest plate it overlaps the top of
   /// the strip light's bloom; it never reaches the light itself, which is the
   /// object the amber budget is spent on.
-  final Widget? scopeControl;
+  final Widget? topSlot;
 
   /// Overrides the ambient DPR when choosing `cacheWidth`. Tests pin it.
   final double? devicePixelRatio;
@@ -204,6 +226,8 @@ class TiqPlate extends StatelessWidget {
       skin: skin,
       viewportHeight: viewportHeight,
       textScale: scaler.scale(1.0),
+      ground: ground,
+      tallest: tallest,
     );
 
     switch (spec.form) {
@@ -218,8 +242,8 @@ class TiqPlate extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (scopeControl != null) ...<Widget>[
-                scopeControl!,
+              if (topSlot != null) ...<Widget>[
+                topSlot!,
                 const SizedBox(height: TiqSpace.s3),
               ],
               hero,
@@ -230,7 +254,7 @@ class TiqPlate extends StatelessWidget {
         return _CollapsedBand(
           spec: spec,
           hero: hero,
-          scopeControl: scopeControl,
+          topSlot: topSlot,
         );
       case PlateForm.photographic:
         return _PhotographicPlate(
@@ -241,7 +265,7 @@ class TiqPlate extends StatelessWidget {
           caption: caption,
           fallbackSentence: fallbackSentence,
           semanticLabel: semanticLabel,
-          scopeControl: scopeControl,
+          topSlot: topSlot,
           // The tone is the skin's, not the widget's: see [toneFor].
           tone: toneFor(skin.palette),
           devicePixelRatio:
@@ -350,12 +374,12 @@ class _CollapsedBand extends StatelessWidget {
   const _CollapsedBand({
     required this.spec,
     required this.hero,
-    this.scopeControl,
+    this.topSlot,
   });
 
   final PlateSpec spec;
   final Widget hero;
-  final Widget? scopeControl;
+  final Widget? topSlot;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -374,8 +398,8 @@ class _CollapsedBand extends StatelessWidget {
         // The picture is what the fold could not afford. The control is 48dp
         // and it stays: losing the ability to change territory on the smallest
         // screen is losing it on the screen that needs it most.
-        if (scopeControl != null) ...<Widget>[
-          scopeControl!,
+        if (topSlot != null) ...<Widget>[
+          topSlot!,
           const SizedBox(height: TiqSpace.s3),
         ],
         hero,
@@ -393,7 +417,7 @@ class _PhotographicPlate extends StatefulWidget {
     required this.caption,
     required this.fallbackSentence,
     required this.semanticLabel,
-    required this.scopeControl,
+    required this.topSlot,
     required this.tone,
     required this.devicePixelRatio,
   });
@@ -405,7 +429,7 @@ class _PhotographicPlate extends StatefulWidget {
   final String? caption;
   final String? fallbackSentence;
   final String? semanticLabel;
-  final Widget? scopeControl;
+  final Widget? topSlot;
   final ColorFilter tone;
   final double devicePixelRatio;
 
@@ -583,14 +607,14 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
             //    line up on one left edge. `right` is bound as well as `left`
             //    — at 2.0x in Afrikaans the label wraps inside the plate
             //    instead of running off the card.
-            if (widget.scopeControl != null)
+            if (widget.topSlot != null)
               Positioned(
                 left: spec.textInset,
                 right: spec.textInset,
                 top: TiqSpace.s4,
                 child: Align(
                   alignment: AlignmentDirectional.topStart,
-                  child: widget.scopeControl!,
+                  child: widget.topSlot!,
                 ),
               ),
           ],

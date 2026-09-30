@@ -876,7 +876,7 @@ class _PlateFor extends StatelessWidget {
       semanticLabel: imageSentence(context),
       // THE SCOPE CONTROL, AT THE TOP OF THE PLATE — visible, 48dp, and
       // carrying the two facts it sets. See [PlateScopeChip].
-      scopeControl: onScopeTap == null
+      topSlot: onScopeTap == null
           ? null
           : PlateScopeChip(
               key: const ValueKey<String>('floor-scope-chip'),

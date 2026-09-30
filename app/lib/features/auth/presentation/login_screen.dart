@@ -11,13 +11,12 @@ import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
-import '../../../core/widgets/torchlight/display_headline.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
-import 'entry_brand.dart';
 import 'entry_frame.dart';
+import 'entry_plate.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
 /// credentials — the one place in the app where it does. Everywhere else a 401
@@ -288,26 +287,30 @@ class _SignInState extends ConsumerState<_SignIn> {
             onPressed: armed ? _submit : null,
           ),
           children: <Widget>[
-            // THE MASTHEAD — a mark, a headline, a sentence. Ask TradeIQ's
-            // opening, which is the manager screen this one is actually like:
-            // mostly one headline and a small number of controls, and an
-            // invitation rather than a report of absence. `unify` §1.12's
-            // no-drawing rule follows from the same reading and is why there
-            // is no silhouette here.
+            // THE MASTHEAD IS A PHOTOGRAPHIC PLATE (owner's choice, 30
+            // September 2026 — *"A the plate"*).
             //
-            // The mark is **small on purpose**. At 40dp beside a tracked
-            // wordmark it was the largest object on the screen and the only
-            // one saying nothing — it sat in the masthead's slot doing
-            // decoration's job. At 24 it does what "Ask TradeIQ" does in the
-            // header of the screen this is modelled on: it says which product
-            // you are signing in to, and then gets out of the headline's way.
-            const EntryBrand(monogram: 24, compact: true),
-            SizedBox(height: skin.space.intraBlock),
-            TorchDisplayHeadline(l10n.loginHeadline),
-            SizedBox(height: skin.space.intraBlock),
-            Text(
-              l10n.loginSubtitle,
-              style: skin.text.body.style(color: skin.palette.ink2),
+            // It used to be a mark, a headline and a sentence on bare ground.
+            // It is now the same three things on the object The Floor opens
+            // with: the plate is the one piece of this product nobody else
+            // has, and on the door it means the product looks like itself
+            // before anyone has typed a character.
+            //
+            // **The three strings did not change.** `loginHeadline` and
+            // `loginSubtitle` are the same two sentences, moved onto the
+            // picture; the mark is the same 24dp compact wordmark, at the top
+            // of the plate instead of above it. Nothing here names a
+            // territory, a route or a count, because before sign-in there is
+            // no tenant and nothing of the sort is true yet — see the long
+            // note in `entry_plate.dart`, which is also where the amber and
+            // the fold arithmetic are argued.
+            //
+            // At 360×640 it collapses to the 96dp band by its own budget and
+            // the picture is dropped, which is very nearly the masthead this
+            // screen already had.
+            EntryPlate(
+              headline: l10n.loginHeadline,
+              supporting: l10n.loginSubtitle,
             ),
             SizedBox(height: skin.space.blockGap),
             if (held != null && !held.isEmpty) ...<Widget>[

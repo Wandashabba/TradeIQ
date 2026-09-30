@@ -109,6 +109,20 @@ flutter:
 
   assets:
     - assets/images/tradeiq-ti-monogram.png
+    # THE PLATE ON THE DOOR. A byte-identical copy of
+    # `backend/assets/places/ALL.jpg` — the "all territories" view, a South
+    # African trade route at first light. It is bundled rather than fetched
+    # because a place image comes off an authed endpoint and `/login` has no
+    # token; it is *this* image for three reasons that are each checked in
+    # `entry_plate_test.dart`: it is `source: generated`
+    # (gemini-3.1-flash-image), so unlike the twelve supplied photographs it
+    # carries no owner licensing question (`SUPPLIED_RIGHTS` in
+    # `backend/scripts/places/supplied.ts` does not reach it); it is the
+    # all-territories picture, which is what a door before anyone knows their
+    # territory should carry; and its prompt in `scripts/places/prompts.ts`
+    # forbids readable text, signage, brand marks and recognisable faces.
+    # 56 kB. Keep this list short.
+    - assets/images/entry-plate.jpg
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
     # Onest for the PDF exporter, and ONLY for it — declared as assets rather
     # than under `fonts:` so the engine never resolves a screen to them.

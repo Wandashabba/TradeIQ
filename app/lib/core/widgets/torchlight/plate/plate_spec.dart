@@ -60,11 +60,44 @@ class PlateSpec {
   /// [viewportHeight] is the height the plate may draw into — the full
   /// viewport on a phone, because the arithmetic below it is the whole
   /// screen's.
-  static double heightFor(double viewportHeight) {
-    final proportional = (viewportHeight * 0.40).clamp(200.0, 312.0);
-    final afterTheList = viewportHeight - 440.0;
-    return math.min(proportional, afterTheList);
+  ///
+  /// ## The two numbers are the caller's, and they default to The Floor's
+  ///
+  /// [ground] and [tallest] were the literals `440` and `312` until the plate
+  /// went on the door (`/login`). They are not universal constants and never
+  /// were: **440 is the height of The Floor's decision rows** and 312 is what
+  /// an 844dp phone has left once those rows, the lead card, the section
+  /// marker, the block gaps and the nav pill have taken theirs. A screen with
+  /// different things under its plate has a different second term, and the
+  /// old shape gave it no way to say so — which is how a second plate gets
+  /// written instead of this one being used.
+  ///
+  /// They are named parameters with The Floor's values as defaults, so The
+  /// Floor's call site is unchanged and its arithmetic is bit-for-bit what it
+  /// was. `entry_plate.dart` passes the sign-in form's own two numbers, which
+  /// it measures rather than guesses.
+  static double heightFor(
+    double viewportHeight, {
+    double ground = floorGround,
+    double tallest = floorTallest,
+  }) {
+    assert(
+      tallest >= _floor,
+      'A plate taller than $_floor is the only kind there is: under it the '
+      'form is `collapsed` and this number is not consulted. tallest=$tallest',
+    );
+    final proportional = (viewportHeight * 0.40).clamp(200.0, tallest);
+    final afterTheGround = viewportHeight - ground;
+    return math.min(proportional, afterTheGround);
   }
+
+  /// What The Floor's decision rows need under the plate. The default for
+  /// [heightFor]'s `ground`, and the number the 440 literal used to be.
+  static const double floorGround = 440;
+
+  /// The tallest The Floor's plate gets, on any viewport. The default for
+  /// [heightFor]'s `tallest`, and the number the 312 literal used to be.
+  static const double floorTallest = 312;
 
   /// Resolve. Pure and synchronous: callable from a test with a bare
   /// [TiqSkin] and a number.
@@ -72,8 +105,10 @@ class PlateSpec {
     required TiqSkin skin,
     required double viewportHeight,
     double textScale = 1.0,
+    double ground = floorGround,
+    double tallest = floorTallest,
   }) {
-    final height = heightFor(viewportHeight);
+    final height = heightFor(viewportHeight, ground: ground, tallest: tallest);
     if (height < _floor) {
       return PlateSpec(
         form: PlateForm.collapsed,
