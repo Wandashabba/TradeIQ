@@ -176,7 +176,7 @@ class _BeatPlans extends ConsumerWidget {
             ),
           ),
         if (cut) ...<Widget>[
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: context.skin.space.blockGap),
           TorchBleed(
             extra: gutter.left * 2,
             child: PaginationFooter(
@@ -375,7 +375,7 @@ class _BeatPlanDetail extends ConsumerWidget {
         ],
         children: <Widget>[
           _Adherence(detail: data),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: context.skin.space.blockGap),
           _Stops(planId: planId, detail: data),
         ],
       ),

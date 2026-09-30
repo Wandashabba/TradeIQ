@@ -164,7 +164,7 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
                       ? SoftRowSeparator.none
                       : SoftRowSeparator.auto,
                 ),
-              const SizedBox(height: TiqSpace.s3),
+              SizedBox(height: context.skin.space.intraBlock),
               Text(
                 l10n.s9AddedTasks(_raised.length),
                 style: context.skin.text.meta.style(

@@ -420,6 +420,40 @@ class TiqType {
   );
 
   /// The field agent's phone: `title.l` is 24, body is 15/1.50.
+  ///
+  /// **SUPERSEDED — owner override, 29 September 2026. Nothing reads this any
+  /// more; [forDensity] returns [console] at both densities.**
+  ///
+  /// > *"Make the font on the agentside the same as the manager side,
+  /// > literally everything including colours"*
+  ///
+  /// The rationale below is **not withdrawn, it is outranked**, and it is kept
+  /// here in full so that whoever reads this later knows exactly what was
+  /// traded and can put it back by reverting one line in [forDensity].
+  ///
+  /// WHAT THIS SCALE WAS FOR. The agent reads standing up, at arm's length,
+  /// one-handed, on a cheap panel at 40% backlight, often in direct sunlight —
+  /// the same premise that gives field density its 48dp targets and its 64dp
+  /// rows. Larger prose is the type half of that answer: `title.l` at 24 so an
+  /// outlet name survives a glance, body at 15/1.50 so a blocking sentence
+  /// survives a forecourt at 13:00. It was the one compensation left after
+  /// Veld was struck on 28 September 2026 (unify §4), which is the paragraph
+  /// that says out loud that outdoor legibility was given up and *nothing
+  /// replaces it*. This scale was part of what was left.
+  ///
+  /// WHAT THE OVERRIDE BUYS. One type scale across the product. The owner has
+  /// been looking at the two surfaces side by side all day and has ruled, three
+  /// times, that the manager side is the reference; type was the last axis on
+  /// which the agent side still diverged by construction rather than by drift.
+  ///
+  /// WHAT IT COSTS. Roughly a 7% linear reduction in prose on exactly the
+  /// screens that are read outdoors. **Touch targets are untouched** — this is
+  /// a type decision and not a density one; `TiqSpace.field` keeps its 48dp
+  /// targets, its 64dp rows and its block gap, because thumb reach was not
+  /// what the owner was looking at.
+  ///
+  /// TO RESTORE: make [forDensity] return this object for [TiqDensity.field]
+  /// again. Nothing else has to move.
   static const TiqType field = TiqType(
     heroFigure: _heroFigure,
     heroFigureCompact: _heroFigureCompact,
@@ -460,8 +494,19 @@ class TiqType {
     monoIdent: _monoIdent,
   );
 
+  /// The type scale for a density — **[console] at both, since 29 September
+  /// 2026.**
+  ///
+  /// > *"Make the font on the agentside the same as the manager side,
+  /// > literally everything including colours"* — the owner.
+  ///
+  /// There is one type scale in this product. [field] is kept beside it,
+  /// unreferenced, as the record of what it used to be and why; see its doc
+  /// comment. This line is the whole of the override, deliberately: a reader
+  /// who wants the field scale back changes `console` to `field` here, and a
+  /// reader who edits one token of [console] can no longer make the two
+  /// surfaces drift apart by accident, because there is only one of them.
   static TiqType forDensity(TiqDensity density) => switch (density) {
-    TiqDensity.console => console,
-    TiqDensity.field => field,
+    TiqDensity.console || TiqDensity.field => console,
   };
 }

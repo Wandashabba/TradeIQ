@@ -149,13 +149,13 @@ class _MyRecord extends ConsumerWidget {
         SectionRule(l10n.meEarnedHeading),
         const SizedBox(height: TiqSpace.s5),
         _Earned(earnings: earnings),
-        const SizedBox(height: TiqSpace.s5),
+        SizedBox(height: context.skin.space.blockGap),
         // Outside `earnings.when` on purpose: the way to the standings is not
         // a figure, and a failed points read must not take it away.
         _ContestsRow(
           running: ref.watch(runningContestsCountProvider).value ?? 0,
         ),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: context.skin.space.blockGap),
         _Visits(visits: visits, sync: sync),
       ],
     );
@@ -265,9 +265,9 @@ class _Earned extends StatelessWidget {
           // an edge, so the air between two of them reads as more than the
           // same gap between two bare columns did. The s7 that used to stand
           // here was holding two unframed blocks apart by distance alone.
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: context.skin.space.intraBlock),
           _StandingCard(earnings: data),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: context.skin.space.blockGap),
           SectionRule(
             l10n.meLedgerHeading,
             emptyLine: data.ledger.isEmpty ? l10n.meLedgerEmpty : null,
@@ -276,7 +276,7 @@ class _Earned extends StatelessWidget {
             const SizedBox(height: TiqSpace.s5),
             _Ledger(entries: data.ledger),
           ],
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: context.skin.space.intraBlock),
           _HonestyLine(text: l10n.mePointsHonesty),
         ],
       ),
@@ -552,7 +552,7 @@ class _StandingCard extends StatelessWidget {
           ],
 
           // 4. THE SUBORDINATE — a gap, not a rule.
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           _RankSubordinate(rank: rank),
         ],
       ),
@@ -904,7 +904,7 @@ class _VisitsState extends ConsumerState<_Visits> {
         // omitted them would be the same lie in a new place.
         if (held > 0) ...<Widget>[
           _OnThisPhone(count: held),
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: context.skin.space.intraBlock),
         ],
         visits.when(
           loading: () => const SkeletonRows(count: 3),
@@ -931,7 +931,7 @@ class _VisitsState extends ConsumerState<_Visits> {
               children: <Widget>[
                 _VisitList(visits: all),
                 if (next != null || _failed) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   PaginationFooter(
                     summary: l10n.meVisitsShowing(all.length),
                     narrowLine: _failed ? l10n.meVisitsMoreFailed : null,
@@ -1060,7 +1060,7 @@ class _VisitRow extends StatelessWidget {
             skin.space.gutter,
             0,
             skin.space.gutter,
-            TiqSpace.s4,
+            skin.space.intraBlock,
           ),
           child: ReconciliationLine(
             key: ValueKey<String>('reconciled-${visit.id}'),
@@ -1227,14 +1227,19 @@ class _EarnedSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    // The skeleton stands at the real geometry, so it takes the real gaps:
+    // the two cards are one block apart and the ledger below them is a block
+    // away. It loses `const` to read them, which is the cost of the placeholder
+    // moving when the rhythm moves instead of drifting away from it.
+    final space = context.skin.space;
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SkeletonShell(height: 88),
-        SizedBox(height: TiqSpace.s4),
-        SkeletonShell(height: 141),
-        SizedBox(height: TiqSpace.s7),
-        SkeletonRows(count: 2),
+        const SkeletonShell(height: 88),
+        SizedBox(height: space.intraBlock),
+        const SkeletonShell(height: 141),
+        SizedBox(height: space.blockGap),
+        const SkeletonRows(count: 2),
       ],
     );
   }

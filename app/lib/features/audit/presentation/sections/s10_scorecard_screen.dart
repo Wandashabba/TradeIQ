@@ -223,7 +223,7 @@ class _ScoreHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Eyebrow(l10n.s10WeightedTotal),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.end,
             spacing: TiqSpace.s3,
@@ -251,12 +251,12 @@ class _ScoreHero extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           // No meter against a target that nothing was measured against: a
           // track at zero reads as a score of zero.
           if (value != null) ...<Widget>[
             Meter(value: value, target: 80, semanticsValue: spoken),
-            const SizedBox(height: TiqSpace.s4),
+            SizedBox(height: skin.space.intraBlock),
           ],
           // The whole reason this screen is not a verdict — or, with nothing
           // measured, the sentence that says so in words.

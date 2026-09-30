@@ -649,14 +649,14 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           ),
           children: <Widget>[
             _ReadinessBlock(progress: progress),
-            const SizedBox(height: TiqSpace.s7),
+            SizedBox(height: skin.space.blockGap),
             // Promoted from meta at the bottom: the agent needs to know this
             // before they start choosing, not after they have finished.
             Text(
               l10n.visitAnyOrderHint,
               style: skin.text.label.style(color: skin.palette.ink2),
             ),
-            const SizedBox(height: TiqSpace.s5),
+            SizedBox(height: skin.space.blockGap),
             SectionRule(l10n.visitAuditHeading),
             const SizedBox(height: TiqSpace.s5),
             TorchBleed(
@@ -907,7 +907,7 @@ class _ReadinessBlock extends StatelessWidget {
             // 4. THE SUBORDINATE. Two facts, not one figure: a section nobody
             //    could measure is not a section somebody skipped.
             if (unconfirmed > 0) ...<Widget>[
-              const SizedBox(height: TiqSpace.s3),
+              SizedBox(height: skin.space.intraBlock),
               _ReadinessSubordinate(
                 key: const ValueKey<String>('visit-progress-cant-confirm'),
                 label: l10n.visitCantConfirmLabel,
@@ -1157,7 +1157,7 @@ class _CheckingIn extends StatelessWidget {
           claimId: AuditShellScreen.locatingClaimId,
           stalled: false,
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Semantics(
           header: true,
           child: Text(
@@ -1168,7 +1168,7 @@ class _CheckingIn extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
@@ -1225,7 +1225,7 @@ class _TooFar extends StatelessWidget {
       ),
       children: <Widget>[
         Eyebrow(l10n.visitCheckInEyebrow),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         Semantics(
           header: true,
           child: Text(
@@ -1236,12 +1236,12 @@ class _TooFar extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
 
         // THE MEASURED DISTANCE as the hero.
         _DistanceHero(metres: metres),
 
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Text(
           // First and second attempt: the fact, with no threat attached. The
           // penalty sentence arrives on the third, which is where the penalty
@@ -1252,7 +1252,7 @@ class _TooFar extends StatelessWidget {
               : l10n.visitTooFarAttemptsRecorded,
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
 
         // THE THIRD, QUIETER ACTION (#386). An agent standing at the front
         // door of a shop the app says is 180 m away is telling us something
@@ -1356,7 +1356,7 @@ class _DistanceHero extends StatelessWidget {
                 Eyebrow(l10n.visitCheckInEyebrow),
               ],
             ),
-            const SizedBox(height: TiqSpace.s3),
+            SizedBox(height: skin.space.intraBlock),
             FigureSlot(
               value: metres,
               role: skin.text.heroFigureCompact,
@@ -1368,7 +1368,7 @@ class _DistanceHero extends StatelessWidget {
               unit: TiqUnit.worded(l10n.unitMetres),
               semanticsLabel: l10n.visitTooFarSemantics(metres),
             ),
-            const SizedBox(height: TiqSpace.s3),
+            SizedBox(height: skin.space.intraBlock),
             Text(
               metres < 80
                   ? l10n.visitTooFarClose
@@ -1441,7 +1441,7 @@ class _NoGps extends StatelessWidget {
             color: skin.palette.edgeControl,
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Semantics(
           header: true,
           child: Text(
@@ -1452,7 +1452,7 @@ class _NoGps extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         // Reason and fix are separate paragraphs, so a reader can get the fix
         // without re-hearing the diagnosis.
         ConstrainedBox(
@@ -1462,7 +1462,7 @@ class _NoGps extends StatelessWidget {
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
@@ -1470,7 +1470,7 @@ class _NoGps extends StatelessWidget {
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Text(
           l10n.visitCheckInFailedNothingLost,
           style: skin.text.meta.style(color: skin.palette.ink3),
@@ -1527,7 +1527,7 @@ class _SomethingElse extends StatelessWidget {
             color: skin.palette.edgeControl,
           ),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Semantics(
           header: true,
           child: Text(
@@ -1538,7 +1538,7 @@ class _SomethingElse extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
@@ -1547,11 +1547,11 @@ class _SomethingElse extends StatelessWidget {
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
         ),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         // The one thing an agent can do for a failure they cannot fix is tell
         // someone precisely.
         _CodeBlock(code: code),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Text(
           // The difference between retrying and giving up on the shop.
           l10n.visitCheckInFailedNothingLost,
@@ -1640,7 +1640,7 @@ class _Statement extends StatelessWidget {
         ExcludeSemantics(
           child: Icon(glyph, size: 64, color: skin.palette.edgeControl),
         ),
-        const SizedBox(height: TiqSpace.s6),
+        SizedBox(height: skin.space.blockGap),
         Semantics(
           header: true,
           child: Text(
@@ -1651,7 +1651,7 @@ class _Statement extends StatelessWidget {
             ).style(color: skin.palette.ink1),
           ),
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: skin.space.intraBlock),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
@@ -1660,7 +1660,7 @@ class _Statement extends StatelessWidget {
           ),
         ),
         if (actionLabel != null && onAction != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: skin.space.blockGap),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TorchSecondaryButton(
@@ -1697,13 +1697,13 @@ class _HubSkeleton extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         for (var i = 0; i < 5; i++) ...<Widget>[
           SizedBox(
             height: TiqSpace.s5,
             child: ColoredBox(color: skin.palette.edgeStructure),
           ),
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: skin.space.blockGap),
         ],
       ],
     );

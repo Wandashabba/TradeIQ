@@ -292,7 +292,7 @@ class _QueueState extends ConsumerState<_Queue> {
             ),
           ),
           if (capped && items.length > shown.length) ...<Widget>[
-            const SizedBox(height: TiqSpace.s4),
+            SizedBox(height: skin.space.intraBlock),
             PaginationFooter(
               summary: l10n.myWorkSentCapped(shown.length, items.length),
               action: TorchTertiaryButton(
@@ -313,7 +313,7 @@ class _QueueState extends ConsumerState<_Queue> {
       children: <Widget>[
         if (sessionEnded.isNotEmpty) ...<Widget>[
           _SignedOutBlock(count: status.pendingCount),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.blockGap),
         ],
         _Summary(
           status: status,
@@ -463,7 +463,7 @@ class _Summary extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: TiqSpace.s4),
+            SizedBox(height: skin.space.intraBlock),
             // "Send now" lives here, with the thing it acts on. My work is a
             // tab root and tab roots have no thumb zone (unify §1.2), and the
             // button belongs beside the queue anyway.
@@ -512,7 +512,7 @@ class _SignedOutBlock extends StatelessWidget {
             l10n.myWorkSignedOutTitle(count),
             style: skin.text.bodyStrong.style(color: skin.palette.ink1),
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           // THE SCREEN'S AMBER, in the one state where signing in is the
           // expected next move and "Send now" is not.
           TorchPrimaryButton(
@@ -565,7 +565,7 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     return Padding(
-      padding: const EdgeInsets.only(top: TiqSpace.s4),
+      padding: EdgeInsets.only(top: skin.space.blockGap),
       child: Text(
         context.l10n.myWorkFooter,
         style: skin.text.meta.style(color: skin.palette.ink3),

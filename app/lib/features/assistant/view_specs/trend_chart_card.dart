@@ -5,6 +5,7 @@ import '../../../core/design/motion_budget.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/figure/chart/chart_series.dart';
 import '../../../l10n/l10n.dart';
 import '../answer/answer_motion.dart';
 import '../answer/ask_light.dart';
@@ -68,13 +69,13 @@ class TrendChartCard extends StatelessWidget {
     'share_of_shelf',
   };
 
-  /// 208 Console phone / 232 Field / 260 at ≥600dp (unify §1.17). The
-  /// assistant surface asked for 160 and lost on its own arithmetic: with a
-  /// 38dp gutter that leaves about 120dp of plot.
-  static double plotHeightFor(TiqSkin skin, double width) {
-    if (width >= 600) return 260;
-    return skin.density == TiqDensity.field ? 232 : 208;
-  }
+  /// 208 Console phone / 232 Field / 260 at ≥600dp (unify §1.17).
+  ///
+  /// This restated [trendChartHeightFor]'s three numbers with the density
+  /// arms written the other way round — same answer, second copy — until
+  /// 29 September 2026. It delegates now, so §1.17 has one home.
+  static double plotHeightFor(TiqSkin skin, double width) =>
+      trendChartHeightFor(skin, width);
 
   Map<String, dynamic> get _data {
     final data = artifact.data;

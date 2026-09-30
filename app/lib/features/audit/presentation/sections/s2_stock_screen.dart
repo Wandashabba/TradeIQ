@@ -453,7 +453,7 @@ class _SummaryDetail extends StatelessWidget {
             label: l10n.s2JumpToUncounted,
             onPressed: jump,
           ),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.blockGap),
       ],
     );
   }
@@ -579,7 +579,7 @@ class _SkuBlock extends StatelessWidget {
             key: ValueKey<String>('context-${sku.id}'),
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           CountStepper(
             key: ValueKey<String>('units-${sku.id}'),
             label: l10n.s2UnitsOnShelf,
@@ -606,7 +606,7 @@ class _SkuBlock extends StatelessWidget {
     // `gapAfter`, at the same s3, so a shelf of products and a list of rows
     // are spaced identically.
     return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : TiqSpace.s3),
+      padding: EdgeInsets.only(bottom: last ? 0 : skin.space.intraBlock),
       child: block,
     );
   }
