@@ -11,13 +11,13 @@ import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
-import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/display_headline.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import 'entry_brand.dart';
+import 'entry_frame.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
 /// credentials — the one place in the app where it does. Everywhere else a 401
@@ -252,8 +252,7 @@ class _SignInState extends ConsumerState<_SignIn> {
         tabbedRoute: false,
         beneathSheet: beneathSheet,
         claims: <TorchClaim>[if (armed) TorchPrimaryButton.claim('sign-in')],
-        child: TorchShell(
-          profile: TorchShellProfile.agent,
+        child: EntryFrame(
           // NO APP HEADER, AND THE TWO REASONS ARE SEPARATE.
           //
           // **The title said what the headline now says.** A `TorchAppHeader`
@@ -276,8 +275,9 @@ class _SignInState extends ConsumerState<_SignIn> {
           // brand hold and not a destination, and `/forgot-password` is
           // reached from the link that is still on this screen.
           //
-          // Not a tab root: the cycle sits at the leading end of the thumb
-          // zone. Never a screen without it.
+          // Not a tab root: the cycle sits at the leading end of the commit
+          // row — pinned in the thumb zone on a phone, at the foot of the
+          // column on a page. Never a screen without it.
           skinCycle: const EntrySkinCycle(),
           primary: TorchPrimaryButton(
             key: const ValueKey<String>('login-submit'),

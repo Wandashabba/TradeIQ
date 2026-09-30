@@ -22,7 +22,7 @@ import 'account_screens_test.dart' show FakePasswordRepository;
 import 'entry_harness.dart';
 
 /// THE WAY IN, RENDERED — the six screens an unauthenticated visitor reaches,
-/// in both skins, at both phone sizes.
+/// in both skins, at four viewport sizes.
 ///
 /// The auth screens had no look harness until the entry redesign. Every other
 /// surface in this product got one before it was redesigned, for the reason
@@ -59,6 +59,25 @@ import 'entry_harness.dart';
 ///
 /// `ENTRY_LOOK_DIR` **needs its trailing slash** — the name is appended with
 /// no separator, the same contract the other four harnesses use.
+///
+/// ## THE TWO SIZES THAT WERE MISSING, AND WHAT THEY COST
+///
+/// This harness landed with two phones on it — 390×844 and 360×640 — and the
+/// redesign it was built to judge was therefore judged at phone width only.
+/// The owner opened the same screen in a desktop browser at roughly 1200
+/// logical pixels and said *"Thats not good please fix spacing"*: the fields
+/// ran the full viewport, the mark sat on the top edge, and the commit bar
+/// was pinned hundreds of pixels below the form it belongs to. **None of
+/// that was visible in any picture this file produced**, which is the whole
+/// argument for the two sizes added on 30 September 2026:
+///
+/// | size | what it is |
+/// |---|---|
+/// | `1280x1800` | a desktop browser — the viewport the complaint came from |
+/// | `834x1112` | an iPad Air in portrait — the width between the two |
+///
+/// A look harness that only renders the sizes a screen was designed at
+/// cannot catch the size it was not.
 void main() {
   final looking = Platform.environment['ENTRY_LOOK'] == '1';
   final dir = Platform.environment['ENTRY_LOOK_DIR'] ?? 'goldens/';
@@ -71,6 +90,10 @@ void main() {
   const sizes = <(String, Size)>[
     ('390x844', Size(390, 844)),
     ('360x640', Size(360, 640)),
+    // The desktop browser the owner is looking at, and the tablet width
+    // between it and the phones. See the note above the function.
+    ('1280x1800', Size(1280, 1800)),
+    ('834x1112', Size(834, 1112)),
   ];
   const skins = <(String, SkinMode)>[
     ('night', SkinMode.night),

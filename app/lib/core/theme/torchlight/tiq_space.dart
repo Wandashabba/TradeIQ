@@ -53,6 +53,41 @@ class TiqSpace {
   static const double s10 = 72;
   static const double s11 = 96;
 
+  /// THE MEASURE — how wide a single column of prose and fields is allowed to
+  /// get, whatever the viewport does.
+  ///
+  /// > *"Thats not good please fix spacing"* — the owner, 30 September 2026,
+  /// > looking at the redesigned sign-in screen in a desktop browser at about
+  /// > 1200 logical pixels.
+  ///
+  /// Nothing in this scale capped a **width** before that day. Every token
+  /// above is a gap between two things; [gutter] and [gutterWide] say how far
+  /// content stops from the screen edge, which on a phone is the same
+  /// question as how wide it gets and on a 1280dp browser is not. The agent
+  /// shell does not even widen its gutter — `TorchShell` calls [gutterFor]
+  /// only on the console profile — so the way in ran a 1240dp-wide email
+  /// field, and there was no token to say it should not.
+  ///
+  /// **480, and here is the arithmetic.** `body` is 14/1.55 in Onest at both
+  /// densities since #488. Onest measures **6.547dp per character** at 14 —
+  /// measured by `TextPainter` against these screens' own copy in
+  /// `entry_width_test.dart`, not estimated — so 480dp is **73.3
+  /// characters**, inside the 45–75 band typography has used for a century
+  /// (66 is the optimum). It is 4 × 120, on the base-4 grid like everything
+  /// else here.
+  ///
+  /// The first number written here was 520, read off a rendered screen with
+  /// a ruler; the `TextPainter` said 79.4 characters and 520 went. **The
+  /// test prints the measurement**, so when the type scale moves again the
+  /// way it did in #488 this fails with the new number in the failure rather
+  /// than drifting quietly out of band.
+  ///
+  /// It is deliberately **not** a container width. A card, a table or a
+  /// dashboard is not prose and must not read this token; this is the measure
+  /// for *one column of words and the controls that belong to them*, which is
+  /// what every screen on the way in is.
+  static const double readingWidth = 480;
+
   /// Every legal spacing value, in order. Anything not in this list is a
   /// magic number — `torchlight_lint_test.dart` treats it as one.
   static const List<double> scale = <double>[
