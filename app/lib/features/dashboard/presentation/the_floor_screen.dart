@@ -21,7 +21,8 @@ import '../../assistant/answer/composer.dart';
 import '../../assistant/data/chat_controller.dart';
 import '../../assistant/presentation/chat_screen.dart';
 import '../../assistant/view_specs/answer_focus.dart';
-import '../../territories/data/territories_repository.dart' show PlaceImageSource;
+import '../../territories/data/territories_repository.dart'
+    show PlaceImageSource;
 import '../../territories/data/territories_view.dart';
 import '../data/dashboard_repository.dart';
 import '../data/floor_ask_view.dart';
@@ -311,18 +312,19 @@ class FloorScaffold extends StatelessWidget {
       navCircle: !showNavPill
           ? null
           : TorchNavCircle(
-        claimId: TheFloorScreen.navCircleClaimId,
-        // The circle is the role's standing action and it is *never* lit on
-        // this route: the ladder denies rung 4 once the plate has taken the
-        // one content grant. Declaring `expected` honestly and letting the
-        // allocator say no is the point — a circle that decided for itself
-        // would be a third light.
-        expected: false,
-        icon: Icons.add,
-        expectedIcon: Icons.add,
-        semanticLabel: 'Raise a task or assign a visit',
-        expectedSemanticLabel: 'Raise a task or assign a visit',
-        onPressed: onStandingAction ?? () => showFloorStandingAction(context),
+              claimId: TheFloorScreen.navCircleClaimId,
+              // The circle is the role's standing action and it is *never* lit on
+              // this route: the ladder denies rung 4 once the plate has taken the
+              // one content grant. Declaring `expected` honestly and letting the
+              // allocator say no is the point — a circle that decided for itself
+              // would be a third light.
+              expected: false,
+              icon: Icons.add,
+              expectedIcon: Icons.add,
+              semanticLabel: 'Raise a task or assign a visit',
+              expectedSemanticLabel: 'Raise a task or assign a visit',
+              onPressed:
+                  onStandingAction ?? () => showFloorStandingAction(context),
             ),
       children: children,
     );
@@ -512,8 +514,9 @@ class _FloorState extends ConsumerState<_Floor> {
     final last = state.messages.isEmpty ? null : state.messages.last;
     final answer = last?.role == ChatRole.assistant ? last : null;
     final toolRunning = answer != null && answer.tools.any((t) => t.ok == null);
-    final focusTarget =
-        answer == null ? null : AnswerFocusTarget.resolve(answer);
+    final focusTarget = answer == null
+        ? null
+        : AnswerFocusTarget.resolve(answer);
 
     final phase = resolveAskPhase(
       transcriptEmpty: state.messages.isEmpty,
@@ -557,6 +560,9 @@ class _FloorState extends ConsumerState<_Floor> {
         const SizedBox(width: TiqSpace.s2),
         FloorDestinationsButton(
           key: const ValueKey<String>('floor-destinations'),
+          compact:
+              MediaQuery.sizeOf(context).width <
+              FloorDestinationsButton.compactUnder,
           onTap: () => showFloorDestinations(context, view),
         ),
       ],
@@ -566,35 +572,45 @@ class _FloorState extends ConsumerState<_Floor> {
       phase: '${measured ? 'loaded' : 'window-empty'}-${phase.name}',
       hasPlatePhoto: true,
       claims: phase.claims,
-      band: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // THE SUGGESTIONS ARE THE AT-REST ROW ONLY. Once a turn has landed
-          // the answer prints its own follow-ups inline, from the server's
-          // `followUps` fence — two chip rows saying different things eight
-          // dp apart is the screen asking a manager which one to believe.
-          if (!asking) ...<Widget>[
-            FloorSuggestionChips(
-              suggestions: floorSuggestions(view),
-              onAsk: _send,
-              enabled: phase.canSend,
+      // ON THE GROUND, NOT ON THE SCROLL VIEW. `TorchShell` gives its `band`
+      // no material of its own — Ask's composer sits at the foot of a
+      // transcript that has usually stopped scrolling by then, so nothing
+      // showed through it and nobody noticed. This screen's list runs past the
+      // fold on every populated frame, and without this the decision rows read
+      // through the chip row like a printing fault. `pinned` already does
+      // exactly this a few lines up in the same build method.
+      band: ColoredBox(
+        color: skin.palette.ground,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // THE SUGGESTIONS ARE THE AT-REST ROW ONLY. Once a turn has landed
+            // the answer prints its own follow-ups inline, from the server's
+            // `followUps` fence — two chip rows saying different things eight
+            // dp apart is the screen asking a manager which one to believe.
+            if (!asking) ...<Widget>[
+              FloorSuggestionChips(
+                suggestions: floorSuggestions(view),
+                onAsk: _send,
+                enabled: phase.canSend,
+              ),
+              SizedBox(height: skin.space.intraBlock),
+            ],
+            QuestionComposer(
+              controller: _input,
+              phase: phase,
+              onSend: _send,
+              onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+              onChanged: _onChanged,
+              lastTurnErrored: answer?.error != null,
+              // What the composer says it will ask about, from the scope the
+              // plate above it is already showing.
+              hint: floorComposerHint(view),
+              band: _heldBand(context, phase),
             ),
-            SizedBox(height: skin.space.intraBlock),
           ],
-          QuestionComposer(
-            controller: _input,
-            phase: phase,
-            onSend: _send,
-            onStop: () => ref.read(chatControllerProvider.notifier).stop(),
-            onChanged: _onChanged,
-            lastTurnErrored: answer?.error != null,
-            // What the composer says it will ask about, from the scope the
-            // plate above it is already showing.
-            hint: floorComposerHint(view),
-            band: _heldBand(context, phase),
-          ),
-        ],
+        ),
       ),
       children: <Widget>[
         // 1. THE PLATE — the territory, the score, and the one strip of light.
@@ -767,11 +783,8 @@ class _NeedsADecision extends ConsumerWidget {
 }
 
 /// Back to every territory, from anywhere on The Floor.
-void clearFloorTerritory(WidgetRef ref) => applyTerritory(
-  ref,
-  ref.read(dashboardFilterProvider),
-  allTerritoriesToken,
-);
+void clearFloorTerritory(WidgetRef ref) =>
+    applyTerritory(ref, ref.read(dashboardFilterProvider), allTerritoriesToken);
 
 class _DecisionList extends ConsumerWidget {
   const _DecisionList({required this.view});
@@ -939,7 +952,10 @@ class _FloorPlate extends ConsumerWidget {
     //
     // ≤60 kB, LRU-cached, authed bytes. `Image.network` cannot carry the
     // bearer token on web, so bytes is also the only route that works at all.
-    final picture = ref.watch(plateImageResolverProvider)(ref, view.territoryId);
+    final picture = ref.watch(plateImageResolverProvider)(
+      ref,
+      view.territoryId,
+    );
 
     return _PlateFor(
       view: view,
@@ -1212,10 +1228,7 @@ class _PlateFor extends StatelessWidget {
           color: standingInk(
             skin,
             measured
-                ? againstStandard(
-                    current.executionScore,
-                    executionScoreTarget,
-                  )
+                ? againstStandard(current.executionScore, executionScoreTarget)
                 : null,
             state: figureState,
           ),
@@ -1305,10 +1318,7 @@ class _PlateFor extends StatelessWidget {
           skin,
           context.l10n,
           measured
-              ? againstStandard(
-                  current.executionScore,
-                  executionScoreTarget,
-                )
+              ? againstStandard(current.executionScore, executionScoreTarget)
               : null,
         ),
         // The decomposition: what the composite figure is made of. A

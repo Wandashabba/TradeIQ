@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';

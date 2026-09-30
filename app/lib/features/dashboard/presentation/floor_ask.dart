@@ -74,7 +74,6 @@ class _BriefCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final mark = severityFor(brief.standing ?? StatusLevel.held);
 
     return Semantics(
       button: true,
@@ -104,15 +103,27 @@ class _BriefCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               // The dot carries the verdict and the figure carries the number —
-              // §16.2's split, and the reason the figure below is plain ink on
-              // Night. The word is in the card's own semantics label, so the
+              // §16.2's split, and the reason the figure beside it is plain ink
+              // on Night. The word is in the card's own semantics label, so the
               // hue is never the only channel.
+              //
+              // IT TAKES THE PALETTE DIRECTLY AND NOT `severityInk`, which was
+              // the first version and rendered every dot grey. That function
+              // answers "may this FIGURE be coloured", and on Night the answer
+              // at `FigureRank.row` is no — which is the whole reason the dot
+              // exists. Sending a mark through the figures' own suppression
+              // rule turns off the channel that rule assumes is still on.
               SizedBox.square(
                 dimension: _dot,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: severityInk(skin, mark) ?? skin.palette.ink3,
+                    color: switch (brief.standing) {
+                      StatusLevel.critical ||
+                      StatusLevel.watch => skin.palette.bad,
+                      StatusLevel.onTarget => skin.palette.good,
+                      _ => skin.palette.ink3,
+                    },
                   ),
                 ),
               ),
@@ -250,9 +261,36 @@ class FloorSuggestionChips extends StatelessWidget {
 ///
 /// **Amber: none.** It is a control, and controls are never amber (unify §1.6).
 class FloorDestinationsButton extends StatelessWidget {
-  const FloorDestinationsButton({super.key, required this.onTap});
+  const FloorDestinationsButton({
+    super.key,
+    required this.onTap,
+    this.compact = false,
+  });
 
   final VoidCallback onTap;
+
+  /// THE WORD GOES ON A NARROW PHONE, AND ONLY THERE.
+  ///
+  /// The label is worth 46dp of the plate's top band and the band is shared
+  /// with the scope chip, which carries a territory name and a window and
+  /// wraps to two lines rather than ellipsising — that is the chip's own rule,
+  /// and it is the right one: a scope you cannot read is a scope you cannot
+  /// trust.
+  ///
+  /// On a 360dp phone those 46dp are exactly what pushes the chip to its
+  /// second line, and a two-line chip is 68dp tall against a strip light that
+  /// rides at 0.38 of a 192dp plate — so the chip lands **on** the light. The
+  /// render at 360×640 is where that showed up.
+  ///
+  /// So the word is dropped at the one width where keeping it breaks the plate
+  /// underneath it. The spoken label does not change: a screen reader gets the
+  /// same sentence at every width, because the control's meaning has not got
+  /// narrower.
+  final bool compact;
+
+  /// Under this width the label is dropped. 390 is the narrowest phone the
+  /// mockup was drawn at and the width at which the chip still fits one line.
+  static const double compactUnder = 380;
 
   @override
   Widget build(BuildContext context) {
@@ -290,14 +328,16 @@ class FloorDestinationsButton extends StatelessWidget {
                 size: MarkScale.glyph(context, 18),
                 color: p.ink1,
               ),
-              const SizedBox(width: TiqSpace.s2),
-              Text(
-                'Menu',
-                style: skin.text.label
-                    .copyWith(weight: FontWeight.w600)
-                    .style(color: p.ink1),
-                maxLines: 1,
-              ),
+              if (!compact) ...<Widget>[
+                const SizedBox(width: TiqSpace.s2),
+                Text(
+                  'Menu',
+                  style: skin.text.label
+                      .copyWith(weight: FontWeight.w600)
+                      .style(color: p.ink1),
+                  maxLines: 1,
+                ),
+              ],
             ],
           ),
         ),

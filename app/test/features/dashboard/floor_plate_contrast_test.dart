@@ -160,6 +160,79 @@ void main() {
     }
   }
 
+  /// ── THE CONTROLS ON THE TOP BAND, MEASURED BOTH WAYS ────────────────
+  ///
+  /// The Floor's plate carries two controls up there since 30 September 2026:
+  /// the scope chip it always had, and the destinations control that replaced
+  /// the nav pill. The question the owner's reviewer asked is whether a glyph
+  /// on a photograph is readable, and it is a question with a measured answer
+  /// rather than an opinion.
+  ///
+  /// Both controls wear a `surface` fill and an `edgeControl` rule, so their
+  /// ink lands on **the surface, not on the picture** — a declared pairing
+  /// that does not depend on what the photograph happens to contain. This
+  /// prints both numbers: what the controls actually measure, and what a bare
+  /// mark on the same band would have measured over the same pictures.
+  ///
+  /// `entry_plate.dart` records the case that makes this worth printing: a
+  /// bare mark on this band measured **3.60:1** on Night and had to be given a
+  /// scrim. The band's worst pixel below is the same measurement over the
+  /// twelve supplied photographs and two map composites.
+  testWidgets('the plate\'s top-band controls clear 4.5:1 on their own '
+      'surface, in both skins', (tester) async {
+    for (final (name, skin, dark) in <(String, TiqSkin, bool)>[
+      ('NIGHT', TiqSkin.night(), true),
+      ('DAY', TiqSkin.day(), false),
+    ]) {
+      // What the control's own ink sits on: its `surface` fill. One number,
+      // because a surface is a declared colour and not a photograph.
+      final onSurface = contrastRatio(skin.palette.ink1, skin.palette.surface);
+
+      var worstBare = double.infinity;
+      var worstCode = '';
+      for (final code in codes) {
+        final image = await _decode(tester, '$places/$code.jpg');
+        final plate = await _pumpBarePlate(tester, image, skin);
+        final frame = await _grab(tester);
+        // The band the controls occupy: a 44dp tap target, 16dp below the
+        // plate's top edge, across the plate's width.
+        final band = Rect.fromLTRB(
+          8,
+          TiqSpace.s4,
+          plate.width - 8,
+          TiqSpace.s4 + 44,
+        );
+        final bare = contrastRatio(
+          skin.palette.ink1,
+          _worstPixel(frame, band.shift(plate.topLeft), dark: dark),
+        );
+        if (bare < worstBare) {
+          worstBare = bare;
+          worstCode = code;
+        }
+      }
+
+      // ignore: avoid_print
+      print(
+        '\n  $name — the plate\'s top band, 390x844\n'
+        '  ${'ink-1 on the control\'s own surface'.padRight(38)}'
+        '${onSurface.toStringAsFixed(2)}:1\n'
+        '  ${'ink-1 bare on the picture (worst: $worstCode)'.padRight(38)}'
+        '${worstBare.toStringAsFixed(2)}:1',
+      );
+
+      expect(
+        onSurface,
+        greaterThanOrEqualTo(floor),
+        reason:
+            '$name: the top-band controls measure '
+            '${onSurface.toStringAsFixed(2)}:1 against their own surface, '
+            'under the $floor floor. This is a declared pairing — if it fails, '
+            'the palette moved, not the photograph.',
+      );
+    }
+  });
+
   testWidgets('there are committed place images to measure', (tester) async {
     // A guard, not a formality: if the assets folder is ever emptied or moved,
     // every assertion below becomes vacuously green and this file starts

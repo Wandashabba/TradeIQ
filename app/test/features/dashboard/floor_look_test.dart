@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show ByteData, FontLoader;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -68,7 +69,15 @@ void main() {
   final looking = Platform.environment['FLOOR_LOOK'] == '1';
   final dir = Platform.environment['FLOOR_LOOK_DIR'] ?? 'goldens/';
 
-  setUpAll(loadAgentFonts);
+  setUpAll(() async {
+    await loadAgentFonts();
+    // THE MATERIAL ICON FONT, so the Menu control and the composer's Send key
+    // are glyphs rather than tofu boxes. It was not needed while The Floor's
+    // only icons were in the nav pill — which correctly drops to icon-only in
+    // a test and was photographed that way — and it is needed now that a
+    // labelled control on the plate is one of the things being signed off.
+    await _loadIcons();
+  });
 
   final outlets = <Outlet>[
     outlet('o1', 'SaveMor Glenwood'),
@@ -210,6 +219,12 @@ void main() {
   /// controller: what is being photographed is the screen a manager produced
   /// by typing, and the phase machine, the hand-off latch and the plate's
   /// shrink all key off state that only the real path sets.
+  ///
+  /// Through `pumpFloorRoute` rather than `pumpFloor`, because typing needs an
+  /// `Overlay` for `EditableText`'s selection layer and `pumpFloor` has none
+  /// by design. The eight at-rest images above stay on `pumpFloor` — they are
+  /// the half of the before/after pair that has to be taken with the same
+  /// instrument as the "before".
   Future<void> ask(
     WidgetTester tester, {
     required List<AssistantEvent> script,
@@ -217,9 +232,8 @@ void main() {
     TiqSkin? skin,
     bool settle = true,
   }) async {
-    await pumpFloor(
+    await pumpFloorRoute(
       tester,
-      const TheFloorScreen(),
       size: size,
       skin: skin,
       plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
@@ -234,7 +248,10 @@ void main() {
       'Why is 73 down?',
     );
     await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Send'));
+    // The keyboard's own Send key — the composer's `onSubmitted`, which is the
+    // same closure the button runs. Tapping the button would need a semantics
+    // handle open across a golden capture.
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     if (settle) {
       await tester.pumpAndSettle();
     } else {
@@ -375,4 +392,21 @@ class _ScopedFilter extends DashboardFilterNotifier {
 
   @override
   DashboardFilter build() => DashboardFilter(territoryId: territoryId);
+}
+
+/// Flutter's own bundled Material icon font, from the SDK cache. Absent on a
+/// machine that has never run `flutter precache`, and a missing font is a
+/// reason to draw tofu rather than to fail a render.
+Future<void> _loadIcons() async {
+  final root = Platform.environment['FLUTTER_ROOT'];
+  final cache = root != null
+      ? Directory('$root/bin/cache')
+      : File(Platform.resolvedExecutable).parent.parent.parent;
+  final font = File(
+    '${cache.path}/artifacts/material_fonts/MaterialIcons-Regular.otf',
+  );
+  if (!font.existsSync()) return;
+  await (FontLoader(
+    'MaterialIcons',
+  )..addFont(font.readAsBytes().then((b) => ByteData.view(b.buffer)))).load();
 }
