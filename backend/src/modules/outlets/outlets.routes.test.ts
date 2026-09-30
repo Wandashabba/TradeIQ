@@ -557,4 +557,252 @@ describe('outlets routes', () => {
       }
     });
   });
+
+  // ── ?territoryId= — "only show the store on that territory" ──────────────
+  //
+  // The owner's words, and the reason the whole filter exists. Every test in
+  // here is written against the same trap: `Outlet.territoryId` stores a
+  // Territory *code* and the filter takes a Territory *id*, with no foreign
+  // key between them, so an implementation that matches the wrong one does not
+  // throw — it returns a plausible list. That is #97's shape, and a plausible
+  // wrong list of shops is what a manager plans a day against.
+  describe('?territoryId= — one territory', () => {
+    let northId: string;
+    let southId: string;
+
+    beforeAll(async () => {
+      const north = await prisma.territory.create({
+        data: { clientId, name: 'Scoped North', code: 'scoped-north' },
+      });
+      const south = await prisma.territory.create({
+        data: { clientId, name: 'Scoped South', code: 'scoped-south' },
+      });
+      northId = north.id;
+      southId = south.id;
+
+      await prisma.outlet.createMany({
+        data: [
+          { name: 'North Spaza', code: 'SCOPE-N1', channelType: 'convenience', lat: -26.1, lng: 28.0, territoryId: 'scoped-north', clientId },
+          { name: 'North Hyper', code: 'SCOPE-N2', channelType: 'hypermarket', lat: -26.2, lng: 28.1, territoryId: 'scoped-north', clientId },
+          { name: 'South Spaza', code: 'SCOPE-S1', channelType: 'convenience', lat: -26.3, lng: 28.2, territoryId: 'scoped-south', clientId },
+        ],
+      });
+    });
+
+    it('returns only that territory\'s outlets', async () => {
+      const res = await request(app)
+        .get('/outlets')
+        .query({ territoryId: northId, limit: 200 })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      const codes = (res.body.data as Array<{ code: string }>).map((o) => o.code);
+      expect(codes).toEqual(expect.arrayContaining(['SCOPE-N1', 'SCOPE-N2']));
+      expect(codes).not.toContain('SCOPE-S1');
+      // And nothing from any other territory in the tenant — this is the
+      // owner's complaint verbatim: "not everything else". The seeded paging
+      // outlets and the ?mine= fixtures all live elsewhere, so an unfiltered
+      // query here would be dozens of rows.
+      expect(codes).toHaveLength(2);
+    });
+
+    it('resolves the id to a CODE rather than matching the column on id', async () => {
+      // If the filter matched `Outlet.territoryId` against the uuid it was
+      // handed, this returns [] — a silent empty list that reads as "this
+      // territory has no stores". That is the way #97 shipped.
+      const res = await request(app)
+        .get('/outlets')
+        .query({ territoryId: northId })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect((res.body.data as unknown[]).length).toBeGreaterThan(0);
+    });
+
+    it('rejects an unknown territory with 400 rather than ignoring the filter', async () => {
+      // The failure this endpoint must never have. An ignored filter hands
+      // back every store in the tenant underneath a chip naming one territory,
+      // and the manager cannot see that it was ignored.
+      const res = await request(app)
+        .get('/outlets')
+        .query({ territoryId: 'no-such-territory-id' })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('no-such-territory-id');
+      expect(res.body.data).toBeUndefined();
+    });
+
+    it('rejects a territory CODE where an id is required', async () => {
+      // The id/code confusion from the other side. A code silently matching
+      // nothing would be indistinguishable from an empty territory.
+      const res = await request(app)
+        .get('/outlets')
+        .query({ territoryId: 'scoped-north' })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('id');
+    });
+
+    it('rejects a bare ?territoryId= rather than treating it as unscoped', async () => {
+      const res = await request(app)
+        .get('/outlets')
+        .query({ territoryId: '' })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a repeated ?territoryId= rather than picking one', async () => {
+      const res = await request(app)
+        .get('/outlets?territoryId=a&territoryId=b')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects another tenant\'s territory, and never leaks its outlets', async () => {
+      const otherClient = await prisma.client.create({
+        data: { name: 'Scoped Other Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+      });
+      const foreign = await prisma.territory.create({
+        data: { clientId: otherClient.id, name: 'Foreign Scope', code: 'foreign-scope' },
+      });
+      await prisma.outlet.create({
+        data: { name: 'Foreign Store', code: 'SCOPE-F1', channelType: 'convenience', lat: -26.1, lng: 28.0, territoryId: 'foreign-scope', clientId: otherClient.id },
+      });
+
+      try {
+        const res = await request(app)
+          .get('/outlets')
+          .query({ territoryId: foreign.id })
+          .set('Authorization', `Bearer ${token}`);
+
+        // The lookup is scoped by clientId, so another tenant's territory id is
+        // exactly as unknown as one that exists nowhere — same status, same
+        // sentence. A 404 here against a 400 there would tell this caller that
+        // an id they cannot see does exist somewhere.
+        expect(res.status).toBe(400);
+        expect(res.body.data).toBeUndefined();
+      } finally {
+        await prisma.outlet.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.territory.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.client.delete({ where: { id: otherClient.id } });
+      }
+    });
+
+    it('composes with ?mine=true as an intersection', async () => {
+      const agent = await userIn(clientId, 'field_agent');
+      await prisma.userTerritory.create({
+        data: { userId: agent.userId, territoryId: northId },
+      });
+
+      const inPatch = await request(app)
+        .get('/outlets')
+        .query({ mine: 'true', territoryId: northId, limit: 200 })
+        .set('Authorization', `Bearer ${agent.token}`);
+      expect(inPatch.status).toBe(200);
+      expect((inPatch.body.data as Array<{ code: string }>).map((o) => o.code).sort()).toEqual([
+        'SCOPE-N1',
+        'SCOPE-N2',
+      ]);
+
+      // A territory the agent is not assigned: the honest answer to "my stores
+      // in Scoped South" is none, not "all of Scoped South" and not "all of my
+      // stores". Neither half of the narrowing may win over the other.
+      const outOfPatch = await request(app)
+        .get('/outlets')
+        .query({ mine: 'true', territoryId: southId, limit: 200 })
+        .set('Authorization', `Bearer ${agent.token}`);
+      expect(outOfPatch.status).toBe(200);
+      expect(outOfPatch.body.data).toEqual([]);
+      expect(outOfPatch.body.nextCursor).toBeNull();
+    });
+
+    it('composes with pagination, with no gap and no overlap', async () => {
+      const territory = await prisma.territory.create({
+        data: { clientId, name: 'Scoped Paging', code: 'scoped-paging' },
+      });
+      const seeded: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const padded = String(i).padStart(2, '0');
+        const outlet = await prisma.outlet.create({
+          data: {
+            name: `zzz-scoped-paging-${padded}`,
+            code: `SCOPE-P-${padded}`,
+            channelType: 'convenience',
+            lat: -26.1,
+            lng: 28.0,
+            territoryId: 'scoped-paging',
+            clientId,
+          },
+        });
+        seeded.push(outlet.id);
+      }
+
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+      do {
+        const res: request.Response = await request(app)
+          .get('/outlets')
+          .query({ territoryId: territory.id, limit: 3, ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((o: { id: string }) => o.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 10);
+
+      // The filter has to survive the cursor. A `where` rebuilt without it on
+      // page two would quietly widen to the whole tenant halfway down a list.
+      expect(new Set(seen).size).toBe(seen.length);
+      expect(seen.sort()).toEqual([...seeded].sort());
+    });
+
+    it('does not swallow an outlet whose territoryId holds a NAME', async () => {
+      // #97's second incident, pinned. An outlet was created in production with
+      // territoryId "Hurlingham" — the territory's *name* — while its code was
+      // "2773u". `createOutlet` refuses that now, but imported and legacy rows
+      // still carry it, and a filter is the screen where such a store vanishes.
+      //
+      // Two halves, and the second is the one that matters. The filter must not
+      // match on name (or the mis-filed row would appear under a territory it
+      // is not in, which is the same lie as the unfiltered list). And the
+      // UNSCOPED list must still show it — the filter narrows, it does not
+      // delete, and the full list is the only place a mis-filed store can be
+      // noticed and corrected.
+      const stray = await prisma.territory.create({
+        data: { clientId, name: 'Hurlingham Scope', code: '2773u-scope' },
+      });
+      const orphan = await prisma.outlet.create({
+        data: {
+          name: 'Mis-filed Corner Store',
+          code: 'SCOPE-ORPHAN',
+          channelType: 'convenience',
+          lat: -26.1,
+          lng: 28.0,
+          // The NAME, not the code — exactly what the incident wrote.
+          territoryId: 'Hurlingham Scope',
+          clientId,
+        },
+      });
+
+      const scoped = await request(app)
+        .get('/outlets')
+        .query({ territoryId: stray.id, limit: 200 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(scoped.status).toBe(200);
+      expect((scoped.body.data as Array<{ id: string }>).map((o) => o.id)).not.toContain(orphan.id);
+
+      const unscoped = await request(app)
+        .get('/outlets')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(unscoped.status).toBe(200);
+      expect((unscoped.body.data as Array<{ id: string }>).map((o) => o.id)).toContain(orphan.id);
+    });
+  });
 });
