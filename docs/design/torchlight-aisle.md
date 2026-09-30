@@ -3517,3 +3517,131 @@ override** — they write straight into `test/features/goldens/goldens/`. Runnin
 either with `--update-goldens` rewrites committed files. They are skipped
 without their switch, so the committed set is compared against by nobody and
 regenerating it is always an accident.
+
+## 21. Ask lands on The Floor — 30 September 2026
+
+The manager's home became the Ask landing. The owner asked for "the manager
+side to be like Claude, Chatgpt and Gemini, the ask must be on the Floor as
+land, with chat bar that you can ask it anything from the app", chose a
+combination of two of the ten directions drawn for it, and approved the mockup
+this section records.
+
+The Floor and Ask are **one screen**, not two that link. The plate is unchanged
+— the same component, the same territory photograph, the same tone, strip
+light, scope chip, hero and delta. Under it: a briefing of three soft cards, a
+row of suggestion chips derived from what is on screen, and the assistant's own
+composer pinned above the safe area.
+
+### The plate shrinks rather than leaves
+
+30% of the viewport at rest, 19% once a question is asked — the mockup's own
+proportions (196px and 124px of a 649px screen). It is a **share** and not two
+dp constants because a fixed 254dp plate is right on the 844dp phone the mockup
+was drawn at and wrong on the 640dp one this product still supports.
+
+The arithmetic goes through `PlateSpec.heightFor`'s existing `ground`
+parameter — *what the screen needs under the plate* — because that is exactly
+what changes: at rest it holds a briefing, and once a question lands it holds an
+answer. `shortest` is passed as 120, below `PlateSpec.floorShortest`: that
+constant is The Floor's own and was written for a screen whose plate was
+decoration above a list. On a screen where the plate is what a manager holds on
+to while they read an answer about that territory, dropping the photograph is
+dropping the point.
+
+The hero figure steps down on its own — `PlateSpec.resolve` takes the compact
+face under 260dp and `FigureSlot`'s fitting ladder scales from there.
+
+### The nav pill went, and the amber law is why
+
+**This is the decision, recorded as a decision.** Three arrangements were put to
+the owner: (A) composer above the existing pill, (B) destinations behind a
+control on the plate with the bottom belonging to the composer, (C) the pill
+*is* the composer. They chose **B**.
+
+A was not merely unattractive, it was unshippable, and the reason is this
+document's own amber law. `TorchScope` injects `navActiveTab` at rung 0
+whenever the pill renders, and an over-claim **throws** in debug rather than
+degrading. With the pill, Night's budget of two was one chrome object plus one
+content object — and this screen needs two content objects at once. The
+answered state is the case that settled it: the plate's strip light (rung 2) and
+the answer's focus bar (rung 3) are both wanted, and a nav tab ahead of them
+makes that three. Keeping A would have cost either the plate's light or the
+answer's bloom, permanently, in the state the whole change exists to produce.
+
+With no pill both grants go to content and every phase fits:
+
+| phase | Night | Day | which |
+|---|---|---|---|
+| at rest | 1 | 0 | the strip light; Send is disabled and a disabled Send is never amber |
+| at rest, no photograph | 0 | 0 | nothing to light — a budget is a ceiling |
+| typing, keyboard up | 2 | 1 | the strip light + Send |
+| typing, keyboard down | 2 | 1 | the same two — the nav is gone, so the keyboard no longer changes the count |
+| answered, focus object | 2 | 0 | the strip light + one ranked bar |
+| offline | 1 | 0 | the strip light; Send is held |
+
+Every row is a test in `the_floor_test.dart`. Note the two `typing` rows: under
+the old arrangement they differed, because the keyboard hid the nav and handed
+its grant back. They are the same number now, which is the arrangement working.
+
+### The top slot may not stand on the strip light
+
+The amber census caught a defect no assertion had: `TiqPlate`'s doc has always
+said the top slot "never reaches the light itself", and at the answering height
+that stopped being true. The slot is a 44dp target 16dp from the top edge, so it
+occupies y=16..60 whatever the plate's height is, while the strip light rides at
+0.38h — at 122dp that is y=46, underneath the chip. The controls painted over
+the middle of the light and left its two ends showing, so **one lit object was
+counted as two** and the answered state came to three.
+
+So the scope chip and the destinations control leave the plate when it shrinks
+and sit in a row directly under it. The approved mockup already draws the
+shrunken plate with no chip on it.
+
+The same collision, in a milder form, is why the destinations control drops its
+word under 380dp: the label costs the scope chip a line, and a two-line chip is
+68dp tall against a light riding at 0.38 of a 192dp plate. The spoken label does
+not change — the control's meaning has not got narrower.
+
+### Nothing was deleted
+
+- **The four nav destinations** are behind a labelled `Menu` control on the
+  plate's top band, which opens the console's own menu sheet with two
+  live-numbered rows in front of it. It reads `managerDestinations`, so it is
+  one destination list and not a second copy — the failure mode `menu_sheet.dart`
+  and `console_frame.dart` both already warn about.
+- **The `+` circle's two verbs** are two rows in that sheet. `FirstRunBoard`
+  keeps its pill, its circle and the original sheet: it has no composer, nothing
+  to ask about and no briefing to stand on.
+- **The availability stat card** is briefing line two. Its sparkline and its
+  supports stay on the overview the card already opened.
+- **The decision list** is below the briefing. On a 360×640 phone no decision
+  card clears the fold; the briefing's first line is the same question answered
+  shorter, above the fold on every phone, and tappable to `/tasks`.
+
+### The briefing and the chips read no new feed
+
+Both are pure functions of the `FloorView` the screen already had. A hardcoded
+"Why is 73 down?" is a lie the moment the territory changes, and a briefing
+assembled from a second endpoint is a second version of the truth sitting
+directly above the first. Every chip interpolates a live figure or a live name
+and is gated on the condition that makes it true; the row is allowed to be
+empty, because a chip that is always there is decoration.
+
+### A dot is a mark, not a figure
+
+The briefing's dots first went through `severityInk` and rendered grey. That
+function answers *may this **figure** be coloured*, and on Night at
+`FigureRank.row` the answer is no — which is the entire reason the dot exists.
+Sending a mark through the figures' own suppression rule turns off the channel
+that rule assumes is still on. Marks take the palette directly.
+
+### The renders
+
+`floor_look_test.dart` grew the three phases the composer introduced plus the
+two held states, and loads the Material icon font so the controls are glyphs
+rather than tofu.
+
+```sh
+FLOOR_LOOK=1 FLOOR_LOOK_DIR=/somewhere/ flutter test \
+  test/features/dashboard/floor_look_test.dart --update-goldens
+```

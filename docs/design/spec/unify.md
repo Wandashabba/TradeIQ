@@ -219,6 +219,28 @@ Kit promoted the sync chip into a 56dp banner under every agent header; agent ke
 
 > **OWNER OVERRIDE — 25 September 2026, on The Floor.** The plate is an **inset rounded card** (gutter margins, radius 28, the shell's console inset above it), not a full-bleed band, and it carries **no printed provenance caption** — the outlet and capture time are the image's semantic label instead. Its fold budget is `min(clamp(0.40 × vh, 200, 312), vh − 440)`: a card also spends the top inset and a gap beneath itself, so the old 0.44/360 bought a bigger object and cost the list the third decision card the owner's reference shows. Everything else below stands, including the strip light, the tone and the fallback.
 
+> **SUPERSEDED FOR THE FOLD BUDGET ONLY — 30 September 2026, when Ask landed on
+> The Floor.** The plate is still an inset rounded card with no printed caption,
+> and the strip light, the tone and the fallback are all untouched. What changed
+> is the budget, because the screen under the plate changed: it now holds a
+> briefing, a chip row and a composer, and it holds an *answer* once one is
+> asked. The plate takes **30% of the viewport at rest and 19% once a question
+> is asked** — the approved mockup's own proportions — expressed through
+> `PlateSpec.heightFor`'s `ground` parameter, which is what that parameter is
+> for. `shortest` is 120 rather than `PlateSpec.floorShortest`: that constant is
+> The Floor's own and was written for a plate that was decoration above a list,
+> and a plate a manager is holding on to while they read an answer about that
+> territory may not drop its photograph.
+>
+> **The nav pill leaves this route with the same change, and the amber law is
+> why.** `navActiveTab` is rung 0 whenever the pill renders, so with it Night's
+> two grants were one chrome object and one content object — and the answered
+> state wants the plate's strip light *and* the answer's focus bar. Line 55's
+> "nav pill is object #1 on tab roots" is unamended and still true of every tab
+> root that draws one; The Floor no longer does. The full per-phase census, the
+> two other arrangements considered and the defect the census caught are
+> recorded in `torchlight-aisle.md` §21.
+
 Kit's **fixed perspective fallback plus a sentence** wins over manager's data-driven spacing (nobody decodes line spacing). Manager wins on **height** (`min(clamp(0.44·vh, 200, 360), vh − 440)`, collapsed 96dp band under 200), **bytes** (lossy WebP + alpha, ≤60 kB — kit's PNG loses), **provenance caption**, and **"Dark frame — mean brightness 11%"** rather than a cause. The Panel's Palladian@10% top rim is **cut** everywhere (assistant; figures measured 1.32:1) — it costs a paint and says nothing.
 
 ### 1.17 Figures and type
