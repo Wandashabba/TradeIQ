@@ -5726,6 +5726,27 @@
   "@outletsEmptyBody": {
     "description": "Body of the outlet list's empty state."
   },
+  "outletsEmptyInTerritoryHeadline": "No stores in {territory}.",
+  "@outletsEmptyInTerritoryHeadline": {
+    "description": "Whole-screen empty state on the outlet list when a territory is chosen and it has no stores. Names the territory, because 'No stores' alone reads as an empty account.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "outletsEmptyInTerritoryBody": "A store filed under a different territory's code is not listed here.",
+  "@outletsEmptyInTerritoryBody": {
+    "description": "Body of the territory-scoped empty state. Outlet.territoryId is free text with no foreign key, so a mis-filed store is the commonest reason a territory reads zero when the manager knows it should not."
+  },
+  "outletsShowAllTerritories": "Show all territories",
+  "@outletsShowAllTerritories": {
+    "description": "Action on the territory-scoped empty state: clears the scope. The way out of a filter is out of the filter, not a new store."
+  },
+  "outletsPinReportsEveryTerritory": "This queue covers every territory, not only the one in scope.",
+  "@outletsPinReportsEveryTerritory": {
+    "description": "Added to the pin reports note when a territory is chosen. The pin dispute queue takes no territory, so it is not narrowed by the chip above it, and a queue that looks scoped is one a manager clears and believes they are done with."
+  },
   "outletsLoadErrorHeadline": "The store list did not load.",
   "@outletsLoadErrorHeadline": {
     "description": "Headline of the outlet list's error state."

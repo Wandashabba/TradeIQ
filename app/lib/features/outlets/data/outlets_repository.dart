@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../dashboard/data/dashboard_repository.dart'
+    show dashboardFilterProvider;
 
 class Outlet {
   const Outlet({
@@ -314,10 +316,26 @@ abstract class OutletsRepository {
   /// territories. It is a filter, not a permission: the same call without it
   /// still returns every outlet in the tenant.
   ///
+  /// [territoryId] narrows to ONE territory and is a `Territory.id` — the id
+  /// the app already holds in its scope state and gets from `GET /territories`,
+  /// never a code and never the free-text value the `Outlet.territoryId`
+  /// column stores.
+  ///
+  /// The server resolves the id to that column's code itself, deliberately: an
+  /// app that did the resolution would be doing it against a list it had to
+  /// have loaded first, and the one time this product tried that it filtered
+  /// by id against a column of codes, matched nothing, and drew all-zero KPIs
+  /// as though they had been measured (#97). An id the server cannot resolve
+  /// is a 400, so a filter is never quietly dropped on the way.
+  ///
+  /// With [mine] as well, the two narrow together — the caller's territories
+  /// AND that one.
+  ///
   /// One page of GET /outlets. [limit]/[cursor] mirror the backend's
   /// `?limit=&cursor=` — see `PaginatedResponse`.
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   });
@@ -395,6 +413,7 @@ class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async {
@@ -402,6 +421,7 @@ class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
       '/outlets',
       queryParameters: {
         if (mine) 'mine': 'true',
+        'territoryId': ?territoryId,
         'limit': ?limit?.toString(),
         'cursor': ?cursor,
       },
@@ -517,9 +537,10 @@ final outletDetailProvider = FutureProvider.autoDispose
 /// see, and believed they were done. Of every list in this app that quietly
 /// stopped at page one, this is the one where that belief costs something: an
 /// unworked pin report is a store an agent cannot check into.
-final openPinDisputesProvider = FutureProvider.autoDispose<
-  PaginatedResponse<PinDispute>
->((ref) => ref.read(outletAdminRepositoryProvider).listPinDisputes());
+final openPinDisputesProvider =
+    FutureProvider.autoDispose<PaginatedResponse<PinDispute>>(
+      (ref) => ref.read(outletAdminRepositoryProvider).listPinDisputes(),
+    );
 
 /// Walks every page of GET /outlets and concatenates them.
 ///
@@ -541,6 +562,7 @@ final openPinDisputesProvider = FutureProvider.autoDispose<
 Future<List<Outlet>> fetchAllOutlets(
   OutletsRepository repo, {
   required bool mine,
+  String? territoryId,
 }) async {
   final outlets = <Outlet>[];
   String? cursor;
@@ -548,6 +570,7 @@ Future<List<Outlet>> fetchAllOutlets(
   for (var page = 0; page < _maxFetchAllPages; page += 1) {
     final result = await repo.listOutlets(
       mine: mine,
+      territoryId: territoryId,
       limit: _maxPageSize,
       cursor: cursor,
     );
@@ -575,6 +598,51 @@ Future<List<Outlet>> fetchAllOutlets(
 
 final outletsListProvider = FutureProvider<List<Outlet>>((ref) {
   return fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: false);
+});
+
+/// THE STORES SCREEN'S LIST — every store, or the chosen territory's.
+///
+/// ```text
+///   [ Gauteng North (Tshwane) ✓ ]      ← dashboardFilterProvider.territoryId
+///   ── Stores  4 ────────── Add a store ──
+/// ```
+///
+/// ## Why this is a second provider and not a filter on [outletsListProvider]
+///
+/// [outletsListProvider] is not this screen's list. Twenty-odd places watch
+/// it, and most of them are not showing a list at all: `alerts_view`,
+/// `tasks_view` and `fraud_view` use it as the **lookup table** that turns an
+/// `outletId` into a shop's name, and the beat plan, order, campaign, report
+/// and sales-target forms use it as the set a user must find a specific store
+/// in. Narrowing that provider would put a manager scoped to Gauteng in front
+/// of an order form that cannot select a Cape Town store and an alert list
+/// whose shops have lost their names — a scope control quietly become a wall.
+/// Its own doc comment says why it walks every page: completeness there is a
+/// correctness requirement, not a UX nicety.
+///
+/// So the narrowing lives here, on the one screen whose job is to show a list
+/// of stores, and the unscoped set stays unscoped. `AgentActivityPanel` makes
+/// the same call in the other direction and says so.
+///
+/// ## The scope is the one the rest of the product already has
+///
+/// [dashboardFilterProvider] is what The Floor and the execution overview
+/// scope by, and its `territoryId` is a `Territory.id`. A second territory
+/// state for this screen would let a manager choose Gauteng on The Floor,
+/// walk to Stores and find themselves somewhere else, with no way to see
+/// which of the two answers was the one they were looking at. Its `range` is
+/// simply not consulted: a shop is not in or out of a reference list because
+/// of a date window, which is also why this screen opens the territory sheet
+/// alone rather than The Floor's two-part scope sheet.
+final scopedOutletsProvider = FutureProvider<List<Outlet>>((ref) {
+  final territoryId = ref.watch(
+    dashboardFilterProvider.select((filter) => filter.territoryId),
+  );
+  return fetchAllOutlets(
+    ref.read(outletsRepositoryProvider),
+    mine: false,
+    territoryId: territoryId,
+  );
 });
 
 /// Whether the agent's picker is currently narrowed to their own territories.

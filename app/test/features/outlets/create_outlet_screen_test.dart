@@ -467,10 +467,7 @@ void main() {
     /// Not a tab root: the thumb zone carries the one commit and nothing else
     /// on this form is a light. It is armed only when every required value is
     /// present, so an empty form paints nothing at all.
-    for (final skin in <TiqSkin>[
-      TiqSkin.night(),
-      TiqSkin.day(),
-    ]) {
+    for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
       testWidgets('${skin.mode.name}, form (nothing armed): 0', (tester) async {
         await _pump(tester, skin: skin);
         final census = await amberCensus(tester);

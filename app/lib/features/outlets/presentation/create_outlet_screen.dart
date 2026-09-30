@@ -240,6 +240,10 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
             territoryId: _territoryCode!,
           );
       ref.invalidate(outletsListProvider);
+      // The Stores screen watches the scoped list, so a new store that only
+      // refreshed the unscoped one would not appear on the screen it was
+      // created from.
+      ref.invalidate(scopedOutletsProvider);
       created = true;
     } catch (error) {
       if (!mounted) return;
