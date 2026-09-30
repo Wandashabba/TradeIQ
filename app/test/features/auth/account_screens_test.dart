@@ -538,11 +538,22 @@ void main() {
 
     // The control and the ground must answer to one provider. A cycle wired
     // to the other one still moves and still repaints nothing.
-    testWidgets('each screen carries the cycle its own route watches', (
-      tester,
-    ) async {
+    // NO CYCLE BEFORE THE DOOR — owner instruction, 30 September 2026:
+    // *"That change of theme on the sign in we can remove it. Let's only make
+    // the change of theme only on settings."*
+    //
+    // The standing rule this supersedes — never a screen without the cycle —
+    // exists so the control cannot become unreachable. It stays true of every
+    // screen behind the door, where the cycle sits on nineteen of them. What
+    // the owner ruled is that a person who has not signed in yet is not the
+    // person that rule was written for.
+    //
+    // The pairing the old test protected is still worth protecting, so the
+    // signed-in half below is unchanged: a cycle wired to the wrong provider
+    // still moves and still repaints nothing.
+    testWidgets('the pre-auth screens carry no cycle at all', (tester) async {
       await _pumpForgot(tester, FakePasswordRepository());
-      expect(find.byType(EntrySkinCycle), findsOneWidget);
+      expect(find.byType(EntrySkinCycle), findsNothing);
       expect(find.byType(AgentSkinCycle), findsNothing);
     });
 

@@ -152,9 +152,15 @@ void main() {
       await _pumpLogin(tester, size);
       expect(find.byType(TorchThumbZone), findsNothing);
 
+      // FORGOT PASSWORD IS NOW *UNDER* THE COMMIT, not above it — owner
+      // instruction of 30 September 2026, pointing at the approved mockup.
+      // The claim this test defends is unchanged: the commit belongs to the
+      // form rather than being marooned at the bottom of a browser window.
+      // What moved is which of the two is last.
       final forgot = tester.getRect(key('login-forgot-password'));
       final submit = tester.getRect(key('login-submit'));
-      final gap = submit.top - forgot.bottom;
+      final lastField = tester.getRect(key('login-remember-me'));
+      final gap = submit.top - lastField.bottom;
       expect(
         gap,
         lessThan(200),
@@ -163,18 +169,46 @@ void main() {
             'change the gap on this viewport was over a thousand logical '
             'pixels.',
       );
-      expect(submit.top, greaterThan(forgot.bottom));
+      expect(
+        forgot.top,
+        greaterThan(submit.bottom),
+        reason:
+            'the way out of the form sits under the way through it, which is '
+            'the order a person reaches for them in.',
+      );
     });
 
-    testWidgets('the skin cycle stays beside the button', (tester) async {
+    // NO CYCLE BEFORE THE DOOR — owner instruction, 30 September 2026:
+    // *"That change of theme on the sign in we can remove it. Let's only make
+    // the change of theme only on settings."*
+    //
+    // This test has had three shapes in one day and the history is the point.
+    // It began as "the skin cycle stays beside the button", which is why the
+    // commit was not edge to edge. When the mockup's full-width button was
+    // asked for, the cycle moved to the plate rather than going, because
+    // "never a screen without the cycle" was a standing rule. The owner then
+    // ruled that the rule was written for people who are signed IN.
+    //
+    // What survives all three is the claim worth keeping: the commit owns its
+    // row alone.
+    testWidgets('the commit owns its row, and no cycle shares it', (
+      tester,
+    ) async {
       await _pumpLogin(tester, size);
-      final cycle = tester.getRect(find.byType(TorchSkinCycle));
-      final submit = tester.getRect(key('login-submit'));
-      expect(cycle.right, lessThanOrEqualTo(submit.left));
       expect(
-        (cycle.center.dy - submit.center.dy).abs(),
+        find.byType(TorchSkinCycle),
+        findsNothing,
+        reason: 'the theme is changed in settings, not on the way in',
+      );
+
+      final submit = tester.getRect(key('login-submit'));
+      final column = tester.getRect(find.byType(EntryPlate));
+      expect(
+        (submit.width - column.width).abs(),
         lessThan(2),
-        reason: 'the same row it is in on a phone, at a different address',
+        reason:
+            'the commit is as wide as the column it commits — nothing shares '
+            'its row any more',
       );
     });
 

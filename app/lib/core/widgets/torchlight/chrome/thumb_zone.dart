@@ -31,6 +31,7 @@ class TorchThumbZone extends StatelessWidget {
     this.skinCycle,
     this.primary,
     this.secondary,
+    this.underPrimary,
   }) : assert(
          skinCycle != null || primary != null,
          'A thumb zone with neither a primary nor a skin cycle is 96dp of '
@@ -47,6 +48,13 @@ class TorchThumbZone extends StatelessWidget {
 
   /// A ghost alternative, above the primary.
   final Widget? secondary;
+
+  /// One quiet action directly UNDER the commit, centred.
+  ///
+  /// [secondary] sits above the primary and is a second *action*; this is the
+  /// way out of the screen, and the approved sign-in mockup puts it here. Null
+  /// everywhere else, so no existing thumb zone moves.
+  final Widget? underPrimary;
 
   /// The zone's minimum height for this skin and shape.
   static double minHeightFor(
@@ -111,6 +119,10 @@ class TorchThumbZone extends StatelessWidget {
                     if (hasPrimary) Expanded(child: primary!),
                   ],
                 ),
+                if (underPrimary != null) ...<Widget>[
+                  SizedBox(height: skin.space.intraBlock),
+                  Center(child: underPrimary),
+                ],
               ],
             ),
           ),

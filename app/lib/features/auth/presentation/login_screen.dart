@@ -165,7 +165,26 @@ class _SignInState extends ConsumerState<_SignIn> {
     return null;
   }
 
+  /// Whether the reader has pressed Sign in yet.
+  ///
+  /// Nothing tells them what is missing until they have. The screen used to
+  /// print "Email is required" on arrival, under a dead grey button, on a form
+  /// nobody had touched — a scolding for a mistake not yet made.
+  bool _tried = false;
+
   Future<void> _submit() async {
+    // VALIDATE ON PRESS, NOT ON SIGHT — 30 September 2026.
+    //
+    // The button is live from the first frame. Press it empty and it says what
+    // is missing; that is an action, which is what earns it the amber. A
+    // disabled button wearing the screen's one light would be the lie the
+    // amber law exists to prevent, and a dead button that has already told you
+    // off is worse than either.
+    final missing = _missing(context.l10n);
+    if (missing != null) {
+      setState(() => _tried = true);
+      return;
+    }
     setState(() => _sending = true);
     await ref
         .read(sessionControllerProvider.notifier)
@@ -234,7 +253,9 @@ class _SignInState extends ConsumerState<_SignIn> {
     final session = ref.watch(sessionControllerProvider);
     final held = ref.watch(sessionEndedProvider);
     final missing = _missing(l10n);
-    final armed = missing == null && !_sending;
+    // Armed whenever it can be pressed at all — which is always, unless a
+    // press is already in flight. See [_submit].
+    final armed = !_sending;
     final failure = session.hasError ? session.error! : null;
 
     return TorchSheetAware(
@@ -250,7 +271,19 @@ class _SignInState extends ConsumerState<_SignIn> {
         navRenders: false,
         tabbedRoute: false,
         beneathSheet: beneathSheet,
-        claims: <TorchClaim>[if (armed) TorchPrimaryButton.claim('sign-in')],
+        claims: <TorchClaim>[
+          if (armed) TorchPrimaryButton.claim('sign-in'),
+          // The underline asks at rung 5. On Night it is granted beside the
+          // commit and the door matches the mockup; on Day the commit takes
+          // the only grant and this falls back to `edgeControl`. Declared only
+          // while the form is armed, because a screen with nothing to do
+          // carries no light at all.
+          if (armed)
+            const TorchClaim(
+              TorchClaimKind.textFieldFocus,
+              id: 'forgot-password',
+            ),
+        ],
         child: EntryFrame(
           // NO APP HEADER, AND THE TWO REASONS ARE SEPARATE.
           //
@@ -277,13 +310,31 @@ class _SignInState extends ConsumerState<_SignIn> {
           // Not a tab root: the cycle sits at the leading end of the commit
           // row — pinned in the thumb zone on a phone, at the foot of the
           // column on a page. Never a screen without it.
-          skinCycle: const EntrySkinCycle(),
+          // The cycle is on the plate now, so the commit row is the button
+          // alone, edge to edge, as the mockup has it.
+          skinCycle: null,
+          // UNDER THE COMMIT, CENTRED — owner instruction, 30 September 2026,
+          // pointing at the approved mockup: "look at the Sign in and forgot
+          // password on this image and do exactly that".
+          //
+          // It used to sit left-aligned inside the form, under the checkboxes,
+          // where it read as one more form control. A person reaches for the
+          // button first; the way out is what they look for once the button
+          // has not worked for them, and that is now the order it reads in.
+          underPrimary: TorchTertiaryButton(
+            // The mockup's amber underline — asked for, not taken. See
+            // `TorchTertiaryButton.litClaimId`.
+            litClaimId: 'forgot-password',
+            key: const ValueKey<String>('login-forgot-password'),
+            label: l10n.loginForgotPassword,
+            onPressed: _forgotPassword,
+          ),
           primary: TorchPrimaryButton(
             key: const ValueKey<String>('login-submit'),
             label: l10n.loginSignIn,
             claimId: 'sign-in',
             busy: _sending,
-            blockedReason: missing,
+            blockedReason: _tried ? missing : null,
             onPressed: armed ? _submit : null,
           ),
           children: <Widget>[
@@ -369,7 +420,7 @@ class _SignInState extends ConsumerState<_SignIn> {
               autofillHints: const <String>[AutofillHints.password],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) {
-                if (armed) _submit();
+                _submit();
               },
             ),
             SizedBox(height: skin.space.intraBlock),
@@ -384,15 +435,6 @@ class _SignInState extends ConsumerState<_SignIn> {
               label: l10n.loginRememberMe,
               value: _remember,
               onChanged: (v) => setState(() => _remember = v),
-            ),
-            SizedBox(height: skin.space.intraBlock),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TorchTertiaryButton(
-                key: const ValueKey<String>('login-forgot-password'),
-                label: l10n.loginForgotPassword,
-                onPressed: _forgotPassword,
-              ),
             ),
           ],
         ),

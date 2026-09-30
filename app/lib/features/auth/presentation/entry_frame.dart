@@ -92,7 +92,8 @@ class EntryFrame extends StatelessWidget {
     super.key,
     required this.children,
     required this.primary,
-    required this.skinCycle,
+    this.skinCycle,
+    this.underPrimary,
     this.header,
   });
 
@@ -103,7 +104,20 @@ class EntryFrame extends StatelessWidget {
   final Widget primary;
 
   /// The skin cycle wired to the provider this route's wrapper watches.
-  final Widget skinCycle;
+  final Widget? skinCycle;
+
+  /// One quiet action directly under the commit, centred.
+  ///
+  /// The mockup the owner approved puts "Forgot password?" here and nowhere
+  /// else: *"look at the Sign in and forgot password on this image and do
+  /// exactly that"*, 30 September 2026. It had been left-aligned in the middle
+  /// of the form, above the fields' own checkboxes, where it read as another
+  /// form control rather than as the way out of the form.
+  ///
+  /// It sits **below** the commit on purpose. A person reaches for the button
+  /// first; the escape hatch is what they look for only once the button has
+  /// not worked for them, and that is the order the screen now reads in.
+  final Widget? underPrimary;
 
   /// A [TorchAppHeader], or nothing on a route that has no title. `/login`
   /// has none by §1.27's ruling; the three account screens have one.
@@ -150,6 +164,7 @@ class EntryFrame extends StatelessWidget {
             header: header,
             skinCycle: skinCycle,
             primary: primary,
+            underPrimary: underPrimary,
             children: capped
                 ? <Widget>[_ReadingColumn(children: children)]
                 : children,
@@ -187,11 +202,17 @@ class EntryFrame extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
-                      skinCycle,
-                      const SizedBox(width: TiqSpace.s3),
+                      if (skinCycle != null) ...<Widget>[
+                        skinCycle!,
+                        const SizedBox(width: TiqSpace.s3),
+                      ],
                       Expanded(child: primary),
                     ],
                   ),
+                  if (underPrimary != null) ...<Widget>[
+                    SizedBox(height: skin.space.intraBlock),
+                    Center(child: underPrimary),
+                  ],
                 ],
               ),
             ),

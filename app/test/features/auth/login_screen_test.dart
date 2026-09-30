@@ -122,12 +122,30 @@ TorchPrimaryButton _primary(WidgetTester tester) =>
 
 void main() {
   group('the form refuses, and says what is missing', () {
-    testWidgets('an empty form cannot be submitted, and names the email', (
+    // VALIDATE ON PRESS, NOT ON SIGHT — 30 September 2026.
+    //
+    // This used to assert the screen scolded you on arrival: a dead button and
+    // "Email is required" printed under it before anyone had typed a
+    // character. It came out of the owner asking for the mockup's amber on the
+    // commit, which a disabled button may not wear — so the button became
+    // live, and a live button has to say what is missing when it is PRESSED.
+    //
+    // The fact under the old assertion is unchanged and is still pinned: an
+    // empty form does not submit, and it names the email. What moved is when
+    // it says so.
+    testWidgets('an empty form says what is missing when it is pressed', (
       tester,
     ) async {
       await _pump(tester);
 
-      expect(_primary(tester).onPressed, isNull);
+      // Nothing on arrival.
+      expect(_primary(tester).onPressed, isNotNull);
+      expect(_primary(tester).blockedReason, isNull);
+      expect(find.text('Email is required'), findsNothing);
+
+      await tester.tap(_key('login-submit'));
+      await tester.pumpAndSettle();
+
       expect(_primary(tester).blockedReason, 'Email is required');
       expect(find.text('Email is required'), findsOneWidget);
     });
@@ -138,7 +156,13 @@ void main() {
       await tester.enterText(_key('login-email'), 'manager@tradeiq.com');
       await tester.pumpAndSettle();
 
-      expect(_primary(tester).onPressed, isNull);
+      // Still silent until pressed — see the note above.
+      expect(_primary(tester).blockedReason, isNull);
+
+      await tester.tap(_key('login-submit'));
+      await tester.pumpAndSettle();
+
+      expect(_primary(tester).onPressed, isNotNull);
       expect(_primary(tester).blockedReason, 'Password is required');
     });
 
@@ -409,7 +433,11 @@ void main() {
       await scrollEntryTo(tester, _key('login-email'));
       await tester.enterText(_key('login-email'), '  Agent@Example.com ');
       await tester.pumpAndSettle();
-      await scrollEntryTo(tester, _key('login-forgot-password'));
+      // No scroll: Forgot password moved out of the scrolling body and into
+      // the pinned commit region on 30 September 2026, so it is always on
+      // screen. `scrollUntilVisible` cannot find a widget that is not in the
+      // scrollable, and threw rather than passing — which is the honest
+      // failure for an assumption that stopped being true.
       await tester.tap(_key('login-forgot-password'));
       await tester.pumpAndSettle();
 
@@ -514,7 +542,11 @@ void main() {
 
     testWidgets('a reader can press Forgot password', (tester) async {
       await _pump(tester);
-      await scrollEntryTo(tester, _key('login-forgot-password'));
+      // No scroll: Forgot password moved out of the scrolling body and into
+      // the pinned commit region on 30 September 2026, so it is always on
+      // screen. `scrollUntilVisible` cannot find a widget that is not in the
+      // scrollable, and threw rather than passing — which is the honest
+      // failure for an assumption that stopped being true.
       final handle = tester.ensureSemantics();
 
       await activate(tester, find.bySemanticsLabel('Forgot password?').first);

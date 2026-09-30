@@ -65,7 +65,7 @@ void main() {
       }
       expect(
         TorchlightScanner.amberAllowlist,
-        hasLength(12),
+        hasLength(13),
         reason:
             'Pinned. Five in core/theme — the token source, the skin, the '
             'contrast contract and the two shims that map an old screen onto '
@@ -79,7 +79,14 @@ void main() {
             'trend series — at rung 3, and the working-steps rail\'s running '
             'dot at rung 6. One file rather than four, because the three are '
             'drawn by three different widgets and three places to get the law '
-            'wrong is three places it will be got wrong.',
+            'wrong is three places it will be got wrong. The thirteenth is '
+            '`tertiary_button.dart`, added 30 September 2026 for the approved '
+            'sign-in mockup\'s amber underline under "Forgot password?" — and '
+            'it emits ONLY when a caller passes a `litClaimId` and TorchScope '
+            'grants it at rung 5, which is one call site. Painted '
+            'unconditionally it was measured at two amber objects against '
+            'Day\'s budget of one, and on an empty form it lit the way out '
+            'of a form that could not yet be submitted.',
       );
     });
   });

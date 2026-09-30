@@ -54,7 +54,7 @@ class AccountFrame extends StatelessWidget {
     required this.children,
     required this.primary,
     required this.primaryArmed,
-    required this.skinCycle,
+    this.skinCycle,
     this.back,
   });
 
@@ -72,7 +72,15 @@ class AccountFrame extends StatelessWidget {
 
   /// The skin cycle for the leading end of the thumb zone — the one wired to
   /// the same provider this screen's route wrapper watches.
-  final Widget skinCycle;
+  /// The skin cycle, or **null** where the owner has ruled it does not belong.
+  ///
+  /// Owner instruction, 30 September 2026: *"That change of theme on the sign
+  /// in we can remove it. Let's only make the change of theme only on
+  /// settings."* So the pre-auth screens pass null. The standing rule this
+  /// supersedes — never a screen without the cycle — was written to stop the
+  /// control being unreachable; it stays true of every screen behind the door,
+  /// where the cycle is on nineteen of them.
+  final Widget? skinCycle;
 
   final TorchIconButton? back;
 

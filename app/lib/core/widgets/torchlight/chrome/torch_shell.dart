@@ -73,6 +73,7 @@ class TorchShell extends StatelessWidget {
     this.navCircle,
     this.primary,
     this.secondary,
+    this.underPrimary,
     this.skinCycle,
     this.band,
     this.scrollController,
@@ -113,6 +114,10 @@ class TorchShell extends StatelessWidget {
 
   /// A ghost alternative above the primary.
   final Widget? secondary;
+
+  /// One quiet action directly under the commit, centred. Null everywhere but
+  /// `/login`, so no existing bottom region moves. See [TorchThumbZone].
+  final Widget? underPrimary;
 
   /// The skin cycle. On a tab root it belongs in the header's single trailing
   /// slot, not here; on every other screen it goes at the leading end of the
@@ -205,11 +210,30 @@ class TorchShell extends StatelessWidget {
 
     final bottom = _bottomRegion(context, skin: skin, showNav: showNav);
 
-    final top = bleedTop
-        ? 0.0
-        : profile == TorchShellProfile.console
-        ? TiqSpace.s6
-        : TiqSpace.s4;
+    // THE TOP INSET, AND THE SYSTEM BAR — 30 September 2026.
+    //
+    // `bleedTop` still means y=0: that shape exists so a plate can run under
+    // the status bar, and it still does. Everything else clears it.
+    //
+    // This was a bare token, and it was wrong on every device the whole time.
+    // Widget tests and browsers both report `padding.top == 0`, so the entire
+    // design — every golden, every look render, every measurement in this
+    // repository — was made on a surface with no system bar. The defect is
+    // invisible in all of them and visible the moment the app is installed:
+    // the owner's phone put a title behind the clock. A screen whose top inset
+    // is a design token rather than the device's own is a screen designed for
+    // the simulator.
+    //
+    // The 26-render manager proof stays byte-identical through this change,
+    // for exactly the reason the bug survived: those renders have no inset to
+    // add. That is the proof's blind spot, not its endorsement.
+    final top =
+        (bleedTop
+            ? 0.0
+            : profile == TorchShellProfile.console
+            ? TiqSpace.s6
+            : TiqSpace.s4) +
+        (bleedTop ? 0.0 : MediaQuery.paddingOf(context).top);
     final headerBlock = <Widget>[
       if (header != null) ...<Widget>[
         header!,
@@ -360,6 +384,7 @@ class TorchShell extends StatelessWidget {
       skinCycle: skinCycle,
       primary: primary,
       secondary: secondary,
+      underPrimary: underPrimary,
     );
   }
 }

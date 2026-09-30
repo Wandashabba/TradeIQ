@@ -88,6 +88,7 @@ class TiqPlate extends StatelessWidget {
     this.devicePixelRatio,
     this.ground = PlateSpec.floorGround,
     this.tallest = PlateSpec.floorTallest,
+    this.shortest,
     this.topScrim = false,
   });
 
@@ -110,6 +111,13 @@ class TiqPlate extends StatelessWidget {
   /// [PlateSpec.heightFor], which is where the two literals used to live.
   final double ground;
   final double tallest;
+
+  /// The shortest photographic plate this screen will accept before dropping
+  /// to a band. Null takes [PlateSpec]'s own default, which is The Floor's.
+  ///
+  /// A screen where the plate is context and a screen where the plate is the
+  /// point do not want the same number. See [PlateSpec.resolve]'s `shortest`.
+  final double? shortest;
 
   /// Whether the band above the strip light gets a scrim too.
   ///
@@ -240,6 +248,7 @@ class TiqPlate extends StatelessWidget {
       textScale: scaler.scale(1.0),
       ground: ground,
       tallest: tallest,
+      shortest: shortest ?? PlateSpec.floorShortest,
     );
 
     switch (spec.form) {
@@ -660,11 +669,26 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
             //    line up on one left edge. `right` is bound as well as `left`
             //    — at 2.0x in Afrikaans the label wraps inside the plate
             //    instead of running off the card.
+            //    AND IT CLEARS THE STATUS BAR — 30 September 2026.
+            //
+            //    The plate bleeds to y=0 on purpose: the picture running under
+            //    the system bar is the point. Its TYPE must not. This was
+            //    `top: TiqSpace.s4` alone, and on the owner's Galaxy S10e the
+            //    wordmark sat behind the clock and the battery — *"It is not
+            //    sitting well, look at the top"*.
+            //
+            //    Not one screen's bug. Every test and every golden in this
+            //    repository renders at `padding.top == 0`, because a widget
+            //    test has no system bar and neither does a browser — so the
+            //    whole design was measured on a surface where this inset does
+            //    not exist. It is invisible everywhere except on a phone,
+            //    which is where the product is used. The Floor's scope chip
+            //    had it too, for the same reason and in the same place.
             if (widget.topSlot != null)
               Positioned(
                 left: spec.textInset,
                 right: spec.textInset,
-                top: TiqSpace.s4,
+                top: TiqSpace.s4 + MediaQuery.paddingOf(context).top,
                 child: Align(
                   alignment: AlignmentDirectional.topStart,
                   child: widget.topSlot!,

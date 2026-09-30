@@ -226,8 +226,18 @@ class TorchPrimaryButton extends StatelessWidget {
 
     final semantics = button;
 
+    // THE NOTE DOES NOT NEED A DEAD BUTTON — 30 September 2026.
+    //
+    // It used to render only while `disabled`, which quietly made press-time
+    // validation impossible: a live button that knows what is missing had no
+    // way to say it, and sign-in's note vanished the moment the button became
+    // pressable. A button that can be pressed and refuses has MORE to explain
+    // than one that cannot be pressed at all.
+    //
+    // Every existing caller is unchanged: they pass a reason only alongside a
+    // null `onPressed`, so their note still appears exactly where it did.
     final note = blockedReason;
-    if (!disabled || note == null) return semantics;
+    if (note == null) return semantics;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,

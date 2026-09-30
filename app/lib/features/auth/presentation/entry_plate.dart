@@ -108,7 +108,12 @@ class EntryPlate extends StatelessWidget {
     super.key,
     required this.headline,
     required this.supporting,
+    this.skinCycle,
   });
+
+  /// The skin cycle, in the plate's top-right. See the note where it is
+  /// placed: it lives here so the commit row below can be edge to edge.
+  final Widget? skinCycle;
 
   /// `loginHeadline`. Printed by a [TorchDisplayHeadline], which is the same
   /// widget the masthead used and the reason the header landmark a screen
@@ -129,6 +134,27 @@ class EntryPlate extends StatelessWidget {
 
   /// The mockup's proportion: roughly the top 250 of 844.
   static const double tallest = 250;
+
+  /// The shortest photographic plate the door will accept — **150, against
+  /// The Floor's 200, and it is the difference between a picture and none.**
+  ///
+  /// On The Floor a plate is context above a list of work, so a 150dp strip is
+  /// room the work needs. Here the plate IS the screen: the owner chose this
+  /// direction out of three *because* the picture is the product's signature,
+  /// and a door that silently drops it has not been built.
+  ///
+  /// The number this replaces was doing real damage and doing it invisibly.
+  /// With [ground] at 566 and a 200 floor, a photograph needed a **766dp**
+  /// viewport. The owner's phone is 810 and drew one; their browser window was
+  /// 749 and did not — and the reasonable conclusion from outside was that the
+  /// web build had not been rebuilt. It had. One rule was drawing two
+  /// different screens 17dp apart, and 749 is an utterly ordinary laptop
+  /// window.
+  ///
+  /// At 150 the picture survives to a 716dp viewport, and below that the band
+  /// is still the honest answer: under 150dp a photograph with type on it is a
+  /// smear, not a plate.
+  static const double shortest = 150;
 
   /// What the sign-in form and its commit row need under the plate at 1.0×.
   ///
@@ -175,6 +201,7 @@ class EntryPlate extends StatelessWidget {
           viewportHeight: MediaQuery.sizeOf(context).height,
           ground: groundFor(scale),
           tallest: tallest,
+          shortest: shortest,
           image: const AssetImage(asset),
           // THE TOP OF THE PICTURE CARRIES TYPE HERE, SO IT GETS A SCRIM.
           //
@@ -206,9 +233,35 @@ class EntryPlate extends StatelessWidget {
           // THE WORDMARK, SMALL, AT THE TOP OF THE PICTURE. The same 24dp
           // compact mark the masthead carried, at the same address on the
           // plate The Floor puts its scope chip.
-          topSlot: Semantics(
-            container: true,
-            child: const EntryBrand(monogram: 24, compact: true),
+          // THE MARK LEFT, THE SKIN CYCLE RIGHT — 30 September 2026.
+          //
+          // The cycle used to sit in the commit row, beside the button, which
+          // is why the button was not full width. The approved mockup's commit
+          // is edge to edge and carries nothing else: *"look at the Sign in
+          // and forgot password on this image and do exactly that"*.
+          //
+          // It moves rather than goes. "Never a screen without the cycle" is a
+          // standing rule and a person who cannot read this ground has to be
+          // able to change it before they can sign in — so it takes the corner
+          // opposite the wordmark, on the band the plate already reserves for
+          // exactly this kind of small control.
+          //
+          // `Flexible`, not a `Spacer` between two fixed children: at 2.0x the
+          // wordmark is twice the width it is at 1.0 and this Row overflowed
+          // by 124 logical pixels the first time it was written. The cycle is
+          // a fixed 44dp target and may not shrink; the mark is type and can.
+          topSlot: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Flexible(
+                child: Semantics(
+                  container: true,
+                  child: const EntryBrand(monogram: 24, compact: true),
+                ),
+              ),
+              const SizedBox(width: TiqSpace.s3),
+              ?skinCycle,
+            ],
           ),
           hero: SizedBox(
             width: text < 0 ? 0 : text,

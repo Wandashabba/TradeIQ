@@ -82,8 +82,8 @@ class PlateSpec {
     double tallest = floorTallest,
   }) {
     assert(
-      tallest >= _floor,
-      'A plate taller than $_floor is the only kind there is: under it the '
+      tallest >= floorShortest,
+      'A plate taller than $floorShortest is the only kind there is: under it the '
       'form is `collapsed` and this number is not consulted. tallest=$tallest',
     );
     final proportional = (viewportHeight * 0.40).clamp(200.0, tallest);
@@ -107,9 +107,10 @@ class PlateSpec {
     double textScale = 1.0,
     double ground = floorGround,
     double tallest = floorTallest,
+    double shortest = floorShortest,
   }) {
     final height = heightFor(viewportHeight, ground: ground, tallest: tallest);
-    if (height < _floor) {
+    if (height < shortest) {
       return PlateSpec(
         form: PlateForm.collapsed,
         height: _collapsedHeight,
@@ -163,8 +164,24 @@ class PlateSpec {
     );
   }
 
-  /// Under this the plate does not render.
-  static const double _floor = 200;
+  /// Under this the plate does not render — **the default, not the law.**
+  ///
+  /// 200 is The Floor's number and it is right there: a plate under a manager's
+  /// decision list is context, and a 150dp strip of context above a list of
+  /// work is a band taking room the work needs.
+  ///
+  /// It is a named parameter (`shortest`) because on 30 September 2026 it was
+  /// wrong somewhere else. Sign-in had just been rebuilt *around* the plate —
+  /// the owner picked it out of three directions precisely because the picture
+  /// is the product's signature — and this constant was quietly deleting it on
+  /// any viewport under 766dp. The owner's phone is 810 and showed it; their
+  /// browser window was 749 and did not, and the conclusion from the outside
+  /// was that the web build had not been rebuilt. It had. The same code was
+  /// drawing two different screens 17dp apart.
+  ///
+  /// A floor on a screen where the plate is decoration is not the same number
+  /// as a floor on a screen where the plate is the point.
+  static const double floorShortest = 200;
 
   /// The band that replaces it.
   static const double _collapsedHeight = 96;

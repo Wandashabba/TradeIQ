@@ -175,7 +175,6 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
         title: l10n.forgotTitle,
         back: back,
         primaryArmed: true,
-        skinCycle: const EntrySkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('forgot-go-to-sign-in'),
           label: l10n.forgotGoToSignIn,
@@ -207,7 +206,6 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
       title: l10n.forgotTitle,
       back: back,
       primaryArmed: armed,
-      skinCycle: const EntrySkinCycle(),
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('forgot-submit'),
         label: l10n.forgotSubmit,
