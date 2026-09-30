@@ -745,6 +745,20 @@ void main() {
           disputes: <PinDispute>[_dispute()],
         ),
         'empty': (t) => _pump(t, skin: skin),
+        // The selected territory chip is a new painted object on this route,
+        // so the two scoped phases are counted rather than assumed. §1.6 says
+        // a selected chip is never amber in any skin — the lifted fill, the
+        // tick, the weight step and the ink step are its four channels, and
+        // none of them spends the route's one grant.
+        'scoped': (t) => _pump(
+          t,
+          skin: skin,
+          territoryId: 't-gp',
+          byTerritory: <String, List<Outlet>>{'t-gp': _outlets},
+          disputes: <PinDispute>[_dispute()],
+        ),
+        'scoped-empty': (t) =>
+            _pump(t, skin: skin, territoryId: 't-gp', outlets: _outlets),
         'loading': (t) async {
           await _pump(t, skin: skin, listPending: true);
           await t.pump(const Duration(milliseconds: 700));
