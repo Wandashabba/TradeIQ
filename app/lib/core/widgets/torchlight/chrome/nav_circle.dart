@@ -93,6 +93,15 @@ class TorchNavCircle extends StatelessWidget {
     final p = skin.palette;
     final enabled = onPressed != null && !busy;
     final granted = expected && TorchScope.lit(context, claimId);
+    // Four inputs — `enabled`, `granted`, `pressed`, and `expected` inside
+    // `granted` — and every one of them changes under a live tree: the agent
+    // finishes their last stop and the circle becomes the expected next move;
+    // a sheet opens and the allocator takes the grant back; a GPS fix is lost
+    // and the circle goes dead. Each of those was a one-frame jump between two
+    // fills, two inks and two border widths. `AnimatedContainer` lerps the
+    // whole decoration — fill, rim colour, rim width and Day's shadow — in one
+    // widget, and [TorchInk] brings the glyph with it.
+    final duration = torchStateDuration(context, TiqMotion.press);
 
     return Semantics(
       button: true,
@@ -146,30 +155,39 @@ class TorchNavCircle extends StatelessWidget {
             edge = p.edgeControl;
           }
 
-          return Container(
-            width: diameter,
-            height: diameter,
-            decoration: BoxDecoration(
-              color: fill,
-              shape: BoxShape.circle,
-              border: edge == null
-                  ? null
-                  : Border.all(color: edge, width: edgeWidth),
-              // Day is the one skin with a shadow budget, and a floating disc
-              // is exactly what sh2 is for. Night has none (black on black).
-              boxShadow:
-                  skin.mode == SkinMode.day && enabled && skin.depth.sh2 != null
-                  ? <BoxShadow>[skin.depth.sh2!]
-                  : null,
-            ),
-            child: Center(
-              child: busy
-                  ? TorchBusyDots(color: ink, size: 5, gap: 5)
-                  : TorchGlyph(
-                      expected ? expectedIcon : icon,
-                      size: 26,
-                      color: ink,
-                    ),
+          return TorchInk(
+            color: ink,
+            duration: duration,
+            builder: (context, ink) => AnimatedContainer(
+              duration: duration,
+              curve: TiqMotion.stateCurve,
+              width: diameter,
+              height: diameter,
+              decoration: BoxDecoration(
+                color: fill,
+                shape: BoxShape.circle,
+                border: edge == null
+                    ? null
+                    : Border.all(color: edge, width: edgeWidth),
+                // Day is the one skin with a shadow budget, and a floating
+                // disc is exactly what sh2 is for. Night has none (black on
+                // black).
+                boxShadow:
+                    skin.mode == SkinMode.day &&
+                        enabled &&
+                        skin.depth.sh2 != null
+                    ? <BoxShadow>[skin.depth.sh2!]
+                    : null,
+              ),
+              child: Center(
+                child: busy
+                    ? TorchBusyDots(color: ink, size: 5, gap: 5)
+                    : TorchGlyph(
+                        expected ? expectedIcon : icon,
+                        size: 26,
+                        color: ink,
+                      ),
+              ),
             ),
           );
         },

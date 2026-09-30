@@ -20,6 +20,11 @@
 /// a touch frame and never appears for a touch user.
 ///
 /// **Four things vibrate and nothing else.** [TorchBuzz].
+///
+/// **And the two channels move.** The scale already eased; the fill and the ink
+/// snapped. [torchStateDuration] and [TorchInk] are how the rest of the file's
+/// tokens get there — `TiqMotion.press` on `TiqMotion.stateCurve`, zeroed by
+/// [MotionBudget] rather than by each component remembering to ask.
 library;
 
 import 'package:flutter/services.dart';
@@ -91,6 +96,80 @@ Color torchOnAbyssal(TiqSkin skin) => switch (skin.mode) {
   SkinMode.day => TiqPalette.night.ink1, // Palladian
   _ => skin.palette.ink1,
 };
+
+/// HOW LONG A STATE CHANGE ACTUALLY TAKES HERE.
+///
+/// Two gates, and a component must not be trusted to remember both:
+///
+/// * `skin.motion.resolve(token)` — a skin whose motion is off returns zero.
+/// * [MotionBudget.still] — the person turned motion off, or (when #407 lands)
+///   the phone is in battery saver. This one is **not** covered by the skin:
+///   both shipping skins animate, so `resolve` alone would happily run a
+///   120ms fade for somebody who asked for none.
+///
+/// Zero is a real answer, not a disabled one. An `AnimatedContainer` at zero
+/// duration paints the new fill on the next frame, which is exactly the
+/// instant change reduce-motion is asking for. (`AnimatedSize` is the one
+/// widget that must not be given zero — see `TorchSheetSwap` — because it
+/// re-dirties itself inside its own `performLayout`.)
+Duration torchStateDuration(BuildContext context, Duration token) =>
+    MotionBudget.of(context).still
+    ? Duration.zero
+    : context.skin.motion.resolve(token);
+
+/// INK THAT MOVES TO ITS NEW VALUE.
+///
+/// `AnimatedContainer` lerps a fill for free; there is nothing in Flutter that
+/// does the same for a bare `Color` handed to a glyph and a label. This is
+/// that, in fourteen lines, so a nav slot's fill and its ink arrive together
+/// instead of the fill easing under an ink that jumped.
+///
+/// It is an [ImplicitlyAnimatedWidget] and **not** a `TweenAnimationBuilder`
+/// for one specific reason: `TweenAnimationBuilder` runs its tween on the
+/// *first* build. Every still frame this system pins — the 26 manager renders,
+/// every golden, every widget test that pumps once — would then capture a
+/// half-finished colour. An implicit widget starts at its target and only
+/// moves when the target does, so a first paint is identical with this widget
+/// and without it.
+///
+/// **Layer cost: zero.** No opacity, no `saveLayer`, no filter. It rebuilds a
+/// small subtree with a different `Color` for the length of the fade.
+class TorchInk extends ImplicitlyAnimatedWidget {
+  const TorchInk({
+    super.key,
+    required this.color,
+    required this.builder,
+    required super.duration,
+    super.curve = TiqMotion.stateCurve,
+  });
+
+  final Color color;
+
+  /// Handed the colour for this frame.
+  final Widget Function(BuildContext context, Color color) builder;
+
+  @override
+  AnimatedWidgetBaseState<TorchInk> createState() => _TorchInkState();
+}
+
+class _TorchInkState extends AnimatedWidgetBaseState<TorchInk> {
+  ColorTween? _color;
+
+  @override
+  void forEachTween(TweenVisitor<dynamic> visitor) {
+    _color =
+        visitor(
+              _color,
+              widget.color,
+              (dynamic value) => ColorTween(begin: value as Color),
+            )
+            as ColorTween?;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.builder(context, _color?.evaluate(animation) ?? widget.color);
+}
 
 /// Scale for a control-sized target: a button, a row, a nav slot.
 const double torchPressScaleControl = 0.98;

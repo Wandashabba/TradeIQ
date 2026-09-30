@@ -241,6 +241,25 @@ class _Slot extends StatelessWidget {
         : null;
     final Color activeInk = lit ? p.onAmber : torchOnAbyssal(skin);
 
+    // THE THING THAT ACTUALLY MOVES HERE, and it is worth being exact about
+    // which: it is NOT the pill travelling between tabs. Every screen builds
+    // its own [TorchNavPill] with a constant `activeIndex`, so the index never
+    // changes inside a live tree — the whole page is replaced and the new bar
+    // is born already lit. A travelling indicator would need the bar to
+    // outlive the route (a `StatefulShellRoute`), which is a restructure and
+    // not this change.
+    //
+    // What does change under a live tree, on a real device, today:
+    //
+    //  * `pressed` — every single tap, and the fill and ink both jumped;
+    //  * `lit` — the amber grant is withdrawn the moment a sheet opens and
+    //    returned when it closes, so the active tab falls to its Abyssal form
+    //    and back. That is the nav going out and coming on, and it was one
+    //    frame each way.
+    //
+    // 120ms on the state curve, the same pair the toggle and the stepper use.
+    final duration = torchStateDuration(context, TiqMotion.press);
+
     return Semantics(
       button: true,
       selected: active,
@@ -258,36 +277,45 @@ class _Slot extends StatelessWidget {
           final ink = active
               ? activeInk
               : (pressed ? press.ink : p.navInkInactive);
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: active ? activeFill : (pressed ? press.fill : null),
-              borderRadius: radius,
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  _Glyph(
-                    icon: active ? slot.activeIcon : slot.icon,
-                    size: glyphSize,
-                    color: ink,
-                    badgeCount: slot.badgeCount,
-                  ),
-                  if (showLabel) ...<Widget>[
-                    const SizedBox(height: TiqSpace.s1),
-                    Text(
-                      slot.label,
-                      style: labelToken.style(color: ink),
-                      maxLines: 1,
-                      // The measurement upstream guarantees this never fires.
-                      // It is here so that a bug in the measurement clips one
-                      // label rather than throwing a yellow overflow stripe
-                      // across a shop floor.
-                      overflow: TextOverflow.clip,
-                      softWrap: false,
+          final fill = active ? activeFill : (pressed ? press.fill : null);
+          // Both channels on the same clock. An eased fill under an ink that
+          // jumped reads worse than neither moving.
+          return TorchInk(
+            color: ink,
+            duration: duration,
+            builder: (context, ink) => AnimatedContainer(
+              duration: duration,
+              curve: TiqMotion.stateCurve,
+              // `AnimatedContainer` with nothing but a decoration and a child
+              // builds exactly the `DecoratedBox` this used to be — same
+              // layout, same paint, no extra layer.
+              decoration: BoxDecoration(color: fill, borderRadius: radius),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _Glyph(
+                      icon: active ? slot.activeIcon : slot.icon,
+                      size: glyphSize,
+                      color: ink,
+                      badgeCount: slot.badgeCount,
                     ),
+                    if (showLabel) ...<Widget>[
+                      const SizedBox(height: TiqSpace.s1),
+                      Text(
+                        slot.label,
+                        style: labelToken.style(color: ink),
+                        maxLines: 1,
+                        // The measurement upstream guarantees this never
+                        // fires. It is here so that a bug in the measurement
+                        // clips one label rather than throwing a yellow
+                        // overflow stripe across a shop floor.
+                        overflow: TextOverflow.clip,
+                        softWrap: false,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );
