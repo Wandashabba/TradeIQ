@@ -23,7 +23,7 @@ void main() {
     'night.console': TiqSkin.night(),
     'night.field': TiqSkin.night(density: TiqDensity.field),
     'day.console': TiqSkin.day(density: TiqDensity.console),
-    'day.field': TiqSkin.day(),
+    'day.field': TiqSkin.day(density: TiqDensity.field),
   };
 
   group('the Onest / JetBrains Mono split', () {

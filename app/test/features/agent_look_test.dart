@@ -100,6 +100,14 @@ import 'me/me_harness.dart';
 /// `/somewhere/agentroute_...png` beside the folder rather than inside it.
 /// Every look test in this repository has the same trap.
 ///
+/// **`AGENT_LOOK_SIZE=360x640`** photographs the same screens on the cheap
+/// Android width instead of the 390×844 default. It exists because the fold is
+/// where a row-height change is felt: a screen that fits on a 390×844 phone
+/// can still be two rows short of its commit action on the 360dp panel a field
+/// agent actually carries, and `floor_look_test.dart` already photographs the
+/// manager's Floor at 360×640 for the same reason. Write the two runs to
+/// different folders — the file names do not carry the size.
+///
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart`, `tasks_look_test.dart` and
@@ -148,7 +156,12 @@ void main() {
   /// The phone the manager side is photographed on. Every image in this file
   /// is this size, so a difference between two pictures is a difference
   /// between two screens.
-  const phone = Size(390, 844);
+  ///
+  /// `AGENT_LOOK_SIZE=WxH` overrides it — 360×640 is the cheap-Android width
+  /// the fold is judged on. Anything unparseable falls back to the default
+  /// rather than throwing, because a mistyped env var should not look like a
+  /// broken screen.
+  final phone = _sizeFromEnv() ?? const Size(390, 844);
 
   /// Night first, then Day — the order the design says to build them in.
   const skins = <(String, SkinMode)>[
@@ -1077,6 +1090,22 @@ class _SharingOn extends LocationSharingController {
 class _NoFlush implements QueueFlusher {
   @override
   Future<void> flush(SyncQueueItem item) async {}
+}
+
+/// `AGENT_LOOK_SIZE=360x640` → `Size(360, 640)`; anything else → null.
+///
+/// Silent on a malformed value on purpose: these images are an artefact to
+/// look at, and a throw here would read as the agent side being broken rather
+/// than as a typo in a shell variable.
+Size? _sizeFromEnv() {
+  final raw = Platform.environment['AGENT_LOOK_SIZE'];
+  if (raw == null) return null;
+  final parts = raw.toLowerCase().split('x');
+  if (parts.length != 2) return null;
+  final w = double.tryParse(parts[0]);
+  final h = double.tryParse(parts[1]);
+  if (w == null || h == null || w <= 0 || h <= 0) return null;
+  return Size(w, h);
 }
 
 /// The icon font, out of the Flutter SDK's own cache.

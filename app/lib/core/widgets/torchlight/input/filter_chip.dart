@@ -49,11 +49,22 @@ class TorchFilterChip extends StatelessWidget {
 
   final String? semanticsLabel;
 
-  /// 44 Console / 48 Field.
-  static double heightFor(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => 44,
-    TiqDensity.field => 48,
-  };
+  /// The chip's height, which is [TiqSpace.chipHeight] — **44 at both
+  /// densities** since 29 September 2026.
+  ///
+  /// > *"Fix the spacing also please check if everything matches with the
+  /// > manager side"* — the owner, 29 September 2026.
+  ///
+  /// SUPERSEDED: `TiqDensity.console => 44, TiqDensity.field => 48`, which
+  /// restated `TiqSpace`'s own `chipHeight` as a second switch and so made
+  /// that token dead — nothing in `lib/` read it. The ruling was written
+  /// twice, which is how two copies of one number drift apart. It is read
+  /// rather than restated now, so a density change lands here for free, the
+  /// way `torchBlockHeight` already reads `primaryActionHeight` next door.
+  ///
+  /// The console value is 44 either way, so no manager pixel moved when this
+  /// was rewired.
+  static double heightFor(TiqSkin skin) => skin.space.chipHeight;
 
   @override
   Widget build(BuildContext context) {

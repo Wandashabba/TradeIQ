@@ -219,13 +219,55 @@ void main() {
       );
     });
 
-    test('the tap-target floor rises with the density', () {
+    // OVERRIDDEN 29 September 2026. This asserted that the tap-target floor
+    // *rises* with the density — console 44, field 48, "a thumb on a shelf is
+    // less precise than one on a mouse". That is still true about thumbs; it
+    // is no longer true about this product.
+    //
+    // > "Fix the spacing also please check if everything matches with the
+    // > manager side" — the owner, after "literally everything" and "don't
+    // > change the manager side, it looks perfect" the same day.
+    //
+    // So this is a design intention the owner has overridden, not a fact that
+    // now measures differently, and the test says so rather than being
+    // deleted. 44 is the WCAG 2.5.5 floor and is what the manager side has
+    // always run. See `TiqSpace.field` and unify §1.25 for what it cost.
+    test('there is one spacing scale, and it is the console\'s', () {
       expect(TiqSpace.console.tapTarget, 44);
       expect(
         TiqSpace.field.tapTarget,
-        48,
-        reason: 'A thumb on a shelf is less precise than one on a mouse.',
+        44,
+        reason:
+            'Owner override, 29 September 2026. The field scale no longer '
+            'differs from the console anywhere; 48 is in the doc comment.',
       );
+      for (final field in <(String, double, double)>[
+        ('gutter', TiqSpace.console.gutter, TiqSpace.field.gutter),
+        ('gutterWide', TiqSpace.console.gutterWide, TiqSpace.field.gutterWide),
+        (
+          'rowMinHeight',
+          TiqSpace.console.rowMinHeight,
+          TiqSpace.field.rowMinHeight,
+        ),
+        ('blockGap', TiqSpace.console.blockGap, TiqSpace.field.blockGap),
+        ('intraBlock', TiqSpace.console.intraBlock, TiqSpace.field.intraBlock),
+        ('tapTarget', TiqSpace.console.tapTarget, TiqSpace.field.tapTarget),
+        (
+          'primaryActionHeight',
+          TiqSpace.console.primaryActionHeight,
+          TiqSpace.field.primaryActionHeight,
+        ),
+        ('chipHeight', TiqSpace.console.chipHeight, TiqSpace.field.chipHeight),
+      ]) {
+        expect(
+          field.$3,
+          field.$2,
+          reason:
+              '${field.$1} differs between the two scales. There is one '
+              'spacing scale; a new divergence needs an owner ruling and a '
+              'line in unify §1.25, not a token edit.',
+        );
+      }
     });
   });
 
