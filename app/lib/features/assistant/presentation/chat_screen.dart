@@ -341,7 +341,7 @@ class _AskState extends ConsumerState<_Ask> {
                       target: i == state.messages.length - 1
                           ? focusTarget
                           : null,
-                      child: _Turn(
+                      child: AskTurnView(
                         message: state.messages[i],
                         previous: i >= 2 ? state.messages[i - 2] : null,
                         phase: phase,
@@ -413,8 +413,16 @@ class _AskState extends ConsumerState<_Ask> {
 }
 
 /// One turn in the transcript.
-class _Turn extends ConsumerWidget {
-  const _Turn({
+///
+/// **Public since 30 September 2026**, and that visibility change is the whole
+/// of what The Floor needed from this file. The Floor became the Ask landing
+/// and renders the same transcript under a plate; a second copy of this widget
+/// would have been a second answer renderer, drifting from this one on the
+/// first bug fix. Nothing inside it moved, which is why Ask's renders are
+/// byte-identical across this change.
+class AskTurnView extends ConsumerWidget {
+  const AskTurnView({
+    super.key,
     required this.message,
     required this.previous,
     required this.phase,

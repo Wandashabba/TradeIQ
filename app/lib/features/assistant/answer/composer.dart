@@ -45,6 +45,7 @@ class QuestionComposer extends StatelessWidget {
     this.focusNode,
     this.onChanged,
     this.band,
+    this.hint,
     this.lastTurnErrored = false,
   });
 
@@ -61,6 +62,16 @@ class QuestionComposer extends StatelessWidget {
 
   /// The offline or session-ended band, pinned above the label.
   final Widget? band;
+
+  /// Overrides the trough's placeholder.
+  ///
+  /// Ask leaves it null and keeps `askComposerHint`. The Floor passes
+  /// `Ask about Gauteng North…` — the composer sits under a plate carrying one
+  /// territory, and a placeholder that named no scope on a screen that is
+  /// entirely about one would be the composer declining to say what it is for.
+  /// The **label** above the trough is untouched in both: it is the accessible
+  /// name of the field and it is the same field on both surfaces.
+  final String? hint;
 
   /// Turns the label into "Ask again, or rephrase".
   final bool lastTurnErrored;
@@ -96,7 +107,7 @@ class QuestionComposer extends StatelessWidget {
                     : l10n.askComposerLabel,
                 controller: controller,
                 focusNode: focusNode,
-                hint: l10n.askComposerHint,
+                hint: hint ?? l10n.askComposerHint,
                 enabled: canType,
                 minLines: 1,
                 maximumLines: 5,

@@ -39,10 +39,19 @@ import 'sheet.dart';
 /// A menu commits nothing. The sheet declares no claims, and while it is up
 /// every amber on the route beneath it is extinguished (unify §1.10), so the
 /// nav tab under the scrim drops to its ink form.
-Future<void> showTorchMenuSheet(BuildContext context) {
+/// [lead] is put above the grouped destinations, and exists for exactly one
+/// caller: The Floor, which gave up its nav pill on 30 September 2026 so the
+/// composer could have the bottom of the screen, and puts the two slots it lost
+/// here with their own live numbers on them. It is **not** a second destination
+/// list — everything below it is still `managerDestinations`, so a destination
+/// added there still appears here, in the rail and in the router guard at once.
+Future<void> showTorchMenuSheet(
+  BuildContext context, {
+  List<Widget> lead = const <Widget>[],
+}) {
   return showTorchSheet<void>(
     context,
-    builder: (sheetContext) => const _MenuSheet(),
+    builder: (sheetContext) => _MenuSheet(lead: lead),
   );
 }
 
@@ -50,14 +59,19 @@ Future<void> showTorchMenuSheet(BuildContext context) {
 /// rather than through a nav bar and a scrim.
 @visibleForTesting
 class MenuSheetBody extends StatelessWidget {
-  const MenuSheetBody({super.key});
+  const MenuSheetBody({super.key, this.lead = const <Widget>[]});
+
+  /// See [showTorchMenuSheet].
+  final List<Widget> lead;
 
   @override
-  Widget build(BuildContext context) => const _MenuSheet();
+  Widget build(BuildContext context) => _MenuSheet(lead: lead);
 }
 
 class _MenuSheet extends ConsumerWidget {
-  const _MenuSheet();
+  const _MenuSheet({this.lead = const <Widget>[]});
+
+  final List<Widget> lead;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -77,6 +91,7 @@ class _MenuSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          ...lead,
           for (final group in NavGroup.values) ...<Widget>[
             SectionRule(navGroupName(l10n, group)),
             const SizedBox(height: TiqSpace.s3),
