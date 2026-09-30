@@ -139,7 +139,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photoFieldRetake => 'Retake';
 
   @override
-  String get loginInvalidCredentials => 'Invalid credentials';
+  String get loginInvalidCredentials =>
+      'We do not recognise that email and password.';
 
   @override
   String get loginBackTooltip => 'Back to welcome';
@@ -151,7 +152,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSignIn => 'Sign in';
 
   @override
-  String get loginSubtitle => 'Use your TradeIQ work account.';
+  String get loginSubtitle => 'Use your work email and password.';
+
+  @override
+  String get loginHeadline => 'Sign in to get to work.';
+
+  @override
+  String get loginTooManyTitle => 'Too many sign-in attempts';
+
+  @override
+  String get loginTooManyBody =>
+      'Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account — wait, then try again.';
 
   @override
   String get loginEmailLabel => 'Email';

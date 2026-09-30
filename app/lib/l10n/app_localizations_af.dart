@@ -157,7 +157,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get loginSignIn => 'Teken in';
 
   @override
-  String get loginSubtitle => 'Gebruik jou TradeIQ-werkrekening.';
+  String get loginSubtitle => 'Gebruik jou werk-e-pos en wagwoord.';
+
+  @override
+  String get loginHeadline => 'Meld aan om te begin werk.';
+
+  @override
+  String get loginTooManyTitle => 'Te veel aanmeldpogings';
+
+  @override
+  String get loginTooManyBody =>
+      'Aanmelding wag ’n paar minute ná verskeie mislukte pogings vanaf dieselfde verbinding. Daar is niks fout met jou rekening nie — wag, en probeer dan weer.';
 
   @override
   String get loginEmailLabel => 'E-pos';
