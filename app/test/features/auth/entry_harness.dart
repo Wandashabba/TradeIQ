@@ -149,9 +149,33 @@ Future<void> pumpEntryScreen(
   );
   if (settle) {
     await tester.pumpAndSettle();
+    await settleEntryImages(tester);
   } else {
     await tester.pump();
   }
+}
+
+/// LET THE BUNDLED PICTURE ACTUALLY ARRIVE.
+///
+/// `/login`'s plate draws an [AssetImage], and an asset load is real file I/O
+/// and a real decode — both of which live outside the test binding's fake
+/// clock. Without this, `_Frame` never sees its first frame, its
+/// `AnimatedOpacity` stays at 0, and the screen renders a plate-shaped hole
+/// where the photograph is.
+///
+/// **That is not only a prettier golden.** The amber census counts *pixels*,
+/// and the picture is a South African sunrise at 55% chroma — the one thing
+/// on this screen that could contain a warm object nobody declared. A census
+/// that ran against a screen with no photograph on it would be passing for
+/// the wrong reason, which is the exact failure the census exists to catch.
+///
+/// `runAsync` steps outside the fake clock so the load can complete; the
+/// pumps after it are what the listener's `setState` and the reveal need.
+Future<void> settleEntryImages(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 40)),
+  );
+  await tester.pumpAndSettle();
 }
 
 /// A route that answers to a name, for asserting that a tap went somewhere.
