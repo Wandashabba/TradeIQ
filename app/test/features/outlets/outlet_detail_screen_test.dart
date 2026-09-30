@@ -565,10 +565,7 @@ void main() {
         ),
       );
 
-      await scrollOpsTo(
-        tester,
-        find.textContaining('Change history'.toUpperCase()),
-      );
+      await scrollOpsTo(tester, find.textContaining('Change history'.toUpperCase()));
       expect(find.textContaining('Pin moved from'), findsOneWidget);
       expect(
         find.textContaining("from an agent's recorded position"),
@@ -600,10 +597,7 @@ void main() {
         ),
       );
 
-      await scrollOpsTo(
-        tester,
-        find.textContaining('Change history'.toUpperCase()),
-      );
+      await scrollOpsTo(tester, find.textContaining('Change history'.toUpperCase()));
       expect(find.textContaining('not recorded'), findsOneWidget);
       expect(find.textContaining('0.00000'), findsNothing);
     });
@@ -848,7 +842,10 @@ void main() {
     /// Not a tab root, so the nav takes no slot and the thumb zone carries the
     /// one commit. Every skin lights exactly the same one object — the "Save"
     /// block — and nothing else, in every phase where that block exists.
-    for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+    ]) {
       final phases = <String, (Future<void> Function(WidgetTester), int)>{
         'loaded': (
           (t) => _pump(
