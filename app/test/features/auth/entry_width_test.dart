@@ -6,6 +6,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/display_headline.dart';
 import 'package:tradeiq_app/features/auth/presentation/entry_frame.dart';
+import 'package:tradeiq_app/features/auth/presentation/entry_plate.dart';
 import 'package:tradeiq_app/features/auth/presentation/login_screen.dart';
 
 import '../agent_harness.dart' show loadAgentFonts;
@@ -195,10 +196,24 @@ void main() {
     testWidgets('the form is centred vertically, and its height is what the '
         'page threshold is set against', (tester) async {
       await _pumpLogin(tester, size);
-      final top = tester.getRect(find.byType(TorchDisplayHeadline)).top;
+      // THE TOP OF THE COLUMN IS THE TOP OF THE PLATE, NOT OF THE HEADLINE.
+      //
+      // This measured `TorchDisplayHeadline` because the headline WAS the
+      // first thing in the column. Since the plate went on the door it is the
+      // second: the picture is above it and the headline sits near the
+      // picture's foot, about 120dp in. Measuring from the headline therefore
+      // stopped measuring the column and started measuring "the column, less
+      // its first object" — which fails this assertion at 152 while the column
+      // is in fact centred to within a pixel.
+      //
+      // The claim being made is about the COLUMN, so the column's own top edge
+      // is what it has to be made against. The headline's own place is pinned
+      // by `entry_plate_test.dart`, which is where it belongs.
+      final top = tester.getRect(find.byType(EntryPlate)).top;
+      final headline = tester.getRect(find.byType(TorchDisplayHeadline)).top;
       final bottom = tester.getRect(key('login-submit')).bottom;
 
-      // The space above the headline and below the action are within a block
+      // The space above the column and below the action are within a block
       // gap of each other: the column is centred, not top-anchored.
       final above = top;
       final below = size.height - bottom;
@@ -210,8 +225,8 @@ void main() {
 
       // ignore: avoid_print
       print(
-        'sign-in column at 1280x1800: headline top $top, action bottom '
-        '$bottom, height ${bottom - top}.',
+        'sign-in column at 1280x1800: plate top $top, headline top $headline, '
+        'action bottom $bottom, height ${bottom - top}.',
       );
       expect(
         bottom - top,

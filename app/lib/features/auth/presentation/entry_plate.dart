@@ -130,9 +130,15 @@ class EntryPlate extends StatelessWidget {
   /// The mockup's proportion: roughly the top 250 of 844.
   static const double tallest = 250;
 
-  /// What the sign-in form and its commit row need under the plate at 1.0×,
-  /// measured by `entry_plate_test.dart`.
-  static const double ground = 520;
+  /// What the sign-in form and its commit row need under the plate at 1.0×.
+  ///
+  /// **566, and it is a measurement rather than a proportion.** The first
+  /// number written here was 520 and it was wrong: `entry_plate_test.dart`
+  /// rasterises the real screen and measures the foot of the plate to the
+  /// foot of the commit action, and that is 566dp in Onest at 390 wide. The
+  /// test fails with the number to put here, so this can never drift into a
+  /// guess again.
+  static const double ground = 566;
 
   /// How much of [ground] is prose, and therefore grows with the text scale.
   /// The rest is gaps, field chrome and the commit row's own height, which do
@@ -170,6 +176,19 @@ class EntryPlate extends StatelessWidget {
           ground: groundFor(scale),
           tallest: tallest,
           image: const AssetImage(asset),
+          // THE TOP OF THE PICTURE CARRIES TYPE HERE, SO IT GETS A SCRIM.
+          //
+          // The Floor's top slot is a chip with its own surface and needs
+          // none. The wordmark is bare type on bare picture, and **Night**
+          // does not survive that: the tone's ceiling is `#666666`, the sky
+          // behind the mark is the brightest thing in the frame so it sits at
+          // the ceiling, and `ink2` against it is 3.60:1. With the scrim it
+          // is 6.41. Day clears either way (6.88 / 7.32) because its lift
+          // makes the same sky pale rather than dark.
+          //
+          // All four numbers are measured over the shipped asset by
+          // `entry_plate_test.dart`, which fails with them printed.
+          topScrim: true,
           // No printed caption, following The Floor's owner override of 25
           // September 2026: what the picture is travels as [semanticLabel]
           // and not as a line of type on the plate.
@@ -187,18 +206,47 @@ class EntryPlate extends StatelessWidget {
           // THE WORDMARK, SMALL, AT THE TOP OF THE PICTURE. The same 24dp
           // compact mark the masthead carried, at the same address on the
           // plate The Floor puts its scope chip.
-          topSlot: const EntryBrand(monogram: 24, compact: true),
+          topSlot: Semantics(
+            container: true,
+            child: const EntryBrand(monogram: 24, compact: true),
+          ),
           hero: SizedBox(
             width: text < 0 ? 0 : text,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                TorchDisplayHeadline(headline),
+                // THREE NODES, NOT ONE, AND `container` IS WHAT MAKES THEM
+                // THREE.
+                //
+                // The masthead's mark, headline and sentence used to be three
+                // children of the frame's list, so the viewport gave each one
+                // its own semantics boundary and nothing had to be said. In
+                // here they are one subtree under one boundary, and a
+                // `Semantics` with `container: false` — which is the default,
+                // and which is what `Semantics(header: true)` inside
+                // [TorchDisplayHeadline] and the wordmark's own label both are
+                // — *annotates the enclosing node* instead of making one. All
+                // three coalesced: the header landmark announced "TradeIQ /
+                // Sign in to get to work. / Use your work email and password."
+                // as a single node.
+                //
+                // That is a regression in the exact thing #494 was careful
+                // about. The screen has no app header, so this headline is the
+                // one header node a reader can jump to on arrival, and a
+                // landmark that reads out the whole masthead is not a landmark.
+                // `login_screen_test.dart` pins all three separately.
+                Semantics(
+                  container: true,
+                  child: TorchDisplayHeadline(headline),
+                ),
                 SizedBox(height: skin.space.intraBlock),
-                Text(
-                  supporting,
-                  style: skin.text.body.style(color: skin.palette.ink2),
+                Semantics(
+                  container: true,
+                  child: Text(
+                    supporting,
+                    style: skin.text.body.style(color: skin.palette.ink2),
+                  ),
                 ),
               ],
             ),

@@ -88,6 +88,7 @@ class TiqPlate extends StatelessWidget {
     this.devicePixelRatio,
     this.ground = PlateSpec.floorGround,
     this.tallest = PlateSpec.floorTallest,
+    this.topScrim = false,
   });
 
   /// The [TorchClaim.plateStripLight] id this plate's light was declared under.
@@ -109,6 +110,17 @@ class TiqPlate extends StatelessWidget {
   /// [PlateSpec.heightFor], which is where the two literals used to live.
   final double ground;
   final double tallest;
+
+  /// Whether the band above the strip light gets a scrim too.
+  ///
+  /// Off by default, and The Floor leaves it off: its [topSlot] is a
+  /// [PlateScopeChip], and a chip carries its own surface, so its label is
+  /// never on the picture. A caller that puts **bare type** up there turns it
+  /// on — `/login`'s wordmark — and the reason it is not optional for that
+  /// caller is a measurement, printed by `entry_plate_test.dart` on every
+  /// run. See the note where it is drawn.
+  final bool topScrim;
+
 
   /// The hero cluster. Expected to be a [PlateHeroCluster]; typed as a widget
   /// so a screen can put its own eyebrow strings and figure in without this
@@ -266,6 +278,7 @@ class TiqPlate extends StatelessWidget {
           fallbackSentence: fallbackSentence,
           semanticLabel: semanticLabel,
           topSlot: topSlot,
+          topScrim: topScrim,
           // The tone is the skin's, not the widget's: see [toneFor].
           tone: toneFor(skin.palette),
           devicePixelRatio:
@@ -418,6 +431,7 @@ class _PhotographicPlate extends StatefulWidget {
     required this.fallbackSentence,
     required this.semanticLabel,
     required this.topSlot,
+    required this.topScrim,
     required this.tone,
     required this.devicePixelRatio,
   });
@@ -430,6 +444,7 @@ class _PhotographicPlate extends StatefulWidget {
   final String? fallbackSentence;
   final String? semanticLabel;
   final Widget? topSlot;
+  final bool topScrim;
   final ColorFilter tone;
   final double devicePixelRatio;
 
@@ -508,6 +523,44 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
                 },
               ),
             ),
+
+            // 1b. THE SAME SCRIM AT THE TOP, WHERE A CALLER PUTS TYPE THERE.
+            //
+            //     Opt-in, and off for The Floor, whose top slot is a chip
+            //     with its own surface. `/login` puts a **wordmark** up here,
+            //     which is the first bare type this component has carried on
+            //     the unscrimmed band, and the answer is measured rather than
+            //     argued — `entry_plate_test.dart` prints all four numbers:
+            //
+            //     |  | with | without |
+            //     |---|---|---|
+            //     | **Night** | 6.41:1 | **3.60:1** |
+            //     | **Day**   | 7.32:1 | 6.88:1 |
+            //
+            //     **Night is the one that needs it**, which is the opposite
+            //     of the way round it looks. Day's tone lifts the picture to
+            //     a `#999999` floor and the mark sits over pale sky, so it
+            //     clears on its own; Night's CEILING is `#666666` and the
+            //     same sky is the *brightest* thing in the frame, so it sits
+            //     at the ceiling — and `ink2` (`#C9C1B1`) against `#5C5F61`
+            //     is 3.60:1. The half of the tone that saves the foot of the
+            //     plate is the half that hurts the top of it.
+            //
+            //     **It runs to the strip light and is drawn UNDER it.** The
+            //     band above the light is picture nothing else is using, so
+            //     the falloff has all of it rather than a hard edge below the
+            //     type — a scrim that stopped at the mark would be a smudge
+            //     behind a wordmark. Under the light, because the light and
+            //     its bloom are the brightest object on the plate and a scrim
+            //     over them would dim the one thing amber was spent on.
+            if (widget.topScrim && spec.stripLightY > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: spec.stripLightY,
+                child: const _Scrim(fromTop: true),
+              ),
 
             // 2. The strip light: one object, line plus bloom, allocated.
             _StripLight(spec: spec, lit: lit, still: still),
@@ -863,26 +916,32 @@ class _StripLight extends StatelessWidget {
   }
 }
 
-/// The bottom-up scrim that makes the text-safe zone safe.
+/// The scrim that makes a text zone safe.
 ///
 /// `ground` at 0% rising to 80%. Over the worst pixel a baked plate may carry
 /// this puts `ink1` at 7.68:1; over an unbaked one the client-side ceiling in
 /// [TiqPlate] holds the same floor.
+///
+/// [fromTop] flips it for the band above the strip light — the same gradient
+/// run the other way, so the strongest end is against the edge the type hangs
+/// off in both cases. One gradient decoration either way; the cost note above
+/// is unchanged. See [TiqPlate.topScrim] for when it is asked for and why.
 class _Scrim extends StatelessWidget {
-  const _Scrim();
+  const _Scrim({this.fromTop = false});
+
+  final bool fromTop;
 
   @override
   Widget build(BuildContext context) {
     final ground = context.skin.palette.ground;
+    final clear = ground.withValues(alpha: 0);
+    final solid = ground.withValues(alpha: 0.80);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: <Color>[
-            ground.withValues(alpha: 0),
-            ground.withValues(alpha: 0.80),
-          ],
+          colors: fromTop ? <Color>[solid, clear] : <Color>[clear, solid],
         ),
       ),
       child: const SizedBox.expand(),
