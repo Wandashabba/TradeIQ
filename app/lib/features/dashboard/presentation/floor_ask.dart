@@ -137,10 +137,8 @@ class _BriefCard extends StatelessWidget {
                 role: skin.text.figureM,
                 unit: brief.unit,
                 decimals: brief.decimals,
-                color: standingInk(skin, brief.standing),
-                state: brief.value == null
-                    ? FigureState.missing
-                    : FigureState.measured,
+                color: standingInk(skin, brief.standing, state: brief.state),
+                state: brief.state,
                 semanticsLabel: brief.semanticsLabel,
               ),
             ],

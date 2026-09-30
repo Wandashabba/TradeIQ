@@ -16,9 +16,18 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
+import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
+import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
+import 'package:tradeiq_app/features/assistant/presentation/chat_screen.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
+
+// ONE SET OF ASSISTANT FAKES FOR THE WHOLE SUITE. The Floor renders the
+// assistant's own transcript now, so it stands the assistant up the way the
+// assistant's own tests do rather than keeping a second `ScriptedRepository`
+// that would drift from it on the first wire-format change.
+import '../assistant/ask_harness.dart' show ScriptedRepository;
 
 /// Everything The Floor's tests need to stand a screen up without a server.
 ///
@@ -523,8 +532,25 @@ List<Override> floorOverrides({
   /// absent passes null.
   PlaceImageSource? plateImageSource = PlaceImageSource.generated,
   DateTime? now,
+  /// THE ASSISTANT SEAM. The Floor became the Ask landing on 30 September
+  /// 2026, so every pump of this screen now builds a composer and a phase
+  /// machine. The **repository** is replaced and the controller above it is
+  /// not, exactly as `ask_harness.dart` does it: the event handling, the phase
+  /// decision and the focus resolution all run for real, and a test that
+  /// overrode `chatControllerProvider` would prove only that a widget can draw
+  /// a record.
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
   List<Override> extraOverrides = const <Override>[],
 }) => <Override>[
+  assistantRepositoryProvider.overrideWithValue(
+    assistant ?? ScriptedRepository(const <AssistantEvent>[]),
+  ),
+  askOnlineProvider.overrideWithValue(online),
+  // The real provider reads the session controller, which reaches for secure
+  // storage. The state is what is under test, not the plumbing.
+  askSessionEndedProvider.overrideWithValue(sessionEnded),
   dashboardRepositoryProvider.overrideWithValue(
     FakeDashboardRepository(
       current: current,
@@ -593,6 +619,14 @@ Future<void> pumpFloor(
   double textScale = 1.0,
   DateTime? now,
   Locale locale = const Locale('en'),
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
+  /// The software keyboard's height. Non-zero is what `TorchShell` reads to
+  /// decide the nav does not render — which on this route no longer changes
+  /// the amber arithmetic, because the nav pill left with option B, but still
+  /// moves the composer up over the fold.
+  double keyboard = 0,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
@@ -605,6 +639,9 @@ Future<void> pumpFloor(
   await tester.pumpWidget(
     ProviderScope(
       overrides: floorOverrides(
+        assistant: assistant,
+        online: online,
+        sessionEnded: sessionEnded,
         current: current,
         previous: previous,
         alerts: alerts,
@@ -626,6 +663,7 @@ Future<void> pumpFloor(
           size: size,
           devicePixelRatio: 1.0,
           textScaler: TextScaler.linear(textScale),
+          viewInsets: EdgeInsets.only(bottom: keyboard),
         ),
         child: Localizations(
           locale: locale,
@@ -658,6 +696,28 @@ Future<void> pumpFloor(
 }
 
 
+/// SCROLL DOWN TO THE DECISION LIST.
+///
+/// **Why this is suddenly necessary.** The Floor became the Ask landing on
+/// 30 September 2026: the briefing's three cards and the composer went on the
+/// screen, and the decision list went below the fold on a 360×640 phone. The
+/// list still renders, still ranks worst-first and still routes — the rows are
+/// simply outside `ListView`'s lazy build window until somebody scrolls, and a
+/// `find.byType(DecisionRow)` that used to return five now returns none.
+///
+/// So the tests that assert on the rows scroll first. That is a **fact that
+/// still holds, measured differently** — not a capability that went. What did
+/// change is where a manager finds it, and the briefing's own first line
+/// ("Overdue work · 12 · across 4 outlets", tappable to `/tasks`) is the
+/// above-the-fold answer to the question the list answers at length.
+Future<void> revealDecisions(WidgetTester tester) async {
+  await tester.drag(
+    find.byType(Scrollable).first,
+    const Offset(0, -600),
+  );
+  await tester.pumpAndSettle();
+}
+
 /// THE FLOOR INSIDE A ROUTER, so a press can be asserted on where it went.
 ///
 /// [pumpFloor] stands the screen up on its own, which is right for everything
@@ -688,6 +748,10 @@ Future<GoRouter> pumpFloorRoute(
   Size size = const Size(360, 640),
   double textScale = 1.0,
   DateTime? now,
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
+  double keyboard = 0,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
@@ -713,6 +777,8 @@ Future<GoRouter> pumpFloorRoute(
         '/alerts',
         '/outlets',
         '/account/password',
+        '/dashboard/overview',
+        '/login',
       ])
         GoRoute(path: route, builder: (context, state) => stub(route)),
     ],
@@ -722,6 +788,9 @@ Future<GoRouter> pumpFloorRoute(
   await tester.pumpWidget(
     ProviderScope(
       overrides: floorOverrides(
+        assistant: assistant,
+        online: online,
+        sessionEnded: sessionEnded,
         current: current,
         previous: previous,
         alerts: alerts,
@@ -744,9 +813,10 @@ Future<GoRouter> pumpFloorRoute(
         localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: appSupportedLocales,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            viewInsets: EdgeInsets.only(bottom: keyboard),
+          ),
           // The same boundary [pumpFloor] carries, so the amber census can be
           // taken of a screen that has a Navigator over it — which is the
           // only way to census a sheet, and a sheet is exactly where the

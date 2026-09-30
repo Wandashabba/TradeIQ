@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/design/tiq_number.dart' show TiqUnit;
+import '../../../core/design/tiq_number.dart' show FigureState, TiqUnit;
+import '../../../core/widgets/torchlight/figure/sample_threshold.dart';
 import '../../../core/widgets/torchlight/marks.dart'
     show StatusLevel, againstStandard;
 import '../presentation/standards.dart';
@@ -54,6 +55,7 @@ class FloorBrief {
     required this.route,
     this.unit = TiqUnit.none,
     this.decimals = 0,
+    this.state = FigureState.measured,
   });
 
   /// Stable across rebuilds, for the widget key and for a test to find a line
@@ -72,6 +74,16 @@ class FloorBrief {
 
   final TiqUnit unit;
   final int decimals;
+
+  /// HOW MUCH OF THE FIGURE IS REAL, and it is the same three-way answer the
+  /// card this line replaced was already giving.
+  ///
+  /// `missing` is a window nobody visited — an em dash and a sentence, never a
+  /// zero. `lowSample` is a rate computed off too few readings: the number
+  /// stays, because a thin sample is a real measurement a reader should trust
+  /// less rather than an absence, and the slot draws it at ink-2 so the
+  /// distrust is visible without a second line of prose.
+  final FigureState state;
 
   /// Where this reading stands. Null is "no verdict" — the figure takes plain
   /// ink, which is the honest render for a count that has no standard.
@@ -135,28 +147,46 @@ List<FloorBrief> floorBriefing(FloorView view, DateTime now) {
     );
   }
 
-  // 2. ON-SHELF AVAILABILITY — `snapshot.current.osaPct`, the same figure the
-  //    card below already prints, against the same published 95.
-  if (measured) {
-    final osa = view.snapshot.current.osaPct;
-    final standing = againstStandard(osa, availabilityStandard);
-    briefs.add(
-      FloorBrief(
-        id: 'availability',
-        name: 'On-shelf availability',
-        support: _availabilitySupport(view, standing),
-        value: osa,
-        unit: TiqUnit.percent,
-        standing: standing,
-        semanticsLabel:
-            'On-shelf availability, ${osa.round()} percent. '
-            '${_availabilitySupport(view, standing)}.',
-        // Where the card that used to print this figure went, and where its
-        // sparkline and its two supports still are.
-        route: '/dashboard/overview',
-      ),
-    );
-  }
+  // 2. ON-SHELF AVAILABILITY — `snapshot.current.osaPct`, against the same
+  //    published 95 the overview reads it against.
+  //
+  //    THE LINE IS ALWAYS HERE, INCLUDING WHEN THE WINDOW WAS NEVER MEASURED.
+  //    Omitting it would have been the easy read of "a line is omitted rather
+  //    than faked", and it is the wrong one: an unmeasured window is not a
+  //    window without availability, it is a window whose availability nobody
+  //    knows, and those are the two facts unify §4 exists to keep apart. The
+  //    figure renders an em dash and the support says why — which is what the
+  //    card this replaced did, in the same words.
+  final osa = view.snapshot.current.osaPct;
+  final standing = measured
+      ? againstStandard(osa, availabilityStandard)
+      : null;
+  final thin = TiqSample.isLow(
+    MetricKind.rate,
+    view.snapshot.current.sampleSizes.osaPct,
+  );
+  briefs.add(
+    FloorBrief(
+      id: 'availability',
+      name: 'On-shelf availability',
+      support: _availabilitySupport(view, standing),
+      value: measured ? osa : null,
+      unit: TiqUnit.percent,
+      standing: standing,
+      state: !measured
+          ? FigureState.missing
+          : thin
+          ? FigureState.lowSample
+          : FigureState.measured,
+      semanticsLabel: measured
+          ? 'On-shelf availability, ${osa.round()} percent. '
+                '${_availabilitySupport(view, standing)}.'
+          : 'On-shelf availability, ${_availabilitySupport(view, standing)}.',
+      // Where the card that used to print this figure went, and where its
+      // sparkline and its two supports still are.
+      route: '/dashboard/overview',
+    ),
+  );
 
   // 3. THE WORST SINGLE OUTLET — the head of the list, which is already
   //    sorted worst-first by `FloorDecision.compare`. The figure is the age,
@@ -222,7 +252,12 @@ String _availabilitySupport(
   StatusLevel.onTarget => 'on the ${availabilityStandard.round()} standard',
   StatusLevel.watch => 'close to the ${availabilityStandard.round()} standard',
   StatusLevel.critical => 'under the ${availabilityStandard.round()} standard',
-  _ => 'no visits in this window',
+  // CAPITALISED, AND ALONE AMONG THE FOUR. The other three are modifiers of a
+  // figure printed beside them ("under the 95 standard"); this one stands in
+  // for a figure that is not there, and it is the sentence the stat card
+  // printed in this exact case. A lower-case fragment under an em dash reads
+  // as a caption for a number, which is the one thing it must not be.
+  _ => 'No visits in this window',
 };
 
 /// ONE SUGGESTED QUESTION.

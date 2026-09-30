@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/figure_slot.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
@@ -14,7 +15,10 @@ import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dar
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
+import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
+
 import '../../core/design/amber_golden.dart';
+import '../assistant/ask_harness.dart' show ScriptedRepository, rankedTurn;
 import 'floor_harness.dart';
 
 void main() {
@@ -53,12 +57,28 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
         expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-        // The dominant metric and its supports as ONE line of meta. The
-        // subordinates are rates, not denominators: "Coverage 79%", not
-        // "Coverage 33 of 42 outlets · 42 visits". The card is a reading and
-        // the denominators are provenance, one tap away.
-        expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
-        expect(find.textContaining('Coverage 79%'), findsOneWidget);
+        // THE DOMINANT METRIC IS BRIEFING LINE TWO NOW, not a stat card.
+        //
+        // It was `StatTile` under an `ON-SHELF AVAILABILITY` eyebrow, with
+        // "Coverage 79% · Price compliance 91%" as one line of meta under it.
+        // The figure did not move — it is the same `snapshot.current.osaPct`
+        // against the same published 95 — but the card did: printing it twice,
+        // once in the briefing and once in a tile eight dp below, is the
+        // defect the tile's own doc named when it deleted its meter and its
+        // delta line.
+        //
+        // The supports went with the card, to the overview the card already
+        // opened and the briefing line still opens. So this asserts what is
+        // now true rather than keeping a string that would have to be drawn
+        // somewhere to satisfy it.
+        expect(
+          find.byKey(const ValueKey<String>('floor-brief-availability')),
+          findsOneWidget,
+        );
+        expect(find.text('On-shelf availability'), findsOneWidget);
+        expect(find.textContaining('Coverage 79%'), findsNothing);
+
+        await revealDecisions(tester);
 
         // The section marker: words on the ground, no rule and no count
         // (owner override, 25 September 2026). `Eyebrow` uppercases for
@@ -93,6 +113,7 @@ void main() {
         outlets: twoOutlets,
       );
 
+      await revealDecisions(tester);
       final rows = tester
           .widgetList<DecisionRow>(find.byType(DecisionRow))
           .toList();
@@ -118,6 +139,7 @@ void main() {
         outlets: twoOutlets,
       );
 
+      await revealDecisions(tester);
       expect(find.byType(DecisionRow), findsNWidgets(FloorView.visibleCount));
       expect(find.text('and 11 more need a decision'), findsOneWidget);
     });
@@ -126,6 +148,7 @@ void main() {
       tester,
     ) async {
       await pumpFloor(tester, const TheFloorScreen());
+      await revealDecisions(tester);
 
       expect(find.text('NEEDS A DECISION'), findsOneWidget);
       expect(find.text('Everything triaged.'), findsOneWidget);
@@ -178,6 +201,12 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
 
         expect(find.text(emDash), findsWidgets);
+        // The availability briefing line STAYS in an unmeasured window and
+        // says why, rather than being omitted. An unmeasured window is not a
+        // window without availability, it is a window whose availability
+        // nobody knows, and unify §4 exists to keep those two apart. This is
+        // the same sentence the stat card printed, on the line that replaced
+        // it.
         expect(find.text('No visits in this window'), findsOneWidget);
       },
     );
@@ -196,9 +225,23 @@ void main() {
       // The number stays — a thin sample is a real measurement the reader
       // should trust less, not an absence.
       expect(find.textContaining('61'), findsWidgets);
-      // …and it says how thin, rather than showing a movement computed off
-      // two rows.
-      expect(find.textContaining('from 2'), findsWidgets);
+
+      // …AND IT IS MARKED AS THIN, on the briefing line that now carries this
+      // figure. It used to be the stat card's `FigureSampling`, which drew
+      // "from 2" as a line of meta under the tile; the tile went when the
+      // briefing took the figure (see the note in the populated test above),
+      // and `FigureState.lowSample` is the channel that survived — the slot
+      // holds the number at ink-2 rather than printing a second sentence.
+      //
+      // The fact this test was written to pin has not moved: a thin sample
+      // keeps its figure and loses its delta. Only the carrier has.
+      final availability = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-availability')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(availability.state, FigureState.lowSample);
       expect(find.textContaining('vs the window before'), findsNothing);
     });
 
@@ -274,6 +317,7 @@ void main() {
         alerts: <AlertItem>[alert(outletId: 'o1', noTime: true)],
         outlets: twoOutlets,
       );
+      await revealDecisions(tester);
 
       final row = tester.widget<DecisionRow>(find.byType(DecisionRow));
       expect(row.value, isNull);
@@ -457,19 +501,78 @@ void main() {
     );
   });
 
+  /// ── THE AMBER CENSUS, PHASE BY PHASE ────────────────────────────────
+  ///
+  /// The Floor gave up its nav pill on 30 September 2026 and this group is
+  /// where that shows. The allocator counts `navActiveTab` as slot 1 **whenever
+  /// the pill renders**, so while it was there Night's budget of two was one
+  /// chrome object plus one content object — and this screen now wants two
+  /// content objects at once: the plate's strip light, plus (by phase) either
+  /// Send or the answer's focus object.
+  ///
+  /// With no pill both grants go to content and every phase fits. The table
+  /// below is the whole claim, and each row of it is a test:
+  ///
+  /// | phase | Night | Day | which |
+  /// |---|---|---|---|
+  /// | at rest | 1 | 0 | the strip light; Send is disabled and a disabled Send is never amber |
+  /// | at rest, no photograph | 0 | 0 | nothing to light — a budget is a ceiling |
+  /// | typing, keyboard up | 2 | 1 | the strip light + Send |
+  /// | typing, keyboard down | 2 | 1 | the same two — the nav is gone, so the keyboard no longer changes the count |
+  /// | answered, with a focus object | 2 | 0 | the strip light + one ranked bar |
+  /// | offline | 1 | 0 | the strip light; Send is held |
+  ///
+  /// The two `typing` rows are the pair that mattered: under the old
+  /// arrangement they differed (the keyboard hid the nav and handed its grant
+  /// back), and the keyboard-down case was a three-object over-claim the
+  /// moment a plate was on the screen. They are now the same number, which is
+  /// the arrangement doing its job.
   group('the amber census', () {
+    /// The screen with a photograph on the plate and something in the list.
+    ///
+    /// **Through the router harness**, because the census now has to type.
+    /// `EditableText` builds a `TextSelectionOverlay` the moment the trough
+    /// takes focus and that needs an `Overlay` ancestor, which `pumpFloor`
+    /// deliberately does not provide — it stands the screen up with no
+    /// Navigator so a sheet has nowhere to open. Typing is behaviour, and
+    /// `pumpFloorRoute` is the harness for behaviour.
+    Future<void> floor(
+      WidgetTester tester, {
+      TiqSkin? skin,
+      double keyboard = 0,
+      bool photograph = true,
+      bool online = true,
+      AssistantRepository? assistant,
+      Size size = const Size(360, 640),
+    }) async {
+      await pumpFloorRoute(
+        tester,
+        skin: skin,
+        size: size,
+        keyboard: keyboard,
+        online: online,
+        assistant: assistant,
+        plateImage: photograph ? await SyncImage.solid(tester) : null,
+        current: kpis(execution: 72, executionSample: 18),
+        previous: kpis(execution: 91, executionSample: 18),
+        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
+        outlets: twoOutlets,
+      );
+    }
+
+    /// Put a question in the trough, which is the only thing that arms Send.
+    Future<void> type(WidgetTester tester) async {
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask-composer-field')),
+        'Why is 72 down?',
+      );
+      await tester.pump();
+    }
+
     testWidgets(
-      'Night with a photograph paints exactly two lit objects: the nav tab '
-      'and the strip light',
+      'Night at rest paints one lit object: the plate\'s strip light',
       (tester) async {
-        final image = await SyncImage.solid(tester);
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          plateImage: image,
-          alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
-          outlets: twoOutlets,
-        );
+        await floor(tester);
 
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
@@ -480,54 +583,155 @@ void main() {
         );
         expect(
           census.objectCount,
-          2,
+          1,
           reason:
-              "The Floor nominates the plate's strip light; the nav pill "
-              'lights its active tab. Two, counted.\n${census.describe()}',
+              'At rest the only armed thing on this screen is nothing: the '
+              'trough is empty, so Send is disabled, and a disabled Send is '
+              'never amber in any skin. The nav tab that used to be object 1 '
+              'went with the pill.\n${census.describe()}',
         );
       },
     );
 
     testWidgets(
-      'Night with NO photograph spends one — the plate declines a grant it '
-      'has nothing to spend',
+      'Night with NO photograph paints nothing — a budget is a ceiling',
       (tester) async {
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          alerts: <AlertItem>[alert(outletId: 'o1')],
-          outlets: twoOutlets,
-          photosFail: true,
-        );
+        await floor(tester, photograph: false);
 
         final census = await amberCensus(tester);
         expect(
           census.objectCount,
-          1,
+          0,
           reason:
-              'A budget is a ceiling, not a quota. With no photograph there '
-              'is nothing for a strip light to be a strip of light ON, so '
-              'only the nav tab is lit.\n${census.describe()}',
+              'With no photograph there is nothing for a strip light to be a '
+              'strip of light ON, so the plate spends nothing — and there is '
+              'no longer a nav tab underneath it to make the count one '
+              'anyway.\n${census.describe()}',
         );
       },
     );
 
+    for (final (name, keyboard) in const <(String, double)>[
+      ('keyboard up', 320),
+      ('keyboard down', 0),
+    ]) {
+      testWidgets('Night typing, $name: the strip light and Send', (
+        tester,
+      ) async {
+        await floor(tester, keyboard: keyboard);
+        await type(tester);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.night(),
+          route: 'the-floor',
+          phase: 'typing',
+        );
+        expect(
+          census.objectCount,
+          2,
+          reason:
+              'Send is rung 1 and the strip light rung 2, and with no nav tab '
+              'ahead of them both are granted. THIS IS THE PAIR THE '
+              'ARRANGEMENT WAS CHOSEN FOR: with the pill still on the screen '
+              'the keyboard-down case would be three claims against a budget '
+              'of two.\n${census.describe()}',
+        );
+      });
+
+      testWidgets('Day typing, $name: Send alone takes the one grant', (
+        tester,
+      ) async {
+        await floor(tester, skin: TiqSkin.day(), keyboard: keyboard);
+        await type(tester);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.day(),
+          route: 'the-floor',
+          phase: 'typing',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'On a light ground the ladder has one rung and it is the '
+              'primary commit block. The strip light falls back to its unlit '
+              'ink rule, which the plate already did on every Day screen '
+              'before this change.\n${census.describe()}',
+        );
+      });
+    }
+
+    testWidgets(
+      'Night answered: the strip light stays, and the answer lights one bar',
+      (tester) async {
+        // ON THE TALL PHONE, because this census has to see BOTH objects in
+        // one frame and the census measures painted pixels rather than
+        // granted claims. At 360×640 the plate is lit and the answer's bar is
+        // below the fold, which is legal — a budget is a ceiling — but it
+        // proves only half of what this test is for.
+        await floor(
+          tester,
+          assistant: ScriptedRepository(rankedTurn()),
+          size: const Size(390, 844),
+        );
+        await type(tester);
+        // The keyboard's own Send key, which is the composer's `onSubmitted`
+        // and the same closure the button's `onPressed` runs. Tapping the
+        // button would need `ensureSemantics`, and a semantics handle open
+        // across an amber census is a second tree to keep in step.
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.pumpAndSettle();
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.night(),
+          route: 'the-floor',
+          phase: 'landed-focus',
+        );
+        expect(
+          census.objectCount,
+          2,
+          reason:
+              'THE ANSWERED STATE IS WHY THE PILL WENT. The plate keeps its '
+              'light — the manager is still in the territory they asked '
+              'about — and the answer lights the one bar the server named. '
+              'Those are rungs 2 and 3; a nav tab at rung 0 would have '
+              'outranked one of them and the census would read '
+              'one.\n${census.describe()}',
+        );
+      },
+    );
+
+    testWidgets('Night offline: the composer is held and lights nothing', (
+      tester,
+    ) async {
+      await floor(tester, online: false);
+
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'Offline disables Send, and a disabled Send is never amber. The '
+            'plate is unaffected: the figures on it were measured before the '
+            'connection went and are still true.\n${census.describe()}',
+      );
+    });
+
     testWidgets('a falling hero delta is crimson, and is not a third light', (
       tester,
     ) async {
-      final image = await SyncImage.solid(tester);
-      await pumpFloor(
-        tester,
-        const TheFloorScreen(),
-        plateImage: image,
-        current: kpis(execution: 72, executionSample: 18),
-        previous: kpis(execution: 91, executionSample: 18),
-        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
-        outlets: twoOutlets,
-      );
+      await floor(tester);
+      await type(tester);
 
       final census = await amberCensus(tester);
-      // If severity had drifted into the amber band this would be three.
+      // Two, not three: if severity had drifted into the amber band the
+      // hero's `▼ 19` would be counted here.
       expect(census.objectCount, 2, reason: census.describe());
     });
 
@@ -656,11 +860,15 @@ void main() {
         ],
         outlets: twoOutlets,
       );
-
       expect(tester.takeException(), isNull);
-      // 56,9 in Afrikaans — a comma, from the locale, never a format string.
-      expect(find.textContaining('56,9'), findsWidgets);
-      expect(find.textContaining('56.9'), findsNothing);
+
+      // THE HERO IS ASSERTED BEFORE THE SCROLL AND THE ROW AFTER IT, because
+      // the two are no longer on screen together. The briefing and the
+      // composer went between them on 30 September 2026 and the decision list
+      // moved below the fold on a 360×640 phone; scrolling to the row lets the
+      // plate leave, and a `ListView` that has scrolled its first child away
+      // has disposed it. Both figures are still drawn by the same formatter in
+      // the same locale — which is what this test is about.
       // AND NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
       //
       // This pinned the true minus (U+2212, never a hyphen) on `−19`. The
@@ -672,6 +880,14 @@ void main() {
       // this change nothing on The Floor may carry a hyphen before a digit.
       expect(find.textContaining('19'), findsWidgets);
       expect(find.textContaining('\u221219'), findsNothing);
+
+      await revealDecisions(tester);
+      // 56,9 in Afrikaans — a comma, from the locale, never a format string.
+      expect(find.textContaining('56,9'), findsWidgets);
+      expect(find.textContaining('56.9'), findsNothing);
+
+      // The hyphen sweep runs over BOTH halves of the screen: everything the
+      // plate drew before the scroll and everything the list drew after it.
       for (final t in tester.widgetList<Text>(find.byType(Text))) {
         expect(
           RegExp(r'-\d').hasMatch(t.data ?? ''),
@@ -886,6 +1102,7 @@ void main() {
         ],
         outlets: twoOutlets,
       );
+      await revealDecisions(tester);
       // The figures themselves: bone, both of them, on a critical row and a
       // watch row alike.
       for (final hours in <String>['12', '6']) {

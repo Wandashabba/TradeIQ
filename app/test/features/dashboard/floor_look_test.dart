@@ -11,7 +11,10 @@ import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 
+import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
+
 import '../agent_harness.dart';
+import '../assistant/ask_harness.dart' show ScriptedRepository, rankedTurn;
 import 'floor_harness.dart';
 
 /// THE FLOOR, RENDERED, SO SOMEBODY CAN LOOK AT IT.
@@ -185,6 +188,146 @@ void main() {
       );
     }, skip: !looking);
   }
+
+  // ── THE ASK PHASES ───────────────────────────────────────────────────
+  //
+  // The Floor became the Ask landing on 30 September 2026, so the set above —
+  // which is the screen *at rest* — is no longer the whole screen. These are
+  // the three phases the composer introduced plus the two held states, and
+  // between them they are what the owner is actually being asked to sign off:
+  //
+  // | image | what it has to get right |
+  // |---|---|
+  // | `answering` | the plate SHRUNK, the question above the running rail |
+  // | `answered` | the plate still lit and still shrunk, the answer under it |
+  // | `offline` | the held band above the composer, Send disabled, plate intact |
+  // | `no-picture` | the fallback drawing, the strip light unspent |
+  // | `window-empty` | em dashes and sentences, never a scoreboard of zeros |
+
+  /// The Floor with a question already asked and answered.
+  ///
+  /// The question goes in through the **composer**, not by seeding the
+  /// controller: what is being photographed is the screen a manager produced
+  /// by typing, and the phase machine, the hand-off latch and the plate's
+  /// shrink all key off state that only the real path sets.
+  Future<void> ask(
+    WidgetTester tester, {
+    required List<AssistantEvent> script,
+    required Size size,
+    TiqSkin? skin,
+    bool settle = true,
+  }) async {
+    await pumpFloor(
+      tester,
+      const TheFloorScreen(),
+      size: size,
+      skin: skin,
+      plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
+      current: kpis(osa: 61, execution: 73, priceCompliance: 74),
+      previous: kpis(osa: 64, execution: 92),
+      alerts: decisions,
+      outlets: outlets,
+      assistant: ScriptedRepository(script),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask-composer-field')),
+      'Why is 73 down?',
+    );
+    await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Send'));
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      // Two frames: enough for the question bubble and the rail to be on
+      // screen, not enough for the turn to land.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+  }
+
+  for (final (name, size, skin)
+      in <(String, Size, TiqSkin?)>[
+        ('390x844', Size(390, 844), null),
+        ('390x844-day', Size(390, 844), _day),
+        ('360x640', Size(360, 640), null),
+      ]) {
+    // ── Mid-answer: the plate has already shrunk ──────────────────────
+    testWidgets('The Floor at $name, answering', (tester) async {
+      await ask(
+        tester,
+        script: rankedTurn(),
+        size: size,
+        skin: skin,
+        settle: false,
+      );
+      await expectLater(
+        find.byKey(const ValueKey<String>('amber-golden-boundary')),
+        matchesGoldenFile('${dir}floor_$name-answering.png'),
+      );
+    }, skip: !looking);
+
+    // ── Answered: the plate stays, and the answer explains the score ──
+    testWidgets('The Floor at $name, answered', (tester) async {
+      await ask(tester, script: rankedTurn(), size: size, skin: skin);
+      await expectLater(
+        find.byKey(const ValueKey<String>('amber-golden-boundary')),
+        matchesGoldenFile('${dir}floor_$name-answered.png'),
+      );
+    }, skip: !looking);
+  }
+
+  // ── Offline: the composer is held, the screen is not ──────────────────
+  testWidgets('The Floor at 390x844, offline', (tester) async {
+    await pumpFloor(
+      tester,
+      const TheFloorScreen(),
+      size: const Size(390, 844),
+      plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
+      current: kpis(osa: 61, execution: 73, priceCompliance: 74),
+      previous: kpis(osa: 64, execution: 92),
+      alerts: decisions,
+      outlets: outlets,
+      online: false,
+    );
+    await expectLater(
+      find.byKey(const ValueKey<String>('amber-golden-boundary')),
+      matchesGoldenFile('${dir}floor_390x844-offline.png'),
+    );
+  }, skip: !looking);
+
+  // ── No picture: the plate's fallback, and the light unspent ───────────
+  testWidgets('The Floor at 390x844, no picture', (tester) async {
+    await pumpFloor(
+      tester,
+      const TheFloorScreen(),
+      size: const Size(390, 844),
+      current: kpis(osa: 61, execution: 73, priceCompliance: 74),
+      previous: kpis(osa: 64, execution: 92),
+      alerts: decisions,
+      outlets: outlets,
+    );
+    await expectLater(
+      find.byKey(const ValueKey<String>('amber-golden-boundary')),
+      matchesGoldenFile('${dir}floor_390x844-no-picture.png'),
+    );
+  }, skip: !looking);
+
+  // ── A window with no visits: em dashes, sentences, no zeros ───────────
+  testWidgets('The Floor at 390x844, no territory measured', (tester) async {
+    await pumpFloor(
+      tester,
+      const TheFloorScreen(),
+      size: const Size(390, 844),
+      plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
+      current: emptyWindowKpis(),
+      alerts: decisions,
+      outlets: outlets,
+    );
+    await expectLater(
+      find.byKey(const ValueKey<String>('amber-golden-boundary')),
+      matchesGoldenFile('${dir}floor_390x844-window-empty.png'),
+    );
+  }, skip: !looking);
 }
 
 /// Day at the console density, which is what `pumpFloor` gives Night by

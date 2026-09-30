@@ -497,6 +497,37 @@ class _FloorState extends ConsumerState<_Floor> {
     // that move. See [_PlateFor] for the arithmetic.
     final asking = state.messages.isNotEmpty;
 
+    // WHERE YOU ARE, AND WHERE ELSE YOU CAN GO. Built once and placed twice:
+    // on the plate's top band while the plate is tall enough to carry it
+    // without standing on its own strip light, and on the ground directly
+    // under the plate once it has shrunk. See [_PlateFor.topSlot] for the
+    // measurement that decides which.
+    final controls = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Flexible(
+          child: PlateScopeChip(
+            key: const ValueKey<String>('floor-scope-chip'),
+            scope: view.territoryName,
+            window: view.windowLabel,
+            filtered: view.isFiltered,
+            onTap: () => showDashboardScope(context, ref),
+            // The printed line is two facts joined by a separator, which a
+            // screen reader spells as a caption. The control has to say what
+            // it does.
+            semanticsLabel:
+                '${view.territoryName}, ${view.windowLabel}. '
+                'Change the territory or the window.',
+          ),
+        ),
+        const SizedBox(width: TiqSpace.s2),
+        FloorDestinationsButton(
+          key: const ValueKey<String>('floor-destinations'),
+          onTap: () => showFloorDestinations(context, view),
+        ),
+      ],
+    );
+
     return _FloorFrame(
       phase: '${measured ? 'loaded' : 'window-empty'}-${phase.name}',
       hasPlatePhoto: true,
@@ -533,7 +564,11 @@ class _FloorState extends ConsumerState<_Floor> {
       ),
       children: <Widget>[
         // 1. THE PLATE — the territory, the score, and the one strip of light.
-        _FloorPlate(view: view, shrunk: asking),
+        _FloorPlate(
+          view: view,
+          shrunk: asking,
+          topSlot: asking ? null : controls,
+        ),
         SizedBox(height: skin.space.blockGap),
 
         if (!asking) ...<Widget>[
@@ -556,6 +591,14 @@ class _FloorState extends ConsumerState<_Floor> {
             child: _DecisionList(view: view),
           ),
         ] else ...<Widget>[
+          // THE CONTROLS THE SHRUNKEN PLATE GAVE UP, on the ground instead of
+          // on the picture. Nothing moved out of reach: the scope sheet and
+          // every destination are still one tap away while an answer is being
+          // read, which is exactly when a manager is most likely to want the
+          // next territory.
+          controls,
+          SizedBox(height: skin.space.intraBlock),
+
           // THE WAY BACK TO THE BRIEFING. A screen that can be asked a
           // question and not un-asked it is the same trap a scope with no
           // Clear is, and this route has carried that argument since the
@@ -565,8 +608,7 @@ class _FloorState extends ConsumerState<_Floor> {
             child: TorchTertiaryButton(
               key: const ValueKey<String>('floor-clear-answers'),
               label: 'Back to the briefing',
-              semanticLabel:
-                  'Back to the briefing. Clears this conversation.',
+              semanticLabel: 'Back to the briefing. Clears this conversation.',
               onPressed: _clear,
             ),
           ),
@@ -826,12 +868,23 @@ class _MoreRow extends StatelessWidget {
 
 /// The plate, wired to the territory in scope.
 class _FloorPlate extends ConsumerWidget {
-  const _FloorPlate({required this.view, required this.shrunk});
+  const _FloorPlate({
+    required this.view,
+    required this.shrunk,
+    required this.topSlot,
+  });
 
   final FloorView view;
 
   /// Whether a question has been asked. See [_PlateFor.shrunk].
   final bool shrunk;
+
+  /// The scope chip and the destinations control, or null once the plate has
+  /// shrunk — see [_FloorState.build], which renders them under the plate
+  /// instead. Passed in rather than built here because the same pair has to
+  /// be one object in two places, and two constructions of "the same controls"
+  /// is how they drift.
+  final Widget? topSlot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -857,6 +910,7 @@ class _FloorPlate extends ConsumerWidget {
     return _PlateFor(
       view: view,
       shrunk: shrunk,
+      topSlot: topSlot,
       image: picture.image,
       // WHAT THE PICTURE IS, CARRIED RATHER THAN ASSUMED. The plate speaks one
       // sentence about it and the sentence has to be true of the bytes above
@@ -870,12 +924,7 @@ class _FloorPlate extends ConsumerWidget {
       // the app" — so it is a chip at the top of the plate, in the app's own
       // chip grammar. The sheet behind it is unchanged: the overview's own
       // `TorchFilterRail` and territory rows, from `dashboard_filters.dart`.
-      onScopeTap: () => showDashboardScope(context, ref),
       onClearTerritory: view.isFiltered ? () => clearFloorTerritory(ref) : null,
-      // THE DESTINATIONS, since the nav pill gave the bottom of the screen to
-      // the composer. See [FloorDestinationsButton] for what buys back the
-      // discoverability four labelled tabs had.
-      onDestinations: () => showFloorDestinations(context, view),
     );
   }
 }
@@ -888,9 +937,8 @@ class _PlateFor extends StatelessWidget {
     required this.image,
     this.shrunk = false,
     this.imageSource,
-    this.onScopeTap,
+    this.topSlot,
     this.onClearTerritory,
-    this.onDestinations,
   });
 
   final FloorView view;
@@ -986,19 +1034,31 @@ class _PlateFor extends StatelessWidget {
     };
   }
 
-  /// Opens the scope sheet. Null in a test that pumps the plate alone — and
-  /// the chip is then absent rather than inert, because a control that does
-  /// nothing is worse than no control at all.
-  final VoidCallback? onScopeTap;
-
   /// Back to all territories in one tap. Null when nothing is filtered —
   /// a Clear that clears nothing is chrome, and this screen has none to
   /// spare.
   final VoidCallback? onClearTerritory;
 
-  /// Opens the destinations. Null in a test that pumps the plate alone, and
-  /// the control is then absent rather than inert.
-  final VoidCallback? onDestinations;
+  /// THE TOP BAND'S CONTROLS, OR NULL ONCE THE PLATE HAS SHRUNK.
+  ///
+  /// **Why they leave the plate rather than ride it down.** `TiqPlate`'s own
+  /// doc has always said the top slot "never reaches the light itself, which
+  /// is the object the amber budget is spent on" — and at the answering height
+  /// that stopped being true. The slot is a 44dp tap target 16dp from the top
+  /// edge, so it occupies y=16..60 whatever the plate's height is, while the
+  /// strip light rides at 0.38h: at 122dp that is y=46, underneath the chip.
+  ///
+  /// The amber census is what caught it, and caught it as an over-claim rather
+  /// than as an ugly frame: the chips painted over the middle of the strip
+  /// light and left its two ends showing, so one lit object was counted as
+  /// **two** and the answered state came to three against a budget of two.
+  ///
+  /// The approved mockup draws the shrunken plate with no chip on it, so this
+  /// follows the mockup. Nothing is lost — see [_FloorState.build], which puts
+  /// the same two controls in a row directly under the plate, where they stay
+  /// reachable while an answer is being read rather than waiting for the
+  /// conversation to be cleared.
+  final Widget? topSlot;
 
   @override
   Widget build(BuildContext context) {
@@ -1072,36 +1132,7 @@ class _PlateFor extends StatelessWidget {
       // slack to the half that can use it. `PlateScopeChip` wraps to two lines
       // rather than ellipsising, which is its own stated rule — a scope you
       // cannot read is a scope you cannot trust.
-      topSlot: onScopeTap == null && onDestinations == null
-          ? null
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                if (onScopeTap != null)
-                  Flexible(
-                    child: PlateScopeChip(
-                      key: const ValueKey<String>('floor-scope-chip'),
-                      scope: view.territoryName,
-                      window: view.windowLabel,
-                      filtered: view.isFiltered,
-                      onTap: onScopeTap!,
-                      // The printed line is two facts joined by a separator,
-                      // which a screen reader spells as a caption. The control
-                      // has to say what it does.
-                      semanticsLabel:
-                          '${view.territoryName}, ${view.windowLabel}. '
-                          'Change the territory or the window.',
-                    ),
-                  ),
-                if (onDestinations != null) ...<Widget>[
-                  const SizedBox(width: TiqSpace.s2),
-                  FloorDestinationsButton(
-                    key: const ValueKey<String>('floor-destinations'),
-                    onTap: onDestinations!,
-                  ),
-                ],
-              ],
-            ),
+      topSlot: topSlot,
       hero: PlateHeroCluster(
         // No eyebrow: the chip above prints the territory and the window, and
         // a card that names the territory twice is a card with one line spent
