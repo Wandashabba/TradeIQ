@@ -77,19 +77,71 @@ import 'entry_brand.dart';
 ///
 /// * [tallest] is 250, which is the mockup's proportion: roughly the top 250
 ///   of 844.
-/// * [ground] is what the form and the commit row need, measured in
-///   `entry_plate_test.dart` rather than guessed, and **grown with the text
-///   scale** by [groundFor]. The form under the plate is prose and prose gets
-///   bigger; a reserve that did not move would keep drawing a 250dp picture
-///   over a form that no longer fits under it.
+/// * [ground] is what has to be on screen **beside** the plate, measured in
+///   `entry_plate_test.dart` rather than guessed, and grown with the text
+///   scale by [groundFor].
 ///
-/// That arithmetic, and not a clip, is what answers the short phone. At
-/// 390×844 it yields a 250dp photographic plate. At **360×640 it yields
-/// [PlateForm.collapsed]** — `640 − 520` is 120, under the 200dp floor — so
-/// the picture is dropped and the same wordmark, headline and sentence render
-/// on a 96dp band on the ground, which is very nearly the masthead that screen
-/// already had. That is the machinery doing its job: the screen where the form
-/// already runs to the fold does not spend 250dp on a picture.
+/// ### The reserve counted a pinned bar against a scroll, three times
+///
+/// This number was 520, then 566, and the second one took three owner reports
+/// to be recognised as a defect rather than a tuning problem. Each round
+/// lowered the per-screen `shortest` instead — 200 to 150 — and each round
+/// moved the cliff eight to twenty pixels without removing it:
+///
+/// | report | viewport | `vh − 566` | drew a picture |
+/// |---|---|---|---|
+/// | browser window | 749 | 183 | only after `shortest` went to 150 |
+/// | phone, then browser | 810 / 749 | 244 / 183 | one did, one did not |
+/// | browser window | **708** | **142** | **no — eight dp short** |
+///
+/// 566 was documented as *the top of the headline to the foot of the commit
+/// action*. **On the phone shape the commit action is not in the scrolling
+/// column at all.** [EntryFrame] hands `primary` and `underPrimary` to
+/// [TorchShell], which puts them in a [TorchThumbZone] that is a *sibling* of
+/// the scroll view — `Column(Expanded(body), bottom)`. Its height is already
+/// taken out of the body by that `Expanded`. Counting it again inside the
+/// plate's reserve subtracted it twice.
+///
+/// Worse, the measurement that produced 566 measured the pinned bar. At
+/// 390×844 the plate's foot is at 266 and the foot of "Forgot password?" is at
+/// 832, twelve dp off the bottom edge: `566 = 844 − 266 − 12`. There is no
+/// content in that number — it is the 844dp phone's own leftovers, so the test
+/// that "proved" it could not have failed on any viewport.
+///
+/// ### What the reserve actually is
+///
+/// The screen scrolls. Everything below the first field is reachable by the
+/// scroll it already has, so the honest reserve is what must be visible beside
+/// the plate for a person to see this is a sign-in and start typing: the
+/// headline (which is *on* the plate) and the whole first field. Measured at
+/// 390 wide in Onest, at 1.0×, by `entry_plate_test.dart`:
+///
+/// | piece | dp |
+/// |---|---|
+/// | the shell's top inset (`s4`) | 16 |
+/// | `blockGap`, plate to first field | 24 |
+/// | the email field, whole | 82 |
+/// | the pinned thumb zone, outside the scroll | 146 |
+/// | **[ground]** | **268** |
+///
+/// That arithmetic, and not a clip, is what answers the short phone. The
+/// picture now survives every viewport down to **418dp** — `418 − 268` is
+/// 150, the [shortest] plate the door accepts — and is the full 250 from 518
+/// up. There is no phone and no browser window in that band, which is the
+/// point: a cliff that has been moved three times has to end up somewhere
+/// nobody can land on it.
+///
+/// A 360×640 handset therefore draws the photograph, where 566 dropped it.
+/// Checked rather than assumed: at 640 the scroll viewport is 494, the plate's
+/// foot is at 266, and the email and password fields land at 290–372 and
+/// 392–474. **Both fields are above the fold with the picture up**, and the
+/// two checkboxes scroll — which they did at 566 too, because the band it drew
+/// instead was 183dp of type, not the 96 the old prose claimed.
+///
+/// The collapsed band stays and still means what it says: under [shortest] a
+/// photograph with type on it is a smear, and a band of plain type is the
+/// honest answer. What changed is that the boundary is now arithmetic about
+/// this screen instead of an accident of the 844dp phone it was measured on.
 ///
 /// ## 4. BOTH OF [EntryFrame]'S SHAPES
 ///
@@ -136,45 +188,54 @@ class EntryPlate extends StatelessWidget {
   static const double tallest = 250;
 
   /// The shortest photographic plate the door will accept — **150, against
-  /// The Floor's 200, and it is the difference between a picture and none.**
+  /// The Floor's 200, and it is an argument about the picture, not about the
+  /// fold.**
   ///
   /// On The Floor a plate is context above a list of work, so a 150dp strip is
   /// room the work needs. Here the plate IS the screen: the owner chose this
-  /// direction out of three *because* the picture is the product's signature,
-  /// and a door that silently drops it has not been built.
+  /// direction out of three *because* the picture is the product's signature.
   ///
-  /// The number this replaces was doing real damage and doing it invisibly.
-  /// With [ground] at 566 and a 200 floor, a photograph needed a **766dp**
-  /// viewport. The owner's phone is 810 and drew one; their browser window was
-  /// 749 and did not — and the reasonable conclusion from outside was that the
-  /// web build had not been rebuilt. It had. One rule was drawing two
-  /// different screens 17dp apart, and 749 is an utterly ordinary laptop
-  /// window.
+  /// It is **not** load-bearing any more, and that is the repair. 150 was put
+  /// here to buy sixty-six dp of viewport back from a reserve that was double
+  /// counting the thumb zone, and the arithmetic it was defending against is
+  /// gone — see §3. With [ground] at 268 a 150dp plate only occurs between a
+  /// 418 and a 468dp viewport, and nothing lands there. What the number still
+  /// says is the thing it ought to have said on its own: under 150dp a
+  /// photograph with type over it is a smear, and the band is better.
   ///
-  /// At 150 the picture survives to a 716dp viewport, and below that the band
-  /// is still the honest answer: under 150dp a photograph with type on it is a
-  /// smear, not a plate.
+  /// **Lowering it again would be the fourth round of the same mistake.** If a
+  /// viewport is ever reported without a picture, the reserve above is what to
+  /// re-measure.
   static const double shortest = 150;
 
-  /// What the sign-in form and its commit row need under the plate at 1.0×.
+  /// What must be on screen **beside** the plate at 1.0× — **268, measured.**
   ///
-  /// **566, and it is a measurement rather than a proportion.** The first
-  /// number written here was 520 and it was wrong: `entry_plate_test.dart`
-  /// rasterises the real screen and measures the foot of the plate to the
-  /// foot of the commit action, and that is 566dp in Onest at 390 wide. The
-  /// test fails with the number to put here, so this can never drift into a
-  /// guess again.
-  static const double ground = 566;
+  /// The screen scrolls, so this is not the height of the form. It is the top
+  /// inset (16) plus the block gap and the whole first field (24 + 82) plus
+  /// the pinned thumb zone (146), which is a sibling of the scroll view and
+  /// not a row inside it. §3 has the table and the three reports that came of
+  /// getting it wrong. `entry_plate_test.dart` re-measures all four pieces off
+  /// the rendered screen and fails with the number to put here.
+  static const double ground = 268;
 
-  /// How much of [ground] is prose, and therefore grows with the text scale.
-  /// The rest is gaps, field chrome and the commit row's own height, which do
-  /// not.
-  static const double groundProse = 200;
+  /// How much [ground] grows per unit of text scale — **80, measured.**
+  ///
+  /// Three of the four pieces carry type and two of them grow: the email field
+  /// (82 → 120) and the thumb zone (146 → 184). The gap and the inset are
+  /// tokens and do not. The measured reserve is 268 at 1.0×, 290 at 1.3×, 314
+  /// at 1.6× and 344 at 2.0× — a straight line of slope 76. The number here is
+  /// rounded up to 80 so [groundFor] is never *under* the measured reserve at
+  /// a scale in between; at 1.6× a slope of 76 would have been 0.4dp short.
+  static const double groundProse = 80;
 
-  /// The reserve at a given text scale. Linear in the prose share, which is
-  /// the honest approximation: at 2.0× the form below is far taller, the fold
-  /// cannot hold both, and the plate collapses rather than pushing the button
-  /// off the screen.
+  /// The reserve at a given text scale.
+  ///
+  /// Linear, and it no longer has to carry the weight it used to: at 2.0× this
+  /// is 348, so the collapse boundary moves from a 418dp viewport to 498 and
+  /// the picture survives every real device at every scale the app allows. The
+  /// plate's own type is fitted by [TiqPlate]'s ladder, which is where that
+  /// job belongs — the reserve is about the screen under the plate, and
+  /// conflating the two is how it came to be 566.
   static double groundFor(double textScale) =>
       ground + (textScale - 1) * groundProse;
 

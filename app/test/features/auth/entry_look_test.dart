@@ -94,6 +94,23 @@ void main() {
     // between it and the phones. See the note above the function.
     ('1280x1800', Size(1280, 1800)),
     ('834x1112', Size(834, 1112)),
+    // ── 395×708, THE WINDOW THE DEFECT WAS REPORTED FROM THREE TIMES ─────
+    //
+    // *"Why is now the login different? Look at the image attached?"* — the
+    // owner, 1 October 2026, with no photograph on the door.
+    //
+    // It is the owner's own browser window and it was eight dp short of the
+    // last fix's cliff: the reserve wanted 716dp of viewport and this is 708.
+    // The same defect had already been reported at 749 and at 749-against-810,
+    // and each round moved the boundary instead of removing it — because each
+    // round was judged on one pinned number, and this harness only ever
+    // rendered sizes that happened to be on the safe side of it.
+    //
+    // The argument for it is the same as the argument for 1280×1800 above,
+    // made a second time by the same kind of report: **a look harness that
+    // only renders the sizes a screen was designed at cannot catch the size
+    // it was not.** 708 is now one of the sizes it was designed at.
+    ('395x708', Size(395, 708)),
   ];
   const skins = <(String, SkinMode)>[
     ('night', SkinMode.night),

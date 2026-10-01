@@ -78,11 +78,18 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// a viewport being taller than its content. **A phone in landscape is wide
 /// and is still a phone** — 852×393 clears the width test, and a commit bar
 /// at the end of a scroll there is strictly worse than one pinned in reach.
-/// The sign-in column measures **566dp** from the top of its headline to the
+/// The sign-in column measures **656dp** from the top of its plate to the
 /// foot of its commit action at 1.0× (printed by `entry_width_test.dart`).
 /// Under 900dp of viewport that column is most of the screen, a bar on the
 /// bottom edge still reads as the foot of the form, and pinning it is right.
 /// Over it, the bar is marooned — which is the complaint.
+///
+/// This said 566 and from the top of the *headline*, which was two errors in
+/// one line: the plate is above the headline, and 566 was never a column
+/// height — it was `EntryPlate`'s reserve, which had itself been measured off
+/// the pinned bar below. A number that travels between two files without
+/// either one owning it is the number that is wrong in both. The measurement
+/// is printed by the test named above and by nothing else.
 ///
 /// **Amber: none.** This frame is a layout and paints nothing. The route's
 /// claims are unchanged by which shape it is in: the primary is the same
