@@ -51,9 +51,16 @@ import '../worklist_harness.dart';
 /// TASKS_LOOK=1 TASKS_LOOK_DIR=/somewhere/ flutter test \
 ///   test/features/tasks/tasks_look_test.dart --update-goldens
 /// ```
+///
+/// **`TASKS_LOOK_SIZE=360x640`** shoots the same screens on the cheap-Android
+/// width. The default stays 390×844, so the committed goldens are byte-for-byte
+/// what they were; the size travels into the filename, so the two sets never
+/// overwrite one another.
 void main() {
   final looking = Platform.environment['TASKS_LOOK'] == '1';
   final dir = Platform.environment['TASKS_LOOK_DIR'] ?? 'goldens/';
+  final phone = _sizeFromEnv() ?? const Size(390, 844);
+  final tag = '${phone.width.toInt()}x${phone.height.toInt()}';
 
   setUpAll(() async {
     await loadAgentFonts();
@@ -216,7 +223,7 @@ void main() {
       tester,
       TasksScreen(clock: () => now),
       skin: skin,
-      size: const Size(390, 844),
+      size: phone,
       users: roster,
       banner: false,
       overrides: <Override>[
@@ -269,7 +276,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_390x844-overdue-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-overdue-$name.png'),
       );
     }, skip: !looking);
 
@@ -294,7 +301,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_390x844-clear-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-clear-$name.png'),
       );
     }, skip: !looking);
 
@@ -325,7 +332,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_390x844-filtered-empty-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-filtered-empty-$name.png'),
       );
     }, skip: !looking);
 
@@ -346,7 +353,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_390x844-empty-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-empty-$name.png'),
       );
     }, skip: !looking);
   }
@@ -377,4 +384,23 @@ Future<void> _loadIcons() async {
           font.readAsBytes().then((b) => ByteData.view(b.buffer)),
         ))
       .load();
+}
+
+/// `TASKS_LOOK_SIZE=360x640` → `Size(360, 640)`; anything else → null.
+///
+/// The same contract `agent_look_test.dart` carries, for the same reason: the
+/// prose face and the type scale both moved on 1 October 2026 and every
+/// harness had to be re-shot at the cheap-Android width as well as the
+/// reference phone. Silent on a malformed value on purpose — these images are
+/// an artefact to look at, and a throw here would read as a broken screen
+/// rather than as a typo in a shell variable.
+Size? _sizeFromEnv() {
+  final raw = Platform.environment['TASKS_LOOK_SIZE'];
+  if (raw == null) return null;
+  final parts = raw.toLowerCase().split('x');
+  if (parts.length != 2) return null;
+  final w = double.tryParse(parts[0]);
+  final h = double.tryParse(parts[1]);
+  if (w == null || h == null || w <= 0 || h <= 0) return null;
+  return Size(w, h);
 }
