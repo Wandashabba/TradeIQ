@@ -3593,9 +3593,12 @@ occupies y=16..60 whatever the plate's height is, while the strip light rides at
 the middle of the light and left its two ends showing, so **one lit object was
 counted as two** and the answered state came to three.
 
-So the scope chip and the destinations control leave the plate when it shrinks
-and sit in a row directly under it. The approved mockup already draws the
-shrunken plate with no chip on it.
+So the scope chip and the destinations control leave the plate when it shrinks.
+~~and sit in a row directly under it~~ — **superseded by §22, 1 October 2026.**
+Putting them on the ground is what made the screen read as two stacked headers;
+they are simply not drawn while answering, and `PlateSpec.topSlotRoom` is the
+clearance as a number rather than this paragraph as a claim. The approved mockup
+already draws the shrunken plate with no chip on it.
 
 The same collision, in a milder form, is why the destinations control drops its
 word under 380dp: the label costs the scope chip a line, and a two-line chip is
@@ -3614,9 +3617,12 @@ not change — the control's meaning has not got narrower.
   to ask about and no briefing to stand on.
 - **The availability stat card** is briefing line two. Its sparkline and its
   supports stay on the overview the card already opened.
-- **The decision list** is below the briefing. On a 360×640 phone no decision
+- ~~**The decision list** is below the briefing. On a 360×640 phone no decision
   card clears the fold; the briefing's first line is the same question answered
-  shorter, above the fold on every phone, and tappable to `/tasks`.
+  shorter, above the fold on every phone, and tappable to `/tasks`.~~
+  **SUPERSEDED, 1 October 2026 — see §22.** The list is not on this screen at
+  all. The second half of that sentence is what survived: the briefing's first
+  line *is* the question answered shorter, and it opens `/tasks`.
 
 ### The briefing and the chips read no new feed
 
@@ -3645,3 +3651,115 @@ rather than tofu.
 FLOOR_LOOK=1 FLOOR_LOOK_DIR=/somewhere/ flutter test \
   test/features/dashboard/floor_look_test.dart --update-goldens
 ```
+
+## 22. The Floor, simplistic — 1 October 2026
+
+§21 above was built to a brief that said *"keep every existing capability of The
+Floor… if something cannot fit above the fold it moves, it does not disappear"*.
+Applied to the approved mockup that instruction is a contradiction, and the
+screen that came out of it is the contradiction made visible: a photographic
+header, a bar of controls under it, a `LAST 30 DAYS` heading, three two-line
+cards, a `NEEDS A DECISION` heading, five ranked rows, a more-row, a chip row
+and a composer. The owner looked at it beside the drawing and said *"two
+completely different things"*.
+
+**The mockup replaces one block with the other. It does not stack them.** The
+owner's own word for what they asked for is *simplistic*, and a screen earns
+that by what it leaves out.
+
+### The five differences, and what each one cost
+
+| # | the drawing | what shipped | now |
+|---|---|---|---|
+| 1 | scope chip top-left, Menu top-right, **on the picture** | on the picture at rest; on the **ground under the plate** while answering | on the picture at rest, at the two corners; drawn nowhere while answering |
+| 2 | no decision list | briefing **and** list, under two headings | the briefing, and the list on the Work queue |
+| 3 | one line per card: name, figure | two lines: name + a supporting sentence | one line; the sentence is spoken, and printed only where the figure is an em dash |
+| 4 | no section headers | `LAST 30 DAYS` and `NEEDS A DECISION` | none |
+| 5 | a large calm gap above the chips | the gap filled with rows | the gap, pinned by a test that fails if anything fills it |
+
+### Where the decision list is reached from
+
+Three ways, all above the fold, all off the same `FloorView.decisions` the list
+was drawn from, all pressed in `floor_taps_test.dart`:
+
+1. the briefing's **count** — `Overdue work · 12` — opens `/tasks`;
+2. the briefing's **worst single outlet**, by name, opens that finding;
+3. **Menu → Work**, which prints the live count on the row.
+
+`FloorView.visible`, `moreCount` and `visibleCount` went with the rows. A
+five-plus-a-count cap is a property of a list being *shown*, and a cap that
+nothing applies is a rule waiting to be re-derived differently somewhere else.
+
+### An age renders in the largest unit that keeps it legible
+
+The same screenshot carried a data defect. The worst-outlet line printed
+`17 207h` and the decision row eleven lines under it printed `17 206,8h`. Both
+are correct and it is **717 days**; neither is a reading, and the two spellings
+of one number read as two different facts.
+
+The unit was typed at each site as `TiqUnit.worded('h')`, so *"the column means
+one thing on every row"* was being enforced by two copies of a literal. It is
+`FloorAge` now, on `FloorDecision` beside the timestamp it reads:
+
+```text
+  rounded hours < 48    →  47h
+  rounded days  < 14    →  6d
+  otherwise             →  102w
+```
+
+**The rounding happens before the comparison.** Pick the unit off the raw value
+and round for display, and 47,6 hours prints `48h` — the one hour-reading the
+ladder forbids, sitting one second from `2d`. `floor_age_test.dart` walks both
+seams and asserts the readings are monotone across four hundred days.
+
+It is a *figure* ladder and deliberately not `formatAgo`, which is the app's one
+*prose* ladder. A figure slot takes a number and a suffix; a sentence does not
+go in it.
+
+### The controls ride the picture, and the clearance is a number
+
+Moving the pair back onto the plate re-opens §21's defect: the top slot is inset
+a fixed 16dp while the light rides at 0.38 of the plate's height, so on a short
+enough plate the control paints across the middle of the line, leaves its two
+ends showing, and the census counts one lit object as **two**.
+
+§21 solved it by moving them off the plate. That is the solution the owner
+rejected. The rule is now the clearance itself — `PlateSpec.topSlotRoom`, the
+band between the top slot's inset and the strip light — measured in
+`floor_proportion_test.dart` against the control the screen actually draws:
+
+| phone | plate at rest | light at | band | controls take | at the answering height |
+|---|---|---|---|---|---|
+| 390×844 | 253dp | 96dp | 80dp | 44dp | 45dp of band |
+| 360×640 | 192dp | 73dp | 57dp | 44dp | 30dp of band |
+
+At rest it clears on both. At 360 it clears **only** because
+`FloorDestinationsButton.compact` drops the word `Menu` and keeps the chip on
+one line — that fix is load-bearing, not cosmetic, and the test says so.
+
+At the answering height a 44dp tap target fits on the tall phone by less than a
+millimetre and does not fit on the narrow one at all. An arrangement chosen by
+measurement would therefore draw a chip at 390 and not at 360 — one screen
+rendering as two, 30dp apart, which is exactly the defect `PlateSpec.shortest`
+was made a parameter to stop. So the rule is the **phase**, not the viewport,
+and it is the same on every phone. `Back to the briefing` sits directly above
+the transcript and is one tap to the state that has both controls.
+
+### The census, printed
+
+Per phase, per skin, at 390×844, with the strip light's own region:
+
+```text
+night / at rest                  1 object   350px at 20,121  350x1
+night / at rest, no photograph   0 objects
+night / typing                   2 objects  350x1 (light) + 48x48 (Send)
+night / answering                2 objects  350x2 (light) + 6x6 (focus)
+night / answered                 2 objects  350x2 (light) + 6x6 (focus)
+night / offline                  1 object   350x1 (light)
+day   / at rest                  0 objects
+day   / typing                   1 object   46x46 (Send)
+day   / answered                 0 objects
+```
+
+The strip light is **one** region of 350×1 in every Night frame, which is the
+proof the controls above it are not cutting it in half.
