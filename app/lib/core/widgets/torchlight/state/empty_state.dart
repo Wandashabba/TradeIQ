@@ -52,9 +52,9 @@ enum EmptyScope {
 ///
 /// ## The headline fits by line count
 ///
-/// See [TorchDisplayHeadline], which owns the rule: 1–2 lines stay at 40, 3
-/// lines step to 32, 4 or more to 26, floor 26. [displaySizeFor] forwards to
-/// it.
+/// See [TorchDisplayHeadline], which owns the rule: 1–2 lines stay at
+/// `display`, 3 lines step to `display.m`, 4 or more to `display.s`, which is
+/// the floor. [displaySizeFor] forwards to it.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -89,7 +89,7 @@ class EmptyState extends StatelessWidget {
   /// The three steps of the display fitting rule. Lives on
   /// [TorchDisplayHeadline] now; kept here because this is the name the scale
   /// tests call.
-  static const List<double> displaySteps = TorchDisplayHeadline.steps;
+  static final List<double> displaySteps = TorchDisplayHeadline.steps;
 
   /// THE LINE-COUNT FITTING RULE — see [TorchDisplayHeadline.sizeFor], which
   /// is where it lives and what this forwards to.

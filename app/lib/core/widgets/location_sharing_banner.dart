@@ -235,7 +235,7 @@ class _LocationNoticeState extends State<_LocationNotice> {
       density: SoftRowDensity.compact,
       title: l10n.locationNoticeTitle,
       // The honest sentence, in the collapsed form. `meta`, not `subtitle`:
-      // the kit's banner puts its second line at meta 12, and this line is a
+      // the kit's banner puts its second line in `meta`, and this line is a
       // qualification of the title rather than a second claim.
       meta: Text(l10n.locationNoticeSummary),
       leading: Icon(

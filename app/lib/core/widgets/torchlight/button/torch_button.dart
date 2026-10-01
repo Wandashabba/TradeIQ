@@ -38,10 +38,12 @@ double torchTapTarget(TiqSkin skin) =>
 /// carrying the smallest type on the screen, below body at 15**. That premise
 /// was true and the fix was free — the button is 56dp tall, so the label had
 /// room. The premise has now been **removed rather than outvoted**: with one
-/// type scale, `body` is 14 everywhere, so `body.strong` at 14/600 is body's
-/// own size at a heavier weight, not below it. The complaint §1.7 answered
+/// type scale, `body` and `body.strong` are the SAME size — 13 since the
+/// 1 October 2026 reduction, 14 before it — so `body.strong` is body's own
+/// size at a heavier weight, not below it. The complaint §1.7 answered
 /// cannot recur at this scale, which is also why the console has lived with
-/// 14/600 on its commit actions from the start without anyone filing it.
+/// `body.strong` on its commit actions from the start without anyone filing
+/// it.
 ///
 /// So this is not the owner overruling a considered decision. It is a
 /// decision whose input changed. Had `TiqType.forDensity` returned `console`
@@ -52,7 +54,7 @@ double torchTapTarget(TiqSkin skin) =>
 /// a 15pt body". Restoring this alone would be a step above nothing.
 TiqTypeToken torchBlockLabelToken(TiqSkin skin) => skin.text.bodyStrong;
 
-/// The text-action label role: `label` 13/500.
+/// The text-action label role: `label`, 12/500.
 TiqTypeToken torchTextLabelToken(TiqSkin skin) => skin.text.label;
 
 /// Horizontal padding inside a block button.
@@ -74,7 +76,7 @@ const double torchBlockGrowthPadding = TiqSpace.s4;
 /// bottom edge of the screen, and there is nothing beneath it to put a
 /// sentence in.
 ///
-/// meta 12/400 ink-3, wraps, never truncated, and a `liveRegion` so a screen
+/// `meta` 11/400 ink-3, wraps, never truncated, and a `liveRegion` so a screen
 /// reader user hears why the button will not fire without hunting for it.
 class TorchBarNote extends StatelessWidget {
   const TorchBarNote(this.text, {super.key});

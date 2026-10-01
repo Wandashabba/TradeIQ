@@ -148,8 +148,8 @@ class _Today extends ConsumerWidget {
                 // gets its own HEADLINE and not only its own sentence. The
                 // two used to share "No route planned for today", which is
                 // untrue of a plan that exists and has no stops on it, and
-                // which at display 40 under the fitting rule ran to two lines
-                // and took the fold with it. Both headlines here are the ones
+                // which at the top of the display ladder, under the fitting
+                // rule, ran to two lines and took the fold with it. Both headlines here are the ones
                 // the agent surface names for these two states.
                 headline: route == null
                     ? l10n.todayNoRouteTitle
@@ -481,8 +481,10 @@ class _DayBlock extends StatelessWidget {
                 // `figure.l` and not `display`: the design calls for "mono
                 // display 40/600" and there is no declared FIGURE role at 40 —
                 // display is a prose role, and `FigureSlot` asserts on one.
-                // The nearest declared figure is 32, and it steps down to 24
-                // under the measured fit rather than shrinking optically.
+                // The nearest declared figure is `figure.l` at 32, and it
+                // steps down to `figure.m` at 22 under the measured fit
+                // rather than shrinking optically. (Both are figure roles and
+                // neither moved in the 1 October 2026 prose reduction.)
                 FigureSlot(
                   value: done,
                   role: skin.text.figureL,

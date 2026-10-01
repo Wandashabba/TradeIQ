@@ -373,14 +373,14 @@ class TorchlightContrast {
       ),
       ContrastPairing(
         skin: 'night',
-        label: 'ink-3 (12px meta) on ground',
+        label: 'ink-3 (11px meta) on ground',
         foreground: n.ink3,
         background: n.ground,
         role: ContrastRole.text,
       ),
       ContrastPairing(
         skin: 'night',
-        label: 'ink-3 (12px meta) on raised — the binding case',
+        label: 'ink-3 (11px meta) on raised — the binding case',
         foreground: n.ink3,
         background: n.raised,
         role: ContrastRole.text,
@@ -821,7 +821,7 @@ class TorchlightContrast {
       ),
       ContrastPairing(
         skin: 'day',
-        label: 'ink-3 (12px meta) on ground',
+        label: 'ink-3 (11px meta) on ground',
         foreground: d.ink3,
         background: d.ground,
         role: ContrastRole.text,

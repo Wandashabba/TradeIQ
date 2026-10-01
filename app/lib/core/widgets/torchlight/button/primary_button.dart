@@ -84,7 +84,7 @@ class TorchPrimaryButton extends StatelessWidget {
   /// The id this button is registered under in the route's [TorchScope].
   final String claimId;
 
-  /// What is missing. Rendered above the button at meta 12/400 ink-3, wrapping,
+  /// What is missing. Rendered above the button in `meta` ink-3, wrapping,
   /// never truncated, as a live region.
   final String? blockedReason;
 
