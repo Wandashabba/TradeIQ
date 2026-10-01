@@ -59,6 +59,34 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 /// a Day-coloured version of itself. `floor_dawn_test.dart` pins the Day
 /// render against an unwashed one, pixel for pixel.
 ///
+/// ## It names an amber token, and the lint was right to stop it
+///
+/// `torchlight_amber_lint_test.dart` failed this file on its `flame900`
+/// stops, and the failure is the correct behaviour of a guard that exists
+/// because *"a widget that reaches for flame600 directly is lit on every
+/// route"*. The resolution is **one `torchlight-ignore` marker, on the one
+/// line that names the token, plus this paragraph** — and deliberately
+/// **not** an entry in `TorchlightScanner.amberAllowlist`:
+///
+/// * That list is the **emitter** allowlist — the thirteen files allowed to
+///   light something, each one of which asks `TorchScope` first and is
+///   counted by the census. This file lights nothing. It declares no claim, it
+///   asks the allocator for nothing, and the census over every phase of this
+///   route in both skins reads the same counts with it as without it. Putting
+///   it on that list would make the one place a reader goes to find out what
+///   emits light say something untrue.
+/// * The `flame900` here is the **under** layer, at nine percent, beneath a
+///   clay layer at thirty. Its whole contribution at the brightest pixel on
+///   the screen is three levels of red and five of green and blue. Measured:
+///   the composite is `#52403C`, hue **10.4°** — ten degrees *below* the
+///   census's 20° boundary, so it is not a dark amber, it is not an amber at
+///   all. `floor_dawn_test.dart` censuses the wash on its own and finds
+///   **zero** pixels inside the flame-hue box at any value.
+/// * And dropping the stop was considered first, because that would need no
+///   argument. It is the owner's approved artifact, stop for stop, and
+///   `#FFF1DE` is what the artifact draws: taking it out would be shipping a
+///   different wash than the one that was chosen.
+///
 /// ## Why it is not amber, measured
 ///
 /// The amber census counts connected regions of emitted light inside a
@@ -74,6 +102,10 @@ List<Decoration> floorDawnWash(TiqSkin skin) {
   // what the gate means.
   if (skin.amberIsInk) return const <Decoration>[];
   final p = skin.palette;
+  // Truffle, and the one flame token this file names. See the note above for
+  // why the marker is here and not an entry in the emitter allowlist.
+  final clay = p.comparison;
+  final hot = p.flame900; // torchlight-ignore: the 9% under-layer; see above
   return <Decoration>[
     // 1. THE HOT BREATH, painted first and therefore underneath — the CSS
     //    lists it second and a CSS background list paints back to front.
@@ -85,10 +117,7 @@ List<Decoration> floorDawnWash(TiqSkin skin) {
         center: _hotCentre,
         radius: 1,
         transform: const _Ellipse(_hotCentre, width: 0.90, height: 0.30),
-        colors: <Color>[
-          p.flame900.withValues(alpha: 0.09),
-          p.flame900.withValues(alpha: 0),
-        ],
+        colors: <Color>[hot.withValues(alpha: 0.09), hot.withValues(alpha: 0)],
         stops: const <double>[0, 0.70],
       ),
     ),
@@ -103,9 +132,9 @@ List<Decoration> floorDawnWash(TiqSkin skin) {
         radius: 1,
         transform: const _Ellipse(_clayCentre, width: 1.30, height: 0.48),
         colors: <Color>[
-          p.comparison.withValues(alpha: 0.30),
-          p.comparison.withValues(alpha: 0.08),
-          p.comparison.withValues(alpha: 0),
+          clay.withValues(alpha: 0.30),
+          clay.withValues(alpha: 0.08),
+          clay.withValues(alpha: 0),
         ],
         stops: const <double>[0, 0.44, 0.76],
       ),
