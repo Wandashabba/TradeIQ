@@ -56,8 +56,10 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 /// carrier of ink, not a light", exactly as `primary_button.dart` and
 /// `nav_circle.dart` read it. On Day this returns the empty list and the
 /// shell's ground is untouched: nothing paints, rather than something painting
-/// a Day-coloured version of itself. `floor_dawn_test.dart` pins the Day
-/// render against an unwashed one, pixel for pixel.
+/// a Day-coloured version of itself. `floor_dawn_test.dart` pins every pixel
+/// of a bare column of the Day render against the shell's own falloff, and the
+/// eight committed Day sign-off renders are byte-identical across this
+/// change — the twelve Night ones are not.
 ///
 /// ## It names an amber token, and the lint was right to stop it
 ///
@@ -78,7 +80,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 /// * The `flame900` here is the **under** layer, at nine percent, beneath a
 ///   clay layer at thirty. Its whole contribution at the brightest pixel on
 ///   the screen is three levels of red and five of green and blue. Measured:
-///   the composite is `#52403C`, hue **10.4°** — ten degrees *below* the
+///   the composite is `#53403C`, hue **10.4°** — ten degrees *below* the
 ///   census's 20° boundary, so it is not a dark amber, it is not an amber at
 ///   all. `floor_dawn_test.dart` censuses the wash on its own and finds
 ///   **zero** pixels inside the flame-hue box at any value.
@@ -90,12 +92,20 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 /// ## Why it is not amber, measured
 ///
 /// The amber census counts connected regions of emitted light inside a
-/// flame-hue box at **value ≥ 0.90**. The brightest pixel this wash can
-/// produce is its own centre composited over the Night ground — `#52403C`,
-/// value **0.32** — because the wash is strictly *under* every object on the
-/// screen and the only thing beneath it is `ground`/`vignette`. It is 0.58
-/// below the floor, in the one place it is strongest. The counts per phase per
-/// skin are in `floor_dawn_test.dart`, printed rather than asserted blind.
+/// flame-hue box — hue **20–48°**, saturation ≥ 0.12 — at **value ≥ 0.90**.
+///
+/// The brightest pixel this wash can produce is its own centre composited over
+/// the Night ground: `#53403C`, value **0.325**, which is 0.575 under the
+/// floor. That was the prediction. **The measurement is better than the
+/// prediction and for a different reason**: that pixel is at hue **10.4°**,
+/// ten degrees *below* the box, and censused on its own the wash has **zero**
+/// pixels inside the box at any value at all. Clay over navy-black does not
+/// composite to a dark amber. It composites to something that is not amber.
+///
+/// The wash can only ever be read against the ground, because it is strictly
+/// *under* every object on the screen and the only thing beneath it is
+/// `ground`/`vignette`. The counts per phase per skin are in
+/// `floor_dawn_test.dart`, printed rather than asserted blind.
 List<Decoration> floorDawnWash(TiqSkin skin) {
   // AMBER IS INK HERE, SO THERE IS NO LIGHT TO EMIT. Not `skin.mode ==
   // night`: a skin is a value set and this is the token that already says

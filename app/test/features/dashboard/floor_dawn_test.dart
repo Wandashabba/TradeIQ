@@ -427,32 +427,69 @@ void main() {
           }
         }
 
+        // THE HUE OF THE BRIGHTEST PIXEL, which is the stronger half of the
+        // result and the sentence `floor_dawn.dart` quotes. The census boxes
+        // the flame band at 20-48 degrees; clay composited over a navy-black
+        // ground does not land inside it at ALL, at any value, so this is not
+        // "a dark amber" — it is a different hue.
+        final peakColour = pixels.at(px + 0.5, py + 0.5);
+        final pr = (peakColour.r * 255).round();
+        final pg = (peakColour.g * 255).round();
+        final pb = (peakColour.b * 255).round();
+        final hi = math.max(pr, math.max(pg, pb));
+        final lo = math.min(pr, math.min(pg, pb));
+        final delta = (hi - lo).toDouble();
+        var peakHue = 0.0;
+        if (delta != 0) {
+          if (hi == pr) {
+            peakHue = 60 * (((pg - pb) / delta) % 6);
+          } else if (hi == pg) {
+            peakHue = 60 * ((pb - pr) / delta + 2);
+          } else {
+            peakHue = 60 * ((pr - pg) / delta + 4);
+          }
+          if (peakHue < 0) peakHue += 360;
+        }
+
         // ignore: avoid_print
         print(
           'THE WASH ALONE over `ground`, $name:\n'
           '  census: ${census.objectCount} object(s), ${census.litPixels} lit '
           'px (${(census.litFraction * 100).toStringAsFixed(3)}%)\n'
-          '  brightest pixel anywhere: ${hex(pixels.at(px + 0.5, py + 0.5))} '
-          'at $px,$py — value ${(peak / 255).toStringAsFixed(3)}\n'
+          '  brightest pixel anywhere: ${hex(peakColour)} at $px,$py — '
+          'value ${(peak / 255).toStringAsFixed(3)}, '
+          'saturation ${(delta / hi).toStringAsFixed(3)}, '
+          'hue ${peakHue.toStringAsFixed(1)} deg\n'
           '  brightest pixel inside the flame hue box (20-48 deg, sat >= '
           '0.12): value ${value.toStringAsFixed(3)} at $bx,$by '
-          '(${bx < 0 ? 'none' : hex(pixels.at(bx + 0.5, by + 0.5))})\n'
-          '  the census counts a pixel at value >= 0.900',
+          '(${bx < 0 ? 'none at any value' : hex(pixels.at(bx + 0.5, by + 0.5))})\n'
+          '  the census counts a flame-hued pixel at value >= 0.900',
         );
 
         expect(
           census.objectCount,
           0,
-          reason:
-              'The wash registered as emitted light.\n${census.describe()}',
+          reason: 'The wash registered as emitted light.\n${census.describe()}',
         );
         expect(
-          value,
-          lessThan(0.90),
+          bx,
+          -1,
           reason:
-              'A flame-hued pixel of the wash reached value '
-              '${value.toStringAsFixed(3)}, against the census floor of '
-              '0.900. The finding is the measurement, not a lower opacity.',
+              'The wash has a pixel inside the census\'s flame-hue box — at '
+              'value ${value.toStringAsFixed(3)} against a floor of 0.900, so '
+              'it does not count YET. It is two degrees of hue from counting, '
+              'which is not a margin. The finding is the measurement, not a '
+              'lower opacity.',
+        );
+        expect(
+          peakHue,
+          lessThan(20),
+          reason:
+              'The wash\'s brightest pixel is at hue '
+              '${peakHue.toStringAsFixed(1)} degrees, inside or above the '
+              'census\'s 20-48 band. Clay over navy composites BELOW the '
+              'band, which is why this is not an amber rather than a dark '
+              'one.',
         );
       });
     }

@@ -217,24 +217,27 @@ class _FloorFrame extends StatelessWidget {
       // 24dp console inset away to let it. The owner's reference insets the
       // plate and rounds it, so the inset comes back for every state — a card
       // hard against the status bar is a card with one edge missing.
-      // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ────────────────────────
-      //
-      // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
-      // flame: the colour of the sky in the territory photographs the plate
-      // already carries, so the screen glows without a third amber object
-      // standing on a budget of two. The argument, the CSS it is ported
-      // from, the paint cost and the Day gate are all on [floorDawnWash].
-      //
-      // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
-      // justification is the plate's sky; the wash's *condition* is not the
-      // plate — it is the ground of this screen, not a light on its picture,
-      // which is exactly the distinction that keeps the strip light gated on
-      // `hasPlatePhoto` and this not. Gating it the same way would mean a
-      // skeleton whose bottom third warms up the moment a JPEG decodes.
       child: FloorScaffold(
         bleedTop: false,
         showNavPill: false,
         band: band,
+        // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ──────────────────────
+        //
+        // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
+        // flame: the colour of the sky in the territory photographs the
+        // plate already carries, so the screen glows without a third amber
+        // object standing on a budget of two. The argument, the CSS it is
+        // ported from, the paint cost and the Day gate are all on
+        // [floorDawnWash]; the layer it goes in is [TorchShell.backdrop],
+        // and the reason it has to be that layer is the band.
+        //
+        // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
+        // justification is the plate's sky; the wash's *condition* is not
+        // the plate — it is the ground of this screen, not a light on its
+        // picture, which is exactly the distinction that keeps the strip
+        // light gated on `hasPlatePhoto` and this not. Gating it the same
+        // way would mean a skeleton whose bottom third warms up the moment
+        // a JPEG decodes.
         backdrop: floorDawnWash(context.skin),
         children: children,
       ),

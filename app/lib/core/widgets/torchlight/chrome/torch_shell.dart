@@ -388,7 +388,9 @@ class TorchShell extends StatelessWidget {
 
     // The letterbox falloff is the shell's **ground**, not a wash over its
     // content: four stops in one draw call, painted once, beneath everything.
-    // Two stops band on a 6-bit panel.
+    // Two stops band on a 6-bit panel. A route that wants an actual wash gets
+    // one from [backdrop], which goes immediately over this and under the
+    // content — not into this gradient, which every route shares.
     final falloff = profile == TorchShellProfile.console;
 
     final keyboard = media.viewInsets.bottom;
