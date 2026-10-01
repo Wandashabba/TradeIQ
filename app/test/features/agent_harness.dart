@@ -198,18 +198,21 @@ Future<void> dragAgentUp(WidgetTester tester, {double by = 240}) async {
 /// ## Why a fold test cannot use the test font
 ///
 /// `flutter_test` renders every glyph in its own fixed-advance test font,
-/// which is deliberately nothing like Onest: it is wider, so every label wraps
+/// which is deliberately nothing like the prose face: it is wider, so every
+/// label wraps
 /// sooner and every screen measures taller. That is exactly right for a test
 /// that asserts a role, a token or a count, and exactly wrong for one that
 /// asserts a HEIGHT — a fold is a fact about the typeface the app ships, and
-/// Onest and JetBrains Mono are bundled precisely so that fact is knowable.
+/// Schibsted Grotesk and JetBrains Mono are bundled precisely so that fact is knowable.
 ///
 /// So the tests that measure whether something fits the phone load the real
 /// fonts first. Call it from `setUpAll`. It is a binding-wide change, so a
 /// file that calls it should be a file whose assertions are about geometry.
 Future<void> loadAgentFonts() async {
   for (final (family, assets) in <(String, List<String>)>[
-    ('Onest', <String>['assets/fonts/Onest-Variable.ttf']),
+    ('Schibsted Grotesk', <String>[
+      'assets/fonts/SchibstedGrotesk-Variable.ttf',
+    ]),
     ('JetBrains Mono', <String>[
       'assets/fonts/JetBrainsMono-Regular.ttf',
       'assets/fonts/JetBrainsMono-Medium.ttf',

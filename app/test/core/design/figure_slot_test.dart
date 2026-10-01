@@ -56,7 +56,7 @@ void main() {
   }
 
   group('two faces, one figure', () {
-    testWidgets('the digits are mono and the affix is Onest', (tester) async {
+    testWidgets('the digits are mono and the affix is Schibsted Grotesk', (tester) async {
       final skin = TiqSkin.night();
       await pump(
         tester,
@@ -72,15 +72,15 @@ void main() {
       expect(
         spans[0].style!.fontFamily,
         TiqFonts.prose,
-        reason: 'The R is language, and Onest is the language face.',
+        reason: 'The R is language, and Schibsted Grotesk is the language face.',
       );
       expect(
         spans[1].style!.fontFamily,
         TiqFonts.mono,
         reason:
-            'Onest has no slashed zero, proportional digits, and an I and an l '
-            'that are the same shape. None of that matters in a sentence and '
-            'all of it matters in a column of money.',
+            'Schibsted Grotesk sets its digits proportionally and leaves its '
+            'zero unslashed unless the `zero` feature is on. Neither matters '
+            'in a sentence and both matter in a column of money.',
       );
     });
 

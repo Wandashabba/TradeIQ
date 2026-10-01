@@ -20,8 +20,8 @@ import '../worklist_harness.dart';
 ///
 /// Every other test in this folder asserts a number. This one produces the
 /// eight images the owner and the reviewer look at: four states of the screen
-/// in **both** skins, at 390×844, with Onest and JetBrains Mono loaded. The
-/// test font is wider than Onest, so a screen rendered in it wraps sooner and
+/// in **both** skins, at 390×844, with Schibsted Grotesk and JetBrains Mono loaded. The
+/// test font is wider than Schibsted Grotesk, so a screen rendered in it wraps sooner and
 /// measures taller — a picture of the wrong screen.
 ///
 /// The four states are chosen because each one is a different claim the page
@@ -41,7 +41,7 @@ import '../worklist_harness.dart';
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart` and `colour_look_test.dart` give: CI
-/// rasterises anti-aliased Onest on `ubuntu-latest` and this repository is
+/// rasterises anti-aliased Schibsted Grotesk on `ubuntu-latest` and this repository is
 /// developed on macOS, so a pixel comparison fails on the day it lands and
 /// gets skipped within a week. The images are an artefact to *look at*; the
 /// pins are the measurements in `tasks_screen_test.dart` and

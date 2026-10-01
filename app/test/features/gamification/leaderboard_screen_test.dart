@@ -173,12 +173,12 @@ void main() {
       // THE NAME, NOT AN ID — asserted through the row's own contract. Since
       // the card override of 25 September 2026 a list row spends its own
       // padding before the name starts, and in `flutter_test`'s font (about
-      // twice Onest's advance) a 14-character name middle-truncates on a
-      // 360dp row beside a tile and a trailing word. That is the ruling's own
-      // behaviour — names middle-truncate before status words, and the FULL
+      // twice Schibsted Grotesk's advance) a 14-character name middle-truncates
+      // on a 360dp row beside a tile and a trailing word. That is the ruling's
+      // own behaviour — names middle-truncate before status words, and the FULL
       // name is what a screen reader is handed whatever the row painted — and
-      // it is the test font, not the device: with Onest loaded both names
-      // paint whole at 1.0x. What must never happen is the row naming a
+      // it is the test font, not the device: with Schibsted Grotesk loaded both
+      // names paint whole at 1.0x. What must never happen is the row naming a
       // person by their id or their email, and that is what is pinned here.
       expect(find.bySemanticsLabel(RegExp('Thandi Mokoena')), findsOneWidget);
       expect(find.bySemanticsLabel(RegExp('Busi Dlamini')), findsOneWidget);

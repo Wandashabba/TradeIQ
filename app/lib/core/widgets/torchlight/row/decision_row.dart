@@ -119,9 +119,9 @@ class DecisionRow extends StatelessWidget {
       // one: the reason went to a single line in #458, so the premise for the
       // tall density went with it, and the 80dp floor was holding open 11dp
       // of air per row that the card grammar now spends as a gap between
-      // cards instead — where it is visible. Measured at 390×844 with Onest
-      // loaded, the row is ~69dp of content either way; what the change buys
-      // is the third decision above the nav pill.
+      // cards instead — where it is visible. Measured at 390×844 with the
+      // real prose face loaded, the row is ~69dp of content either way; what
+      // the change buys is the third decision above the nav pill.
       density: SoftRowDensity.compact,
       title: title,
       titleTruncation: SoftRowTruncation.middle,

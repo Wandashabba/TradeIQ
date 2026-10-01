@@ -35,12 +35,12 @@ void main() {
       final row = find.byKey(const ValueKey<String>('my-visit-v1'));
       expect(row, findsOneWidget);
       // THE STORE, NAMED. Since the card override of 25 September 2026 a list
-      // row spends its own padding before the title starts, and a
-      // 17-character outlet name middle-truncates on a 360dp row in
-      // `flutter_test`'s font, which has about twice Onest's advance. That is
-      // the ruling's own behaviour — outlet names middle-truncate, and the
-      // FULL name is what a screen reader is handed whatever the row painted
-      // — so both halves are asserted rather than the painted string alone.
+      // row spends its own padding before the title starts, and a 17-character
+      // outlet name middle-truncates on a 360dp row in `flutter_test`'s font,
+      // which has about twice Schibsted Grotesk's advance. That is the ruling's
+      // own behaviour — outlet names middle-truncate, and the FULL name is what
+      // a screen reader is handed whatever the row painted — so both halves are
+      // asserted rather than the painted string alone.
       expect(
         find.descendant(of: row, matching: find.textContaining('Kasi Cor')),
         findsOneWidget,

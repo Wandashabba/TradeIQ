@@ -7,15 +7,21 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
 /// THE FIGURE-FACE LAW.
 ///
-/// Onest must never render a figure or a code. It has no slashed zero, its
-/// digits are proportional unless `tnum` is explicitly enabled, and its capital
-/// I and lowercase l are identical shapes. None of that matters in a sentence
-/// and all of it matters in an outlet code, a GTIN, an order ref or a column of
+/// The prose face must never render a figure or a code. Its digits are
+/// proportional unless `tnum` is explicitly enabled, which does not matter in a
+/// sentence and matters in an outlet code, a GTIN, an order ref or a column of
 /// stock counts.
+///
+/// Two of the three grounds the rule was written on were Onest's and are gone:
+/// Schibsted Grotesk HAS a slashed zero (the `zero` feature, off by default)
+/// and its I and l are plainly different glyphs. **The split stays regardless.**
+/// A figure face and a prose face doing different jobs is the design, not a
+/// workaround for a glyph set.
 ///
 /// So the split is enforced here rather than left to discipline: every role
 /// declared `figure` or `identifier` must resolve to JetBrains Mono with
-/// tabular figures on, and every `prose` role must resolve to Onest.
+/// tabular figures on, and every `prose` role must resolve to Schibsted
+/// Grotesk.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -26,7 +32,7 @@ void main() {
     'day.field': TiqSkin.day(density: TiqDensity.field),
   };
 
-  group('the Onest / JetBrains Mono split', () {
+  group('the Schibsted Grotesk / JetBrains Mono split', () {
     for (final MapEntry(key: skinName, value: skin) in skins.entries) {
       for (final token in skin.text.all) {
         test('$skinName ${token.name} resolves to the right face', () {
@@ -36,9 +42,9 @@ void main() {
               style.fontFamily,
               TiqFonts.mono,
               reason:
-                  '${token.name} is a ${token.kind.name} role. Onest has no '
-                  'slashed zero and its I and l are the same shape; a figure '
-                  'or a code set in it is a support ticket.',
+                  '${token.name} is a ${token.kind.name} role. The prose face '
+                  'sets its digits proportionally; a figure or a code set in '
+                  'it is a support ticket.',
             );
             expect(
               style.fontFeatures,
@@ -53,8 +59,8 @@ void main() {
               style.fontFamily,
               TiqFonts.prose,
               reason:
-                  '${token.name} is prose. It is set in Onest, and Onest is '
-                  'bundled precisely so it is not a system fallback.',
+                  '${token.name} is prose. It is set in Schibsted Grotesk, '
+                  'which is bundled precisely so it is not a system fallback.',
             );
             expect(
               style.fontFeatures ?? const <FontFeature>[],
@@ -101,7 +107,7 @@ void main() {
   });
 
   group('the fonts actually ship', () {
-    test('FontManifest declares Onest as a single variable asset', () async {
+    test('FontManifest declares the prose face as one variable asset', () async {
       final manifest =
           json.decode(await rootBundle.loadString('FontManifest.json'))
               as List<dynamic>;
@@ -110,7 +116,8 @@ void main() {
       final onest = families.firstWhere(
         (f) => f['family'] == TiqFonts.prose,
         orElse: () => fail(
-          'Onest is not in FontManifest.json — the pubspec fonts section is '
+          'Schibsted Grotesk is not in FontManifest.json — the pubspec fonts '
+          'section is '
           'missing or misnamed, and the engine will fall back silently.',
         ),
       );
@@ -119,12 +126,13 @@ void main() {
         fonts,
         hasLength(1),
         reason:
-            'Onest ships as ONE variable font. Google Fonts publishes only '
-            'Onest[wght].ttf, and Flutter has mapped FontWeight onto a '
-            'variable wght axis since 3.41 — static instances would be four '
-            'downloads of the same outlines.',
+            'The prose face ships as ONE variable font. Google Fonts publishes '
+            'SchibstedGrotesk[wght].ttf plus a separate italic the app does '
+            'not bundle, and Flutter has mapped FontWeight onto a variable '
+            'wght axis since 3.41 — static instances would be four downloads '
+            'of the same outlines.',
       );
-      expect(fonts.single['asset'], 'assets/fonts/Onest-Variable.ttf');
+      expect(fonts.single['asset'], 'assets/fonts/SchibstedGrotesk-Variable.ttf');
       expect(
         fonts.single.containsKey('weight'),
         isFalse,
@@ -163,8 +171,8 @@ void main() {
       );
     });
 
-    test('Onest is a real variable TrueType, not a placeholder', () async {
-      final bytes = await rootBundle.load('assets/fonts/Onest-Variable.ttf');
+    test('the prose face is a real variable TrueType, not a placeholder', () async {
+      final bytes = await rootBundle.load('assets/fonts/SchibstedGrotesk-Variable.ttf');
       expect(
         bytes.getUint32(0),
         0x00010000,

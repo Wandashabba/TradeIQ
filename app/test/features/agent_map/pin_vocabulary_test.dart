@@ -48,7 +48,7 @@ import '../agent_harness.dart' show loadAgentFonts;
 ///
 /// **The trailing slash is load-bearing**, as it is in every look test here.
 /// It does not run in CI for the reason `floor_look_test.dart` gives: CI
-/// rasterises anti-aliased Onest differently to macOS, so a pixel comparison
+/// rasterises anti-aliased Schibsted Grotesk differently to macOS, so a pixel comparison
 /// on the image fails within a week. The assertions above it run everywhere.
 void main() {
   final looking = Platform.environment['PIN_LOOK'] == '1';

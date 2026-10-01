@@ -20,11 +20,11 @@ import '../auth/entry_harness.dart';
 /// THE TWO SCREENS THE OWNER IS LOOKING AT.
 ///
 /// "The menu on the manager side still has the rectangular shapes, I don't want
-/// that, and the login as well." These are those two, rendered with Onest and
+/// that, and the login as well." These are those two, rendered with Schibsted Grotesk and
 /// JetBrains Mono so the corners are the real corners.
 ///
 /// Skipped in CI behind `SOFT_LOOK`, for the reason `floor_look_test.dart`
-/// gives: CI rasterises anti-aliased Onest on Linux and this repository is
+/// gives: CI rasterises anti-aliased Schibsted Grotesk on Linux and this repository is
 /// developed on macOS.
 void main() {
   final looking = Platform.environment['SOFT_LOOK'] == '1';

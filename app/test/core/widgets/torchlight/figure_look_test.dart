@@ -24,13 +24,13 @@ import '../../../features/agent_harness.dart' show loadAgentFonts;
 /// measures that. This file produces the images the judgement is made on: the
 /// trend chart with a comparison and a target, the same with a gap, the
 /// sparkline, the meter at three values and the ranked bars, in Night and Day,
-/// at 390×844, with **Onest and JetBrains Mono loaded** so the axis labels are
+/// at 390×844, with **Schibsted Grotesk and JetBrains Mono loaded** so the axis labels are
 /// the typeface the app ships rather than the test font.
 ///
 /// ## Why it does not run in CI
 ///
 /// Exactly the reason `floor_look_test.dart` gives: CI rasterises anti-aliased
-/// Onest on `ubuntu-latest` and this repository is developed on macOS, so a
+/// Schibsted Grotesk on `ubuntu-latest` and this repository is developed on macOS, so a
 /// pixel comparison fails on the day it lands and is skipped within a week.
 /// These are artefacts to *look at*; the pins are the assertions in
 /// `chart_test.dart` and `figures_test.dart`, which run everywhere.

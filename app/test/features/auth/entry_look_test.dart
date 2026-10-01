@@ -48,7 +48,7 @@ import 'entry_harness.dart';
 ///
 /// ## Why it does not run in CI
 ///
-/// The reason its four siblings give: CI rasterises anti-aliased Onest on
+/// The reason its four siblings give: CI rasterises anti-aliased Schibsted Grotesk on
 /// `ubuntu-latest` and this repository is developed on macOS, so a pixel
 /// comparison fails on the day it lands and gets skipped within a week.
 ///

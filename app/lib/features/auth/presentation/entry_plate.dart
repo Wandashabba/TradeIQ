@@ -120,7 +120,7 @@ import 'entry_brand.dart';
 /// scroll it already has, so the honest reserve is what must be visible beside
 /// the plate for a person to see this is a sign-in and start typing: the
 /// headline (which is *on* the plate) and the whole first field. Measured at
-/// 390 wide in Onest, at 1.0×, by `entry_plate_test.dart`:
+/// 390 wide in Schibsted Grotesk, at 1.0×, by `entry_plate_test.dart`:
 ///
 /// | piece | dp |
 /// |---|---|

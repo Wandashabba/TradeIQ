@@ -22,7 +22,7 @@ import 'entry_harness.dart';
 /// `entry_look_test.dart` is the picture; this is the pin. It answers three
 /// questions a picture cannot:
 ///
-/// 1. **Is 480 a measure, or a taste?** It is a measure. Onest at body
+/// 1. **Is 480 a measure, or a taste?** It is a measure. The prose face at body
 ///    14/1.55 is measured here with a `TextPainter` against the entry
 ///    screens' own copy, and the cap is asserted to land inside the 45–75
 ///    characters-per-line band. If the type scale moves again the way it did
@@ -53,7 +53,7 @@ void main() {
       'Signing in again on this phone is the only thing that sends them.',
     ];
 
-    test('480dp is 45–75 characters of Onest at body 14', () {
+    test('480dp is 45–75 characters of the prose face at body', () {
       final skin = entrySkinFor(SkinMode.night);
       final body = skin.text.body;
       expect(body.size, 14, reason: 'the cap is arithmetic on this number');
@@ -76,7 +76,8 @@ void main() {
       // number straight off the failure instead of deriving it again.
       // ignore: avoid_print
       print(
-        'Onest body 14: ${perCharacter.toStringAsFixed(3)}dp per character; '
+        'prose body ${skin.text.body.size}: '
+        '${perCharacter.toStringAsFixed(3)}dp per character; '
         '${TiqSpace.readingWidth.toStringAsFixed(0)}dp holds '
         '${perLine.toStringAsFixed(1)} characters.',
       );

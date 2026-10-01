@@ -12,7 +12,7 @@ import 'row_harness.dart';
 /// is a decision rather than a shortcut:
 ///
 /// * CI runs `flutter test` on `ubuntu-latest` and this repository is
-///   developed on macOS. Two platforms rasterise anti-aliased Onest
+///   developed on macOS. Two platforms rasterise anti-aliased Schibsted Grotesk
 ///   differently, so an image golden generated here fails there on the day it
 ///   lands and gets `skip`ped within a week — which is a golden nobody runs.
 /// * What unify §1.3 actually rules is a set of **values**: 56/64/80, radius 0

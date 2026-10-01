@@ -7,10 +7,22 @@ import 'tiq_space.dart';
 class TiqFonts {
   TiqFonts._();
 
-  /// Onest — the prose face. One bundled variable font (`Onest[wght].ttf`,
-  /// wght 100–900); Flutter maps [FontWeight] onto the wght axis, so no static
-  /// instances are shipped.
-  static const String prose = 'Onest';
+  /// Schibsted Grotesk — the prose face. One bundled variable font
+  /// (`SchibstedGrotesk-Variable.ttf`, wght **400–900**); Flutter maps
+  /// [FontWeight] onto the wght axis, so no static instances are shipped.
+  ///
+  /// It replaced Onest on 1 October 2026, chosen by the owner from four
+  /// open-licensed grotesques shown against the commercial face they were
+  /// evaluating. SIL OFL 1.1, bundled rather than fetched — see `pubspec.yaml`.
+  ///
+  /// Its x-height is Onest's to within a thousandth of an em (0.5273 against
+  /// 0.5270), which is why the swap did not change apparent size, and its
+  /// lowercase is a few percent narrower, which is why prose wraps slightly
+  /// later. The measurements are in `docs/design/torchlight-aisle.md`.
+  ///
+  /// The axis floor is 400 rather than Onest's 100. Every weight in this file
+  /// is 400 or above; a token below it would be silently clamped to regular.
+  static const String prose = 'Schibsted Grotesk';
 
   /// JetBrains Mono — the figure and identifier face.
   static const String mono = 'JetBrains Mono';
@@ -31,13 +43,22 @@ class TiqFonts {
 
 /// Whether a type role carries language or carries data.
 ///
-/// This is the enforcement point for the rule that Onest must never render a
-/// figure or a code. Onest has no slashed zero, its digits are proportional,
-/// and its capital I and lowercase l are the same shape — all three are fine
-/// for prose and disqualifying for an outlet code, a GTIN or an order ref.
+/// This is the enforcement point for the rule that the prose face must never
+/// render a figure or a code.
+///
+/// The rule was first written against Onest, which had no slashed zero,
+/// proportional digits, and a capital I and lowercase l of the same shape.
+/// **Schibsted Grotesk answers two of those three** — it has a slashed zero
+/// under the `zero` feature, and its I and l are plainly different glyphs —
+/// and the split stays anyway, because it is a design decision rather than a
+/// glyph audit: a figure face and a prose face doing different jobs is what the
+/// product reads as. The one ground that still holds on its own terms is the
+/// third: digits are proportional by default in both faces, and a column of
+/// stock counts is not a column without `tnum`.
+///
 /// `torchlight_type_test.dart` asserts the mapping in both directions.
 enum TiqTypeKind {
-  /// Language. Onest.
+  /// Language. Schibsted Grotesk.
   prose,
 
   /// A quantity, a timestamp, a unit, an axis label — anything a reader

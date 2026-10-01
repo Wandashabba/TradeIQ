@@ -68,13 +68,18 @@ class TiqSpace {
   /// only on the console profile — so the way in ran a 1240dp-wide email
   /// field, and there was no token to say it should not.
   ///
-  /// **480, and here is the arithmetic.** `body` is 14/1.55 in Onest at both
-  /// densities since #488. Onest measures **6.547dp per character** at 14 —
+  /// **480, and here is the arithmetic.** `body` is 14/1.55 at both densities
+  /// since #488. Schibsted Grotesk measures **6.458dp per character** at 14 —
   /// measured by `TextPainter` against these screens' own copy in
-  /// `entry_width_test.dart`, not estimated — so 480dp is **73.3
+  /// `entry_width_test.dart`, not estimated — so 480dp is **74.3
   /// characters**, inside the 45–75 band typography has used for a century
   /// (66 is the optimum). It is 4 × 120, on the base-4 grid like everything
   /// else here.
+  ///
+  /// Onest measured 6.547dp per character and 73.3 characters. The face swap
+  /// on 1 October 2026 cost **one character of headroom** and nothing else;
+  /// the band's upper edge is the term to watch, because a narrower face at
+  /// the same size puts MORE words on a line, not fewer.
   ///
   /// The first number written here was 520, read off a rendered screen with
   /// a ruler; the `TextPainter` said 79.4 characters and 520 went. **The

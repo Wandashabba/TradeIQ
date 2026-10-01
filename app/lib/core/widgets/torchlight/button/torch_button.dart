@@ -188,7 +188,8 @@ class _TorchBusyDotsState extends State<TorchBusyDots>
 
 /// The destructive mark: a triangle, **drawn**, never the character U+25B2.
 ///
-/// Onest has no geometric shapes at any weight, the PDF subset cannot be given
+/// Schibsted Grotesk has no solid triangles at any weight, so the PDF subset
+/// cannot be given
 /// them, and `package:pdf` draws a missing glyph as nothing at all — which is
 /// how a delta arrow vanished from every exported report and was found by a
 /// customer rather than by CI. A painter cannot go missing.

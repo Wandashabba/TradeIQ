@@ -152,7 +152,8 @@ class DeltaStrings {
 ///
 /// Replaces `DeltaChip`, `DeltaPill` and `TileDelta.text`.
 ///
-/// * **Drawn, not typed.** `TileDelta.text` built `▲`/`▼` as characters. Onest
+/// * **Drawn, not typed.** `TileDelta.text` built `▲`/`▼` as characters. The
+///   prose face
 ///   does not carry U+25B2/U+25BC once `pyftsubset` has run, and the PDF
 ///   exporter rendered them as nothing at all (#401) — a number with no
 ///   direction beside it, which is worse than no delta.

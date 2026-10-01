@@ -32,10 +32,10 @@ import 'floor_harness.dart';
 /// Nothing failed, because every test here asked whether a widget was present.
 /// These ask how big it is.
 void main() {
-  // THE FOLD IS A FACT ABOUT THE TYPEFACE. `flutter_test`'s own font is
-  // wider than Onest, so every label wraps sooner and every screen measures
-  // TALLER in it — which is the right default for a test about a role or a
-  // count and the wrong one for a file whose every assertion is a height.
+  // THE FOLD IS A FACT ABOUT THE TYPEFACE. `flutter_test`'s own font is wider
+  // than Schibsted Grotesk, so every label wraps sooner and every screen
+  // measures TALLER in it — which is the right default for a test about a role
+  // or a count and the wrong one for a file whose every assertion is a height.
   // The row counts below are the counts on the device because of this line.
   setUpAll(loadAgentFonts);
 

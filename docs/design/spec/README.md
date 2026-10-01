@@ -37,7 +37,8 @@ carry the decision struck through beside the text it replaced, and the code is
 the final authority over both.
 
 ## Two owner decisions override these documents
-- **The typeface is Onest**, not Archivo, for all prose. **JetBrains Mono** sets
+- **The typeface is Schibsted Grotesk** (Onest until 1 October 2026; never
+  Archivo) for all prose. **JetBrains Mono** sets
   every figure in a data role and every machine identifier.
 - **The navigation is a floating pill** with a solid amber active tab and a
   separate circle for the primary action.

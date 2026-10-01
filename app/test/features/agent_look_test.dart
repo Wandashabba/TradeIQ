@@ -111,7 +111,7 @@ import 'me/me_harness.dart';
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart`, `tasks_look_test.dart` and
-/// `ask_look_test.dart` each give: CI rasterises anti-aliased Onest on
+/// `ask_look_test.dart` each give: CI rasterises anti-aliased Schibsted Grotesk on
 /// `ubuntu-latest` and this repository is developed on macOS, so a pixel
 /// comparison fails on the day it lands and gets skipped within a week. These
 /// are artefacts to *look at*; the pins are the assertions in

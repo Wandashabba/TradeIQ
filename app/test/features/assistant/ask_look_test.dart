@@ -22,8 +22,8 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// broken-image placeholder* and *do the three silhouettes look drawn* — are
 /// not questions an assertion can answer.
 ///
-/// 390×844, both skins, with Onest and JetBrains Mono loaded. The test font is
-/// wider than Onest, so a screen rendered in it wraps sooner and measures
+/// 390×844, both skins, with Schibsted Grotesk and JetBrains Mono loaded. The test font is
+/// wider than Schibsted Grotesk, so a screen rendered in it wraps sooner and measures
 /// taller — a picture of the wrong screen.
 ///
 /// | image | what it has to get right |
@@ -41,7 +41,7 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart` and `tasks_look_test.dart` give: CI
-/// rasterises anti-aliased Onest on `ubuntu-latest` and this repository is
+/// rasterises anti-aliased Schibsted Grotesk on `ubuntu-latest` and this repository is
 /// developed on macOS, so a pixel comparison fails on the day it lands and
 /// gets skipped within a week. The images are an artefact to *look at*; the
 /// pins are the measurements in `chat_screen_test.dart`,

@@ -214,7 +214,7 @@ void main() {
       //
       //    THE CONSTRAINT IS ASSERTED, NOT THE LAID-OUT RECT, and the reason
       //    is worth writing down because the first version of this pin failed
-      //    on it. This harness does not load Onest, and the test font is
+      //    on it. This harness does not load Schibsted Grotesk, and the test font is
       //    wider — so `All territories · Last 30 days` wraps to two lines here
       //    and the drawn box measures 42dp rather than 29. That is a property
       //    of the font the test binding ships with, not of the screen: the

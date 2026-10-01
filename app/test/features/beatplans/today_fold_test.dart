@@ -20,9 +20,9 @@ import '../agent_harness.dart';
 /// 360dp phone "Check in here" sat under the nav pill. Nothing in the suite
 /// said so, because nothing measured a height.
 ///
-/// This file does, and it loads Onest and JetBrains Mono first. `flutter_test`
+/// This file does, and it loads Schibsted Grotesk and JetBrains Mono first. `flutter_test`
 /// otherwise renders every glyph in its own fixed-advance test font, which is
-/// wider than Onest: every label wraps sooner and every screen measures
+/// wider than Schibsted Grotesk: every label wraps sooner and every screen measures
 /// taller. That is right for a test about a role, a token or a count, and
 /// wrong for one about whether something fits — a fold is a fact about the
 /// typeface, and this app bundles its typeface precisely so that fact is

@@ -10,8 +10,8 @@ import '../../../theme/torchlight/tiq_skin.dart';
 /// not an icon pack, not a character.
 ///
 /// The reason is a bug this product already shipped: `TileDelta.text` built
-/// `▲`/`▼` as characters, and the `pyftsubset` step that keeps Onest under a
-/// megabyte does not carry U+25B2/U+25BC. On a device that fell back to the
+/// `▲`/`▼` as characters, and the `pyftsubset` step that keeps the prose
+/// face under a megabyte does not carry U+25B2/U+25BC. On a device that fell back to the
 /// subset the delta rendered as tofu, and in the PDF exporter (#401) it
 /// rendered as nothing at all — a number with no direction beside it, which is
 /// worse than no delta. A drawn path has no codepoint to lose.

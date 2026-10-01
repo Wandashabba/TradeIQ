@@ -37,7 +37,7 @@ import 'visits/visit_harness.dart';
 /// leaving it to a reviewer's imagination.
 ///
 /// Gated and out of CI for the reason `floor_look_test.dart` gives: CI
-/// rasterises anti-aliased Onest differently from macOS, and a pixel
+/// rasterises anti-aliased Schibsted Grotesk differently from macOS, and a pixel
 /// comparison that fails on the day it lands gets skipped within a week.
 /// These are artefacts to look at, not regression pins.
 ///

@@ -169,7 +169,8 @@ class TileDelta {
 
   /// `−12.4%`, `+9`.
   ///
-  /// **No triangle.** The glyph used to be a literal U+25BC, which Onest has
+  /// **No triangle.** The glyph used to be a literal U+25BC, which the prose
+  /// face has
   /// never carried and `package:pdf` draws as nothing at all (#401) — so the
   /// arrow was simply absent from every exported report. The direction is a
   /// drawn shape on screen (`Delta`) and the sign in text; here, where this is

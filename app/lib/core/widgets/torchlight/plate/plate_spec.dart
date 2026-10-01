@@ -54,7 +54,7 @@ class PlateSpec {
   /// numbers left room for two decision rows above the nav; the owner's
   /// reference shows three. 312 is what is left once three decision cards,
   /// the lead card, the section marker, the block gaps and the nav pill have
-  /// taken theirs on an 844dp phone — measured in Onest, not guessed, by
+  /// taken theirs on an 844dp phone — measured, not guessed, by
   /// `floor_proportion_test.dart`, which fails if it stops being true.
   ///
   /// [viewportHeight] is the height the plate may draw into — the full

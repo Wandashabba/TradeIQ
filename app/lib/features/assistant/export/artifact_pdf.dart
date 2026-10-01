@@ -58,7 +58,8 @@ class ArtifactPdfRequest {
   /// The same table the screen shows, derived once in [artifactTableFor].
   final ArtifactTable? table;
 
-  /// Onest, as bundled with the app. Passed in rather than loaded here because
+  /// Schibsted Grotesk, as bundled with the app. Passed in rather than loaded
+  /// here because
   /// `rootBundle` does not exist in a background isolate.
   final ArtifactPdfFonts fonts;
 
@@ -80,7 +81,7 @@ class ArtifactPdfFonts {
 
   /// JetBrains Mono, carried purely as a glyph fallback.
   ///
-  /// Onest has no geometric shapes — U+25B2/25BC, the solid up and down
+  /// The prose face has no solid triangles — U+25B2/25BC, the up and down
   /// triangles the delta marker draws, are simply not in the face (Inter had
   /// them). `package:pdf` does not tofu a missing glyph, it drops it and logs,
   /// so without this the sign of every delta in an exported report would
