@@ -79,6 +79,7 @@ class TorchShell extends StatelessWidget {
     this.scrollController,
     this.pinned,
     this.bleedTop = false,
+    this.backdrop = const <Decoration>[],
   }) : assert(
          !bleedTop || header == null,
          'A route with a header does not bleed its body to the top edge: the '
@@ -222,6 +223,39 @@ class TorchShell extends StatelessWidget {
   /// runs full-bleed to the top edge, which is 24dp of the fold spent on
   /// nothing and a plate that visibly is not the header it claims to be.
   final bool bleedTop;
+
+  /// ── A ROUTE'S OWN AMBIENT WASH, OVER THE GROUND AND UNDER EVERYTHING ──
+  ///
+  /// Decorations painted full-bleed between the shell's [_Ground] and the
+  /// shell's content, in **paint order**: `backdrop.first` goes down first and
+  /// ends up at the bottom. Empty on every route but one, and an empty list
+  /// paints nothing and adds no render object at all, so a route that does not
+  /// ask for a wash renders exactly the pixels it did before this slot
+  /// existed.
+  ///
+  /// **The one caller is The Floor's Dawn wash** (`floor_dawn.dart`), and the
+  /// reason it is a slot *here* rather than a widget in the route's body is
+  /// the band. `fix/band-seam` established that [band] paints no material of
+  /// its own and relies on this ground showing through; the body above it is a
+  /// scroll view that **clips to its own viewport**, which ends where the band
+  /// begins. So a wash added inside [children] stops dead at the band's top
+  /// edge — a hard horizontal seam, at the exact y the owner had just had a
+  /// box removed from — and a wash added *behind* the shell is invisible,
+  /// because the ground is opaque. The only layer that is continuous across
+  /// the body, the band and the bottom region is the ground, and this is the
+  /// slot immediately above it.
+  ///
+  /// **A backdrop is a wash, not a surface.** Every decoration here must be
+  /// transparent enough to let the ground through at every pixel: an opaque
+  /// one is the flat-fill-over-a-gradient defect again, one layer up, and the
+  /// shell cannot assert its way out of that — a `Decoration`'s alpha is not
+  /// inspectable. What it can do is keep the slot narrow: decorations, not a
+  /// widget, so a backdrop cannot hit-test, cannot take a child, cannot size
+  /// anything and cannot be a box.
+  ///
+  /// Cost: one `RenderDecoratedBox` per entry, each painting one `drawRect`
+  /// into the call stream it is already in. No layer, no clip, no `saveLayer`.
+  final List<Decoration> backdrop;
 
   /// The share of the screen a [pinned] band may take. unify §4's header rule,
   /// applied to the one other thing that holds a place at the top.
@@ -372,6 +406,7 @@ class TorchShell extends StatelessWidget {
       child: _Ground(
         skin: skin,
         falloff: falloff,
+        backdrop: backdrop,
         child: Column(
           children: <Widget>[
             Expanded(child: body),
@@ -439,16 +474,36 @@ class _Ground extends StatelessWidget {
     required this.skin,
     required this.falloff,
     required this.child,
+    this.backdrop = const <Decoration>[],
   });
 
   final TiqSkin skin;
   final bool falloff;
+
+  /// See [TorchShell.backdrop]. Nested here rather than stacked: the ground is
+  /// the one full-bleed layer the band, the body and the bottom region all
+  /// share, so a wash belongs between it and them.
+  final List<Decoration> backdrop;
+
   final Widget child;
+
+  /// The route's wash, folded onto [child] in paint order. `backdrop.first` is
+  /// the outermost box and therefore the first to paint — a
+  /// `RenderDecoratedBox` draws its decoration and then its child, so
+  /// outside-in is bottom-up.
+  Widget _washed() {
+    var body = child;
+    for (final decoration in backdrop.reversed) {
+      body = DecoratedBox(decoration: decoration, child: body);
+    }
+    return body;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final body = _washed();
     if (!falloff) {
-      return ColoredBox(color: skin.palette.ground, child: child);
+      return ColoredBox(color: skin.palette.ground, child: body);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -468,7 +523,7 @@ class _Ground extends StatelessWidget {
               stops: <double>[0, band, 1 - band, 1],
             ),
           ),
-          child: child,
+          child: body,
         );
       },
     );

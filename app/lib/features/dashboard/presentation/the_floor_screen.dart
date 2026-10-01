@@ -29,6 +29,7 @@ import '../data/floor_repository.dart';
 import 'dashboard_filters.dart';
 import 'first_run_board.dart';
 import 'floor_ask.dart';
+import 'floor_dawn.dart';
 import 'standards.dart';
 
 /// THE FLOOR — the manager's home.
@@ -216,10 +217,25 @@ class _FloorFrame extends StatelessWidget {
       // 24dp console inset away to let it. The owner's reference insets the
       // plate and rounds it, so the inset comes back for every state — a card
       // hard against the status bar is a card with one edge missing.
+      // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ────────────────────────
+      //
+      // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
+      // flame: the colour of the sky in the territory photographs the plate
+      // already carries, so the screen glows without a third amber object
+      // standing on a budget of two. The argument, the CSS it is ported
+      // from, the paint cost and the Day gate are all on [floorDawnWash].
+      //
+      // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
+      // justification is the plate's sky; the wash's *condition* is not the
+      // plate — it is the ground of this screen, not a light on its picture,
+      // which is exactly the distinction that keeps the strip light gated on
+      // `hasPlatePhoto` and this not. Gating it the same way would mean a
+      // skeleton whose bottom third warms up the moment a JPEG decodes.
       child: FloorScaffold(
         bleedTop: false,
         showNavPill: false,
         band: band,
+        backdrop: floorDawnWash(context.skin),
         children: children,
       ),
     );
@@ -264,9 +280,22 @@ class FloorScaffold extends StatelessWidget {
     this.bleedTop = true,
     this.showNavPill = true,
     this.band,
+    this.backdrop = const <Decoration>[],
   });
 
   final List<Widget> children;
+
+  /// The route's ambient wash, over the shell's ground and under everything —
+  /// see [TorchShell.backdrop] for the layer and [floorDawnWash] for what
+  /// goes in it.
+  ///
+  /// **Empty by default, which keeps [FirstRunBoard] out of it.** This
+  /// scaffold is shared by two screens and Dawn belongs to one. The board is
+  /// a brand-new tenant's ladder with no photograph and no composer: there is
+  /// no plate's sky on it to continue, and a glow under a screen that exists
+  /// to say "there is nothing here yet" is the product pretending again —
+  /// which is the sentence that already keeps the board's plate unlit.
+  final List<Decoration> backdrop;
 
   /// ── THE BOTTOM-REGION SEAM ────────────────────────────────────────────
   ///
@@ -322,6 +351,7 @@ class FloorScaffold extends StatelessWidget {
       // to the top edge" — this is the other half of that sentence.
       bleedTop: bleedTop,
       band: band,
+      backdrop: backdrop,
       navPill: !showNavPill
           ? null
           : TorchNavPill(
