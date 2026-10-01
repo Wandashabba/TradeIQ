@@ -9,6 +9,7 @@ import 'package:tradeiq_app/features/dashboard/presentation/first_run_board.dart
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../assistant/ask_harness.dart' show ScriptedRepository, rankedTurn;
 import 'floor_harness.dart';
 
 /// THE FLOOR'S CHROME, PRESSED ON THE REAL SCREEN.
@@ -142,6 +143,111 @@ void main() {
         );
       });
     }
+
+    /// ── WHERE THE DECISION LIST IS REACHED FROM, NOW THAT IT IS GONE ────
+    ///
+    /// The approved arrangement replaces the list with the briefing. "Nothing
+    /// becomes unreachable" is only a claim until something presses it, and
+    /// this is the press: three routes in, all above the fold, all off the
+    /// same `FloorView.decisions` the list was drawn from.
+    group('the decisions are still one tap away', () {
+      for (final (key, destination, what) in const <(String, String, String)>[
+        ('floor-brief-overdue', '/tasks', 'the count opens the worklist'),
+        (
+          'floor-brief-worst-outlet',
+          '/alerts',
+          'the worst outlet opens its own finding',
+        ),
+      ]) {
+        testWidgets(what, (tester) async {
+          final router = await pumpFloorRoute(
+            tester,
+            alerts: populated,
+            outlets: twoOutlets,
+          );
+
+          await tester.tap(find.byKey(ValueKey<String>(key)));
+          await tester.pumpAndSettle();
+
+          expect(
+            currentRoute(router),
+            destination,
+            reason:
+                'A briefing line that cannot be opened is the end of the road '
+                'for a fact, and this one replaced five rows that each opened '
+                'something.',
+          );
+        });
+      }
+
+      testWidgets('and the Menu row carries the live count', (tester) async {
+        await pumpFloorRoute(tester, alerts: populated, outlets: twoOutlets);
+        await tester.tap(
+          find.byKey(const ValueKey<String>('floor-destinations')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('2 things need a decision'), findsOneWidget);
+        await tester.tapAt(const Offset(180, 8));
+        await tester.pumpAndSettle();
+      });
+    });
+
+    testWidgets('the controls leave the plate while an answer is read, and '
+        'Back to the briefing is one tap to both', (tester) async {
+      // THE OTHER HALF OF "NOTHING BECOMES UNREACHABLE". The approved mockup
+      // draws the shrunken plate bare — there is no band above its strip light
+      // to put a 44dp control in (`floor_proportion_test.dart` has the
+      // arithmetic) — and the first fix for that put the pair on the ground
+      // under the plate, which is the second header the owner rejected.
+      //
+      // So they are simply not drawn while answering, and the way back to them
+      // is the control that is drawn: `Back to the briefing`, directly above
+      // the transcript.
+      await pumpFloorRoute(
+        tester,
+        alerts: populated,
+        outlets: twoOutlets,
+        size: const Size(390, 844),
+        assistant: ScriptedRepository(rankedTurn()),
+      );
+
+      expect(find.byKey(const ValueKey<String>('floor-scope-chip')),
+          findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask-composer-field')),
+        'Why is 72 down?',
+      );
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('floor-scope-chip')),
+        findsNothing,
+        reason:
+            'a control under the shrunken plate is the stacked-header defect; '
+            'a control ON it splits the strip light in two',
+      );
+      expect(
+        find.byKey(const ValueKey<String>('floor-destinations')),
+        findsNothing,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('floor-clear-answers')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('floor-scope-chip')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('floor-destinations')),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('the scope chip still opens the scope sheet', (tester) async {
       await pumpFloorRoute(tester, alerts: populated, outlets: twoOutlets);

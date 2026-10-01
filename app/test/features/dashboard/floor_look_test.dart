@@ -136,6 +136,13 @@ void main() {
       in <(String, Size, String, String?, TiqSkin?)>[
         ('390x844', Size(390, 844), '$places/ALL.jpg', null, null),
         ('360x640', Size(360, 640), '$places/ALL.jpg', null, null),
+        // BOTH PHONES IN BOTH SKINS, from 1 October 2026. The 360dp Day
+        // render was the one missing corner of the matrix, and it is the
+        // corner where two things that are only arguments anywhere else become
+        // measurements: the plate's controls clear the strip light by 13dp
+        // rather than 36, and the light is unlit on a light ground so the band
+        // they stand in has no amber under it to hide behind.
+        ('360x640-day', Size(360, 640), '$places/ALL.jpg', null, _day),
         ('390x844-scoped', Size(390, 844), '$places/GP-TSH.jpg', 't-gp-tsh', null),
         // ── The same phone in Day, and over the owner's own photographs ──
         ('390x844-day', Size(390, 844), '$places/ALL.jpg', null, _day),
@@ -267,6 +274,7 @@ void main() {
         ('390x844', Size(390, 844), null),
         ('390x844-day', Size(390, 844), _day),
         ('360x640', Size(360, 640), null),
+        ('360x640-day', Size(360, 640), _day),
       ]) {
     // ── Mid-answer: the plate has already shrunk ──────────────────────
     testWidgets('The Floor at $name, answering', (tester) async {

@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
-import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
@@ -40,19 +39,41 @@ import 'standards.dart';
 ///
 /// ```text
 ///   ╭───────────────╮  the plate: the place in scope, one strip of light,
-///   │ (Gauteng ·  ›)│  the scope chip at the top and the hero at the foot
-///   │ 72 ▼19        │
-///   ╰───────────────╯
-///   ╭───────────────╮  the one dominant metric: label, figure,
-///   │ OSA 61%   /\/ │  one line of facts, a sparkline
-///   ╰───────────────╯
-///   NEEDS A DECISION   words on the ground, no rule and no count
-///   ╭───────────────╮  worst first, five and then a count
-///   │ • Outlet  48h │
+///   │ (Gauteng ·›) ☰│  the scope chip top-left and Menu top-right, ON the
+///   │ 73 ▼19        │  picture; the hero at the foot
 ///   ╰───────────────╯
 ///   ╭───────────────╮
-///   [ nav pill ] ( + )
+///   │ • Overdue  12 │  the briefing: three ONE-LINE cards, no heading
+///   ╰───────────────╯
+///   ╭───────────────╮
+///   │ • OSA     61% │
+///   ╰───────────────╯
+///   ╭───────────────╮
+///   │ • Outlet   6d │
+///   ╰───────────────╯
+///
+///                      ← and then nothing. The gap is the design.
+///
+///   (Why is 73 down?) (Show …)
+///   ╭───────────────╮
+///   │ Ask…       ↑  │  the composer, alone at the bottom
+///   ╰───────────────╯
 /// ```
+///
+/// ## What this screen is NOT, since 1 October 2026
+///
+/// It is not a briefing **and** a decision list. The approved arrangement
+/// replaces one with the other, and the version that kept both was built off
+/// an instruction — *"if something cannot fit above the fold it moves, it does
+/// not disappear"* — that the arrangement contradicts. The owner read the
+/// result as dense and said so. See [_ScopeNote] for where the list is reached
+/// from now, and `floor_taps_test.dart` for the proof that it is.
+///
+/// Three things went with it and each one is a line of the fold bought back:
+/// the `LAST 30 DAYS` kick over the briefing (the window is on the scope chip,
+/// on the control that sets it), the `NEEDS A DECISION` marker, and the
+/// supporting sentence under each briefing name (spoken, and printed only
+/// where there is no figure — see [FloorBrief]).
 ///
 /// **Cards, since 25 September 2026.** unify §1.3 ruled every list row flush
 /// and this screen's blocks bare on the ground; the owner overruled it twice
@@ -534,13 +555,23 @@ class _FloorState extends ConsumerState<_Floor> {
     // that move. See [_PlateFor] for the arithmetic.
     final asking = state.messages.isNotEmpty;
 
-    // WHERE YOU ARE, AND WHERE ELSE YOU CAN GO. Built once and placed twice:
-    // on the plate's top band while the plate is tall enough to carry it
-    // without standing on its own strip light, and on the ground directly
-    // under the plate once it has shrunk. See [_PlateFor.topSlot] for the
-    // measurement that decides which.
+    // ── WHERE YOU ARE, AND WHERE ELSE YOU CAN GO — ON THE PICTURE ───────
+    //
+    // Top-left and top-right of the plate, which is the approved arrangement
+    // and the thing the rejected screen got wrong. It put the pair on the
+    // GROUND directly under the plate once a question had been asked, and a
+    // bar of controls under a photographic header is a second header: the
+    // screen read as two stacked ones, which is the first thing the owner
+    // named.
+    //
+    // `spaceBetween` rather than a gap, because the two controls answer two
+    // different questions and the mockup separates them to the two corners.
+    // The chip stays `Flexible` and the button does not: a territory name is
+    // arbitrarily long and `Menu` is four characters, so the band gives its
+    // slack to the half that can use it.
     final controls = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
         Flexible(
           child: PlateScopeChip(
@@ -622,33 +653,21 @@ class _FloorState extends ConsumerState<_Floor> {
         SizedBox(height: skin.space.blockGap),
 
         if (!asking) ...<Widget>[
-          // 2. THE BRIEFING — what moved, in three lines off the figures this
-          //    screen already had.
+          // 2. THE BRIEFING — what moved, in three one-line cards off the
+          //    figures this screen already had. No heading over it.
+          //
+          //    AND THEN NOTHING. The space between the briefing and the chip
+          //    row is the design, not a gap waiting to be filled: the list of
+          //    decisions that used to stand here is on the Work queue, one tap
+          //    from line one. See the note on [TheFloorScreen].
           FloorBriefingBlock(
-            kick: view.windowLabel,
             briefs: floorBriefing(view, ref.read(nowProvider)()),
           ),
-          SizedBox(height: skin.space.blockGap),
 
-          // 3. THE SECTION MARKER — words on the ground. No rule, no count.
-          _NeedsADecision(view: view),
-          SizedBox(height: skin.space.intraBlock),
-
-          // 4. THE DECISION CARDS — worst first, out to the edges because each
-          //    card carries the gutter as its own margin.
-          TorchBleed(
-            extra: context.skin.space.gutter * 2,
-            child: _DecisionList(view: view),
-          ),
+          // THE ONE THING THE BRIEFING CANNOT SAY FOR ITSELF, and only in the
+          // two states where it cannot. Renders nothing on a healthy screen.
+          _ScopeNote(view: view),
         ] else ...<Widget>[
-          // THE CONTROLS THE SHRUNKEN PLATE GAVE UP, on the ground instead of
-          // on the picture. Nothing moved out of reach: the scope sheet and
-          // every destination are still one tap away while an answer is being
-          // read, which is exactly when a manager is most likely to want the
-          // next territory.
-          controls,
-          SizedBox(height: skin.space.intraBlock),
-
           // THE WAY BACK TO THE BRIEFING. A screen that can be asked a
           // question and not un-asked it is the same trap a scope with no
           // Clear is, and this route has carried that argument since the
@@ -702,200 +721,85 @@ class _FloorState extends ConsumerState<_Floor> {
   }
 }
 
-/// `NEEDS A DECISION`, as words rather than as a rule.
+/// THE DECISION LIST IS NOT ON THIS SCREEN, since 1 October 2026.
 ///
-/// **Owner override, 25 September 2026, widened 26 September.** unify §1.17
-/// used to say a screen-level section marker is the knocked-out rule at
-/// `title.m` in sentence case, with The Floor as the single exception. The
-/// owner then asked for this screen's design "global and everywhere on the
-/// app", so [SectionRule] *is* this marker now and every screen wears it.
+/// It was `NEEDS A DECISION` and five ranked rows under the briefing, and the
+/// approved arrangement replaces one with the other rather than stacking both.
+/// The screen had grown to a plate, a heading, three two-line cards, a second
+/// heading, five rows, a more-row, a chip row and a composer — and the owner's
+/// word for what they asked for is *simplistic*.
 ///
-/// This widget stays a local [Eyebrow] rather than becoming a `SectionRule`
-/// for one reason: The Floor's marker takes no count. The count is not
-/// dropped, it moves — the list says how many it is not showing in words, at
-/// the foot, where a manager who wants the number is already looking.
+/// **Nothing became unreachable, and the three ways in are all above the
+/// fold:**
 ///
-/// The count goes with the line. It was never the thing the marker was for:
-/// the list says how many it is not showing in words, at the foot, where a
-/// manager who wants the number is already looking.
-class _NeedsADecision extends ConsumerWidget {
-  const _NeedsADecision({required this.view});
+/// 1. The briefing's first line — `Overdue work · 12` — opens `/tasks`, which
+///    is the full worklist the five rows were a preview of. It carries the
+///    same count, off the same `FloorView.decisions`, so the preview and the
+///    list can still not disagree.
+/// 2. The briefing's third line is the worst single outlet by name, and it
+///    opens that decision's own route — which is exactly where tapping its row
+///    went.
+/// 3. `Menu` on the plate opens the destinations sheet, whose Work row prints
+///    the live count beside it.
+///
+/// `floor_taps_test.dart` presses all three.
+///
+/// What is left here is the one thing the briefing genuinely cannot say about
+/// itself: that the list it is counting was not scoped, because the chosen
+/// territory's outlets did not arrive. The overdue line is **withheld** in
+/// that state rather than zeroed (see `floorBriefing`), and a briefing one
+/// line shorter with nothing said about why is the absence failing quietly.
+///
+/// It renders nothing at all on a healthy screen, which is most of them.
+class _ScopeNote extends ConsumerWidget {
+  const _ScopeNote({required this.view});
 
   final FloorView view;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
-    final note = _note();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        // Two lines, which is the eyebrow role's own allowance: at 2.0× in
-        // Afrikaans a one-line marker would ellipsise, and half a section
-        // marker is worse than a marker that wraps.
-        const Eyebrow('Needs a decision'),
-        // The empty state keeps its sentence: a marker with nothing under it
-        // is the one case where the screen has to say what the absence means.
-        // With a territory chosen there are four different absences and they
-        // are four different sentences — "nothing here" and "I could not find
-        // out" are not the same fact, which is unify §4 applied to a list
-        // rather than to a figure.
-        if (note != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+    final note = switch (view.scope) {
+      FloorScope.pending => 'Finding the outlets in ${view.territoryName}…',
+      FloorScope.failed =>
+        'The outlet list for ${view.territoryName} did not load, so overdue '
+            'work is not counted here. The figures above are still this '
+            'territory’s.',
+      _ => null,
+    };
+    if (note == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(top: skin.space.blockGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
           Text(note, style: skin.text.body.style(color: skin.palette.ink2)),
+          // The coverage request is the only thing that failed, so the retry
+          // is the coverage request — not the route, whose figures are fine.
+          if (view.scope == FloorScope.failed)
+            TorchTertiaryButton(
+              key: const ValueKey<String>('floor-retry-scope'),
+              label: 'Retry loading this territory’s outlets',
+              onPressed: () =>
+                  ref.invalidate(territoryCoverageProvider(view.territoryId!)),
+            ),
         ],
-        // THE WAY BACK IS ONE TAP. A screen that can be scoped and not
-        // unscoped is a trap, and the state that needs the exit is exactly
-        // the state that shows it: a filtered list with nothing in it.
-        if (view.isFiltered && view.nothingNeedsADecision)
-          TorchTertiaryButton(
-            key: const ValueKey<String>('floor-clear-territory'),
-            label: 'Show all territories',
-            onPressed: () => clearFloorTerritory(ref),
-          ),
-        // The coverage request is the only thing that failed, so the retry is
-        // the coverage request — not the route, whose figures are fine.
-        if (view.scope == FloorScope.failed)
-          TorchTertiaryButton(
-            key: const ValueKey<String>('floor-retry-scope'),
-            label: 'Retry loading this territory’s outlets',
-            onPressed: () =>
-                ref.invalidate(territoryCoverageProvider(view.territoryId!)),
-          ),
-      ],
-    );
-  }
-
-  /// One sentence per absence, or null when there is a list to read instead.
-  String? _note() => switch (view.scope) {
-    FloorScope.pending => 'Finding the outlets in ${view.territoryName}…',
-    FloorScope.failed =>
-      'The outlet list for ${view.territoryName} did not load, so these '
-          'decisions are not shown. The figures above are still this '
-          'territory’s.',
-    _ when !view.nothingNeedsADecision => null,
-    _ when view.isFiltered =>
-      'Nothing needs a decision in ${view.territoryName} over '
-          '${view.windowLabel.toLowerCase()}.',
-    _ => 'Everything triaged.',
-  };
-}
-
-/// Back to every territory, from anywhere on The Floor.
-void clearFloorTerritory(WidgetRef ref) =>
-    applyTerritory(ref, ref.read(dashboardFilterProvider), allTerritoriesToken);
-
-class _DecisionList extends ConsumerWidget {
-  const _DecisionList({required this.view});
-
-  final FloorView view;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final visible = view.visible;
-    if (visible.isEmpty) return const SizedBox.shrink();
-    final now = ref.read(nowProvider)();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        for (var i = 0; i < visible.length; i++)
-          _DecisionRowFor(
-            decision: visible[i],
-            now: now,
-            last: i == visible.length - 1 && view.moreCount == 0,
-          ),
-        if (view.moreCount > 0) _MoreRow(count: view.moreCount),
-      ],
-    );
-  }
-}
-
-/// One decision, as a row.
-class _DecisionRowFor extends StatelessWidget {
-  const _DecisionRowFor({
-    required this.decision,
-    required this.now,
-    required this.last,
-  });
-
-  final FloorDecision decision;
-  final DateTime now;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final age = decision.ageHoursAt(now);
-
-    return DecisionRow(
-      title: decision.outletName,
-      reason: decision.reason,
-      severity: decision.severity,
-      severityLabel: decision.severityLabel,
-      // The column means ONE thing on every row: how long this has been
-      // broken. An alert's age and a task's SLA deadline are both times and
-      // are not the same measurement, so only one of them is allowed here.
-      value: age,
-      unit: TiqUnit.worded('h', tight: true),
-      figureState: age == null ? FigureState.missing : FigureState.measured,
-      valueSemanticsLabel: age == null
-          ? 'No time recorded for this finding'
-          : 'Open for ${age.round()} hours',
-      // The sparkline slot stays empty until there is a real per-outlet
-      // series to put in it. `DecisionRow` omits the slot rather than holding
-      // a gap, and inventing a shape here would be the one thing the
-      // component's own doc forbids. See the follow-up ticket.
-      sparkline: null,
-      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      // `push`, not `go`: a decision is read on top of The Floor and the
-      // manager comes back to the same scroll offset, which is the behaviour
-      // `surface-manager.json` names. `FloorDecision.route` has carried
-      // "where tapping the row goes" since the model was written and nothing
-      // ever read it.
-      onTap: () => context.push(decision.route),
-    );
-  }
-}
-
-/// `and 11 more need a decision` — a 44dp meta row into the full worklist.
-///
-/// The list is always five plus this. A list that grows with the problem stops
-/// fitting on the fold at exactly the moment it matters most.
-class _MoreRow extends StatelessWidget {
-  const _MoreRow({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final spec = SoftRowSpec.resolve(skin: skin);
-    return Semantics(
-      button: true,
-      label: 'and $count more need a decision',
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // The full worklist. A row that announces itself as a button and then
-        // does nothing is worse than a line of text.
-        onTap: () => context.go('/tasks'),
-        child: Container(
-          constraints: BoxConstraints(minHeight: skin.space.tapTarget),
-          padding: EdgeInsets.symmetric(
-            horizontal: spec.textInset(hasLeading: false),
-            vertical: TiqSpace.s3,
-          ),
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'and $count more need a decision',
-            style: skin.text.meta.style(color: skin.palette.ink2),
-          ),
-        ),
       ),
     );
   }
 }
+
+/// Back to every territory, from anywhere on The Floor.
+///
+/// One caller now: the plate's own `All territories` button, which stands
+/// beside the health line whenever a territory is chosen. There used to be a
+/// second under the section marker, for the filtered-and-empty case; the
+/// marker went with the decision list and the plate's button is on screen in
+/// every state that one was, one block higher up.
+void clearFloorTerritory(WidgetRef ref) =>
+    applyTerritory(ref, ref.read(dashboardFilterProvider), allTerritoriesToken);
 
 /// THE AVAILABILITY CARD IS GONE FROM THIS SCREEN, and the figure is not.
 ///
@@ -1082,23 +986,41 @@ class _PlateFor extends StatelessWidget {
 
   /// THE TOP BAND'S CONTROLS, OR NULL ONCE THE PLATE HAS SHRUNK.
   ///
-  /// **Why they leave the plate rather than ride it down.** `TiqPlate`'s own
-  /// doc has always said the top slot "never reaches the light itself, which
-  /// is the object the amber budget is spent on" — and at the answering height
-  /// that stopped being true. The slot is a 44dp tap target 16dp from the top
-  /// edge, so it occupies y=16..60 whatever the plate's height is, while the
-  /// strip light rides at 0.38h: at 122dp that is y=46, underneath the chip.
+  /// ## Why there is a height at which they are not drawn at all
+  ///
+  /// `TiqPlate`'s own doc has always said the top slot "never reaches the light
+  /// itself, which is the object the amber budget is spent on" — and at the
+  /// answering height that stopped being true. The slot is a 44dp tap target
+  /// 16dp from the top edge, so it occupies y=16..60 whatever the plate's
+  /// height is, while the strip light rides at 0.38h: at 122dp that is y=46,
+  /// underneath the chip.
   ///
   /// The amber census is what caught it, and caught it as an over-claim rather
-  /// than as an ugly frame: the chips painted over the middle of the strip
+  /// than as an ugly frame: the controls painted over the middle of the strip
   /// light and left its two ends showing, so one lit object was counted as
   /// **two** and the answered state came to three against a budget of two.
   ///
-  /// The approved mockup draws the shrunken plate with no chip on it, so this
-  /// follows the mockup. Nothing is lost — see [_FloorState.build], which puts
-  /// the same two controls in a row directly under the plate, where they stay
-  /// reachable while an answer is being read rather than waiting for the
-  /// conversation to be cleared.
+  /// ## The repair is a measured clearance, not a second place to stand
+  ///
+  /// The first fix put the pair on the ground under the shrunken plate. That
+  /// is what the owner rejected as a second header, so it is gone and the rule
+  /// is now the one thing that was actually true underneath it: **the controls
+  /// ride the picture at every height where they clear the light, and the
+  /// plate is never given a top slot at a height where they do not.**
+  ///
+  /// [PlateSpec.topSlotRoom] is that clearance as a number, and
+  /// `floor_proportion_test.dart` measures the drawn control against it on
+  /// both supported phones rather than trusting this paragraph. At rest the
+  /// plate is 30% of the viewport — 253dp at 844, 192dp at 640 — so the light
+  /// is at y=96 and y=73 and a one-line control ending at y=60 clears both.
+  /// At 360dp it only clears because [FloorDestinationsButton.compact] drops
+  /// the word `Menu`, which is why that fix is load-bearing rather than
+  /// cosmetic.
+  ///
+  /// Nothing is lost while answering. The approved mockup draws the shrunken
+  /// plate with no control on it, and `Back to the briefing` — directly above
+  /// the transcript, in every answered frame — is one tap back to the state
+  /// that has both.
   final Widget? topSlot;
 
   @override

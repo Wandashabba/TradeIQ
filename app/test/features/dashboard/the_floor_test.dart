@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/design/figure_slot.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
-import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/first_run_board.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -29,8 +28,8 @@ void main() {
 
   group('The Floor, populated', () {
     testWidgets(
-      'renders the plate, the dominant metric, the rule and the rows — '
-      'worst first',
+      'renders the plate and the briefing, and NOTHING ELSE — no decision '
+      'list, no section markers',
       (tester) async {
         await pumpFloor(
           tester,
@@ -57,20 +56,12 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
         expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-        // THE DOMINANT METRIC IS BRIEFING LINE TWO NOW, not a stat card.
+        // THE DOMINANT METRIC IS BRIEFING LINE TWO, not a stat card.
         //
         // It was `StatTile` under an `ON-SHELF AVAILABILITY` eyebrow, with
         // "Coverage 79% · Price compliance 91%" as one line of meta under it.
         // The figure did not move — it is the same `snapshot.current.osaPct`
-        // against the same published 95 — but the card did: printing it twice,
-        // once in the briefing and once in a tile eight dp below, is the
-        // defect the tile's own doc named when it deleted its meter and its
-        // delta line.
-        //
-        // The supports went with the card, to the overview the card already
-        // opened and the briefing line still opens. So this asserts what is
-        // now true rather than keeping a string that would have to be drawn
-        // somewhere to satisfy it.
+        // against the same published 95 — but the card did.
         expect(
           find.byKey(const ValueKey<String>('floor-brief-availability')),
           findsOneWidget,
@@ -78,81 +69,163 @@ void main() {
         expect(find.text('On-shelf availability'), findsOneWidget);
         expect(find.textContaining('Coverage 79%'), findsNothing);
 
-        await revealDecisions(tester);
-
-        // The section marker: words on the ground, no rule and no count
-        // (owner override, 25 September 2026). `Eyebrow` uppercases for
-        // display and keeps the sentence-case string in its semantics.
+        // ── THE REJECTED SCREEN, AS THREE ASSERTIONS ──────────────────
+        //
+        // What shipped kept the decision list AND added the briefing, under
+        // two headings. The approved arrangement replaces one with the other
+        // and labels neither. This is now false by instruction rather than by
+        // accident, so it is asserted rather than left to a render:
+        await scrollFloorToTail(tester);
+        expect(
+          find.byType(DecisionRow),
+          findsNothing,
+          reason:
+              'the decision list is on the Work queue. If this finds a row, '
+              'the screen has gone back to being a briefing AND a list — '
+              'which is the thing the owner rejected.',
+        );
         expect(find.byType(SectionRule), findsNothing);
-        expect(find.text('NEEDS A DECISION'), findsOneWidget);
-
-        // Worst first.
-        expect(find.byType(DecisionRow), findsNWidgets(2));
-        final rows = tester
-            .widgetList<DecisionRow>(find.byType(DecisionRow))
-            .toList();
-        expect(rows.first.severity, SoftRowSeverity.critical);
-        expect(rows.first.title, 'Kasi Corner Spaza');
-        expect(rows.last.severity, SoftRowSeverity.watch);
+        expect(find.text('NEEDS A DECISION'), findsNothing);
+        expect(
+          find.text('LAST 30 DAYS'),
+          findsNothing,
+          reason:
+              'the window is on the scope chip, on the control that sets it',
+        );
+        expect(
+          find.byType(Eyebrow),
+          findsNothing,
+          reason: 'no heading of any kind stands over the briefing',
+        );
       },
     );
 
-    testWidgets('the trailing column is one measurement on every row', (
+    testWidgets('a briefing line is ONE line: a name and a figure', (
       tester,
     ) async {
+      // THE DENSITY DEFECT, MEASURED. Each card carried the name and a
+      // supporting sentence under it, which doubles the block's height — three
+      // cards at two lines each was most of why the screen read as dense.
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        alerts: <AlertItem>[
+          alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 18, 6)),
+        ],
+        outlets: twoOutlets,
+      );
+
+      expect(
+        find.text('under the 95 standard'),
+        findsNothing,
+        reason:
+            'the support is spoken, not printed, wherever there is a figure '
+            'to read instead',
+      );
+      expect(find.textContaining('all of it at'), findsNothing);
+
+      // And it is still said, where a reader who needs it gets it.
+      final handle = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('under the 95 standard')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('AN AGE PICKS ITS OWN UNIT, and only one place picks it', (
+      tester,
+    ) async {
+      // THE OWNER'S SCREENSHOT: the worst-outlet line printed `17 207h` and
+      // the decision row under it `17 206,8h`. Both are 717 days and neither
+      // is a reading. The ladder is `FloorAge` and it lives on the decision,
+      // so there is nowhere else on this screen to get a unit from.
       await pumpFloor(
         tester,
         const TheFloorScreen(),
         now: DateTime.utc(2026, 9, 18, 18),
         alerts: <AlertItem>[
-          alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 18, 6)),
+          alert(outletId: 'o1', createdAt: DateTime.utc(2024, 10, 2, 11, 12)),
         ],
-        tasks: <dynamic>[
-          task(outletId: 'o2', createdAt: DateTime.utc(2026, 9, 18, 12)),
-        ].cast(),
         outlets: twoOutlets,
       );
 
-      await revealDecisions(tester);
-      final rows = tester
-          .widgetList<DecisionRow>(find.byType(DecisionRow))
-          .toList();
-      // An alert raised at 06:00 and a task raised at 12:00, read at 18:00:
-      // twelve hours and six. One meaning, one unit, one column.
-      expect(rows.map((r) => r.value), <double>[12, 6]);
+      // 17 206,8 hours → 717 days → 102 weeks.
+      final figure = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(figure.value, 102);
+      expect(figure.unit.suffix, 'w');
+      expect(
+        printedFiguresOn(tester),
+        contains('102w'),
+        reason: 'what a human actually reads off the card',
+      );
+      expect(
+        printedFiguresOn(tester).where((f) => f.endsWith('h')),
+        isEmpty,
+        reason: '17 207h is 717 days and nobody divides by 24 at a glance',
+      );
     });
 
-    testWidgets('caps the list at five and says how many it did not show', (
-      tester,
-    ) async {
+    testWidgets('the worst outlet is the head of the list, and it is a line '
+        'that opens that decision', (tester) async {
       await pumpFloor(
         tester,
         const TheFloorScreen(),
+        now: DateTime.utc(2026, 9, 18, 18),
         alerts: <AlertItem>[
-          for (var i = 0; i < 16; i++)
-            alert(
-              id: 'a$i',
-              outletId: 'o1',
-              createdAt: DateTime.utc(2026, 9, 18, 1 + i),
-            ),
+          alert(
+            id: 'watch',
+            severity: 'warning',
+            message: 'Price above the published band',
+            outletId: 'o2',
+            createdAt: DateTime.utc(2026, 9, 18, 12),
+          ),
+          alert(
+            id: 'crit',
+            message: 'Out of stock since Tuesday',
+            outletId: 'o1',
+            createdAt: DateTime.utc(2026, 9, 18, 6),
+          ),
         ],
         outlets: twoOutlets,
       );
 
-      await revealDecisions(tester);
-      expect(find.byType(DecisionRow), findsNWidgets(FloorView.visibleCount));
-      expect(find.text('and 11 more need a decision'), findsOneWidget);
+      // Worst first, which is what the ranked list was for: the critical one
+      // at 12 hours is the line, not the watch one at six.
+      expect(
+        find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+        findsOneWidget,
+      );
+      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
+      expect(find.text('Shoprite Klipspruit Mall'), findsNothing);
+      expect(printedFiguresOn(tester), contains('12h'));
     });
 
-    testWidgets('nothing needs a decision keeps the marker and says so', (
-      tester,
-    ) async {
+    testWidgets('nothing needs a decision is a zero on the line, not a '
+        'marker over an empty list', (tester) async {
+      final handle = tester.ensureSemantics();
       await pumpFloor(tester, const TheFloorScreen());
-      await revealDecisions(tester);
 
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
-      expect(find.text('Everything triaged.'), findsOneWidget);
+      expect(find.text('NEEDS A DECISION'), findsNothing);
       expect(find.byType(DecisionRow), findsNothing);
+      // The count is on the briefing's first line, and the word is where the
+      // sentence under the marker used to be.
+      expect(
+        find.byKey(const ValueKey<String>('floor-brief-overdue')),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Overdue work, none. Everything triaged.'),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
   });
 
@@ -308,25 +381,38 @@ void main() {
       );
     });
 
-    testWidgets('a row with no timestamp renders an em dash, not a zero', (
+    testWidgets('a finding with no timestamp renders an em dash, not a zero', (
       tester,
     ) async {
+      final handle = tester.ensureSemantics();
       await pumpFloor(
         tester,
         const TheFloorScreen(),
         alerts: <AlertItem>[alert(outletId: 'o1', noTime: true)],
         outlets: twoOutlets,
       );
-      await revealDecisions(tester);
 
-      final row = tester.widget<DecisionRow>(find.byType(DecisionRow));
-      expect(row.value, isNull);
-      expect(row.figureState, FigureState.missing);
+      // PIN MOVED WITH THE FIGURE. It was the decision row's trailing column;
+      // the briefing's worst-outlet line is where an age is printed now, and
+      // the rule it is here for has not moved an inch: an age nobody recorded
+      // is an absence, and an absence is not a zero.
+      final figure = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(figure.value, isNull);
+      expect(figure.state, FigureState.missing);
       expect(
-        row.valueSemanticsLabel,
-        isNotNull,
+        find.bySemanticsLabel(RegExp('No time recorded')),
+        findsOneWidget,
         reason: 'An em dash announced as "em dash" is not a sentence.',
       );
+      // And the card prints the reason in the figure's place, because with no
+      // number on the right the line would otherwise say nothing at all.
+      expect(find.text('Out of stock since Tuesday'), findsOneWidget);
+      handle.dispose();
     });
   });
 
@@ -784,27 +870,49 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-      // The rest is past the fold on a 360x640 phone, which is correct — the
-      // guarantee at 2.0x degrades to one full row, by declaration.
-      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
-      await scrollFloorTo(tester, find.byType(DecisionRow).first);
-      expect(find.byType(DecisionRow), findsWidgets);
+      // THE PIN MOVED WITH THE SCREEN. It used to scroll to the section
+      // marker and then to the first decision row. Both left on 1 October
+      // 2026, and the thing worth asserting at 2.0x is what is actually drawn:
+      // the three briefing lines, each of which is a name beside a figure and
+      // therefore the block most exposed to a doubled type scale.
+      await scrollFloorTo(tester, find.byType(FloorBriefingBlock));
+      expect(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(TorchCard),
+        ),
+        findsNWidgets(3),
+      );
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the section marker wraps rather than clipping', (
-      tester,
-    ) async {
-      await pumpFloor(tester, const TheFloorScreen(), textScale: 2.0);
+    testWidgets('a briefing name ellipsises rather than pushing the figure '
+        'off the card', (tester) async {
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        textScale: 2.0,
+        alerts: <AlertItem>[alert(outletId: 'o2')],
+        outlets: twoOutlets,
+      );
 
-      // The marker is words on the ground now, and at 2.0x it takes the two
-      // lines the eyebrow role allows rather than being cut. The rule it
-      // replaced had its own drop-below-the-name behaviour; that component
-      // still has it, and `section_rule_test.dart` still asserts it.
-      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
+      // `Shoprite Klipspruit Mall` at 2.0x on a 360dp card, beside a figure.
+      // The card is one line by declaration — the name gives way, the figure
+      // does not, and neither overflows. That is the defect the two-line card
+      // was hiding: the second line absorbed the pressure.
+      await scrollFloorTo(tester, find.byType(FloorBriefingBlock));
       expect(tester.takeException(), isNull);
+      for (final text in tester.widgetList<Text>(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(Text),
+        ),
+      )) {
+        if (text.data == null) continue;
+        expect(text.maxLines, 1, reason: '"${text.data}" wraps on a one-line '
+            'card');
+        expect(text.overflow, TextOverflow.ellipsis);
+      }
     });
   });
 
@@ -850,11 +958,13 @@ void main() {
         const TheFloorScreen(),
         locale: const Locale('af'),
         current: kpis(osa: 61.5, execution: 72),
-        previous: kpis(osa: 80.5, execution: 91),
-        // A row, so there is a figure on screen that still has a decimal
-        // place: the rates are whole numbers by declaration now, and a test
-        // about decimal separators needs a decimal to separate. 56.9 hours
-        // before the pinned clock.
+        // THE DECIMAL IS ON THE HERO'S DELTA NOW. It used to be a decision
+        // row's `56,9h`, and an age is a whole number in whatever unit it
+        // picks since 1 October 2026 — a test about decimal separators needs a
+        // decimal to separate, and 91,5 − 72 is one that the screen genuinely
+        // prints: `DeltaSlot` passes no `decimals`, so the formatter keeps one
+        // place and the locale decides the separator.
+        previous: kpis(osa: 80.5, execution: 91.5),
         alerts: <AlertItem>[
           alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 16, 9, 6)),
         ],
@@ -862,14 +972,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
-      // THE HERO IS ASSERTED BEFORE THE SCROLL AND THE ROW AFTER IT, because
-      // the two are no longer on screen together. The briefing and the
-      // composer went between them on 30 September 2026 and the decision list
-      // moved below the fold on a 360×640 phone; scrolling to the row lets the
-      // plate leave, and a `ListView` that has scrolled its first child away
-      // has disposed it. Both figures are still drawn by the same formatter in
-      // the same locale — which is what this test is about.
-      // AND NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
+      // NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
       //
       // This pinned the true minus (U+2212, never a hyphen) on `−19`. The
       // minus is gone: the triangle beside it already says "down", and the
@@ -881,13 +984,15 @@ void main() {
       expect(find.textContaining('19'), findsWidgets);
       expect(find.textContaining('\u221219'), findsNothing);
 
-      await revealDecisions(tester);
-      // 56,9 in Afrikaans — a comma, from the locale, never a format string.
-      expect(find.textContaining('56,9'), findsWidgets);
-      expect(find.textContaining('56.9'), findsNothing);
+      // 19,5 in Afrikaans — a comma, from the locale, never a format string.
+      expect(
+        printedFiguresOn(tester).any((f) => f.contains('19,5')),
+        isTrue,
+        reason: printedFiguresOn(tester).toString(),
+      );
+      expect(find.textContaining('19.5'), findsNothing);
 
-      // The hyphen sweep runs over BOTH halves of the screen: everything the
-      // plate drew before the scroll and everything the list drew after it.
+      // The hyphen sweep runs over everything the screen drew.
       for (final t in tester.widgetList<Text>(find.byType(Text))) {
         expect(
           RegExp(r'-\d').hasMatch(t.data ?? ''),
@@ -1070,13 +1175,17 @@ void main() {
       );
     });
 
-    testWidgets('a Night row figure is luminous, and its dot is not', (
+    testWidgets('a Night briefing figure is luminous, and its dot is not', (
       tester,
     ) async {
       // THE OWNER'S ACTUAL COMPLAINT, AS A TEST: "make the numbers lumunuous
-      // white and not red". The decision rows were the crimson they were
-      // looking at. The dot beside the name still carries the verdict, which
-      // is the only reason the colour may leave the figure at all.
+      // white and not red". The crimson they were looking at was on the
+      // figures; the dot beside the name still carries the verdict, which is
+      // the only reason the colour may leave the figure at all.
+      //
+      // PIN MOVED WITH THE ROWS. The decision list left this screen on
+      // 1 October 2026 and the briefing's three lines are what carries a
+      // figure-and-a-dot now. Same rule, same two channels, same file.
       final skin = TiqSkin.night();
       await pumpFloor(
         tester,
@@ -1102,31 +1211,42 @@ void main() {
         ],
         outlets: twoOutlets,
       );
-      await revealDecisions(tester);
-      // The figures themselves: bone, both of them, on a critical row and a
-      // watch row alike.
-      for (final hours in <String>['12', '6']) {
-        expect(inkOf(tester, hours), skin.palette.ink1);
+      // The figures themselves: bone. The availability rate and the worst
+      // outlet's age alike.
+      for (final figure in <String>['61', '12']) {
+        expect(inkOf(tester, figure), skin.palette.ink1);
       }
-      final rows = tester.widgetList<DecisionRow>(find.byType(DecisionRow));
-      expect(rows, isNotEmpty);
-      for (final row in rows) {
-        expect(
-          row.severity,
-          isNot(SoftRowSeverity.none),
-          reason:
-              'If a row has no severity bar then its figure WAS the only '
-              'signal and the colour may not leave it. THIS is the assertion '
-              'that makes the reversal safe rather than merely requested.',
-        );
-        expect(
-          row.severityLabel,
-          isNotNull,
-          reason:
-              'And the word is announced first in the row label, so a reader '
-              'who sees neither hue nor bar still gets the verdict.',
-        );
-      }
+
+      // AND THE DOT IS NOT. Every briefing line carries one, and a line whose
+      // standing is bad takes the palette's own crimson — which is the channel
+      // that makes it safe for the figure to be plain.
+      final dots = tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(DecoratedBox),
+        ),
+      ).where((b) {
+        final d = b.decoration;
+        return d is BoxDecoration && d.shape == BoxShape.circle;
+      }).toList();
+      expect(dots, hasLength(3), reason: 'one dot per briefing line');
+      expect(
+        dots.map((b) => (b.decoration as BoxDecoration).color),
+        everyElement(isNot(skin.palette.ink1)),
+        reason:
+            'If a line has no coloured dot then its figure WAS the only '
+            'signal and the colour may not leave it. THIS is the assertion '
+            'that makes the reversal safe rather than merely requested.',
+      );
+
+      // And the word is in the line's own label, so a reader who sees neither
+      // hue nor dot still gets the verdict.
+      final handle = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('under the 95 standard')),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
 
     testWidgets('an unmeasured window colours nothing', (tester) async {

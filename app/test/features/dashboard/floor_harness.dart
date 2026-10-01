@@ -696,39 +696,49 @@ Future<void> pumpFloor(
 }
 
 
-/// SCROLL DOWN TO THE DECISION LIST.
+/// DRAG THE BODY TO ITS END, so a lazy `ListView` has built everything.
 ///
-/// **Why this is suddenly necessary.** The Floor became the Ask landing on
-/// 30 September 2026: the briefing's three cards and the composer went on the
-/// screen, and the decision list went below the fold on a 360×640 phone. The
-/// list still renders, still ranks worst-first and still routes — the rows are
-/// simply outside `ListView`'s lazy build window until somebody scrolls, and a
-/// `find.byType(DecisionRow)` that used to return five now returns none.
+/// **This replaces `revealDecisions`, and the reason it is named differently
+/// matters.** That helper scrolled down to the decision rows, which were below
+/// the fold. There are no decision rows on this screen since 1 October 2026 —
+/// the approved arrangement replaces the list with the briefing — so a helper
+/// called "reveal decisions" would be a test fixture asserting a screen the
+/// product does not draw.
 ///
-/// So the tests that assert on the rows scroll first. That is a **fact that
-/// still holds, measured differently** — not a capability that went. What did
-/// change is where a manager finds it, and the briefing's own first line
-/// ("Overdue work · 12 · across 4 outlets", tappable to `/tasks`) is the
-/// above-the-fold answer to the question the list answers at length.
-Future<void> revealDecisions(WidgetTester tester) async {
-  await tester.drag(
-    find.byType(Scrollable).first,
-    const Offset(0, -600),
-  );
+/// What is left is the honest version of the same mechanic: a test that wants
+/// to prove something is **absent** has to make sure it is absent rather than
+/// merely unbuilt. `find.byType(DecisionRow)` returning none at the top of a
+/// lazy list is not evidence of anything.
+Future<void> scrollFloorToTail(WidgetTester tester) async {
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+  await tester.pumpAndSettle();
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
   await tester.pumpAndSettle();
 }
 
 /// BACK TO THE TOP, so the plate and its two controls are hit-testable again.
 ///
-/// The companion to [revealDecisions]. A test that reads the list and then
-/// changes the territory has to come back up first: the scope chip lives on
-/// the plate, and `tap()` on a widget scrolled off the top reports an offset
-/// outside the render tree rather than a missing control, which is a
-/// confusing way to learn that the screen got taller.
+/// The companion to [scrollFloorToTail]. `tap()` on a widget scrolled off the
+/// top reports an offset outside the render tree rather than a missing
+/// control, which is a confusing way to learn that the screen got taller.
 Future<void> revealPlate(WidgetTester tester) async {
-  await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, 1800));
   await tester.pumpAndSettle();
 }
+
+/// EVERY FIGURE ON THE SCREEN, AS THE SCREEN PRINTS IT — `61%`, `102w`, `—`.
+///
+/// `FigureSlot` paints a `TextSpan` rather than a `Text` with `data`, and it
+/// paints the digits and the unit in two different faces in the same span. So
+/// `find.text('102')` finds nothing and `find.textContaining('h')` finds
+/// "Territory health": neither is a test of what a manager reads.
+///
+/// This flattens the spans instead, which is the only form in which "the
+/// figure and its unit agree" is a statement about the screen.
+List<String> printedFiguresOn(WidgetTester tester) => <String>[
+  for (final widget in tester.widgetList<RichText>(find.byType(RichText)))
+    if (widget.text.toPlainText().isNotEmpty) widget.text.toPlainText(),
+];
 
 /// THE FLOOR INSIDE A ROUTER, so a press can be asserted on where it went.
 ///

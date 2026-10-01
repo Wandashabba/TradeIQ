@@ -688,7 +688,14 @@ class _PhotographicPlateState extends State<_PhotographicPlate> {
               Positioned(
                 left: spec.textInset,
                 right: spec.textInset,
-                top: TiqSpace.s4 + MediaQuery.paddingOf(context).top,
+                //    The inset is `PlateSpec.topSlotInset` rather than a
+                //    literal, because `PlateSpec.topSlotRoom` is measured from
+                //    it: the clearance between this control and the strip
+                //    light is asserted in a test, and a test that re-derives
+                //    the inset is a test of a plate nobody draws.
+                top:
+                    PlateSpec.topSlotInset +
+                    MediaQuery.paddingOf(context).top,
                 child: Align(
                   alignment: AlignmentDirectional.topStart,
                   child: widget.topSlot!,

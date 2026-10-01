@@ -13,33 +13,32 @@ import '../../../core/widgets/torchlight/section_rule.dart';
 import '../data/floor_ask_view.dart';
 import '../data/floor_repository.dart';
 
-/// THE BRIEFING — a kick, and one soft card per line.
+/// THE BRIEFING — one soft card per line, and **no heading over them**.
 ///
 /// Radius 22, `surface` fill, no outline: [TorchCard] is that material already
 /// and this block does not re-declare it. The gap between two cards is
 /// `intraBlock` — they are one block, not three — and the gap to whatever
 /// follows is `blockGap`, which the caller owns.
 ///
+/// ## The kick is gone, 1 October 2026
+///
+/// It was an [Eyebrow] printing the window label — `LAST 30 DAYS` — and the
+/// approved arrangement has no label over this block at all. The owner's word
+/// for what they asked for is *simplistic*, and a screen earns that by what it
+/// leaves out: three one-line cards under a photograph need no heading to be
+/// read as three readings, and the window they were measured over is already
+/// on the scope chip 12dp above them, on the control that sets it.
+///
+/// Nothing was dropped to achieve it. The window is still stated, once, by the
+/// thing that owns it — which is the same argument that took the territory off
+/// the hero cluster when the chip arrived.
+///
 /// **Amber: none.** A briefing is a reading. Nothing on it is armed, nothing on
 /// it is the expected next move, and the dot beside each line is the standing's
 /// own crimson or green at two commitment levels — which is not on the ladder
 /// and never was.
 class FloorBriefingBlock extends StatelessWidget {
-  const FloorBriefingBlock({
-    super.key,
-    required this.kick,
-    required this.briefs,
-  });
-
-  /// The window the lines were measured over, from the control that sets it.
-  ///
-  /// **The mockup's kick is `Since Friday` and this one is the window label.**
-  /// "Since Friday" is a colloquial seven days, and the window on this screen
-  /// is whatever the scope sheet holds — thirty days by default. A kick that
-  /// says Friday over a thirty-day reading is the same defect the eyebrow had
-  /// before `windowLabelFor` replaced `Week 38`: a label that does not follow
-  /// its own control. See the report.
-  final String kick;
+  const FloorBriefingBlock({super.key, required this.briefs});
 
   final List<FloorBrief> briefs;
 
@@ -51,8 +50,6 @@ class FloorBriefingBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Eyebrow(kick),
-        SizedBox(height: skin.space.intraBlock),
         for (var i = 0; i < briefs.length; i++) ...<Widget>[
           if (i > 0) SizedBox(height: skin.space.intraBlock),
           _BriefCard(brief: briefs[i]),
@@ -128,6 +125,21 @@ class _BriefCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: skin.space.intraBlock),
+              // ── ONE LINE: THE NAME, AND NOTHING UNDER IT ────────────
+              //
+              // The support sentence used to print here on every card, and
+              // three cards at two lines each is what made the rejected screen
+              // read as dense. The mockup draws a name on the left and a
+              // figure on the right, full stop.
+              //
+              // THE ONE EXCEPTION IS NOT A RELAXATION, IT IS THE SAME RULE.
+              // When the figure is an em dash the card has nothing on its
+              // right to read, and a name beside a dash is the "unknown is not
+              // zero" rule failing quietly — the reader is shown an absence
+              // and not told what kind. So the sentence takes the place of the
+              // figure it is standing in for, which is where the stat card
+              // this line replaced printed it. A populated screen never sees
+              // it: every line that has a number prints one line.
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,12 +151,13 @@ class _BriefCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      brief.support,
-                      style: skin.text.meta.style(color: skin.palette.ink3),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    if (brief.value == null)
+                      Text(
+                        brief.support,
+                        style: skin.text.meta.style(color: skin.palette.ink3),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
               ),

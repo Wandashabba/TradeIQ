@@ -236,6 +236,35 @@ class PlateSpec {
   double listRoom(double viewportHeight) =>
       viewportHeight - (form == PlateForm.none ? 0 : height);
 
+  /// ── HOW TALL A TOP SLOT MAY BE BEFORE IT BREAKS THE LIGHT ─────────────
+  ///
+  /// The slot is drawn last, over the picture, inset [topSlotInset] from the
+  /// top edge. Below this height it stays in the band above the strip light,
+  /// where it is ink on its own surface over photograph. Above it, the control
+  /// paints across the **middle** of the line and leaves the two ends showing
+  /// — and the amber census then counts one lit object as two, because what it
+  /// measures is lit pixels and the strip really has been cut in half.
+  ///
+  /// That is how it was found: not as an ugly frame, as an over-claim. A plate
+  /// whose light is split is a plate spending two of a budget of two on one
+  /// object, and on The Floor's answered state that made three.
+  ///
+  /// The bloom is deliberately **not** subtracted. A control may stand in the
+  /// gradient above the line — it already does on the shortest at-rest plate,
+  /// and a gradient has no edges to cut. The line does.
+  ///
+  /// Zero when there is no light to clear, which is every non-photographic
+  /// form: a caller there is bounded by the band's own height instead.
+  double get topSlotRoom =>
+      drawsStripLight ? math.max(0, stripLightY - topSlotInset) : 0;
+
+  /// Where the top slot starts, measured from the plate's top edge. The
+  /// system-bar inset is added on top of this by the widget, and a screen with
+  /// a status bar therefore has *less* room than [topSlotRoom] promises —
+  /// which is the right direction for a clearance to be wrong in, and is why
+  /// the number is a budget rather than a prediction.
+  static const double topSlotInset = TiqSpace.s4;
+
   /// The golden's line. Declared values, so a diff names the number that
   /// moved.
   String describe() => <String>[

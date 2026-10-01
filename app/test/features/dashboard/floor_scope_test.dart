@@ -68,7 +68,17 @@ void main() {
       photoId: 'p1',
       message: 'Kalahari Cola 2L out of stock',
     ),
-    alert(id: 'a2', outletId: 'o2', message: 'Shelf talker missing'),
+    // THE OLDEST, so it is the head of the ranked list and therefore the
+    // outlet the briefing's worst-outlet line names. It used to be enough
+    // that it appeared anywhere among five rendered rows; one line stands for
+    // the list now, so which finding is worst has to be stated rather than
+    // left to a tie broken on the id.
+    alert(
+      id: 'a2',
+      outletId: 'o2',
+      message: 'Shelf talker missing',
+      createdAt: DateTime.utc(2026, 9, 10, 6),
+    ),
   ];
 
   /// Tap the scope chip.
@@ -251,15 +261,11 @@ void main() {
       // All territories.
       expect(find.textContaining('73'), findsWidgets, reason: 'the hero');
       expect(find.textContaining('61'), findsWidgets, reason: 'availability');
-      // THE LIST IS BELOW THE FOLD since the briefing and the composer landed
-      // on this screen, so the row has to be scrolled to. It is the same row,
-      // in the same order, scoped by the same coverage request — what moved
-      // is how far down the screen it sits. `findsWidgets`, not
-      // `findsOneWidget`: the briefing's worst-outlet line names the same
-      // outlet, which is the point of that line.
-      await revealDecisions(tester);
-      expect(find.text('SaveMor Glenwood'), findsWidgets);
-      await revealPlate(tester);
+      // THE LIST LEFT THIS SCREEN on 1 October 2026 and the briefing's
+      // worst-outlet line is what names the head of it. Same list, same order,
+      // scoped by the same coverage request — what changed is that one line
+      // stands for it instead of five rows.
+      expect(find.text('SaveMor Glenwood'), findsOneWidget);
 
       await choose(tester, 't-gn');
 
@@ -270,9 +276,10 @@ void main() {
       expect(find.textContaining('51'), findsWidgets, reason: 'the hero');
       expect(find.textContaining('44'), findsWidgets, reason: 'availability');
       expect(find.textContaining('73'), findsNothing);
-      // And the decision list, which the server cannot scope for us.
-      await revealDecisions(tester);
-      expect(find.text('Kasi Corner Spaza'), findsWidgets);
+      // And the worst outlet, which the server cannot scope for us — the
+      // briefing reads `FloorView.decisions`, which the coverage request is
+      // what narrows.
+      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
       expect(
         find.text('SaveMor Glenwood'),
         findsNothing,
@@ -363,8 +370,7 @@ void main() {
 
       expect(onTheChip('All territories'), findsOneWidget);
       expect(find.textContaining('73'), findsWidgets);
-      await revealDecisions(tester);
-      expect(find.text('SaveMor Glenwood'), findsWidgets);
+      expect(find.text('SaveMor Glenwood'), findsOneWidget);
     });
 
     testWidgets('unfiltered, there is no Clear — it would clear nothing', (
@@ -378,35 +384,55 @@ void main() {
     });
   });
 
+  /// ── THE ABSENCES, AFTER THE LIST LEFT ────────────────────────────────
+  ///
+  /// These were four sentences printed under the `NEEDS A DECISION` marker,
+  /// and the marker went with the list on 1 October 2026. Each one was kept,
+  /// and each one moved to the thing it was actually about:
+  ///
+  /// | absence | where it is said now |
+  /// |---|---|
+  /// | nothing in THIS territory | the overdue line's own label, which names the territory |
+  /// | nothing anywhere | the same label, without a territory in it |
+  /// | the outlets are still arriving | [_ScopeNote], under the briefing |
+  /// | the outlets did not load | [_ScopeNote], with the retry |
+  ///
+  /// The first two are spoken rather than printed, because the printed carrier
+  /// is now the scope chip on the plate: it names the territory for every
+  /// figure under it, including the `0`.
   group('the absences are four different sentences', () {
     testWidgets('this territory, this window, nothing to show', (tester) async {
+      final handle = tester.ensureSemantics();
       await pump(tester);
       await choose(tester, 't-ws');
 
       expect(
-        find.textContaining('Nothing needs a decision in Western Seaboard'),
+        find.bySemanticsLabel(
+          'Overdue work, none. Everything triaged in Western Seaboard.',
+        ),
         findsOneWidget,
-      );
-      expect(
-        find.text('Everything triaged.'),
-        findsNothing,
         reason: 'an empty slice and an empty world are different facts',
       );
-      // And the way out of it is on screen.
+      // And the way out of it is on screen — on the plate, beside the health
+      // line, which is where it is in every other scoped state too.
       expect(
-        find.byKey(const ValueKey<String>('floor-clear-territory')),
+        find.byKey(const ValueKey<String>('floor-plate-clear-territory')),
         findsOneWidget,
       );
+      handle.dispose();
     });
 
-    testWidgets('unfiltered and empty still says everything triaged', (
-      tester,
-    ) async {
+    testWidgets('unfiltered and empty names no territory', (tester) async {
+      final handle = tester.ensureSemantics();
       await pump(tester, withAlerts: const <AlertItem>[]);
-      expect(find.text('Everything triaged.'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Overdue work, none. Everything triaged.'),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
 
-    testWidgets('a coverage failure withholds the list and says why', (
+    testWidgets('a coverage failure withholds the COUNT and says why', (
       tester,
     ) async {
       await pump(tester, coverageFails: true);
@@ -416,8 +442,14 @@ void main() {
         find.textContaining('did not load'),
         findsOneWidget,
         reason:
-            'every territory’s findings under one territory’s name is a lie '
-            'the reader cannot see',
+            'every territory’s findings counted under one territory’s name is '
+            'a lie the reader cannot see',
+      );
+      // Withheld, not zeroed: a scope whose coverage request failed has an
+      // unknown backlog, and "0" is the one reading that is certainly wrong.
+      expect(
+        find.byKey(const ValueKey<String>('floor-brief-overdue')),
+        findsNothing,
       );
       expect(find.text('Kasi Corner Spaza'), findsNothing);
       expect(find.text('SaveMor Glenwood'), findsNothing);
