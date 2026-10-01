@@ -444,11 +444,24 @@ void main() {
     });
 
     /// The reserve grows with the text scale, because two of its four pieces
-    /// are type: the field (82 → 120) and the thumb zone (146 → 184). What
-    /// this is NOT any more is the thing that collapses the plate on a real
-    /// phone — at 2.0× the reserve is 348 and an 844dp phone still has 496,
-    /// which is the honest answer: the form below the plate scrolls, so a
-    /// reader at 2.0× loses nothing by the picture staying up.
+    /// are type: the field (82 → 120) and the thumb zone (146 → 184).
+    ///
+    /// **This group no longer asserts a collapse at 2.0×, and that is a
+    /// change.** The old one did, with the reason *"at 2.0× the form is far
+    /// taller than the fold and the picture is what has to go"* — which is not
+    /// a reading of this screen: the form scrolls, and what the plate was
+    /// actually being measured against was a reserve of 566 times a flat,
+    /// unmeasured prose share of 200. The boundary landed on 2.0× by
+    /// arithmetic accident and tuning [EntryPlate.groundProse] to put it back
+    /// would be the cliff engineering this file now exists to stop.
+    ///
+    /// It is not a free change and the note on `groundFor` says so: the plate
+    /// is a fixed height, so at 2.0× its headline is scaled down below the
+    /// field labels under it. The honest rule for that — collapse when the
+    /// plate cannot carry its words at the asked-for size — bites at 1.3×,
+    /// which has shipped photographic all along. That boundary is a decision
+    /// about the plate's fit ladder and wants the owner, not a number chosen
+    /// here to keep a diff small.
     for (final scale in <double>[1.0, 1.3, 1.6, 2.0]) {
       testWidgets('${scale}x: [groundFor] is not under the measured reserve', (
         tester,
@@ -481,9 +494,8 @@ void main() {
               'promises only $declared. Raise EntryPlate.groundProse until '
               'the line clears every scale.',
         );
-        // The picture stays up at every scale on this phone, and that is the
-        // honest answer rather than a relaxation: the form below the plate
-        // scrolls, so a reader at 2.0x loses nothing by it.
+        // The picture stays up at every scale on this phone. Pinned so the
+        // change is visible rather than implied — see the note above.
         expect(_drawsPicture(tester), isTrue, reason: '${scale}x');
         await disposeEntryScreen(tester);
       });

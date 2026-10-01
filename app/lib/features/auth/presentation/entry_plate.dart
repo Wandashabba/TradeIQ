@@ -230,12 +230,40 @@ class EntryPlate extends StatelessWidget {
 
   /// The reserve at a given text scale.
   ///
-  /// Linear, and it no longer has to carry the weight it used to: at 2.0× this
-  /// is 348, so the collapse boundary moves from a 418dp viewport to 498 and
-  /// the picture survives every real device at every scale the app allows. The
-  /// plate's own type is fitted by [TiqPlate]'s ladder, which is where that
-  /// job belongs — the reserve is about the screen under the plate, and
-  /// conflating the two is how it came to be 566.
+  /// Linear, and it no longer carries the weight it used to. At 2.0× it is
+  /// 348, so the collapse boundary moves from a 418dp viewport to 498 and the
+  /// picture survives every real device at every scale the app allows.
+  ///
+  /// ### WHAT THAT CHANGED, SAID OUT LOUD
+  ///
+  /// At 390×844 and 2.0× this screen used to collapse to the band, and now it
+  /// does not. **That collapse was an accident, not a decision**: the old
+  /// reserve was 566 and its prose share was a flat, unmeasured 200, so 2.0×
+  /// put the reserve at 766 and an 844dp phone had 78dp left. Nobody chose
+  /// 2.0× as a boundary; it fell out of two guessed numbers multiplied
+  /// together. Reproducing it by tuning [groundProse] back up would be the
+  /// same cliff engineering this fix exists to end, so it is not reproduced.
+  ///
+  /// **It is also not obviously right, and it is not this file's call.** The
+  /// plate is a fixed height and [TiqPlate] fits the hero into its text-safe
+  /// zone with a scale-down ladder, so at 2.0× the headline on the picture
+  /// renders *smaller* than the field labels under it — a reader who asked for
+  /// larger type gets the one line of display type at less than they asked
+  /// for. The collapsed band has no such cap; it grows to its words.
+  ///
+  /// The honest version of that rule is "collapse when the plate cannot carry
+  /// its own words at the asked-for size", and it is **not** the rule here,
+  /// because when measured it bites at **1.3×** — the cluster needs a 277dp
+  /// plate against a [tallest] of 250 — and 1.3× has shipped photographic
+  /// since this screen was built. So the status quo at 1.3× and 1.6× is itself
+  /// a scaled-down headline that was signed off.
+  ///
+  /// Where that boundary belongs is a decision about the plate's fit ladder,
+  /// one object up from the reserve, and it wants the owner's eye rather than
+  /// a number picked here to make a diff smaller. What this file is now
+  /// careful about is not smuggling it into the viewport arithmetic a second
+  /// time: **the reserve is about the screen under the plate.** Conflating the
+  /// two is how it came to be 566.
   static double groundFor(double textScale) =>
       ground + (textScale - 1) * groundProse;
 
