@@ -59,16 +59,28 @@ void main() {
 
   for (final skin in askSkins) {
     group(skin.mode.name, () {
-      testWidgets('first run: Send is disabled, so nothing is armed', (
-        tester,
-      ) async {
+      testWidgets('first run: Send IS armed, so the teaching screen has a '
+          'light', (tester) async {
+        // PIN MOVED, 1 October 2026 — night 1 → 2, Day 0 → 1.
+        //
+        // This read "Send is disabled, so nothing is armed". The teaching
+        // screen exists to be asked a question and its one commit action was
+        // dead on arrival, which is the same defect `login_screen.dart` fixed
+        // a day earlier on a form whose one button was dead on arrival. The
+        // grant is now declared at `firstRun` as well as `typing`; see
+        // `AskPhase.claims` for the whole argument and the per-frame census
+        // table.
+        //
+        // Both numbers are inside their budgets — Night's two are the nav's
+        // active tab and Send, Day's one is Send's block — and `expectCount`
+        // asserts that for itself through `expectWithinAmberBudget`.
         await pumpAsk(tester, skin: skin);
         await expectCount(
           tester,
           skin,
           phase: AskPhase.firstRun,
-          night: 1,
-          light: 0,
+          night: 2,
+          light: 1,
         );
         await disposeAsk(tester);
       });

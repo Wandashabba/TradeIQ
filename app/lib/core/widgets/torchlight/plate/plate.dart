@@ -4,6 +4,7 @@ import '../../../design/motion_budget.dart';
 import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/torch_press.dart';
+import '../chrome/nav_pill.dart' show torchPillRadius;
 import '../row/soft_row.dart' show SoftRowChevron;
 import 'plate_fallback.dart';
 import 'plate_spec.dart';
@@ -1168,6 +1169,65 @@ class _HealthTarget extends StatelessWidget {
   );
 }
 
+// ── THE QUIET FACE A CONTROL WEARS ON A PHOTOGRAPH ─────────────────────
+//
+// Four numbers, all four read off the approved mockup's own markup rather
+// than chosen here. The drawing renders a 390dp screen into a 300px device,
+// so its pixels are multiplied by 1.3 to reach logical dp, and the conversion
+// is stated at every one of them.
+//
+// The owner's note, 1 October 2026, on the third screenshot: "the structure
+// is now right… every piece of chrome is heavier, larger and louder than the
+// drawing. Theirs is quiet; ours shouts." The repair is this face: a
+// translucent wash of the screen's own ground, NO outline, small type. A
+// control on the plate is navigation, not the subject — the photograph and
+// the three figures carry the screen.
+//
+// WHY A WASH OF `ground` AND NOT `surface`. `surface` is an opaque tier of
+// the ladder, and what a reader sees on the plate is then a solid block with
+// a photograph interrupted behind it. The mockup washes the *ground* over the
+// picture instead, so the picture survives under the control and the control
+// still gives its ink a declared floor to stand on. That floor is the point
+// and it is measured rather than asserted: see
+// `floor_plate_contrast_test.dart`, which rasterises both controls over all
+// fourteen committed place images in both skins.
+
+/// The scope chip's wash: `ground` at 72%, which is the mockup's
+/// `color-mix(in srgb, var(--ground) 72%, transparent)` exactly. Night's
+/// `ground` is `#0B1017` and the mockup's is `#0B1017`; Day's is `#EEE9DF`
+/// and so is the mockup's. The token and the drawing are the same colour, so
+/// this is one number and not a translation.
+const double plateQuietChipAlpha = 0.72;
+
+/// The Menu's wash: `ground` at 55% — the mockup's `rgba(11,16,23,.55)`,
+/// which is that same `#0B1017` written out longhand.
+///
+/// It is **thinner than the chip's** on purpose and the mockup is deliberate
+/// about it: the chip carries two words a reader has to read, and the Menu
+/// carries one glyph they only have to find.
+const double plateQuietButtonAlpha = 0.55;
+
+/// The DRAWN extent of a quiet control: the mockup's 22px at 1.3 dp/px.
+///
+/// **It is not the tap target and must never be used as one.** Every control
+/// wearing this face paints at [plateQuietExtent] inside a transparent box of
+/// `space.tapTarget`, so the thing a finger hits is 44dp while the thing an
+/// eye sees is 29dp. That split is the whole of how this change gets the
+/// mockup's weight without breaking WCAG 2.5.5 — the mockup's chrome is drawn
+/// at 29–35dp throughout, and every one of those numbers is under the 44dp
+/// floor this product's own `space.tapTarget` encodes. Drawing small and
+/// targeting large is the only answer that honours both.
+const double plateQuietExtent = 29;
+
+/// The Menu's corner: the mockup's `border-radius:7px` at 1.3 dp/px.
+///
+/// `TiqRadii` carries no 9. It is not a new tier of the radius system — it is
+/// one control's silhouette, the way [plateQuietExtent] is one control's
+/// height, and promoting either to a token would claim a generality the
+/// mockup never asked for. The scope chip beside it is a full pill and uses
+/// `torchPillRadius`, which the filter chip already granted.
+const double plateQuietRadius = 9;
+
 /// THE SCOPE CONTROL — where you are, and one tap to be somewhere else.
 ///
 /// ```text
@@ -1191,23 +1251,50 @@ class _HealthTarget extends StatelessWidget {
 /// twice: the eyebrow line the cluster used to carry is gone, and the hero has
 /// its height back.
 ///
-/// ## The grammar is the filter chip's
+/// ## The grammar is the filter chip's, at the plate's own weight
 ///
-/// Radius `chip`, a 1px `edgeControl` edge, the `label` role, the press
-/// treatment every control in this app uses, and **never amber** — a filter is
-/// a control and a control is not a light (unify §1.6). Two deliberate
-/// departures from `TorchFilterChip`, both because this chip stands on a
-/// picture rather than on the ground:
+/// A pill, the press treatment every control in this app uses, and **never
+/// amber** — a filter is a control and a control is not a light (unify §1.6).
 ///
-/// * **It always has a `surface` fill.** An unselected rail chip is
-///   transparent, which over a picture is a label nobody can read.
-/// * **Filtered is an `ink1` edge and a heavier name, not a tick.** A tick
-///   means "chosen from these options" in a rail of several. There is one chip
-///   here, and what it has to say is whether the screen is narrowed.
+/// ## IT IS THE RIGHT COMPONENT AND IT NEEDED A LIGHTER FACE — 1 October 2026
 ///
-/// The target is `space.tapTarget` tall in every density — the chip's own 44dp
-/// Console height would be a control smaller in the console than the rule
-/// requires.
+/// The owner asked, looking at the third screenshot, whether this is the right
+/// component at the right weight here. The answer is **yes to the component
+/// and no to the face**, and the two halves are worth separating because only
+/// one of them changed.
+///
+/// *The component is right.* There is one scope control on this screen, it
+/// sets exactly the two facts it prints, and the sheet behind it is the
+/// overview's own territory rail. Nothing about that is a plate concern, and a
+/// second chip class standing beside this one would be the parallel copy this
+/// codebase keeps paying for.
+///
+/// *The face was wrong.* It wore `TorchFilterChip`'s clothes — an opaque
+/// `surface` fill and a 1px `edgeControl` box at `space.tapTarget` tall — and
+/// that grammar was written for a chip standing on the **ground**, in a rail,
+/// among its own kind. On a photograph it is a bordered block roughly double
+/// the drawing's height, which is the first thing the owner named. It wears
+/// the quiet face now: [plateQuietChipAlpha] of `ground`, **no border**, the
+/// `meta` role at weight 600, drawn at [plateQuietExtent] inside a 44dp
+/// target.
+///
+/// Three consequences, each a real decision rather than a side effect:
+///
+/// * **The outline is gone and `filtered` keeps only its weight step.** The
+///   edge used to be half of how "a territory is chosen" was said. What is
+///   left is the heavier name — and, far more legibly, *the name itself*:
+///   a filtered chip reads `Gauteng North` and an unfiltered one reads
+///   `All territories`. The words were always the stronger channel and the
+///   edge was belt-and-braces over them. `TorchFilterChip` lost its outline on
+///   29 September 2026 to the same instruction, for the same reason.
+/// * **The chevron drops from 20dp to [plateQuietExtent]-scale and takes
+///   `ink2`, not `ink3`.** The owner called the old one "a large `>`
+///   chevron"; the mockup's `›` is 8.5px — about 11dp. `ink3` over a Day plate
+///   measures 4.15:1 against this wash, which clears 1.4.11's 3:1 for a glyph
+///   and not 1.4.3's 4.5:1 for text, and a chevron inside a control a reader
+///   is reading is not worth arguing at the boundary. `ink2` measures 6.45:1.
+/// * **The tap target did not move.** 44dp, as before, because
+///   `plateQuietExtent` is a paint size — see its own note.
 class PlateScopeChip extends StatelessWidget {
   const PlateScopeChip({
     super.key,
@@ -1234,15 +1321,23 @@ class PlateScopeChip extends StatelessWidget {
   /// control that is not there.
   final String semanticsLabel;
 
-  /// Whether a territory is chosen. Changes the edge and the weight, never the
-  /// hue.
+  /// Whether a territory is chosen. Changes the **weight** and nothing else —
+  /// never the hue, and no longer the edge, which the quiet face does not
+  /// have. See the note on this class.
   final bool filtered;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
-    final radius = BorderRadius.circular(skin.radii.chip);
+    final radius = BorderRadius.circular(torchPillRadius);
+    // The mockup's `font-size:8.5px` is 11dp at 1.3 dp/px. `meta` is 12 and
+    // `label` — what this chip used to wear — is 13; `meta` at weight 600 is
+    // the declared role nearest the drawing, and the weight comes from the
+    // mockup too (`font-weight:600`). A seventeenth text role to land exactly
+    // on 11 would be a role nobody reviewed, which is what the style ledger
+    // exists to refuse.
+    final face = skin.text.meta.copyWith(weight: FontWeight.w600);
 
     return Semantics(
       button: true,
@@ -1252,54 +1347,72 @@ class PlateScopeChip extends StatelessWidget {
       child: TorchPressable(
         onPressed: onTap,
         borderRadius: radius,
-        builder: (context, pressed) => Container(
+        // 44dp of transparent box around a 29dp pill. The finger gets the
+        // rule's target and the eye gets the drawing's weight; see
+        // [plateQuietExtent].
+        builder: (context, pressed) => ConstrainedBox(
           constraints: BoxConstraints(minHeight: skin.space.tapTarget),
-          decoration: BoxDecoration(
-            color: pressed ? torchPressSurface(skin).fill : p.surface,
-            borderRadius: radius,
-            border: Border.all(
-              color: filtered ? p.ink1 : p.edgeControl,
-              width: skin.depth.borderWidth,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: TiqSpace.s3,
-            vertical: TiqSpace.s2,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Flexible(
-                child: Text.rich(
-                  TextSpan(
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: scope,
-                        style: skin.text.label
-                            .copyWith(
-                              weight: filtered
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                            )
-                            .style(color: p.ink1),
-                      ),
-                      TextSpan(
-                        // The window is the quieter half: it is usually the
-                        // default, and the territory is what a manager changes.
-                        text: ' · $window',
-                        style: skin.text.label.style(color: p.ink2),
-                      ),
-                    ],
-                  ),
-                  // Never ellipsised, like a filter chip's label: a scope you
-                  // cannot read is a scope you cannot trust. At 2.0x it wraps
-                  // and the chip grows.
-                  maxLines: 2,
-                ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: plateQuietExtent),
+              decoration: BoxDecoration(
+                color: pressed
+                    ? torchPressSurface(skin).fill
+                    // A WASH, NOT A TIER. See the note above
+                    // [plateQuietChipAlpha] for why the picture shows through.
+                    : p.ground.withValues(alpha: plateQuietChipAlpha),
+                borderRadius: radius,
+                // AND NO BORDER. The mockup has none, and `filtered` is
+                // carried by the weight and by the words.
               ),
-              const SizedBox(width: TiqSpace.s2),
-              SoftRowChevron(color: p.ink3),
-            ],
+              // The mockup's `padding:5px 10px` is 6.5/13dp at 1.3 dp/px. s3
+              // is 12 and s1 is 4: the nearest steps on the 4dp scale, and the
+              // vertical one is only a floor anyway — `plateQuietExtent`
+              // decides the height.
+              padding: const EdgeInsets.symmetric(
+                horizontal: TiqSpace.s3,
+                vertical: TiqSpace.s1,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Flexible(
+                    child: Text.rich(
+                      TextSpan(
+                        children: <InlineSpan>[
+                          TextSpan(
+                            text: scope,
+                            style: face
+                                .copyWith(
+                                  weight: filtered
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                )
+                                .style(color: p.ink1),
+                          ),
+                          TextSpan(
+                            // The window is the quieter half: it is usually
+                            // the default, and the territory is what a manager
+                            // changes.
+                            text: ' · $window',
+                            style: face.style(color: p.ink2),
+                          ),
+                        ],
+                      ),
+                      // Never ellipsised, like a filter chip's label: a scope
+                      // you cannot read is a scope you cannot trust. At 2.0x
+                      // it wraps and the chip grows.
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: TiqSpace.s1),
+                  // 11dp, which is the mockup's `›`, and `ink2` rather than
+                  // `ink3` — see the measurement on this class.
+                  SoftRowChevron(color: p.ink2, extent: 11),
+                ],
+              ),
+            ),
           ),
         ),
       ),

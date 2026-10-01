@@ -2082,7 +2082,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askSendNothingTyped =>
-      'Stuur, nie beskikbaar nie, nog niks getik nie';
+      'Stuur. Nog niks getik nie, dus open dit die vraagveld.';
 
   @override
   String get askStop => 'Stop die antwoord';

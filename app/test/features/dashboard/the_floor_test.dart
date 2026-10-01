@@ -656,7 +656,7 @@ void main() {
     }
 
     testWidgets(
-      'Night at rest paints one lit object: the plate\'s strip light',
+      'Night at rest paints TWO: Send and the plate\'s strip light',
       (tester) async {
         await floor(tester);
 
@@ -667,32 +667,54 @@ void main() {
           route: 'the-floor',
           phase: 'loaded',
         );
+        // ── THE PIN THE OWNER ASKED FOR, AND THEY DID THE ARITHMETIC ──
+        //
+        // This expected ONE, and the reason read: *"the trough is empty, so
+        // Send is disabled, and a disabled Send is never amber in any skin."*
+        // Both halves of that are still true of a disabled Send — what
+        // changed on 1 October 2026 is that Send is no longer disabled at
+        // rest. See `AskPhase.claims` for the whole argument and
+        // `login_screen.dart` for the precedent it is taken from.
+        //
+        // > *"the send button is amber… an always-amber send changes the
+        // > at-rest count from 1 to 2 on Night and from 0 to 1 on Day"*
+        // > — the owner, 1 October 2026, naming this number before it moved.
+        //
+        // TWO IS THE CEILING AND IT IS NOW SPENT. That is the thing worth
+        // noticing rather than the number: at rest this route has no headroom
+        // left, so the next object that wants a light on this frame cannot
+        // have one. The answered frame is deliberately NOT in this state —
+        // the grant stops at `firstRun` so the answer keeps its own bar.
         expect(
           census.objectCount,
-          1,
+          2,
           reason:
-              'At rest the only armed thing on this screen is nothing: the '
-              'trough is empty, so Send is disabled, and a disabled Send is '
-              'never amber in any skin. The nav tab that used to be object 1 '
-              'went with the pill.\n${census.describe()}',
+              'Send is rung 1 and the strip light rung 2. With no nav tab '
+              'ahead of them both are granted, and the mockup draws exactly '
+              'this pair: its footer says "two on Night (the strip light and '
+              'the send button)".\n${census.describe()}',
         );
       },
     );
 
     testWidgets(
-      'Night with NO photograph paints nothing — a budget is a ceiling',
+      'Night with NO photograph paints one — a budget is a ceiling',
       (tester) async {
         await floor(tester, photograph: false);
 
         final census = await amberCensus(tester);
+        // STILL THE SAME POINT, ONE OBJECT ALONG. This expected zero, and the
+        // sentence it was making — a budget is a ceiling, not a quota — is
+        // exactly what the number below demonstrates: Night may light two and
+        // this frame lights one, because the plate has nothing to be a strip
+        // of light ON and does not spend its grant to fill the budget.
         expect(
           census.objectCount,
-          0,
+          1,
           reason:
-              'With no photograph there is nothing for a strip light to be a '
-              'strip of light ON, so the plate spends nothing — and there is '
-              'no longer a nav tab underneath it to make the count one '
-              'anyway.\n${census.describe()}',
+              'Send alone. With no photograph the plate\'s rung-2 claim goes '
+              'unspent, and nothing is promoted to take its place — a budget '
+              'is a ceiling, not a quota.\n${census.describe()}',
         );
       },
     );
@@ -822,7 +844,9 @@ void main() {
     });
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
-      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+      testWidgets('${skin.mode.name} at rest paints one: Send\'s block', (
+        tester,
+      ) async {
         final image = await SyncImage.solid(tester);
         await pumpFloor(
           tester,
@@ -840,14 +864,27 @@ void main() {
           route: 'the-floor',
           phase: 'loaded',
         );
+        // THE OTHER NUMBER THE OWNER PREDICTED: 0 → 1 on Day.
+        //
+        // The sentence this test was built on is unchanged and is now the
+        // reason the count is one rather than the reason it is zero: *"on a
+        // light ground the only amber is the primary commit block."* The
+        // Floor has a primary since 1 October 2026 — it is Send, it is live
+        // from the first frame, and on paper it is a solid flame-600 block
+        // with an ink-1 edge rather than a rim.
+        //
+        // The strip light is still out, and that is still the law working:
+        // Day's ladder has one rung, Send takes it by precedence, and the
+        // plate falls back to its dark rule. The mockup says so in as many
+        // words under its own Day panel.
         expect(
           census.objectCount,
-          0,
+          1,
           reason:
-              'On a light ground the only amber is the primary commit block, '
-              'and The Floor has no primary: the nav tab is an Abyssal block '
-              'and the plate keeps its image with an ink rule where the light '
-              'was.\n${census.describe()}',
+              'Send\'s block, and nothing else. Day grants one object; the '
+              'plate\'s strip light is denied and draws its unlit ink rule, '
+              'which is what it already did on every Day screen before this '
+              'change.\n${census.describe()}',
         );
       });
     }

@@ -545,7 +545,7 @@
   "askComposerRephrase": "Vra weer, of stel dit anders",
   "askSend": "Stuur hierdie vraag",
   "askSendUnavailable": "Stuur, nie beskikbaar nie, het ’n verbinding nodig",
-  "askSendNothingTyped": "Stuur, nie beskikbaar nie, nog niks getik nie",
+  "askSendNothingTyped": "Stuur. Nog niks getik nie, dus open dit die vraagveld.",
   "askStop": "Stop die antwoord",
   "askQuestionSent": "Vraag gestuur",
   "askYourQuestion": "Jou vraag",

@@ -151,34 +151,97 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('it has an edge, a fill and a 48dp box', (tester) async {
-      // PIN MOVED. This asserted that the tap target extended past the words
-      // it was drawn behind, because the control WAS the words with a
-      // transparent band over them. The band was a real 48dp target and it was
-      // still invisible, which is the defect this change exists to fix — so
-      // what is measured now is that the control is painted.
+    testWidgets('it is a quiet pill: a wash, no border, and a 44dp box that '
+        'is bigger than the paint', (tester) async {
+      // PIN MOVED TWICE, AND THE SECOND MOVE IS THE INTERESTING ONE.
+      //
+      // First it asserted that the tap target extended past the words it was
+      // drawn behind, because the control WAS the words with a transparent
+      // band over them. Then it asserted a fill AND A BORDER, because the chip
+      // wore `TorchFilterChip`'s rail grammar.
+      //
+      // 1 October 2026: the border is the thing the owner could see. *"A
+      // bordered box… roughly double the height"*, against a drawing that is
+      // `border-radius:999px` over `ground@72%` with no outline at all. So
+      // what is measured now is the three things that replaced it, and the
+      // assertion on the border is **inverted** rather than deleted — a
+      // deleted assertion is how an outline comes back.
       await pump(tester, plateImage: await SyncImage.seededShelf(tester));
       final chip = find.byKey(const ValueKey<String>('floor-scope-chip'));
       expect(chip, findsOneWidget);
 
+      final skin = TiqSkin.night();
       expect(
         tester.getRect(chip).height,
-        greaterThanOrEqualTo(TiqSkin.night().space.tapTarget),
+        greaterThanOrEqualTo(skin.space.tapTarget),
         reason: 'a control under the tap target is a control people miss',
       );
 
-      // Painted: a fill and a rounded edge, from the chip grammar. A control
-      // on a picture with no fill is a label nobody can read, and a hard
-      // rectangle is not this app's card grammar.
-      final decoration = tester
+      final painted = tester
           .widgetList<Container>(
             find.descendant(of: chip, matching: find.byType(Container)),
           )
           .map((c) => c.decoration)
           .whereType<BoxDecoration>()
-          .firstWhere((d) => d.border != null);
-      expect(decoration.color, isNotNull, reason: 'no fill');
-      expect(decoration.borderRadius, isNotNull, reason: 'a hard rectangle');
+          .single;
+
+      // 1. A WASH, NOT A TIER. `ground` at 72%, which is the mockup's own
+      //    `color-mix(in srgb, var(--ground) 72%, transparent)` — and it has
+      //    to be translucent, because an opaque block is a photograph
+      //    interrupted rather than a control standing on one.
+      expect(painted.color, isNotNull, reason: 'no fill at all');
+      expect(
+        painted.color!.a,
+        closeTo(plateQuietChipAlpha, 0.001),
+        reason:
+            'the chip is meant to be a WASH of the ground — an opaque fill '
+            'here is the `surface` tier coming back, which is what made it a '
+            'block on the picture',
+      );
+
+      // 2. NO BORDER. The inverted assertion.
+      expect(
+        painted.border,
+        isNull,
+        reason:
+            'the mockup has no outline on this chip and the owner has twice '
+            'named an outline as the thing they can see. `filtered` is carried '
+            'by the weight step and by the words — see PlateScopeChip.',
+      );
+
+      // 3. THE PAINT IS SMALLER THAN THE TARGET. The whole trick of this
+      //    pass: 29dp drawn inside 44dp hit.
+      //
+      //    THE CONSTRAINT IS ASSERTED, NOT THE LAID-OUT RECT, and the reason
+      //    is worth writing down because the first version of this pin failed
+      //    on it. This harness does not load Onest, and the test font is
+      //    wider — so `All territories · Last 30 days` wraps to two lines here
+      //    and the drawn box measures 42dp rather than 29. That is a property
+      //    of the font the test binding ships with, not of the screen: the
+      //    committed renders load the real faces (`loadAgentFonts`) and the
+      //    chip holds one line at both supported widths. Pinning the rect
+      //    would have pinned the wrong thing in both directions — green on a
+      //    chip that had silently doubled, red on a chip that had not changed.
+      final container = tester
+          .widgetList<Container>(
+            find.descendant(of: chip, matching: find.byType(Container)),
+          )
+          .single;
+      expect(
+        container.constraints?.minHeight,
+        plateQuietExtent,
+        reason: 'the drawn pill is the mockup\'s 22px at 1.3 dp/px',
+      );
+      expect(
+        plateQuietExtent,
+        lessThan(skin.space.tapTarget),
+        reason:
+            'draw at the drawing\'s size, target at the rule\'s. If these two '
+            'are ever equal again somebody has either shrunk the target under '
+            'the WCAG 2.5.5 floor or re-inflated the paint to the weight that '
+            'was rejected.',
+      );
+      expect(painted.borderRadius, isNotNull, reason: 'a hard rectangle');
 
       await tester.tap(chip);
       await tester.pumpAndSettle();

@@ -107,9 +107,32 @@ void main() {
       final repo = ScriptedRepository(tilesTurn());
       await pumpAsk(tester, repository: repo);
 
-      // Nothing typed: a button that says why it is disabled, and is.
-      final idle = nodeLabelled(tester, 'Send, unavailable, nothing typed yet');
-      expect(idle.flagsCollection.isEnabled, Tristate.isFalse);
+      // Nothing typed: a button that is ENABLED and says what the press does.
+      //
+      // PIN INVERTED, 1 October 2026. This read `isEnabled, isFalse` with the
+      // label "Send, unavailable, nothing typed yet" — the state that kept the
+      // route's one commit action out of the amber it is the rung-1 claimant
+      // for. The assertion is kept rather than dropped, with both halves
+      // turned round: a live button, and a sentence that is true of a live
+      // button. See `AskPhase.armed`.
+      final idle = nodeLabelled(
+        tester,
+        'Send. Nothing typed yet, so this opens the question field.',
+      );
+      expect(
+        idle.flagsCollection.isEnabled,
+        Tristate.isTrue,
+        reason:
+            'an amber control that cannot be activated is the lie the amber '
+            'law exists to prevent — so it is activatable',
+      );
+      expect(
+        idle.hasAction(SemanticsAction.tap),
+        isTrue,
+        reason:
+            'and it carries the tap action, not just the enabled flag: the '
+            'press is what earns the light',
+      );
 
       await tester.enterText(composerField, 'Which outlets ran out?');
       await tester.pump();

@@ -3266,10 +3266,10 @@ abstract class AppLocalizations {
   /// **'Send, unavailable, needs a connection'**
   String get askSendUnavailable;
 
-  /// Spoken when Send is disabled because the trough is empty.
+  /// Spoken when Send is LIVE and the trough is empty. It was "Send, unavailable, nothing typed yet" until 1 October 2026, when the key stopped being disabled by an empty trough: it is live from the first frame so it may wear the route's one light, and pressing it with nothing typed puts the cursor in the field. The old sentence would have announced an available control as unavailable.
   ///
   /// In en, this message translates to:
-  /// **'Send, unavailable, nothing typed yet'**
+  /// **'Send. Nothing typed yet, so this opens the question field.'**
   String get askSendNothingTyped;
 
   /// Replaces Send while a turn streams.

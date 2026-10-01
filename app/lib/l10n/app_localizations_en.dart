@@ -2054,7 +2054,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askSendUnavailable => 'Send, unavailable, needs a connection';
 
   @override
-  String get askSendNothingTyped => 'Send, unavailable, nothing typed yet';
+  String get askSendNothingTyped =>
+      'Send. Nothing typed yet, so this opens the question field.';
 
   @override
   String get askStop => 'Stop the answer';

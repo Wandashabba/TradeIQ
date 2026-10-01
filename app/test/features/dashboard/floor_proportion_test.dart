@@ -263,12 +263,34 @@ void main() {
         skin.space.blockGap,
         reason: 'the plate to the briefing is one block gap',
       );
+      // THE CARD GAP IS THE BRIEFING'S OWN, NOT `intraBlock` — 1 Oct 2026.
+      //
+      // PIN MOVED, AND IT IS A TIGHTENING RATHER THAN A RELAXATION. This read
+      // `skin.space.intraBlock`, which is 12dp. The mockup's is
+      // `margin-bottom:5px` — 6.5dp at 1.3 dp/px — and the owner read the
+      // block as "much taller cards with a much larger gap". Measured, the
+      // cards are within a dp of the drawing's height; the gap was doing all
+      // of it.
+      //
+      // It is still a named constant and not an `sN` literal, so the pin
+      // follows the decision instead of restating it: `FloorBriefingBlock`
+      // owns the number, with the conversion written at it.
       expect(
         secondCard.top - firstCard.bottom,
-        skin.space.intraBlock,
+        FloorBriefingBlock.cardGap,
         reason:
-            'two briefing lines are one block, not two — a reader scans them '
-            'as a list, and a block gap between them would make three',
+            'two briefing lines are one READING broken into three, not three '
+            'things near each other — the drawing gives them half the gap of '
+            'everything else on the screen, and `intraBlock` was twice it',
+      );
+      expect(
+        FloorBriefingBlock.cardGap,
+        lessThan(skin.space.intraBlock),
+        reason:
+            'the whole point is that this gap is tighter than the screen\'s '
+            'ordinary one. If somebody has raised it back to `intraBlock` the '
+            'assertion above would still pass and the owner would be looking '
+            'at the render they rejected.',
       );
     });
 

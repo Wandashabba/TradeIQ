@@ -589,11 +589,12 @@ class _FloorState extends ConsumerState<_Floor> {
           ),
         ),
         const SizedBox(width: TiqSpace.s2),
+        // ONE SIZE AT EVERY WIDTH, since 1 October 2026. The `compact` flag
+        // and its 380dp threshold are gone with the printed word — the mockup
+        // has no label at any width, so there is no longer a narrow phone to
+        // special-case. See [FloorDestinationsButton].
         FloorDestinationsButton(
           key: const ValueKey<String>('floor-destinations'),
-          compact:
-              MediaQuery.sizeOf(context).width <
-              FloorDestinationsButton.compactUnder,
           onTap: () => showFloorDestinations(context, view),
         ),
       ],

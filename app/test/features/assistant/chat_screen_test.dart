@@ -101,15 +101,29 @@ void main() {
       await disposeAsk(tester);
     });
 
-    testWidgets('Send is disabled and says why when nothing is typed', (
-      tester,
-    ) async {
+    testWidgets('Send is LIVE with nothing typed, and says what the press '
+        'will do', (tester) async {
+      // PIN INVERTED, 1 October 2026 — this asserted Send was *disabled* with
+      // nothing typed, which is the state that made it an outlined disc on a
+      // screen whose one job is to be asked something. It is live from the
+      // first frame now so it may carry the route's light, and the press puts
+      // the cursor in the trough. See `AskPhase.armed` and
+      // `login_screen.dart`, which hit this a day earlier.
+      //
+      // What did NOT change: the key still announces the truth about itself in
+      // every state. That is the half of the old test worth keeping, so the
+      // label is still asserted — with the sentence that is now true.
       final semantics = tester.ensureSemantics();
       await pumpAsk(tester);
 
       expect(
-        find.bySemanticsLabel('Send, unavailable, nothing typed yet'),
+        find.bySemanticsLabel(
+          'Send. Nothing typed yet, so this opens the question field.',
+        ),
         findsOneWidget,
+        reason:
+            'a live control that announced "unavailable" would be worse than '
+            'the disabled one it replaced',
       );
       await tester.enterText(composerField, 'How is Tumo doing?');
       await tester.pumpAndSettle();
