@@ -83,16 +83,22 @@ import 'entry_brand.dart';
 ///
 /// ### The reserve counted a pinned bar against a scroll, three times
 ///
-/// This number was 520, then 566, and the second one took three owner reports
-/// to be recognised as a defect rather than a tuning problem. Each round
-/// lowered the per-screen `shortest` instead — 200 to 150 — and each round
-/// moved the cliff eight to twenty pixels without removing it:
+/// This number was 520, then 566, and it took three owner reports to be
+/// recognised as a defect rather than a tuning problem. The first two rounds
+/// answered by lowering the per-screen `shortest` — 200 to 150 — which bought
+/// fifty dp of viewport and left the cliff at 716, still inside the range of
+/// ordinary browser windows. The three sightings, against the one rule:
 ///
-/// | report | viewport | `vh − 566` | drew a picture |
+/// | reported | `vh − 566` | ≥ 200? | ≥ 150? |
 /// |---|---|---|---|
-/// | browser window | 749 | 183 | only after `shortest` went to 150 |
-/// | phone, then browser | 810 / 749 | 244 / 183 | one did, one did not |
-/// | browser window | **708** | **142** | **no — eight dp short** |
+/// | a browser window at 749 | 183 | no | yes |
+/// | a phone at 810, a browser at 749 | 244 / 183 | yes / **no** | yes / yes |
+/// | **a browser window at 708** | **142** | no | **no** |
+///
+/// The middle row is the one that cost the most to read: the same build drew
+/// two different screens 66dp apart, and the conclusion from outside was that
+/// the web app had not been rebuilt. It had. The third is eight dp under the
+/// floor the second round had just bought.
 ///
 /// 566 was documented as *the top of the headline to the foot of the commit
 /// action*. **On the phone shape the commit action is not in the scrolling
@@ -196,12 +202,13 @@ class EntryPlate extends StatelessWidget {
   /// direction out of three *because* the picture is the product's signature.
   ///
   /// It is **not** load-bearing any more, and that is the repair. 150 was put
-  /// here to buy sixty-six dp of viewport back from a reserve that was double
-  /// counting the thumb zone, and the arithmetic it was defending against is
-  /// gone — see §3. With [ground] at 268 a 150dp plate only occurs between a
-  /// 418 and a 468dp viewport, and nothing lands there. What the number still
-  /// says is the thing it ought to have said on its own: under 150dp a
-  /// photograph with type over it is a smear, and the band is better.
+  /// here to buy fifty dp of viewport back from a reserve that was double
+  /// counting the thumb zone — 766 down to 716 — and the arithmetic it was
+  /// defending against is gone; see §3. With [ground] at 268 a plate shorter
+  /// than The Floor's 200 only occurs between a 418 and a 468dp viewport, and
+  /// nothing lands there. What the number still says is the thing it ought to
+  /// have said on its own: under 150dp a photograph with type over it is a
+  /// smear, and the band is better.
   ///
   /// **Lowering it again would be the fourth round of the same mistake.** If a
   /// viewport is ever reported without a picture, the reserve above is what to
