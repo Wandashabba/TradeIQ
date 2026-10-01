@@ -457,6 +457,156 @@ void main() {
       );
     });
   });
+
+  /// WCAG 1.4.3'S LARGE-TEXT BOUNDARY, AS A GUARD RATHER THAN A HOPE.
+  ///
+  /// `TorchlightContrast._roleContrast` derives each role's floor from the
+  /// role's own size and weight: 3:1 for large text — 24px, or 18.66px at w600
+  /// and above — and 4.5:1 for everything else. **A type-size change can
+  /// therefore move a contrast floor without a single colour moving**, and the
+  /// generated sweep would only notice if the ratio happened to fall between
+  /// the two floors. That is the quietest way this palette can break.
+  ///
+  /// It nearly did on 1 October 2026. The prose reduction multiplied every
+  /// prose role by 13/14, which puts `title.l` at 18.57 — **0.09px under the
+  /// boundary.** Rounding it down to 18 would have moved every `title.l`
+  /// pairing in the sweep from 3:1 to 4.5:1 silently; it is 19 instead, and
+  /// this is where that decision is enforced rather than remembered.
+  /// `display.s` lands on 24.14 → 24 and holds its class with nothing to
+  /// spare, which is why it may not be rounded down either.
+  group('the large-text boundary', () {
+    /// Role name → the class it must resolve to. Every role in the scale, so
+    /// adding one without deciding its contrast class fails here.
+    const classes = <String, String>{
+      'hero.figure': 'large',
+      'hero.figure.compact': 'large',
+      'display': 'large',
+      'display.m': 'large',
+      'display.s': 'large',
+      'figure.l': 'large',
+      'figure.m': 'large',
+      'figure.s': 'text',
+      'title.l': 'large',
+      'title.m': 'text',
+      'headline.answer': 'large',
+      'body': 'text',
+      'body.strong': 'text',
+      'label': 'text',
+      'eyebrow': 'text',
+      'meta': 'text',
+      'axis.label': 'text',
+      'mono.ident': 'text',
+    };
+
+    /// The rule, restated here rather than reached for, so this test fails if
+    /// the production derivation drifts from WCAG rather than agreeing with
+    /// its own bug.
+    bool isLarge(TiqTypeToken t) =>
+        t.size >= 24 ||
+        (t.size >= 18.66 && t.weight.value >= FontWeight.w600.value);
+
+    test('every role resolves to the contrast class it is listed under', () {
+      final skin = TiqSkin.night();
+      expect(
+        skin.text.all.map((t) => t.name).toSet(),
+        classes.keys.toSet(),
+        reason:
+            'A role was added or renamed without deciding whether it is large '
+            'text. That decision is a contrast floor, not a detail.',
+      );
+      final wrong = <String>[];
+      for (final t in skin.text.all) {
+        final actual = isLarge(t) ? 'large' : 'text';
+        if (actual != classes[t.name]) {
+          wrong.add(
+            '  ${t.name}: ${t.size}/w${t.weight.value} is $actual, listed as '
+            '${classes[t.name]}',
+          );
+        }
+      }
+      expect(
+        wrong,
+        isEmpty,
+        reason:
+            'A type size moved across WCAG 1.4.3\'s large-text boundary, which '
+            'moves a contrast FLOOR with no colour changing:\n'
+            '${wrong.join('\n')}\n'
+            'If the move is intended, change the list above AND re-run the '
+            'generated sweep, because every pairing in that role just took a '
+            'different floor.',
+      );
+    });
+
+    test('the production derivation agrees with the rule', () {
+      // `_roleContrast` is private, so it is checked through the thing it
+      // decides: the floor on a generated pairing.
+      final skin = TiqSkin.night();
+      final byRole = <String, double>{};
+      for (final p in TorchlightContrast.generatedFor(skin)) {
+        final m = RegExp(r' at (.+) on ').firstMatch(p.label);
+        if (m != null) byRole[m.group(1)!] = p.role.floor;
+      }
+      for (final t in skin.text.all) {
+        expect(
+          byRole[t.name],
+          isLarge(t) ? 3.0 : 4.5,
+          reason:
+              '${t.name} at ${t.size}/w${t.weight.value} is swept at a '
+              '${byRole[t.name]}:1 floor, which is not what WCAG 1.4.3 says '
+              'for that size and weight.',
+        );
+      }
+    });
+
+    test('the two roles that sit on the boundary are named, with margins', () {
+      final skin = TiqSkin.night();
+      // title.l: 19 against 18.66 at w600 — 0.34px of margin, and it is the
+      // only prose role whose rounding was overridden to keep it.
+      expect(skin.text.titleL.size, 19);
+      expect(skin.text.titleL.weight.value, greaterThanOrEqualTo(600));
+      expect(
+        skin.text.titleL.size,
+        greaterThanOrEqualTo(18.66),
+        reason:
+            'title.l dropped under the w600 large-text boundary. 20 x 13/14 '
+            'is 18.57 and it was deliberately rounded UP to 19 rather than '
+            'down to 18 for exactly this reason.',
+      );
+      // display.s: 24 against 24 — on the boundary, which the >= in the rule
+      // means is inside it. One dp down and eight pairings change floor.
+      expect(skin.text.displayS.size, 24);
+      expect(
+        skin.text.displayS.size,
+        greaterThanOrEqualTo(24),
+        reason:
+            'display.s dropped under 24. It is the floor of the display '
+            'fitting ladder, so this moves the contrast floor of every '
+            'four-line headline in the app.',
+      );
+    });
+
+    test('no generated pairing is under its floor, in any skin or density', () {
+      // The sweep already asserts this; it is repeated here as the closing
+      // line of the boundary argument, because the whole point of the group
+      // above is that a floor can move. Printed so a reviewer reading a type
+      // change can see the margin rather than take it.
+      for (final skin in TorchlightContrast.allSkinsAndDensities) {
+        final pairings = TorchlightContrast.generatedFor(skin);
+        final tightest = pairings.reduce(
+          (a, b) =>
+              a.ratio - a.role.floor <= b.ratio - b.role.floor ? a : b,
+        );
+        // ignore: avoid_print
+        print(
+          '${skin.mode.name}/${skin.density.name}: ${pairings.length} '
+          'generated pairings, 0 under floor, tightest '
+          '${tightest.ratio.toStringAsFixed(2)}:1 against a '
+          '${tightest.role.floor}:1 floor (${tightest.label})',
+        );
+        expect(pairings.where((p) => p.ratio < p.role.floor), isEmpty);
+      }
+    });
+  });
 }
 
 /// Relative-luminance greyscale: what a sun-washed panel, a photocopier and a
