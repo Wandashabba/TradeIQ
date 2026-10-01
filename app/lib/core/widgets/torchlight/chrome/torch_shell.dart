@@ -93,6 +93,21 @@ class TorchShell extends StatelessWidget {
          'action has no nav. The two bottom regions are alternatives, not '
          'layers — 64dp of nav plus 96dp of thumb zone plus a safe area is a '
          'quarter of a 640dp screen given to chrome.',
+       ),
+       assert(
+         pinned == null || profile == TorchShellProfile.agent,
+         'A pinned band fills itself with a flat palette.ground, which is the '
+         'ground only on a profile with no falloff. The console paints its '
+         'ground as a vertical gradient, and a flat fill over a gradient is a '
+         'visible box — The Floor shipped exactly that on 30 September 2026 '
+         'and the owner named it the next day. The one pinned band in the '
+         'product is the stock counter summary, on the agent profile, where '
+         'the flat fill is exact. A console route that wants one has to give '
+         'the fill the SLICE of the falloff it covers: the band pins to the '
+         'top of the viewport, which is y=0 in the shell itself, so the slice '
+         'is [0, its height] of a gradient computed from the shell height — '
+         'and the shell does not thread that height into its slivers today. '
+         'Do that first, then delete this assert.',
        );
 
   final TorchShellProfile profile;
@@ -138,6 +153,29 @@ class TorchShell extends StatelessWidget {
   /// itself: without a `Scaffold` nothing else reads `viewInsets`, and a
   /// composer behind a keyboard is a composer nobody can see themselves
   /// typing into.
+  ///
+  /// ## A band paints no backdrop, and must not be given one
+  ///
+  /// "Sibling, not an overlay" has a consequence that cost The Floor a defect
+  /// the owner had to name. A band is **never** underneath the body, so the
+  /// body cannot read through it: the scroll view clips to its own viewport,
+  /// which ends where the band begins. Measured with a magenta body dragged
+  /// under a band with no material at all, the count of body pixels inside
+  /// the band's box is **zero** (`torch_shell_band_test.dart`).
+  ///
+  /// So the shell's own [_Ground] is the band's backdrop, and it is the only
+  /// correct one: on the console that ground is a vertical falloff, so a band
+  /// that fills itself with a flat `palette.ground` disagrees with the ground
+  /// everywhere except the screen's last pixel row — and the shell pads the
+  /// band by the gutter, so the disagreement is a rectangle inset 20dp with a
+  /// hard edge. The Floor carried that fill from 30 September 2026 and the
+  /// owner saw it: *"The background colour is messed up here please fix this
+  /// to be seamless and not have this box blue there."* The measurements are
+  /// on the band in `the_floor_screen.dart`.
+  ///
+  /// A band that wants a material of its own — a raised composer, say — has
+  /// to be a shape *inside* the band's box with ground showing around it, not
+  /// a fill of the box.
   final Widget? band;
 
   final ScrollController? scrollController;
@@ -273,6 +311,13 @@ class TorchShell extends StatelessWidget {
           // rather than a token height that clips them — and capped at 40% of
           // the screen so those words never take the screen instead. See the
           // [pinned] doc for the measurements that put the cap here.
+          // THE FLAT FILL IS EXACT HERE, AND ONLY HERE. A pinned band really
+          // does overlay scrolling slivers, so unlike [band] it has to be
+          // opaque. `palette.ground` is the ground only while the profile has
+          // no falloff, which is the constructor's assert: every pinned band
+          // in the product is on the agent profile. It is full-bleed, which is
+          // the other half — the gutter padding is INSIDE the fill, not around
+          // it, so there is no vertical seam to have.
           PinnedHeaderSliver(
             child: ColoredBox(
               key: const ValueKey<String>('torch-shell-pinned'),

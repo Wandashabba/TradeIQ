@@ -604,45 +604,85 @@ class _FloorState extends ConsumerState<_Floor> {
       phase: '${measured ? 'loaded' : 'window-empty'}-${phase.name}',
       hasPlatePhoto: true,
       claims: phase.claims,
-      // ON THE GROUND, NOT ON THE SCROLL VIEW. `TorchShell` gives its `band`
-      // no material of its own — Ask's composer sits at the foot of a
-      // transcript that has usually stopped scrolling by then, so nothing
-      // showed through it and nobody noticed. This screen's list runs past the
-      // fold on every populated frame, and without this the decision rows read
-      // through the chip row like a printing fault. `pinned` already does
-      // exactly this a few lines up in the same build method.
-      band: ColoredBox(
-        color: skin.palette.ground,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // THE SUGGESTIONS ARE THE AT-REST ROW ONLY. Once a turn has landed
-            // the answer prints its own follow-ups inline, from the server's
-            // `followUps` fence — two chip rows saying different things eight
-            // dp apart is the screen asking a manager which one to believe.
-            if (!asking) ...<Widget>[
-              FloorSuggestionChips(
-                suggestions: floorSuggestions(view),
-                onAsk: _send,
-                enabled: phase.canSend,
-              ),
-              SizedBox(height: skin.space.intraBlock),
-            ],
-            QuestionComposer(
-              controller: _input,
-              phase: phase,
-              onSend: _send,
-              onStop: () => ref.read(chatControllerProvider.notifier).stop(),
-              onChanged: _onChanged,
-              lastTurnErrored: answer?.error != null,
-              // What the composer says it will ask about, from the scope the
-              // plate above it is already showing.
-              hint: floorComposerHint(view),
-              band: _heldBand(context, phase),
+      // ── THE BAND PAINTS NOTHING, AND THAT IS THE FIX ──────────────────
+      //
+      // It was `ColoredBox(color: skin.palette.ground)` from 30 September
+      // 2026, put there because "the decision list read through the chip row
+      // like a printing fault". The owner looked at what the flat fill
+      // actually did: *"The background colour is messed up here please fix
+      // this to be seamless and not have this box blue there."*
+      //
+      // MEASURED on a 390×844 render of this screen at rest. The band's box
+      // is `(20, 706, 370, 844)`; the row at y=708 is 2dp inside it and
+      // nothing is drawn on it, so it reads the backdrop and nothing else:
+      //
+      // | probe | before | after |
+      // |---|---|---|
+      // | y=708, x=19 — outside the left gutter  | `#0F1620` | `#0F1620` |
+      // | y=708, x=20 — inside it                | `#0B1017` | `#0F1620` |
+      // | y=708, x=369 — inside the right gutter | `#0B1017` | `#0F1620` |
+      // | y=708, x=370 — outside it              | `#0F1620` | `#0F1620` |
+      // | y=704, x=195 — above the band's top    | `#0F1620` | `#0F1620` |
+      // | y=708, x=195 — below it                | `#0B1017` | `#0F1620` |
+      //
+      // Three hard edges, each a step of **4, 6, 9**, and after the fix the
+      // row is one colour from x=0 to x=389. The 360×640 phone is the same
+      // reading with the band's top at y=502.
+      //
+      // `TorchShell`'s console profile paints its ground as a **vertical
+      // falloff** — `ground` at the two edges, `vignette` across the middle,
+      // over a 96dp ramp at each end — so at the band's own y the ground is
+      // not `ground`. A flat fill over a gradient is a seam everywhere the
+      // two disagree, and the shell pads the band by the gutter, so the fill
+      // was a rectangle inset 20dp with a hard edge on three sides: the box.
+      // On **Day** it runs the other way and is larger — `#EEE9DF` inside
+      // against `#E6E0D4` outside, a step of 8, 9, 11 — so the same defect
+      // was a *lighter* box on paper, and nobody had named it: a light box on
+      // light paper reads as a highlight rather than a fault.
+      //
+      // AND THE BLEED IT WAS FOR DOES NOT HAPPEN. The band is a **sibling**
+      // of the scroll view in the shell's Column, never an overlay, and a
+      // `ListView` clips to its viewport. Measured the same way — a magenta
+      // body dragged under a band with no material at all — the count of
+      // body pixels inside the band's box is **zero**. The fill was
+      // protecting against nothing and costing the screen a box.
+      //
+      // So the band carries no material and the shell's own ground is its
+      // backdrop: continuous, full-bleed, and seamless by construction
+      // rather than by a matched constant. The zero is pinned in
+      // `torch_shell_band_test.dart` — the invariant that replaced the fill
+      // is a test, not a comment — and the seam is pinned in
+      // `floor_band_seam_test.dart`.
+      band: Column(
+        key: const ValueKey<String>('floor-band'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // THE SUGGESTIONS ARE THE AT-REST ROW ONLY. Once a turn has landed
+          // the answer prints its own follow-ups inline, from the server's
+          // `followUps` fence — two chip rows saying different things eight
+          // dp apart is the screen asking a manager which one to believe.
+          if (!asking) ...<Widget>[
+            FloorSuggestionChips(
+              suggestions: floorSuggestions(view),
+              onAsk: _send,
+              enabled: phase.canSend,
             ),
+            SizedBox(height: skin.space.intraBlock),
           ],
-        ),
+          QuestionComposer(
+            controller: _input,
+            phase: phase,
+            onSend: _send,
+            onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+            onChanged: _onChanged,
+            lastTurnErrored: answer?.error != null,
+            // What the composer says it will ask about, from the scope the
+            // plate above it is already showing.
+            hint: floorComposerHint(view),
+            band: _heldBand(context, phase),
+          ),
+        ],
       ),
       children: <Widget>[
         // 1. THE PLATE — the territory, the score, and the one strip of light.
