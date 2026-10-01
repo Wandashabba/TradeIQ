@@ -128,6 +128,58 @@ class TorchPixels {
 }
 
 /// Read back the last pumped frame.
+/// A matcher for a pixel on a lit amber object's own fill ramp.
+///
+/// IT USED TO BE `equals(skin.palette.flame600)` AT EVERY CALL SITE, and that
+/// stopped being expressible on 1 October 2026, when a filled amber object
+/// became a gradient from a hot stop to `flame600` rather than a flat swatch of
+/// one colour. (The owner: *"the send button on the app and everywhere else for
+/// orange is very dull, it need to be lumunous and bright and inviting"*, and
+/// `flame600` was already at value 1.00 — see `TiqSkin.amberFillRamp`.) A
+/// sampled pixel on a lit nav tab or a granted nav circle now lands *somewhere*
+/// on that ramp, and which point depends on where in the object it was sampled.
+///
+/// What the old assertion was actually guarding is unchanged and is what this
+/// guards: that the object is carrying the route's grant and is amber. An
+/// *unlit* one samples `lifted`, `well` or Abyssal, none of which is anywhere
+/// near this ramp, so the test still fails for the reason it was written for —
+/// and it now additionally fails if the gradient silently stops painting, which
+/// the exact-equality form could not catch.
+///
+/// It is deliberately a range over the ramp's own two stops and not a loose
+/// "is it orange": the bound is the object's declared ramp, so a pixel from a
+/// *different* amber — a flame-500 pressed fill, say — is still a failure.
+///
+/// The comparison is on 8-bit channels with one level of tolerance, which is
+/// not slack — it is the arithmetic. A rasterised pixel comes back as exact
+/// eighths-of-a-thousand floats (`n / 255`), a `Color.lerp` of two such colours
+/// does not, and the shader quantises once more on its way to the framebuffer.
+/// Exact equality between the two would fail on every stop but the endpoints.
+Matcher isOnAmberRamp(TiqSkin skin) {
+  final ramp = skin.amberFillRamp;
+  int r(Color c) => (c.r * 255).round();
+  int g(Color c) => (c.g * 255).round();
+  int b(Color c) => (c.b * 255).round();
+  final hot = ramp.first;
+  final cold = ramp.last;
+
+  return predicate<Color>((c) {
+    if (c.a != 1.0) return false;
+    // Every stop on this ramp holds red at FF, so red cannot locate `t` — the
+    // green channel has the longest run and is used instead. If a future ramp
+    // moves red, this needs the channel with the widest span rather than a
+    // hardcoded one, and the assertion below would catch the mistake.
+    final span = g(cold) - g(hot);
+    if (span == 0) return false;
+    final t = (g(c) - g(hot)) / span;
+    if (t < -0.01 || t > 1.01) return false;
+    final want = Color.lerp(hot, cold, t.clamp(0.0, 1.0))!;
+    return (r(c) - r(want)).abs() <= 1 &&
+        (g(c) - g(want)).abs() <= 1 &&
+        (b(c) - b(want)).abs() <= 1;
+  }, 'a stop on ${skin.mode.name}\'s amber fill ramp (${ramp.first} → ${ramp.last})');
+}
+
 Future<TorchPixels> torchPixels(WidgetTester tester) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(torchBoundaryKey),

@@ -158,13 +158,67 @@ class AskLight {
     // against its own ground, and nothing in this system is identified by a
     // fill alone. On Night the disc carries its own contrast against the
     // ground and a rule on it would be a second silhouette for nothing.
+    //
+    // THE FILL IS A RADIAL GRADIENT AS OF 1 OCTOBER 2026 — see [bloom]. The
+    // flat `flame600` stays as `fill`, because a `BoxDecoration` paints the
+    // colour whenever the gradient is null and the one skin setting with
+    // `allowsGradients: false` must still get a disc.
     return AskSendLook(
       fill: p.flame600,
       ink: p.onAmber,
       edge: skin.amberIsInk ? p.ink1 : null,
       edgeWidth: skin.depth.borderWidth,
+      bloom: sendBloom(skin),
     );
   }
+
+  /// THE SEND DISC'S OWN GRADIENT — a radial, off-centre, 1 October 2026.
+  ///
+  /// The owner: *"the send button on the app and everywhere else for orange is
+  /// very dull, it need to be lumunous and bright and inviting."* The disc was
+  /// already a solid `flame600` at value 1.00, so there was no brightness to
+  /// add; what it was missing is that **a flat fill cannot glow.** The plate's
+  /// strip light has a hot core running out to the flame and it is the one
+  /// object in the product that genuinely reads as lit. This gives the route's
+  /// primary action the same treatment.
+  ///
+  /// ## Why radial, and why off-centre
+  ///
+  /// It is a 36dp disc. A linear ramp across a circle reads as a bevel — a
+  /// lighting cue about a *surface*, which is what a plastic button is. A
+  /// radial with its centre inside the object reads as an emitter: the light
+  /// comes from a point and falls off in every direction, which is what the
+  /// object is pretending to be. The centre sits up and to the left
+  /// (`Alignment(-0.35, -0.45)`) rather than dead middle, because a core
+  /// exactly concentric with its own silhouette reads as a ring rather than a
+  /// source, and up-left is where every other lit object in this product is
+  /// lit from.
+  ///
+  /// `radius: 0.95` rather than 0.5: the ramp has to reach the far rim, so the
+  /// coldest pixel is at the edge furthest from the core and the disc has a
+  /// genuine falloff across its whole face instead of flattening to `flame600`
+  /// two-thirds of the way out.
+  ///
+  /// ## The arrow, and the worst point under it
+  ///
+  /// The glyph is 16dp, centred in 36dp, so it spans the middle ±8dp — and the
+  /// core is offset, so the glyph's bottom-right corner is the part of it
+  /// furthest from the core and therefore the coldest. That pixel is
+  /// `flame600`, because [TiqSkin.amberFillRamp]'s last stop is `flame600` and
+  /// the gradient goes no further. So the ink's worst case under this gradient
+  /// is **the same colour the flat disc painted** — 9.68:1 on Night, 7.78:1 on
+  /// Day — and the contrast table does not move. That is the whole reason the
+  /// ramp stops where it does rather than running on to `flame500`.
+  ///
+  /// Null on every unlit state, because a disc that is not carrying the route's
+  /// light has nothing to glow with.
+  static Gradient? sendBloom(TiqSkin skin) => skin.depth.allowsGradients
+      ? RadialGradient(
+          center: const Alignment(-0.35, -0.45),
+          radius: 0.95,
+          colors: skin.amberFillRamp,
+        )
+      : null;
 
   /// The fill of the one focus object — a ranked bar, or the trend's primary
   /// series stroke.
@@ -228,7 +282,8 @@ class AskLight {
       : null;
 }
 
-/// The resolved look of the Send key: one fill, one ink, one edge.
+/// The resolved look of the Send key: one fill, one ink, one edge, and — only
+/// when it is carrying the route's light — one gradient over the fill.
 @immutable
 class AskSendLook {
   const AskSendLook({
@@ -236,10 +291,16 @@ class AskSendLook {
     required this.ink,
     required this.edge,
     required this.edgeWidth,
+    this.bloom,
   });
 
   final Color fill;
   final Color ink;
   final Color? edge;
   final double edgeWidth;
+
+  /// The granted disc's radial fill ramp, hot core to [TiqPalette.flame600].
+  /// Null on every other state and in any skin without a gradient budget, and
+  /// then [fill] is painted flat. See [AskLight.sendBloom].
+  final Gradient? bloom;
 }

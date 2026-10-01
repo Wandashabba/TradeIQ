@@ -195,6 +195,21 @@ Two consequences worth reading twice:
   one amber object a light ground is allowed. That was already true of the old
   ramp, which is why nothing in this system has ever bloomed on a light ground.
 
+#### An amber fill is a gradient, and its cold end is always `flame600`
+
+A flat swatch of one colour cannot glow, which is the other half of "dull". Every
+filled amber object ramps from a hot stop to `flame600` **and no further**:
+`flame900 → flame600` on Night, `flame700 → flame600` on Day (on paper a
+near-white core measures 1.04:1 against Palladian and reads as a hole in the
+block rather than a hot centre). See `TiqSkin.amberFillRamp`.
+
+Because the cold end is `flame600`, the worst pixel under any ink on an amber
+fill is `flame600` — exactly the pixel the flat fill painted — so **every
+declared `onAmber` ratio is preserved to the digit** and the gradient costs
+nothing in the contrast table. And because every interpolated stop between the
+hot end and `flame600` is inside the census's flame box, the gradient is one
+connected region, exactly as the flat fill was.
+
 > ~~**Correction to the spec.** The document declares "there is no token in Veld
 > below 9:1 for text" and separately gives Veld's pressed amber block as
 > veld-ink on `flame-500` at **8.34:1**. Both cannot be true. Veld does not

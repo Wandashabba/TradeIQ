@@ -216,7 +216,11 @@ class TorchPrimaryButton extends StatelessWidget {
         return Container(
           constraints: BoxConstraints(minHeight: torchBlockHeight(skin)),
           decoration: BoxDecoration(
+            // `color` is the flat fallback and `gradient` wins wherever it is
+            // non-null — which is only the two filled amber faces, and only in
+            // a skin with a gradient budget. See [_amberFace].
             color: look.fill,
+            gradient: look.ramp,
             borderRadius: radius,
             border: look.edge == null
                 ? null
@@ -304,6 +308,10 @@ class TorchPrimaryButton extends StatelessWidget {
         edge: p.ink1,
         edgeWidth: skin.depth.borderWidth,
         bleed: false,
+        // Day's ramp stops at flame-700 rather than flame-900: on paper a
+        // near-white core is 1.04:1 against Palladian and reads as a hole in
+        // the block. See [TiqSkin.amberFillRamp].
+        ramp: _amberFace(skin),
       );
     }
     if (filled) {
@@ -317,6 +325,7 @@ class TorchPrimaryButton extends StatelessWidget {
         edge: null,
         edgeWidth: 0,
         bleed: false,
+        ramp: _amberFace(skin),
       );
     }
     // Night, granted.
@@ -349,6 +358,7 @@ class _PrimaryLook {
     required this.edge,
     required this.edgeWidth,
     required this.bleed,
+    this.ramp,
   });
 
   final Color fill;
@@ -356,4 +366,71 @@ class _PrimaryLook {
   final Color? edge;
   final double edgeWidth;
   final bool bleed;
+
+  /// The filled face's own gradient, hot end at the top edge falling to
+  /// [TiqPalette.flame600]. Null on every form that is not a filled amber
+  /// block, and then [fill] is painted flat. See [_amberFace].
+  final Gradient? ramp;
 }
+
+/// THE FILLED COMMIT FACE'S GRADIENT — linear, top down, 1 October 2026.
+///
+/// The owner: *"the send button on the app and everywhere else for orange is
+/// very dull, it need to be lumunous and bright and inviting."* The two forms
+/// this applies to — Night `filled` and the Day block — were flat swatches of
+/// `flame600` at value 1.00, so there was no brightness left to add and the
+/// thing they were missing is that **a flat fill cannot glow.**
+///
+/// ## Linear and not radial, unlike the send disc
+///
+/// This is a 56dp-tall block across the full width of a bar — roughly 340dp on
+/// a 390dp phone. A radial gradient on a 6:1 rectangle is a spotlight on a
+/// wall: it puts a visible ellipse in the middle of the button and leaves the
+/// two ends dark, which reads as a badly lit surface rather than a lit object.
+/// A 36dp disc wants a point source; a wide short block wants a wash from one
+/// edge. The send disc chose a radial for the same reason in the opposite
+/// direction, and the two are deliberately different.
+///
+/// **From the top**, because that is already where this button's light comes
+/// from: the Night *unfilled* granted form draws a 2dp amber bleed along the
+/// top inside edge and has since §1.7. The filled form is the same lighting
+/// moved inward, so the two forms of one control are lit from one direction.
+///
+/// ## THE SOURCE SITS ABOVE THE BLOCK, NOT INSIDE IT
+///
+/// `begin` is `Alignment(0, -1.4)` — above the widget's own top edge — rather
+/// than `topCenter`, and that one number is the difference between a lit object
+/// and a glossy one. With the hot stop *at* the top edge the block's first row
+/// is full `flame900`, a near-white band across the top of an amber face: that
+/// is a specular highlight, and a specular highlight is a cue about a plastic
+/// surface catching a light somewhere else in the room. It is the opposite of
+/// what this control is claiming to be.
+///
+/// Starting the axis 1.4 half-heights above the block means the block catches
+/// the light's *falloff* rather than its core. The gradient's axis runs 2.4
+/// half-heights, so the top edge sits at t = 0.167 — already 40% of the way
+/// from `flame900` to `flame600` — and reaches flat `flame600` about 30% down.
+/// A warm cream edge going amber, with no white in it, which is what a surface
+/// under a light actually looks like.
+///
+/// The label is centred, so at 56dp it spans roughly 20–36dp down and sits
+/// entirely on the flat `flame600` below the ramp's end.
+///
+/// ## The worst point under the text
+///
+/// `flame600`, exactly. [TiqSkin.amberFillRamp]'s last stop is `flame600` and
+/// the ramp goes no further, so no pixel under the label is darker than the
+/// colour the flat fill painted — 9.68:1 on Night, 7.78:1 on Day, both against
+/// a 4.5 floor and both unchanged by this gradient. That is the reason the ramp
+/// stops where it does instead of running on to `flame500`. Moving `begin`
+/// outside the box cannot weaken that either: it only ever removes the ramp's
+/// *hottest* part from view, and every colour it removes is lighter than
+/// `flame600`.
+Gradient? _amberFace(TiqSkin skin) => skin.depth.allowsGradients
+    ? LinearGradient(
+        begin: const Alignment(0, -1.4),
+        end: Alignment.bottomCenter,
+        colors: skin.amberFillRamp,
+        stops: const <double>[0, 0.42],
+      )
+    : null;

@@ -241,6 +241,55 @@ class _Slot extends StatelessWidget {
         : null;
     final Color activeInk = lit ? p.onAmber : torchOnAbyssal(skin);
 
+    // THE LIT TAB IS A GRADIENT AS OF 1 OCTOBER 2026.
+    //
+    // The owner: *"the send button on the app and everywhere else for orange
+    // is very dull, it need to be lumunous and bright and inviting."* This
+    // pill is the "everywhere else" that is on screen the most — it is the one
+    // amber a manager sees on every tabbed route — and it was a flat swatch of
+    // `flame600` at value 1.00, so chroma and a hot core are the only two
+    // things available. Both are taken: the ramp is in `tiq_palette.dart` and
+    // this is the core.
+    //
+    // LINEAR, TOP DOWN, like the primary button and for the same reason: this
+    // is a wide short block, a radial on one would be an ellipse floating in
+    // the middle of it, and the whole chrome should be lit from one direction.
+    // The stop is at 0.55 rather than the button's 0.42 because the pill is
+    // roughly half the button's height — the same *proportion* of falloff over
+    // half the distance would be an abrupt edge, so the ramp runs further down
+    // a shorter object.
+    //
+    // THE WORST POINT UNDER THE GLYPH AND LABEL is `flame600`, because
+    // `amberFillRamp`'s last stop is `flame600` and it goes no further. The
+    // glyph-and-label column is centred, so its lower half sits on flat
+    // `flame600` and its upper half on the ramp's tail, which is lighter. The
+    // declared `onAmber` pairing — 9.68:1 — is untouched.
+    //
+    // AND IT IS A GRADIENT IN *BOTH* ACTIVE STATES, which is not decoration,
+    // it is what keeps the 120ms transition honest. `BoxDecoration.lerp` runs
+    // `Gradient.lerp(a, b, t)`, and lerping a gradient against null scales its
+    // alpha — so a lit→unlit cross-fade between "gradient" and "flat colour"
+    // would send a half-transparent shader over the bar and the nav body would
+    // show through the active tab mid-animation. Giving the Abyssal form a
+    // two-identical-stop gradient makes every transition gradient→gradient,
+    // both ends fully opaque, and the dip cannot happen. An INACTIVE slot has
+    // no fill and no gradient, and its own transitions never involve one.
+    final Gradient? activeRamp = active && skin.depth.allowsGradients
+        ? LinearGradient(
+            // ABOVE the pill, not at its top edge, for the reason the primary
+            // button's `_amberFace` gives at length: a hot stop *on* the first
+            // row is a specular highlight — a cue about plastic — and starting
+            // the axis outside the box makes the pill catch the light's falloff
+            // instead of its core.
+            begin: const Alignment(0, -1.4),
+            end: Alignment.bottomCenter,
+            colors: lit
+                ? skin.amberFillRamp
+                : <Color>[torchAbyssal(skin), torchAbyssal(skin)],
+            stops: const <double>[0, 0.55],
+          )
+        : null;
+
     // THE THING THAT ACTUALLY MOVES HERE, and it is worth being exact about
     // which: it is NOT the pill travelling between tabs. Every screen builds
     // its own [TorchNavPill] with a constant `activeIndex`, so the index never
@@ -289,7 +338,14 @@ class _Slot extends StatelessWidget {
               // `AnimatedContainer` with nothing but a decoration and a child
               // builds exactly the `DecoratedBox` this used to be — same
               // layout, same paint, no extra layer.
-              decoration: BoxDecoration(color: fill, borderRadius: radius),
+              // `color` is the flat fallback; `gradient` wins wherever it is
+              // non-null, which is every ACTIVE slot in a skin with a gradient
+              // budget. See `activeRamp`.
+              decoration: BoxDecoration(
+                color: fill,
+                gradient: active ? activeRamp : null,
+                borderRadius: radius,
+              ),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
