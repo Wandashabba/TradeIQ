@@ -144,13 +144,56 @@ what makes Night look lit rather than switched off.
 | Token | Value | Use |
 |---|---|---|
 | `flame300` | `#8A4A12` | The **only** amber legal as text on a light ground. 5.66:1 on Palladian. |
-| `flame500` | `#F79742` | Pressed amber block; second stop of the strip-light gradient. |
-| `flame600` | `#FFB162` | The signature (Burning Flame). Its role changes by skin; its hex never does. |
-| `flame700` | `#FFCB94` | Amber as text on dark, focus rings, the hot end of a bloom. 12.92:1 on Night ground. |
-| `flame900` | `#FFF1DE` | The white-hot core stop of a glow gradient. **Never ink on an amber fill.** |
+| `flame500` | `#F5892A` | Pressed amber block; second stop of the strip-light gradient. |
+| `flame600` | `#FFA447` | The signature (Burning Flame). Its role changes by skin; **its hex moved once** — see below. |
+| `flame700` | `#FFC180` | Amber as text on dark, focus rings, the hot end of a bloom *on paper*. 11.98:1 on Night ground. |
+| `flame900` | `#FFEBD1` | The white-hot core stop of a glow gradient, and the hot end of an amber fill *on Night*. **Never ink on an amber fill.** |
 | `onAmber` | `#0B1017` / `#1B2632` / `#0E141A` | The ink that goes on an amber block. |
-| `amberPressed` / `onAmberPressed` | `#F79742` + dark | The held-down state. |
-| `TiqPalette.glowAmber` | `#FFF1DE@0.55 → #FFB162@0.30 → transparent` | Every bloom, as gradient stops. |
+| `amberPressed` / `onAmberPressed` | `#F5892A` + dark | The held-down state. |
+| `TiqPalette.glowAmber` | `#FFEBD1@0.55 → #FFA447@0.30 → transparent` | Every bloom, as gradient stops. **Night only** — see below. |
+
+#### The ramp gained chroma on 1 October 2026, and `flame600` moved
+
+The row above used to read *"its hex never does"*. It does once. The owner, on
+the running build: *"The send button on the app and everywhere else for orange
+is very dull, it need to be lumunous and bright and inviting."*
+
+`flame600` was already at **value 1.00** — its red channel was `FF` — so there
+was no brightness left to add. What was low was **chroma**: saturation 0.62 is a
+pastel, and a pastel at full value reads washed out rather than lit. Every token
+in the ramp moved saturation only, holding its own hue to a tenth of a degree
+and its own value:
+
+| token | old | new | hue | sat | value |
+|---|---|---|---|---|---|
+| `flame500` | `#F79742` | `#F5892A` | 28.2° | 0.73 → 0.83 | 0.97 → 0.96 |
+| `flame600` | `#FFB162` | `#FFA447` | 30.2° | 0.62 → 0.72 | 1.00 held |
+| `flame700` | `#FFCB94` | `#FFC180` | 30.8° | 0.42 → 0.50 | 1.00 held |
+| `flame900` | `#FFF1DE` | `#FFEBD1` | 34.5° | 0.13 → 0.18 | 1.00 held |
+| `flame300` | `#8A4A12` | unchanged | — | — | it is ink, and it is not dull |
+
+**What bounded it was not the ink floor.** Dark ink on amber had room to spare —
+at saturation 0.93 it would still measure 8.03:1 on Night. What bounded it is
+the **greyscale separation between the lit focus bar and a neutral bar beside
+it**, pinned at `greaterThan(1.4)`: a more chromatic amber is a darker amber, so
+it walks `flame600` down the luminance range towards `chartNeutral`. 1.584:1
+became 1.440:1 at saturation 0.72 and would have been 1.341:1 at 0.80. 0.72 is
+the most chroma that clears the floor with margin worth having.
+
+Two consequences worth reading twice:
+
+* **Burning Flame and Oatmeal were 1.00:1 and are 1.10:1.** `chartNeutral`
+  stays. §2 will not treat even a 1.12–1.24:1 fill step as a cue, and 1.10 is
+  below the bottom of that band, so two adjacent bars in those colours are
+  still one bar in greyscale, in deuteranopia and in sun. The collision moved
+  by a tenth; it was not fixed.
+* **A bloom is a Night object, and now the arithmetic says so.** Composited over
+  the Night ground `glowAmber`'s stops paint value 0.57 and 0.33 — under the
+  census's 0.90 floor, so a halo there is not a second light. Over Palladian
+  they paint value 0.97 / sat 0.13 and value 0.95 / sat 0.27 — both inside the
+  flame box, so a bloom on paper **is** a counted region and would double the
+  one amber object a light ground is allowed. That was already true of the old
+  ramp, which is why nothing in this system has ever bloomed on a light ground.
 
 > ~~**Correction to the spec.** The document declares "there is no token in Veld
 > below 9:1 for text" and separately gives Veld's pressed amber block as

@@ -110,13 +110,22 @@ void main() {
       // one the design was argued from, rather than a different filter that
       // happens to be in the same family.
       final n = TiqSkin.night().palette;
+      // 1.41:1 UNTIL 1 OCTOBER 2026, when the amber ramp gained chroma and
+      // this fell to 1.29:1. The ruling's conclusion did not change — it got
+      // stronger, in exactly the way the `bad` / chart-neutral note below
+      // records for the same reason. A hotter amber is a darker amber, so it
+      // moved down the luminance range towards Truffle, and under deuteranopia
+      // the hue these two differ in is the one that is gone. At 1.29:1 the
+      // stroke pattern is carrying even more of the signal than the ruling
+      // assumed, which is an argument FOR the mandatory solid/dashed
+      // distinction and never against it.
       expect(
         separationUnder(n.flame600, n.comparison, VisionFilter.deuteranopia),
-        closeTo(1.41, 0.02),
+        closeTo(1.29, 0.02),
         reason:
-            'The ruling says simulated deuteranopia puts Burning Flame and '
-            'Truffle 1.41:1 apart, which is why the solid/dashed stroke '
-            'distinction is mandatory rather than nice.',
+            'Simulated deuteranopia puts Burning Flame and Truffle 1.29:1 '
+            'apart, which is why the solid/dashed stroke distinction is '
+            'mandatory rather than nice.',
       );
       // `bad` against `chart-neutral` was 1.55:1 true and 1.26:1 in
       // protanopia when the neutral was #8B8271. Phase 1 moved it to #A39887
@@ -165,12 +174,19 @@ void main() {
       // …and two different hues are still two different greys, unless their
       // luminance is identical — which is exactly the Burning Flame / Oatmeal
       // collision chart-neutral exists to fix.
+      // DECIDED DELIBERATELY, 1 October 2026. This was 1.00:1 — byte-identical
+      // relative luminance — and the amber ramp gaining chroma took it to
+      // 1.10:1. chart-neutral STAYS. §2 will not treat even a 1.12–1.24:1 fill
+      // step as a cue, and 1.10 is below the bottom of that band, so two
+      // adjacent bars in these two colours are still one bar to a monochromat,
+      // to a deuteranope and on a sun-washed panel. The collision moved by a
+      // tenth; it was not fixed.
       expect(
         separationUnder(n.flame600, n.ink2, VisionFilter.greyscale),
-        closeTo(1.0, 0.01),
+        closeTo(1.10, 0.01),
         reason:
-            'Burning Flame and Oatmeal are the same grey. If they stop being '
-            'the same grey, someone moved a token and chart-neutral may no '
+            'Burning Flame and Oatmeal are effectively the same grey. If this '
+            'rises past 1.24 someone moved a token and chart-neutral may no '
             'longer be needed — decide that deliberately.',
       );
     });

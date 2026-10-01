@@ -45,13 +45,13 @@ import 'torch_press.dart';
 ///   object, which is what unify §1.7 means by "rim + 2dp top bleed is one
 ///   object". The block itself is not amber; it is a dark block that is *lit*.
 /// * **Night, granted, [filled]** — a solid `flame600` block carrying
-///   `onAmber` at 10.65:1, no rim and no bleed. One call site (Today's
+///   `onAmber` at 9.68:1, no rim and no bleed. One call site (Today's
 ///   "Check in here"), by owner decision on 29 September 2026; see [filled].
 /// * **Day** — a solid amber block with dark ink on it. On a light
 ///   ground amber stops being light and becomes a carrier of ink, and there is
 ///   exactly one of those per screen.
 /// * **Pressed** — floods to `amberPressed` with `onAmberPressed` on it. In
-///   Night that is flame-500 with `#0B1017` at 8.59:1, exactly as §1.7 asks.
+///   Night that is flame-500 with `#0B1017` at 7.72:1, exactly as §1.7 asks.
 ///   The value is read from the token rather than restated here.
 /// * **Disabled** — a `well` block with ink-mute on it, its edge-control
 ///   outline retained, and a [TorchBarNote] **above it naming exactly what is
@@ -102,7 +102,7 @@ class TorchPrimaryButton extends StatelessWidget {
   /// **THE FILLED FORM — one call site, by owner decision, 29 September 2026.**
   ///
   /// When this button is *granted* the route's light in **Night**, it paints a
-  /// solid `flame600` block carrying `onAmber` (10.65:1) instead of the
+  /// solid `flame600` block carrying `onAmber` (9.68:1) instead of the
   /// `lifted` block with the 2px flame rim and the 2dp top bleed. Day is
   /// unaffected: the Day granted form has been a solid amber block all along,
   /// which is why this is one branch and not two. Denied, pressed and disabled
@@ -121,6 +121,9 @@ class TorchPrimaryButton extends StatelessWidget {
   /// What it does not survive is the one screen the owner photographed. The
   /// approved mockup's Today draws this exact control as `.cta` — `background:
   /// #FFB162; color: #16202B; border-radius: 16px` for the in-row variant,
+  /// — `#FFB162` being what `flame600` was until the ramp gained chroma on
+  /// 1 October 2026; the token is `#FFA447` now and this control follows the
+  /// token, not the drawing's literal hex —
   /// which is `radii.control` **exactly** — and the owner's note on the
   /// running build was that Check in here "reads weak and boxy". An outlined
   /// block among filled cards is the same complaint as an outlined tile among
@@ -305,7 +308,7 @@ class TorchPrimaryButton extends StatelessWidget {
     }
     if (filled) {
       // Night, granted, FILLED — see [filled]. A solid flame block carrying
-      // `onAmber` at 10.65:1, and no rim: the rim exists to make a dark block
+      // `onAmber` at 9.68:1, and no rim: the rim exists to make a dark block
       // read as lit, and a block that IS the light has nothing to be rimmed
       // against. One connected region either way, so the budget does not move.
       return _PrimaryLook(

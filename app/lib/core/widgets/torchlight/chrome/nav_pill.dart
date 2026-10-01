@@ -66,7 +66,7 @@ class TorchNavSlot {
 /// frosted bar is a blur the paint budget does not have.
 ///
 /// The active tab is a solid pill inset 6dp horizontally within the bar, 48
-/// tall, radius 999. In Night it is `flame600` with `#0B1017` on it at 10.65:1.
+/// tall, radius 999. In Night it is `flame600` with `#0B1017` on it at 9.68:1.
 /// On a light ground it is a solid Abyssal block with Palladian or white ink —
 /// **never amber**, because on a light ground amber is a carrier of ink and the
 /// one object allowed to be that is the primary commit block.

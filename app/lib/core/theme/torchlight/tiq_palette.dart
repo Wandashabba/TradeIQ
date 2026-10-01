@@ -110,8 +110,14 @@ class TiqPalette {
 
   // ── Data ─────────────────────────────────────────────────────────────
   /// The fill of every non-focus ranked bar and non-focus series. Exists
-  /// because Burning Flame and Oatmeal share a relative luminance (1.00:1) and
+  /// because Burning Flame and Oatmeal measure 1.10:1 against each other and
   /// are therefore the same bar in greyscale, in deuteranopia and in sun.
+  ///
+  /// That figure was **1.00:1** — byte-identical relative luminance — until the
+  /// amber ramp gained chroma on 1 October 2026. The collision is not fixed and
+  /// this token is not retired: §2 will not treat even a 1.12–1.24:1 fill step
+  /// as a cue, and 1.10 is below the bottom of that band. The pairing is still
+  /// banned in `tiq_contrast.dart` against the 3:1 a graphic needs.
   ///
   /// **Moved in Phase 1** (unify §1.4). Night `#8B8271` → `#A39887`; Day
   /// `#676052` → `#5C5648`. The old Night value measured 3.01:1 against the
@@ -128,22 +134,115 @@ class TiqPalette {
   final Color chartNeutral;
 
   // ── Amber — emitted light, never a label ─────────────────────────────
-  /// The ONLY amber allowed as text on a light ground.
+  //
+  // THE RAMP IS A CHROMA LADDER AT FIXED HUE AND FIXED VALUE — 1 October 2026.
+  //
+  // The owner, on the running build: *"The send button on the app and
+  // everywhere else for orange is very dull, it need to be lumunous and bright
+  // and inviting."*
+  //
+  // **It was already as bright as a colour can be.** `flame600` measured value
+  // 1.00 — its red channel was `FF` — so there was no headroom to answer the
+  // word "bright" with. What was actually low was CHROMA: at saturation 0.62
+  // Burning Flame is a pastel orange, and a pastel at full value reads washed
+  // out rather than lit. So every token here moved **saturation only**, holding
+  // its own hue to a tenth of a degree and its own value exactly:
+  //
+  //   token      old        new        hue        sat            value
+  //   flame500   #F79742 -> #F5892A    28.2°      0.73 -> 0.83   0.97 -> 0.96
+  //   flame600   #FFB162 -> #FFA447    30.2°      0.62 -> 0.72   1.00 (held)
+  //   flame700   #FFCB94 -> #FFC180    30.8°      0.42 -> 0.50   1.00 (held)
+  //   flame900   #FFF1DE -> #FFEBD1    34.5°      0.13 -> 0.18   1.00 (held)
+  //   flame300   #8A4A12     unchanged — it is INK, and it is not dull
+  //
+  // `flame500` is the one exception to "value held", by one hundredth, and it
+  // is deliberate: at sat 0.83 on the old value the pressed step
+  // `flame600 → flame500` fell under the 1.239:1 fill step it had. One
+  // hundredth of value buys it back and then some — the press is a 1.254:1
+  // step now, a *bigger* state change than before, which matters because a
+  // commit action must visibly react at the moment of commitment.
+  //
+  // **FLAME-600 IS THE OWNER'S BRAND COLOUR AND IT MOVED.** `#FFB162` is
+  // Burning Flame, it is in `rating_band.dart` and in the approved mockups, and
+  // this change takes it to `#FFA447`. The hue is the same orange to within a
+  // tenth of a degree and the value is byte-identical; it is the same colour
+  // with 16% more of it in. It is recorded here because a brand colour is not
+  // a thing to move quietly.
+  //
+  // ── WHY IT STOPPED AT 0.72 AND NOT HIGHER ────────────────────────────
+  //
+  // Not the ink floor. Dark ink on amber had enormous room: at saturation 0.93
+  // it would still measure 8.03:1 on Night and 6.45:1 on Day against a floor
+  // of 4.5, so the pairing anyone looks at first was never going to be what
+  // bound this.
+  //
+  // **What bound it is the GREYSCALE SEPARATION BETWEEN THE LIT FOCUS BAR AND
+  // A NEUTRAL BAR BESIDE IT**, which `torchlight_contrast_test.dart` pins at
+  // `greaterThan(1.4)`. WCAG contrast is luminance-only, so there is no hue
+  // rescue anywhere in this system: two bars that measure 1.2:1 in colour
+  // measure 1.2:1 in greyscale, in deuteranopia and on a sun-washed panel. A
+  // more chromatic amber is a darker amber, and darker moves `flame600` *down*
+  // the luminance range towards [chartNeutral] — so chroma and that separation
+  // trade directly against each other:
+  //
+  //   flame600 sat   hex       focus vs neutral, greyscale
+  //   0.62 (old)     #FFB162   1.584   the value this ramp inherited
+  //   0.70           #FFA64C   1.461
+  //   0.72           #FFA447   1.440   <- shipped
+  //   0.74           #FFA142   1.410   clears the floor by 0.010
+  //   0.76           #FF9F3D   1.389   FAILS
+  //   0.80           #FF9A33   1.341   FAILS
+  //
+  // 0.72 is the most chroma that clears that floor with margin worth having.
+  // The alternative — paying for more amber chroma by moving [chartNeutral]
+  // back down, which has 5.09:1 on its own track against a 3:1 floor and could
+  // afford it — is a real option and is deliberately NOT taken here: the
+  // neutral bar is the most-drawn graphic in the product, it is shared with
+  // Day, and Phase 1 moved it *up* for a measured reason (unify §1.4). Trading
+  // that away to make a button brighter is a decision about the chart, not
+  // about the button, and it belongs to whoever owns the chart.
+  //
+  // WHAT IT COST, STATED PLAINLY. Every ink-on-amber ratio fell, from roughly
+  // double its floor to roughly 1.7× it. The full table is recomputed in
+  // `torchlight_contrast_test.dart`; the two that matter most are `ink on amber
+  // block` (10.65 → 9.68, floor 4.5) and `day ink on the one amber block`
+  // (8.55 → 7.78, floor 4.5). The plate's worst case got *easier*, because the
+  // pixel a text scrim paints over a full-value strip light got darker with the
+  // ramp — see [plateScrimOverStripLight].
+  //
+  // THE AMBER CENSUS DOES NOT MOVE. `amber_golden.dart` counts connected
+  // regions inside a flame-hue box at value ≥ 0.90, saturation ≥ 0.12, hue
+  // 20–48°. Every token above was inside that box before and is inside it
+  // after — the moves run *along* the saturation axis, away from the 0.12 floor
+  // rather than towards it, and `flame900` in particular gains margin
+  // (0.13 → 0.18, where 0.13 was one hundredth above the floor).
+  //
+  /// The ONLY amber allowed as text on a light ground. It did **not** move with
+  /// the ramp: it is ink rather than light, it is the one amber legal as a word
+  /// on paper, and it measures 5.66:1 on Palladian with the 4.5 floor close
+  /// enough behind it that chroma here buys nothing.
   final Color flame300;
 
   /// Pressed state of an amber block; the second stop of the strip-light
   /// gradient.
   final Color flame500;
 
-  /// The signature. Night: strip lights, underbars, focus rings, one focus
-  /// bar. Day: one solid block per screen, carrying dark ink.
+  /// The signature — Burning Flame. Night: strip lights, underbars, focus
+  /// rings, one focus bar. Day: one solid block per screen, carrying dark ink.
+  ///
+  /// It is also the **cold end of every amber fill gradient**, which is what
+  /// makes the gradient free in the contrast table: the worst pixel under any
+  /// ink on an amber fill is this colour, exactly as it was when the fill was
+  /// flat.
   final Color flame600;
 
-  /// Amber as TEXT on dark, focus rings, the hot end of the bloom.
+  /// Amber as TEXT on dark, focus rings, and the hot end of an amber fill's
+  /// ramp **on a light ground** — see [TiqSkin.amberFillRamp].
   final Color flame700;
 
-  /// The white-hot core stop of an amber glow gradient. NEVER ink on an amber
-  /// fill — see the banned pairings.
+  /// The white-hot core stop of an amber glow gradient, and the hot end of an
+  /// amber fill's ramp **on a dark ground**. NEVER ink on an amber fill — see
+  /// the banned pairings.
   final Color flame900;
 
   /// The ink that goes on a [flame600] block in this skin.
@@ -152,9 +251,10 @@ class TiqPalette {
   /// The fill an amber block takes while it is held down, and the ink on it.
   ///
   /// On both grounds this is [flame500] — the amber gets hotter and the ink
-  /// stays dark (8.59:1), which is the fix for a pressed state that used to
-  /// put flame-900 on flame-500 at 2.00:1 and make the label vanish at the
-  /// moment of commitment.
+  /// stays dark (7.72:1 on Night, 6.20:1 on Day), which is the fix for a
+  /// pressed state that used to put flame-900 on flame-500 at 2.00:1 and make
+  /// the label vanish at the moment of commitment. The ban is unchanged and
+  /// the new ramp measures 2.13:1 there.
   final Color amberPressed;
   final Color onAmberPressed;
 
@@ -232,17 +332,33 @@ class TiqPalette {
   final double plateLift;
 
   /// The pixel a text scrim over a full-value amber strip light actually
-  /// paints: `ground @ 80%` composited over `#FFB162`, quantised to 8 bits.
+  /// paints: `ground @ 80%` composited over [flame600], quantised to 8 bits.
   /// Declared rather than computed so the worst case the hero number can meet
   /// is a value someone can look at.
-  static const Color plateScrimOverStripLight = Color(0xFF3C3026);
+  ///
+  /// `#3C3026` until 1 October 2026, when the ramp gained chroma. A hotter
+  /// amber is a darker amber, so this got darker with it and the hero got
+  /// *easier*: `ink1` here was 10.56:1 and is now 10.81:1.
+  static const Color plateScrimOverStripLight = Color(0xFF3C2E21);
 
   /// Alpha ramp stops for every amber bloom. Always a gradient, never a blur
   /// filter and never a [BoxShadow].
+  ///
+  /// A BLOOM IS A NIGHT OBJECT, AND THE CENSUS IS WHY. Composited over the
+  /// Night ground these stops paint `#91887D` (value 0.57) and `#543C25`
+  /// (value 0.33) — both under the census's 0.90 value floor, so a halo on a
+  /// dark ground is not a second light and costs nothing against the budget.
+  /// Over **Palladian** the same stops paint `#F7EAD7` (value 0.97, sat 0.13)
+  /// and `#F3D4B1` (value 0.95, sat 0.27) — both fully inside the flame box,
+  /// so a bloom on paper IS a counted region and would double the one amber
+  /// object a light ground is allowed. That was true of the old ramp too
+  /// (`#F3D8BA`, value 0.95, sat 0.23), which is why nothing in this system has
+  /// ever bloomed on a light ground; the arithmetic is written down here now
+  /// rather than being a convention.
   static const List<Color> glowAmber = <Color>[
-    Color(0x8CFFF1DE), // #FFF1DE @ 0.55
-    Color(0x4DFFB162), // #FFB162 @ 0.30
-    Color(0x00FFB162), // transparent
+    Color(0x8CFFEBD1), // flame900 @ 0.55
+    Color(0x4DFFA447), // flame600 @ 0.30
+    Color(0x00FFA447), // transparent
   ];
 
   /// The Night surface ladder's generating rule: [ink1] washed over [night]'s
@@ -344,12 +460,12 @@ class TiqPalette {
     ink3: Color(0xFFA79E8C),
     chartNeutral: Color(0xFFA39887),
     flame300: Color(0xFF8A4A12),
-    flame500: Color(0xFFF79742),
-    flame600: Color(0xFFFFB162),
-    flame700: Color(0xFFFFCB94),
-    flame900: Color(0xFFFFF1DE),
+    flame500: Color(0xFFF5892A),
+    flame600: Color(0xFFFFA447),
+    flame700: Color(0xFFFFC180),
+    flame900: Color(0xFFFFEBD1),
     onAmber: Color(0xFF0B1017),
-    amberPressed: Color(0xFFF79742),
+    amberPressed: Color(0xFFF5892A),
     onAmberPressed: Color(0xFF0B1017),
     good: Color(0xFF6FE0AE),
     goodSolid: Color(0xFFC9F5E1),
@@ -385,12 +501,12 @@ class TiqPalette {
     ink3: Color(0xFF676052),
     chartNeutral: Color(0xFF5C5648),
     flame300: Color(0xFF8A4A12),
-    flame500: Color(0xFFF79742),
-    flame600: Color(0xFFFFB162),
-    flame700: Color(0xFFFFCB94),
-    flame900: Color(0xFFFFF1DE),
+    flame500: Color(0xFFF5892A),
+    flame600: Color(0xFFFFA447),
+    flame700: Color(0xFFFFC180),
+    flame900: Color(0xFFFFEBD1),
     onAmber: Color(0xFF1B2632),
-    amberPressed: Color(0xFFF79742),
+    amberPressed: Color(0xFFF5892A),
     onAmberPressed: Color(0xFF1B2632),
     good: Color(0xFF14664A),
     goodSolid: Color(0xFF0F5039),

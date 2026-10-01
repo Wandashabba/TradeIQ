@@ -731,7 +731,9 @@ class _StopRow extends StatelessWidget {
 /// ## It is NOT amber, and the mockup's is
 ///
 /// The mockup tints the next stop's tile `rgba(255,177,98,0.16)` with a
-/// `#FFCB94` numeral. `#FFCB94` is flame-700 — hue 30.8°, value 1.00 — which
+/// `#FFCB94` numeral. `#FFCB94` was flame-700 — hue 30.8°, value 1.00; the
+/// token is `#FFC180` at hue 30.7° and the same value since the ramp gained
+/// chroma on 1 October 2026, and either way it is a flame-700 — which
 /// is inside the census's flame box, so that numeral is a **lit object**, and
 /// it is the fourth on a screen the law allows two. It declares no claim, so
 /// it takes its neutral form; see the amber note on [TodayScreen] for the

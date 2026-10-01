@@ -14,7 +14,8 @@ import 'theme/tiq_colors.dart';
 /// here, so nothing downstream of the data layer breaks.
 ///
 /// The display names exist because the design system cannot have a severity
-/// called Amber. Burning Flame (`#FFB162`) is the brand colour and is reserved
+/// called Amber. Burning Flame (`#FFA447`, and `#FFB162` until the ramp gained
+/// chroma on 1 October 2026) is the brand colour and is reserved
 /// for emitted light — a rim, an underbar, a focus ring — never for a warning.
 /// A band named "amber" that renders in crimson reads as a bug.
 ///

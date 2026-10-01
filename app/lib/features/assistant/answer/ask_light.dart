@@ -94,7 +94,7 @@ class AskLight {
   /// 29 September 2026, over Today's `Check in here`: the mockup drew that
   /// control as `background:#FFB162; color:#16202B` too, the owner's note on
   /// the outlined form was that it *"reads weak and boxy"*, and the
-  /// resolution was a solid `flame600` block carrying `onAmber` at 10.65:1.
+  /// resolution was a solid `flame600` block carrying `onAmber` at 9.68:1.
   /// The argument recorded there transfers without modification, including
   /// the part that makes it safe:
   ///
