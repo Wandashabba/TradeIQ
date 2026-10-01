@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
@@ -10,6 +11,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/first_run_board.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/standards.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -888,6 +890,113 @@ void main() {
         );
       });
     }
+
+    /// ── THE WHOLE CENSUS, PRINTED, PER PHASE PER SKIN ─────────────────
+    ///
+    /// Every test above asserts one frame. This one **prints the table**,
+    /// which is a different artefact and the one the owner asked for on
+    /// 1 October 2026: *"amber census per phase per skin, printed, with the
+    /// send-button decision reflected."*
+    ///
+    /// It exists because the send-button change touches six frames at once
+    /// and the thing a reviewer needs is not six green ticks in six places —
+    /// it is the shape of the budget across the whole route, where the
+    /// headroom went, and which frames are now at the ceiling. The assertions
+    /// above catch a regression; this says what the design *is*.
+    ///
+    /// Two columns are the point:
+    ///
+    /// * **count vs budget.** Night allows two and Day one. At rest Night is
+    ///   now AT its ceiling — Send plus the strip light — so the next object
+    ///   that wants a light on the at-rest frame cannot have one. That is
+    ///   worth knowing before somebody adds one.
+    /// * **what is lit.** Printed from the census itself rather than from
+    ///   this file's belief about it, so a frame that lights the wrong two
+    ///   objects reads wrong here even while the count reads right.
+    /// ONE PUMP PER TEST, AND THE TABLE PRINTS AT THE END.
+    ///
+    /// Not one test walking all ten frames, which is what this was first
+    /// written as: `pumpFloorRoute` builds a `ProviderScope` whose override
+    /// list differs per frame (`online: false` and `photograph: false` each
+    /// add one), and Riverpod asserts outright that *"overrides cannot be
+    /// removed/added, they can only be updated"*. So each frame gets its own
+    /// `testWidgets` and the rows accumulate in [table], which the last test
+    /// in the group prints. Tests in a group run in declaration order, which
+    /// is what makes that safe.
+    final table = <({String frame, String skin, int count, int budget})>[];
+
+    for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+      for (final (frame, build)
+          in <(String, Future<void> Function(WidgetTester))>[
+            ('at rest', (t) => floor(t, skin: skin)),
+            (
+              'at rest, no picture',
+              (t) => floor(t, skin: skin, photograph: false),
+            ),
+            ('typing', (t) async {
+              await floor(t, skin: skin);
+              await type(t);
+            }),
+            ('answered', (t) async {
+              await floor(
+                t,
+                skin: skin,
+                assistant: ScriptedRepository(rankedTurn()),
+                size: const Size(390, 844),
+              );
+              await type(t);
+              await t.testTextInput.receiveAction(TextInputAction.send);
+              await t.pumpAndSettle();
+            }),
+            ('offline', (t) => floor(t, skin: skin, online: false)),
+          ]) {
+        testWidgets('census row — ${skin.mode.name} · $frame', (tester) async {
+          await build(tester);
+          final census = await amberCensus(tester);
+          final budget = TorchScope.budgetFor(skin);
+          table.add((
+            frame: frame,
+            skin: skin.mode.name,
+            count: census.objectCount,
+            budget: budget,
+          ));
+          expect(
+            census.objectCount,
+            lessThanOrEqualTo(budget),
+            reason:
+                '$frame on ${skin.mode.name} paints ${census.objectCount} lit '
+                'objects against a budget of $budget.\n${census.describe()}',
+          );
+        });
+      }
+    }
+
+    testWidgets('THE CENSUS TABLE — every frame, both skins, printed', (
+      tester,
+    ) async {
+      expect(
+        table,
+        hasLength(10),
+        reason:
+            'five frames × two skins. A short table means a row above it '
+            'failed before it could record, and the printed census would be '
+            'quietly incomplete rather than obviously wrong.',
+      );
+      // ignore: avoid_print
+      print(
+        '\n  THE FLOOR — amber census, 1 October 2026, Send live at rest\n'
+        '  ${'frame'.padRight(22)}${'skin'.padRight(8)}'
+        '${'lit'.padRight(6)}budget',
+      );
+      for (final r in table) {
+        // ignore: avoid_print
+        print(
+          '  ${r.frame.padRight(22)}${r.skin.padRight(8)}'
+          '${r.count.toString().padRight(6)}${r.budget}'
+          '${r.count == r.budget ? '   <- at the ceiling' : ''}',
+        );
+      }
+    });
   });
 
   group('2.0x text', () {
@@ -1284,6 +1393,166 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
+    });
+
+    /// ── 94 AGAINST 95 IS `watch`, AND THE DOT SAID `critical` ─────────
+    ///
+    /// A DEFECT, FOUND BY THE OWNER ON 1 OCTOBER 2026:
+    ///
+    /// > *"Our render shows On-shelf availability 94% with a crimson dot,
+    /// > while the supporting text elsewhere reads 'close to the 95
+    /// > standard'. A dot is a severity channel and it must reflect the
+    /// > figure's real standing."*
+    ///
+    /// Both halves of their reading are right. `againstStandard` carries a
+    /// 10-point watch band, so 85..94 against a published 95 is
+    /// `StatusLevel.watch` and only under 85 is `critical` — and
+    /// `_availabilitySupport` was already saying `close to the 95 standard`
+    /// off that same value. The dot was crimson **because crimson was the
+    /// only thing wired up**: the switch read `critical || watch => bad`, so
+    /// the briefing had two faces for three standings.
+    ///
+    /// The repair is the system's own two commitment levels, which
+    /// `SeverityMarkToken` has drawn since the severity vocabulary landed and
+    /// `standingInk`'s doc describes in as many words — *"a filled dot
+    /// against an outlined one"*. A sentence that described a dot nobody was
+    /// drawing.
+    ///
+    /// **The mockup's green is not the fix and must not be mistaken for it.**
+    /// The drawing shows this line at **96%**, which is `onTarget`, so its
+    /// green is correct for its own data and says nothing about 94. Painting
+    /// 94 green to match a screenshot would be replacing one wrong verdict
+    /// with another. Three values, three faces, measured below.
+    /// ONE PUMP PER VALUE, for the reason the census table gives: a second
+    /// `pumpFloor` in the same test updates the repository override but the
+    /// snapshot provider has already resolved, so every frame after the first
+    /// renders the FIRST figure. That is how the first draft of this test
+    /// reported 94% drawing `critical` — it was still looking at 61.
+    final dotRows = <({String osa, String standing, String face})>[];
+
+    for (final (osa, standing, filled, sentence) in <(
+      double,
+      StatusLevel,
+      bool,
+      String,
+    )>[
+      // Under the band: a filled disc at the fill grade. This is the only one
+      // of the three the old code got right.
+      (61, StatusLevel.critical, true, 'under the 95 standard'),
+      // IN the band — the owner's own figure, and the defect. A ring.
+      (94, StatusLevel.watch, false, 'close to the 95 standard'),
+      // On the standard: the mockup's own 96, and its green.
+      (96, StatusLevel.onTarget, true, 'on the 95 standard'),
+    ]) {
+      testWidgets('the dot at $osa% says ${standing.name}, not crimson-'
+          'for-everything', (tester) async {
+        final skin = TiqSkin.night();
+        final p = skin.palette;
+        final ink = switch (standing) {
+          StatusLevel.critical => p.badSolid,
+          StatusLevel.watch => p.bad,
+          _ => p.good,
+        };
+
+        expect(
+          againstStandard(osa, availabilityStandard),
+          standing,
+          reason:
+              '$osa against $availabilityStandard is not ${standing.name}. '
+              'The dot is only as right as this is — if the BAND moved, fix '
+              'the band, not the dot.',
+        );
+
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          skin: skin,
+          current: kpis(osa: osa, execution: 73),
+          previous: kpis(osa: 64, execution: 92),
+          outlets: twoOutlets,
+        );
+
+        final dot = tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: find.byKey(
+                  const ValueKey<String>('floor-brief-availability'),
+                ),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((b) => b.decoration)
+            .whereType<BoxDecoration>()
+            .firstWhere((d) => d.shape == BoxShape.circle);
+
+        if (filled) {
+          expect(dot.color, ink, reason: '$osa%: wrong ink on a filled dot');
+          expect(
+            dot.border,
+            isNull,
+            reason: '$osa%: a filled dot does not also carry a ring',
+          );
+        } else {
+          expect(
+            dot.color,
+            isNull,
+            reason:
+                '94% is `watch`, and a watch mark is a RING — a filled dot '
+                'here is the defect back: the same silhouette as `critical`, '
+                'differing only in a hue step most eyes and all greyscale '
+                'will miss.',
+          );
+          expect(
+            dot.border?.top.color,
+            ink,
+            reason:
+                '94%: the ring is the word grade, which is legible as a '
+                'stroke where the fill grade is not',
+          );
+        }
+
+        // AND THE WORD IS THERE EITHER WAY. The silhouette is never the only
+        // channel — this sentence is what the printed dot was already
+        // contradicting, and it is what made the defect findable.
+        final handle = tester.ensureSemantics();
+        expect(
+          find.bySemanticsLabel(RegExp(sentence)),
+          findsOneWidget,
+          reason:
+              '$osa%: the dot and the sentence have to agree. They did not, '
+              'and the sentence was the one telling the truth.',
+        );
+        handle.dispose();
+
+        dotRows.add((
+          osa: '$osa%',
+          standing: standing.name,
+          face: filled
+              ? 'filled disc  ${standing == StatusLevel.onTarget ? 'good' : 'badSolid'}'
+              : 'ring         bad',
+        ));
+      });
+    }
+
+    testWidgets('THE DOT TABLE — three values, three faces, printed', (
+      tester,
+    ) async {
+      expect(dotRows, hasLength(3));
+      // ignore: avoid_print
+      print(
+        '\n  THE BRIEFING DOT — on-shelf availability against a published 95\n'
+        '  ${'osa'.padRight(7)}${'standing'.padRight(11)}silhouette   ink',
+      );
+      for (final r in dotRows) {
+        // ignore: avoid_print
+        print('  ${r.osa.padRight(7)}${r.standing.padRight(11)}${r.face}');
+      }
+      // ignore: avoid_print
+      print(
+        '  the owner\'s render was 94% as a FILLED badSolid disc — identical '
+        'to 61%.\n'
+        '  the mockup\'s green is its own 96%, and is not the fix for 94%.',
+      );
     });
 
     testWidgets('an unmeasured window colours nothing', (tester) async {

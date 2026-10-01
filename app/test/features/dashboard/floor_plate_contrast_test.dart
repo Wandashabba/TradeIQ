@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_contrast.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
 
 /// THE INK ON THE PLATE, MEASURED OVER THE PICTURES THAT ARE ACTUALLY IN THE
 /// REPOSITORY.
@@ -160,7 +161,7 @@ void main() {
     }
   }
 
-  /// ── THE CONTROLS ON THE TOP BAND, MEASURED BOTH WAYS ────────────────
+  /// ── THE CONTROLS ON THE TOP BAND, AND THEY ARE TRANSLUCENT NOW ──────
   ///
   /// The Floor's plate carries two controls up there since 30 September 2026:
   /// the scope chip it always had, and the destinations control that replaced
@@ -168,68 +169,186 @@ void main() {
   /// on a photograph is readable, and it is a question with a measured answer
   /// rather than an opinion.
   ///
-  /// Both controls wear a `surface` fill and an `edgeControl` rule, so their
-  /// ink lands on **the surface, not on the picture** — a declared pairing
-  /// that does not depend on what the photograph happens to contain. This
-  /// prints both numbers: what the controls actually measure, and what a bare
-  /// mark on the same band would have measured over the same pictures.
+  /// ## THIS TEST'S SUBJECT CHANGED ON 1 OCTOBER 2026, AND IT GOT HARDER
   ///
-  /// `entry_plate.dart` records the case that makes this worth printing: a
-  /// bare mark on this band measured **3.60:1** on Night and had to be given a
-  /// scrim. The band's worst pixel below is the same measurement over the
-  /// twelve supplied photographs and two map composites.
-  testWidgets('the plate\'s top-band controls clear 4.5:1 on their own '
-      'surface, in both skins', (tester) async {
+  /// Until that day both controls wore an **opaque** `surface` fill, so their
+  /// ink landed on a declared colour and the photograph was irrelevant. This
+  /// file printed one number per skin — ink-1 on `surface`, 14.16:1 and
+  /// 14.34:1 — and that number was true and almost free.
+  ///
+  /// The owner's weight pass replaced the opaque tier with a **wash of
+  /// `ground`**: 72% under the scope chip, 55% under Menu. That is the whole
+  /// point of the change — the picture survives under the control — and it is
+  /// also the one thing in the change that can collide with the contrast
+  /// floor, because 28% and 45% of whatever the photograph happens to contain
+  /// is now behind the ink. The owner named it in the brief as the risk, and
+  /// the right answer is a measurement over the real pictures rather than an
+  /// argument.
+  ///
+  /// So the single `surface` figure is replaced by **28 measurements per
+  /// skin** — two controls over fourteen committed images — and the
+  /// composition is done the way the rasteriser does it: the worst plate pixel
+  /// inside each control's own box, with the wash alpha-blended over it. The
+  /// blend is monotonic in the backdrop, so the worst pixel for the composite
+  /// is the worst pixel for the picture, which is why the bare plate can be
+  /// rasterised once per image and reused for both controls.
+  ///
+  /// Three inks are checked, because the two controls do not carry the same
+  /// ones: the chip's scope name is `ink1`, its window half and its chevron
+  /// are `ink2`, and Menu's glyph is `ink1`. The chevron is why `ink2` is in
+  /// here at all — it was `ink3` until this pass and `ink3` over the Day wash
+  /// is the one pairing that does not clear 4.5.
+  ///
+  /// `entry_plate.dart` records the case that makes this worth printing at
+  /// all: a bare mark on this band measured **3.60:1** on Night and had to be
+  /// given a scrim. The bare figure is still printed beside the washed one, so
+  /// what the wash is buying is visible rather than assumed.
+  testWidgets('the plate\'s quiet top-band controls clear 4.5:1 over every '
+      'committed picture, in both skins', (tester) async {
+    final (chipBox, menuBox) = await _controlRects(tester);
+
     for (final (name, skin, dark) in <(String, TiqSkin, bool)>[
       ('NIGHT', TiqSkin.night(), true),
       ('DAY', TiqSkin.day(), false),
     ]) {
-      // What the control's own ink sits on: its `surface` fill. One number,
-      // because a surface is a declared colour and not a photograph.
-      final onSurface = contrastRatio(skin.palette.ink1, skin.palette.surface);
+      final p = skin.palette;
+      final chipWash = p.ground.withValues(alpha: plateQuietChipAlpha);
+      final menuWash = p.ground.withValues(alpha: plateQuietButtonAlpha);
 
-      var worstBare = double.infinity;
-      var worstCode = '';
+      final rows =
+          <String, ({double scope, double window, double menu, double bare})>{};
       for (final code in codes) {
         final image = await _decode(tester, '$places/$code.jpg');
         final plate = await _pumpBarePlate(tester, image, skin);
         final frame = await _grab(tester);
-        // The band the controls occupy: a 44dp tap target, 16dp below the
-        // plate's top edge, across the plate's width.
-        final band = Rect.fromLTRB(
-          8,
-          TiqSpace.s4,
-          plate.width - 8,
-          TiqSpace.s4 + 44,
+
+        // THE COMPOSITE, the way Skia makes it: src-over of the wash on the
+        // hardest pixel the photograph puts under that control.
+        final underChip = _worstPixel(
+          frame,
+          chipBox.shift(plate.topLeft),
+          dark: dark,
         );
-        final bare = contrastRatio(
-          skin.palette.ink1,
-          _worstPixel(frame, band.shift(plate.topLeft), dark: dark),
+        final underMenu = _worstPixel(
+          frame,
+          menuBox.shift(plate.topLeft),
+          dark: dark,
         );
-        if (bare < worstBare) {
-          worstBare = bare;
-          worstCode = code;
-        }
+        final onChip = Color.alphaBlend(chipWash, underChip);
+        final onMenu = Color.alphaBlend(menuWash, underMenu);
+
+        rows[code] = (
+          scope: contrastRatio(p.ink1, onChip),
+          window: contrastRatio(p.ink2, onChip),
+          menu: contrastRatio(p.ink1, onMenu),
+          // What the same ink would have measured with NO wash at all, which
+          // is the number the wash exists to move.
+          bare: contrastRatio(p.ink1, underChip),
+        );
       }
 
       // ignore: avoid_print
       print(
-        '\n  $name — the plate\'s top band, 390x844\n'
-        '  ${'ink-1 on the control\'s own surface'.padRight(38)}'
-        '${onSurface.toStringAsFixed(2)}:1\n'
-        '  ${'ink-1 bare on the picture (worst: $worstCode)'.padRight(38)}'
-        '${worstBare.toStringAsFixed(2)}:1',
+        '\n  $name — the plate\'s quiet controls, 390x844, worst pixel under '
+        'each one\n'
+        '  chip wash: ground@${(plateQuietChipAlpha * 100).round()}%   '
+        'Menu wash: ground@${(plateQuietButtonAlpha * 100).round()}%\n'
+        '  ${'code'.padRight(10)}${'chip/ink1'.padRight(12)}'
+        '${'chip/ink2'.padRight(12)}${'Menu/ink1'.padRight(12)}'
+        '(no wash)',
+      );
+      for (final e in rows.entries) {
+        // ignore: avoid_print
+        print(
+          '  ${e.key.padRight(10)}'
+          '${'${e.value.scope.toStringAsFixed(2)}:1'.padRight(12)}'
+          '${'${e.value.window.toStringAsFixed(2)}:1'.padRight(12)}'
+          '${'${e.value.menu.toStringAsFixed(2)}:1'.padRight(12)}'
+          '${e.value.bare.toStringAsFixed(2)}:1',
+        );
+      }
+      final worst = rows.entries
+          .map(
+            (e) => math.min(
+              math.min(e.value.scope, e.value.window),
+              e.value.menu,
+            ),
+          )
+          .reduce(math.min);
+      // ignore: avoid_print
+      print(
+        '  ${'WORST OF 42'.padRight(12)}${worst.toStringAsFixed(2)}:1'
+        '  (3 inks × 14 pictures, floor $floor)',
       );
 
-      expect(
-        onSurface,
-        greaterThanOrEqualTo(floor),
-        reason:
-            '$name: the top-band controls measure '
-            '${onSurface.toStringAsFixed(2)}:1 against their own surface, '
-            'under the $floor floor. This is a declared pairing — if it fails, '
-            'the palette moved, not the photograph.',
-      );
+      for (final e in rows.entries) {
+        for (final (what, ratio) in <(String, double)>[
+          ('the scope name (ink-1)', e.value.scope),
+          ('the window and the chevron (ink-2)', e.value.window),
+          ('Menu\'s glyph (ink-1)', e.value.menu),
+        ]) {
+          expect(
+            ratio,
+            greaterThanOrEqualTo(floor),
+            reason:
+                '${e.key}: $what measures ${ratio.toStringAsFixed(2)}:1 on '
+                'the $name plate through the quiet wash, under the $floor '
+                'floor.\n'
+                'THIS IS THE COLLISION THE WEIGHT PASS WAS WARNED ABOUT: a '
+                'quieter control over a photograph trades contrast for calm, '
+                'and the trade has a floor. Do NOT fix it by darkening the '
+                'ink — raise the wash alpha (plateQuietChipAlpha / '
+                'plateQuietButtonAlpha) until this passes, and if it cannot '
+                'pass at an alpha that still shows the picture then the '
+                'mockup and 1.4.3 genuinely disagree and the owner has to '
+                'rule on it.',
+          );
+        }
+      }
+    }
+  });
+
+  /// THE WASH IS WORTH WHAT IT COSTS, and this is the one number that says so.
+  ///
+  /// A separate test from the floor above because it answers a different
+  /// question. That one asks "is the quiet control legible" — a pass/fail
+  /// against 4.5. This one asks "did the wash do anything", which is the
+  /// question a reviewer actually has about a translucent fill: a wash so thin
+  /// it changes nothing is decoration, and a reader would be better served by
+  /// the opaque tier it replaced.
+  testWidgets('the wash is doing real work: it beats bare ink on every '
+      'picture, in both skins', (tester) async {
+    final (chipBox, _) = await _controlRects(tester);
+    for (final (name, skin, dark) in <(String, TiqSkin, bool)>[
+      ('NIGHT', TiqSkin.night(), true),
+      ('DAY', TiqSkin.day(), false),
+    ]) {
+      final wash = skin.palette.ground.withValues(alpha: plateQuietChipAlpha);
+      for (final code in codes) {
+        final image = await _decode(tester, '$places/$code.jpg');
+        final plate = await _pumpBarePlate(tester, image, skin);
+        final frame = await _grab(tester);
+        final under = _worstPixel(
+          frame,
+          chipBox.shift(plate.topLeft),
+          dark: dark,
+        );
+        final bare = contrastRatio(skin.palette.ink1, under);
+        final washed = contrastRatio(
+          skin.palette.ink1,
+          Color.alphaBlend(wash, under),
+        );
+        expect(
+          washed,
+          greaterThan(bare),
+          reason:
+              '$name/$code: the wash moves ink-1 from '
+              '${bare.toStringAsFixed(2)}:1 to ${washed.toStringAsFixed(2)}:1, '
+              'which is not an improvement. A wash that does not improve the '
+              'pairing is decoration over a photograph and the control should '
+              'go back to an opaque tier.',
+        );
+      }
     }
   });
 
@@ -378,6 +497,91 @@ Future<(Rect, Rect)> _inkRects(WidgetTester tester) async {
     tester.getRect(find.text('73')).shift(-plate.topLeft),
     tester.getRect(find.text('Territory health')).shift(-plate.topLeft),
   );
+}
+
+/// Where the two quiet controls' **painted boxes** sit, relative to the plate.
+///
+/// Taken off the real widgets rather than recomputed from
+/// [PlateSpec.topSlotInset] and [plateQuietExtent], for the reason
+/// [_inkRects] gives about the hero: a measurement that re-derives its own
+/// geometry measures a screen the product does not draw. The first version of
+/// the test above used a hand-built 44dp band across the whole plate width and
+/// so measured the picture under a region neither control occupies.
+///
+/// It is the **painted** box and not the tap target: the wash is 29dp tall
+/// inside a 44dp transparent box, and the 15dp of transparency around it has
+/// no wash over it to measure.
+Future<(Rect, Rect)> _controlRects(WidgetTester tester) async {
+  tester.view
+    ..physicalSize = const Size(390, 844)
+    ..devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final skin = TiqSkin.night();
+  await tester.pumpWidget(
+    MediaQuery(
+      data: const MediaQueryData(size: Size(390, 844), devicePixelRatio: 1.0),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Theme(
+          data: ThemeData(extensions: <ThemeExtension<dynamic>>[skin]),
+          child: ColoredBox(
+            color: skin.palette.ground,
+            child: SizedBox(
+              width: 390,
+              height: 844,
+              child: Column(
+                children: <Widget>[
+                  TiqPlate(
+                    claimId: 'contrast',
+                    viewportHeight: 844,
+                    image: await _solid(tester),
+                    devicePixelRatio: 1.0,
+                    hero: const SizedBox.shrink(),
+                    // The same pair, in the same order, that
+                    // `the_floor_screen.dart` builds — chip left, Menu right,
+                    // `spaceBetween`.
+                    topSlot: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Flexible(
+                          child: PlateScopeChip(
+                            key: const ValueKey<String>('chip'),
+                            scope: 'Gauteng North',
+                            window: 'Last 30 days',
+                            onTap: () {},
+                            semanticsLabel: 'scope',
+                          ),
+                        ),
+                        const SizedBox(width: TiqSpace.s2),
+                        FloorDestinationsButton(
+                          key: const ValueKey<String>('menu'),
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  final plate = tester.getRect(find.byType(TiqPlate));
+  Rect painted(String key) => tester
+      .getRect(
+        find
+            .descendant(
+              of: find.byKey(ValueKey<String>(key)),
+              matching: find.byType(Container),
+            )
+            .first,
+      )
+      .shift(-plate.topLeft);
+  return (painted('chip'), painted('menu'));
 }
 
 /// The plate alone, with no hero over the band being measured.
