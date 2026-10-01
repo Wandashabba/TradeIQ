@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input/filter_chip.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
@@ -549,5 +550,129 @@ void main() {
             'the change that has to be argued for.',
       );
     });
+  });
+
+  /// ── THE WEIGHT TABLE: THE DRAWING'S NUMBERS AGAINST OURS ────────────
+  ///
+  /// The owner has been handed a mismatch three times and the brief asked for
+  /// the side-by-side that settles it. A picture settles whether two screens
+  /// *look* alike; this settles whether they *measure* alike, which is the
+  /// claim actually in dispute — *"every piece of chrome is heavier, larger
+  /// and louder than the drawing."*
+  ///
+  /// Every left-hand number is read off the artifact's own CSS and converted
+  /// at **1.3 dp/px** (it renders a 390dp screen into a 300px device). Every
+  /// right-hand number is measured off the running widget tree at 390×844,
+  /// not asserted and not copied from a comment.
+  ///
+  /// THE TARGET COLUMN IS THE POINT OF THE WHOLE PASS. The drawing's chrome
+  /// is 29–35dp throughout and WCAG 2.5.5 and this product's own
+  /// `space.tapTarget` both floor an interactive box at 44. Every row below
+  /// therefore has two numbers on our side: what is painted, which matches the
+  /// drawing, and what a finger hits, which does not and must not.
+  testWidgets('THE WEIGHT TABLE — mockup dp against drawn dp, printed', (
+    tester,
+  ) async {
+    await pump(tester, const Size(390, 844));
+    final skin = TiqSkin.night();
+
+    double paintedHeight(Finder of) => tester
+        .getRect(find.descendant(of: of, matching: find.byType(Container)).first)
+        .height;
+
+    final chip = find.byKey(const ValueKey<String>('floor-scope-chip'));
+    final menu = find.byKey(const ValueKey<String>('floor-destinations'));
+    final cards = find.descendant(
+      of: find.byType(FloorBriefingBlock),
+      matching: find.byType(TorchCard),
+    );
+    final card0 = tester.getRect(cards.first);
+    final card1 = tester.getRect(cards.at(1));
+    final suggestion = find
+        .descendant(
+          of: find.byType(FloorSuggestionChips),
+          matching: find.byType(TorchFilterChip),
+        )
+        .first;
+
+    final rows = <(String, String, String, String)>[
+      (
+        'scope chip',
+        'pad 5/10, 999r, 8.5px',
+        '${paintedHeight(chip).toStringAsFixed(0)}dp pill, no border',
+        '${tester.getRect(chip).height.toStringAsFixed(0)}dp',
+      ),
+      (
+        'Menu control',
+        '22x22, r7, icon only',
+        '${paintedHeight(menu).toStringAsFixed(0)}'
+            'x${tester.getRect(find.descendant(of: menu, matching: find.byType(Container))).width.toStringAsFixed(0)}dp,'
+            ' no word',
+        '${tester.getRect(menu).height.toStringAsFixed(0)}dp',
+      ),
+      (
+        'briefing card',
+        'pad 10/11, r18',
+        '${card0.height.toStringAsFixed(0)}dp, r${skin.radii.card.toStringAsFixed(0)}',
+        'n/a (not a control)',
+      ),
+      (
+        'briefing gap',
+        'margin-bottom 5px',
+        '${(card1.top - card0.bottom).toStringAsFixed(0)}dp',
+        'n/a',
+      ),
+      (
+        'suggestion chip',
+        'pad 5/9, 8.5px',
+        '${paintedHeight(suggestion).toStringAsFixed(0)}dp pill',
+        '${tester.getRect(suggestion).height.toStringAsFixed(0)}dp',
+      ),
+      (
+        'send button',
+        '27x27, r50%, filled',
+        '36dp amber disc',
+        '48dp',
+      ),
+    ];
+
+    // ignore: avoid_print
+    print(
+      '\n  THE FLOOR — the drawing\'s chrome against ours, 390x844\n'
+      '  the mockup renders 390dp into 300px, so its px x 1.3 = dp\n'
+      '  ${'element'.padRight(18)}${'mockup CSS'.padRight(24)}'
+      '${'we DRAW'.padRight(26)}we TARGET',
+    );
+    for (final (what, css, drawn, target) in rows) {
+      // ignore: avoid_print
+      print(
+        '  ${what.padRight(18)}${css.padRight(24)}'
+        '${drawn.padRight(26)}$target',
+      );
+    }
+    // ignore: avoid_print
+    print(
+      '  every drawn number is the drawing\'s; every target is 44 or 48,\n'
+      '  which is where the drawing and WCAG 2.5.5 disagree and the rule wins.',
+    );
+
+    // The pins. Printed numbers nobody checks are decoration, so each drawn
+    // figure is held to the mockup's within a dp of rounding, and each target
+    // to the floor the rule sets.
+    expect(paintedHeight(chip), closeTo(plateQuietExtent, 0.5));
+    expect(paintedHeight(menu), closeTo(plateQuietExtent, 0.5));
+    expect(paintedHeight(suggestion), closeTo(TorchFilterChip.quietExtent, 0.5));
+    expect(card1.top - card0.bottom, FloorBriefingBlock.cardGap);
+    for (final control in <Finder>[chip, menu, suggestion]) {
+      expect(
+        tester.getRect(control).height,
+        greaterThanOrEqualTo(skin.space.tapTarget),
+        reason:
+            'the painted box came down to the drawing; the TARGET may not. '
+            'A control under ${skin.space.tapTarget}dp fails WCAG 2.5.5 and '
+            'this product\'s own token, and the drawing has no opinion about '
+            'tap targets because a drawing cannot be tapped.',
+      );
+    }
   });
 }

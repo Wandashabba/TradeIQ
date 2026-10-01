@@ -529,7 +529,18 @@ class SoftRowChevron extends StatelessWidget {
       child: CustomPaint(
         painter: _ChevronPainter(
           colour: color ?? skin.palette.ink3,
-          stroke: skin.depth.borderWidth * 2,
+          // THE STROKE IS A SHARE OF THE EXTENT, not a constant — since
+          // 1 October 2026, and only because [extent] exists. A flat
+          // `borderWidth * 2` is right at 20dp and reads as a heavy `>` at 11:
+          // the path shrinks and the line on it does not, so the glyph gets
+          // proportionally fatter exactly as it gets smaller. A row's chevron
+          // is unchanged: at `base` 20 this is `borderWidth * 2` by
+          // construction. The floor is a hairline, because a stroke that
+          // rounds to zero is a chevron that is not drawn.
+          stroke: math.max(
+            skin.depth.borderWidth,
+            skin.depth.borderWidth * 2 * (base / 20),
+          ),
           rtl: Directionality.of(context) == TextDirection.rtl,
         ),
       ),
