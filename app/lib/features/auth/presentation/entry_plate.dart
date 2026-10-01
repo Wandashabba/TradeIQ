@@ -126,16 +126,19 @@ import 'entry_brand.dart';
 /// |---|---|
 /// | the shell's top inset (`s4`) | 16 |
 /// | `blockGap`, plate to first field | 24 |
-/// | the email field, whole | 82 |
-/// | the pinned thumb zone, outside the scroll | 146 |
-/// | **[ground]** | **268** |
+/// | the email field, whole | 78 |
+/// | the pinned thumb zone, outside the scroll | 142 |
+/// | **[ground]** | **260** |
+///
+/// (82 and 146 against a 268 total until the prose scale came down 13/14 on
+/// 1 October 2026. Both are type-driven heights; the gap and the inset are
+/// tokens and did not move.)
 ///
 /// That arithmetic, and not a clip, is what answers the short phone. The
-/// picture now survives every viewport down to **418dp** — `418 − 268` is
-/// 150, the [shortest] plate the door accepts — and is the full 250 from 518
-/// up. There is no phone and no browser window in that band, which is the
-/// point: a cliff that has been moved three times has to end up somewhere
-/// nobody can land on it.
+/// picture now survives every viewport down to **410dp** — `410 − 260` is
+/// 150, the [shortest] plate the door accepts. There is no phone and no
+/// browser window in that band, which is the point: a cliff that has been
+/// moved three times has to end up somewhere nobody can land on it.
 ///
 /// A 360×640 handset therefore draws the photograph, where 566 dropped it.
 /// Checked rather than assumed: at 640 the scroll viewport is 494, the plate's
@@ -320,8 +323,10 @@ class EntryPlate extends StatelessWidget {
   /// scale; the previous set was Onest's, and the face swap plus the reduction
   /// moved every cell — one of them (2.0× at 390) by 136dp, and in the
   /// direction nobody would have guessed. Re-measure before using them again,
-  /// and use `test/features/auth/entry_plate_test.dart`'s own harness rather
-  /// than a ruler.
+  /// and use `test/features/auth/entry_plate_headline_fit_test.dart`, which
+  /// is the harness every cell above came out of and which now asserts them
+  /// — so a face or scale change fails there with the new numbers printed,
+  /// rather than leaving this table quietly wrong.
   static const double tallest = 250;
 
   /// The shortest photographic plate the door will accept — **150, against
@@ -382,8 +387,10 @@ class EntryPlate extends StatelessWidget {
   /// The reserve at a given text scale.
   ///
   /// Linear, and it no longer carries the weight it used to. At 2.0× it is
-  /// 348, so the collapse boundary moves from a 418dp viewport to 498 and the
-  /// picture survives every real device at every scale the app allows.
+  /// 336, so the collapse boundary moves from a 410dp viewport to 486 and the
+  /// picture survives every real device at every scale the app allows. (348
+  /// and 498 before the 1 October 2026 prose reduction; both came down with
+  /// the reserve.)
   ///
   /// ### WHAT THAT CHANGED, SAID OUT LOUD
   ///
