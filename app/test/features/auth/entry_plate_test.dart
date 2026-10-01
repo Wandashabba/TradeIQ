@@ -455,13 +455,15 @@ void main() {
     /// arithmetic accident and tuning [EntryPlate.groundProse] to put it back
     /// would be the cliff engineering this file now exists to stop.
     ///
-    /// It is not a free change and the note on `groundFor` says so: the plate
-    /// is a fixed height, so at 2.0× its headline is scaled down below the
-    /// field labels under it. The honest rule for that — collapse when the
-    /// plate cannot carry its words at the asked-for size — bites at 1.3×,
-    /// which has shipped photographic all along. That boundary is a decision
-    /// about the plate's fit ladder and wants the owner, not a number chosen
-    /// here to keep a diff small.
+    /// It is not a free change, and the note on [EntryPlate.tallest] records
+    /// what it leaves standing: at 1.3× and above the plate's headline is
+    /// scaled down below the field labels under it. That is a **known,
+    /// unfixed defect**, not a consequence of this group — it has been true
+    /// at 1.3× and 1.6× since the screen was built, and collapsing at 2.0×
+    /// would hide it rather than fix it. The lever that fixes it is a
+    /// per-screen `proportion` on `PlateSpec.heightFor`; it is deferred
+    /// because every measurement behind it is in Onest and the prose face is
+    /// under review. The table and the disproof are on `tallest`.
     for (final scale in <double>[1.0, 1.3, 1.6, 2.0]) {
       testWidgets('${scale}x: [groundFor] is not under the measured reserve', (
         tester,

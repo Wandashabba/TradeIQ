@@ -191,6 +191,103 @@ class EntryPlate extends StatelessWidget {
   static const String claimId = 'entry-plate-light';
 
   /// The mockup's proportion: roughly the top 250 of 844.
+  ///
+  /// ## ⚠ KNOWN DEFECT, RECORDED AND UNFIXED — the headline shrinks at 1.3×
+  ///
+  /// **This number is a flat 250 that never heard about the text scale, and
+  /// at 1.3× and above the plate's own headline renders smaller than the
+  /// field labels under it.** The screen's header becomes the smallest prose
+  /// on screen, and it inverts hardest for the reader who turned the type up,
+  /// which is the reader the setting exists for.
+  ///
+  /// The cause is not the fit ladder. [TiqPlate] lays the hero out in a
+  /// `FittedBox(scaleDown)` inside a box of `0.52 × height − 16`, and that box
+  /// is sized by this constant — a 1.0× number. The prose inside it grows with
+  /// the scale and the box does not, so the ladder does the only thing it can.
+  /// **The box is wrong, not the ladder.** Proven by rendering the same hero
+  /// at 2.0× in two plates, 80dp apart:
+  ///
+  /// * `scratchpad/entry-reserve/plate-2.0x-338dp.png` — what the cap gives
+  /// * `scratchpad/entry-reserve/plate-2.0x-418dp.png` — what the words need
+  ///
+  /// ### The obvious fix does not work, and this is the disproof
+  ///
+  /// The obvious move is to grow this with the scale exactly as [groundFor]
+  /// grows the reserve — a `tallestFor(scale)`. **It cannot work**, because
+  /// `tallest` is a ceiling on a value that is already capped by `0.40 × vh`:
+  ///
+  /// ```dart
+  /// proportional = (viewportHeight * 0.40).clamp(200.0, tallest);
+  /// height       = min(proportional, viewportHeight - ground);
+  /// ```
+  ///
+  /// Set `tallest` to 100000 and nothing moves. The resolved heights are
+  /// `0.40 × vh` at every size — 256 at 640, 283 at 708, 338 at 844, 373 at
+  /// 932 — while an 844 viewport *affords* 496 at 2.0×. **Affordability is
+  /// never the binding term on a phone; the proportion is.** Raising a ceiling
+  /// above a binding cap changes nothing.
+  ///
+  /// ### What the plate actually needs, measured
+  ///
+  /// The minimum plate height at which the rendered headline stops being
+  /// shrunk, found by stepping the height and comparing the rendered
+  /// `TorchDisplayHeadline` rect against its natural height at the same width
+  /// and scale:
+  ///
+  /// | scale | 390 wide | 360 wide |
+  /// |---|---|---|
+  /// | 1.0× | 223 | 223 |
+  /// | 1.3× | **307** | **322** |
+  /// | 1.6× | **383** | **482** |
+  /// | 2.0× | **418** | **518** |
+  ///
+  /// Against the `0.40 × vh` ceiling, which `tallest` cannot raise:
+  ///
+  /// | viewport | ceiling | 1.0× | 1.3× | 1.6× | 2.0× |
+  /// |---|---|---|---|---|---|
+  /// | 360×640 | 256 | ✓ | ✗ | ✗ | ✗ |
+  /// | 395×708 | 283 | ✓ | **✗** | ✗ | ✗ |
+  /// | 390×844 | 338 | ✓ | **✓** | ✗ | ✗ |
+  /// | 430×932 | 373 | ✓ | ✓ | ✗ (by 10dp) | ✗ |
+  /// | 1280×1800 | 720 | ✓ | ✓ | ✓ | ✓ |
+  ///
+  /// Eleven of the twelve phone-and-window cells are blocked by the ceiling.
+  /// 1.0× needs 223 and this constant is 250, which is why normal type looks
+  /// right and nothing above it does.
+  ///
+  /// ### The lever that does work
+  ///
+  /// A per-screen **`proportion`** on `PlateSpec.heightFor`, defaulting to
+  /// 0.40 — the same move already made for [ground], [tallest] and [shortest],
+  /// whose own note records why: *named parameters with The Floor's values as
+  /// defaults, so The Floor's call site is unchanged and its arithmetic is
+  /// bit-for-bit what it was.* The Floor stays untouched by construction.
+  ///
+  /// With the proportion lifted, affordability becomes the only limit and the
+  /// band returns only where it is honestly the answer — 1.6× and 2.0× on a
+  /// 640dp handset, 2.0× on a 708dp window. Two things it must carry:
+  ///
+  /// * **A width × scale surface, not a line.** 1.3× needs 307 at 390 wide and
+  ///   322 at 360; 1.6× needs 383 against 482. Headline wrapping drives it, so
+  ///   it is not the straight line [groundFor] is.
+  /// * **`tallestFor(1.0)` pins to 250, not the measured 223**, or the plate
+  ///   the owner approved shrinks on every screen at normal type, including
+  ///   the 1280×1800 page.
+  ///
+  /// ### Why it is not built here
+  ///
+  /// The owner is evaluating a replacement for the app's prose face (Grotesco,
+  /// for Onest). **Every number above is Onest's.** They are headline-wrapping
+  /// measurements in one face at one width; a face with different metrics
+  /// moves all of them, and the width-awareness in particular will not survive
+  /// a font change in the same shape. Building the surface now and re-deriving
+  /// it next week is work done twice — and it would land a tuned table that
+  /// *looks* authoritative while being quietly wrong, which is the same trap
+  /// as the 566 identity §3 exists to document.
+  ///
+  /// **If the prose face changes, re-measure the whole table before using it.**
+  /// If it does not, the numbers stand and the `proportion` route is ready to
+  /// build from them.
   static const double tallest = 250;
 
   /// The shortest photographic plate the door will accept — **150, against
@@ -251,26 +348,19 @@ class EntryPlate extends StatelessWidget {
   /// together. Reproducing it by tuning [groundProse] back up would be the
   /// same cliff engineering this fix exists to end, so it is not reproduced.
   ///
-  /// **It is also not obviously right, and it is not this file's call.** The
-  /// plate is a fixed height and [TiqPlate] fits the hero into its text-safe
-  /// zone with a scale-down ladder, so at 2.0× the headline on the picture
-  /// renders *smaller* than the field labels under it — a reader who asked for
-  /// larger type gets the one line of display type at less than they asked
-  /// for. The collapsed band has no such cap; it grows to its words.
+  /// **Keeping the picture up at 2.0× is right; what the picture then shows
+  /// is a separate, recorded defect.** At 1.3× and above the headline on the
+  /// plate renders smaller than the field labels under it, and that is true
+  /// whether or not this reserve collapses — it has been true at 1.3× and
+  /// 1.6× since the screen was built. Collapsing would not fix it either; it
+  /// would only hide it by dropping the photograph at settings plenty of
+  /// people use, which is the defect the owner has reported three times.
   ///
-  /// The honest version of that rule is "collapse when the plate cannot carry
-  /// its own words at the asked-for size", and it is **not** the rule here,
-  /// because when measured it bites at **1.3×** — the cluster needs a 277dp
-  /// plate against a [tallest] of 250 — and 1.3× has shipped photographic
-  /// since this screen was built. So the status quo at 1.3× and 1.6× is itself
-  /// a scaled-down headline that was signed off.
-  ///
-  /// Where that boundary belongs is a decision about the plate's fit ladder,
-  /// one object up from the reserve, and it wants the owner's eye rather than
-  /// a number picked here to make a diff smaller. What this file is now
-  /// careful about is not smuggling it into the viewport arithmetic a second
-  /// time: **the reserve is about the screen under the plate.** Conflating the
-  /// two is how it came to be 566.
+  /// The cause, the measurements, the disproof of the obvious fix and the
+  /// lever that does work are all on [tallest]. **Do not answer it from
+  /// here.** The reserve is about the screen *under* the plate; how tall the
+  /// plate must be to carry its own words is the plate's question. Conflating
+  /// the two is exactly how this number came to be 566.
   static double groundFor(double textScale) =>
       ground + (textScale - 1) * groundProse;
 
