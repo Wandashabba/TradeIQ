@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -133,10 +134,29 @@ class FakeDashboardRepository implements DashboardRepository {
     DashboardKpis? current,
     this.previous,
     this.byTerritory = const <String, DashboardKpis>{},
+    this.pending = false,
+    this.failure,
   }) : current = current ?? kpis();
 
   final DashboardKpis current;
   final DashboardKpis? previous;
+
+  /// ── THE TWO PHASES THE ROUTE HAS AND THIS FAKE COULD NOT REACH ───────
+  ///
+  /// `_FloorFrame` wears four phase names — `loading`, `error`,
+  /// `loaded-…` and `window-empty-…` — and until the Dawn wash needed a
+  /// census of **every** one of them, two of the four had no spelling here. A
+  /// caller cannot add them from outside either: `floorOverrides` already
+  /// overrides `dashboardRepositoryProvider`, and Riverpod refuses the same
+  /// provider twice in one container, so an `extraOverrides` entry for a
+  /// silent repository fails with "Tried to override a provider twice" rather
+  /// than replacing it.
+  ///
+  /// So they live on the fake, exactly as `overview_harness.dart` has had
+  /// them since the overview's own skeleton was tested: [pending] never
+  /// answers and [failure] refuses.
+  final bool pending;
+  final Object? failure;
 
   /// A territory's own figures, keyed by the id the filter carries.
   ///
@@ -167,6 +187,8 @@ class FakeDashboardRepository implements DashboardRepository {
     String? from,
     String? to,
   }) async {
+    if (failure != null) throw failure!;
+    if (pending) return Completer<DashboardKpis>().future;
     final key = '$territoryId|$from|$to';
     final already = _answered[key];
     if (already != null) return already;
@@ -542,6 +564,10 @@ List<Override> floorOverrides({
   AssistantRepository? assistant,
   bool online = true,
   bool sessionEnded = false,
+  /// See [FakeDashboardRepository.pending] / [FakeDashboardRepository.failure]
+  /// — the route's `loading` and `error` phases.
+  bool kpisPending = false,
+  Object? kpisFailure,
   List<Override> extraOverrides = const <Override>[],
 }) => <Override>[
   assistantRepositoryProvider.overrideWithValue(
@@ -556,6 +582,8 @@ List<Override> floorOverrides({
       current: current,
       previous: previous,
       byTerritory: byTerritory,
+      pending: kpisPending,
+      failure: kpisFailure,
     ),
   ),
   alertsRepositoryProvider.overrideWithValue(FakeAlertsRepository(alerts)),
@@ -627,6 +655,10 @@ Future<void> pumpFloor(
   /// the amber arithmetic, because the nav pill left with option B, but still
   /// moves the composer up over the fold.
   double keyboard = 0,
+  /// The route's `loading` and `error` phases. See
+  /// [FakeDashboardRepository.pending].
+  bool kpisPending = false,
+  Object? kpisFailure,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
@@ -639,6 +671,8 @@ Future<void> pumpFloor(
   await tester.pumpWidget(
     ProviderScope(
       overrides: floorOverrides(
+        kpisPending: kpisPending,
+        kpisFailure: kpisFailure,
         assistant: assistant,
         online: online,
         sessionEnded: sessionEnded,
