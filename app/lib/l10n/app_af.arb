@@ -2089,6 +2089,8 @@
   "dashOneTerritory": "Een gebied",
   "dashTerritory": "Gebied",
   "dashTerritorySheetBody": "Elke syfer hieronder val binne hierdie keuse.",
+  "dashScopeNote": "Beperk elke syfer",
+  "dashTerritoryGroup": "{count, plural, =1{{name}, 1 gebied} other{{name}, {count} gebiede}}",
   "dashSelected": "Gekies",
   "dashRangeLast7": "Laaste 7 dae",
   "dashRangeLast30": "Laaste 30 dae",

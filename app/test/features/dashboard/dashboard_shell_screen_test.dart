@@ -642,12 +642,19 @@ void main() {
         tester,
         find.byKey(const ValueKey<String>('filter-territory')),
       );
+      // THE SENTENCE, NOT THE CLASS. This read `SoftRow.semanticsLabel` off
+      // the widget until the sheet's rows became `_ScopeRow` on 2 October
+      // 2026, and a cast to a concrete row pins the implementation rather
+      // than the behaviour — the behaviour is that a tick is silence to a
+      // screen reader and the word has to be there too.
+      final handle = tester.ensureSemantics();
       await tester.tap(find.byKey(const ValueKey<String>('filter-territory')));
       await tester.pumpAndSettle();
-      final all = tester.widget<SoftRow>(
-        find.byKey(const ValueKey<String>('territory-option-all')),
+      expect(
+        find.bySemanticsLabel(RegExp(r'All territories\. Selected')),
+        findsOneWidget,
       );
-      expect(all.semanticsLabel, contains('Selected'));
+      handle.dispose();
     });
   });
 

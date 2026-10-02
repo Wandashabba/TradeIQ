@@ -7927,6 +7927,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Every figure below is scoped to this choice.';
 
   @override
+  String get dashScopeNote => 'Scopes every figure';
+
+  @override
+  String dashTerritoryGroup(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count territories',
+      one: '$name, 1 territory',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get dashSelected => 'Selected';
 
   @override

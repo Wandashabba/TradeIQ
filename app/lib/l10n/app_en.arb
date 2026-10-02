@@ -10754,6 +10754,18 @@
   "@dashTerritorySheetBody": {
     "description": "Subtitle of the territory sheet."
   },
+  "dashScopeNote": "Scopes every figure",
+  "@dashScopeNote": {
+    "description": "The quiet note on the right of the filter sheet's one-line header. Says what the sheet does without spending a full-width sentence on it."
+  },
+  "dashTerritoryGroup": "{count, plural, =1{{name}, 1 territory} other{{name}, {count} territories}}",
+  "@dashTerritoryGroup": {
+    "description": "What a screen reader hears on a territory group's expander. The expanded/collapsed state travels as the Semantics flag, not as a word.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
   "dashSelected": "Selected",
   "@dashSelected": {
     "description": "Announced first in a picker row's label, because a tick is silence to a screen reader."
