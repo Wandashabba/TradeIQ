@@ -296,7 +296,11 @@ class _SendKey extends StatelessWidget {
               width: _sendDisc,
               height: _sendDisc,
               decoration: BoxDecoration(
+                // `color` is the flat fallback and `gradient` wins wherever it
+                // is non-null — which is only the granted state, and only in a
+                // skin with a gradient budget. See `AskLight.sendBloom`.
                 color: look.fill,
+                gradient: look.bloom,
                 borderRadius: radius,
                 border: look.edge == null
                     ? null

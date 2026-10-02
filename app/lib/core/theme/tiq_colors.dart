@@ -348,7 +348,9 @@ class TiqColors extends ThemeExtension<TiqColors> {
       //
       // It was `flame600`, and under the themes `main.dart` actually ships
       // that was also simply invisible: #FFB162 on Day's Palladian well is
-      // **1.30:1**, and `navActivePillBg` is the bar's own colour, so the
+      // **1.30:1** (1.43:1 for the `#FFA447` the ramp moved to on 1 October
+      // 2026, which changes nothing here), and `navActivePillBg` is the bar's
+      // own colour, so the
       // pill painted nothing. A manager on the light theme could not tell
       // which tab she was on.
       //

@@ -268,13 +268,13 @@ void main() {
       'night ink-2 on surface': 9.58,
       'night ink-3 (12px meta) on ground': 7.19,
       'night ink-3 (12px meta) on raised — the binding case': 6.02,
-      'night hero figure flame-600 on ground': 10.65,
-      'night amber text flame-700 on ground': 12.92,
-      'night focus ring flame-700 on surface': 11.60,
-      'night focus ring flame-700 on raised': 10.82,
-      'night amber rim flame-600 on raised': 8.91,
-      'night active-tab underbar flame-600 on nav body (well)': 10.05,
-      'night focus bar flame-600 on chart track (lifted)': 8.06,
+      'night hero figure flame-600 on ground': 9.68,
+      'night amber text flame-700 on ground': 11.98,
+      'night focus ring flame-700 on surface': 10.76,
+      'night focus ring flame-700 on raised': 10.03,
+      'night amber rim flame-600 on raised': 8.10,
+      'night active-tab underbar flame-600 on nav body (well)': 9.14,
+      'night focus bar flame-600 on chart track (lifted)': 7.32,
       'night neutral bar chart-neutral on chart track (lifted)': 5.09,
       'night good on ground': 11.76,
       'night good on raised': 9.85,
@@ -289,8 +289,8 @@ void main() {
       'night edge-structure on surface — the Panel outline': 3.41,
       'night edge-structure on ground': 3.79,
       'night nav ink inactive on nav body (well)': 6.69,
-      'night ink on amber block': 10.65,
-      'night ink on pressed amber block (flame-500)': 8.59,
+      'night ink on amber block': 9.68,
+      'night ink on pressed amber block (flame-500)': 7.72,
       'night decorative hairline on ground': 2.14,
       'night disabled ink-mute on surface': 2.66,
       // THE CEILING IS PER SKIN SINCE 29 SEPTEMBER 2026, and it moved. Night
@@ -301,15 +301,15 @@ void main() {
       // argued against this line, not against a screenshot.
       'plate night ink-1 on an unscrimmed plate pixel at the ceiling': 4.75,
       'plate day ink-1 on an unscrimmed plate pixel at the ceiling': 12.28,
-      'plate ink-1 on the mandatory scrim over a full-value strip light': 10.56,
-      'plate ink-2 eyebrow on that same worst-case scrimmed amber': 7.15,
+      'plate ink-1 on the mandatory scrim over a full-value strip light': 10.81,
+      'plate ink-2 eyebrow on that same worst-case scrimmed amber': 7.32,
       'day ink-1 on ground': 12.67,
       'day ink-1 on card (surface)': 14.34,
       'day ink-2 on ground': 7.99,
       'day ink-3 (12px meta) on ground': 5.15,
       'day ink-3 on well — the darkest Day surface': 4.52,
       'day flame-300, the one legal amber text on a light ground': 5.66,
-      'day ink on the one amber block': 8.55,
+      'day ink on the one amber block': 7.78,
       'day good on ground': 5.73,
       'day bad on ground': 7.52,
       'day comparison on ground': 4.58,
@@ -381,16 +381,23 @@ void main() {
       };
       expect(
         banRatios['night flame-600 and ink-2 (Oatmeal) as adjacent bar fills'],
-        closeTo(1.00, 0.005),
-        reason: 'This 1.00:1 is the entire reason chart-neutral exists.',
+        closeTo(1.10, 0.005),
+        // IT WAS 1.00:1 — byte-identical relative luminance — until the amber
+        // ramp gained chroma on 1 October 2026. The collision is not fixed and
+        // chart-neutral is not retired: §2 will not treat even a 1.12–1.24:1
+        // fill step as a cue, and 1.10 is below the bottom of that band. What
+        // the ban asserts is unchanged — this pairing is still nowhere near
+        // the 3:1 a graphic needs, so two adjacent bars in these two colours
+        // are still one bar in greyscale, in deuteranopia and in sun.
+        reason: 'This 1.10:1 is the entire reason chart-neutral exists.',
       );
       expect(
         banRatios['night flame-900 ink on a pressed flame-500 block'],
-        closeTo(2.00, 0.005),
+        closeTo(2.13, 0.005),
       );
       expect(
         banRatios['day flame-600 as text on the Palladian ground'],
-        closeTo(1.48, 0.005),
+        closeTo(1.63, 0.005),
       );
       expect(
         banRatios['day edge-structure on the Day well'],
@@ -436,6 +443,15 @@ void main() {
       // graphic on the floor with no margin is a graphic that disappears on a
       // 6-bit panel at 40% backlight. One of the two had to give and it was
       // the one with three spares.
+      //
+      // AND THEN THIS NUMBER IS WHAT BOUND THE AMBER RAMP — 1 October 2026.
+      // The owner asked for a less dull orange; chroma is the only axis
+      // available, because `flame600` was already at value 1.00; and a more
+      // chromatic amber is a darker amber, which walks `flame600` down the
+      // luminance range towards the neutral. 1.584:1 became 1.440:1 at
+      // saturation 0.72 and would have been 1.341:1 at 0.80, which fails this
+      // floor. 0.72 shipped for that reason and no other — the ink floor had
+      // room to spare. The full trade table is in `tiq_palette.dart`.
       expect(
         grey,
         lessThan(2.42),
@@ -448,12 +464,20 @@ void main() {
 
     test('the old Burning Flame / Oatmeal pair is the same bar', () {
       final p = TiqSkin.night().palette;
+      // 1.00:1 — byte-identical relative luminance — until the amber ramp
+      // gained chroma on 1 October 2026 and it became 1.10:1. The decision
+      // that figure forces is recorded in `tiq_palette.dart` on
+      // [TiqPalette.chartNeutral]: the token stays, because §2 will not treat
+      // even a 1.12–1.24:1 fill step as a cue and 1.10 is below the bottom of
+      // that band.
       expect(
         luminanceSeparation(p.flame600, p.ink2),
-        closeTo(1.0, 0.02),
+        closeTo(1.10, 0.02),
         reason:
             'This is the collision chart-neutral was introduced to fix. If it '
-            'ever stops being ~1.0 someone moved Oatmeal.',
+            'ever rises past 1.24 someone moved Oatmeal or the amber ramp, and '
+            'whether chart-neutral is still needed has to be re-argued rather '
+            'than re-pinned.',
       );
     });
   });

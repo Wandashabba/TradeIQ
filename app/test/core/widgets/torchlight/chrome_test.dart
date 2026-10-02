@@ -252,7 +252,14 @@ void main() {
       expect(rect.width, 64);
       expect(rect.height, 64);
       final pixels = await torchPixels(tester);
-      expect(pixels.at(rect.center.dx, rect.top + 6), night.palette.flame600);
+      // On the disc's own radial ramp rather than equal to flame-600: this
+      // sample is 6dp down from the top, which is near the hot core. See
+      // [isOnAmberRamp].
+      expect(
+        pixels.at(rect.center.dx, rect.top + 6),
+        isOnAmberRamp(night),
+        reason: 'the granted standing action, lit',
+      );
     });
 
     testWidgets('a primary on the route outranks it outright', (tester) async {

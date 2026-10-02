@@ -116,7 +116,7 @@ void main() {
         night.palette.onAmberPressed,
         const Color(0xFF0B1017),
         reason:
-            'the ink stays dark at 8.59:1. The pressed state that put '
+            'the ink stays dark at 7.72:1. The pressed state that put '
             'flame-900 on flame-500 measured 2.00:1 and made the label vanish '
             'at the moment of commitment.',
       );
