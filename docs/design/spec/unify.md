@@ -69,6 +69,15 @@ Five surfaces (kit, figures, agent, manager, assistant) reconciled against `refi
 **Data-layer amber is allowed wherever the ladder grants it, not "once in the product" (kit over figures):** the Territories list may light its worst bar; the dashboard cannot because the plate takes the grant. Figures' "exactly once" was a consequence of its ledger, not the law.
 
 ### 1.2 Navigation geometry
+
+> **THE MANAGER CONSOLE HAS NO NAV PILL — 2 October 2026, owner decision ("Model 1").** Everything in this section still rules the **agent** phone, where `TorchNavPill` is live on four screens (Today · My work · Map · Me). It no longer describes the console.
+>
+> The owner, on the pill: *"it becomes very weird especially knowing that the app is a search based, I don't know how to navigate with this one please help make it seamless."* The diagnosis was not geometry. **The bottom of a console screen meant two different things**: The Floor had a composer and no pill, the 27 `ConsoleFrame` routes had a pill and no composer, Ask had both — so the way you navigated changed depending on where you stood, in a product whose primary verb is *ask*.
+>
+> Every console screen now ends in one object, with identical geometry: `[ grid button ] [ the ask field ] [ send ]`. The grid opens the destinations sheet (`showFloorDestinations`, which already existed and which The Floor's plate control already opened), so navigation is one gesture and the same gesture everywhere. This is arrangement **C** from the seam note in `the_floor_screen.dart`, which named it on 30 September and shipped **B**.
+>
+> **What it cost, measured.** There is no longer a persistent "you are here" indicator on the console; each screen's own `TorchAppHeader` title carries that alone. Night's amber count does not move (the grant goes from the active tab to Send, a control that commits something); **Day goes 0 → 1** on 27 routes, because the active tab was an Abyssal block and a primary commit block is amber. Ask goes 2 → 1 on Night and gets a content grant back. The bar is 78dp at 1.0× against the 84dp nav row it replaced, and **136dp at 1.3× on a 360×640 phone** — 21.3% of that fold — because the field's standing label wraps once the 48dp grid control has taken its width. The counts and the table are in `console_frame.dart`, `one_bar_test.dart` and `amber_census_table_test.dart`.
+
 - **Bar:** radius 999, 64 tall, inset 16, 20 above safe area, `well` fully opaque, 1px edge-structure outline (kit). Agent/manager/assistant's radius-14 bars lose to owner decision 3.
 - **Active tab:** solid flame-600 pill, radius 999, 48 tall, inset 6, ink `#0B1017` (kit). Day ~~/Veld~~: solid Abyssal block, ink Palladian ~~/white~~ — never amber.
 - **Slots: four maximum** (kit's 360dp arithmetic). Manager: **Floor · Work · Ask · Menu**; Territories move into Menu under OPERATE. Agent: Today · My work · Map · Me.

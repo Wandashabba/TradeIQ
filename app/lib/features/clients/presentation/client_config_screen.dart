@@ -107,7 +107,6 @@ class ClientConfigScreen extends ConsumerWidget {
   }) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: 'Scoring config',
         facts: const <String>['What the engine reads, and nothing else.'],

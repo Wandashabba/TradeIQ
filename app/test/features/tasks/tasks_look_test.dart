@@ -56,9 +56,16 @@ import '../worklist_harness.dart';
 /// width. The default stays 390×844, so the committed goldens are byte-for-byte
 /// what they were; the size travels into the filename, so the two sets never
 /// overwrite one another.
+/// **`TASKS_LOOK_SCALE=1.3`** shoots the same screens at the text scale a
+/// cheap Android ships with the accessibility slider nudged once. The default
+/// stays 1.0, so the committed goldens are byte-for-byte what they were, and
+/// the scale travels into the filename so the two sets never collide. It is
+/// the frame that decides whether the ask bar still fits a 640dp fold.
 void main() {
   final looking = Platform.environment['TASKS_LOOK'] == '1';
   final dir = Platform.environment['TASKS_LOOK_DIR'] ?? 'goldens/';
+  final scale = _scaleFromEnv();
+  final sfx = _scaleTag(scale);
   final phone = _sizeFromEnv() ?? const Size(390, 844);
   final tag = '${phone.width.toInt()}x${phone.height.toInt()}';
 
@@ -211,6 +218,7 @@ void main() {
     required TaskCounts? counts,
     String? nextCursor,
     int? total,
+    double textScale = 1.0,
   }) async {
     final repo = FakeTasksRepository(
       tasks: tasks,
@@ -224,6 +232,7 @@ void main() {
       TasksScreen(clock: () => now),
       skin: skin,
       size: phone,
+      textScale: textScale,
       users: roster,
       banner: false,
       overrides: <Override>[
@@ -253,6 +262,48 @@ void main() {
       : TiqSkin.day(density: TiqDensity.console);
 
   for (final (name, mode) in skins) {
+    // ── 0. MID-SCROLL, WHICH IS THE PICTURE THE BAR WAS CHANGED FOR ─────
+    //
+    // The owner's screenshot of this screen showed a task sentence cut
+    // mid-word at the bottom of the list. It is not an overlap — the bottom
+    // region and the band are both siblings of the scroll view, and
+    // `torch_shell_band_test.dart` counts zero body pixels inside the band's
+    // box — it is the `ListView`'s own hard clip at its viewport's bottom
+    // edge, and at rest you cannot see it because the body's bottom padding
+    // is empty. **You have to drag the list to photograph the defect.**
+    //
+    // So this frame is dragged. It is the one image in the set where
+    // `TorchShell.bandScrimExtent` has anything to do, and the thing to look
+    // at is the last partially-visible row: it should go out, not stop.
+    testWidgets('Tasks — mid-scroll, the clip under the bar, $name', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        textScale: scale,
+        skin: console(mode),
+        tasks: overdueWork,
+        nextCursor: 'cursor-2',
+        total: 1190,
+        counts: const TaskCounts(
+          all: 32368,
+          open: 1190,
+          overdue: 1122,
+          done: 31178,
+          awaitingVerification: 43,
+        ),
+      );
+      // Half a row, so the clip falls through a line of prose rather than
+      // between two cards.
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byKey(const ValueKey<String>('amber-golden-boundary')),
+        matchesGoldenFile('${dir}tasks_$tag-midscroll-$name$sfx.png'),
+      );
+    }, skip: !looking);
+
     // ── 1. Populated, with overdue work ──────────────────────────────────
     //
     // The account the defect was found on, to the figure: 32,368 tasks, 1,190
@@ -261,6 +312,7 @@ void main() {
     testWidgets('Tasks — overdue work, $name', (tester) async {
       await pump(
         tester,
+        textScale: scale,
         skin: console(mode),
         tasks: overdueWork,
         nextCursor: 'cursor-2',
@@ -276,7 +328,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_$tag-overdue-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-overdue-$name$sfx.png'),
       );
     }, skip: !looking);
 
@@ -288,6 +340,7 @@ void main() {
     testWidgets('Tasks — nothing overdue, $name', (tester) async {
       await pump(
         tester,
+        textScale: scale,
         skin: console(mode),
         tasks: clearWork,
         counts: const TaskCounts(
@@ -301,7 +354,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_$tag-clear-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-clear-$name$sfx.png'),
       );
     }, skip: !looking);
 
@@ -313,6 +366,7 @@ void main() {
     testWidgets('Tasks — the filter found nothing, $name', (tester) async {
       await pump(
         tester,
+        textScale: scale,
         skin: console(mode),
         tasks: clearWork,
         counts: const TaskCounts(
@@ -332,7 +386,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_$tag-filtered-empty-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-filtered-empty-$name$sfx.png'),
       );
     }, skip: !looking);
 
@@ -340,6 +394,7 @@ void main() {
     testWidgets('Tasks — nothing filed at all, $name', (tester) async {
       await pump(
         tester,
+        textScale: scale,
         skin: console(mode),
         tasks: const <TaskItem>[],
         counts: const TaskCounts(
@@ -353,7 +408,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}tasks_$tag-empty-$name.png'),
+        matchesGoldenFile('${dir}tasks_$tag-empty-$name$sfx.png'),
       );
     }, skip: !looking);
   }
@@ -404,3 +459,20 @@ Size? _sizeFromEnv() {
   if (w == null || h == null || w <= 0 || h <= 0) return null;
   return Size(w, h);
 }
+
+/// `TASKS_LOOK_SCALE=1.3` -> 1.3; absent or malformed -> 1.0.
+///
+/// Silent on a bad value for the same reason the size switch is: these images
+/// are an artefact to look at, and a typo should produce the reference frame
+/// rather than a crash in a tool somebody is using to see a screen.
+double _scaleFromEnv() {
+  final raw = Platform.environment['TASKS_LOOK_SCALE'];
+  final parsed = raw == null ? null : double.tryParse(raw);
+  if (parsed == null || parsed < 1.0 || parsed > 3.0) return 1.0;
+  return parsed;
+}
+
+/// The scale's mark in a golden's name. Empty at 1.0, so every committed
+/// filename is unchanged.
+String _scaleTag(double scale) =>
+    scale == 1.0 ? '' : '-x${(scale * 10).round()}';

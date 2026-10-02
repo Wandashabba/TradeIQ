@@ -248,7 +248,14 @@ void main() {
         PhotoCaptureService(gateway: gateway ?? _FakeGateway()),
       ),
       sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(SessionState(role: role)),
+        // A TOKEN, BECAUSE THIS FAKE MEANS "SIGNED IN".
+        // `askSessionEndedProvider` is `hasValue && token == null`, so a role
+        // with no token is a fake of a manager who has been signed out — and
+        // since the ask bar landed on every console screen that turns Send
+        // off, along with the route's one amber object.
+        () => _FixedSessionController(
+          SessionState(role: role, token: 'test-token'),
+        ),
       ),
     ],
   );
@@ -816,8 +823,28 @@ void main() {
     });
   });
 
+  // ── THE ONE SCREEN WHOSE BOTTOM IS TWO OBJECTS — 2 October 2026 ───────
+  //
+  // Model 1 makes the bottom of every console screen one object: the ask bar.
+  // Messages is the exception and it is named rather than hidden — a team
+  // message composer is not an ask field, and the manager writing one has
+  // somewhere to send it that is not the assistant. So the band is **both**,
+  // the ask bar last.
+  //
+  // That makes it the only route with two primary commit actions in reach,
+  // which Day's budget of one forbids. `ConsoleFrame` resolves it rather than
+  // asserting: the ask bar's Send claims rung 1 only when the route declares
+  // no primary of its own, and here `TorchPrimaryButton.claim` arrives the
+  // moment there is a draft. So the light moves to the message you have
+  // actually written, and the ask bar's Send takes `AskLight.send`'s
+  // granted-but-unlit form — a pressable control that is not carrying the
+  // route's light, which is an ordinary control and is drawn as one.
+  //
+  // Every count below is therefore **one**, in both skins, in every phase,
+  // which it has never been before: Night read 1/2/1/1 (the nav tab, plus
+  // Send with a draft) and Day read 0/1.
   group('the amber census', () {
-    testWidgets('Night, empty composer: exactly the nav tab', (tester) async {
+    testWidgets('Night, empty composer: the ask bar\'s Send', (tester) async {
       await pump(tester, repo: _FakeCollaborationRepository());
 
       final census = await amberCensus(tester);
@@ -831,12 +858,13 @@ void main() {
         census.objectCount,
         1,
         reason:
-            'A Send with nothing to send is not armed and declares no '
-            'claim.\n${census.describe()}',
+            'The message composer\'s Send has nothing to send, so it is not '
+            'armed and declares no claim — and the ask bar\'s Send takes '
+            'rung 1 instead.\n${census.describe()}',
       );
     });
 
-    testWidgets('Night, a draft: the nav tab and Send, and no more', (
+    testWidgets('Night, a draft: the message\'s Send, and ONLY it', (
       tester,
     ) async {
       await pump(tester, repo: _FakeCollaborationRepository());
@@ -849,11 +877,13 @@ void main() {
         route: 'messages',
         phase: 'messages-armed',
       );
-      expect(census.objectCount, 2, reason: census.describe());
+      // ONE, where it was two. The draft's Send is lit; the ask bar's Send is
+      // granted-but-unlit beneath it, which is the arbitration working.
+      expect(census.objectCount, 1, reason: census.describe());
     });
 
-    testWidgets('Night, announcements: nothing to send, nothing lit but the '
-        'tab', (tester) async {
+    testWidgets('Night, announcements: nothing to send, so the ask bar\'s '
+        'Send holds the light', (tester) async {
       await pump(tester, repo: _FakeCollaborationRepository());
       await openAnnouncements(tester);
 
@@ -861,7 +891,7 @@ void main() {
       expect(census.objectCount, 1, reason: census.describe());
     });
 
-    testWidgets('Night, error: exactly the nav tab', (tester) async {
+    testWidgets('Night, error: exactly the ask bar\'s Send', (tester) async {
       await pump(
         tester,
         repo: _FakeCollaborationRepository(listFailure: _networkFailure),
@@ -871,7 +901,7 @@ void main() {
     });
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
-      testWidgets('${skin.mode.name}: zero empty, one with a draft', (
+      testWidgets('${skin.mode.name}: one either way, and never two', (
         tester,
       ) async {
         await pump(tester, repo: _FakeCollaborationRepository(), skin: skin);
@@ -883,7 +913,10 @@ void main() {
           route: 'messages',
           phase: 'messages-loaded',
         );
-        expect(census.objectCount, 0, reason: census.describe());
+        // WAS ZERO. On a light ground the ladder has one rung and this route
+        // had nothing on it with an empty composer; now the ask bar's Send is
+        // on it. Day 0 to 1, inside a budget of one.
+        expect(census.objectCount, 1, reason: census.describe());
 
         await type(tester, 'Shelf is bare');
         census = await amberCensus(tester);

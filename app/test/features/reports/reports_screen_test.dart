@@ -350,7 +350,7 @@ void main() {
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
       for (final phase in const <String>['loaded', 'empty', 'error']) {
-        testWidgets('${skin.mode.name}, $phase, paints no amber at all', (
+        testWidgets('${skin.mode.name}, $phase: the Send disc, alone', (
           tester,
         ) async {
           await pump(
@@ -371,7 +371,15 @@ void main() {
             route: 'reports',
             phase: phase,
           );
-          expect(census.objectCount, 0, reason: census.describe());
+          // ── DAY PAINTS ONE SINCE MODEL 1 — 2 October 2026 ───────────
+          //
+          // The nav pill's active tab was never amber on a light ground (it
+          // was an Abyssal block), which is why this route read zero. Its
+          // replacement is the ask bar's Send, a `primaryCommit`, and a
+          // primary commit block is exactly the one object Day allows to be
+          // amber. Inside the budget of one, and an honest increase rather
+          // than a neutral swap — see `ConsoleFrame`.
+          expect(census.objectCount, 1, reason: census.describe());
         });
       }
     }

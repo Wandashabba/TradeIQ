@@ -431,7 +431,6 @@ class _ManagerNotificationPreferences extends ConsumerWidget {
   Widget _frame({required String phase, required List<Widget> children}) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: const TorchAppHeader(
         title: 'Notifications',
         facts: <String>['What reaches your phone or browser.'],

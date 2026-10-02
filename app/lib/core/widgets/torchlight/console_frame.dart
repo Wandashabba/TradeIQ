@@ -1,101 +1,105 @@
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../design/torch_scope.dart';
 import '../../theme/torchlight/tiq_skin.dart';
+import '../../../features/assistant/answer/ask_light.dart' show AskLight;
 import 'chrome/chrome.dart';
-import 'menu_sheet.dart';
 import 'sheet.dart';
-
-/// WHICH OF THE FOUR SLOTS A CONSOLE ROUTE SITS UNDER.
-///
-/// Four and no fifth: at 360dp the bar has 252dp once the insets and the
-/// circle are drawn, and five slots is 50dp each — under the tap-target floor
-/// before the active pill takes its 6dp inset. Unify §1.2 names them
-/// **Floor · Work · Ask · Menu**, with Alerts and Tasks merged behind Work and
-/// Territories moved into Menu under OPERATE.
-enum ConsoleSlot { floor, work, ask, menu }
-
-/// WHERE EACH CONSOLE SLOT GOES. The one answer, for every console route.
-///
-/// Public because The Floor does not use [ConsoleFrame] — it has no app header
-/// and builds its own [TorchShell] so the plate can run full-bleed to the top
-/// edge — and a second copy of this switch is precisely how The Floor ended up
-/// with a nav pill wired to `(_) {}`. One bar, one destination list, one
-/// routing function; a route that draws its own chrome still calls this.
-///
-/// `go`, never `push`: a tab is a destination, not a page on top of the one
-/// the manager was reading.
-void consoleNavSelect(BuildContext context, int index) {
-  switch (ConsoleSlot.values[index]) {
-    case ConsoleSlot.floor:
-      context.go('/dashboard');
-    case ConsoleSlot.work:
-      context.go('/tasks');
-    case ConsoleSlot.ask:
-      context.go('/assistant');
-    case ConsoleSlot.menu:
-      showTorchMenuSheet(context);
-  }
-}
-
-/// The manager's four destinations, in the ruling's order.
-const List<TorchNavSlot> consoleNavSlots = <TorchNavSlot>[
-  TorchNavSlot(
-    icon: Icons.inventory_2_outlined,
-    activeIcon: Icons.inventory_2,
-    label: 'Floor',
-  ),
-  TorchNavSlot(
-    icon: Icons.checklist_outlined,
-    activeIcon: Icons.checklist,
-    label: 'Work',
-  ),
-  TorchNavSlot(icon: Icons.forum_outlined, activeIcon: Icons.forum, label: 'Ask'),
-  TorchNavSlot(icon: Icons.menu, activeIcon: Icons.menu_open, label: 'Menu'),
-];
 
 /// THE CONSOLE'S FRAME, for every manager route that is not The Floor.
 ///
 /// It is the three things §12.6 asks a migrating screen to do, in one place:
 /// the route's [TorchScope] with its declared claims, the [TorchShell] in its
-/// console profile, and the nav pill with the right slot lit.
+/// console profile, and — since 2 October 2026 — **the ask bar**.
 ///
-/// ## The amber arithmetic, and why these routes nominate nothing
+/// ## MODEL 1: ONE OBJECT AT THE BOTTOM, AND THE PILL IS GONE
 ///
-/// A worklist is a tabbed route, so Night's budget is two: the nav's active
-/// tab is slot 1 whenever the nav renders, and the content has one grant left.
-/// Alerts, Tasks and Alert rules all decline it, and the reason is the same
-/// one three times over — **nothing on a worklist is armed**. The selected
-/// filter chip is `lifted` here exactly as it is everywhere else (unify §1.6),
-/// the severity bars are crimson at two commitment levels, the SLA phrase
-/// carries the urgency in words, and the section rule has no colour at all. A
-/// budget is a ceiling, not a quota.
+/// > *"it becomes very weird especially knowing that the app is a search
+/// > based, I don't know how to navigate with this one please help make it
+/// > seamless"* — the owner, on the four-tab pill.
 ///
-/// On Day the ladder has one rung — the primary commit block — and
-/// these routes have no primary, so they paint **zero**.
+/// The diagnosis was never styling. **The bottom of the screen meant two
+/// different things.** The Floor had a composer and no pill; the 27 routes
+/// framed here had a pill and no composer; Ask had both. So the way you
+/// navigated changed depending on where you were standing, on a product whose
+/// primary verb is *ask*.
 ///
-/// While a sheet is up (an alert's detail, a task's closure gate) every amber
-/// beneath it goes out: [TorchSheetAware] is what wires that, so the nav tab
-/// drops to its ink form and the sheet's own scope owns the frame.
+/// Now every console screen ends in the same row:
+///
+/// ```text
+///   [ grid ]  [ the ask field …………………… ]  [ send ]
+/// ```
+///
+/// The grid opens [showFloorDestinations] through [ConsoleAskBar] — the sheet
+/// that already existed and that The Floor's plate control already opened, now
+/// carrying the folding menu, so navigation is one gesture and it is the same
+/// gesture everywhere. This is arrangement **C** from the seam note on
+/// `FloorScaffold`, which named it and shipped **B** instead. C's claim there
+/// that it is "a change to the band widget alone" was true of The Floor only;
+/// extending it to the console is the larger part and it is this file.
+///
+/// ## What it costs, stated rather than buried
+///
+/// **There is no longer a persistent "you are here" indicator.** The active
+/// tab was one, and it is gone. That is correct for a chat-first app — a tab
+/// strip that is 3/4 wrong at all times is a poor use of 64dp — and it is a
+/// real loss, which now rests entirely on each screen's own
+/// [TorchAppHeader] title. Every route framed here passes one.
+///
+/// ## The amber arithmetic, re-run
+///
+/// The nav's active tab was **slot 1 whenever the nav rendered**, and it is
+/// gone, so [navRenders] is false and the allocator no longer adds
+/// [TorchScope.navActiveTabId] at rung 0. In its place this frame declares
+/// Send at rung 1. Measured, per skin, on these routes:
+///
+/// | frame | before | after | budget |
+/// |---|---|---|---|
+/// | console · Night · loaded | 1 (nav tab) | 1 (Send) | 2 |
+/// | console · Night · loading / empty / error | 1 (nav tab) | 1 (Send) | 2 |
+/// | console · Day · any phase | 0 | **1** (Send) | 1 |
+/// | console · beneath a sheet | 0 | 0 | — |
+///
+/// **Night is unchanged in count and better in kind** — the grant moved off
+/// chrome and onto the one control on the screen that commits something — and
+/// the free content grant is still one. **Day goes 0 → 1, and that is an
+/// honest increase**: the nav tab was never amber on a light ground
+/// ([TorchDenial.notAmberOnLightGround]) and a primary commit block is. It is
+/// inside the budget of one and it is the first amber those 27 screens have
+/// ever painted on paper. The reduction the change was expected to produce
+/// lands on **Ask**, not here: Ask carried the nav tab *and* Send, so it goes
+/// 2 → 1 on Night and gets a grant back.
+///
+/// ## The one screen where the bottom is still two objects
+///
+/// Messages declares `TorchPrimaryButton.claim(messageSendClaimId)` for its
+/// own team-message composer. Two primary commits on one route is an
+/// over-claim on Day and the ladder is right about that: the expected next
+/// move when you have written a message is to send **that**. So the ask bar's
+/// Send claims rung 1 only on a route that declares no primary of its own —
+/// see [_claims] — and on Messages it takes `AskLight.send`'s
+/// granted-but-unlit form instead. It still sends, and the grid still
+/// navigates; it is simply not the screen's light while a draft is standing.
+///
+/// ## While a sheet is up
+///
+/// Every amber beneath it goes out: [TorchSheetAware] is what wires that, so
+/// Send drops to its ink form and the sheet's own scope owns the frame.
 class ConsoleFrame extends StatelessWidget {
   const ConsoleFrame({
     super.key,
     required this.phase,
-    required this.active,
     required this.children,
     this.header,
     this.claims = const <TorchClaim>[],
     this.scrollController,
     this.band,
+    this.askHint,
   });
 
   /// `loading`, `loaded`, `empty`, `filtered-empty`, `error`. Resolution
   /// happens once per route × phase, never per frame.
   final String phase;
-
-  final ConsoleSlot active;
 
   /// The body. Gutter-padded by the shell; a row list opts back out through
   /// `TorchBleed`.
@@ -108,35 +112,77 @@ class ConsoleFrame extends StatelessWidget {
 
   final ScrollController? scrollController;
 
-  /// A pinned region between the scroll view and the nav: the message
-  /// composer, and nothing else on the console so far.
+  /// A pinned region **above** the ask bar. Messages' team composer is the one
+  /// user, and it is the one screen whose bottom is two objects rather than
+  /// one — see the class comment.
   ///
-  /// It is a **sibling** of the scroll view rather than an overlay, and it
-  /// clears the software keyboard itself — which is exactly when the nav is
-  /// not there, and exactly when the grant the nav was holding returns to the
-  /// content. See [TorchShell.band].
+  /// The ask bar is always last, because it is the console's chrome and chrome
+  /// does not move: a grid button that was sometimes the bottom-left corner
+  /// and sometimes 90dp up it would be the original defect in miniature.
   final Widget? band;
+
+  /// ── THE HINT, AND WHY THERE ARE ONLY TWO OF THEM ──────────────────────
+  ///
+  /// What the field says it will answer about. Null prints `Ask TradeIQ…`,
+  /// which is what **25 of the 27** routes framed here pass.
+  ///
+  /// Per-screen copy for all 27 was considered and declined. A hint is a
+  /// promise about what the assistant can answer, and the assistant's
+  /// coverage is not a function of which console screen you happen to be
+  /// reading — it is the same tools and the same tenant from everywhere. So a
+  /// hint is only worth printing where the screen's subject is a thing a
+  /// manager actually asks about in those words, and inventing 27 of them
+  /// would be 25 promises the product cannot keep differently.
+  ///
+  /// Two pass one: Tasks (`Ask about your tasks…`) and Territories
+  /// (`Ask about your territories…`) — and the second is not invented either,
+  /// it is the exact string `floorComposerHint` already prints on an
+  /// unfiltered Floor.
+  final String? askHint;
+
+  /// The route's full claim set. See the class comment's table, and the
+  /// Messages paragraph for the one condition.
+  List<TorchClaim> _claims() {
+    final hasOwnPrimary = claims.any(
+      (c) => c.kind == TorchClaimKind.primaryCommit,
+    );
+    return <TorchClaim>[
+      ...claims,
+      if (!hasOwnPrimary)
+        const TorchClaim.primaryCommit(AskLight.sendClaimId),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
+    final askBar = ConsoleAskBar(hint: askHint);
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
-        skin: context.skin,
+        skin: skin,
         phase: phase,
-        navRenders: TorchShell.navWillRender(context, hasNav: true),
-        tabbedRoute: true,
+        // THE NAV PILL IS GONE FROM THE CONSOLE, and with it the one amber
+        // grant that chrome was taking. `tabbedRoute` goes with it: these
+        // routes are not tabs any more, they are destinations off one menu.
+        navRenders: false,
+        tabbedRoute: false,
         beneathSheet: beneathSheet,
-        claims: claims,
+        claims: _claims(),
         child: TorchShell(
           profile: TorchShellProfile.console,
           header: header,
           scrollController: scrollController,
-          band: band,
-          navPill: TorchNavPill(
-            slots: consoleNavSlots,
-            activeIndex: active.index,
-            onSelect: (index) => consoleNavSelect(context, index),
-          ),
+          band: band == null
+              ? askBar
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    band!,
+                    SizedBox(height: skin.space.intraBlock),
+                    askBar,
+                  ],
+                ),
           children: children,
         ),
       ),

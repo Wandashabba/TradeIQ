@@ -73,7 +73,9 @@ class TerritoriesScreen extends ConsumerWidget {
     Widget frame({required String phase, required List<Widget> children}) {
       return ConsoleFrame(
         phase: phase,
-        active: ConsoleSlot.menu,
+        // The same sentence `floorComposerHint` prints on an unfiltered
+        // Floor, not a second invention of it.
+        askHint: 'Ask about your territories…',
         header: TorchAppHeader(
           title: l10n.territoriesTitle,
           facts: <String>[l10n.territoriesFact],

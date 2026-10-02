@@ -59,9 +59,16 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// overwrite one another. The three-silhouette strip keeps its own 220dp
 /// height — it is a specimen of the drawings, not a screen, and the phone's
 /// height means nothing to it.
+/// **`ASK_LOOK_SCALE=1.3`** shoots the same screens at the text scale a
+/// cheap Android ships with the accessibility slider nudged once. The default
+/// stays 1.0, so the committed goldens are byte-for-byte what they were, and
+/// the scale travels into the filename so the two sets never collide. It is
+/// the frame that decides whether the ask bar still fits a 640dp fold.
 void main() {
   final looking = Platform.environment['ASK_LOOK'] == '1';
   final dir = Platform.environment['ASK_LOOK_DIR'] ?? 'goldens/';
+  final scale = _scaleFromEnv();
+  final sfx = _scaleTag(scale);
 
   setUpAll(() async {
     await loadAgentFonts();
@@ -84,11 +91,11 @@ void main() {
     // question, not a report that something is missing, and this image is how
     // that claim is checked.
     testWidgets('Ask — the opening, $name', (tester) async {
-      await pumpAsk(tester, skin: console(night), size: phone);
+      await pumpAsk(tester, skin: console(night), size: phone, textScale: scale);
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_$tag-opening-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-opening-$name$sfx.png'),
       );
       await disposeAsk(tester);
     }, skip: !looking);
@@ -99,11 +106,11 @@ void main() {
     // rows go to ink-mute and take no press. The reason is said once, by the
     // route's held banner above the composer — not four times, once per row.
     testWidgets('Ask — the opening offline, $name', (tester) async {
-      await pumpAsk(tester, skin: console(night), size: phone, online: false);
+      await pumpAsk(tester, skin: console(night), size: phone, textScale: scale, online: false);
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_$tag-offline-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-offline-$name$sfx.png'),
       );
       await disposeAsk(tester);
     }, skip: !looking);
@@ -119,12 +126,13 @@ void main() {
         tester,
         skin: console(night),
         size: phone,
+        textScale: scale,
         loading: true,
       );
 
       await expectLater(
         find.byKey(_frameKey),
-        matchesGoldenFile('${dir}ask_$tag-loading-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-loading-$name$sfx.png'),
       );
     }, skip: !looking);
 
@@ -138,11 +146,12 @@ void main() {
         config(assistantEnabled: false),
         skin: console(night),
         size: phone,
+        textScale: scale,
       );
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_$tag-not-enabled-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-not-enabled-$name$sfx.png'),
       );
     }, skip: !looking);
 
@@ -157,7 +166,7 @@ void main() {
 
       await expectLater(
         find.byKey(_frameKey),
-        matchesGoldenFile('${dir}drawings_${phone.width.toInt()}x220-$name.png'),
+        matchesGoldenFile('${dir}drawings_${phone.width.toInt()}x220-$name$sfx.png'),
       );
     }, skip: !looking);
   }
@@ -171,6 +180,7 @@ Future<void> _pumpFirstRun(
   WidgetTester tester, {
   required TiqSkin skin,
   required Size size,
+  double textScale = 1.0,
   bool enabled = true,
   bool loading = false,
 }) async {
@@ -184,6 +194,7 @@ Future<void> _pumpFirstRun(
       data: MediaQueryData(
         size: size,
         devicePixelRatio: 1.0,
+        textScaler: TextScaler.linear(textScale),
         disableAnimations: true,
       ),
       child: MaterialApp(
@@ -301,3 +312,20 @@ Size? _sizeFromEnv() {
   if (w == null || h == null || w <= 0 || h <= 0) return null;
   return Size(w, h);
 }
+
+/// `ASK_LOOK_SCALE=1.3` -> 1.3; absent or malformed -> 1.0.
+///
+/// Silent on a bad value for the same reason the size switch is: these images
+/// are an artefact to look at, and a typo should produce the reference frame
+/// rather than a crash in a tool somebody is using to see a screen.
+double _scaleFromEnv() {
+  final raw = Platform.environment['ASK_LOOK_SCALE'];
+  final parsed = raw == null ? null : double.tryParse(raw);
+  if (parsed == null || parsed < 1.0 || parsed > 3.0) return 1.0;
+  return parsed;
+}
+
+/// The scale's mark in a golden's name. Empty at 1.0, so every committed
+/// filename is unchanged.
+String _scaleTag(double scale) =>
+    scale == 1.0 ? '' : '-x${(scale * 10).round()}';

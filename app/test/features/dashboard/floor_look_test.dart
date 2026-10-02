@@ -65,9 +65,16 @@ import 'floor_harness.dart';
 /// `FLOOR_LOOK_DIR` redirects them somewhere else — a scratch folder to send
 /// somebody, without touching the committed set. Same switch
 /// `overview_look_test.dart` and `colour_look_test.dart` already carry.
+/// **`FLOOR_LOOK_SCALE=1.3`** shoots the same screens at the text scale a
+/// cheap Android ships with the accessibility slider nudged once. The default
+/// stays 1.0, so the committed goldens are byte-for-byte what they were, and
+/// the scale travels into the filename so the two sets never collide. It is
+/// the frame that decides whether the ask bar still fits a 640dp fold.
 void main() {
   final looking = Platform.environment['FLOOR_LOOK'] == '1';
   final dir = Platform.environment['FLOOR_LOOK_DIR'] ?? 'goldens/';
+  final scale = _scaleFromEnv();
+  final sfx = _scaleTag(scale);
 
   setUpAll(() async {
     await loadAgentFonts();
@@ -157,6 +164,7 @@ void main() {
         const TheFloorScreen(),
         size: size,
         skin: skin,
+        textScale: scale,
         territories: territory == null
             ? const <Territory>[]
             : <Territory>[
@@ -200,7 +208,7 @@ void main() {
 
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}floor_$name.png'),
+        matchesGoldenFile('${dir}floor_$name$sfx.png'),
       );
     }, skip: !looking);
   }
@@ -243,6 +251,7 @@ void main() {
       tester,
       size: size,
       skin: skin,
+      textScale: scale,
       plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
       current: kpis(osa: 61, execution: 73, priceCompliance: 74),
       previous: kpis(osa: 64, execution: 92),
@@ -287,7 +296,7 @@ void main() {
       );
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}floor_$name-answering.png'),
+        matchesGoldenFile('${dir}floor_$name-answering$sfx.png'),
       );
     }, skip: !looking);
 
@@ -296,7 +305,7 @@ void main() {
       await ask(tester, script: rankedTurn(), size: size, skin: skin);
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),
-        matchesGoldenFile('${dir}floor_$name-answered.png'),
+        matchesGoldenFile('${dir}floor_$name-answered$sfx.png'),
       );
     }, skip: !looking);
   }
@@ -307,6 +316,7 @@ void main() {
       tester,
       const TheFloorScreen(),
       size: const Size(390, 844),
+      textScale: scale,
       plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
       current: kpis(osa: 61, execution: 73, priceCompliance: 74),
       previous: kpis(osa: 64, execution: 92),
@@ -316,7 +326,7 @@ void main() {
     );
     await expectLater(
       find.byKey(const ValueKey<String>('amber-golden-boundary')),
-      matchesGoldenFile('${dir}floor_390x844-offline.png'),
+      matchesGoldenFile('${dir}floor_390x844-offline$sfx.png'),
     );
   }, skip: !looking);
 
@@ -326,6 +336,7 @@ void main() {
       tester,
       const TheFloorScreen(),
       size: const Size(390, 844),
+      textScale: scale,
       current: kpis(osa: 61, execution: 73, priceCompliance: 74),
       previous: kpis(osa: 64, execution: 92),
       alerts: decisions,
@@ -333,7 +344,7 @@ void main() {
     );
     await expectLater(
       find.byKey(const ValueKey<String>('amber-golden-boundary')),
-      matchesGoldenFile('${dir}floor_390x844-no-picture.png'),
+      matchesGoldenFile('${dir}floor_390x844-no-picture$sfx.png'),
     );
   }, skip: !looking);
 
@@ -343,6 +354,7 @@ void main() {
       tester,
       const TheFloorScreen(),
       size: const Size(390, 844),
+      textScale: scale,
       plateImage: await SyncImage.fromFile(tester, '$places/ALL.jpg'),
       current: emptyWindowKpis(),
       alerts: decisions,
@@ -350,7 +362,7 @@ void main() {
     );
     await expectLater(
       find.byKey(const ValueKey<String>('amber-golden-boundary')),
-      matchesGoldenFile('${dir}floor_390x844-window-empty.png'),
+      matchesGoldenFile('${dir}floor_390x844-window-empty$sfx.png'),
     );
   }, skip: !looking);
 }
@@ -418,3 +430,20 @@ Future<void> _loadIcons() async {
     'MaterialIcons',
   )..addFont(font.readAsBytes().then((b) => ByteData.view(b.buffer)))).load();
 }
+
+/// `FLOOR_LOOK_SCALE=1.3` -> 1.3; absent or malformed -> 1.0.
+///
+/// Silent on a bad value for the same reason the size switch is: these images
+/// are an artefact to look at, and a typo should produce the reference frame
+/// rather than a crash in a tool somebody is using to see a screen.
+double _scaleFromEnv() {
+  final raw = Platform.environment['FLOOR_LOOK_SCALE'];
+  final parsed = raw == null ? null : double.tryParse(raw);
+  if (parsed == null || parsed < 1.0 || parsed > 3.0) return 1.0;
+  return parsed;
+}
+
+/// The scale's mark in a golden's name. Empty at 1.0, so every committed
+/// filename is unchanged.
+String _scaleTag(double scale) =>
+    scale == 1.0 ? '' : '-x${(scale * 10).round()}';

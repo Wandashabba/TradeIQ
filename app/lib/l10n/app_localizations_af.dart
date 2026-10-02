@@ -2071,6 +2071,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askComposerHint => 'Span, voorraad, rak, mededingers';
 
   @override
+  String get askComposerConsoleHint => 'Vra TradeIQ…';
+
+  @override
   String get askComposerRephrase => 'Vra weer, of stel dit anders';
 
   @override
@@ -2166,18 +2169,6 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askStopShort => 'Stop';
-
-  @override
-  String get askNavFloor => 'Vloer';
-
-  @override
-  String get askNavWork => 'Werk';
-
-  @override
-  String get askNavAsk => 'Vra';
-
-  @override
-  String get askNavMenu => 'Kieslys';
 
   @override
   String get askStepsLive => 'Besig';

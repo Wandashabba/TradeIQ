@@ -261,6 +261,48 @@ class TorchShell extends StatelessWidget {
   /// applied to the one other thing that holds a place at the top.
   static const double pinnedBandFraction = 0.4;
 
+  /// ── THE SCRIM OVER THE BODY'S LAST 24dp, AND WHY IT IS NOT EVERYWHERE ──
+  ///
+  /// The [band] is a **sibling** of the scroll view, so nothing is ever drawn
+  /// underneath it — `torch_shell_band_test.dart` counts zero body pixels
+  /// inside the band's box and that is still true. The defect the owner
+  /// photographed is therefore not an overlap: it is the scroll view's own
+  /// **hard clip** at its viewport's bottom edge, which on a worklist falls
+  /// through the middle of a sentence and reads as a printing fault. A
+  /// `ListView` cuts its last partially-visible row at a pixel row, and 24dp
+  /// above the chrome is where every console list does it.
+  ///
+  /// So the fade goes **over the body**, in the body's own last
+  /// [TiqSpace.s6] — which is exactly the bottom padding every console body
+  /// already carries, so **at rest the scrim lies entirely in that padding and
+  /// washes no content at all**. It only ever has something to fade when
+  /// something is mid-clip, which is the only moment it is for.
+  ///
+  /// ## It ends in the ground AT THAT y, never in `palette.ground`
+  ///
+  /// [torchGroundAt] is the whole of that sentence. The console paints its
+  /// ground as a vertical falloff, so `palette.ground` is the ground only at
+  /// the first and last pixel row of the screen; a scrim that faded to the
+  /// token would be a 24dp box with a hard top edge, which is the defect
+  /// `fix/band-seam` removed from this exact y. The scrim's opaque end is the
+  /// one pixel row where it must match, and it is computed, not assumed.
+  ///
+  /// ## NOT ON A ROUTE WITH A [backdrop], and that is a real gap
+  ///
+  /// A wash makes the colour at that y unknowable. The Floor's Dawn is two
+  /// radial ellipses centred 4% below the bottom edge — the clay layer peaks
+  /// at alpha 0.30 **at the bottom of the screen**, which is precisely where
+  /// this scrim would have to match it — and no linear gradient in a
+  /// `BoxDecoration` reproduces a radial one. Masking the composite is what a
+  /// `ShaderMask` is for and the paint budget does not have one.
+  ///
+  /// So the scrim is declined wherever a backdrop is painted, rather than
+  /// shipped slightly wrong there. The route that loses it is The Floor, whose
+  /// body is a plate, three one-line cards and a chip row — a screen designed
+  /// to fit the fold and the one console route whose content does not run
+  /// under the chrome. Measured, not assumed: see `one_bar_scrim_test.dart`.
+  static const double bandScrimExtent = TiqSpace.s6;
+
   /// Whether the nav will actually be on screen — the answer both the shell and
   /// the route's [TorchScope] must use.
   ///
@@ -403,32 +445,114 @@ class TorchShell extends StatelessWidget {
     // word. A role style names its face, size and ink, never its decoration,
     // so replacing (not merging) the ambient style is what gives the tokens a
     // clean base.
+    // See [bandScrimExtent] for both halves of this condition.
+    final wantsScrim = band != null && backdrop.isEmpty;
+
+    Widget column(double shellHeight) => Column(
+      children: <Widget>[
+        Expanded(
+          child: !wantsScrim
+              ? body
+              : LayoutBuilder(
+                  // The body's own height, which is where its clip is: the
+                  // Column's first child starts at y=0 of the shell, so the
+                  // body's bottom edge IS this constraint.
+                  builder: (context, bodyConstraints) {
+                    final into = torchGroundAt(
+                      skin,
+                      falloff: falloff,
+                      height: shellHeight,
+                      y: bodyConstraints.maxHeight,
+                    );
+                    return Stack(
+                      children: <Widget>[
+                        body,
+                        // A fade, not a surface: no hit-testing, no layer, one
+                        // `drawRect` with a two-stop shader. It is inside the
+                        // body's box so it is full-bleed to both gutters — the
+                        // clip it hides runs the whole width.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: bandScrimExtent,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              key: const ValueKey<String>('torch-band-scrim'),
+                              decoration: BoxDecoration(
+                                // THREE STOPS, AND THE THIRD IS WHY. A
+                                // two-stop ramp reaches full opacity only at
+                                // its very last pixel row, so the clip line
+                                // itself — the thing being hidden — still
+                                // shows through at a few percent. Measured on
+                                // Day with a flat magenta body dragged under
+                                // the bar, the row half a dp inside the
+                                // scrim's bottom edge read 5 levels of green
+                                // off the ground, which is inside the step
+                                // the owner named on the band.
+                                //
+                                // So the fade finishes at 85% and the last
+                                // [bandScrimExtent] * 0.15 — 3.6dp — is
+                                // opaque ground. The cut is covered, not
+                                // nearly covered. Still one `drawRect`.
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: <Color>[
+                                    into.withValues(alpha: 0),
+                                    into,
+                                    into,
+                                  ],
+                                  stops: const <double>[0, 0.85, 1],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+        if (band != null)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              gutter,
+              0,
+              gutter,
+              // The band is the last thing above the keyboard, so it is the
+              // band that clears it. When the keyboard is down this is zero
+              // and the gap to the bottom region is the caller's.
+              keyboard,
+            ),
+            child: band,
+          ),
+        ?bottom,
+        SizedBox(height: safeBottom),
+      ],
+    );
+
     return DefaultTextStyle(
       style: skin.text.body.style(color: skin.palette.ink1),
       child: _Ground(
         skin: skin,
         falloff: falloff,
         backdrop: backdrop,
-        child: Column(
-          children: <Widget>[
-            Expanded(child: body),
-            if (band != null)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  gutter,
-                  0,
-                  gutter,
-                  // The band is the last thing above the keyboard, so it is the
-                  // band that clears it. When the keyboard is down this is zero
-                  // and the gap to the bottom region is the caller's.
-                  keyboard,
+        // The extra `LayoutBuilder` is taken ONLY when there is a scrim to
+        // colour, so a route without a band renders the same tree it did
+        // before this slot existed. `_Ground`'s own box passes its constraints
+        // straight through, so this maxHeight is the same height the falloff
+        // gradient was computed from — which is what makes [torchGroundAt]
+        // exact rather than approximately right.
+        child: !wantsScrim
+            ? column(media.size.height)
+            : LayoutBuilder(
+                builder: (context, shellConstraints) => column(
+                  shellConstraints.maxHeight.isFinite
+                      ? shellConstraints.maxHeight
+                      : media.size.height,
                 ),
-                child: band,
               ),
-            ?bottom,
-            SizedBox(height: safeBottom),
-          ],
-        ),
       ),
     );
   }
@@ -471,6 +595,49 @@ class TorchShell extends StatelessWidget {
   }
 }
 
+/// THE FALLOFF'S RAMP, as a share of the shell's height.
+///
+/// `96 / height` is the ramp [_Ground] draws at each end, and 0.25 is what it
+/// degrades to on a viewport short enough that two 96dp ramps would meet. It
+/// is a function so [torchGroundAt] and the gradient itself cannot drift: a
+/// layer that has to END in the ground has to be computed from the same number
+/// the ground was.
+double _falloffBand(double height) => height <= 400 ? 0.25 : 96 / height;
+
+/// THE SHELL'S GROUND COLOUR AT ONE y.
+///
+/// `palette.ground` is the ground at the **first and last pixel row** of a
+/// console screen and nowhere in between: [_Ground] paints the letterbox
+/// falloff as `ground → vignette → vignette → ground`. Anything that has to
+/// fade *into* the ground somewhere else — [TorchShell.bandScrimExtent] is the
+/// only caller today — has to ask which colour that is.
+///
+/// This is the generalisation of a defect that shipped. The Floor's band
+/// carried a flat `ColoredBox(palette.ground)` from 30 September 2026 and the
+/// owner named it the next day: *"The background colour is messed up here
+/// please fix this to be seamless and not have this box blue there."* The
+/// measured step at the band's own y was **4, 6 and 9 levels** on Night and
+/// 8, 9 and 11 on Day. A constant was the wrong tool; this is the right one.
+///
+/// Returns `palette.ground` unchanged on a profile with no falloff (the agent
+/// phone), where the token really is the ground at every y.
+Color torchGroundAt(
+  TiqSkin skin, {
+  required bool falloff,
+  required double height,
+  required double y,
+}) {
+  final p = skin.palette;
+  if (!falloff || !height.isFinite || height <= 0) return p.ground;
+  final band = _falloffBand(height);
+  final t = (y / height).clamp(0.0, 1.0);
+  if (t <= band) return Color.lerp(p.ground, p.vignette, t / band)!;
+  if (t >= 1 - band) {
+    return Color.lerp(p.vignette, p.ground, (t - (1 - band)) / band)!;
+  }
+  return p.vignette;
+}
+
 class _Ground extends StatelessWidget {
   const _Ground({
     required this.skin,
@@ -510,7 +677,7 @@ class _Ground extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final height = constraints.maxHeight;
-        final band = height <= 400 ? 0.25 : 96 / height;
+        final band = _falloffBand(height);
         return DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(

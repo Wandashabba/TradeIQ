@@ -82,7 +82,22 @@ late FakeOpsOutletsRepository _repo;
 /// on a 360×720 handset is the difference for the last store row and for the
 /// empty state's action. A reader scrolls; so does this.
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(finder, 120);
+  // ── THE BODY'S SCROLLABLE, NAMED — 2 October 2026 ───────────────────────
+  //
+  // This was a bare `scrollUntilVisible(finder, 120)`, which looks for THE
+  // one scrollable in the tree and threw `Bad state: Too many elements` the
+  // day a second one arrived. The second one is the ask bar's trough: a
+  // `TextField` is a scrollable, and since Model 1 every console screen has
+  // one pinned at the bottom.
+  //
+  // `.first` is the body: the shell's `Column` puts the scroll view before
+  // the band, so depth-first order is the reading order. Same resolution
+  // `scrollWorklistTo` in `worklist_harness.dart` has always had.
+  await tester.scrollUntilVisible(
+    finder,
+    120,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pumpAndSettle();
 }
 
@@ -692,6 +707,21 @@ void main() {
         textScale: 2.0,
       );
       expect(tester.takeException(), isNull);
+      // ── SCROLLED TO, NOT ASSUMED PRESENT — 2 October 2026 ─────────────
+      //
+      // `findsWidgets` on arrival was true because the nav pill was 84dp and
+      // the lazy `SliverList` had room to build the first row under the
+      // header and the territory chip. The ask bar is taller than the pill at
+      // 2.0x, so on a 360x720 handset it builds the chip and the lead and no
+      // rows at all until a reader scrolls — which is what a lazy list is
+      // for, and what the helper directly above this group exists to do.
+      //
+      // The claim being made is still "the structure survives": the rows are
+      // reachable and nothing overflows getting to them.
+      await _scrollTo(
+        tester,
+        find.byKey(const ValueKey<String>('outlet-o1')),
+      );
       expect(find.byType(SoftRow), findsWidgets);
     });
 
@@ -736,7 +766,19 @@ void main() {
     /// Day paints nothing, because their one rung is the primary
     /// commit block and this route has none armed.
     for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
-      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      // ── ONE IN BOTH SKINS SINCE MODEL 1 — 2 October 2026 ───────────
+      //
+      // It was `night ? 1 : 0`, and the 1 was the **nav pill's active tab**:
+      // amber on Night, and on a light ground an Abyssal block rather than
+      // amber, which is why Day counted zero. The pill is retired and the
+      // bottom of every console screen is the ask bar, whose Send is a
+      // `primaryCommit` — the one object Day permits to be amber.
+      //
+      // So Night's count does not move (the grant changed hands from chrome
+      // to a control that commits something) and **Day goes 0 to 1**. That is
+      // an honest increase, it is inside Day's budget of one, and it is the
+      // first amber this route has ever painted on paper. See `ConsoleFrame`.
+      const lit = 1;
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(
           t,

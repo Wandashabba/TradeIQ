@@ -41,6 +41,7 @@ class TorchTextField extends StatefulWidget {
     this.controller,
     this.focusNode,
     this.hint,
+    this.hintInk,
     this.help,
     this.error,
     this.enabled = true,
@@ -76,6 +77,27 @@ class TorchTextField extends StatefulWidget {
   /// Restates the unit or the format — "e.g. 12 facings". **Never** a repeat
   /// of the label, and never a value.
   final String? hint;
+
+  /// ── A STRONGER HINT THAN `ink3`, FOR A HINT THAT IS A PROMPT ──────────
+  ///
+  /// Null everywhere but the ask bar, and null means [TroughSpec.hintInk],
+  /// which is `ink3` — right for the thing a trough hint usually is: *"a hint
+  /// restates the unit or the format."*
+  ///
+  /// The ask bar's hint is not that. `Ask about your tasks…` is the screen's
+  /// invitation and the only words in the bar until somebody types, and it
+  /// has one place in the product where `ink3` is not enough: The Floor draws
+  /// an ambient clay wash (`floor_dawn.dart`) whose Day form darkens the
+  /// ground under the bottom third of the screen, and **`ink3` on that
+  /// washed ground measures 4.17:1 against a 4.5:1 floor** — 4.81:1 on the
+  /// bare ground, so it was never carrying much margin.
+  ///
+  /// That was true before the bar existed and `floor_dawn_test.dart` did not
+  /// catch it, because its detector is an exact-colour pixel match and
+  /// whether a glyph's core lands exactly on the token depends on where the
+  /// text sits. Moving the hint 44dp right to make room for the grid button
+  /// is what made it fire. The ratio did not change; the detection did.
+  final Color? hintInk;
 
   /// One meta line beneath. Also where a disabled field says why.
   final String? help;
@@ -233,7 +255,7 @@ class _TorchTextFieldState extends State<TorchTextField> {
           scrollPadding: EdgeInsets.all(skin.space.gutter),
           decoration: troughDecoration(
             hintText: widget.hint,
-            hintStyle: role.style(color: spec.hintInk),
+            hintStyle: role.style(color: widget.hintInk ?? spec.hintInk),
           ),
         ),
       ),

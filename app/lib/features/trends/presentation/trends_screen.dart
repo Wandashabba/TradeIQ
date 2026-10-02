@@ -73,7 +73,6 @@ class TrendsScreen extends ConsumerWidget {
 
     return ConsoleFrame(
       phase: view == TrendsView.compareTerritories ? 'compare' : 'over-time',
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.trendsTitle,
         facts: <String>[l10n.trendsFact],

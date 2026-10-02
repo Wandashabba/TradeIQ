@@ -83,7 +83,6 @@ class IncentivesScreen extends ConsumerWidget {
       String? facts,
     }) => ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.incentivesTitle,
         facts: <String>[l10n.incentivesFact, ?facts],

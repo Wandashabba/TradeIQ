@@ -185,9 +185,11 @@ void main() {
         name,
         skin,
         await amberCensus(tester),
-        // Night: the nav pill's active tab, and Send. Day: Send alone — the
-        // active tab is an Abyssal ink block on paper.
-        mode == SkinMode.night ? 2 : 1,
+        // SEND, ALONE, IN BOTH SKINS — 2 October 2026. It was the active tab
+        // and Send on Night. The pill is retired (see `ConsoleFrame`) and Ask
+        // is the one console route where that is a straight reduction rather
+        // than a reassignment: Night 2 to 1, Day unmoved.
+        1,
       );
       await tester.enterText(
         find.byKey(const ValueKey<String>('ask-composer-field')),
@@ -202,7 +204,7 @@ void main() {
         // The same count, because Send is armed from the first frame: an empty
         // trough redirects the press into the trough rather than disabling the
         // key. Typing changes what the key announces, not whether it is lit.
-        mode == SkinMode.night ? 2 : 1,
+        1,
       );
     });
 
@@ -239,9 +241,13 @@ void main() {
         name,
         skin,
         await amberCensus(tester),
-        // Night: the nav tab. Day: ZERO, and that is correct — a worklist has
-        // no commit action, and on a light ground nothing else may be amber.
-        mode == SkinMode.night ? 1 : 0,
+        // ONE IN BOTH SKINS — 2 October 2026. Night read the nav tab and Day
+        // read ZERO, "and that is correct — a worklist has no commit action".
+        // It has one now: the ask bar's Send, which is a `primaryCommit` and
+        // therefore the one object a light ground permits to be amber. Night
+        // is unchanged in count; **Day goes 0 to 1**, which is the honest
+        // cost of Model 1 and is inside Day's budget of one.
+        1,
       );
     });
 

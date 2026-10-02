@@ -680,19 +680,20 @@ void main() {
   });
 
   group('Afrikaans', () {
-    testWidgets('the nav and the composer are in the reader\'s language', (
-      tester,
-    ) async {
+    // ── THE PILL HALF OF THIS RETIRED WITH THE PILL — 2 October 2026 ───
+    //
+    // It asserted the four slot labels were `Vloer · Werk · Vra · Kieslys`.
+    // There is no pill and there are no slots: the destinations are rows in
+    // the sheet the grid button opens, and `menu_sheet.dart` owns their
+    // language. What this test was ALSO for is the half that matters and it
+    // is unchanged — the composer speaks the reader's language, and now so
+    // does the destinations control's spoken label.
+    testWidgets('the composer is in the reader\'s language', (tester) async {
       await pumpAsk(tester, locale: const Locale('af'));
 
-      // The pill may go icon-only as a whole when a label does not fit; the
-      // labels it measured, and speaks, are the reader's.
-      final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      expect(
-        pill.slots.map((s) => s.label),
-        <String>['Vloer', 'Werk', 'Vra', 'Kieslys'],
-      );
       expect(screenText(tester), contains('Vra oor jou gebied.'));
+      expect(find.byType(TorchNavPill), findsNothing);
+      expect(find.byType(TorchAskDestinations), findsOneWidget);
       await disposeAsk(tester);
     });
   });

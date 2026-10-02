@@ -80,7 +80,6 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
 
     return ConsoleFrame(
       phase: chosen == null ? 'no-outlet' : 'ranking',
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.dispatchTitle,
         facts: <String>[l10n.dispatchFact],

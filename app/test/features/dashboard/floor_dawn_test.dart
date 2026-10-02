@@ -795,9 +795,18 @@ void main() {
   // strip light rung 2 — and the point of running them here is that NONE of
   // them may move.
   group('the amber census', () {
+    // ── LOADING AND ERROR WENT 0 TO 1 — 2 October 2026 ───────────────
+    //
+    // Those two phases used to carry `band: null`: no composer, because
+    // "there is nothing to ask about a screen whose figures did not arrive".
+    // They now carry the ask bar, because the bar is the route off the
+    // screen as well as the way into the assistant, and a skeleton with no
+    // way off it is the manager's own home screen stranded. Send is rung 1,
+    // the plate declares no strip light without a photograph, so the count
+    // is exactly one in both skins. See `_FloorFrame.band`.
     const expected = <String, int>{
-      'night/loading': 0,
-      'night/error': 0,
+      'night/loading': 1,
+      'night/error': 1,
       'night/at rest': 2,
       'night/window-empty': 2,
       'night/no-picture': 1,
@@ -807,8 +816,8 @@ void main() {
       'night/answered': 2,
       'night/answered, scrolled': 2,
       'night/keyboard up': 2,
-      'day/loading': 0,
-      'day/error': 0,
+      'day/loading': 1,
+      'day/error': 1,
       'day/at rest': 1,
       'day/window-empty': 1,
       'day/no-picture': 1,

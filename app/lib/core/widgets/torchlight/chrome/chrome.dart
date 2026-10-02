@@ -4,7 +4,8 @@
 /// |---|---|---|
 /// | [TorchShell] | `Scaffold` + `AgentScaffold` + `ManagerScaffold` | none |
 /// | [TorchAppHeader] | `AppBar` | none |
-/// | [TorchNavPill] | `BottomNavigationBar` | the active tab, Night only, **counted** |
+/// | [ConsoleAskBar] | `BottomNavigationBar` on the console | Send, rung 1 |
+/// | [TorchNavPill] | `BottomNavigationBar` on the agent phone | the active tab, Night only, **counted** |
 /// | [TorchNavCircle] | *(new)* | `TorchClaim.navCircle`, rung 4 |
 /// | [TorchSkinCycle] | *(new)* | none |
 /// | [TorchThumbZone] | ad-hoc bottom buttons | none |
@@ -14,6 +15,7 @@
 library;
 
 export 'app_header.dart';
+export 'ask_bar.dart';
 export 'chip_wrap.dart' show TorchChipWrap;
 export 'nav_circle.dart';
 export 'nav_pill.dart';

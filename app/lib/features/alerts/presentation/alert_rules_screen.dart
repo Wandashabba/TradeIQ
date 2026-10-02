@@ -150,7 +150,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
   Widget _frame({required String phase, required List<Widget> children}) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: 'Alert rules',
         facts: const <String>[

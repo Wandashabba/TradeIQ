@@ -2,10 +2,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/torch_scope.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart'
+    show ConsoleAskBar;
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../assistant/answer/ask_light.dart' show AskLight;
 import '../data/floor_repository.dart';
 import 'the_floor_screen.dart';
 
@@ -25,10 +28,21 @@ import 'the_floor_screen.dart';
 /// hiding it is what makes the console legible on day one: this is the thing
 /// you are building towards, and here is why it is blank.
 ///
-/// **Amber: none spent here.** The nav pill's active tab is slot 1; the
-/// remaining grant would go to the primary commit block, which is the
-/// chrome workstream's button. Until it lands this screen renders zero amber
-/// objects, which is legal — a budget is a ceiling.
+/// ## It was the last tab root on the manager side, and it is not one now
+///
+/// The board kept the nav pill after The Floor gave it up — it had no
+/// composer, so the bottom of the screen was free — and that is exactly the
+/// inconsistency Model 1 removes: the one screen in the product that still
+/// navigated by tabs would have been the **first** screen a new client ever
+/// saw. It now ends in the same [ConsoleAskBar] as every other console
+/// screen, and the standing action's two verbs are two rows inside the grid
+/// button's sheet rather than a circle beside a bar.
+///
+/// **Amber: one, both skins.** The nav's active tab was slot 1 on Night and
+/// nothing at all on Day; in its place the ask bar's Send takes rung 1 in
+/// both. On a console with no data yet, asking is unambiguously the expected
+/// next move — which is what rung 1 means, and the only thing on this screen
+/// that can actually be done.
 class FirstRunBoard extends ConsumerWidget {
   const FirstRunBoard({super.key});
 
@@ -42,10 +56,13 @@ class FirstRunBoard extends ConsumerWidget {
     return TorchScope(
       skin: skin,
       phase: 'first-run',
-      navRenders: true,
-      tabbedRoute: true,
-      claims: const <TorchClaim>[],
+      navRenders: false,
+      tabbedRoute: false,
+      claims: const <TorchClaim>[
+        TorchClaim.primaryCommit(AskLight.sendClaimId),
+      ],
       child: FloorScaffold(
+        band: const ConsoleAskBar(),
         children: <Widget>[
           // 1. THE UNLIT PLATE. The same fallback drawing, deliberately with
           //    no strip light: amber is withheld because there is nothing to

@@ -141,8 +141,15 @@ class _Session extends SessionController {
 
   final String role;
 
+  // A TOKEN, AND NOT FOR DECORATION. `askSessionEndedProvider` is
+  // `hasValue && token == null`, so a fake session with a role and no token
+  // is a fake of a manager who has been **signed out** — and since the ask
+  // bar landed on every console screen, that turns Send off and the route's
+  // one amber object with it. This fake means "a signed-in manager", so it
+  // says so.
   @override
-  Future<SessionState> build() async => SessionState(role: role);
+  Future<SessionState> build() async =>
+      SessionState(role: role, token: 'test-token');
 }
 
 void main() {
@@ -491,7 +498,13 @@ void main() {
       TiqSkin.night(),
       TiqSkin.day(),
     ]) {
-      final onList = skin.mode == SkinMode.night ? 1 : 0;
+      // ONE IN BOTH SKINS SINCE MODEL 1. `BeatPlansScreen` is a
+      // `ConsoleFrame` route — the manager's beat plans, not the agent's
+      // Today — so its bottom region is the ask bar now and its one lit
+      // object is Send. The nav tab that used to be Night's whole spend was
+      // never amber on a light ground, which is why Day read zero and now
+      // reads one. See `ConsoleFrame`.
+      const onList = 1;
       final listPhases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pumpList(t, skin: skin),
         'empty': (t) => _pumpList(t, skin: skin, plans: const <BeatPlan>[]),

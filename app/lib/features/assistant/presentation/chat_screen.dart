@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +22,9 @@ import '../answer/ask_turn.dart';
 import '../answer/composer.dart';
 import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
+import '../../dashboard/data/floor_repository.dart' show floorViewProvider;
+import '../../dashboard/presentation/floor_ask.dart'
+    show showFloorDestinations;
 import '../data/chat_controller.dart';
 import '../view_specs/answer_focus.dart';
 import '../view_specs/instrument_panel.dart';
@@ -291,8 +293,22 @@ class _AskState extends ConsumerState<_Ask> {
       builder: (context, beneathSheet) => TorchScope(
         skin: skin,
         phase: phase.name,
-        navRenders: TorchShell.navWillRender(context, hasNav: true),
-        tabbedRoute: true,
+        // ── THE ROUTE THAT GETS A GRANT BACK ───────────────────────────
+        //
+        // The nav pill is gone from the console (see `ConsoleFrame`), and Ask
+        // is the one screen where that is a straight reduction rather than a
+        // reassignment: it carried the active tab **and** Send, so Night was
+        // at its ceiling of two in the armed phases and at two again in
+        // `landedFocus` (tab + the answer's focus object). Without the tab
+        // each of those is one, and the second grant is free for the first
+        // time on this surface.
+        //
+        // `navWillRender` was also the keyboard's half of that arithmetic —
+        // the nav left when the keyboard came up and handed its grant to the
+        // content. There is no longer a grant to hand over, so the count no
+        // longer depends on whether somebody is typing.
+        navRenders: false,
+        tabbedRoute: false,
         beneathSheet: beneathSheet,
         claims: phase.claims,
         child: TorchShell(
@@ -314,11 +330,6 @@ class _AskState extends ConsumerState<_Ask> {
                 ),
             ],
           ),
-          navPill: TorchNavPill(
-            slots: askNavSlots(l10n),
-            activeIndex: 2,
-            onSelect: (i) => _go(context, i),
-          ),
           band: QuestionComposer(
             controller: _input,
             phase: phase,
@@ -326,6 +337,19 @@ class _AskState extends ConsumerState<_Ask> {
             onStop: () => ref.read(chatControllerProvider.notifier).stop(),
             onChanged: _onChanged,
             lastTurnErrored: answer?.error != null,
+            // The same grid button, in the same slot, on the same widget. Ask
+            // keeps its own send because it draws the transcript: a question
+            // asked here is answered here, and `ConsoleAskBar`'s go-to-Ask is
+            // for the 27 screens that have nowhere to put an answer.
+            leading: TorchAskDestinations(
+              key: const ValueKey<String>('ask-destinations'),
+              onTap: () => showFloorDestinations(
+                context,
+                ref
+              .read(floorViewProvider)
+              .maybeWhen(data: (v) => v, orElse: () => null),
+              ),
+            ),
             band: _band(context, phase),
           ),
           children: state.messages.isEmpty
@@ -353,45 +377,6 @@ class _AskState extends ConsumerState<_Ask> {
         ),
       ),
     );
-  }
-
-  /// Floor · Work · Ask · Menu. Four slots, because five do not fit the 360dp
-  /// arithmetic, and Ask is the third.
-  static List<TorchNavSlot> askNavSlots(AppLocalizations l10n) =>
-      <TorchNavSlot>[
-        TorchNavSlot(
-          icon: Icons.inventory_2_outlined,
-          activeIcon: Icons.inventory_2,
-          label: l10n.askNavFloor,
-        ),
-        TorchNavSlot(
-          icon: Icons.checklist_outlined,
-          activeIcon: Icons.checklist,
-          label: l10n.askNavWork,
-        ),
-        TorchNavSlot(
-          icon: Icons.forum_outlined,
-          activeIcon: Icons.forum,
-          label: l10n.askNavAsk,
-        ),
-        TorchNavSlot(
-          icon: Icons.menu,
-          activeIcon: Icons.menu_open,
-          label: l10n.askNavMenu,
-        ),
-      ];
-
-  static void _go(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/dashboard');
-      case 1:
-        context.go('/tasks');
-      case 2:
-        context.go('/assistant');
-      case 3:
-        context.go('/dashboard/overview');
-    }
   }
 
   Widget? _band(BuildContext context, AskPhase phase) {

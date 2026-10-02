@@ -50,6 +50,7 @@ class QuestionComposer extends StatefulWidget {
     this.onChanged,
     this.band,
     this.hint,
+    this.leading,
     this.lastTurnErrored = false,
   });
 
@@ -76,6 +77,21 @@ class QuestionComposer extends StatefulWidget {
   /// The **label** above the trough is untouched in both: it is the accessible
   /// name of the field and it is the same field on both surfaces.
   final String? hint;
+
+  /// ── THE LEADING SLOT, WHICH IS WHERE THE CONSOLE'S NAVIGATION LIVES ──
+  ///
+  /// One control before the trough, aligned to the trough's own bottom edge
+  /// exactly as Send is. Null on no console route since 2 October 2026: it
+  /// carries [TorchAskDestinations], and the bar it makes —
+  /// `[grid] [the ask field] [send]` — is the whole of the bottom region on
+  /// every manager screen.
+  ///
+  /// It is a slot on **this** widget rather than a second composer wrapped
+  /// around it because the thing being fixed is that the bottom of the screen
+  /// meant two different things depending on where you stood. One widget is
+  /// how "identical geometry everywhere" stops being a thing somebody has to
+  /// keep true and becomes a thing that cannot come apart.
+  final Widget? leading;
 
   /// Turns the label into "Ask again, or rephrase".
   final bool lastTurnErrored;
@@ -149,6 +165,10 @@ class _QuestionComposerState extends State<QuestionComposer> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
+            if (widget.leading != null) ...<Widget>[
+              widget.leading!,
+              const SizedBox(width: TiqSpace.s2),
+            ],
             Expanded(
               child: TorchTextField(
                 key: const ValueKey<String>('ask-composer-field'),
@@ -159,6 +179,12 @@ class _QuestionComposerState extends State<QuestionComposer> {
                 controller: widget.controller,
                 focusNode: _node,
                 hint: widget.hint ?? l10n.askComposerHint,
+                // ONE GRADE UP FROM EVERY OTHER TROUGH'S HINT, in both skins
+                // and on all 29 console screens. See [TorchTextField.hintInk]
+                // for the measurement: on The Floor's washed Day ground
+                // `ink3` is 4.17:1 against a 4.5:1 floor, and a prompt is not
+                // a format restatement anyway.
+                hintInk: skin.palette.ink2,
                 enabled: canType,
                 minLines: 1,
                 maximumLines: 5,

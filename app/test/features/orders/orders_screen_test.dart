@@ -93,8 +93,15 @@ class _Session extends SessionController {
 
   final String role;
 
+  // A TOKEN, AND NOT FOR DECORATION. `askSessionEndedProvider` is
+  // `hasValue && token == null`, so a fake session with a role and no token
+  // is a fake of a manager who has been **signed out** — and since the ask
+  // bar landed on every console screen, that turns Send off and the route's
+  // one amber object with it. This fake means "a signed-in manager", so it
+  // says so.
   @override
-  Future<SessionState> build() async => SessionState(role: role);
+  Future<SessionState> build() async =>
+      SessionState(role: role, token: 'test-token');
 }
 
 void main() {
@@ -394,7 +401,19 @@ void main() {
       TiqSkin.night(),
       TiqSkin.day(),
     ]) {
-      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      // ── ONE IN BOTH SKINS SINCE MODEL 1 — 2 October 2026 ───────────
+      //
+      // It was `night ? 1 : 0`, and the 1 was the **nav pill's active tab**:
+      // amber on Night, and on a light ground an Abyssal block rather than
+      // amber, which is why Day counted zero. The pill is retired and the
+      // bottom of every console screen is the ask bar, whose Send is a
+      // `primaryCommit` — the one object Day permits to be amber.
+      //
+      // So Night's count does not move (the grant changed hands from chrome
+      // to a control that commits something) and **Day goes 0 to 1**. That is
+      // an honest increase, it is inside Day's budget of one, and it is the
+      // first amber this route has ever painted on paper. See `ConsoleFrame`.
+      const lit = 1;
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(
           t,

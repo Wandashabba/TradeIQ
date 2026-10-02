@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,11 +8,10 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
-import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
-import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../l10n/l10n.dart';
+import '../../assistant/answer/ask_light.dart' show AskLight;
 import '../../assistant/answer/ask_phase.dart';
 import '../../assistant/answer/ask_turn.dart' show AskHeldBand;
 import '../../assistant/answer/composer.dart';
@@ -136,26 +134,39 @@ class TheFloorScreen extends ConsumerWidget {
   static double plateGroundFor(double viewportHeight, {required bool shrunk}) =>
       viewportHeight * (1 - (shrunk ? plateShareAnswering : plateShareAtRest));
 
-  /// The nav circle's id. It is declared and then *denied*, every time: the
-  /// plate takes the one content grant at rung 2 and the circle sits at rung
-  /// 4. Naming it anyway is what makes the denial visible in
-  /// `TorchAllocation.describe()` rather than invisible in a widget that
-  /// quietly never asked.
-  static const String navCircleClaimId = 'floor-standing-action';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(floorViewProvider);
 
+    // ── THE TWO PHASES THAT USED TO HAVE NO WAY OFF THEM ────────────────
+    //
+    // `band: ConsoleAskBar()` rather than null. See [_FloorFrame.band] for
+    // the argument; the claim is here because the claim set is a statement
+    // about the phase and this is where the phases are.
+    //
+    // The Send claim is declared **only** on these two. The data state's
+    // claims come from `AskPhase.claims`, which already carries
+    // `primaryCommit(AskLight.sendClaimId)` on the two armed phases and
+    // deliberately does NOT on `landedFocus` — adding it there would put
+    // three claims (the plate, the answer's focus object and Send) against
+    // Night's budget of two, and the right answer at that moment is the one
+    // `AskPhase` already gives: the light is on the answer.
+    const askClaims = <TorchClaim>[
+      TorchClaim.primaryCommit(AskLight.sendClaimId),
+    ];
     return view.when(
       loading: () => const _FloorFrame(
         phase: 'loading',
         hasPlatePhoto: false,
+        claims: askClaims,
+        band: ConsoleAskBar(),
         children: <Widget>[_FloorSkeleton()],
       ),
       error: (error, stack) => _FloorFrame(
         phase: 'error',
         hasPlatePhoto: false,
+        claims: askClaims,
+        band: const ConsoleAskBar(),
         children: <Widget>[
           _FloorError(onRetry: () => ref.invalidate(floorViewProvider)),
         ],
@@ -190,9 +201,26 @@ class _FloorFrame extends StatelessWidget {
   /// claim is added. See the census table on [TheFloorScreen].
   final List<TorchClaim> claims;
 
-  /// The composer, pinned above the safe area. Null on the loading and error
-  /// states: there is nothing to ask about a screen whose figures did not
-  /// arrive, and a composer over a skeleton is a promise the route cannot keep.
+  /// ── THE ASK BAR, ON EVERY PHASE INCLUDING THE TWO THAT HAD NOTHING ───
+  ///
+  /// It was null on `loading` and `error`, and the reason was good while the
+  /// band was a composer and nothing else: *"there is nothing to ask about a
+  /// screen whose figures did not arrive, and a composer over a skeleton is a
+  /// promise the route cannot keep."*
+  ///
+  /// **It stops being good the moment the bar carries the navigation.** With
+  /// no pill on this route, a null band left the skeleton and the error state
+  /// with no way off the screen at all except the device's back gesture — the
+  /// manager's own home screen, stranded, in the two states where she most
+  /// wants to go somewhere else. Model 1 makes the bottom of the screen one
+  /// object; an object that is sometimes absent is not one object.
+  ///
+  /// And the original argument survives intact where it actually applies: the
+  /// **hint** is what promised a scope the route did not have, and on these
+  /// two phases it is the plain `Ask TradeIQ…`. The assistant is a different
+  /// service from the dashboard and it is up when the dashboard is down —
+  /// `ChatController.send` takes the question and nothing else — so the field
+  /// is not a promise this route cannot keep. It never was one.
   final Widget? band;
 
   @override
@@ -219,7 +247,6 @@ class _FloorFrame extends StatelessWidget {
       // hard against the status bar is a card with one edge missing.
       child: FloorScaffold(
         bleedTop: false,
-        showNavPill: false,
         band: band,
         // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ──────────────────────
         //
@@ -245,8 +272,8 @@ class _FloorFrame extends StatelessWidget {
   }
 }
 
-/// The scroll frame: [TorchShell] in its console profile, with the manager's
-/// four nav slots and the standing action beside them.
+/// The scroll frame: [TorchShell] in its console profile, with the ask bar at
+/// the bottom and no other chrome.
 ///
 /// The Floor carries **no app header**. The plate is the header: the scope
 /// chip at the top of it names the territory and the window and opens the
@@ -261,27 +288,26 @@ class _FloorFrame extends StatelessWidget {
 /// to put it in. On The Floor it belongs in the Menu destination, which is
 /// where the manager's overflow lives — see the follow-up for the Menu sheet.
 ///
-/// ## The nav is the console's nav, not a copy of it
+/// ## There is no second copy of the nav here, because there is no nav
 ///
 /// This frame exists because The Floor cannot use [ConsoleFrame] — it has no
 /// app header, and the plate has to run full-bleed to the top edge. What it
-/// must **not** do is own a second copy of the bar. It did: a private slot
-/// list, `activeIndex: 0`, `onSelect: onSelectSlot ?? (_) {}` with no caller
-/// ever passing `onSelectSlot`, and `onPressed: () {}` on the circle. The
-/// manager's home screen shipped with four destinations and a standing action
-/// that pressed, buzzed, scaled to 0.98 and did nothing — the one defect a
-/// widget test of the pill in isolation can never see.
+/// must **not** do is own a second copy of the bar, and it did once: a private
+/// slot list, `activeIndex: 0`, `onSelect: onSelectSlot ?? (_) {}` with no
+/// caller ever passing `onSelectSlot`, and `onPressed: () {}` on the circle.
+/// The manager's home screen shipped with four destinations and a standing
+/// action that pressed, buzzed, scaled to 0.98 and did nothing — the one
+/// defect a widget test of the pill in isolation can never see.
 ///
-/// So the slots come from [consoleNavSlots] and the press goes through
-/// [consoleNavSelect], exactly as every other console route's do.
+/// That whole hazard is now structural rather than guarded: **this scaffold
+/// takes no slots, no index and no select callback**, because the only route
+/// off a console screen is the grid button in the band, and there is exactly
+/// one of those in the product.
 class FloorScaffold extends StatelessWidget {
   const FloorScaffold({
     super.key,
     required this.children,
-    this.onSelectSlot,
-    this.onStandingAction,
     this.bleedTop = true,
-    this.showNavPill = true,
     this.band,
     this.backdrop = const <Decoration>[],
   });
@@ -300,47 +326,47 @@ class FloorScaffold extends StatelessWidget {
   /// which is the sentence that already keeps the board's plate unlit.
   final List<Decoration> backdrop;
 
-  /// ── THE BOTTOM-REGION SEAM ────────────────────────────────────────────
+  /// ── THE BOTTOM-REGION SEAM, SETTLED: ARRANGEMENT C ───────────────────
   ///
-  /// The composer and the nav pill both want the bottom of the screen, and
-  /// which one wins was a product decision rather than an engineering one. The
-  /// owner took **B** on 30 September 2026: the destinations move behind a
-  /// control on the plate, and the bottom belongs to the composer alone.
+  /// The composer and the nav pill both wanted the bottom of the screen, and
+  /// which one won was a product decision rather than an engineering one. The
+  /// owner took **B** on 30 September 2026 and then looked at the result
+  /// across the whole console: *"it becomes very weird especially knowing that
+  /// the app is a search based, I don't know how to navigate with this one
+  /// please help make it seamless."* On 2 October 2026 they chose **C**.
   ///
-  /// These two fields are where that decision lives, and they are the whole of
-  /// it — every other arrangement considered is a change to this one call site:
+  /// The three arrangements, for the record:
   ///
-  /// * **A — both, stacked.** `showNavPill: true` with a `band`. The shell
-  ///   already composes the band above the pill, so A needs no other change.
-  ///   It is **not** shippable as drawn: the pill's active tab takes one of
-  ///   Night's two grants, leaving one for content, and the answered state
-  ///   wants two (the plate's strip light and the answer's focus object). See
-  ///   the census on [TheFloorScreen].
-  /// * **B — what shipped.** `showNavPill: false` with a `band`, and
-  ///   [FloorDestinationsButton] on the plate's top band beside the scope chip.
-  /// * **C — the pill IS the composer.** `showNavPill: false` with a `band`
-  ///   whose composer carries a leading grid button; the button opens
-  ///   [showFloorDestinations], which already exists and is what B's plate
-  ///   control opens. C is a change to the band widget alone.
+  /// * **A — both, stacked.** Not shippable as drawn: the pill's active tab
+  ///   takes one of Night's two grants, leaving one for content, and the
+  ///   answered state wants two (the plate's strip light and the answer's
+  ///   focus object). See the census on [TheFloorScreen].
+  /// * **B — what shipped for two days.** No pill, a composer, and
+  ///   `FloorDestinationsButton` on the plate's top band beside the scope
+  ///   chip. It fixed The Floor and left the other 28 console screens on a
+  ///   pill, which is the inconsistency the owner then named.
+  /// * **C — the pill IS the composer.** What this is now. The composer
+  ///   carries a leading grid button that opens [showFloorDestinations] — the
+  ///   same sheet B's plate control opened — and the plate control is gone
+  ///   with the pill.
   ///
-  /// Whether the nav pill renders. False on The Floor proper since the
-  /// composer took the bottom of the screen; true for [FirstRunBoard], which
-  /// has no composer and is still a tab root.
-  final bool showNavPill;
-
-  /// Pinned above the safe area, below the scroll view. The composer.
+  /// **C's old claim that it is "a change to the band widget alone" was true
+  /// of this route only, and it was the smaller half of the job.** The Floor
+  /// already had no pill; the 27 routes behind `ConsoleFrame` and Ask did, and
+  /// extending one bar to all of them is where the work actually was. The
+  /// honest framing is on `ConsoleFrame`.
+  ///
+  /// This scaffold therefore has **no pill and no circle at all**, on either
+  /// of the two screens that use it. [FirstRunBoard] loses them too: it was
+  /// the last tab root on the manager side, and a brand-new tenant meeting the
+  /// one screen in the product that still navigates by tabs is the defect in
+  /// its purest form.
+  /// Pinned above the safe area, below the scroll view. The ask bar.
   final Widget? band;
 
   /// Whether the body starts at the top edge. True for every state whose first
   /// child is the plate; see [_FloorFrame].
   final bool bleedTop;
-
-  /// Overrides the console's own routing. Null is the real app: the bar goes
-  /// where [consoleNavSelect] says, which is the only place it may go.
-  final ValueChanged<int>? onSelectSlot;
-
-  /// Overrides what the `+` circle opens. Null is the real app.
-  final VoidCallback? onStandingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -355,101 +381,7 @@ class FloorScaffold extends StatelessWidget {
       bleedTop: bleedTop,
       band: band,
       backdrop: backdrop,
-      navPill: !showNavPill
-          ? null
-          : TorchNavPill(
-              slots: consoleNavSlots,
-              activeIndex: ConsoleSlot.floor.index,
-              onSelect:
-                  onSelectSlot ?? (index) => consoleNavSelect(context, index),
-            ),
-      navCircle: !showNavPill
-          ? null
-          : TorchNavCircle(
-              claimId: TheFloorScreen.navCircleClaimId,
-              // The circle is the role's standing action and it is *never* lit on
-              // this route: the ladder denies rung 4 once the plate has taken the
-              // one content grant. Declaring `expected` honestly and letting the
-              // allocator say no is the point — a circle that decided for itself
-              // would be a third light.
-              expected: false,
-              icon: Icons.add,
-              expectedIcon: Icons.add,
-              semanticLabel: 'Raise a task or assign a visit',
-              expectedSemanticLabel: 'Raise a task or assign a visit',
-              onPressed:
-                  onStandingAction ?? () => showFloorStandingAction(context),
-            ),
       children: children,
-    );
-  }
-}
-
-/// THE STANDING ACTION'S TWO VERBS.
-///
-/// **THE FLOOR ITSELF NO LONGER OPENS THIS**, since 30 September 2026. The
-/// circle sat *in* the nav row and left with it when the composer took the
-/// bottom of the screen; the two verbs are two rows in
-/// [showFloorDestinations] now, leading to the same two routes. This sheet is
-/// still live for [FirstRunBoard], which has no composer, keeps its nav pill
-/// and keeps its circle.
-///
-/// The circle's own label has always promised "Raise a task or assign a
-/// visit", and `surface-manager.json` says in as many words that tapping it
-/// opens exactly that pair. It opened nothing. A circle that names two verbs
-/// and performs neither is worse than no circle: it teaches a manager that
-/// the chrome on this screen is decoration.
-///
-/// One sheet, two rows, both to destinations that already exist. It is
-/// deliberately *not* a third nav destination and deliberately not a form:
-/// raising a task from a blank page is not a thing this product does — a task
-/// is raised against a finding, and the finding is on the Work queue.
-///
-/// **Amber: none.** A menu commits nothing, and while it is up every amber on
-/// the route beneath goes out (unify §1.10).
-Future<void> showFloorStandingAction(BuildContext context) {
-  return showTorchSheet<void>(
-    context,
-    builder: (sheetContext) => const FloorStandingActionSheet(),
-  );
-}
-
-/// The sheet's body — public so a test can pump it without a scrim.
-class FloorStandingActionSheet extends StatelessWidget {
-  const FloorStandingActionSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    void leaveFor(String route) {
-      Navigator.of(context).pop();
-      context.go(route);
-    }
-
-    return TorchSheet(
-      title: 'Raise a task or assign a visit',
-      subtitle: 'Two ways to put somebody on a problem.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          SoftRow(
-            key: const ValueKey<String>('floor-standing-raise-task'),
-            density: SoftRowDensity.compact,
-            title: 'Raise a task',
-            subtitle: 'Against a finding on the work queue',
-            trailing: const SoftRowChevron(),
-            onTap: () => leaveFor('/tasks'),
-          ),
-          SoftRow(
-            key: const ValueKey<String>('floor-standing-assign-visit'),
-            density: SoftRowDensity.compact,
-            title: 'Assign a visit',
-            subtitle: 'Send an agent to an outlet today',
-            trailing: const SoftRowChevron(),
-            onTap: () => leaveFor('/dispatch'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -602,9 +534,22 @@ class _FloorState extends ConsumerState<_Floor> {
     // The chip stays `Flexible` and the button does not: a territory name is
     // arbitrarily long and `Menu` is four characters, so the band gives its
     // slack to the half that can use it.
+    // ── WHERE YOU ARE. WHERE ELSE YOU CAN GO IS IN THE BAR NOW ──────────
+    //
+    // The plate's top band carried a pair until 2 October 2026: the scope
+    // chip top-left and `FloorDestinationsButton` top-right, which was
+    // arrangement B's answer to the destinations. Model 1 puts the grid button
+    // at the leading end of the ask bar on every console screen, so a second
+    // one here would be the only duplicate entry point in the product — and
+    // on the one screen that least needs it, since the bar is 20dp below.
+    //
+    // So the band is the chip alone and it takes the full width. `Flexible`
+    // stays: a territory name is still arbitrarily long and the chip still
+    // wraps to two lines rather than clipping, which is what
+    // `floor_proportion_test.dart` measures its clearance over the strip
+    // light with.
     final controls = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
         Flexible(
           child: PlateScopeChip(
@@ -620,15 +565,6 @@ class _FloorState extends ConsumerState<_Floor> {
                 '${view.territoryName}, ${view.windowLabel}. '
                 'Change the territory or the window.',
           ),
-        ),
-        const SizedBox(width: TiqSpace.s2),
-        // ONE SIZE AT EVERY WIDTH, since 1 October 2026. The `compact` flag
-        // and its 380dp threshold are gone with the printed word — the mockup
-        // has no label at any width, so there is no longer a narrow phone to
-        // special-case. See [FloorDestinationsButton].
-        FloorDestinationsButton(
-          key: const ValueKey<String>('floor-destinations'),
-          onTap: () => showFloorDestinations(context, view),
         ),
       ],
     );
@@ -703,6 +639,12 @@ class _FloorState extends ConsumerState<_Floor> {
             ),
             SizedBox(height: skin.space.intraBlock),
           ],
+          // THE SAME WIDGET THE OTHER 28 CONSOLE SCREENS END IN, with the
+          // same leading grid button in it. This route keeps its own send —
+          // it draws the transcript, so the answer lands here rather than on
+          // Ask — and everything about the row's geometry comes from
+          // `QuestionComposer`, which is the whole reason the slot is on that
+          // widget and not on a wrapper around it.
           QuestionComposer(
             controller: _input,
             phase: phase,
@@ -713,6 +655,14 @@ class _FloorState extends ConsumerState<_Floor> {
             // What the composer says it will ask about, from the scope the
             // plate above it is already showing.
             hint: floorComposerHint(view),
+            leading: TorchAskDestinations(
+              // THE KEY MOVES WITH THE BUTTON, deliberately: the control did
+              // not go, it moved 20dp down and became the same control every
+              // other console screen has. `floor_taps_test.dart` proves it
+              // still opens the sheet without knowing it moved.
+              key: const ValueKey<String>('floor-destinations'),
+              onTap: () => showFloorDestinations(context, view),
+            ),
             band: _heldBand(context, phase),
           ),
         ],

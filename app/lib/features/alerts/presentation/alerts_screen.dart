@@ -116,7 +116,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   Widget _frame({required String phase, required List<Widget> children}) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.work,
       header: TorchAppHeader(
         title: 'Alerts',
         facts: const <String>['Rules evaluate on every visit submit.'],

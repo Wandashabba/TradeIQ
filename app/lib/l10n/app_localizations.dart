@@ -3248,6 +3248,12 @@ abstract class AppLocalizations {
   /// **'Team, stock, shelf, competitors'**
   String get askComposerHint;
 
+  /// Placeholder in the ask bar on a console screen that names no subject of its own. 25 of the 27 framed routes use it.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ…'**
+  String get askComposerConsoleHint;
+
   /// Replaces the composer label after a failed turn.
   ///
   /// In en, this message translates to:
@@ -3421,30 +3427,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get askStopShort;
-
-  /// Manager nav slot 1: The Floor, the dashboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Floor'**
-  String get askNavFloor;
-
-  /// Manager nav slot 2: alerts and tasks.
-  ///
-  /// In en, this message translates to:
-  /// **'Work'**
-  String get askNavWork;
-
-  /// Manager nav slot 3: Ask TradeIQ.
-  ///
-  /// In en, this message translates to:
-  /// **'Ask'**
-  String get askNavAsk;
-
-  /// Manager nav slot 4: everything else.
-  ///
-  /// In en, this message translates to:
-  /// **'Menu'**
-  String get askNavMenu;
 
   /// The word that carries the live pulse when it is not amber, and under reduce-motion.
   ///

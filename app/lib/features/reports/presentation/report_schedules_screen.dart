@@ -164,7 +164,6 @@ class _ReportSchedulesScreenState
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.schedulesTitle,
         facts: <String>[l10n.schedulesFact],

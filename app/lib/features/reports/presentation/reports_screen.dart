@@ -109,7 +109,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.reportsTitle,
         facts: <String>[l10n.reportsFact],
