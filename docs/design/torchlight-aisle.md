@@ -293,19 +293,95 @@ deuteranopia, in print and on a sun-washed panel. That pairing is banned; see §
 
 Two faces, and a law that divides them.
 
-- **Onest** — the prose face. One bundled variable font,
-  `assets/fonts/Onest-Variable.ttf` (193 KB, wght 100–900, no italic). Flutter
-  maps `FontWeight` onto the wght axis, so no static instances ship.
+- **Schibsted Grotesk** — the prose face. One bundled variable font,
+  `assets/fonts/SchibstedGrotesk-Variable.ttf` (176 KB, wght **400–900**, the
+  italic published separately and not bundled). Flutter maps `FontWeight` onto
+  the wght axis, so no static instances ship. SIL OFL 1.1, licence committed
+  beside it.
 - **JetBrains Mono** — the figure and identifier face.
 
-> **Onest must never render a figure or a code.** It has no slashed zero, its
-> digits are proportional unless `tnum` is switched on, and its capital I and
-> lowercase l are identical shapes. None of that matters in a sentence; all of
-> it matters in an outlet code, a GTIN, an order ref or a column of stock
-> counts. Every `figure` and `identifier` role resolves to JetBrains Mono with
-> `FontFeature.tabularFigures()`; every `prose` role resolves to Onest.
-> `torchlight_type_test.dart` asserts both directions, so this is not a
+> **The prose face must never render a figure or a code.** Its digits are
+> proportional unless `tnum` is switched on. That does not matter in a
+> sentence; it matters in an outlet code, a GTIN, an order ref or a column of
+> stock counts. Every `figure` and `identifier` role resolves to JetBrains Mono
+> with `FontFeature.tabularFigures()`; every `prose` role resolves to Schibsted
+> Grotesk. `torchlight_type_test.dart` asserts both directions, so this is not a
 > convention.
+
+### Schibsted Grotesk replaced Onest — 1 October 2026
+
+The owner chose it from four open-licensed grotesques shown against the
+commercial face they were evaluating (Grotesco); it is the open one that sits
+closest to it. What the swap actually did, measured with a `TextPainter` at
+identical nominal sizes:
+
+| | Onest | Schibsted Grotesk |
+|---|---|---|
+| unitsPerEm | 1000 | 2048 |
+| x-height | 0.5270 em | **0.5273 em** |
+| cap height | 0.7070 em | 0.7031 em |
+| wght axis | 100–900 | **400–900** |
+| typo asc / desc | 0.970 / −0.305 | 0.9766 / −0.2578 |
+| file size | 193 KB | 176 KB |
+| glyph count | 876 | 583 |
+
+**The x-heights are the same to a thousandth of an em**, which is why apparent
+size did not change and why no `letterSpacing` or line-height token had to be
+retuned. **Line heights did not move at all**: every role in `TiqType` declares
+an explicit `height`, so a line box is `size × height` whatever the face's own
+ascent and descent are.
+
+What did move is the horizontal advance. On ordinary mixed-case copy Schibsted
+Grotesk is **about 4% narrower** at every prose role — the lowercase `n`, `t`,
+`g` and `o` are each a little tighter, and the word space is 6% tighter —
+while the full lowercase alphabet differs by only 0.5%, so the saving is a
+letter-frequency effect rather than a condensed face:
+
+| specimen, `body` | Onest | Schibsted Grotesk | delta |
+|---|---|---|---|
+| "Sign in to get to work." | 145.12 | 139.30 | **−4.0%** |
+| "Out of stock at four outlets since Tuesday" | 275.02 | 269.32 | −2.1% |
+| `abcdefghijklmnopqrstuvwxyz` | 192.05 | 191.08 | −0.5% |
+| `ABCDEFGHIJKLMNOPQRSTUVWXYZ` | 241.46 | 240.98 | −0.2% |
+| `0123456789` | 81.37 | 78.42 | −3.6% |
+
+The one role that got **wider** is `eyebrow`, by 1.7%: it is uppercase, and
+Schibsted Grotesk's capital `I` is 0.354 em against Onest's 0.261 em — 35%
+wider, because it is a plain stem in Onest and a much broader glyph here. An
+uppercase label with several `I`s is the one place the swap costs space.
+
+Narrower prose means **later wrapping**, which is the direction a fold budget
+wants. A 230dp reason line that took six lines of Onest takes five; the entry
+headline at 1.6× on a 390dp phone drops from three lines to two. It also
+widens the reading measure: `entry_width_test.dart`, measuring the entry
+screens' own copy, reports **6.458dp per character** against Onest's 6.547,
+so `TiqSpace.readingWidth` = 480 now holds **74.3 characters** against 73.3 —
+one character nearer the top of the 45–75 band, which is the edge to watch,
+because a narrower face at the same size puts MORE words on a line.
+
+#### The three grounds the figure/prose split was written on
+
+Checked against the new face, because the note in `pubspec.yaml` named all
+three and two of them were Onest's rather than the rule's:
+
+| ground | Onest | Schibsted Grotesk |
+|---|---|---|
+| no slashed zero | true | **false** — it has one, under the OpenType `zero` feature (`zero` → `zero.zero`), off by default and not switched on |
+| proportional digits by default | true | true — `0` is 0.611 em, `1` is 0.343 em, with `tnum` available |
+| identical `I` and `l` | effectively true — two plain stems, both 0.707 em tall, 0.087 against 0.085 em of inked width | **false** — `l` rises above cap height (0.732 against 0.703 em) and `I` is much the wider glyph (0.274 against 0.158 em of inked width) |
+
+**The split stays regardless**, and that is the point: a figure face and a
+prose face doing different jobs is the design, not a workaround for a glyph
+set. Only the third ground — proportional digits — still argues for itself on
+its own terms.
+
+Schibsted Grotesk keeps the one property the U+25B2/U+25BC ledger depends on:
+**neither solid triangle is in the face at any weight**, in the variable file
+or in the three PDF subsets. It does carry a lozenge (U+25CA), a white circle
+(U+25CB) and the ten basic arrows (U+2190–2199), none of which are in the PDF
+subset ranges and none of which the app spells — so the wording moved from
+"no geometric shapes" to "no solid triangles", which is what the guard
+actually checks.
 
 Size / weight / line-height / tracking. Tracking is stated as a percentage of
 the size, because that is the only form that survives a size change.
@@ -354,11 +430,13 @@ reader spells it out.
 ### PDF export
 
 `package:pdf` parses `glyf` outlines and ignores a variable font's `gvar`
-deltas, so it cannot use `Onest-Variable.ttf` — every weight would render at
-400. Three static instances at wght 400/500/700, subset to Latin + Latin-Ext
-plus the punctuation and currency the formatters emit, ship as plain assets
-(`Onest-Pdf-400/500/700.ttf`, ~50 KB each) and are declared outside the `fonts:`
-section so the engine never resolves a screen to them. Regenerate with
+deltas, so it cannot use `SchibstedGrotesk-Variable.ttf` — every weight would
+render at 400. Three static instances at wght 400/500/700, subset to Latin +
+Latin-Ext plus the punctuation and currency the formatters emit, ship as plain
+assets (`SchibstedGrotesk-Pdf-400/500/700.ttf`, ~76 KB each — larger than
+Onest's ~50 KB because the face is drawn on a 2048 unitsPerEm grid rather than
+1000) and are declared outside the `fonts:` section so the engine never
+resolves a screen to them. Regenerate with
 `tool/build_pdf_fonts.sh`.
 
 ---
@@ -489,11 +567,11 @@ All in `app/test/core/theme/torchlight/`, run by `flutter test` in
 | Test | What it catches |
 |---|---|
 | `torchlight_lint_test.dart` | A file in `lib/features/**` that gains a `Color(0x…)`, a `Colors.*` or a bare `TextStyle(`. Ledger in `torchlight_style_debt.dart`; the scanner itself is tested against known-bad and known-good source, because a guard that cannot fail is not a guard. |
-| `torchlight_type_test.dart` | A figure or identifier role set in Onest; a prose role set in mono; a missing `tnum`; Onest declared with a weight (which pins the variable axis); Onest shipping without an `fvar` table; Inter creeping back into the bundle. |
+| `torchlight_type_test.dart` | A figure or identifier role set in the prose face; a prose role set in mono; a missing `tnum`; the prose face declared with a weight (which pins the variable axis); the prose face shipping without an `fvar` table; Inter creeping back into the bundle. |
 | `torchlight_contrast_test.dart` | Every declared pairing against its floor, every banned pairing still failing, the ink ramp stepping down, control edges outranking container edges, and every spec-stated ratio recomputed to two decimals. |
 | `torchlight_render_test.dart` | Both skins building a theme and painting a screen that touches every token; `lerp` across a mode change; the spacing scale being base-4 with no twelfth step; the shim mapping. |
 | `torchlight_text_scale_test.dart` | The clamp, the one documented exception, and both skins at 1.0×/1.3×/2.0× on a 360dp phone. |
-| `onest_font_test.dart` | Every theme asking for Onest; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
+| `schibsted_font_test.dart` | Every theme asking for Schibsted Grotesk; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
 | `torchlight_generated_contrast_test.dart` | ~1000 generated ink x role x fill pairings across all five skin/density combinations; the Vienot deuteranopia and protanopia simulations against the ruling's own figures; every declared series pair carrying a non-colour channel. |
 | `torchlight_amber_lint_test.dart` | A `flame*` token named anywhere under `lib/` outside the five-file emitter allowlist. |
 | `torchlight_glyph_coverage_test.dart` | A character the formatters or the translations emit that is missing from the committed PDF font subsets; a new reference to U+25B2 or U+25BC. |
@@ -642,7 +720,7 @@ FigureSlot(
 Four things it owns:
 
 1. **Two faces.** The digits are JetBrains Mono with `tnum`; the affixes are
-   Onest at zero tracking, because `R` and `pts` are language.
+   Schibsted Grotesk at zero tracking, because `R` and `pts` are language.
 2. **Unknown versus zero.** A measured zero renders `0`, keeps its place and is
    never suppressed. A null renders an em dash in **ink-3, at the figure's own
    role and face**, with the unit suppressed and `allowsDelta: false` — a delta
@@ -841,7 +919,7 @@ its light entirely.
 ### 9.7 The other two guards
 
 **The codepoint guard** (`torchlight_glyph_coverage_test.dart`) parses the
-`cmap` tables of the three committed `Onest-Pdf-*.ttf` files — the binaries, not
+`cmap` tables of the three committed `SchibstedGrotesk-Pdf-*.ttf` files — the binaries, not
 `tool/build_pdf_fonts.sh`'s intentions, because a range added to the script and
 never re-run is a range that does not exist — and asserts that every character
 `TiqNumber` emits and every character in both `.arb` files is really in all
@@ -849,7 +927,8 @@ three weights. `package:pdf` does not fall back and does not draw tofu: a
 missing glyph is simply absent from the report, which is how a delta arrow left
 every export in #401 and was found by a customer.
 
-It also ratchets **U+25B2 / U+25BC**, which Onest has never had at any weight.
+It also ratchets **U+25B2 / U+25BC**, which neither Onest nor Schibsted Grotesk
+has ever had at any weight.
 Five call sites survive, in a ledger with the component that deletes each:
 `delta_pill.dart` (2), `rich_figures.dart` (2), `artifact_pdf.dart` (1). No file
 may gain one and a file not in the ledger may not have one at all. It is a
@@ -1168,7 +1247,8 @@ something is filtered.
    its label to the pinned list in `torchlight_contrast_test.dart`, so deleting
    a ban is a visible edit rather than an omission.
 7. If it is a type role, declare its `TiqTypeKind`. `figure` and `identifier`
-   get JetBrains Mono and tabular figures automatically; `prose` gets Onest. Add
+   get JetBrains Mono and tabular figures automatically; `prose` gets Schibsted
+   Grotesk. Add
    the name to the pinned set in `torchlight_type_test.dart`.
 8. Add it to the table in this document.
 
@@ -1615,7 +1695,8 @@ duplicate is gone and the row calls the law.
 
 The overview (`/dashboard/overview`) migrated to Torchlight in #453, **before**
 the card override (§9c/§9d) and before the realistic charts (§17). Rendered at
-390×844 in Onest it was the two-grammar screen the override exists to end: soft
+390×844 in the prose face it was the two-grammar screen the override exists to
+end: soft
 cards for every row, a **crimson-outlined rectangle at radius 6** for the
 headline figure, and a bare column on the ground for every plot.
 
@@ -1712,6 +1793,7 @@ they keep rendering exactly as they did.
 - `AppTheme.dark()` / `AppTheme.light()` are unchanged Lumen themes, except that
   they now also register a `TiqSkin`, so **`context.skin` resolves everywhere
   today**. The only visible change is the typeface: Onest replaces Inter.
+  (Schibsted Grotesk replaced Onest on 1 October 2026; see §4.)
 - `AppTheme.night()` and `AppTheme.day()` are the Torchlight themes
   (~~`AppTheme.veld()`~~ went with the skin, 28 September 2026). They register both a `TiqSkin` and a `TiqColors` derived from it by
   `TiqColors.fromSkin`, so a screen still on `context.colors` renders in
@@ -2234,7 +2316,8 @@ DeltaSlot(
 ```
 
 The triangle is **drawn**, never typed: `TileDelta.text` built `▲`/`▼` as
-characters, Onest does not carry U+25B2/U+25BC once `pyftsubset` has run, and
+characters, the prose face does not carry U+25B2/U+25BC once `pyftsubset` has
+run, and
 the PDF exporter rendered them as nothing (#401). `direction` is the shape and
 comes from the wire's `direction`; `sentiment` is the colour and comes from the
 wire's `sentiment`; neither is derived from the other, because a stock-out count

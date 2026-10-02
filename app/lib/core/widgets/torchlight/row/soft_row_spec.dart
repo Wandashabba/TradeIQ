@@ -98,8 +98,9 @@ enum SoftRowSeparator {
 /// Split out from the widget for three reasons. It is what the golden test
 /// snapshots — a text golden of declared values diffs readably and means the
 /// same thing on macOS and on the Linux box CI runs on, which a PNG of
-/// anti-aliased Onest does not. It is what a migrating screen reads when it
-/// needs to align something *beside* a row to the row's own insets (a section
+/// anti-aliased Schibsted Grotesk does not. It is what a migrating screen
+/// reads when it needs to align something *beside* a row to the row's own
+/// insets (a section
 /// rule, a sticky header, a swipe background). And it is a pure function, so
 /// the geometry can be argued about in a unit test rather than in a
 /// screenshot.

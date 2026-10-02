@@ -408,41 +408,52 @@ void main() {
     // whichever font the test binding loaded rather than the rule. The
     // English and Afrikaans strings the app actually ships are asserted
     // underneath, against the ladder rather than against one step.
-    testWidgets('one line stays at display 40', (tester) async {
+    // The three rungs, named once. They came down with the rest of the prose
+    // scale on 1 October 2026 — 40/32/26 was Onest's ladder at the old size —
+    // and they are read from the scale rather than retyped so the next
+    // reduction moves this file in one place.
+    final ladder = TiqType.console;
+
+    testWidgets('one line stays at display', (tester) async {
       final role = await roleFor(tester, 'One');
       expect(role.name, 'display');
-      expect(role.size, 40);
+      expect(role.size, ladder.display.size);
+      expect(role.size, 37);
     });
 
-    testWidgets('two lines stay at display 40', (tester) async {
+    testWidgets('two lines stay at display', (tester) async {
       final role = await roleFor(tester, 'One\nTwo');
       expect(role.name, 'display');
-      expect(role.size, 40);
+      expect(role.size, 37);
     });
 
-    testWidgets('three lines step to display.m 32', (tester) async {
+    testWidgets('three lines step to display.m', (tester) async {
       final role = await roleFor(tester, 'One\nTwo\nThree');
       expect(role.name, 'display.m');
-      expect(role.size, 32);
+      expect(role.size, 30);
     });
 
-    testWidgets('four lines step to display.s 26, the floor', (tester) async {
+    testWidgets('four lines step to display.s, the floor', (tester) async {
       final role = await roleFor(tester, 'One\nTwo\nThree\nFour');
       expect(role.name, 'display.s');
-      expect(role.size, 26);
+      expect(role.size, 24);
     });
 
-    testWidgets('and six lines are still 26 — 26 is the floor', (tester) async {
+    testWidgets('and six lines are still display.s — it is the floor', (
+      tester,
+    ) async {
       final role = await roleFor(tester, 'a\nb\nc\nd\ne\nf');
-      expect(role.size, 26);
+      expect(role.size, ladder.displayS.size);
     });
 
-    testWidgets('there is no step between 40 and 32', (tester) async {
+    testWidgets('there is no step between display and display.m', (
+      tester,
+    ) async {
       // The old helper stepped display → title.l → title.m and returned the
       // first role that laid out in two lines, so a three-line headline came
-      // back at title.l 24 — smaller than the outlet name on the populated
-      // screen two blocks below it. The declared ladder is 40 / 32 / 26 and
-      // nothing else.
+      // back at title.l — smaller than the outlet name on the populated
+      // screen two blocks below it. The declared ladder is display /
+      // display.m / display.s and nothing else.
       for (final headline in <String>[
         'a',
         'a\nb',
@@ -452,7 +463,11 @@ void main() {
       ]) {
         final role = await roleFor(tester, headline);
         expect(
-          <double>[40, 32, 26],
+          <double>[
+            ladder.display.size,
+            ladder.displayM.size,
+            ladder.displayS.size,
+          ],
           contains(role.size),
           reason: '"$headline" resolved to ${role.name} at ${role.size}',
         );
@@ -469,7 +484,11 @@ void main() {
           await _pump(tester, route: null, locale: locale);
           final text = tester.widget<Text>(find.text(headline));
           expect(
-            <double?>[40, 32, 26],
+            <double?>[
+              ladder.display.size,
+              ladder.displayM.size,
+              ladder.displayS.size,
+            ],
             contains(text.style!.fontSize),
             reason:
                 'the empty-state headline is display prose under the fitting '
@@ -489,7 +508,11 @@ void main() {
         textScale: 2.0,
       );
       final text = tester.widget<Text>(find.text('Geen roete vandag nie'));
-      expect(<double?>[40, 32, 26], contains(text.style!.fontSize));
+      expect(<double?>[
+        ladder.display.size,
+        ladder.displayM.size,
+        ladder.displayS.size,
+      ], contains(text.style!.fontSize));
     });
   });
 

@@ -20,6 +20,6 @@ zone.height = 161
 skin.cycle = thumb-zone
 primary.armed = yes
 primary.blocked.named = no
-primary.height = 58
+primary.height = 56
 rows.onscreen = 0
 amber.objects = 1

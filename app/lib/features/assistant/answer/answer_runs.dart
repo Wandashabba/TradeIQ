@@ -5,9 +5,13 @@ import 'answer_markdown.dart';
 
 /// THE FIGURE RULE — every digit run in prose is set in JetBrains Mono.
 ///
-/// The owner's decision is that Onest never renders a figure, and this is
+/// The owner's decision is that the prose face never renders a figure, and
+/// this is
 /// where that becomes a real, testable thing rather than a sentence in a
-/// document. Onest has no slashed zero, proportional digits, and an identical
+/// document. Schibsted Grotesk sets its digits proportionally and its zero is
+/// unslashed unless the `zero` feature is switched on, which the app does not
+/// do. (Onest, the face this rule was written for, additionally had an
+/// identical
 /// capital I and lowercase l; at 13px through glare at 40% backlight that is
 /// the difference between reading `0` and reading `O`.
 ///
@@ -15,7 +19,7 @@ import 'answer_markdown.dart';
 /// its grouping and decimal marks — locale-driven, so Afrikaans `1 284 990,5`
 /// holds together as one run — a leading `R`, and a trailing `%`, `pt` or
 /// `pts`. A word that merely contains digits ("Stage 6", "U-Save 2") gives up
-/// the digit run alone and keeps its letters in Onest.
+/// the digit run alone and keeps its letters in Schibsted Grotesk.
 ///
 /// ## The performance constraint that made this a separate file
 ///
@@ -111,7 +115,7 @@ List<AnswerRun> answerRuns(String text, {required bool streaming}) {
     for (final match in _figureToken.allMatches(run.text)) {
       // A token whose only digits are inside a word ("KC-0412") still splits
       // on the digit run, which is what the rule asks for: the letters stay
-      // in Onest and the digits go mono.
+      // in Schibsted Grotesk and the digits go mono.
       if (match.start > at) {
         out.add(AnswerRun(run.text.substring(at, match.start),
             bold: run.bold, italic: run.italic));
@@ -152,7 +156,7 @@ List<InlineSpan> answerSpans(
                 fontFamily: TiqFonts.mono,
                 fontFamilyFallback: TiqFonts.monoFallback,
                 // 0.94em of the surrounding role lands mono's larger x-height
-                // on the same optical size as the Onest around it.
+                // on the same optical size as the prose around it.
                 fontSize: size * 0.94,
                 letterSpacing: 0,
                 fontWeight: run.bold ? FontWeight.w700 : null,

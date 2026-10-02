@@ -22,8 +22,8 @@ import 'floor_harness.dart';
 ///
 /// Every other test in this folder asserts a number. This one produces the
 /// images the owner and the reviewer compare against the mockup: populated,
-/// with a **real committed place image** on the plate and **Onest and
-/// JetBrains Mono loaded**. The test font is wider than Onest, so a screen
+/// with a **real committed place image** on the plate and **Schibsted Grotesk and
+/// JetBrains Mono loaded**. The test font is wider than Schibsted Grotesk, so a screen
 /// rendered in it wraps sooner and measures taller — a picture of the wrong
 /// screen.
 ///
@@ -49,7 +49,7 @@ import 'floor_harness.dart';
 /// ## Why it does not run in CI
 ///
 /// For the reason `soft_row_golden_test.dart` gives for not being a PNG at
-/// all: CI rasterises anti-aliased Onest on `ubuntu-latest` and this
+/// all: CI rasterises anti-aliased Schibsted Grotesk on `ubuntu-latest` and this
 /// repository is developed on macOS, so a pixel comparison fails on the day
 /// it lands and gets skipped within a week. The images are an artefact to
 /// *look at*, not a regression pin — the pins are the measurements in

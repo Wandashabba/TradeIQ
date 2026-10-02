@@ -68,25 +68,45 @@ class TiqSpace {
   /// only on the console profile — so the way in ran a 1240dp-wide email
   /// field, and there was no token to say it should not.
   ///
-  /// **480, and here is the arithmetic.** `body` is 14/1.55 in Onest at both
-  /// densities since #488. Onest measures **6.547dp per character** at 14 —
-  /// measured by `TextPainter` against these screens' own copy in
-  /// `entry_width_test.dart`, not estimated — so 480dp is **73.3
-  /// characters**, inside the 45–75 band typography has used for a century
-  /// (66 is the optimum). It is 4 × 120, on the base-4 grid like everything
-  /// else here.
+  /// **440, and here is the arithmetic.** `body` is 13/1.55 at both densities
+  /// since the 1 October 2026 reduction. Schibsted Grotesk measures
+  /// **5.997dp per character** at 13 — measured by `TextPainter` against these
+  /// screens' own copy in `entry_width_test.dart`, not estimated — so 440dp is
+  /// **73.4 characters**, inside the 45–75 band typography has used for a
+  /// century (66 is the optimum). It is 4 × 110, on the base-4 grid like
+  /// everything else here.
   ///
-  /// The first number written here was 520, read off a rendered screen with
-  /// a ruler; the `TextPainter` said 79.4 characters and 520 went. **The
-  /// test prints the measurement**, so when the type scale moves again the
-  /// way it did in #488 this fails with the new number in the failure rather
-  /// than drifting quietly out of band.
+  /// ## WHY IT MOVED, AND WHY IT HAD TO
+  ///
+  /// This token is **derived, not chosen**. It has now been re-derived twice
+  /// in one day and both moves were forced by the arithmetic rather than
+  /// picked:
+  ///
+  /// | | `body` | dp/char | 480dp holds | in band? |
+  /// |---|---|---|---|---|
+  /// | Onest | 14 | 6.547 | 73.3 | yes |
+  /// | Schibsted Grotesk | 14 | 6.458 | 74.3 | yes, barely |
+  /// | Schibsted Grotesk | 13 | 5.997 | **80.0** | **no** |
+  ///
+  /// A narrower face at a smaller size puts MORE words on a line, so the
+  /// band's UPPER edge is the binding term — the opposite of the intuition
+  /// that smaller type needs a narrower column. 480 went over 75 and had to
+  /// come down. **440 was picked to hold the MEASURE constant** at 73.4
+  /// characters, which is where Onest at 480 sat (73.3): the column is the
+  /// same number of words wide as the one the owner approved, drawn in less
+  /// space. 4 × 110 keeps it on the grid.
+  ///
+  /// The first number ever written here was 520, read off a rendered screen
+  /// with a ruler; the `TextPainter` said 79.4 characters and 520 went. **The
+  /// test prints the measurement**, so the next time the type scale moves this
+  /// fails with the new number in the failure rather than drifting quietly out
+  /// of band.
   ///
   /// It is deliberately **not** a container width. A card, a table or a
   /// dashboard is not prose and must not read this token; this is the measure
   /// for *one column of words and the controls that belong to them*, which is
   /// what every screen on the way in is.
-  static const double readingWidth = 480;
+  static const double readingWidth = 440;
 
   /// Every legal spacing value, in order. Anything not in this list is a
   /// magic number — `torchlight_lint_test.dart` treats it as one.

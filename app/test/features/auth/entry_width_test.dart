@@ -22,11 +22,13 @@ import 'entry_harness.dart';
 /// `entry_look_test.dart` is the picture; this is the pin. It answers three
 /// questions a picture cannot:
 ///
-/// 1. **Is 480 a measure, or a taste?** It is a measure. Onest at body
-///    14/1.55 is measured here with a `TextPainter` against the entry
-///    screens' own copy, and the cap is asserted to land inside the 45–75
-///    characters-per-line band. If the type scale moves again the way it did
-///    in #488, this fails rather than drifting.
+/// 1. **Is 440 a measure, or a taste?** It is a measure. The prose face at
+///    `body` is measured here with a `TextPainter` against the entry screens'
+///    own copy, and the cap is asserted to land inside the 45–75
+///    characters-per-line band. It has already done its job twice: #488 moved
+///    the scale and this caught it, and the 1 October 2026 reduction took
+///    `body` from 14 to 13 — which put 480dp at 80.0 characters, outside the
+///    band — and this failed with the number to replace it with.
 /// 2. **Did the phone screen survive?** At 390×844 and 360×640 the fields
 ///    still run gutter to gutter and the commit bar is still a pinned
 ///    [TorchThumbZone]. #494's layout is good and nobody complained about it.
@@ -53,10 +55,11 @@ void main() {
       'Signing in again on this phone is the only thing that sends them.',
     ];
 
-    test('480dp is 45–75 characters of Onest at body 14', () {
+    test('the reading width is 45–75 characters of the prose face at body',
+        () {
       final skin = entrySkinFor(SkinMode.night);
       final body = skin.text.body;
-      expect(body.size, 14, reason: 'the cap is arithmetic on this number');
+      expect(body.size, 13, reason: 'the cap is arithmetic on this number');
 
       var characters = 0;
       var width = 0.0;
@@ -76,7 +79,8 @@ void main() {
       // number straight off the failure instead of deriving it again.
       // ignore: avoid_print
       print(
-        'Onest body 14: ${perCharacter.toStringAsFixed(3)}dp per character; '
+        'prose body ${skin.text.body.size}: '
+        '${perCharacter.toStringAsFixed(3)}dp per character; '
         '${TiqSpace.readingWidth.toStringAsFixed(0)}dp holds '
         '${perLine.toStringAsFixed(1)} characters.',
       );

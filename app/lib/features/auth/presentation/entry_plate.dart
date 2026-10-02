@@ -120,22 +120,25 @@ import 'entry_brand.dart';
 /// scroll it already has, so the honest reserve is what must be visible beside
 /// the plate for a person to see this is a sign-in and start typing: the
 /// headline (which is *on* the plate) and the whole first field. Measured at
-/// 390 wide in Onest, at 1.0×, by `entry_plate_test.dart`:
+/// 390 wide in Schibsted Grotesk, at 1.0×, by `entry_plate_test.dart`:
 ///
 /// | piece | dp |
 /// |---|---|
 /// | the shell's top inset (`s4`) | 16 |
 /// | `blockGap`, plate to first field | 24 |
-/// | the email field, whole | 82 |
-/// | the pinned thumb zone, outside the scroll | 146 |
-/// | **[ground]** | **268** |
+/// | the email field, whole | 78 |
+/// | the pinned thumb zone, outside the scroll | 142 |
+/// | **[ground]** | **260** |
+///
+/// (82 and 146 against a 268 total until the prose scale came down 13/14 on
+/// 1 October 2026. Both are type-driven heights; the gap and the inset are
+/// tokens and did not move.)
 ///
 /// That arithmetic, and not a clip, is what answers the short phone. The
-/// picture now survives every viewport down to **418dp** — `418 − 268` is
-/// 150, the [shortest] plate the door accepts — and is the full 250 from 518
-/// up. There is no phone and no browser window in that band, which is the
-/// point: a cliff that has been moved three times has to end up somewhere
-/// nobody can land on it.
+/// picture now survives every viewport down to **410dp** — `410 − 260` is
+/// 150, the [shortest] plate the door accepts. There is no phone and no
+/// browser window in that band, which is the point: a cliff that has been
+/// moved three times has to end up somewhere nobody can land on it.
 ///
 /// A 360×640 handset therefore draws the photograph, where 566 dropped it.
 /// Checked rather than assumed: at 640 the scroll viewport is 494, the plate's
@@ -223,37 +226,66 @@ class EntryPlate extends StatelessWidget {
   ///
   /// Set `tallest` to 100000 and nothing moves. The resolved heights are
   /// `0.40 × vh` at every size — 256 at 640, 283 at 708, 338 at 844, 373 at
-  /// 932 — while an 844 viewport *affords* 496 at 2.0×. **Affordability is
-  /// never the binding term on a phone; the proportion is.** Raising a ceiling
-  /// above a binding cap changes nothing.
+  /// 932 — while an 844 viewport *affords* 508 at 2.0× (844 − `groundFor(2.0)`
+  /// = 844 − 336; it was 496 when the reserve was 268 + 80). **Affordability
+  /// is never the binding term on a phone; the proportion is.** Raising a
+  /// ceiling above a binding cap changes nothing.
   ///
   /// ### What the plate actually needs, measured
   ///
-  /// The minimum plate height at which the rendered headline stops being
-  /// shrunk, found by stepping the height and comparing the rendered
-  /// `TorchDisplayHeadline` rect against its natural height at the same width
-  /// and scale:
+  /// **RE-MEASURED 1 October 2026, in Schibsted Grotesk at the reduced prose
+  /// scale.** The previous table was Onest's at `display` 40 and its own note
+  /// said to re-measure the whole thing if the prose face changed. Both
+  /// changed on the same day: the face, and then the scale, which took the
+  /// display ladder from 40/32/26 to 37/30/24.
   ///
-  /// | scale | 390 wide | 360 wide |
-  /// |---|---|---|
-  /// | 1.0× | 223 | 223 |
-  /// | 1.3× | **307** | **322** |
-  /// | 1.6× | **383** | **482** |
-  /// | 2.0× | **418** | **518** |
+  /// The minimum plate height at which the rendered headline stops being
+  /// shrunk. The plate puts the hero in a `FittedBox(scaleDown)` inside
+  /// `Positioned(top: textZoneTop, bottom: s4)`, so the box is **`0.52 × H −
+  /// 16`** at 240dp of plate and above and **`0.58 × H − 16`** below it, where
+  /// `textZoneTop` is the shorter 0.42 fraction. A `FittedBox` transforms its
+  /// child rather than re-laying it out, so the cluster's own `RenderBox.size`
+  /// is its natural height and the number below is
+  /// `(natural + 16) / fraction`. Checked against a direct sweep at 1.0×,
+  /// which is the one row the plate can actually reach: derived 211, observed
+  /// **210.4**.
+  ///
+  /// | scale | cluster natural | 360 | 390 | 395 | 430 | 1280 (plate 440) |
+  /// |---|---|---|---|---|---|---|
+  /// | 1.0× | 106 | 211 | 211 | 211 | 211 | 147 |
+  /// | 1.3× | 134 | 289 | 289 | 289 | 289 | 176 |
+  /// | 1.6× | 162–172 | 362 | 362 | 362 | **343** | 206 |
+  /// | 2.0× | 188–272 | **393** | **554** | **554** | **439** | 274 |
   ///
   /// Against the `0.40 × vh` ceiling, which `tallest` cannot raise:
   ///
   /// | viewport | ceiling | 1.0× | 1.3× | 1.6× | 2.0× |
   /// |---|---|---|---|---|---|
   /// | 360×640 | 256 | ✓ | ✗ | ✗ | ✗ |
-  /// | 395×708 | 283 | ✓ | **✗** | ✗ | ✗ |
-  /// | 390×844 | 338 | ✓ | **✓** | ✗ | ✗ |
-  /// | 430×932 | 373 | ✓ | ✓ | ✗ (by 10dp) | ✗ |
+  /// | 395×708 | 283 | ✓ | **✗ (by 6dp)** | ✗ | ✗ |
+  /// | 390×844 | 338 | ✓ | **✓** | ✗ (by 24dp) | ✗ |
+  /// | 430×932 | 373 | ✓ | ✓ | **✓** | ✗ |
   /// | 1280×1800 | 720 | ✓ | ✓ | ✓ | ✓ |
   ///
-  /// Eleven of the twelve phone-and-window cells are blocked by the ceiling.
-  /// 1.0× needs 223 and this constant is 250, which is why normal type looks
-  /// right and nothing above it does.
+  /// **Nine of the twelve phone-and-window cells are blocked, where eleven
+  /// were.** 1.0× needs 211 against this constant's 250, so normal type now
+  /// has 39dp of headroom rather than 27.
+  ///
+  /// Two things moved in opposite directions and both are worth knowing:
+  ///
+  /// * **430×932 at 1.6× came unblocked.** It needed 383 against a 373
+  ///   ceiling and now needs 343. One real cell recovered, for free, out of a
+  ///   change made for other reasons.
+  /// * **2.0× at 390 and 395 got WORSE — 418 before, 554 now.** Not a
+  ///   regression in the prose: a rung of the fitting ladder moved out from
+  ///   under it. At 2.0× on a 310dp text column the headline takes three lines,
+  ///   which is the `display.m` rung; at 40 it took four and dropped to the
+  ///   `display.s` floor, where it was already as small as the ladder goes.
+  ///   Smaller type bought a line back and the ladder spent it on a bigger
+  ///   rung. 360 wide still reaches four lines and still floors, which is why
+  ///   it needs 393 and the wider screens need 554 — **the inversion that used
+  ///   to run the other way now runs this way.** A `proportion` surface still
+  ///   cannot be a straight line, and it cannot be a line in width either.
   ///
   /// ### The lever that does work
   ///
@@ -276,18 +308,25 @@ class EntryPlate extends StatelessWidget {
   ///
   /// ### Why it is not built here
   ///
-  /// The owner is evaluating a replacement for the app's prose face (Grotesco,
-  /// for Onest). **Every number above is Onest's.** They are headline-wrapping
-  /// measurements in one face at one width; a face with different metrics
-  /// moves all of them, and the width-awareness in particular will not survive
-  /// a font change in the same shape. Building the surface now and re-deriving
-  /// it next week is work done twice — and it would land a tuned table that
-  /// *looks* authoritative while being quietly wrong, which is the same trap
-  /// as the 566 identity §3 exists to document.
+  /// The face change happened — Schibsted Grotesk, 1 October 2026 — and the
+  /// table above has been re-measured for it, including the scale reduction
+  /// that followed on the same day. **The numbers are true again and the
+  /// `proportion` route is ready to build from them.**
   ///
-  /// **If the prose face changes, re-measure the whole table before using it.**
-  /// If it does not, the numbers stand and the `proportion` route is ready to
-  /// build from them.
+  /// It is still not built here, for a narrower reason than before: it needs a
+  /// `proportion` parameter on `PlateSpec.heightFor` and a width × scale
+  /// surface behind it, and that is a change to the component The Floor shares.
+  /// A type change is not where that lands.
+  ///
+  /// **The warning the old note carried stands, and this round proved it.**
+  /// Every number above is a headline-wrapping measurement in one face at one
+  /// scale; the previous set was Onest's, and the face swap plus the reduction
+  /// moved every cell — one of them (2.0× at 390) by 136dp, and in the
+  /// direction nobody would have guessed. Re-measure before using them again,
+  /// and use `test/features/auth/entry_plate_headline_fit_test.dart`, which
+  /// is the harness every cell above came out of and which now asserts them
+  /// — so a face or scale change fails there with the new numbers printed,
+  /// rather than leaving this table quietly wrong.
   static const double tallest = 250;
 
   /// The shortest photographic plate the door will accept — **150, against
@@ -301,9 +340,10 @@ class EntryPlate extends StatelessWidget {
   /// It is **not** load-bearing any more, and that is the repair. 150 was put
   /// here to buy fifty dp of viewport back from a reserve that was double
   /// counting the thumb zone — 766 down to 716 — and the arithmetic it was
-  /// defending against is gone; see §3. With [ground] at 268 a plate shorter
-  /// than The Floor's 200 only occurs between a 418 and a 468dp viewport, and
-  /// nothing lands there. What the number still says is the thing it ought to
+  /// defending against is gone; see §3. With [ground] at 260 a plate shorter
+  /// than The Floor's 200 only occurs between a 410 and a 460dp viewport, and
+  /// nothing lands there. (It was 418 to 468 when the reserve was 268; the
+  /// prose reduction moved the whole band 8dp down.) What the number still says is the thing it ought to
   /// have said on its own: under 150dp a photograph with type over it is a
   /// smear, and the band is better.
   ///
@@ -312,31 +352,45 @@ class EntryPlate extends StatelessWidget {
   /// re-measure.
   static const double shortest = 150;
 
-  /// What must be on screen **beside** the plate at 1.0× — **268, measured.**
+  /// What must be on screen **beside** the plate at 1.0× — **260, measured.**
   ///
   /// The screen scrolls, so this is not the height of the form. It is the top
-  /// inset (16) plus the block gap and the whole first field (24 + 82) plus
-  /// the pinned thumb zone (146), which is a sibling of the scroll view and
+  /// inset (16) plus the block gap and the whole first field (24 + 78) plus
+  /// the pinned thumb zone (142), which is a sibling of the scroll view and
   /// not a row inside it. §3 has the table and the three reports that came of
   /// getting it wrong. `entry_plate_test.dart` re-measures all four pieces off
   /// the rendered screen and fails with the number to put here.
-  static const double ground = 268;
+  ///
+  /// It was **268** until the prose scale came down 13/14 on 1 October 2026,
+  /// which took 4dp off the email field (82 → 78) and 4dp off the thumb zone
+  /// (146 → 142). Both are type-driven heights and both moved in the direction
+  /// that gives the picture more room, not less.
+  static const double ground = 260;
 
   /// How much [ground] grows per unit of text scale — **80, measured.**
   ///
   /// Three of the four pieces carry type and two of them grow: the email field
-  /// (82 → 120) and the thumb zone (146 → 184). The gap and the inset are
-  /// tokens and do not. The measured reserve is 268 at 1.0×, 290 at 1.3×, 314
-  /// at 1.6× and 344 at 2.0× — a straight line of slope 76. The number here is
-  /// rounded up to 80 so [groundFor] is never *under* the measured reserve at
-  /// a scale in between; at 1.6× a slope of 76 would have been 0.4dp short.
-  static const double groundProse = 80;
+  /// (78 → 114) and the thumb zone (142 → 178). The gap and the inset are
+  /// tokens and do not. The measured reserve is **260 at 1.0×, 282 at 1.3×,
+  /// 304 at 1.6× and 332 at 2.0×** — the binding segment is 1.0× → 1.3×, whose
+  /// slope is 73.3. The number here is rounded up to **76** so [groundFor] is
+  /// never *under* the measured reserve at a scale in between: it gives 282.8
+  /// at 1.3×, 305.6 at 1.6× and 336 at 2.0×, each a shade over what was
+  /// measured.
+  ///
+  /// Re-measured on 1 October 2026 with the reduced prose scale. It was 80
+  /// against a measured slope of 76; both numbers came down because the three
+  /// pieces that carry type are all smaller, and the reserve therefore grows
+  /// more slowly as well as starting lower.
+  static const double groundProse = 76;
 
   /// The reserve at a given text scale.
   ///
   /// Linear, and it no longer carries the weight it used to. At 2.0× it is
-  /// 348, so the collapse boundary moves from a 418dp viewport to 498 and the
-  /// picture survives every real device at every scale the app allows.
+  /// 336, so the collapse boundary moves from a 410dp viewport to 486 and the
+  /// picture survives every real device at every scale the app allows. (348
+  /// and 498 before the 1 October 2026 prose reduction; both came down with
+  /// the reserve.)
   ///
   /// ### WHAT THAT CHANGED, SAID OUT LOUD
   ///

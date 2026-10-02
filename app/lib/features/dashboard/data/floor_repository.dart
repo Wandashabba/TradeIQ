@@ -266,8 +266,9 @@ class FloorDecision {
   /// THE BUDGET, IN CHARACTERS, AND WHY IT IS NOT MEASURED.
   ///
   /// A decision row's reason gets one line. On a 390dp phone that line is
-  /// about 230dp of Onest 14 after the card's gutter, its padding, the
-  /// severity lane, the gap and the age figure — call it 34 characters. The
+  /// about 230dp of Schibsted Grotesk 14 after the card's gutter, its
+  /// padding, the severity lane, the gap and the age figure — call it 34
+  /// characters. The
   /// messages the server writes run to 55, and a 379dp sentence does not fit
   /// a 390dp phone by any arrangement of the row: the fix has to be the
   /// sentence.

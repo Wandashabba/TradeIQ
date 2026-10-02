@@ -6,9 +6,9 @@ import '../../theme/torchlight/tiq_skin.dart';
 ///
 /// `display` was the one prose role with no fitting rule while `hero.figure`
 /// had one keyed to glyph count. It is keyed to **line count after layout**:
-/// 1–2 lines stay at 40, 3 lines step to 32, 4 or more to 26, floor 26. An
-/// Afrikaans headline at 2.0× therefore has a defined shape instead of eating
-/// the screen. See [sizeFor].
+/// 1–2 lines stay at `display`, 3 lines step to `display.m`, 4 or more to
+/// `display.s`, which is the floor. An Afrikaans headline at 2.0× therefore
+/// has a defined shape instead of eating the screen. See [sizeFor].
 ///
 /// It lives here rather than inside `EmptyState` because it is not an
 /// empty-state idea. A whole-screen empty state opens with one of these, and
@@ -25,15 +25,32 @@ class TorchDisplayHeadline extends StatelessWidget {
 
   final String headline;
 
-  /// The three steps of the display fitting rule.
-  static const List<double> steps = <double>[40, 32, 26];
+  /// The three steps of the display fitting rule, **read from the scale**.
+  ///
+  /// It was the literal `[40, 32, 26]` until 1 October 2026, and that was a
+  /// real bug rather than a tidy-up: the prose reduction took `display` to 37,
+  /// `display.m` to 30 and `display.s` to 24, and this list went on painting
+  /// every headline at the old sizes. The token comment on [TiqType.displayM]
+  /// says exactly why the three steps are declared members of the scale —
+  /// *"a size that only exists inside one screen's helper is a size no
+  /// contrast walk, no render sampler and no text-scale cap ever sees"* — and
+  /// a hardcoded copy of them here was the same mistake one level down.
+  ///
+  /// `final` rather than `const` because Dart will not read an instance field
+  /// off a const object in a const expression. Nothing used it in a const
+  /// context.
+  static final List<double> steps = <double>[
+    TiqType.console.display.size,
+    TiqType.console.displayM.size,
+    TiqType.console.displayS.size,
+  ];
 
   /// THE LINE-COUNT FITTING RULE, as a pure function.
   ///
-  /// Lay the headline out at 40 and count the lines it takes; 1 or 2 keeps 40,
-  /// 3 steps to 32, 4 or more to 26. The floor is 26 and there is no fourth
-  /// step: below 26 a display headline is a title, and a title is what the
-  /// in-panel scope already uses.
+  /// Lay the headline out at the top rung and count the lines it takes; 1 or 2
+  /// keeps it, 3 steps to the middle rung, 4 or more to the floor. There is no
+  /// fourth step: below the floor a display headline is a title, and a title
+  /// is what the in-panel scope already uses.
   static double sizeFor({
     required String headline,
     required TiqTypeToken role,

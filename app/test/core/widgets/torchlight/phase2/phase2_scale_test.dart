@@ -126,7 +126,9 @@ void main() {
     tester,
   ) async {
     final skin = TiqSkin.night(density: TiqDensity.field);
-    // One short line stays at 40.
+    final top = skin.text.display.size;
+    final floor = skin.text.displayS.size;
+    // One short line stays at the top rung.
     expect(
       EmptyState.displaySizeFor(
         headline: 'No route today',
@@ -135,10 +137,10 @@ void main() {
         scaler: TextScaler.noScaling,
         direction: TextDirection.ltr,
       ),
-      40,
+      top,
     );
     // A long Afrikaans headline in a 280dp column takes more lines and steps
-    // down. The rule has a floor of 26 and no fourth step.
+    // down. The rule has a floor and no fourth step.
     final long = EmptyState.displaySizeFor(
       headline:
           'Geen winkels binne 2 km nie — soek op naam of skandeer ’n '
@@ -148,9 +150,20 @@ void main() {
       scaler: TextScaler.noScaling,
       direction: TextDirection.ltr,
     );
-    expect(long, lessThan(40));
-    expect(long, greaterThanOrEqualTo(26));
-    expect(EmptyState.displaySteps, <double>[40, 32, 26]);
+    expect(long, lessThan(top));
+    expect(long, greaterThanOrEqualTo(floor));
+    // THE LADDER IS THE SCALE'S, NOT A LITERAL. It was `[40, 32, 26]` here
+    // and in `TorchDisplayHeadline.steps` until 1 October 2026, when the
+    // prose reduction moved the three tokens and the hardcoded copy went on
+    // painting the old sizes. Asserted against the tokens so the next
+    // reduction cannot reopen the gap, and against the numbers so a silent
+    // change to the tokens is still a change somebody reads.
+    expect(EmptyState.displaySteps, <double>[
+      skin.text.display.size,
+      skin.text.displayM.size,
+      skin.text.displayS.size,
+    ]);
+    expect(EmptyState.displaySteps, <double>[37, 30, 24]);
   });
 
   testWidgets('a choice group collapses to a column on measured width, not on '

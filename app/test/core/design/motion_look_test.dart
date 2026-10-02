@@ -38,7 +38,7 @@ import '../../features/agent_harness.dart' show loadAgentFonts;
 ///
 /// ## Why it does not run in CI
 ///
-/// The reason `floor_look_test.dart` gives: CI rasterises anti-aliased Onest
+/// The reason `floor_look_test.dart` gives: CI rasterises anti-aliased Schibsted Grotesk
 /// on `ubuntu-latest` and this repository is developed on macOS, so a pixel
 /// comparison fails on the day it lands. These are an artefact to *look at*.
 /// The pins are `motion_amber_test.dart` and `torch_page_test.dart`, which run

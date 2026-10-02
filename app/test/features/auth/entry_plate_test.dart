@@ -462,7 +462,7 @@ void main() {
     /// at 1.3× and 1.6× since the screen was built, and collapsing at 2.0×
     /// would hide it rather than fix it. The lever that fixes it is a
     /// per-screen `proportion` on `PlateSpec.heightFor`; it is deferred
-    /// because every measurement behind it is in Onest and the prose face is
+    /// because every measurement behind it is in Schibsted Grotesk and the prose face is
     /// under review. The table and the disproof are on `tallest`.
     for (final scale in <double>[1.0, 1.3, 1.6, 2.0]) {
       testWidgets('${scale}x: [groundFor] is not under the measured reserve', (

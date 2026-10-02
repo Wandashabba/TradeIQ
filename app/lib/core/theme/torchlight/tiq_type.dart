@@ -7,10 +7,22 @@ import 'tiq_space.dart';
 class TiqFonts {
   TiqFonts._();
 
-  /// Onest — the prose face. One bundled variable font (`Onest[wght].ttf`,
-  /// wght 100–900); Flutter maps [FontWeight] onto the wght axis, so no static
-  /// instances are shipped.
-  static const String prose = 'Onest';
+  /// Schibsted Grotesk — the prose face. One bundled variable font
+  /// (`SchibstedGrotesk-Variable.ttf`, wght **400–900**); Flutter maps
+  /// [FontWeight] onto the wght axis, so no static instances are shipped.
+  ///
+  /// It replaced Onest on 1 October 2026, chosen by the owner from four
+  /// open-licensed grotesques shown against the commercial face they were
+  /// evaluating. SIL OFL 1.1, bundled rather than fetched — see `pubspec.yaml`.
+  ///
+  /// Its x-height is Onest's to within a thousandth of an em (0.5273 against
+  /// 0.5270), which is why the swap did not change apparent size, and its
+  /// lowercase is a few percent narrower, which is why prose wraps slightly
+  /// later. The measurements are in `docs/design/torchlight-aisle.md`.
+  ///
+  /// The axis floor is 400 rather than Onest's 100. Every weight in this file
+  /// is 400 or above; a token below it would be silently clamped to regular.
+  static const String prose = 'Schibsted Grotesk';
 
   /// JetBrains Mono — the figure and identifier face.
   static const String mono = 'JetBrains Mono';
@@ -31,13 +43,22 @@ class TiqFonts {
 
 /// Whether a type role carries language or carries data.
 ///
-/// This is the enforcement point for the rule that Onest must never render a
-/// figure or a code. Onest has no slashed zero, its digits are proportional,
-/// and its capital I and lowercase l are the same shape — all three are fine
-/// for prose and disqualifying for an outlet code, a GTIN or an order ref.
+/// This is the enforcement point for the rule that the prose face must never
+/// render a figure or a code.
+///
+/// The rule was first written against Onest, which had no slashed zero,
+/// proportional digits, and a capital I and lowercase l of the same shape.
+/// **Schibsted Grotesk answers two of those three** — it has a slashed zero
+/// under the `zero` feature, and its I and l are plainly different glyphs —
+/// and the split stays anyway, because it is a design decision rather than a
+/// glyph audit: a figure face and a prose face doing different jobs is what the
+/// product reads as. The one ground that still holds on its own terms is the
+/// third: digits are proportional by default in both faces, and a column of
+/// stock counts is not a column without `tnum`.
+///
 /// `torchlight_type_test.dart` asserts the mapping in both directions.
 enum TiqTypeKind {
-  /// Language. Onest.
+  /// Language. Schibsted Grotesk.
   prose,
 
   /// A quantity, a timestamp, a unit, an axis label — anything a reader
@@ -127,6 +148,68 @@ class TiqTypeToken {
 ///
 /// Sizes come from the spec; Console and Field differ only where the spec
 /// says they do.
+///
+/// ## THE PROSE SCALE CAME DOWN ONE STEP — 1 October 2026
+///
+/// > *"LEt's do A and descrease the size of font. and make it look like a real
+/// > deployable app."* — the owner, with the Schibsted Grotesk swap.
+///
+/// It is **one ratio, not eleven nudges**: every `prose` role multiplied by
+/// **13/14** and rounded to the nearest whole dp.
+///
+/// 13/14 rather than a number off a feeling. `body` is the paragraph face for
+/// a manager reading a reason line on a phone in a car park, 13 is the floor
+/// below which that stops being readable, and `body` was 14. So 13/14 is the
+/// one step the floor permits: the largest reduction available without an
+/// argument, and the smallest that moves `body` at all.
+///
+/// Two constraints bind the rounding, and both are named because each one
+/// would otherwise look like an arithmetic mistake:
+///
+/// 1. **No role rounds DOWN across WCAG 1.4.3's large-text boundary** — 24px,
+///    or 18.66px at w600 and above. `title.l` lands on 18.57, which is under
+///    18.66, so it snaps **up** to 19. Rounding it to 18 would have moved
+///    every `title.l` pairing in the contrast sweep from a 3:1 floor to 4.5:1
+///    without a single colour changing, which is the kind of regression a
+///    smaller face passes by eye and fails on a ratio.
+///    `display.s` lands on 24.14 → 24, which still clears 24, so it keeps its
+///    class with nothing to spare — do not round it to 23.
+/// 2. **11dp is the floor of the scale and it holds.** `eyebrow` lands on
+///    10.21 → 10, below anything else in the system and below the smallest
+///    text role Material ships. It stays at **11**, where it is also uppercase
+///    at w700 — its cap height, 7.73dp, is already larger than `body`'s
+///    x-height at 13.
+///
+/// | role | was | now |
+/// |---|---|---|
+/// | `display` | 40 | **37** |
+/// | `display.m` | 32 | **30** |
+/// | `display.s` | 26 | **24** |
+/// | `headline.answer` | 22 | **20** |
+/// | `title.l` | 20 | **19** (constraint 1) |
+/// | `title.m` | 16 | **15** |
+/// | `body` | 14 | **13** |
+/// | `body.strong` | 14 | **13** |
+/// | `label` | 13 | **12** |
+/// | `meta` | 12 | **11** |
+/// | `eyebrow` | 11 | **11** (constraint 2) |
+///
+/// Every rung stays strictly below the one above it, so no two roles
+/// collapsed into each other. `meta` and `eyebrow` now share 11, which is not
+/// a collapse: one is lowercase w400 and the other uppercase w700 at +4%, and
+/// the eyebrow was already optically the larger of the two at 11 against 12.
+///
+/// **The figure and identifier roles do NOT move.** `hero.figure` 72,
+/// `hero.figure.compact` 56, `figure.l` 32, `figure.m` 22, `figure.s` 16,
+/// `axis.label` 12 and `mono.ident` 13 are all JetBrains Mono, they are a
+/// different job, and `hero.figure`'s glyph-count fitting ladder is tuned to
+/// those exact numbers with its own tests. The visible consequence is that
+/// three figure roles now sit one dp above the prose role they used to match
+/// — `figure.s` 16 beside `title.m` 15, `axis.label` 12 beside `meta` 11,
+/// `mono.ident` 13 beside `label` 12. One dp across two faces with different
+/// x-heights is inside the noise those pairings already carried; if the owner
+/// wants the figure ladder brought down too, that is a second decision with
+/// the hero's fitting rule in it.
 @immutable
 class TiqType {
   const TiqType({
@@ -266,7 +349,7 @@ class TiqType {
   static const TiqTypeToken _display = TiqTypeToken(
     name: 'display',
     kind: TiqTypeKind.prose,
-    size: 40,
+    size: 37,
     weight: _w6,
     height: 1.00,
     trackingPercent: -1.5,
@@ -275,16 +358,20 @@ class TiqType {
   static const TiqTypeToken _displayM = TiqTypeToken(
     name: 'display.m',
     kind: TiqTypeKind.prose,
-    size: 32,
+    size: 30,
     weight: _w6,
     height: 1.05,
     trackingPercent: -1.0,
   );
 
+  /// **24 is also exactly WCAG 1.4.3's large-text boundary.** At 24 this role
+  /// clears a 3:1 contrast floor; at 23 it would need 4.5:1, and eight
+  /// generated pairings would move without a colour changing. Do not round it
+  /// down.
   static const TiqTypeToken _displayS = TiqTypeToken(
     name: 'display.s',
     kind: TiqTypeKind.prose,
-    size: 26,
+    size: 24,
     weight: _w6,
     height: 1.15,
     trackingPercent: -0.5,
@@ -319,7 +406,7 @@ class TiqType {
   static const TiqTypeToken _titleM = TiqTypeToken(
     name: 'title.m',
     kind: TiqTypeKind.prose,
-    size: 16,
+    size: 15,
     weight: _w6,
     height: 1.30,
     trackingPercent: -0.25,
@@ -328,7 +415,7 @@ class TiqType {
   static const TiqTypeToken _headlineAnswer = TiqTypeToken(
     name: 'headline.answer',
     kind: TiqTypeKind.prose,
-    size: 22,
+    size: 20,
     weight: _w6,
     height: 1.35,
     trackingPercent: -0.5,
@@ -337,7 +424,7 @@ class TiqType {
   static const TiqTypeToken _label = TiqTypeToken(
     name: 'label',
     kind: TiqTypeKind.prose,
-    size: 13,
+    size: 12,
     weight: _w5,
     height: 1.35,
     trackingPercent: 0.5,
@@ -356,7 +443,7 @@ class TiqType {
   static const TiqTypeToken _meta = TiqTypeToken(
     name: 'meta',
     kind: TiqTypeKind.prose,
-    size: 12,
+    size: 11,
     weight: _w4,
     height: 1.40,
   );
@@ -388,27 +475,34 @@ class TiqType {
     figureL: _figureL,
     figureM: _figureM,
     figureS: _figureS,
+    // 19, NOT 18. 20 x 13/14 is 18.57, and WCAG 1.4.3 stops calling text
+    // "large" below 18.66px at w600. Rounding down would have moved eleven
+    // generated contrast pairings from a 3:1 floor to 4.5:1 with no colour
+    // touched. See the table on [TiqType].
     titleL: TiqTypeToken(
       name: 'title.l',
       kind: TiqTypeKind.prose,
-      size: 20,
+      size: 19,
       weight: _w6,
       height: 1.25,
       trackingPercent: -0.5,
     ),
     titleM: _titleM,
     headlineAnswer: _headlineAnswer,
+    // 13 IS THE FLOOR, and this is the role the floor is about: a manager
+    // reading a reason line on a phone in a car park. It does not go to 12
+    // without an argument nobody has made.
     body: TiqTypeToken(
       name: 'body',
       kind: TiqTypeKind.prose,
-      size: 14,
+      size: 13,
       weight: _w4,
       height: 1.55,
     ),
     bodyStrong: TiqTypeToken(
       name: 'body.strong',
       kind: TiqTypeKind.prose,
-      size: 14,
+      size: 13,
       weight: _w6,
       height: 1.55,
     ),
@@ -423,6 +517,14 @@ class TiqType {
   ///
   /// **SUPERSEDED — owner override, 29 September 2026. Nothing reads this any
   /// more; [forDensity] returns [console] at both densities.**
+  ///
+  /// **AND FROZEN at the pre-reduction scale.** The 1 October 2026 step took
+  /// [console]'s prose down by 13/14 and deliberately did not touch this
+  /// object, because it is a record of what the field scale WAS, not a second
+  /// live scale. The "roughly 7%" the override cost below is therefore the
+  /// 29 September figure; against [console] as it stands today the gap is
+  /// about 15%. Restoring it would restore the old absolute sizes, not a 7%
+  /// lift over the current ones — re-derive before using the numbers.
   ///
   /// > *"Make the font on the agentside the same as the manager side,
   /// > literally everything including colours"*

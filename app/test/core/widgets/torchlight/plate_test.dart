@@ -50,7 +50,7 @@ void main() {
       // — so the same fraction bought a bigger object and the list lost the
       // third decision card the owner's reference shows. 312 is what is left
       // on an 844dp phone once three cards, the lead card, the marker, the
-      // gaps and the nav pill have taken theirs, measured in Onest by
+      // gaps and the nav pill have taken theirs, measured in Schibsted Grotesk by
       // `floor_proportion_test.dart`.
       expect(PlateSpec.heightFor(892), 312);
       // A short one: 600-440 = 160, under the 200 floor.
