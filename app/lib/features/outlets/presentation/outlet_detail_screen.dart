@@ -311,7 +311,12 @@ class _OutletDetailBodyState extends ConsumerState<_OutletDetailBody> {
             disputeId: _disputeId,
           );
       ref.invalidate(outletDetailProvider(outlet.id));
+      // BOTH lists. The unscoped one is the product's lookup table for a
+      // shop's name; the scoped one is what the Stores screen is showing.
+      // Invalidating only the first left a renamed store reading its old
+      // name on the screen the manager renamed it from.
       ref.invalidate(outletsListProvider);
+      ref.invalidate(scopedOutletsProvider);
       ref.invalidate(openPinDisputesProvider);
       if (!mounted) return;
       setState(() {

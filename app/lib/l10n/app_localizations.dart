@@ -6824,6 +6824,30 @@ abstract class AppLocalizations {
   /// **'Add a store to put it on a beat plan.'**
   String get outletsEmptyBody;
 
+  /// Whole-screen empty state on the outlet list when a territory is chosen and it has no stores. Names the territory, because 'No stores' alone reads as an empty account.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores in {territory}.'**
+  String outletsEmptyInTerritoryHeadline(String territory);
+
+  /// Body of the territory-scoped empty state. Outlet.territoryId is free text with no foreign key, so a mis-filed store is the commonest reason a territory reads zero when the manager knows it should not.
+  ///
+  /// In en, this message translates to:
+  /// **'A store filed under a different territory\'s code is not listed here.'**
+  String get outletsEmptyInTerritoryBody;
+
+  /// Action on the territory-scoped empty state: clears the scope. The way out of a filter is out of the filter, not a new store.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all territories'**
+  String get outletsShowAllTerritories;
+
+  /// Added to the pin reports note when a territory is chosen. The pin dispute queue takes no territory, so it is not narrowed by the chip above it, and a queue that looks scoped is one a manager clears and believes they are done with.
+  ///
+  /// In en, this message translates to:
+  /// **'This queue covers every territory, not only the one in scope.'**
+  String get outletsPinReportsEveryTerritory;
+
   /// Headline of the outlet list's error state.
   ///
   /// In en, this message translates to:

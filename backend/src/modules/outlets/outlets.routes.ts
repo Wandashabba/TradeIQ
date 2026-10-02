@@ -25,10 +25,27 @@ outletsRouter.get('/', async (req: AuthedRequest, res) => {
   // see every outlet in the tenant, because being unable to check in at a
   // store you are standing in is a worse failure than a long list.
   const mine = req.query.mine === 'true';
+
+  // `?territoryId=` narrows to ONE territory, by `Territory.id` — see the doc
+  // comment on `ListOutletsForClientInput.territoryId` for why an id and not
+  // the code the column stores.
+  //
+  // Rejected rather than coerced or ignored, like `?status=` on the pin
+  // dispute queue below. A repeated `?territoryId=a&territoryId=b` arrives as
+  // an array and a bare `?territoryId=` as an empty string; both used to be
+  // the shape that produced the worst possible outcome here, which is a full
+  // tenant-wide store list rendered under a chip naming one territory.
+  const territoryId = req.query.territoryId;
+  if (territoryId !== undefined && (typeof territoryId !== 'string' || territoryId.length === 0)) {
+    res.status(400).json({ error: 'territoryId must be a single territory id' });
+    return;
+  }
+
   const { limit, cursor } = parsePagination(req);
   const page = await listOutletsForClient({
     clientId: req.user!.clientId,
     assignedTo: mine ? req.user!.userId : undefined,
+    territoryId,
     limit,
     cursor,
   });

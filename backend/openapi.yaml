@@ -130,6 +130,30 @@ paths:
     get:
       summary: List outlets for the authenticated user's client
       security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: mine
+          schema: { type: string, enum: ['true'] }
+          description: >-
+            Narrow to the caller's assigned territories. A filter the caller
+            asks for, never a permission: the same call without it still
+            returns every outlet in the tenant. An agent with no assignments
+            gets everything rather than nothing.
+        - in: query
+          name: territoryId
+          schema: { type: string }
+          description: >-
+            Narrow to one territory, by Territory.id — NOT its code, and not
+            the value stored in Outlet.territoryId (which is the code, with no
+            foreign key). An id that does not resolve against this client is a
+            400 naming it, never an empty list and never an ignored filter.
+            Combined with `mine`, the two narrowings intersect.
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: cursor
+          schema: { type: string }
       responses:
         '200':
           description: List of outlets
@@ -137,6 +161,8 @@ paths:
             application/json:
               schema:
                 type: array
+        '400':
+          description: Unknown territoryId, or a malformed limit/cursor
         '401':
           description: Missing or invalid token
     post:

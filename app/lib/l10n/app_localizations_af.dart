@@ -4410,6 +4410,22 @@ class AppLocalizationsAf extends AppLocalizations {
       'Voeg ’n winkel by om dit op ’n besoekplan te sit.';
 
   @override
+  String outletsEmptyInTerritoryHeadline(String territory) {
+    return 'Geen winkels in $territory nie.';
+  }
+
+  @override
+  String get outletsEmptyInTerritoryBody =>
+      '’n Winkel wat onder ’n ander gebied se kode ingedien is, word nie hier gelys nie.';
+
+  @override
+  String get outletsShowAllTerritories => 'Wys alle gebiede';
+
+  @override
+  String get outletsPinReportsEveryTerritory =>
+      'Hierdie lys dek elke gebied, nie net die een in bestek nie.';
+
+  @override
   String get outletsLoadErrorHeadline => 'Die winkellys het nie gelaai nie.';
 
   @override

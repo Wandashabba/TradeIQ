@@ -4370,6 +4370,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get outletsEmptyBody => 'Add a store to put it on a beat plan.';
 
   @override
+  String outletsEmptyInTerritoryHeadline(String territory) {
+    return 'No stores in $territory.';
+  }
+
+  @override
+  String get outletsEmptyInTerritoryBody =>
+      'A store filed under a different territory\'s code is not listed here.';
+
+  @override
+  String get outletsShowAllTerritories => 'Show all territories';
+
+  @override
+  String get outletsPinReportsEveryTerritory =>
+      'This queue covers every territory, not only the one in scope.';
+
+  @override
   String get outletsLoadErrorHeadline => 'The store list did not load.';
 
   @override

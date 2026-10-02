@@ -66,12 +66,28 @@ Outlet opsOutlet(
 class FakeOpsOutletsRepository implements OutletsRepository {
   FakeOpsOutletsRepository({
     this.outlets = const <Outlet>[],
+    this.byTerritory = const <String, List<Outlet>>{},
     this.listFailure,
     this.listPending = false,
     this.createFailure,
   });
 
   final List<Outlet> outlets;
+
+  /// What the server answers `?territoryId=` with, keyed by territory id.
+  ///
+  /// A territory that is not in the map answers with none — which is the real
+  /// server's answer for a territory that has no stores, and the state the
+  /// Stores screen has a designed empty for. It is deliberately NOT a
+  /// client-side filter over [outlets]: the whole point of the change under
+  /// test is that the narrowing happens on the server, so a fake that did it
+  /// here would pass with the query parameter left off.
+  final Map<String, List<Outlet>> byTerritory;
+
+  /// Every `territoryId` asked for, in order — including the nulls, because
+  /// "the filter was dropped" and "no filter was set" are the two states this
+  /// has to tell apart.
+  final List<String?> territoriesAsked = <String?>[];
   final Object? listFailure;
   final bool listPending;
   final Object? createFailure;
@@ -94,11 +110,19 @@ class FakeOpsOutletsRepository implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async {
+    territoriesAsked.add(territoryId);
     if (listFailure != null) throw listFailure!;
     if (listPending) return Completer<PaginatedResponse<Outlet>>().future;
+    if (territoryId != null) {
+      return PaginatedResponse(
+        data: byTerritory[territoryId] ?? const <Outlet>[],
+        nextCursor: null,
+      );
+    }
     return PaginatedResponse(data: outlets, nextCursor: null);
   }
 
@@ -232,7 +256,6 @@ class FakeTerritoriesRepository implements TerritoriesRepository {
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
       throw UnimplementedError();
-
 
   @override
   Future<PlaceImage> placeImage(String? territoryId) async =>
@@ -417,8 +440,7 @@ class FakeOpsUsersRepository implements UsersRepository {
   Future<PaginatedResponse<AppUser>> listUsers({
     int? limit,
     String? cursor,
-  }) async =>
-      PaginatedResponse(data: users, nextCursor: null);
+  }) async => PaginatedResponse(data: users, nextCursor: null);
 
   @override
   Future<AppUser> createUser({
