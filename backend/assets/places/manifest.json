@@ -23,7 +23,7 @@
       "originalFile": "supplied/EC-BCM-original.png",
       "mimeType": "image/jpeg",
       "bytes": 52211,
-      "suppliedAt": "2026-09-29T08:48:50.169Z",
+      "suppliedAt": "2026-09-29T10:07:28.881Z",
       "note": "A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH, AND IT DOES NOT READ WELL ON THE PLATE. Rendered at 390×844 in both skins on 29 September 2026: the printed “BUFFALO CITY” lands immediately right of the hero figure and reads as a second caption competing with it, and King William’s Town, Zwelitsha, Berlin, Potsdam, Beacon Bay, East London and Kidd’s Beach read as grey marks scattered across the picture — in Day they are the most legible text on the plate, more legible than “Territory health”. SHIPPED AS SUPPLIED AND FLAGGED, not quietly cropped: the map may well be the point, and that is the owner’s call. Options are in §9g of docs/design/torchlight-aisle.md."
     },
     {
@@ -35,7 +35,7 @@
       "originalFile": "supplied/EC-NMB-original.png",
       "mimeType": "image/jpeg",
       "bytes": 46345,
-      "suppliedAt": "2026-09-29T08:48:50.229Z",
+      "suppliedAt": "2026-09-29T10:07:28.941Z",
       "note": "A MAP COMPOSITE, NOT A PLAIN PHOTOGRAPH — the same treatment as EC-BCM and the same flag. The outline covers the right two-thirds of the frame and Uitenhage, KwaNobuhle, Despatch, Swartkops, Bethelsdorp, Port Elizabeth and Summerstrand run down the middle of it, straight through the hero figure’s band. “NELSON MANDELA BAY” falls in the lit strip at the top. Shipped as supplied and flagged; see §9g."
     },
     {
@@ -47,7 +47,7 @@
       "originalFile": "supplied/FS-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 56960,
-      "suppliedAt": "2026-09-29T08:31:03.459Z",
+      "suppliedAt": "2026-09-29T10:07:29.286Z",
       "note": "A small original at 612×459, so it is enlarged to reach the stored 1024×572. Under the plate’s tone that costs nothing visible; a larger original would still be better if the owner has one."
     },
     {
@@ -59,7 +59,7 @@
       "originalFile": "supplied/GP-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 56501,
-      "suppliedAt": "2026-09-29T08:31:03.976Z",
+      "suppliedAt": "2026-09-29T10:07:29.809Z",
       "note": "Carries lit brand signage on the skyline and an illuminated billboard. Not a defect — see SUPPLIED_RIGHTS."
     },
     {
@@ -71,7 +71,7 @@
       "originalFile": "supplied/GP-EKU-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 54699,
-      "suppliedAt": "2026-09-29T08:31:04.533Z"
+      "suppliedAt": "2026-09-29T10:07:30.369Z"
     },
     {
       "code": "GP-TSH",
@@ -82,7 +82,7 @@
       "originalFile": "supplied/GP-TSH-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 61406,
-      "suppliedAt": "2026-09-29T08:31:04.801Z",
+      "suppliedAt": "2026-09-29T10:07:30.638Z",
       "note": "Carries a statue of a named person, and one of the brightest skies in the set. Neither is a defect — see SUPPLIED_RIGHTS."
     },
     {
@@ -94,7 +94,7 @@
       "originalFile": "supplied/KZN-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 59049,
-      "suppliedAt": "2026-09-29T08:31:04.917Z",
+      "suppliedAt": "2026-09-29T10:07:30.758Z",
       "note": "One of the two brightest skies in the set. The plate’s luminance ceiling is what keeps it from washing out the ink over it; see the contrast figures in §9g of docs/design/torchlight-aisle.md."
     },
     {
@@ -106,7 +106,7 @@
       "originalFile": "supplied/KZN-PMB-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 56665,
-      "suppliedAt": "2026-09-29T08:31:05.229Z"
+      "suppliedAt": "2026-09-29T10:07:31.137Z"
     },
     {
       "code": "LP",
@@ -117,7 +117,7 @@
       "originalFile": "supplied/LP-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 59336,
-      "suppliedAt": "2026-09-29T08:31:05.387Z"
+      "suppliedAt": "2026-09-29T10:07:31.302Z"
     },
     {
       "code": "MP",
@@ -128,19 +128,20 @@
       "originalFile": "supplied/MP-original.webp",
       "mimeType": "image/jpeg",
       "bytes": 59328,
-      "suppliedAt": "2026-09-29T08:31:05.622Z",
+      "suppliedAt": "2026-09-29T10:07:31.559Z",
       "note": "The only WebP original. It goes through the same importer as the rest — sharp decodes it, the same centre crop and the same quality walk apply — and the committed asset is a JPEG at the same size as every other one. The input format is not a property anything downstream can see."
     },
     {
       "code": "NW",
       "label": "North West",
       "file": "NW.jpg",
-      "source": "generated",
-      "generator": "gemini-3.1-flash-image",
-      "prompt": "A platinum-belt town street outside Rustenburg in dry winter: the long ridge of the Magaliesberg behind the roofline, bleached grass, dust hanging over the road, plain low shopfronts and a hazy white sky. Documentary photograph, shot on 35mm at eye level, natural available light, deep depth of field, no filter, no vignette. Absolutely no readable text, no shop signage, no lettering, no numbers, and no brand names or logos of any kind on any surface, vehicle or awning. No recognisable faces: any people are distant, small in frame, or turned away. Not a stock photograph, not a postcard, not an advertisement.",
+      "source": "supplied",
+      "description": "A city skyline at dusk with a snow-capped volcano on the horizon, an observation tower on the left and a waterfront beyond the downtown blocks.",
+      "originalFile": "supplied/NW-original.jpg",
       "mimeType": "image/jpeg",
-      "bytes": 59774,
-      "generatedAt": "2026-09-28T14:39:30.419Z"
+      "bytes": 53981,
+      "suppliedAt": "2026-09-29T10:07:32.397Z",
+      "note": "THE PHOTOGRAPH IS OF SEATTLE, WASHINGTON — the Space Needle, Mount Rainier, Climate Pledge Arena and the Seattle Great Wheel are all in frame. North West province is Rustenburg, Mahikeng, Klerksdorp and the Magaliesberg, so this is a picture of a different continent to the territory it is filed under, and the `description` above is written literally rather than naming a place it is not of. INCLUDED AT THE OWNER’S EXPRESS INSTRUCTION, given twice after the subject was identified to them — it is the owner’s app and the owner’s call, and this note exists so that nobody downstream mistakes it for one that went in unnoticed. The likely origin of the mix-up is worth recording too: a search for “North West” returns the American Pacific Northwest, and Seattle is its usual postcard. Replacing it is one photograph and one `npm run import-place-images`."
     },
     {
       "code": "WC",
@@ -151,7 +152,7 @@
       "originalFile": "supplied/WC-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 57898,
-      "suppliedAt": "2026-09-29T08:31:05.975Z",
+      "suppliedAt": "2026-09-29T10:07:31.918Z",
       "note": "The smallest original in the set at 620×388, so it is enlarged to reach the stored 1024×572, and one of the two brightest. A larger original would still be better if the owner has one."
     },
     {
@@ -163,7 +164,7 @@
       "originalFile": "supplied/WC-WIN-original.jpg",
       "mimeType": "image/jpeg",
       "bytes": 56088,
-      "suppliedAt": "2026-09-29T08:31:06.254Z"
+      "suppliedAt": "2026-09-29T10:07:32.196Z"
     }
   ]
 }
