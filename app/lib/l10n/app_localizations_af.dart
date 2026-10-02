@@ -3721,6 +3721,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get menuThisApp => 'Hierdie program';
 
   @override
+  String menuGroupSemantics(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count bestemmings',
+      one: '$name, 1 bestemming',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get menuThemeLight => 'Ligte tema';
 
   @override

@@ -950,6 +950,7 @@
   "menuTitle": "Kieslys",
   "menuSubtitle": "Alles wat nie in die vier oortjies pas nie.",
   "menuThisApp": "Hierdie program",
+  "menuGroupSemantics": "{count, plural, =1{{name}, 1 bestemming} other{{name}, {count} bestemmings}}",
   "menuThemeLight": "Ligte tema",
   "menuThemeDark": "Donker tema",
   "menuChangePassword": "Verander wagwoord",

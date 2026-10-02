@@ -16,8 +16,8 @@ class NavDestination {
 
   /// The English name, and the key [labelIn] switches on. Never rendered
   /// directly — see [labelIn]; a hardcoded English string on a screen that has
-  /// an Afrikaans translation is a defect, and this list feeds the rail, the
-  /// menu sheet and the router guard alike.
+  /// an Afrikaans translation is a defect, and this list feeds the menu sheet
+  /// — see [managerDestinations] for what it does not feed.
   final String label;
 
   final IconData icon;
@@ -75,9 +75,32 @@ String navGroupName(AppLocalizations l10n, NavGroup group) => switch (group) {
   NavGroup.configure => l10n.navGroupConfigure,
 };
 
-/// Single source of manager navigation. The sidebar, the floating bottom
-/// bar's Menu sheet, and the router guard all read THIS list — a destination
-/// added here appears everywhere at once.
+/// The manager's destinations. **Read by the Menu sheet, and by nothing else**
+/// — corrected 2 October 2026.
+///
+/// This said "the sidebar, the floating bottom bar's Menu sheet, and the router
+/// guard all read THIS list — a destination added here appears everywhere at
+/// once". One third of that was true and the other two thirds sent a reader
+/// looking for code that is not there, so here is what is actually the case:
+///
+/// * **The Menu sheet reads it.** `menu_sheet.dart`, via [destinationsIn] —
+///   still true, and still the reason this list is one list.
+/// * **There is no sidebar.** `ManagerScaffold`'s `_NavRail` did read it, and
+///   was deleted in `9985dd6b` ("retire eight dead widget files",
+///   25 September 2026). What draws manager nav now is `consoleNavSlots` in
+///   `console_frame.dart`: four slots with hardcoded English labels and
+///   hardcoded routes, which is its own problem and not this list's.
+/// * **The router guard has never read it.** `app_router.dart` holds a `const
+///   managerOnly` set of 19 routes against this list's 24; `git log -S
+///   managerDestinations` on that file is empty, so this was not drift, it was
+///   never so. Seven destinations here are outside that set — `/assistant`,
+///   `/beatplans`, `/dashboard/overview`, `/leaderboard`, `/messages`,
+///   `/orders`, `/outlets` — of which three are deliberately shared with field
+///   agents per that file's own comment and four are unexplained.
+///
+/// **Adding a destination here therefore adds it to the menu and to nothing
+/// else.** If it is manager-only, add it to `managerOnly` in `app_router.dart`
+/// too, by hand, until somebody makes that guard read this list.
 const managerDestinations = <NavDestination>[
   // Operate
   NavDestination(

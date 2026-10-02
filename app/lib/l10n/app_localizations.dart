@@ -5720,6 +5720,12 @@ abstract class AppLocalizations {
   /// **'This app'**
   String get menuThisApp;
 
+  /// What a screen reader is handed for one of the menu sheet's three group rows. The row PRINTS 'Operate · 9'; a reader is given the sentence, because a middot is a character a screen reader spells out. Open or shut is NOT in here — that is the platform's own expanded/collapsed flag, which it announces in the reader's language.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{name}, 1 destination} other{{name}, {count} destinations}}'**
+  String menuGroupSemantics(int count, String name);
+
   /// Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in.
   ///
   /// In en, this message translates to:

@@ -3686,6 +3686,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuThisApp => 'This app';
 
   @override
+  String menuGroupSemantics(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count destinations',
+      one: '$name, 1 destination',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get menuThemeLight => 'Light theme';
 
   @override
