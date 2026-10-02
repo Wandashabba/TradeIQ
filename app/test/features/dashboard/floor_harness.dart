@@ -655,6 +655,14 @@ Future<void> pumpFloor(
   /// the amber arithmetic, because the nav pill left with option B, but still
   /// moves the composer up over the fold.
   double keyboard = 0,
+  /// The phone's own bottom inset — the gesture bar on a modern Android
+  /// handset, the home indicator on an iPhone. **Zero by default, which is
+  /// what every Floor test and every committed render has always used**, so
+  /// `TorchShell`'s `safeBottom` reservation has never been exercised by
+  /// anything. A test that cares where the composer's bottom edge lands on a
+  /// real phone has to set this; on a browser and in a golden it is genuinely
+  /// 0, which is exactly why this class of defect stays invisible here.
+  double safeBottom = 0,
   /// The route's `loading` and `error` phases. See
   /// [FakeDashboardRepository.pending].
   bool kpisPending = false,
@@ -698,6 +706,7 @@ Future<void> pumpFloor(
           devicePixelRatio: 1.0,
           textScaler: TextScaler.linear(textScale),
           viewInsets: EdgeInsets.only(bottom: keyboard),
+          padding: EdgeInsets.only(bottom: safeBottom),
         ),
         child: Localizations(
           locale: locale,
