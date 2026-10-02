@@ -139,7 +139,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photoFieldRetake => 'Retake';
 
   @override
-  String get loginInvalidCredentials => 'Invalid credentials';
+  String get loginInvalidCredentials =>
+      'We do not recognise that email and password.';
 
   @override
   String get loginBackTooltip => 'Back to welcome';
@@ -151,7 +152,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSignIn => 'Sign in';
 
   @override
-  String get loginSubtitle => 'Use your TradeIQ work account.';
+  String get loginSubtitle => 'Use your work email and password.';
+
+  @override
+  String get loginHeadline => 'Sign in to get to work.';
+
+  @override
+  String get loginTooManyTitle => 'Too many sign-in attempts';
+
+  @override
+  String get loginTooManyBody =>
+      'Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account — wait, then try again.';
 
   @override
   String get loginEmailLabel => 'Email';
@@ -520,6 +531,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitRequiredToSubmitBadge => 'REQUIRED TO SUBMIT';
+
+  @override
+  String get visitCantConfirmLabel => 'Can’t confirm';
 
   @override
   String get visitRequiredToSubmit => 'Required to submit';
@@ -2040,7 +2054,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askSendUnavailable => 'Send, unavailable, needs a connection';
 
   @override
-  String get askSendNothingTyped => 'Send, unavailable, nothing typed yet';
+  String get askSendNothingTyped =>
+      'Send. Nothing typed yet, so this opens the question field.';
 
   @override
   String get askStop => 'Stop the answer';
@@ -3671,6 +3686,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuThisApp => 'This app';
 
   @override
+  String menuGroupSemantics(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count destinations',
+      one: '$name, 1 destination',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get menuThemeLight => 'Light theme';
 
   @override
@@ -4342,6 +4368,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outletsEmptyBody => 'Add a store to put it on a beat plan.';
+
+  @override
+  String outletsEmptyInTerritoryHeadline(String territory) {
+    return 'No stores in $territory.';
+  }
+
+  @override
+  String get outletsEmptyInTerritoryBody =>
+      'A store filed under a different territory\'s code is not listed here.';
+
+  @override
+  String get outletsShowAllTerritories => 'Show all territories';
+
+  @override
+  String get outletsPinReportsEveryTerritory =>
+      'This queue covers every territory, not only the one in scope.';
 
   @override
   String get outletsLoadErrorHeadline => 'The store list did not load.';
@@ -7910,6 +7952,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dashTerritorySheetBody =>
       'Every figure below is scoped to this choice.';
+
+  @override
+  String get dashScopeNote => 'Scopes every figure';
+
+  @override
+  String dashTerritoryGroup(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count territories',
+      one: '$name, 1 territory',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get dashSelected => 'Selected';

@@ -93,6 +93,15 @@ class TorchNavCircle extends StatelessWidget {
     final p = skin.palette;
     final enabled = onPressed != null && !busy;
     final granted = expected && TorchScope.lit(context, claimId);
+    // Four inputs — `enabled`, `granted`, `pressed`, and `expected` inside
+    // `granted` — and every one of them changes under a live tree: the agent
+    // finishes their last stop and the circle becomes the expected next move;
+    // a sheet opens and the allocator takes the grant back; a GPS fix is lost
+    // and the circle goes dead. Each of those was a one-frame jump between two
+    // fills, two inks and two border widths. `AnimatedContainer` lerps the
+    // whole decoration — fill, rim colour, rim width and Day's shadow — in one
+    // widget, and [TorchInk] brings the glyph with it.
+    final duration = torchStateDuration(context, TiqMotion.press);
 
     return Semantics(
       button: true,
@@ -116,6 +125,9 @@ class TorchNavCircle extends StatelessWidget {
           final Color ink;
           final Color? edge;
           double edgeWidth = skin.depth.borderWidth;
+          // THE GRANTED DISC IS A GRADIENT AS OF 1 OCTOBER 2026 — see
+          // `_grantedRamp`. Non-null only in the one granted, unpressed state.
+          Gradient? ramp;
           if (!enabled) {
             fill = p.well;
             ink = p.inkMute;
@@ -130,6 +142,7 @@ class TorchNavCircle extends StatelessWidget {
             // On a light ground an amber disc on paper is 1.6:1 against its
             // own ground, so it carries a real edge like every other block.
             edge = skin.amberIsInk ? p.ink1 : null;
+            ramp = _grantedRamp(skin);
           } else if (pressed) {
             final press = torchPressSurface(skin);
             fill = press.fill;
@@ -146,30 +159,43 @@ class TorchNavCircle extends StatelessWidget {
             edge = p.edgeControl;
           }
 
-          return Container(
-            width: diameter,
-            height: diameter,
-            decoration: BoxDecoration(
-              color: fill,
-              shape: BoxShape.circle,
-              border: edge == null
-                  ? null
-                  : Border.all(color: edge, width: edgeWidth),
-              // Day is the one skin with a shadow budget, and a floating disc
-              // is exactly what sh2 is for. Night has none (black on black).
-              boxShadow:
-                  skin.mode == SkinMode.day && enabled && skin.depth.sh2 != null
-                  ? <BoxShadow>[skin.depth.sh2!]
-                  : null,
-            ),
-            child: Center(
-              child: busy
-                  ? TorchBusyDots(color: ink, size: 5, gap: 5)
-                  : TorchGlyph(
-                      expected ? expectedIcon : icon,
-                      size: 26,
-                      color: ink,
-                    ),
+          return TorchInk(
+            color: ink,
+            duration: duration,
+            builder: (context, ink) => AnimatedContainer(
+              duration: duration,
+              curve: TiqMotion.stateCurve,
+              width: diameter,
+              height: diameter,
+              decoration: BoxDecoration(
+                // `color` is the flat fallback and `gradient` wins wherever it
+                // is non-null, which is the granted disc alone. See
+                // `_grantedRamp`.
+                color: fill,
+                gradient: ramp,
+                shape: BoxShape.circle,
+                border: edge == null
+                    ? null
+                    : Border.all(color: edge, width: edgeWidth),
+                // Day is the one skin with a shadow budget, and a floating
+                // disc is exactly what sh2 is for. Night has none (black on
+                // black).
+                boxShadow:
+                    skin.mode == SkinMode.day &&
+                        enabled &&
+                        skin.depth.sh2 != null
+                    ? <BoxShadow>[skin.depth.sh2!]
+                    : null,
+              ),
+              child: Center(
+                child: busy
+                    ? TorchBusyDots(color: ink, size: 5, gap: 5)
+                    : TorchGlyph(
+                        expected ? expectedIcon : icon,
+                        size: 26,
+                        color: ink,
+                      ),
+              ),
             ),
           );
         },
@@ -177,3 +203,39 @@ class TorchNavCircle extends StatelessWidget {
     );
   }
 }
+
+/// THE STANDING ACTION'S GRADIENT — a radial, off-centre, 1 October 2026.
+///
+/// The owner: *"the send button on the app and everywhere else for orange is
+/// very dull, it need to be lumunous and bright and inviting."* This disc was
+/// a flat `flame600` at value 1.00, so a hot core is the only luminosity left
+/// to add; the chroma half is in `tiq_palette.dart`.
+///
+/// **Radial, and the same geometry as the composer's send disc** — centre at
+/// `Alignment(-0.35, -0.45)`, radius `0.95`. It is a circle, so it wants a
+/// point source rather than the linear wash a wide block wants; and it is the
+/// *same* control in a different place, so it must be lit from the same
+/// direction as the send key. Two round amber objects lit from two different
+/// corners would read as two light sources in one room, which is the sort of
+/// thing nobody can name and everybody notices.
+///
+/// 64dp here against the send disc's 36dp, and the geometry is in fractional
+/// units, so the falloff scales with the object and the two read as the same
+/// material at two sizes.
+///
+/// THE WORST POINT UNDER THE GLYPH is `flame600`: [TiqSkin.amberFillRamp]'s
+/// last stop is `flame600` and the ramp goes no further, so the 26dp glyph's
+/// coldest pixel is the colour the flat disc painted. 9.68:1 on Night and
+/// 7.78:1 on Day, both unchanged by this gradient.
+///
+/// The Day `sh2` shadow is untouched and still sits on the decoration beside
+/// this — that is the one skin with a shadow budget, and this is a gradient
+/// rather than an added shadow precisely because the paint budget forbids a
+/// `BoxShadow` for an amber glow.
+Gradient? _grantedRamp(TiqSkin skin) => skin.depth.allowsGradients
+    ? RadialGradient(
+        center: const Alignment(-0.35, -0.45),
+        radius: 0.95,
+        colors: skin.amberFillRamp,
+      )
+    : null;

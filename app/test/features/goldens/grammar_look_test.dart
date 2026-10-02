@@ -33,7 +33,7 @@ import '../worklist_harness.dart';
 /// ## Why it does not run in CI
 ///
 /// The same reason `floor_look_test.dart` gives: CI rasterises anti-aliased
-/// Onest on `ubuntu-latest` and this repository is developed on macOS, so a
+/// Schibsted Grotesk on `ubuntu-latest` and this repository is developed on macOS, so a
 /// pixel comparison fails on the day it lands and gets skipped within a week.
 /// The images are an artefact to *look at*; the pins are the measurements in
 /// the screens' own tests, which do run everywhere.
@@ -282,6 +282,7 @@ class _Outlets implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async => PaginatedResponse(data: outlets, nextCursor: null);

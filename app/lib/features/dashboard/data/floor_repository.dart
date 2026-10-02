@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/design/tiq_number.dart' show TiqUnit;
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
@@ -77,6 +78,102 @@ enum FloorScope {
   failed,
 }
 
+/// ── HOW OLD SOMETHING IS, IN THE LARGEST UNIT THAT KEEPS IT LEGIBLE ─────
+///
+/// **The defect this closes.** The Floor printed `17 207h` on its worst-outlet
+/// line and `17 206,8h` on the decision row eleven lines under it. Both are the
+/// same measurement and both are correct: it is 717 days. Neither is a reading
+/// — nobody divides by twenty-four at a glance, and the two spellings of one
+/// number eight dp apart read as two different facts.
+///
+/// So the choice of unit is made **once, here**, and every place that prints an
+/// age reads it. That is the same rule this file already applies to the
+/// measurement itself (alerts and tasks are one list so two blocks cannot
+/// disagree about how much work there is); a shared figure with an unshared
+/// unit is that rule applied to the number and dropped on the suffix.
+///
+/// ## The ladder
+///
+/// ```text
+///   rounded hours < 48    →  47h      the first day or two, where an hour is
+///                                     a thing a manager can feel
+///   rounded days  < 14    →  6d       a fortnight, where a day is the grain
+///   otherwise             →  102w     anything older; weeks, not 17 207 hours
+/// ```
+///
+/// **The rounding happens before the comparison, not after.** Picking the unit
+/// off the raw value and rounding for display is how a figure comes out as
+/// `48h` one second and `2d` the next with nothing between them: 47,6 hours is
+/// printed `48h` by a slot with no decimals, and `48h` is the one hour-reading
+/// this ladder says may not exist. Rounding first makes the printed figure the
+/// thing that decides, so the sequence is monotone and `48h` is unreachable.
+/// `floor_age_test.dart` walks every boundary.
+///
+/// It is a **figure** ladder and deliberately not [formatAgo], which is the
+/// app's one *prose* ladder ("3 days ago"). A figure slot takes a number and a
+/// suffix and sets them in two faces; a sentence cannot go in it, and the two
+/// would have to agree about nothing except the arithmetic — which they do,
+/// because both step hours → days.
+@immutable
+class FloorAge {
+  const FloorAge._(this.value, this.suffix, this.spokenUnit);
+
+  /// Null when nothing was timestamped. An absent age is an absence, and the
+  /// figure slot above it renders an em dash rather than a zero.
+  static FloorAge? since(DateTime? raisedAt, DateTime now) {
+    if (raisedAt == null) return null;
+    final minutes = now.difference(raisedAt).inMinutes;
+    final hours = (minutes / 60.0).round();
+    if (hours < hoursUntilDays) {
+      return FloorAge._(hours, 'h', hours == 1 ? 'hour' : 'hours');
+    }
+    final days = (minutes / (60.0 * 24)).round();
+    if (days < daysUntilWeeks) {
+      return FloorAge._(days, 'd', days == 1 ? 'day' : 'days');
+    }
+    final weeks = (minutes / (60.0 * 24 * 7)).round();
+    return FloorAge._(weeks, 'w', weeks == 1 ? 'week' : 'weeks');
+  }
+
+  /// Two days. Under it an hour is still a unit somebody plans around; over it
+  /// the hours are a number nobody subtracts.
+  static const int hoursUntilDays = 48;
+
+  /// A fortnight. Past it the day count stops being a shape — "19d" and "26d"
+  /// are both "about a month" to the reader, and the week is the grain that
+  /// still separates them.
+  static const int daysUntilWeeks = 14;
+
+  /// What the figure slot prints. Always whole: the unit was chosen so that it
+  /// could be.
+  final int value;
+
+  /// `h`, `d` or `w` — tight against the figure, the way a suffix is set.
+  final String suffix;
+
+  /// `hours`, `days`, `weeks`, already singular or plural. Colour and a
+  /// one-letter suffix are not a reading; the word is.
+  final String spokenUnit;
+
+  /// The unit token a [FigureSlot] takes.
+  TiqUnit get unit => TiqUnit.worded(suffix, tight: true);
+
+  /// `Open for 102 weeks` — what a screen reader is given in place of the
+  /// figure. The same ladder, so the spoken age and the printed one cannot
+  /// name different spans.
+  String get spoken => 'Open for $value $spokenUnit';
+
+  @override
+  bool operator ==(Object other) =>
+      other is FloorAge && other.value == value && other.suffix == suffix;
+
+  @override
+  int get hashCode => Object.hash(value, suffix);
+
+  @override
+  String toString() => '$value$suffix';
+}
+
 /// One thing that needs somebody to decide something.
 class FloorDecision {
   const FloorDecision({
@@ -124,9 +221,9 @@ class FloorDecision {
   /// This is what the plate draws when this decision is the first one.
   final String? evidencePhotoId;
 
-  /// How long this has been broken, in hours. The trailing figure.
-  double? ageHoursAt(DateTime now) =>
-      raisedAt == null ? null : now.difference(raisedAt!).inMinutes / 60.0;
+  /// How long this has been broken. Null when nothing was timestamped — an
+  /// em dash and a sentence, never a zero. See [FloorAge].
+  FloorAge? ageAt(DateTime now) => FloorAge.since(raisedAt, now);
 
   /// THE REASON, WITHOUT THE OUTLET NAME IN IT.
   ///
@@ -169,8 +266,9 @@ class FloorDecision {
   /// THE BUDGET, IN CHARACTERS, AND WHY IT IS NOT MEASURED.
   ///
   /// A decision row's reason gets one line. On a 390dp phone that line is
-  /// about 230dp of Onest 14 after the card's gutter, its padding, the
-  /// severity lane, the gap and the age figure — call it 34 characters. The
+  /// about 230dp of Schibsted Grotesk 14 after the card's gutter, its
+  /// padding, the severity lane, the gap and the age figure — call it 34
+  /// characters. The
   /// messages the server writes run to 55, and a 379dp sentence does not fit
   /// a 390dp phone by any arrangement of the row: the fix has to be the
   /// sentence.
@@ -344,33 +442,22 @@ class FloorView {
 
   final DashboardSnapshot snapshot;
 
-  /// Every decision, worst first. The screen shows [visibleCount] of them and
-  /// says how many it did not show — it never silently truncates.
+  /// Every decision, worst first.
+  ///
+  /// **The Floor does not draw this list any more** — the approved
+  /// arrangement replaced it with the briefing, and the Work queue is where
+  /// the rows live. Three things still read it and all three are readings of
+  /// the whole list rather than of a page of it: the briefing's count, the
+  /// briefing's worst single outlet, and the live number on the destinations
+  /// sheet's Work row.
+  ///
+  /// `visible`, `moreCount` and `visibleCount` went with the rows on
+  /// 1 October 2026. They were the five-plus-a-count cap, which is a property
+  /// of a list being *shown*; nothing shows one here, and a cap that nothing
+  /// applies is a rule waiting to be re-derived differently somewhere else.
   final List<FloorDecision> decisions;
 
   final int? outletsTotal;
-
-  /// Five, plus the more-row. Always five: a list that grows with the problem
-  /// is a list that stops fitting on the fold exactly when it matters most.
-  static const int visibleCount = 5;
-
-  List<FloorDecision> get visible => decisions.take(visibleCount).toList();
-
-  int get moreCount =>
-      decisions.length <= visibleCount ? 0 : decisions.length - visibleCount;
-
-  /// The plate's photograph comes from the FIRST decision — the outlet the
-  /// manager is about to act on.
-  ///
-  /// Not the prettiest frame in the territory, and deliberately: a hero image
-  /// chosen by a score is something an agent can game by photographing one
-  /// good aisle, and a plate that decorates the screen instead of arguing with
-  /// the list is a plate that could be a stock photo without anybody noticing.
-  /// The provenance caption is what keeps this honest — the figure above the
-  /// list is about the territory, and the picture is a named specimen from it.
-  FloorDecision? get plateSubject => decisions.isEmpty ? null : decisions.first;
-
-  bool get nothingNeedsADecision => decisions.isEmpty;
 }
 
 /// THE WINDOW, IN THE WORDS OF THE CONTROL THAT SETS IT.

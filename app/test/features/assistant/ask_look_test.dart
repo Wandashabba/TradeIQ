@@ -22,8 +22,8 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// broken-image placeholder* and *do the three silhouettes look drawn* — are
 /// not questions an assertion can answer.
 ///
-/// 390×844, both skins, with Onest and JetBrains Mono loaded. The test font is
-/// wider than Onest, so a screen rendered in it wraps sooner and measures
+/// 390×844, both skins, with Schibsted Grotesk and JetBrains Mono loaded. The test font is
+/// wider than Schibsted Grotesk, so a screen rendered in it wraps sooner and measures
 /// taller — a picture of the wrong screen.
 ///
 /// | image | what it has to get right |
@@ -41,7 +41,7 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart` and `tasks_look_test.dart` give: CI
-/// rasterises anti-aliased Onest on `ubuntu-latest` and this repository is
+/// rasterises anti-aliased Schibsted Grotesk on `ubuntu-latest` and this repository is
 /// developed on macOS, so a pixel comparison fails on the day it lands and
 /// gets skipped within a week. The images are an artefact to *look at*; the
 /// pins are the measurements in `chat_screen_test.dart`,
@@ -52,6 +52,13 @@ import 'assistant_gate_test.dart' show pumpGate, config;
 /// ASK_LOOK=1 ASK_LOOK_DIR=/somewhere/ flutter test \
 ///   test/features/assistant/ask_look_test.dart --update-goldens
 /// ```
+///
+/// **`ASK_LOOK_SIZE=360x640`** shoots the same screens on the cheap-Android
+/// width. The default stays 390×844, so the committed goldens are byte-for-byte
+/// what they were; the size travels into the filename, so the two sets never
+/// overwrite one another. The three-silhouette strip keeps its own 220dp
+/// height — it is a specimen of the drawings, not a screen, and the phone's
+/// height means nothing to it.
 void main() {
   final looking = Platform.environment['ASK_LOOK'] == '1';
   final dir = Platform.environment['ASK_LOOK_DIR'] ?? 'goldens/';
@@ -61,7 +68,8 @@ void main() {
     await _loadIcons();
   });
 
-  const phone = Size(390, 844);
+  final phone = _sizeFromEnv() ?? const Size(390, 844);
+  final tag = '${phone.width.toInt()}x${phone.height.toInt()}';
 
   const skins = <(String, bool)>[('night', true), ('day', false)];
 
@@ -80,7 +88,7 @@ void main() {
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_390x844-opening-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-opening-$name.png'),
       );
       await disposeAsk(tester);
     }, skip: !looking);
@@ -95,7 +103,7 @@ void main() {
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_390x844-offline-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-offline-$name.png'),
       );
       await disposeAsk(tester);
     }, skip: !looking);
@@ -116,7 +124,7 @@ void main() {
 
       await expectLater(
         find.byKey(_frameKey),
-        matchesGoldenFile('${dir}ask_390x844-loading-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-loading-$name.png'),
       );
     }, skip: !looking);
 
@@ -134,7 +142,7 @@ void main() {
 
       await expectLater(
         find.byKey(askBoundaryKey),
-        matchesGoldenFile('${dir}ask_390x844-not-enabled-$name.png'),
+        matchesGoldenFile('${dir}ask_$tag-not-enabled-$name.png'),
       );
     }, skip: !looking);
 
@@ -149,7 +157,7 @@ void main() {
 
       await expectLater(
         find.byKey(_frameKey),
-        matchesGoldenFile('${dir}drawings_390x220-$name.png'),
+        matchesGoldenFile('${dir}drawings_${phone.width.toInt()}x220-$name.png'),
       );
     }, skip: !looking);
   }
@@ -211,7 +219,7 @@ Future<void> _pumpFirstRun(
 /// The three silhouettes side by side, twice: the empty state's colour on the
 /// top row and the error state's on the bottom.
 Future<void> _pumpDrawings(WidgetTester tester, {required TiqSkin skin}) async {
-  const size = Size(390, 220);
+  final size = Size(_sizeFromEnv()?.width ?? 390, 220);
   tester.view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
@@ -227,7 +235,7 @@ Future<void> _pumpDrawings(WidgetTester tester, {required TiqSkin skin}) async {
 
   await tester.pumpWidget(
     MediaQuery(
-      data: const MediaQueryData(
+      data: MediaQueryData(
         size: size,
         devicePixelRatio: 1.0,
         disableAnimations: true,
@@ -273,4 +281,23 @@ Future<void> _loadIcons() async {
   await (FontLoader(
     'MaterialIcons',
   )..addFont(font.readAsBytes().then((b) => ByteData.view(b.buffer)))).load();
+}
+
+/// `ASK_LOOK_SIZE=360x640` → `Size(360, 640)`; anything else → null.
+///
+/// The same contract `agent_look_test.dart` carries, for the same reason: the
+/// prose face and the type scale both moved on 1 October 2026 and every
+/// harness had to be re-shot at the cheap-Android width as well as the
+/// reference phone. Silent on a malformed value on purpose — these images are
+/// an artefact to look at, and a throw here would read as a broken screen
+/// rather than as a typo in a shell variable.
+Size? _sizeFromEnv() {
+  final raw = Platform.environment['ASK_LOOK_SIZE'];
+  if (raw == null) return null;
+  final parts = raw.toLowerCase().split('x');
+  if (parts.length != 2) return null;
+  final w = double.tryParse(parts[0]);
+  final h = double.tryParse(parts[1]);
+  if (w == null || h == null || w <= 0 || h <= 0) return null;
+  return Size(w, h);
 }

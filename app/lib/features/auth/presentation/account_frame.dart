@@ -5,6 +5,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import 'entry_frame.dart';
 
 /// The frame the account screens wear — forgot password, change password and
 /// update the app (#400). One frame so the three are one kind of screen.
@@ -12,6 +13,16 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// These are deliberately plain: a header, a column of words and fields, and
 /// the one action in the thumb zone. Nothing here is designed beyond what the
 /// Torchlight kit already decides.
+///
+/// It lays out through [EntryFrame] rather than [TorchShell] directly, which
+/// is what caps the column at a reading width and, on a viewport that is not
+/// a phone, centres it and brings the commit row up to the foot of the form.
+/// See that class for the two shapes and the thresholds between them.
+///
+/// **This frame is worn by a manager screen too** — `/users/:id/password`,
+/// where a manager sets somebody else's password — so the cap reaches one
+/// console route. It is invisible at every width the manager renders are
+/// taken at, and at a browser width it is the same repair.
 ///
 /// ## Which skin, and whose cycle
 ///
@@ -43,7 +54,7 @@ class AccountFrame extends StatelessWidget {
     required this.children,
     required this.primary,
     required this.primaryArmed,
-    required this.skinCycle,
+    this.skinCycle,
     this.back,
   });
 
@@ -61,7 +72,15 @@ class AccountFrame extends StatelessWidget {
 
   /// The skin cycle for the leading end of the thumb zone — the one wired to
   /// the same provider this screen's route wrapper watches.
-  final Widget skinCycle;
+  /// The skin cycle, or **null** where the owner has ruled it does not belong.
+  ///
+  /// Owner instruction, 30 September 2026: *"That change of theme on the sign
+  /// in we can remove it. Let's only make the change of theme only on
+  /// settings."* So the pre-auth screens pass null. The standing rule this
+  /// supersedes — never a screen without the cycle — was written to stop the
+  /// control being unreachable; it stays true of every screen behind the door,
+  /// where the cycle is on nineteen of them.
+  final Widget? skinCycle;
 
   final TorchIconButton? back;
 
@@ -87,12 +106,13 @@ class AccountFrame extends StatelessWidget {
       claims: <TorchClaim>[
         if (primaryArmed) TorchPrimaryButton.claim(primaryClaimId),
       ],
-      child: TorchShell(
-        profile: TorchShellProfile.agent,
+      child: EntryFrame(
         header: TorchAppHeader(title: title, back: back),
-        // Not a tab root: the cycle sits at the leading end of the thumb zone.
-        // Never a screen without it — someone locked out of their account is
-        // exactly the person who cannot afford an unreadable screen.
+        // Not a tab root: the cycle sits at the leading end of the commit
+        // row — pinned in the thumb zone on a phone, at the foot of the
+        // column on a page. Never a screen without it: someone locked out of
+        // their account is exactly the person who cannot afford an
+        // unreadable screen.
         skinCycle: skinCycle,
         primary: primary,
         children: children,

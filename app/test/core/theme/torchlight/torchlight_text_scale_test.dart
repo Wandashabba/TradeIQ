@@ -25,10 +25,20 @@ void main() {
         closeTo(20, 0.001),
         reason: 'Above 2.0 the clamp holds; 3.4x body text has no layout.',
       );
+      // 0.5 is below anything the platform offers, so it still floors — the
+      // type scale's optical sizing is what the floor defends.
       expect(
         TiqTextScale.clamp(const TextScaler.linear(0.5)).scale(10),
-        closeTo(10, 0.001),
-        reason: 'Below 1.0 the scale\'s own optical sizing stops holding.',
+        closeTo(8, 0.001),
+        reason: 'A value the platform cannot produce still floors, at 0.8.',
+      );
+      // AND THE ONE THE PLATFORM DOES PRODUCE IS HONOURED. The owner's own
+      // handset reads font_scale 0.8; clamping that to 1.0 rendered this app
+      // 25% larger than every other app on their screen.
+      expect(
+        TiqTextScale.clamp(const TextScaler.linear(0.8)).scale(10),
+        closeTo(8, 0.001),
+        reason: 'A reader who asked for smaller text is given smaller text.',
       );
     });
 
@@ -37,7 +47,7 @@ void main() {
       // 1.0 and clamped the app at 1.3 — a WCAG 1.4.4 failure dressed as a
       // layout policy. If someone lowers this, they have to lower it here.
       expect(TiqTextScale.maxScale, 2.0);
-      expect(TiqTextScale.minScale, 1.0);
+      expect(TiqTextScale.minScale, 0.8);
     });
   });
 

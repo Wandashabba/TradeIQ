@@ -82,7 +82,7 @@ class _CheckInRadarState extends State<CheckInRadar>
 
     // `flame700` on the pin rather than flame600: at 40px of 2px stroke the
     // pin is a drawing, and Night's readable amber for a line is the light
-    // one (12.92:1 on the ground). The ring is the object; the pin sits
+    // one (11.98:1 on the ground). The ring is the object; the pin sits
     // inside its bounds and the census counts the pair as one.
     final ringInk = lit ? skin.palette.flame600 : skin.palette.chartNeutral;
     final pinInk = widget.stalled

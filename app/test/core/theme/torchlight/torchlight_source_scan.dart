@@ -209,6 +209,25 @@ class TorchlightScanner {
     // for. Every other file under `features/assistant/**` is scanned as
     // normal, so a fourth emitter cannot appear there by accident.
     'features/assistant/answer/ask_light.dart',
+    // The inline text action. The eighth emitter, added 30 September 2026.
+    //
+    //   tertiary_button  the underline, and ONLY when a caller passes a
+    //                    `litClaimId` and `TorchScope` grants it (rung 5).
+    //                    Every other tertiary on every other screen draws
+    //                    `edgeControl` and is unchanged.
+    //
+    // It is here because the owner asked for the approved sign-in mockup
+    // exactly, and that mockup underlines "Forgot password?" in Burning
+    // Flame. The alternative was a bare `flame600` at the one call site,
+    // which is the thing this allowlist exists to prevent: the component
+    // would have had a hue it could not account for, and the screen would
+    // have had a light it never declared.
+    //
+    // Painting it unconditionally was measured first and it failed, which is
+    // why it goes through the ladder: on Day it read "2 amber objects against
+    // a budget of 1", and on an empty form it lit the way OUT of a form that
+    // could not yet be submitted.
+    'core/widgets/torchlight/button/tertiary_button.dart',
   };
 
   /// Scan [root] (expected to be `lib/`) for amber tokens named outside the

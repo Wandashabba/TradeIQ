@@ -161,7 +161,7 @@
   "@photoFieldRetake": {
     "description": "Button to re-take a captured photo."
   },
-  "loginInvalidCredentials": "Invalid credentials",
+  "loginInvalidCredentials": "We do not recognise that email and password.",
   "@loginInvalidCredentials": {
     "description": "Sign-in error on a 401 (wrong email or password)."
   },
@@ -177,9 +177,21 @@
   "@loginSignIn": {
     "description": "Sign-in screen title and submit button."
   },
-  "loginSubtitle": "Use your TradeIQ work account.",
+  "loginSubtitle": "Use your work email and password.",
   "@loginSubtitle": {
-    "description": "Sign-in screen subtitle."
+    "description": "Sign-in screen subtitle, under the headline."
+  },
+  "loginHeadline": "Sign in to get to work.",
+  "@loginHeadline": {
+    "description": "The sign-in screen's display headline \u2014 the invitation the screen opens with, the way Ask TradeIQ opens with one."
+  },
+  "loginTooManyTitle": "Too many sign-in attempts",
+  "@loginTooManyTitle": {
+    "description": "Headline for a 429 on sign-in. Deliberately not the 401's headline: a rate limit is a rule the person tripped, not a refusal of who they are."
+  },
+  "loginTooManyBody": "Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account \u2014 wait, then try again.",
+  "@loginTooManyBody": {
+    "description": "Body for a 429 on sign-in. It explains the rule and says the account is fine, because the fear a lockout creates is that the account is gone. It never names the exact threshold, which would only help somebody pace their attempts."
   },
   "loginEmailLabel": "Email",
   "@loginEmailLabel": {
@@ -622,6 +634,10 @@
   "visitRequiredToSubmitBadge": "REQUIRED TO SUBMIT",
   "@visitRequiredToSubmitBadge": {
     "description": "Small uppercase badge on a required section that is not done."
+  },
+  "visitCantConfirmLabel": "Can’t confirm",
+  "@visitCantConfirmLabel": {
+    "description": "Label of the subordinate figure pair under the readiness figure."
   },
   "visitRequiredToSubmit": "Required to submit",
   "@visitRequiredToSubmit": {
@@ -2640,9 +2656,9 @@
   "@askSendUnavailable": {
     "description": "Spoken when Send is disabled offline."
   },
-  "askSendNothingTyped": "Send, unavailable, nothing typed yet",
+  "askSendNothingTyped": "Send. Nothing typed yet, so this opens the question field.",
   "@askSendNothingTyped": {
-    "description": "Spoken when Send is disabled because the trough is empty."
+    "description": "Spoken when Send is LIVE and the trough is empty. It was \"Send, unavailable, nothing typed yet\" until 1 October 2026, when the key stopped being disabled by an empty trough: it is live from the first frame so it may wear the route's one light, and pressing it with nothing typed puts the cursor in the field. The old sentence would have announced an available control as unavailable."
   },
   "askStop": "Stop the answer",
   "@askStop": {
@@ -4843,6 +4859,18 @@
   "@menuThisApp": {
     "description": "Section rule above the menu sheet's housekeeping rows: brightness, password, sign out."
   },
+  "menuGroupSemantics": "{count, plural, =1{{name}, 1 destination} other{{name}, {count} destinations}}",
+  "@menuGroupSemantics": {
+    "description": "What a screen reader is handed for one of the menu sheet's three group rows. The row PRINTS 'Operate · 9'; a reader is given the sentence, because a middot is a character a screen reader spells out. Open or shut is NOT in here — that is the platform's own expanded/collapsed flag, which it announces in the reader's language.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "menuThemeLight": "Light theme",
   "@menuThemeLight": {
     "description": "Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in."
@@ -5725,6 +5753,27 @@
   "outletsEmptyBody": "Add a store to put it on a beat plan.",
   "@outletsEmptyBody": {
     "description": "Body of the outlet list's empty state."
+  },
+  "outletsEmptyInTerritoryHeadline": "No stores in {territory}.",
+  "@outletsEmptyInTerritoryHeadline": {
+    "description": "Whole-screen empty state on the outlet list when a territory is chosen and it has no stores. Names the territory, because 'No stores' alone reads as an empty account.",
+    "placeholders": {
+      "territory": {
+        "type": "String"
+      }
+    }
+  },
+  "outletsEmptyInTerritoryBody": "A store filed under a different territory's code is not listed here.",
+  "@outletsEmptyInTerritoryBody": {
+    "description": "Body of the territory-scoped empty state. Outlet.territoryId is free text with no foreign key, so a mis-filed store is the commonest reason a territory reads zero when the manager knows it should not."
+  },
+  "outletsShowAllTerritories": "Show all territories",
+  "@outletsShowAllTerritories": {
+    "description": "Action on the territory-scoped empty state: clears the scope. The way out of a filter is out of the filter, not a new store."
+  },
+  "outletsPinReportsEveryTerritory": "This queue covers every territory, not only the one in scope.",
+  "@outletsPinReportsEveryTerritory": {
+    "description": "Added to the pin reports note when a territory is chosen. The pin dispute queue takes no territory, so it is not narrowed by the chip above it, and a queue that looks scoped is one a manager clears and believes they are done with."
   },
   "outletsLoadErrorHeadline": "The store list did not load.",
   "@outletsLoadErrorHeadline": {
@@ -10737,6 +10786,18 @@
   "dashTerritorySheetBody": "Every figure below is scoped to this choice.",
   "@dashTerritorySheetBody": {
     "description": "Subtitle of the territory sheet."
+  },
+  "dashScopeNote": "Scopes every figure",
+  "@dashScopeNote": {
+    "description": "The quiet note on the right of the filter sheet's one-line header. Says what the sheet does without spending a full-width sentence on it."
+  },
+  "dashTerritoryGroup": "{count, plural, =1{{name}, 1 territory} other{{name}, {count} territories}}",
+  "@dashTerritoryGroup": {
+    "description": "What a screen reader hears on a territory group's expander. The expanded/collapsed state travels as the Semantics flag, not as a word.",
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
   },
   "dashSelected": "Selected",
   "@dashSelected": {

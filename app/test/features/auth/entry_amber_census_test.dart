@@ -23,9 +23,13 @@ import 'entry_harness.dart';
 /// | route | phase | Night | Day |
 /// |---|---|---|---|---|
 /// | splash | holding | 0 | 0 | 0 |
-/// | sign-in | blocked (empty form) | 0 | 0 | 0 |
+/// | sign-in | empty form | 2 | 1 | 1 |
 /// | sign-in | blocked (email only) | 0 | 0 | 0 |
-/// | sign-in | armed | 1 | 1 | 1 |
+/// | sign-in | armed | 2 | 1 | 1 |
+///
+/// Night's two are the commit and the amber underline under "Forgot
+/// password?" — the approved mockup's treatment, granted through the ladder
+/// rather than painted. Day's budget is one, so only the commit is lit there.
 /// | sign-in | sending | 0 | 0 | 0 |
 /// | sign-in | error, fields still filled | 1 | 1 | 1 |
 /// | route beneath the session-ended sheet | 0 | 0 | 0 |
@@ -88,7 +92,21 @@ void main() {
         );
       });
 
-      testWidgets('sign-in, empty: the brand is a word, and a word is unlit', (
+      // THE COMMIT IS LIVE FROM THE FIRST FRAME — owner instruction,
+      // 30 September 2026: *"add the yellow used on the app on the Sign in and
+      // on the line under forgot password"*.
+      //
+      // The rule this supersedes was "an empty form carries zero amber",
+      // and it was right about the screen it described: a DISABLED button
+      // wearing the one light is a lie, because pressing it does nothing.
+      //
+      // The screen changed rather than the rule bending. The button is now
+      // pressable from the first frame and validates on press — press it empty
+      // and it says what is missing. That is an action, and an object that
+      // does something when pressed is exactly what amber is for. The same
+      // change removed a scolding: the form used to print "Email is required"
+      // on arrival, under a dead button, before anyone had typed a character.
+      testWidgets('sign-in, empty: the commit is live, so the commit is lit', (
         tester,
       ) async {
         await _pumpSignIn(tester, mode);
@@ -96,12 +114,12 @@ void main() {
           tester,
           mode,
           route: 'sign-in',
-          phase: 'blocked',
-          expected: 0,
+          phase: 'armed',
+          expected: mode == SkinMode.night ? 2 : 1,
         );
       });
 
-      testWidgets('sign-in, half-filled: still nothing to commit', (
+      testWidgets('sign-in, half-filled: the same, still pressable', (
         tester,
       ) async {
         await _pumpSignIn(tester, mode);
@@ -113,12 +131,25 @@ void main() {
           tester,
           mode,
           route: 'sign-in',
-          phase: 'blocked',
-          expected: 0,
+          phase: 'armed',
+          expected: mode == SkinMode.night ? 2 : 1,
         );
       });
 
-      testWidgets('sign-in, armed: exactly one — the sign-in button', (
+      // TWO ON NIGHT, ONE ON DAY — owner instruction, 30 September 2026.
+      //
+      // The approved mockup draws "Forgot password?" with an amber underline
+      // and the owner asked for it exactly. It is not taken, it is asked for:
+      // the underline declares at rung 5, under `primaryCommit`, so the budget
+      // decides rather than the screen. Night's budget is two and it is
+      // granted beside the commit; Day's is one, the commit takes it, and the
+      // underline falls back to `edgeControl`.
+      //
+      // Measuring is what settled it. Painted unconditionally it read "2 amber
+      // objects against a budget of 1" on Day, and lit the way OUT of a form
+      // that could not yet be submitted — which is the rule the blocked phase
+      // below exists to state.
+      testWidgets('sign-in, armed: the commit, and the way out on Night', (
         tester,
       ) async {
         await _pumpSignIn(tester, mode);
@@ -128,7 +159,7 @@ void main() {
           mode,
           route: 'sign-in',
           phase: 'armed',
-          expected: 1,
+          expected: mode == SkinMode.night ? 2 : 1,
         );
       });
 
@@ -147,7 +178,7 @@ void main() {
         await tester.pumpAndSettle();
       });
 
-      testWidgets('sign-in, refused: still armed, still exactly one', (
+      testWidgets('sign-in, refused: still armed, still the same count', (
         tester,
       ) async {
         await _pumpSignIn(tester, mode, auth: _Refusing());
@@ -159,7 +190,9 @@ void main() {
           mode,
           route: 'sign-in',
           phase: 'error',
-          expected: 1,
+          // Same as armed: a refusal does not disarm the form, so the same two
+          // objects are lit on Night and the same one on Day.
+          expected: mode == SkinMode.night ? 2 : 1,
         );
       });
 

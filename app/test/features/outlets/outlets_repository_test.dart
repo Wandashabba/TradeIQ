@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/api_client.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
 /// A fake HTTP layer that returns a canned body, following the pattern in
@@ -39,15 +40,22 @@ class _RecordingAdapter implements HttpClientAdapter {
 /// walks the cursor rather than stopping at page 1 like every other list
 /// provider in the sweep.
 class _TwoPageOutletsRepository implements OutletsRepository {
-  final List<({bool mine, int? limit, String? cursor})> calls = [];
+  final List<({bool mine, String? territoryId, int? limit, String? cursor})>
+  calls = [];
 
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async {
-    calls.add((mine: mine, limit: limit, cursor: cursor));
+    calls.add((
+      mine: mine,
+      territoryId: territoryId,
+      limit: limit,
+      cursor: cursor,
+    ));
     if (cursor == null) {
       return const PaginatedResponse(
         data: [Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0)],
@@ -80,6 +88,7 @@ class _StalledCursorOutletsRepository implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async {
@@ -147,7 +156,20 @@ void main() {
       expect(params['cursor'], 'abc');
     });
 
-    test('omits mine/limit/cursor from the query when not supplied', () async {
+    test('forwards territoryId as a query parameter', () async {
+      final adapter = _RecordingAdapter('{"data": [], "nextCursor": null}');
+      dio.httpClientAdapter = adapter;
+
+      await DioOutletsRepository().listOutlets(territoryId: 't-gp');
+
+      // The `Territory.id`, untouched. The server resolves it to the code the
+      // `Outlet.territoryId` column stores; an app that tried to do that here
+      // would be reaching for a list it may not have loaded, which is where
+      // #97 lived.
+      expect(adapter.lastRequest!.queryParameters['territoryId'], 't-gp');
+    });
+
+    test('omits mine/territoryId/limit/cursor when not supplied', () async {
       final adapter = _RecordingAdapter('{"data": [], "nextCursor": null}');
       dio.httpClientAdapter = adapter;
 
@@ -155,6 +177,9 @@ void main() {
 
       final params = adapter.lastRequest!.queryParameters;
       expect(params.containsKey('mine'), isFalse);
+      // An empty `?territoryId=` is a 400 now, so sending the key with nothing
+      // behind it would turn "no filter" into a failed request.
+      expect(params.containsKey('territoryId'), isFalse);
       expect(params.containsKey('limit'), isFalse);
       expect(params.containsKey('cursor'), isFalse);
     });
@@ -232,7 +257,74 @@ void main() {
         expect(repo.calls.every((c) => c.mine == true), isTrue);
       },
     );
+
+    test(
+      'scopedOutletsProvider forwards the territory through every page',
+      () async {
+        // A filter dropped on page two would widen the list halfway down it,
+        // which is the failure a manager cannot see.
+        final repo = _TwoPageOutletsRepository();
+        final container = ProviderContainer(
+          overrides: [
+            outletsRepositoryProvider.overrideWithValue(repo),
+            dashboardFilterProvider.overrideWith(() => _ScopedFilter('t-gp')),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final outlets = await container.read(scopedOutletsProvider.future);
+
+        expect(outlets.map((o) => o.id), ['o1', 'o2']);
+        expect(repo.calls, hasLength(2));
+        expect(repo.calls.every((c) => c.territoryId == 't-gp'), isTrue);
+      },
+    );
+
+    test(
+      'scopedOutletsProvider asks for no territory when none is chosen',
+      () async {
+        final repo = _TwoPageOutletsRepository();
+        final container = ProviderContainer(
+          overrides: [
+            outletsRepositoryProvider.overrideWithValue(repo),
+            dashboardFilterProvider.overrideWith(() => _ScopedFilter(null)),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(scopedOutletsProvider.future);
+
+        expect(repo.calls.every((c) => c.territoryId == null), isTrue);
+      },
+    );
+
+    test('outletsListProvider is never narrowed by the scope', () async {
+      // Twenty-odd callers use it as the lookup table that turns an outletId
+      // into a shop's name, and as the set an order or beat plan must be able
+      // to pick any store from. A scope control that narrowed it would be a
+      // wall.
+      final repo = _TwoPageOutletsRepository();
+      final container = ProviderContainer(
+        overrides: [
+          outletsRepositoryProvider.overrideWithValue(repo),
+          dashboardFilterProvider.overrideWith(() => _ScopedFilter('t-gp')),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(outletsListProvider.future);
+
+      expect(repo.calls.every((c) => c.territoryId == null), isTrue);
+    });
   });
+}
+
+class _ScopedFilter extends DashboardFilterNotifier {
+  _ScopedFilter(this.territoryId);
+  final String? territoryId;
+
+  @override
+  DashboardFilter build() => DashboardFilter(territoryId: territoryId);
 }
 
 class _FixedOnlyMine extends OnlyMyTerritoriesNotifier {

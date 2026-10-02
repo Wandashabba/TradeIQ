@@ -6,7 +6,7 @@ import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 /// The owner read `Planogram compliance under 50…` off the running screen. The
 /// arithmetic is not arguable: after the card's gutter, its padding, the
 /// severity lane, the gap and the age figure, a 390dp phone leaves about 230dp
-/// of Onest 14 — some 34 characters — and the server's messages run to 55. A
+/// of Schibsted Grotesk 14 — some 34 characters — and the server's messages run to 55. A
 /// 379dp sentence does not fit a 390dp phone by any arrangement of the row, so
 /// the sentence is what gives.
 ///

@@ -10,6 +10,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -29,13 +30,17 @@ import '../data/my_record_repository.dart';
 /// ```text
 ///   Me · All time             [ 12 held on this phone ]  [ ☾ ]
 ///   ── What I've earned ──────────────────────────────
-///   1 840  of 2 000 points
-///   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░░░┃
-///   160 to go · R 250 airtime
-///   ┌───────────────────┬───────────────────┐
-///   │ POINTS ALL TIME   │ RANK              │
-///   │ 1 840             │ 4                 │
-///   └───────────────────┴───────────────────┘
+///   ╭─────────────────────────────────────────────╮
+///   │ Twenty stores                1 840 of 2 000 │
+///   │ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░░┃            │
+///   │ 160 to go · R 250 airtime                   │
+///   ╰─────────────────────────────────────────────╯
+///   ╭─────────────────────────────────────────────╮
+///   │ POINTS ALL TIME                             │
+///   │ 1 840                                       │
+///   │                                             │
+///   │ RANK                                      4 │
+///   ╰─────────────────────────────────────────────╯
 ///   ── How you earned it ─────────────────────────────
 ///   ▣  Visit submitted        Thu 18 Sep     +5
 ///   ▣  Task closed            Thu 18 Sep     +5
@@ -144,13 +149,13 @@ class _MyRecord extends ConsumerWidget {
         SectionRule(l10n.meEarnedHeading),
         const SizedBox(height: TiqSpace.s5),
         _Earned(earnings: earnings),
-        const SizedBox(height: TiqSpace.s5),
+        SizedBox(height: context.skin.space.blockGap),
         // Outside `earnings.when` on purpose: the way to the standings is not
         // a figure, and a failed points read must not take it away.
         _ContestsRow(
           running: ref.watch(runningContestsCountProvider).value ?? 0,
         ),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: context.skin.space.blockGap),
         _Visits(visits: visits, sync: sync),
       ],
     );
@@ -254,10 +259,15 @@ class _Earned extends StatelessWidget {
       data: (data) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _RewardBar(earnings: data),
-          const SizedBox(height: TiqSpace.s7),
-          _PointsCluster(earnings: data),
-          const SizedBox(height: TiqSpace.s7),
+          _IncentiveCard(earnings: data),
+          // s4 between two cards, which is The Floor's own number between its
+          // plate and its lead card, with The Floor's own reason: a card has
+          // an edge, so the air between two of them reads as more than the
+          // same gap between two bare columns did. The s7 that used to stand
+          // here was holding two unframed blocks apart by distance alone.
+          SizedBox(height: context.skin.space.intraBlock),
+          _StandingCard(earnings: data),
+          SizedBox(height: context.skin.space.blockGap),
           SectionRule(
             l10n.meLedgerHeading,
             emptyLine: data.ledger.isEmpty ? l10n.meLedgerEmpty : null,
@@ -266,7 +276,7 @@ class _Earned extends StatelessWidget {
             const SizedBox(height: TiqSpace.s5),
             _Ledger(entries: data.ledger),
           ],
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: context.skin.space.intraBlock),
           _HonestyLine(text: l10n.mePointsHonesty),
         ],
       ),
@@ -309,8 +319,35 @@ class _ContestsRow extends StatelessWidget {
 /// When no scheme is running the bar does not render **at all** and a sentence
 /// says so. An empty bar reads as zero progress, which is a different and
 /// false statement about a month in which nothing was on offer.
-class _RewardBar extends StatelessWidget {
-  const _RewardBar({required this.earnings});
+///
+/// ## It is in a card now — owner override, 29 September 2026
+///
+/// > *"lets fix this section to match the style of the app"*
+///
+/// The bar ran the **full content width with nothing containing it**, which
+/// made it the loudest object on the screen and the wrong kind of loud: a
+/// bright oatmeal rule spanning gutter to gutter reads as a *divider* rather
+/// than as a meter, and it is the last instance of the "lined, rectangular
+/// style" the owner had removed from the Tasks lead card on the same day.
+/// Nothing else in the product draws an unframed line across the page.
+///
+/// **The grammar it joins is the hub's progress card** (`_ReadinessBlock` in
+/// `audit_shell_screen.dart`, post-#486), which is the manager's Tasks lead
+/// card wearing agent data: a `TorchCard` at radius 22, `surface`, no outline,
+/// holding a figure block and one supporting sentence. A goal with progress
+/// has no exact twin on the manager side, and rather than invent a fourth
+/// grammar this takes that one and lets the bar occupy the figure slot — the
+/// bar already draws its own label, its own fraction and the reward at the end
+/// of the track, so it *is* the block, and the card is the only thing it was
+/// missing.
+///
+/// **Nothing inside the bar changed.** It keeps its key, its milestone, its
+/// `doneWord` and its one-node semantics; what it gains is the card's s4
+/// padding, which is where the bleed goes. The reach-the-reward state, the
+/// hatched state and the amber ledger (unify §1.1 puts the target tick in
+/// ink-1, so this screen is 0) are all untouched.
+class _IncentiveCard extends StatelessWidget {
+  const _IncentiveCard({required this.earnings});
 
   final MyEarnings earnings;
 
@@ -321,9 +358,17 @@ class _RewardBar extends StatelessWidget {
     final scheme = earnings.focusScheme;
 
     if (scheme == null) {
-      return Text(
-        l10n.meNoScheme,
-        style: skin.text.body.style(color: skin.palette.ink2),
+      // THE ABSENCE GETS THE CARD TOO. The sentence is the whole content of
+      // the incentive slot when nothing is running, and a sentence lying on
+      // the ground between two cards is the same complaint one object down.
+      // It stays prose and stays at body weight: it is an explanation, not a
+      // figure that has gone missing.
+      return TorchCard(
+        key: const ValueKey<String>('me-incentive'),
+        child: Text(
+          l10n.meNoScheme,
+          style: skin.text.body.style(color: skin.palette.ink2),
+        ),
       );
     }
 
@@ -340,38 +385,100 @@ class _RewardBar extends StatelessWidget {
         ? l10n.meRewardReached(reward)
         : l10n.meRewardToGo(number.format(remaining, decimals: 0), reward);
 
-    return Semantics(
-      container: true,
-      label: l10n.meRewardSemantics(valueText, totalText, line),
-      excludeSemantics: true,
-      child: TorchProgressBar(
-        key: const ValueKey<String>('reward-bar'),
-        label: scheme.name,
-        value: progress,
-        total: scheme.threshold,
-        state: reached ? ProgressState.complete : ProgressState.determinate,
-        fractionText: l10n.meRewardProgress(valueText, totalText),
-        // The reward is named at the END of the bar, which is the whole point
-        // of the component: an agent walking to a taxi wants the thing, not
-        // the arithmetic.
-        milestones: <ProgressMilestone>[
-          ProgressMilestone(at: scheme.threshold, label: line, reward: true),
-        ],
-        doneWord: reward,
+    return TorchCard(
+      key: const ValueKey<String>('me-incentive'),
+      child: Semantics(
+        container: true,
+        label: l10n.meRewardSemantics(valueText, totalText, line),
+        excludeSemantics: true,
+        child: TorchProgressBar(
+          key: const ValueKey<String>('reward-bar'),
+          label: scheme.name,
+          value: progress,
+          total: scheme.threshold,
+          state: reached ? ProgressState.complete : ProgressState.determinate,
+          fractionText: l10n.meRewardProgress(valueText, totalText),
+          // The reward is named at the END of the bar, which is the whole
+          // point of the component: an agent walking to a taxi wants the
+          // thing, not the arithmetic.
+          milestones: <ProgressMilestone>[
+            ProgressMilestone(at: scheme.threshold, label: line, reward: true),
+          ],
+          doneWord: reward,
+        ),
       ),
     );
   }
 }
 
-/// POINTS and RANK. Two tiles, either of which can admit it has no figure.
-class _PointsCluster extends StatelessWidget {
-  const _PointsCluster({required this.earnings});
+/// POINTS, with RANK subordinate to it — the manager's lead card, on the
+/// agent's own record.
+///
+/// ## Owner override, 29 September 2026 — this stops being two peers
+///
+/// > *"lets fix this section to match the style of the app"*
+///
+/// It was a [StatCluster] of two [StatTile]s **on the bare ground**, above a
+/// ledger of cards, with a large empty gap on either side — so the screen read
+/// as two designs stacked, unframed figures over framed rows, with the seam
+/// halfway down. Two further faults came with the form and are worth naming
+/// because neither is visible in a code review:
+///
+/// * a tile carries its own 20dp field-density inset, so `POINTS ALL TIME`
+///   started **20dp to the right of every other left edge on the screen** —
+///   the "second, invisible gutter" [StatTile.padding]'s own doc warns about;
+/// * a two-tile cluster on a 390dp phone goes to [StatCluster]'s grid, which
+///   draws a **1px `edgeStructure` rule** down the gap between the cells. That
+///   is precisely the rule the owner had taken off the Tasks lead card the
+///   same day — *"let's remove this lined, rectangular style"* — surviving
+///   here only because it is invisible on Night.
+///
+/// ## Why points leads and rank is subordinate, rather than two peers
+///
+/// The brief asked for a judgement rather than a sweep, so: **one lead card.**
+///
+/// 1. **The screen already says so in words.** Its own thesis — see the class
+///    comment at the top of this file — is "self-scoped, and not a
+///    leaderboard": *"comparing an agent to their peers is Contests' job, and
+///    it has its own tab."* Points is what this record is a record *of*; rank
+///    is the one line of peer context it permits itself. Drawing them as
+///    equals states the opposite of what the screen is for.
+/// 2. **Rank is legitimately absent for a whole class of caller.** The server
+///    answers `rank: null` to anyone not on the board, and `/me` is open to
+///    managers on purpose. A peer tile that is an em dash for every manager
+///    who opens the screen is not a peer.
+/// 3. **It is the frozen reference's shape.** The manager's Tasks lead card
+///    (`tasks_screen.dart` `_LeadBlock`) and the visit hub's readiness card
+///    (`audit_shell_screen.dart` `_ReadinessBlock`, #486) are both one
+///    dominant figure with its subordinates under it, **separated by a gap and
+///    never by a rule**.
+///
+/// The figure therefore steps up from `figure.l` to `heroFigureCompact` down
+/// the same measured fit chain the other two use, and rank steps down to
+/// `figure.m` — which is what makes the subordination visible rather than
+/// merely asserted.
+///
+/// ## What is deliberately absent: the mark on the eyebrow
+///
+/// Both reference cards put a small [SeverityMark] on the eyebrow word. This
+/// one does not, and that is a decision rather than an omission. The mark is
+/// the **severity** channel, and unify §1.1's ruling for this route is that it
+/// claims nothing: *"the content claims nothing at all, which is the whole
+/// ruling for this screen."* A career points total has no standard to be
+/// measured against, so every kind in the set would be a lie — `onTarget`
+/// invents a verdict, `critical` and `watch` invent a crimson one, `held`
+/// means queued, and `notMeasured` is false of a figure the server measured.
+/// A green circle beside POINTS ALL TIME would be this screen grading its
+/// reader, which is the one thing it exists not to do.
+class _StandingCard extends StatelessWidget {
+  const _StandingCard({required this.earnings});
 
   final MyEarnings earnings;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final skin = context.skin;
     final entry = earnings.entry;
     // A measured zero is a zero: an agent who has earned nothing has earned 0,
     // and "0" is the true and useful thing to print. Null is reserved for a
@@ -385,25 +492,143 @@ class _PointsCluster extends StatelessWidget {
     // unreachable and a manager was shown a fabricated place instead.
     final rank = earnings.rank;
 
-    return StatCluster(
-      tiles: <StatTile>[
-        StatTile(
-          eyebrow: l10n.mePointsEyebrow,
-          value: points,
-          decimals: 0,
-          stateLine: points == 0 ? l10n.meNoPointsYet : null,
-        ),
-        // No "4 of 22" here. `GET /gamification/me` returns the caller's own
-        // place and not the size of the field, and a denominator this screen
-        // cannot see is one it must not invent — the alternative was reading
-        // the whole leaderboard, which is the peer comparison Contests owns.
-        StatTile(
-          eyebrow: l10n.meRankEyebrow,
-          value: rank,
-          decimals: 0,
-          noDataReason: rank == null ? l10n.meNotRanked : null,
-        ),
-      ],
+    return TorchCard(
+      key: const ValueKey<String>('me-standing'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // 1. THE LABEL. Announced with the figure as one node, which is what
+          //    `StatTile` did for it — an eyebrow and a numeral read out as
+          //    two separate things is a screen reader listing nouns.
+          Semantics(
+            container: true,
+            label: l10n.mePointsEyebrow,
+            value: TiqNumber.of(context).format(points, decimals: 0),
+            excludeSemantics: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Eyebrow(l10n.mePointsEyebrow),
+                const SizedBox(height: TiqSpace.s2),
+
+                // 2. THE FIGURE. Measured down the fit chain rather than
+                //    guessed at: a four-digit total gets the presence the head
+                //    of the screen needs and a seven-digit one steps down on
+                //    its own. `Align` bounds the slot's `LayoutBuilder` — the
+                //    chain only means anything against a real width, and a
+                //    stretched child would hand it the whole card.
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FigureSlot(
+                    key: const ValueKey<String>('me-points-figure'),
+                    value: points,
+                    role: skin.text.heroFigureCompact,
+                    fit: <TiqTypeToken>[
+                      skin.text.heroFigureCompact,
+                      skin.text.figureL,
+                      skin.text.figureM,
+                    ],
+                    decimals: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 3. THE SUPPORTING LINE, where there is one. The reference cards
+          //    carry one always; this figure does not need one, because
+          //    "POINTS ALL TIME" over a total is the least ambiguous statement
+          //    on the agent side and the header already prints "All time".
+          //    A sentence written to fill a slot is padding. What survives is
+          //    the one state that genuinely needs words.
+          if (points == 0) ...<Widget>[
+            const SizedBox(height: TiqSpace.s2),
+            Text(
+              l10n.meNoPointsYet,
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ],
+
+          // 4. THE SUBORDINATE — a gap, not a rule.
+          SizedBox(height: skin.space.intraBlock),
+          _RankSubordinate(rank: rank),
+        ],
+      ),
+    );
+  }
+}
+
+/// RANK, under the points it qualifies: the label left, the figure right.
+///
+/// The manager's `_Subordinate` on Tasks and the hub's `_ReadinessSubordinate`
+/// in one arrangement — the label `Expanded`, the figure a bounded box — which
+/// is what makes a column of these align on a single right edge. A subordinate
+/// never carries a severity ink: it is context for the figure above it.
+///
+/// **This one can admit it has no figure, and the other two cannot.** That is
+/// the whole reason it is written out here rather than borrowed: the manager's
+/// pair takes a non-null `int`. `rank: null` is a real and frequent answer
+/// from `/gamification/me` — every caller who is not a field agent — and it
+/// must still render as an **em dash with its reason beside it, never a zero
+/// and never an invented place**. [FigureSlot] is where [StatTile] got that
+/// behaviour from, so passing [FigureState.missing] keeps the identical
+/// drawing (em dash, ink-3, the figure's own face) and the identical spoken
+/// form (the reason, never the word "dash") that the tile produced.
+class _RankSubordinate extends StatelessWidget {
+  const _RankSubordinate({required this.rank});
+
+  final int? rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final missing = rank == null;
+
+    return Semantics(
+      container: true,
+      label: l10n.meRankEyebrow,
+      value: missing
+          ? l10n.meNotRanked
+          : TiqNumber.of(context).format(rank, decimals: 0),
+      excludeSemantics: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Eyebrow(l10n.meRankEyebrow),
+                // The words, always, when the figure is absent. An em dash on
+                // its own is a puzzle; the sentence is what makes it an
+                // answer. No "4 of 22" ever stands here — `GET
+                // /gamification/me` returns the caller's own place and not the
+                // size of the field, and a denominator this screen cannot see
+                // is one it must not invent.
+                if (missing)
+                  Text(
+                    l10n.meNotRanked,
+                    style: skin.text.meta.style(color: skin.palette.ink3),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: TiqSpace.s3),
+          FigureSlot(
+            key: const ValueKey<String>('me-rank-figure'),
+            value: rank,
+            role: skin.text.figureM,
+            decimals: 0,
+            state: missing ? FigureState.missing : FigureState.measured,
+            textAlign: TextAlign.end,
+            semanticsLabel: missing ? l10n.meNotRanked : null,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -679,7 +904,7 @@ class _VisitsState extends ConsumerState<_Visits> {
         // omitted them would be the same lie in a new place.
         if (held > 0) ...<Widget>[
           _OnThisPhone(count: held),
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: context.skin.space.intraBlock),
         ],
         visits.when(
           loading: () => const SkeletonRows(count: 3),
@@ -706,7 +931,7 @@ class _VisitsState extends ConsumerState<_Visits> {
               children: <Widget>[
                 _VisitList(visits: all),
                 if (next != null || _failed) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   PaginationFooter(
                     summary: l10n.meVisitsShowing(all.length),
                     narrowLine: _failed ? l10n.meVisitsMoreFailed : null,
@@ -835,7 +1060,7 @@ class _VisitRow extends StatelessWidget {
             skin.space.gutter,
             0,
             skin.space.gutter,
-            TiqSpace.s4,
+            skin.space.intraBlock,
           ),
           child: ReconciliationLine(
             key: ValueKey<String>('reconciled-${visit.id}'),
@@ -983,19 +1208,38 @@ class _VisitScore extends StatelessWidget {
 
 /// The real geometry, empty — never a spinner and never a `well` block at
 /// 1.12:1 that nobody can see.
+///
+/// **The heights and the gap are measured off the arriving cards**, not
+/// guessed: 88dp for the incentive card and 141dp for the standing one at
+/// 390×844 in Night, with the s4 of ground between them that the loaded screen
+/// uses. They were 72/96 separated by s7, which described the two unframed
+/// blocks this section used to be, so the skeleton was drawing a layout that
+/// no longer arrives — the placeholder jumping on load is the one thing §1.11
+/// exists to prevent.
+///
+/// The material does **not** follow the cards. §1.3's 29 September override is
+/// explicit that a skeleton keeps radius 14 and a 1px `edgeStructure` outline
+/// even where the arriving object is an outline-less card, because a `surface`
+/// fill on the Night ground is 1.49:1 — one quantisation level on a 6-bit
+/// panel at 40% backlight, which is a placeholder nobody can see.
 class _EarnedSkeleton extends StatelessWidget {
   const _EarnedSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    // The skeleton stands at the real geometry, so it takes the real gaps:
+    // the two cards are one block apart and the ledger below them is a block
+    // away. It loses `const` to read them, which is the cost of the placeholder
+    // moving when the rhythm moves instead of drifting away from it.
+    final space = context.skin.space;
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SkeletonShell(height: 72),
-        SizedBox(height: TiqSpace.s7),
-        SkeletonShell(height: 96),
-        SizedBox(height: TiqSpace.s7),
-        SkeletonRows(count: 2),
+        const SkeletonShell(height: 88),
+        SizedBox(height: space.intraBlock),
+        const SkeletonShell(height: 141),
+        SizedBox(height: space.blockGap),
+        const SkeletonRows(count: 2),
       ],
     );
   }

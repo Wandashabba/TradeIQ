@@ -37,6 +37,7 @@ class FakeOutlets implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async => PaginatedResponse<Outlet>(data: outlets, nextCursor: null);

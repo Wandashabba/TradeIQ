@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,12 +11,12 @@ import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
-import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
-import 'entry_brand.dart';
+import 'entry_frame.dart';
+import 'entry_plate.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
 /// credentials — the one place in the app where it does. Everywhere else a 401
@@ -35,10 +34,36 @@ import 'entry_brand.dart';
 /// Pass the active [l10n] (`context.l10n`); without it the English copy is
 /// used.
 String loginErrorMessage(Object error, [AppLocalizations? l10n]) {
-  if (error is DioException && error.response?.statusCode == 401) {
-    return (l10n ?? englishLocalizations).loginInvalidCredentials;
+  final l = l10n ?? englishLocalizations;
+  if (error is DioException) {
+    final status = error.response?.statusCode;
+    if (status == 401) return l.loginInvalidCredentials;
+    // THE LOCKOUT, IN ITS OWN WORDS (30 September 2026). The shared 429 copy
+    // — "Too many attempts. Wait a few minutes, then try again." — is written
+    // for a screen where the person was doing something and got told to slow
+    // down. Here they are trying to get *in*, and the question the pause
+    // raises is not "how long" but "is my account gone". So this sentence
+    // explains the rule and then answers that question, which the shared one
+    // has no reason to.
+    if (status == 429) return l.loginTooManyBody;
   }
-  return humanErrorMessage(error, l10n);
+  return humanErrorMessage(error, l);
+}
+
+/// The headline a sign-in failure is announced under.
+///
+/// A 401 and a 429 are **not the same story** and did not used to be told
+/// apart: both printed "We could not sign you in", so the screen said the
+/// person's credentials had been refused when in fact nothing had been
+/// checked at all. The rate limit is a rule they tripped, not a judgement on
+/// who they are, and the headline is where that difference is either made or
+/// lost.
+String loginErrorHeadline(Object error, [AppLocalizations? l10n]) {
+  final l = l10n ?? englishLocalizations;
+  if (error is DioException && error.response?.statusCode == 429) {
+    return l.loginTooManyTitle;
+  }
+  return l.loginFailedTitle;
 }
 
 /// Which kind of failure a sign-in error is, in the kit's closed set.
@@ -140,7 +165,26 @@ class _SignInState extends ConsumerState<_SignIn> {
     return null;
   }
 
+  /// Whether the reader has pressed Sign in yet.
+  ///
+  /// Nothing tells them what is missing until they have. The screen used to
+  /// print "Email is required" on arrival, under a dead grey button, on a form
+  /// nobody had touched — a scolding for a mistake not yet made.
+  bool _tried = false;
+
   Future<void> _submit() async {
+    // VALIDATE ON PRESS, NOT ON SIGHT — 30 September 2026.
+    //
+    // The button is live from the first frame. Press it empty and it says what
+    // is missing; that is an action, which is what earns it the amber. A
+    // disabled button wearing the screen's one light would be the lie the
+    // amber law exists to prevent, and a dead button that has already told you
+    // off is worse than either.
+    final missing = _missing(context.l10n);
+    if (missing != null) {
+      setState(() => _tried = true);
+      return;
+    }
     setState(() => _sending = true);
     await ref
         .read(sessionControllerProvider.notifier)
@@ -205,15 +249,18 @@ class _SignInState extends ConsumerState<_SignIn> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final skin = context.skin;
     final session = ref.watch(sessionControllerProvider);
     final held = ref.watch(sessionEndedProvider);
     final missing = _missing(l10n);
-    final armed = missing == null && !_sending;
+    // Armed whenever it can be pressed at all — which is always, unless a
+    // press is already in flight. See [_submit].
+    final armed = !_sending;
     final failure = session.hasError ? session.error! : null;
 
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
-        skin: context.skin,
+        skin: skin,
         phase: _sending
             ? 'sending'
             : failure != null
@@ -224,31 +271,99 @@ class _SignInState extends ConsumerState<_SignIn> {
         navRenders: false,
         tabbedRoute: false,
         beneathSheet: beneathSheet,
-        claims: <TorchClaim>[if (armed) TorchPrimaryButton.claim('sign-in')],
-        child: TorchShell(
-          profile: TorchShellProfile.agent,
-          header: TorchAppHeader(
-            title: l10n.loginSignIn,
-            back: TorchIconButton(
-              icon: Icons.arrow_back,
-              semanticLabel: l10n.loginBackTooltip,
-              onPressed: () => context.go('/'),
+        claims: <TorchClaim>[
+          if (armed) TorchPrimaryButton.claim('sign-in'),
+          // The underline asks at rung 5. On Night it is granted beside the
+          // commit and the door matches the mockup; on Day the commit takes
+          // the only grant and this falls back to `edgeControl`. Declared only
+          // while the form is armed, because a screen with nothing to do
+          // carries no light at all.
+          if (armed)
+            const TorchClaim(
+              TorchClaimKind.textFieldFocus,
+              id: 'forgot-password',
             ),
+        ],
+        child: EntryFrame(
+          // NO APP HEADER, AND THE TWO REASONS ARE SEPARATE.
+          //
+          // **The title said what the headline now says.** A `TorchAppHeader`
+          // prints its title at `title.l` — the same 20sp "Tasks" and "Ask
+          // TradeIQ" carry — and then this screen printed "Sign in" again on
+          // the button in the thumb zone. Ask's opening is the shape this
+          // screen wants and it has exactly one of each: a mark that says
+          // which product, and a display headline that says what to do. Two
+          // chrome-scale statements of "Sign in" above a form is the
+          // duplication §1.6 and §9f keep deleting, one component up.
+          //
+          // **The back arrow went nowhere.** It ran `go('/')`, and `/` is the
+          // splash, which holds for five seconds and then routes an
+          // unauthenticated visitor straight back to `/login`. It was a
+          // five-second round trip to the screen you were already on, and it
+          // cost the 48dp row the header reserves above its title on the one
+          // screen in the product with the least room to spare — see the
+          // 360x640 renders, where "Remember me" was being clipped by the
+          // thumb zone. Nothing is unreachable without it: the splash is a
+          // brand hold and not a destination, and `/forgot-password` is
+          // reached from the link that is still on this screen.
+          //
+          // Not a tab root: the cycle sits at the leading end of the commit
+          // row — pinned in the thumb zone on a phone, at the foot of the
+          // column on a page. Never a screen without it.
+          // The cycle is on the plate now, so the commit row is the button
+          // alone, edge to edge, as the mockup has it.
+          skinCycle: null,
+          // UNDER THE COMMIT, CENTRED — owner instruction, 30 September 2026,
+          // pointing at the approved mockup: "look at the Sign in and forgot
+          // password on this image and do exactly that".
+          //
+          // It used to sit left-aligned inside the form, under the checkboxes,
+          // where it read as one more form control. A person reaches for the
+          // button first; the way out is what they look for once the button
+          // has not worked for them, and that is now the order it reads in.
+          underPrimary: TorchTertiaryButton(
+            // The mockup's amber underline — asked for, not taken. See
+            // `TorchTertiaryButton.litClaimId`.
+            litClaimId: 'forgot-password',
+            key: const ValueKey<String>('login-forgot-password'),
+            label: l10n.loginForgotPassword,
+            onPressed: _forgotPassword,
           ),
-          // Not a tab root: the cycle sits at the leading end of the thumb
-          // zone. Never a screen without it.
-          skinCycle: const EntrySkinCycle(),
           primary: TorchPrimaryButton(
             key: const ValueKey<String>('login-submit'),
             label: l10n.loginSignIn,
             claimId: 'sign-in',
             busy: _sending,
-            blockedReason: missing,
+            blockedReason: _tried ? missing : null,
             onPressed: armed ? _submit : null,
           ),
           children: <Widget>[
-            const EntryBrand(monogram: 40, compact: true),
-            const SizedBox(height: TiqSpace.s6),
+            // THE MASTHEAD IS A PHOTOGRAPHIC PLATE (owner's choice, 30
+            // September 2026 — *"A the plate"*).
+            //
+            // It used to be a mark, a headline and a sentence on bare ground.
+            // It is now the same three things on the object The Floor opens
+            // with: the plate is the one piece of this product nobody else
+            // has, and on the door it means the product looks like itself
+            // before anyone has typed a character.
+            //
+            // **The three strings did not change.** `loginHeadline` and
+            // `loginSubtitle` are the same two sentences, moved onto the
+            // picture; the mark is the same 24dp compact wordmark, at the top
+            // of the plate instead of above it. Nothing here names a
+            // territory, a route or a count, because before sign-in there is
+            // no tenant and nothing of the sort is true yet — see the long
+            // note in `entry_plate.dart`, which is also where the amber and
+            // the fold arithmetic are argued.
+            //
+            // At 360×640 it collapses to the 96dp band by its own budget and
+            // the picture is dropped, which is very nearly the masthead this
+            // screen already had.
+            EntryPlate(
+              headline: l10n.loginHeadline,
+              supporting: l10n.loginSubtitle,
+            ),
+            SizedBox(height: skin.space.blockGap),
             if (held != null && !held.isEmpty) ...<Widget>[
               SessionHeldLine(
                 key: const ValueKey<String>('login-held-line'),
@@ -256,15 +371,8 @@ class _SignInState extends ConsumerState<_SignIn> {
                 actionLabel: l10n.sessionHeldWhatIsHeld,
                 onPressed: () => _showHeldWork(l10n, held),
               ),
-              const SizedBox(height: TiqSpace.s6),
+              SizedBox(height: skin.space.blockGap),
             ],
-            Text(
-              l10n.loginSubtitle,
-              style: context.skin.text.body.style(
-                color: context.skin.palette.ink2,
-              ),
-            ),
-            const SizedBox(height: TiqSpace.s6),
             // ABOVE the fields, not under the button. A refusal here is about
             // the two things directly beneath it, and on a 360×640 phone the
             // foot of this form is already past the fold: an error printed
@@ -276,12 +384,12 @@ class _SignInState extends ConsumerState<_SignIn> {
                 scope: ErrorScope.inline,
                 message: TorchErrorMessage(
                   kind: loginErrorKind(failure),
-                  headline: l10n.loginFailedTitle,
+                  headline: loginErrorHeadline(failure, l10n),
                   body: loginErrorMessage(failure, l10n),
                   offersRetry: false,
                 ),
               ),
-              const SizedBox(height: TiqSpace.s6),
+              SizedBox(height: skin.space.blockGap),
             ],
             TorchTextField(
               key: const ValueKey<String>('login-email'),
@@ -312,31 +420,21 @@ class _SignInState extends ConsumerState<_SignIn> {
               autofillHints: const <String>[AutofillHints.password],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) {
-                if (armed) _submit();
+                _submit();
               },
             ),
-            const SizedBox(height: TiqSpace.s3),
+            SizedBox(height: skin.space.intraBlock),
             TorchCheckbox(
               key: const ValueKey<String>('login-show-password'),
               label: l10n.loginShowPassword,
               value: _show,
               onChanged: (v) => setState(() => _show = v),
             ),
-            const SizedBox(height: TiqSpace.s3),
             TorchCheckbox(
               key: const ValueKey<String>('login-remember-me'),
               label: l10n.loginRememberMe,
               value: _remember,
               onChanged: (v) => setState(() => _remember = v),
-            ),
-            const SizedBox(height: TiqSpace.s4),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TorchTertiaryButton(
-                key: const ValueKey<String>('login-forgot-password'),
-                label: l10n.loginForgotPassword,
-                onPressed: _forgotPassword,
-              ),
             ),
           ],
         ),

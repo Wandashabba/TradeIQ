@@ -714,7 +714,11 @@ void main() {
             (w) =>
                 w.text.toPlainText().startsWith('On-shelf availability across'),
           );
-      expect(opener.text.style!.fontSize, 14);
+      // `body`, which is 13 since the 1 October 2026 prose reduction. The
+      // point of the assertion is that an opener with no headline is set in
+      // body and not in a headline role, so it is pinned to the token.
+      expect(opener.text.style!.fontSize, TiqSkin.night().text.body.size);
+      expect(opener.text.style!.fontSize, 13);
       // With no headline, all the prose sits above the cards, as replies always
       // have.
       expect(

@@ -599,8 +599,9 @@ void main() {
             'direction': direction,
             'sentiment': 'bad',
           })!;
-      // No U+25BC: Onest never carried it and package:pdf drew it as nothing
-      // (#401). The sign is the direction, and the table twin reads it.
+      // No U+25BC: Schibsted Grotesk never carried it and package:pdf drew it
+      // as nothing (#401). The sign is the direction, and the table twin reads
+      // it.
       expect(delta('down').text(), '${minusSign}12.4%');
       expect(delta('up').text(), '+12.4%');
       expect(

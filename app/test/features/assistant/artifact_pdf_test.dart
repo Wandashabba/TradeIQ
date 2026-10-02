@@ -60,18 +60,18 @@ ArtifactDetail _trendArtifact() => const ArtifactDetail(
 );
 
 Future<ArtifactPdfFonts> _fonts() async {
-  // Onest, not Inter, and the PDF-only STATIC instances rather than the
-  // variable file the app renders with: package:pdf reads `glyf` outlines and
-  // ignores a variable font's `gvar` deltas, so Onest-Variable.ttf would come
-  // out at weight 400 for all three. Loaded here by literal path, as the
-  // shipping code does — `the exporter finds the font files it names` below
-  // asserts the two lists agree.
+  // Schibsted Grotesk, not Inter, and the PDF-only STATIC instances rather than
+  // the variable file the app renders with: package:pdf reads `glyf` outlines
+  // and ignores a variable font's `gvar` deltas, so
+  // SchibstedGrotesk-Variable.ttf would come out at weight 400 for all three.
+  // Loaded here by literal path, as the shipping code does — `the exporter
+  // finds the font files it names` below asserts the two lists agree.
   Future<Uint8List> load(String name) async =>
       (await rootBundle.load('assets/fonts/$name')).buffer.asUint8List();
   return ArtifactPdfFonts(
-    regular: await load('Onest-Pdf-400.ttf'),
-    medium: await load('Onest-Pdf-500.ttf'),
-    bold: await load('Onest-Pdf-700.ttf'),
+    regular: await load('SchibstedGrotesk-Pdf-400.ttf'),
+    medium: await load('SchibstedGrotesk-Pdf-500.ttf'),
+    bold: await load('SchibstedGrotesk-Pdf-700.ttf'),
     fallback: await load('JetBrainsMono-Regular.ttf'),
   );
 }
@@ -138,11 +138,11 @@ void main() {
   });
 
   test('matches the golden, bar the creation date and document id', () async {
-    // Regenerate with:
-    //   UPDATE_GOLDEN=1 flutter test test/features/assistant/artifact_pdf_test.dart
-    // A diff here means the report's layout or wording moved. That is
-    // sometimes intended — read the diff before regenerating, because this is
-    // the only test that would notice the table quietly losing a column.
+    // Regenerate with: UPDATE_GOLDEN=1 flutter test
+    // test/features/assistant/artifact_pdf_test.dart A diff here means the
+    // report's layout or wording moved. That is sometimes intended — read the
+    // diff before regenerating, because this is the only test that would notice
+    // the table quietly losing a column.
     final bytes = _normalise(await buildArtifactPdf(_request(await _fonts())));
     final golden = File(_goldenPath);
 
@@ -159,14 +159,14 @@ void main() {
     // package:pdf does not render tofu for a missing glyph — it drops the
     // character and logs to stderr, which no CI reads. A fall exported as
     // "12.4%" instead of "−12.4%" would pass every other assertion here.
-    // Onest carries U+2212 and the em dash (the arrows it never carried are
-    // gone from the report, #401); the JetBrains Mono fallback covers what
-    // it does not, so it still has to load.
+    // Schibsted Grotesk carries U+2212 and the em dash (the arrows it never
+    // carried are gone from the report, #401); the JetBrains Mono fallback
+    // covers what it does not, so it still has to load.
     final fonts = await ArtifactExporter.loadFonts();
     expect(
       fonts.fallback.lengthInBytes,
       greaterThan(1000),
-      reason: 'The fallback face is missing, so a sign Onest lacks is dropped.',
+      reason: 'The fallback face is missing, so a sign Schibsted Grotesk lacks is dropped.',
     );
 
     final bytes = await buildArtifactPdf(_request(await _fonts()));

@@ -116,7 +116,7 @@ void main() {
         night.palette.onAmberPressed,
         const Color(0xFF0B1017),
         reason:
-            'the ink stays dark at 8.59:1. The pressed state that put '
+            'the ink stays dark at 7.72:1. The pressed state that put '
             'flame-900 on flame-500 measured 2.00:1 and made the label vanish '
             'at the moment of commitment.',
       );
@@ -271,15 +271,57 @@ void main() {
         night.palette.ground,
         reason: 'no fill of its own — it is the ground with an edge on it',
       );
-      expect(
-        rect.height,
-        night.space.primaryActionHeight,
-        reason:
-            'the same height as a primary on a label that fits. An '
-            'alternative that is also smaller is a hint, not a choice.',
-      );
       final census = await amberCensus(tester);
       expect(census.objectCount, 0);
+
+      // The same label in a primary, measured rather than assumed.
+      //
+      // This compared `rect.height` to `space.primaryActionHeight` until
+      // 29 September 2026, and that stopped describing anything the moment
+      // the floor dropped to 44: `torchBlockHeight` is a *minimum*, and this
+      // label's line box plus padding comes to 55, so the floor no longer
+      // decides. The intention in the reason string — "an alternative that is
+      // also smaller is a hint, not a choice" — is unchanged and is what is
+      // asserted now, against a real primary.
+      //
+      // IT ALSO TURNS OUT THE OLD REASON OVERCLAIMED. The two were never the
+      // same height: the primary measures 57 to the secondary's 55, because a
+      // granted primary carries a 1px amber rim top and bottom that a ghost
+      // does not. The 56dp floor hid it — it clamped the secondary up to 56
+      // against a primary already at 57 — and the assertion was never
+      // comparing the two things its sentence named. So the test now says
+      // what is true: the secondary takes the primary's geometry, and the
+      // only difference between them is the rim, which is decoration and not
+      // a smaller button.
+      await pumpTorch(
+        tester,
+        skin: night,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(TiqSpace.s5),
+            child: TorchPrimaryButton(
+              claimId: claim,
+              label: 'Skip',
+              onPressed: () {},
+            ),
+          ),
+        ),
+        claims: <TorchClaim>[TorchPrimaryButton.claim(claim)],
+      );
+      final asPrimary = tester.getRect(find.byType(TorchPrimaryButton));
+      expect(
+        (asPrimary.height - rect.height).abs(),
+        lessThanOrEqualTo(2 * night.depth.borderWidth),
+        reason:
+            'the primary geometry on a label that fits — the only difference '
+            'is the primary\'s 1px amber rim, top and bottom. An alternative '
+            'that is also smaller is a hint, not a choice.',
+      );
+      expect(
+        rect.height,
+        greaterThanOrEqualTo(night.space.primaryActionHeight),
+        reason: 'and never below the floor the skin declares',
+      );
     });
 
     testWidgets('press changes the fill AND doubles the edge', (tester) async {

@@ -238,7 +238,7 @@ void main() {
 
       // THE AGENT, NOT A UUID. Since the card override of 25 September 2026
       // a list row spends its own padding before the title starts, and in
-      // `flutter_test`'s font — about twice Onest's advance — a
+      // `flutter_test`'s font — about twice Schibsted Grotesk's advance — a
       // 14-character name middle-truncates on a 360dp row. That is the
       // ruling's own behaviour, and the FULL name is what a screen reader is
       // handed whatever the row painted; what may never happen is a database

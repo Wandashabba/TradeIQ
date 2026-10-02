@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_contrast.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 
@@ -33,14 +34,28 @@ void main() {
       expect(StatusLevel.values, hasLength(5));
     });
 
-    test('severity is one hue at two commitment levels: outline, then solid',
-        () {
+    test('severity is one hue at two commitment levels: wash, then solid', () {
+      // WAS "outline, then solid", and the lower commitment level really was
+      // a bare crimson outline over nothing until 29 September 2026. The
+      // ruling it encoded — one hue, two commitment levels, a silhouette each
+      // — is unchanged; what moved is how the lower level is drawn, because
+      // the owner said the agent side is still rectangular and an outline was
+      // the whole of that chip's shape. It is a wash of the same hue now.
       final skin = TiqSkin.night();
       final critical = StatusLevelToken.of(skin, StatusLevel.critical);
       final watch = StatusLevelToken.of(skin, StatusLevel.watch);
       expect(critical.fill, skin.palette.badSolid, reason: 'Solid = Critical.');
-      expect(watch.fill, isNull, reason: 'Outline = Watch.');
-      expect(watch.border, skin.palette.bad);
+      expect(
+        watch.fill,
+        torchChipWash(skin, skin.palette.bad),
+        reason: 'Wash = Watch, and it is the SAME hue as the solid.',
+      );
+      expect(
+        watch.fill,
+        isNot(critical.fill),
+        reason: 'Two commitment levels, not one.',
+      );
+      expect(watch.ink, skin.palette.bad);
       expect(
         critical.shape,
         isNot(watch.shape),
@@ -48,10 +63,58 @@ void main() {
       );
     });
 
-    test('Held is Oatmeal on the well, never Truffle', () {
+    test('no shipped status level carries a border', () {
+      // THE RATCHET for the 29 September 2026 override. Every level is a
+      // filled pill; `TiqChip.border` stays in the API only so a disabled
+      // control can keep its outline (#479), and no level is disabled.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final level in StatusLevel.values) {
+          final token = StatusLevelToken.of(skin, level);
+          expect(
+            token.border,
+            isNull,
+            reason: '${level.name} drew an outline back.',
+          );
+          expect(
+            token.fill,
+            isNotNull,
+            reason:
+                '${level.name} has neither a fill nor an outline, so it is '
+                'not an object at all.',
+          );
+        }
+      }
+    });
+
+    test('every status level reads on its own fill, in both skins', () {
+      // The five-level version of #479's argument. A fill on a near-black
+      // ground is worth ~1.2:1 and cannot separate five standings, so what
+      // identifies a level is the silhouette, the word and the ink — and the
+      // ink has to survive being printed on the level's own fill.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final level in StatusLevel.values) {
+          final token = StatusLevelToken.of(skin, level);
+          expect(
+            contrastRatio(token.ink, token.fill!),
+            greaterThanOrEqualTo(ContrastRole.text.floor),
+            reason:
+                '${skin.brightness.name} ${level.name}: the label is under 4.5:1 '
+                'on the fill it is printed on.',
+          );
+        }
+      }
+    });
+
+    // "on the well" until 29 September 2026: the neutral levels moved to
+    // `raised`, because a neutral wash would have put ink-3 on a darkened Day
+    // well and `ink-3 on well` is that skin's tightest declared pairing at
+    // 4.52:1. The Oatmeal-not-Truffle ruling this test carries is about the
+    // INK and is untouched.
+    test('Held is Oatmeal on a neutral tier, never Truffle', () {
       final skin = TiqSkin.night();
       final held = StatusLevelToken.of(skin, StatusLevel.held);
       expect(held.ink, skin.palette.ink2);
+      expect(held.fill, skin.palette.raised);
       expect(
         held.ink,
         isNot(skin.palette.comparison),
@@ -141,11 +204,47 @@ void main() {
           isNot(anyOf(skin.palette.bad, skin.palette.badSolid)),
           reason: '${kind.name} is a fact, not a verdict.',
         );
+        // WAS `token.border`, which every member now leaves null — an
+        // assertion that cannot fail is an assertion that stopped guarding
+        // anything. The fill is where the hue lives since 29 September 2026,
+        // so that is what gets checked.
         expect(
-          token.border,
-          isNot(anyOf(skin.palette.bad, skin.palette.badSolid)),
+          token.fill,
+          isNot(
+            anyOf(
+              torchChipWash(skin, skin.palette.bad),
+              skin.palette.badSolid,
+            ),
+          ),
           reason: '${kind.name} is a fact, not a verdict.',
         );
+      }
+    });
+
+    test('no shipped flag member carries a border, and every one reads', () {
+      // The seven-member twin of the status-chip ratchet. The family was
+      // designed to be told apart by silhouette and word with no colour
+      // difference between six of the seven, so deleting a border they all
+      // carried equally separates them no less than before — but the label
+      // still has to survive being printed on the new fill.
+      for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+        for (final kind in FlagKind.values) {
+          final token = FlagKindToken.of(skin, kind);
+          expect(token.border, isNull, reason: '${kind.name} drew an outline.');
+          expect(token.fill, isNotNull, reason: '${kind.name} has no fill.');
+          expect(
+            contrastRatio(token.ink, token.fill!),
+            greaterThanOrEqualTo(ContrastRole.text.floor),
+            reason: '${skin.brightness.name} ${kind.name}',
+          );
+          // And the cleared form, which drops the ink a step AND drops the
+          // fill to neutral: ink-3 on the crimson wash is 4.28:1 on Day.
+          expect(
+            contrastRatio(skin.palette.ink3, skin.palette.raised),
+            greaterThanOrEqualTo(ContrastRole.text.floor),
+            reason: '${skin.brightness.name} cleared ${kind.name}',
+          );
+        }
       }
     });
 

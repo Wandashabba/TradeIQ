@@ -120,7 +120,7 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
         else
           _CapturedTile(photo: photo, onRemove: () => widget.onCaptured(null)),
         if (photo == null && _darkOutside) ...<Widget>[
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           Semantics(
             liveRegion: true,
             child: Row(
@@ -139,13 +139,13 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
             ),
           ),
         ],
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         Text(
           l10n.sectionPhotoStamped,
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),
         if (_error != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           Semantics(
             liveRegion: true,
             child: Row(
@@ -167,7 +167,7 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
             ),
           ),
         ],
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TorchSecondaryButton(

@@ -6,6 +6,7 @@ import '../../../core/rating_band.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -26,12 +27,16 @@ import 'audit_shell_screen.dart' show VisitFrame;
 ///   PERFECT-STORE SCORE
 ///   71 /100   ◺ Watch
 ///   ▲ +6  from your last visit here (65).
-///   ── How it was scored ───────────────────────
-///   Availability                              83
-///   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬╎▬▬
-///   Share of shelf                             —
-///   ▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨
-///   No competitor on shelf — not counted against you.
+///   HOW IT WAS SCORED
+///   ┌───────────────────────────────────────────┐
+///   │ Availability                           83 │
+///   │ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬╎▬▬               │
+///   └───────────────────────────────────────────┘
+///   ┌───────────────────────────────────────────┐
+///   │ Share of shelf                          — │
+///   │ ▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨▨              │
+///   │ No competitor on shelf — not counted.     │
+///   └───────────────────────────────────────────┘
 ///   [ ☾ ] [            Next store              ]
 /// ```
 ///
@@ -294,7 +299,7 @@ class _ScoredState extends ConsumerState<_Scored> {
           ],
         ),
         if (changed) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           ReconciliationLine(
             key: const ValueKey<String>('outcome-reconciled'),
             finalValue: total,
@@ -308,7 +313,7 @@ class _ScoredState extends ConsumerState<_Scored> {
             semanticsLabel: l10n.outcomeReconciledSemantics(total, seenBefore),
           ),
         ],
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         SectionRule(l10n.outcomeHowScored),
         const SizedBox(height: TiqSpace.s5),
         for (final (i, entry) in kDimensionLabels.entries.indexed)
@@ -418,6 +423,18 @@ class _DeltaLine extends StatelessWidget {
 }
 
 /// ONE DIMENSION: its name, its figure, and the bar that explains it.
+///
+/// ## A card, not a hairline — 29 September 2026
+///
+/// Six dimensions separated by `Border(bottom: hairline)` is a table, and the
+/// breakdown was the last one on the agent side. The owner's note is *"Match
+/// the manager side please"*, and the manager's answer to a column of
+/// repeated things is `SoftRowSpec`'s: a `surface` card with a gap of ground
+/// and no rule anywhere, because a line between two objects that already have
+/// edges is the look the card grammar exists to leave behind.
+///
+/// `last` stops meaning "draw no rule" and starts meaning "take no gap", which
+/// is the same job one step along.
 class _DimensionRow extends StatelessWidget {
   const _DimensionRow({
     required this.label,
@@ -445,22 +462,11 @@ class _DimensionRow extends StatelessWidget {
           ? l10n.outcomeDimensionSemantics(label, value.round())
           : l10n.outcomeDimensionUnmeasuredSemantics(label, reason),
       excludeSemantics: true,
-      child: Container(
+      child: Padding(
         key: ValueKey<String>('dimension-$label'),
-        padding: const EdgeInsets.symmetric(vertical: TiqSpace.s3),
-        decoration: BoxDecoration(
-          // A non-tappable row takes the decorative hairline; the 3:1
-          // edge-structure rule is for rows a thumb can open.
-          border: last
-              ? null
-              : Border(
-                  bottom: BorderSide(
-                    color: skin.palette.hairline,
-                    width: skin.depth.borderWidth,
-                  ),
-                ),
-        ),
-        child: Column(
+        padding: EdgeInsets.only(bottom: last ? 0 : skin.space.intraBlock),
+        child: TorchCard(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
@@ -506,7 +512,8 @@ class _DimensionRow extends StatelessWidget {
                   reason,
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -550,21 +557,21 @@ class _HeldOnPhone extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: TiqSpace.s3),
+          SizedBox(height: skin.space.intraBlock),
           Text(
             unreachable
                 ? l10n.outcomeHeldBodyUnreachable
                 : l10n.outcomeHeldBodyNoSignal,
             style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          const SizedBox(height: TiqSpace.s6),
+          SizedBox(height: skin.space.blockGap),
           OfflineHeldBanner(
             key: const ValueKey<String>('outcome-held-banner'),
             state: SyncState.held,
             label: l10n.outcomeScoredWhenSends,
             subtitle: l10n.outcomeScoredOnServer,
           ),
-          const SizedBox(height: TiqSpace.s4),
+          SizedBox(height: skin.space.intraBlock),
           // Not showing a number here is deliberate, and worth one sentence:
           // an agent shown 74 in the shop who finds 68 in the morning will not
           // trust the third one. The refusal is stated, not left as a gap.
@@ -594,7 +601,7 @@ class _ScoringSkeleton extends StatelessWidget {
           SkeletonLine(role: skin.text.eyebrow, widthFactor: 0.4),
           const SizedBox(height: TiqSpace.s2),
           SkeletonLine(role: skin.text.heroFigure, widthFactor: 0.5),
-          const SizedBox(height: TiqSpace.s7),
+          SizedBox(height: skin.space.blockGap),
           const SkeletonRows(count: 6, rowHeight: 64),
         ],
       ),

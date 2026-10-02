@@ -175,7 +175,6 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
         title: l10n.forgotTitle,
         back: back,
         primaryArmed: true,
-        skinCycle: const EntrySkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('forgot-go-to-sign-in'),
           label: l10n.forgotGoToSignIn,
@@ -207,7 +206,6 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
       title: l10n.forgotTitle,
       back: back,
       primaryArmed: armed,
-      skinCycle: const EntrySkinCycle(),
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('forgot-submit'),
         label: l10n.forgotSubmit,
@@ -218,7 +216,12 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
       ),
       children: <Widget>[
         AccountText(l10n.forgotIntro),
-        const SizedBox(height: TiqSpace.s6),
+        // The one gap on this screen that is a BLOCK gap — the instruction
+        // ends and the form begins. The `s5`s below it are the rhythm between
+        // fields inside one block, which is what every manager form uses and
+        // is not the same measurement; turning those into tokens too would be
+        // restating the scale, which is the thing #492 undid.
+        SizedBox(height: context.skin.space.blockGap),
         TorchTextField(
           key: const ValueKey<String>('forgot-email'),
           label: l10n.forgotEmailLabel,

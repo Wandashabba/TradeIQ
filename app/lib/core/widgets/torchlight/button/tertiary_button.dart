@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../design/torch_scope.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
 import 'torch_button.dart';
 import 'torch_press.dart';
@@ -28,6 +29,7 @@ class TorchTertiaryButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.destructive = false,
+    this.litClaimId,
     this.busy = false,
     this.semanticLabel,
   });
@@ -44,6 +46,31 @@ class TorchTertiaryButton extends StatelessWidget {
   /// Ink and rule step to `bad`, and a 12dp filled triangle precedes the
   /// label. The triangle is a shape, so it survives greyscale.
   final bool destructive;
+
+  /// The [TorchClaim] id under which this underline asks to be amber, or null
+  /// for the ordinary `edgeControl` rule.
+  ///
+  /// **It asks; it never decides.** The approved sign-in mockup draws this
+  /// underline in Burning Flame, and on a dark ground that fits — the door's
+  /// budget is two and the commit is the other one. On a **light** ground the
+  /// budget is one, and measuring it is what settled this: button plus
+  /// underline painted *"2 amber objects against a budget of 1"*.
+  ///
+  /// So it goes through the ladder like every other lit object. At rung 5 it
+  /// sits under `primaryCommit`, which means:
+  ///
+  /// * empty form — nothing is armed, no grant, neutral rule. The census's own
+  ///   standing rule is that a screen with nothing to do carries no light, and
+  ///   an always-amber underline would have made the way *out* the brightest
+  ///   thing on a form you cannot yet submit.
+  /// * dark, armed — commit takes rung 1, this takes rung 5, two objects
+  ///   against a budget of two. The mockup, exactly.
+  /// * light, armed — the commit takes the only grant and this falls back.
+  ///
+  /// That is not "a door lit differently per skin" by accident; it is the
+  /// documented precedence doing the job it exists for, the same way the
+  /// plate's strip light already gives way.
+  final String? litClaimId;
 
   final bool busy;
 
@@ -71,7 +98,24 @@ class TorchTertiaryButton extends StatelessWidget {
       pressScale: 1,
       builder: (context, pressed) {
         final ink = disabled ? p.inkMute : (destructive ? p.bad : p.ink1);
-        final rule = disabled ? null : (destructive ? p.bad : p.edgeControl);
+        // THE RULE, AND WHEN IT IS AMBER.
+        //
+        // `edgeControl` by default: this control is findable by its underline
+        // and its weight, not by hue, which is what lets it survive greyscale.
+        //
+        // [lit] is the approved sign-in mockup's own treatment — *"do it
+        // exactly"*, 30 September 2026 — and it is amber because on that
+        // screen the underline is the only thing marking the way out of a
+        // form whose one other object is the commit. It is opt-in and it is
+        // used once: amber is emitted light and the budget is counted, so a
+        // second caller is a decision, not a style.
+        final rule = disabled
+            ? null
+            : destructive
+            ? p.bad
+            : (litClaimId != null && TorchScope.lit(context, litClaimId!))
+            ? p.flame600
+            : p.edgeControl;
         final style = token
             .style(color: ink)
             .copyWith(fontWeight: pressed ? FontWeight.w700 : token.weight);

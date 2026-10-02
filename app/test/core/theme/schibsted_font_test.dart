@@ -11,7 +11,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 /// pubspec's fonts section was commented out, Flutter fell back to
 /// Arial/Roboto without a single warning, and every metric tuned against Inter
 /// rendered in the wrong typeface. A misdeclared bundled font fails exactly as
-/// silently for Onest.
+/// silently for Schibsted Grotesk.
 ///
 /// The three layers it pinned are pinned here for the new face. The manifest
 /// and byte-level checks live in
@@ -21,7 +21,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('every theme resolves its text styles to Onest', () {
+  test('every theme resolves its text styles to Schibsted Grotesk', () {
     for (final theme in <ThemeData>[
       AppTheme.dark(),
       AppTheme.light(),
@@ -30,7 +30,8 @@ void main() {
     ]) {
       // ThemeData applies its fontFamily to the typography defaults before
       // merging our TextTheme on top, so every prose style must come out as
-      // Onest. If this fails, the theme no longer requests the typeface.
+      // Schibsted Grotesk. If this fails, the theme no longer requests the
+      // typeface.
       expect(theme.textTheme.displaySmall?.fontFamily, TiqFonts.prose);
       expect(theme.textTheme.bodyMedium?.fontFamily, TiqFonts.prose);
       expect(theme.textTheme.labelSmall?.fontFamily, TiqFonts.prose);
@@ -46,12 +47,12 @@ void main() {
     }
   });
 
-  test('the PDF-only Onest instances ship, and are static', () async {
+  test('the PDF-only prose instances ship, and are static', () async {
     // package:pdf ignores a variable font's gvar deltas. If one of these ever
     // becomes the variable file, every report renders medium and bold at 400
     // and nothing complains.
     for (final weight in <int>[400, 500, 700]) {
-      final asset = 'assets/fonts/Onest-Pdf-$weight.ttf';
+      final asset = 'assets/fonts/SchibstedGrotesk-Pdf-$weight.ttf';
       final bytes = await rootBundle.load(asset);
       expect(
         bytes.getUint32(0),

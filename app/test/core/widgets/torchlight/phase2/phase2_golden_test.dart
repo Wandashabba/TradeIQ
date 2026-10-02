@@ -13,7 +13,7 @@ import 'phase2_harness.dart';
 /// reasons `soft_row_golden_test.dart` gives and which have not changed:
 ///
 /// * CI runs `flutter test` on `ubuntu-latest` and this repository is
-///   developed on macOS. Two platforms rasterise anti-aliased Onest
+///   developed on macOS. Two platforms rasterise anti-aliased Schibsted Grotesk
 ///   differently, so an image golden generated here fails there on the day it
 ///   lands and gets `skip`ped within a week — which is a golden nobody runs.
 /// * What the ruling states is a set of **values**: radius 10 at the bottom

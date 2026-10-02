@@ -65,12 +65,64 @@ export interface CreateOutletInput {
 export interface ListOutletsForClientInput {
   clientId: string;
   assignedTo?: string;
+  /**
+   * Narrow to one territory — a `Territory.id`, NOT a `Territory.code` and
+   * NOT the value sitting in `Outlet.territoryId`.
+   *
+   * ## Why an id, when the column holds a code
+   *
+   * `POST /outlets` takes a *code* in its body, because that body writes the
+   * free-text column directly. This is a different thing: a query contract,
+   * and every other query contract in the product speaks ids —
+   * `GET /dashboard?territoryId=`, `GET /territories/:id/coverage`, and the
+   * app's own scope state, which holds `Territory.id` because that is what
+   * `GET /territories` gives it.
+   *
+   * Taking a code here would push the id → code resolution into the client,
+   * which is precisely where bug #97 lived: the app filtered by id against a
+   * column of codes, matched nothing, and rendered all-zero KPIs as though
+   * they were measured. The resolution belongs on this side of the wire,
+   * once, next to the comment explaining it. Sending a code where this wants
+   * an id fails loudly (see below) rather than quietly matching nothing.
+   */
+  territoryId?: string;
   limit: number;
   cursor?: string;
 }
 
+/**
+ * That territory's code, or a 400 — never a filter that quietly does nothing.
+ *
+ * `getDashboardSummary` resolves the same id and, when it does not resolve,
+ * substitutes a sentinel code so the figures come back empty. That is right
+ * for a KPI panel, where a clearly-labelled scope sits beside the numbers.
+ * It is wrong for a LIST OF SHOPS: an empty store list and a store list
+ * filtered by a territory that does not exist look identical, and a manager
+ * reading the second one concludes the territory is empty. Worse is the
+ * failure on the other side of it — a filter that is ignored hands back every
+ * store in the tenant under a chip that names one territory, and somebody
+ * plans a day against it.
+ *
+ * Scoped by `clientId`, so another tenant's territory id is exactly as
+ * unknown as one that exists nowhere. Same status, same sentence: a 404 here
+ * and a 400 there would be an existence oracle across tenants.
+ */
+async function territoryCodeFor(clientId: string, territoryId: string): Promise<string> {
+  const territory = await prisma.territory.findFirst({
+    where: { id: territoryId, clientId },
+    select: { code: true },
+  });
+  if (!territory) {
+    throw new ValidationError(
+      `Unknown territory "${territoryId}". The territoryId filter takes a territory's id, ` +
+        'not its code or its name — see GET /territories.',
+    );
+  }
+  return territory.code;
+}
+
 export async function listOutletsForClient(input: ListOutletsForClientInput) {
-  const { clientId, assignedTo, limit, cursor } = input;
+  const { clientId, assignedTo, territoryId, limit, cursor } = input;
   // `id` is the unique tiebreaker that makes the cursor deterministic when
   // two outlets share a name — same reasoning as alerts.service.ts.
   //
@@ -82,28 +134,38 @@ export async function listOutletsForClient(input: ListOutletsForClientInput) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   };
 
-  if (!assignedTo) {
-    const rows = await prisma.outlet.findMany({ where: { clientId }, ...paging });
-    return buildPage(rows, limit);
+  // Both narrowings resolve to a set of `Outlet.territoryId` CODES before any
+  // outlet is read. Matching on id would silently return nothing — the exact
+  // bug #97 shipped once, where a territory filter degraded to all-zero KPIs
+  // rather than erroring.
+  const askedCode = territoryId === undefined ? undefined : await territoryCodeFor(clientId, territoryId);
+
+  let assignedCodes: string[] | undefined;
+  if (assignedTo) {
+    const assignments = await prisma.userTerritory.findMany({
+      where: { userId: assignedTo, territory: { clientId } },
+      select: { territory: { select: { code: true } } },
+    });
+    const codes = assignments.map((a) => a.territory.code);
+    // An agent with no assignments gets everything rather than nothing, so an
+    // empty roster leaves this undefined — see the doc comment above.
+    assignedCodes = codes.length === 0 ? undefined : codes;
   }
 
-  const assignments = await prisma.userTerritory.findMany({
-    where: { userId: assignedTo, territory: { clientId } },
-    // NOTE: `Outlet.territoryId` stores a Territory *code*, not its id (see the
-    // comment on the Territory model). Matching on id here would silently
-    // return nothing — the exact bug #97 shipped once, where a territory
-    // filter degraded to all-zero KPIs rather than erroring.
-    select: { territory: { select: { code: true } } },
-  });
-
-  const codes = assignments.map((a) => a.territory.code);
-  if (codes.length === 0) {
-    const rows = await prisma.outlet.findMany({ where: { clientId }, ...paging });
-    return buildPage(rows, limit);
-  }
+  // `?mine=true&territoryId=…` is the INTERSECTION, not either one winning.
+  // An agent asking for a territory they are not assigned gets an empty page,
+  // which is the truthful answer to "my stores in that territory": there are
+  // none. It is an empty `in` rather than an early return so the envelope and
+  // the cursor come out of the same query path as every other case.
+  const codes =
+    askedCode !== undefined && assignedCodes !== undefined
+      ? assignedCodes.filter((code) => code === askedCode)
+      : askedCode !== undefined
+        ? [askedCode]
+        : assignedCodes;
 
   const rows = await prisma.outlet.findMany({
-    where: { clientId, territoryId: { in: codes } },
+    where: { clientId, ...(codes === undefined ? {} : { territoryId: { in: codes } }) },
     ...paging,
   });
   return buildPage(rows, limit);

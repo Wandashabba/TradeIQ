@@ -14,8 +14,15 @@ import 'tiq_skin.dart';
 /// The agent's sibling is [agentSkinProvider]; this is the manager's, and the
 /// two are deliberately separate. An agent is outdoors and defaults to Day; a
 /// manager is at a desk or in a car park and defaults to **whatever the app
-/// theme already said** — which is Night under `AppTheme.dark()` and Day under
-/// `AppTheme.light()`, because both of those already register a `TiqSkin`.
+/// theme already said**, because every theme registers a `TiqSkin`.
+///
+/// That is Night under `AppTheme.night()` and Day under `AppTheme.day()` —
+/// the two `main.dart` actually wires to `theme`/`darkTheme`. This paragraph
+/// named `AppTheme.light()` and `AppTheme.dark()` until 29 September 2026;
+/// those exist, and they register a **console** skin, but nothing routes to
+/// them. The pair that ships registers a *field* skin on the Day arm, which
+/// is precisely the density [consoleSkinFor] now has to correct, and naming
+/// the wrong pair here is part of why it went unnoticed for so long.
 ///
 /// Null therefore means *follow the app*, and it is the default: a manager who
 /// has never touched the skin cycle sees exactly the brightness she chose in
@@ -36,14 +43,43 @@ final consoleSkinProvider = NotifierProvider<ConsoleSkinController, SkinMode?>(
 );
 
 /// Resolve a console route's skin: the manager's override, or the skin the
-/// ambient theme already registered.
+/// ambient theme already registered, **at console density either way**.
 ///
 /// Console density throughout — the manager is at a desk with a mouse, and
-/// Field's 64dp rows are for someone standing up with one hand on a shelf.
+/// Field's geometry is for someone standing up with one hand on a shelf.
+///
+/// THE `auto` ARM USED TO HAND BACK THE AMBIENT SKIN UNTOUCHED, AND THAT WAS
+/// A DEFECT. `main.dart` builds the light theme with `AppTheme.day()`, whose
+/// density parameter defaults to **field**, so the ambient skin in light mode
+/// is a field skin. A manager who had never touched the skin cycle — which is
+/// the default, since `mode` starts null — was handed the agent's geometry on
+/// every migrated console route: a 96dp header instead of 72, a 232dp trend
+/// chart instead of 208, 32dp chips, a 96dp stat-tile floor and a 6px meter
+/// track. The two branches directly above it were already forcing console, so
+/// cycling the skin once and cycling back *fixed* it, which is the shape of a
+/// bug and not of a design.
+///
+/// It went unseen because `themeMode` defaults to dark and the two arms that
+/// name a density cover every case a test exercises. #490 removed the sibling
+/// half of this — a bare `TiqSkin.day()` no longer means field — but left
+/// `AppTheme.day({density = field})` alone deliberately, so `main.dart`'s
+/// light theme still registers a field skin and this arm still inherited it.
+///
+/// The owner's standing instruction is not to change the manager side. This
+/// changes it, in light mode only, and it is the one exception they would
+/// want: what that instruction protects is the console they approved, and
+/// nobody has ever approved a manager screen wearing the agent's geometry.
+/// See the PR body, which states the movement plainly rather than folding it
+/// into the spacing work.
 TiqSkin consoleSkinFor(SkinMode? mode, TiqSkin ambient) => switch (mode) {
   SkinMode.night => TiqSkin.night(density: TiqDensity.console),
   SkinMode.day => TiqSkin.day(density: TiqDensity.console),
-  SkinMode.auto || null => ambient,
+  // Keep the ambient BRIGHTNESS — "follow the app" is about light and dark,
+  // and it always was — but never inherit its density.
+  SkinMode.auto || null =>
+    ambient.space.density == TiqDensity.console
+        ? ambient
+        : TiqSkin.of(ambient.mode, density: TiqDensity.console),
 };
 
 /// Wraps a migrated console route in its own Torchlight theme.

@@ -245,8 +245,8 @@ class _Trailing extends StatelessWidget {
 ///
 /// Kept as a value rather than a string so the digits can go through
 /// [FigureSlot] into JetBrains Mono with tabular figures and the unit can stay
-/// in Onest, which is the whole point of the figure primitive. The locale's
-/// decimal separator then comes from `TiqNumber` — "1,4 MB" in Afrikaans,
+/// in Schibsted Grotesk, which is the whole point of the figure primitive.
+/// The locale's decimal separator then comes from `TiqNumber` — "1,4 MB" in Afrikaans,
 /// "1.4 MB" in English — rather than from a `toStringAsFixed` in a widget.
 @immutable
 class PayloadSize {

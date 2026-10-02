@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// Sign-in error on a 401 (wrong email or password).
   ///
   /// In en, this message translates to:
-  /// **'Invalid credentials'**
+  /// **'We do not recognise that email and password.'**
   String get loginInvalidCredentials;
 
   /// Tooltip on the sign-in screen's back button (to the splash).
@@ -308,11 +308,29 @@ abstract class AppLocalizations {
   /// **'Sign in'**
   String get loginSignIn;
 
-  /// Sign-in screen subtitle.
+  /// Sign-in screen subtitle, under the headline.
   ///
   /// In en, this message translates to:
-  /// **'Use your TradeIQ work account.'**
+  /// **'Use your work email and password.'**
   String get loginSubtitle;
+
+  /// The sign-in screen's display headline — the invitation the screen opens with, the way Ask TradeIQ opens with one.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to get to work.'**
+  String get loginHeadline;
+
+  /// Headline for a 429 on sign-in. Deliberately not the 401's headline: a rate limit is a rule the person tripped, not a refusal of who they are.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many sign-in attempts'**
+  String get loginTooManyTitle;
+
+  /// Body for a 429 on sign-in. It explains the rule and says the account is fine, because the fear a lockout creates is that the account is gone. It never names the exact threshold, which would only help somebody pace their attempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account — wait, then try again.'**
+  String get loginTooManyBody;
 
   /// Sign-in email field label.
   ///
@@ -919,6 +937,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'REQUIRED TO SUBMIT'**
   String get visitRequiredToSubmitBadge;
+
+  /// Label of the subordinate figure pair under the readiness figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t confirm'**
+  String get visitCantConfirmLabel;
 
   /// Screen-reader label for the short REQ pill.
   ///
@@ -3242,10 +3266,10 @@ abstract class AppLocalizations {
   /// **'Send, unavailable, needs a connection'**
   String get askSendUnavailable;
 
-  /// Spoken when Send is disabled because the trough is empty.
+  /// Spoken when Send is LIVE and the trough is empty. It was "Send, unavailable, nothing typed yet" until 1 October 2026, when the key stopped being disabled by an empty trough: it is live from the first frame so it may wear the route's one light, and pressing it with nothing typed puts the cursor in the field. The old sentence would have announced an available control as unavailable.
   ///
   /// In en, this message translates to:
-  /// **'Send, unavailable, nothing typed yet'**
+  /// **'Send. Nothing typed yet, so this opens the question field.'**
   String get askSendNothingTyped;
 
   /// Replaces Send while a turn streams.
@@ -5696,6 +5720,12 @@ abstract class AppLocalizations {
   /// **'This app'**
   String get menuThisApp;
 
+  /// What a screen reader is handed for one of the menu sheet's three group rows. The row PRINTS 'Operate · 9'; a reader is given the sentence, because a middot is a character a screen reader spells out. Open or shut is NOT in here — that is the platform's own expanded/collapsed flag, which it announces in the reader's language.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{name}, 1 destination} other{{name}, {count} destinations}}'**
+  String menuGroupSemantics(int count, String name);
+
   /// Menu row that switches the app to its light theme. Names the state it switches TO, never the one it is in.
   ///
   /// In en, this message translates to:
@@ -6793,6 +6823,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add a store to put it on a beat plan.'**
   String get outletsEmptyBody;
+
+  /// Whole-screen empty state on the outlet list when a territory is chosen and it has no stores. Names the territory, because 'No stores' alone reads as an empty account.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores in {territory}.'**
+  String outletsEmptyInTerritoryHeadline(String territory);
+
+  /// Body of the territory-scoped empty state. Outlet.territoryId is free text with no foreign key, so a mis-filed store is the commonest reason a territory reads zero when the manager knows it should not.
+  ///
+  /// In en, this message translates to:
+  /// **'A store filed under a different territory\'s code is not listed here.'**
+  String get outletsEmptyInTerritoryBody;
+
+  /// Action on the territory-scoped empty state: clears the scope. The way out of a filter is out of the filter, not a new store.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all territories'**
+  String get outletsShowAllTerritories;
+
+  /// Added to the pin reports note when a territory is chosen. The pin dispute queue takes no territory, so it is not narrowed by the chip above it, and a queue that looks scoped is one a manager clears and believes they are done with.
+  ///
+  /// In en, this message translates to:
+  /// **'This queue covers every territory, not only the one in scope.'**
+  String get outletsPinReportsEveryTerritory;
 
   /// Headline of the outlet list's error state.
   ///
@@ -12531,6 +12585,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every figure below is scoped to this choice.'**
   String get dashTerritorySheetBody;
+
+  /// The quiet note on the right of the filter sheet's one-line header. Says what the sheet does without spending a full-width sentence on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Scopes every figure'**
+  String get dashScopeNote;
+
+  /// What a screen reader hears on a territory group's expander. The expanded/collapsed state travels as the Semantics flag, not as a word.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{name}, 1 territory} other{{name}, {count} territories}}'**
+  String dashTerritoryGroup(String name, int count);
 
   /// Announced first in a picker row's label, because a tick is silence to a screen reader.
   ///

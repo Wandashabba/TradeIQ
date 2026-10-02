@@ -157,7 +157,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get loginSignIn => 'Teken in';
 
   @override
-  String get loginSubtitle => 'Gebruik jou TradeIQ-werkrekening.';
+  String get loginSubtitle => 'Gebruik jou werk-e-pos en wagwoord.';
+
+  @override
+  String get loginHeadline => 'Meld aan om te begin werk.';
+
+  @override
+  String get loginTooManyTitle => 'Te veel aanmeldpogings';
+
+  @override
+  String get loginTooManyBody =>
+      'Aanmelding wag ’n paar minute ná verskeie mislukte pogings vanaf dieselfde verbinding. Daar is niks fout met jou rekening nie — wag, en probeer dan weer.';
 
   @override
   String get loginEmailLabel => 'E-pos';
@@ -527,6 +537,9 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitRequiredToSubmitBadge => 'VERPLIGTEND OM IN TE DIEN';
+
+  @override
+  String get visitCantConfirmLabel => 'Kan nie bevestig nie';
 
   @override
   String get visitRequiredToSubmit => 'Verpligtend om in te dien';
@@ -2069,7 +2082,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askSendNothingTyped =>
-      'Stuur, nie beskikbaar nie, nog niks getik nie';
+      'Stuur. Nog niks getik nie, dus open dit die vraagveld.';
 
   @override
   String get askStop => 'Stop die antwoord';
@@ -3708,6 +3721,17 @@ class AppLocalizationsAf extends AppLocalizations {
   String get menuThisApp => 'Hierdie program';
 
   @override
+  String menuGroupSemantics(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count bestemmings',
+      one: '$name, 1 bestemming',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get menuThemeLight => 'Ligte tema';
 
   @override
@@ -4384,6 +4408,22 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get outletsEmptyBody =>
       'Voeg ’n winkel by om dit op ’n besoekplan te sit.';
+
+  @override
+  String outletsEmptyInTerritoryHeadline(String territory) {
+    return 'Geen winkels in $territory nie.';
+  }
+
+  @override
+  String get outletsEmptyInTerritoryBody =>
+      '’n Winkel wat onder ’n ander gebied se kode ingedien is, word nie hier gelys nie.';
+
+  @override
+  String get outletsShowAllTerritories => 'Wys alle gebiede';
+
+  @override
+  String get outletsPinReportsEveryTerritory =>
+      'Hierdie lys dek elke gebied, nie net die een in bestek nie.';
 
   @override
   String get outletsLoadErrorHeadline => 'Die winkellys het nie gelaai nie.';
@@ -7983,6 +8023,20 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get dashTerritorySheetBody =>
       'Elke syfer hieronder val binne hierdie keuse.';
+
+  @override
+  String get dashScopeNote => 'Beperk elke syfer';
+
+  @override
+  String dashTerritoryGroup(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count gebiede',
+      one: '$name, 1 gebied',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get dashSelected => 'Gekies';

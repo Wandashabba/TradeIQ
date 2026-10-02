@@ -496,22 +496,51 @@ class _SeverityMark extends StatelessWidget {
 /// The trailing chevron: a 2px-stroke path in ink-3, drawn rather than set in
 /// a font, and scaling with the text because it carries meaning.
 class SoftRowChevron extends StatelessWidget {
-  const SoftRowChevron({super.key, this.color});
+  const SoftRowChevron({super.key, this.color, this.extent});
 
   final Color? color;
+
+  /// The chevron's extent at 1.0×. **Null is 20 and null is the right answer
+  /// in a row**, which is what this component is named after and sized for.
+  ///
+  /// It exists for the one caller that is not a row: `PlateScopeChip`, whose
+  /// whole face is drawn at the mockup's weight and whose `›` is 8.5px in the
+  /// drawing — about 11dp. A 20dp chevron inside a 29dp pill is the "large `>`
+  /// chevron" the owner named on 1 October 2026. Passing a number here rather
+  /// than scaling a `SizedBox` around it keeps the stroke proportionate to the
+  /// path, which is the thing a transform would have got wrong.
+  ///
+  /// It still scales with the text from whatever base it is given, because a
+  /// chevron carries meaning and a reader at 2.0× needs it to grow.
+  final double? extent;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final scaler =
         MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
-    final extent = math.min(20.0 * scaler.scale(1.0).clamp(1.0, 2.0), 32.0);
+    final base = extent ?? 20.0;
+    final grown = math.min(
+      base * scaler.scale(1.0).clamp(1.0, 2.0),
+      base * 1.6,
+    );
     return SizedBox.square(
-      dimension: extent,
+      dimension: grown,
       child: CustomPaint(
         painter: _ChevronPainter(
           colour: color ?? skin.palette.ink3,
-          stroke: skin.depth.borderWidth * 2,
+          // THE STROKE IS A SHARE OF THE EXTENT, not a constant — since
+          // 1 October 2026, and only because [extent] exists. A flat
+          // `borderWidth * 2` is right at 20dp and reads as a heavy `>` at 11:
+          // the path shrinks and the line on it does not, so the glyph gets
+          // proportionally fatter exactly as it gets smaller. A row's chevron
+          // is unchanged: at `base` 20 this is `borderWidth * 2` by
+          // construction. The floor is a hairline, because a stroke that
+          // rounds to zero is a chevron that is not drawn.
+          stroke: math.max(
+            skin.depth.borderWidth,
+            skin.depth.borderWidth * 2 * (base / 20),
+          ),
           rtl: Directionality.of(context) == TextDirection.rtl,
         ),
       ),

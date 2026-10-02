@@ -109,42 +109,83 @@ flutter:
 
   assets:
     - assets/images/tradeiq-ti-monogram.png
+    # THE PLATE ON THE DOOR. A byte-identical copy of
+    # `backend/assets/places/ALL.jpg` — the "all territories" view, a South
+    # African trade route at first light. It is bundled rather than fetched
+    # because a place image comes off an authed endpoint and `/login` has no
+    # token; it is *this* image for three reasons that are each checked in
+    # `entry_plate_test.dart`: it is `source: generated`
+    # (gemini-3.1-flash-image), so unlike the twelve supplied photographs it
+    # carries no owner licensing question (`SUPPLIED_RIGHTS` in
+    # `backend/scripts/places/supplied.ts` does not reach it); it is the
+    # all-territories picture, which is what a door before anyone knows their
+    # territory should carry; and its prompt in `scripts/places/prompts.ts`
+    # forbids readable text, signage, brand marks and recognisable faces.
+    # 56 kB. Keep this list short.
+    - assets/images/entry-plate.jpg
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
-    # Onest for the PDF exporter, and ONLY for it — declared as assets rather
-    # than under `fonts:` so the engine never resolves a screen to them.
-    # `package:pdf` parses a TTF's `glyf` outlines directly and knows nothing
-    # about a variable font's `gvar` deltas, so handing it Onest-Variable three
-    # times would render every weight at 400 and silently flatten the report's
-    # hierarchy. These are static instances at wght 400/500/700, subset to
-    # Latin + Latin-Ext plus the punctuation and currency the app emits: 50 KB
-    # each against 1.25 MB of Inter. Regenerate with tool/build_pdf_fonts.sh.
-    - assets/fonts/Onest-Pdf-400.ttf
-    - assets/fonts/Onest-Pdf-500.ttf
-    - assets/fonts/Onest-Pdf-700.ttf
+    # Schibsted Grotesk for the PDF exporter, and ONLY for it — declared as
+    # assets rather than under `fonts:` so the engine never resolves a screen to
+    # them. `package:pdf` parses a TTF's `glyf` outlines directly and knows
+    # nothing about a variable font's `gvar` deltas, so handing it
+    # SchibstedGrotesk-Variable three times would render every weight at 400 and
+    # silently flatten the report's hierarchy. These are static instances at
+    # wght 400/500/700, subset to Latin + Latin-Ext plus the punctuation and
+    # currency the app emits: 76 KB each against 1.25 MB of Inter. They are
+    # larger than Onest's 50 KB because Schibsted Grotesk is drawn on a 2048
+    # unitsPerEm grid rather than 1000, so the same outlines carry more point
+    # data. Regenerate with tool/build_pdf_fonts.sh.
+    - assets/fonts/SchibstedGrotesk-Pdf-400.ttf
+    - assets/fonts/SchibstedGrotesk-Pdf-500.ttf
+    - assets/fonts/SchibstedGrotesk-Pdf-700.ttf
 
   # Fonts are bundled, not fetched: field agents work offline in shops with no
   # signal, so a runtime download (the google_fonts default) would mean the
   # theme's typeface — whose metrics every letterSpacing and font-size token
   # was tuned against — simply isn't there.
   #
-  # Onest is the Torchlight Aisle prose face, shipped as the single VARIABLE
-  # font Google Fonts publishes (wght 100–900, no italic). One asset, not four
-  # static instances: Flutter has mapped FontWeight onto a variable font's wght
-  # axis since 3.41 and this app is on 3.44.8, so the old note here about
-  # Flutter only resolving distinct files is out of date. 193 KB replaces
-  # Inter's 1.67 MB. Filename has no brackets on purpose: the generated
-  # FontManifest URL-escapes them and an asset key stops round-tripping. SIL OFL 1.1 — licence at assets/fonts/OFL-Onest.txt.
+  # Schibsted Grotesk is the Torchlight Aisle prose face, shipped as the single
+  # upright VARIABLE font Google Fonts publishes (wght **400–900**, with the
+  # italic published as a separate file that is NOT bundled — nothing in the app
+  # sets italic prose, exactly as under Onest, which had none at all). One
+  # asset, not four static instances: Flutter has mapped FontWeight onto a
+  # variable font's wght axis since 3.41 and this app is on 3.44.8. 176 KB,
+  # against Onest's 193 KB and Inter's 1.67 MB. Filename has no brackets on
+  # purpose: the generated FontManifest URL-escapes them and an asset key stops
+  # round-tripping. SIL OFL 1.1 — licence at
+  # assets/fonts/OFL-SchibstedGrotesk.txt.
+  #
+  # The axis floor is 400, not Onest's 100. Nothing is lost: the type scale uses
+  # 400/500/600/700 and no lighter weight exists anywhere in lib/. It is written
+  # down because a future token at w300 would be silently clamped to regular
+  # rather than rejected.
   fonts:
-    - family: Onest
+    - family: Schibsted Grotesk
       fonts:
-        - asset: assets/fonts/Onest-Variable.ttf
+        - asset: assets/fonts/SchibstedGrotesk-Variable.ttf
 
-    # JetBrains Mono — the FIGURE and IDENTIFIER face, and the reason Onest is
-    # never allowed to render one. Onest has no slashed zero, its digits are
-    # proportional unless `tnum` is switched on, and its capital I and
-    # lowercase l are the same shape — all fine for prose and disqualifying for
-    # an outlet code, a GTIN or an order ref. The split is enforced by
-    # test/core/theme/torchlight/torchlight_type_test.dart, not by discipline.
+    # JetBrains Mono — the FIGURE and IDENTIFIER face, and the reason the prose
+    # face is never allowed to render one. The split is a design decision before
+    # it is a glyph audit: a figure face and a prose face doing different jobs
+    # is the point, and it stands whatever the prose face happens to carry.
+    #
+    # Checked against Schibsted Grotesk on 1 October 2026, the three grounds
+    # Onest was judged on:
+    #
+    #   * SLASHED ZERO — Schibsted Grotesk HAS one, under the OpenType `zero`
+    #     feature (zero -> zero.zero). Onest had no such feature at all. It is
+    #     off by default and the app does not switch it on.
+    #   * PROPORTIONAL DIGITS BY DEFAULT — unchanged. Digits are proportional
+    #     (0 is 0.611em, 1 is 0.343em) with `tnum` available, exactly as Onest.
+    #   * I AND l — Schibsted Grotesk tells them apart, where Onest effectively
+    #     did not. Its `l` rises above cap height (0.732em against the `I`'s
+    #     0.703em) and its `I` is much the wider glyph (0.274em of inked width
+    #     against 0.158em). Onest's two were plain stems of the same height and
+    #     near-identical width.
+    #
+    # So two of the three disqualifications no longer apply. The split stays
+    # regardless, and `test/core/theme/torchlight/torchlight_type_test.dart`
+    # still enforces it — not by discipline.
     # SIL OFL 1.1 — licence at assets/fonts/OFL-JetBrainsMono.txt.
     - family: JetBrains Mono
       fonts:

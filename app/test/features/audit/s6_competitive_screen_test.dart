@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/features/audit/data/competitive_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s6_competitive_screen.dart';
@@ -110,6 +112,51 @@ void main() {
     await typeInSection(tester, _key('comp-sku-0'), 'Rival Crisps');
     await saveSection(tester);
     expect(spy.entries!.single.competitorSku, 'Rival Crisps');
+    await disposeAgentScreen(tester);
+  });
+
+  // 29 September 2026. `SoftRowSpec` gives a list row a margin of one gutter,
+  // because a list is bled to the screen edges by its screen and the margin is
+  // what puts the card's edge back on the gutter line. `TorchShell` already
+  // spends that gutter on the body, so the entry header was landing at TWO —
+  // 40dp in, while its own fields sat at 20. `TorchBleed` appeared zero times
+  // under `sections/`, and this is the defect that cost.
+  testWidgets('an entry header hangs off the same gutter as its own fields', (
+    tester,
+  ) async {
+    await pumpSection(
+      tester,
+      _screen,
+      overrides: _overrides(_SpyCompetitive()),
+    );
+    await _add(tester);
+    await scrollAgentTo(tester, _key('entry-0'));
+
+    // The header is a `SoftRow`, whose own box INCLUDES the margin that puts
+    // its card back on the gutter after a bleed. So the card's painted left
+    // edge is the row's box plus that margin, and it must land exactly where
+    // the field beneath it starts. Without the bleed the row's box starts at
+    // the body gutter and the card lands at two of them.
+    final row = find.descendant(
+      of: _key('entry-0'),
+      matching: find.byType(SoftRow),
+    );
+    final context = tester.element(row);
+    final margin = SoftRowSpec.resolve(
+      skin: context.skin,
+      density: SoftRowDensity.compact,
+    ).margin;
+    expect(margin, greaterThan(0), reason: 'a list row carries a margin');
+    expect(
+      tester.getTopLeft(row).dx + margin,
+      moreOrLessEquals(tester.getTopLeft(_key('comp-sku-0')).dx, epsilon: 0.5),
+    );
+
+    // And the remove button stops on the same line at the other end.
+    expect(
+      tester.getTopRight(_key('entry-remove-0')).dx,
+      moreOrLessEquals(tester.getTopRight(_key('comp-sku-0')).dx, epsilon: 0.5),
+    );
     await disposeAgentScreen(tester);
   });
 

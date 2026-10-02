@@ -408,8 +408,10 @@ class AppTheme {
           letterSpacing: 0.9,
         ),
       ),
-      // Onest replaces Inter. The Lumen scale was tuned against Inter's
-      // metrics; Onest's x-height is close enough that nothing reflows, and
+      // Schibsted Grotesk replaces Onest, which replaced Inter. The Lumen
+      // scale was tuned against Inter's metrics; both successors sit within
+      // 0.001em of each other's x-height and close enough to Inter's that
+      // nothing reflows, and
       // this theme is scheduled for replacement by torchlight() anyway.
       fontFamily: TiqFonts.prose,
       fontFamilyFallback: TiqFonts.proseFallback,

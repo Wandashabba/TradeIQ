@@ -131,10 +131,10 @@ enum FigureState {
 /// A figure, split into the three runs it is set in.
 ///
 /// The split is the whole reason this type exists. The digits are JetBrains
-/// Mono with tabular figures; the affixes are Onest, because `R` and `pts` are
-/// language and Onest is the language face. Handing a widget one string would
-/// force it to set the whole thing in one face and lose either the tabular
-/// column or the affix.
+/// Mono with tabular figures; the affixes are Schibsted Grotesk, because `R`
+/// and `pts` are language and Schibsted Grotesk is the language face.
+/// Handing a widget one string would force it to set the whole thing in one
+/// face and lose either the tabular column or the affix.
 @immutable
 class FormattedFigure {
   const FormattedFigure({
@@ -145,14 +145,14 @@ class FormattedFigure {
     required this.allowsDelta,
   });
 
-  /// Onest. `R ` or empty.
+  /// Schibsted Grotesk. `R ` or empty.
   final String prefix;
 
   /// JetBrains Mono, tabular. The digits, the group separators, the decimal
   /// mark and the minus — everything a reader compares column to column.
   final String run;
 
-  /// Onest. `%`, ` pts`, or empty.
+  /// Schibsted Grotesk. `%`, ` pts`, or empty.
   final String suffix;
 
   final FigureState state;

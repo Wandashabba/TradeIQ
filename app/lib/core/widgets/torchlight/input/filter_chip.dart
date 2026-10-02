@@ -29,7 +29,39 @@ class TorchFilterChip extends StatelessWidget {
     this.countLoading = false,
     this.glyph,
     this.semanticsLabel,
+    this.quiet = false,
   });
+
+  /// ── THE PLATE-SIDE WEIGHT, OPT-IN — 1 October 2026 ──────────────────
+  ///
+  /// False everywhere except The Floor's suggestion row, and it has to be
+  /// opt-in rather than a new default: a filter rail is a row of controls a
+  /// manager *works*, and the 44dp `chipHeight` is the right drawn size for
+  /// one. The 44 is not negotiable as a TARGET anywhere — see below — but as a
+  /// drawn height it belongs to a rail.
+  ///
+  /// A suggestion is not a filter. It is an **offer**, in a row pinned above
+  /// the composer, and the mockup draws it at `padding:5px 9px;
+  /// font-size:8.5px` — about 29dp tall with 11dp type, which is roughly half
+  /// the weight of the rail chip this component was built for. Drawn at 44dp
+  /// the owner's render fitted one and a bit: *"large enough that the second
+  /// one is cut off at the screen edge"*. Two chips is the mockup's count and
+  /// `FloorSuggestionChips.maximum`'s arithmetic, so a row that cannot hold
+  /// two is the row failing at its one job.
+  ///
+  /// **The tap target does not shrink with the paint.** The chip still
+  /// occupies `space.chipHeight` of the row; what changes is that the painted
+  /// pill is centred inside it at 29dp. That split is the same one
+  /// `plateQuietExtent` makes for the two controls on the plate, and it is the
+  /// only way to take the drawing's weight without dropping under WCAG
+  /// 2.5.5's floor — the mockup's chrome is 29–35dp throughout and every one
+  /// of those numbers is under 44.
+  ///
+  /// It is a density, not a second look: the pill, the fill tiers, the ink
+  /// tiers, the weight step, the tick disc, the press treatment and the
+  /// never-amber rule are all exactly the rail chip's. Only the drawn box and
+  /// the type role move.
+  final bool quiet;
 
   final String label;
   final bool selected;
@@ -49,11 +81,26 @@ class TorchFilterChip extends StatelessWidget {
 
   final String? semanticsLabel;
 
-  /// 44 Console / 48 Field.
-  static double heightFor(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => 44,
-    TiqDensity.field => 48,
-  };
+  /// The chip's height, which is [TiqSpace.chipHeight] — **44 at both
+  /// densities** since 29 September 2026.
+  ///
+  /// > *"Fix the spacing also please check if everything matches with the
+  /// > manager side"* — the owner, 29 September 2026.
+  ///
+  /// SUPERSEDED: `TiqDensity.console => 44, TiqDensity.field => 48`, which
+  /// restated `TiqSpace`'s own `chipHeight` as a second switch and so made
+  /// that token dead — nothing in `lib/` read it. The ruling was written
+  /// twice, which is how two copies of one number drift apart. It is read
+  /// rather than restated now, so a density change lands here for free, the
+  /// way `torchBlockHeight` already reads `primaryActionHeight` next door.
+  ///
+  /// The console value is 44 either way, so no manager pixel moved when this
+  /// was rewired.
+  static double heightFor(TiqSkin skin) => skin.space.chipHeight;
+
+  /// The drawn height of a [quiet] chip: the mockup's 22px at 1.3 dp/px. The
+  /// TARGET is still [heightFor] — see [quiet].
+  static const double quietExtent = 29;
 
   @override
   Widget build(BuildContext context) {
@@ -115,11 +162,11 @@ class TorchFilterChip extends StatelessWidget {
       ink = p.ink2;
     }
 
-    final labelStyle = skin.text.label
-        .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w500)
-        .style(color: ink);
-
-    final children = <Widget>[
+    // Built per frame against the ink the fade is currently on, so the mark,
+    // the label and the count arrive with the fill rather than a frame ahead
+    // of it. The WEIGHT does not animate and must not: 500 → 700 is one of the
+    // two non-motion channels that carry `selected` on their own.
+    List<Widget> childrenWith(Color ink) => <Widget>[
       if (selected)
         TiqMark(
           shape: MarkShape.sectionTickDisc,
@@ -133,7 +180,11 @@ class TorchFilterChip extends StatelessWidget {
       Flexible(
         child: Text(
           label,
-          style: labelStyle,
+          // `meta` is 12 against `label`'s 13, which is the declared role
+          // nearest the mockup's 11dp. See [quiet].
+          style: (quiet ? skin.text.meta : skin.text.label)
+              .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w500)
+              .style(color: ink),
           // Never ellipsised: a truncated filter name is a filter you cannot
           // identify. At 2.0× the chip grows and wraps instead.
           maxLines: 2,
@@ -162,27 +213,68 @@ class TorchFilterChip extends StatelessWidget {
       child: TorchPressable(
         onPressed: onSelected,
         borderRadius: radius,
-        builder: (context, pressed) => Container(
-          constraints: BoxConstraints(minHeight: heightFor(skin)),
-          decoration: BoxDecoration(
-            color: pressed ? torchPressSurface(skin).fill : fill,
-            borderRadius: radius,
-            // A DISABLED CHIP KEEPS ITS OUTLINE. It has no fill to be seen by
-            // and `inkMute` on the bare ground is the one state where the
-            // silhouette really is all there is.
-            border: enabled
-                ? null
-                : Border.all(
-                    color: p.inkMute,
-                    width: skin.depth.borderWidth,
+        // `TiqMotion.press` is documented as "press, toggle, CHIP SELECT" —
+        // this is the third of those, and the one that was still snapping. A
+        // filter rail is the manager's most-tapped control on Tasks and on
+        // Alerts, and selecting a chip moved the fill, the ink, the glyph and
+        // the count all in a single frame.
+        //
+        // The two non-motion channels are untouched and still carry the state
+        // on their own: the label steps to 700 and the tick disc appears.
+        builder: (context, pressed) {
+          final duration = torchStateDuration(context, TiqMotion.press);
+          // The chip's ink is chosen against `fill` and deliberately does NOT
+          // step on press — that is the existing behaviour and this change is
+          // motion only. (It leaves a real contrast bug alone on purpose: a
+          // *selected* Day chip presses to the pale `well` while keeping the
+          // Palladian ink it was given for the dark `lifted`. Reported, not
+          // fixed here, because fixing it is a rendering change and this
+          // branch is not allowed to make one.)
+          return TorchInk(
+            color: ink,
+            duration: duration,
+            // THE TARGET IS THE ROW'S, THE PAINT IS THE CHIP'S. A quiet chip
+            // keeps `heightFor` as the box a finger lands in and centres a
+            // 29dp pill inside it; a rail chip paints the whole box, which is
+            // the behaviour every existing call site has.
+            builder: (context, ink) => ConstrainedBox(
+              constraints: BoxConstraints(minHeight: heightFor(skin)),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: duration,
+                  curve: TiqMotion.stateCurve,
+                  constraints: BoxConstraints(
+                    minHeight: quiet ? quietExtent : heightFor(skin),
                   ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: TiqSpace.s3,
-            vertical: TiqSpace.s2,
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: children),
-        ),
+                  decoration: BoxDecoration(
+                    color: pressed ? torchPressSurface(skin).fill : fill,
+                    borderRadius: radius,
+                    // A DISABLED CHIP KEEPS ITS OUTLINE. It has no fill to be
+                    // seen by and `inkMute` on the bare ground is the one
+                    // state where the silhouette really is all there is.
+                    border: enabled
+                        ? null
+                        : Border.all(
+                            color: p.inkMute,
+                            width: skin.depth.borderWidth,
+                          ),
+                  ),
+                  // The mockup's `padding:5px 9px` is 6.5/11.7dp at 1.3 dp/px;
+                  // s3 and s1 are the nearest steps, and the vertical one is a
+                  // floor under `quietExtent` rather than the height itself.
+                  padding: EdgeInsets.symmetric(
+                    horizontal: TiqSpace.s3,
+                    vertical: quiet ? TiqSpace.s1 : TiqSpace.s2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: childrenWith(ink),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -6,10 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
-import '../../../core/widgets/torchlight/bleed.dart';
-import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
-import '../../../core/widgets/torchlight/figure/sparkline.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -17,13 +14,22 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../l10n/l10n.dart';
-import '../../territories/data/territories_repository.dart' show PlaceImageSource;
+import '../../assistant/answer/ask_phase.dart';
+import '../../assistant/answer/ask_turn.dart' show AskHeldBand;
+import '../../assistant/answer/composer.dart';
+import '../../assistant/data/chat_controller.dart';
+import '../../assistant/presentation/chat_screen.dart';
+import '../../assistant/view_specs/answer_focus.dart';
+import '../../territories/data/territories_repository.dart'
+    show PlaceImageSource;
 import '../../territories/data/territories_view.dart';
-import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
+import '../data/floor_ask_view.dart';
 import '../data/floor_repository.dart';
 import 'dashboard_filters.dart';
 import 'first_run_board.dart';
+import 'floor_ask.dart';
+import 'floor_dawn.dart';
 import 'standards.dart';
 
 /// THE FLOOR — the manager's home.
@@ -34,19 +40,41 @@ import 'standards.dart';
 ///
 /// ```text
 ///   ╭───────────────╮  the plate: the place in scope, one strip of light,
-///   │ (Gauteng ·  ›)│  the scope chip at the top and the hero at the foot
-///   │ 72 ▼19        │
-///   ╰───────────────╯
-///   ╭───────────────╮  the one dominant metric: label, figure,
-///   │ OSA 61%   /\/ │  one line of facts, a sparkline
-///   ╰───────────────╯
-///   NEEDS A DECISION   words on the ground, no rule and no count
-///   ╭───────────────╮  worst first, five and then a count
-///   │ • Outlet  48h │
+///   │ (Gauteng ·›) ☰│  the scope chip top-left and Menu top-right, ON the
+///   │ 73 ▼19        │  picture; the hero at the foot
 ///   ╰───────────────╯
 ///   ╭───────────────╮
-///   [ nav pill ] ( + )
+///   │ • Overdue  12 │  the briefing: three ONE-LINE cards, no heading
+///   ╰───────────────╯
+///   ╭───────────────╮
+///   │ • OSA     61% │
+///   ╰───────────────╯
+///   ╭───────────────╮
+///   │ • Outlet   6d │
+///   ╰───────────────╯
+///
+///                      ← and then nothing. The gap is the design.
+///
+///   (Why is 73 down?) (Show …)
+///   ╭───────────────╮
+///   │ Ask…       ↑  │  the composer, alone at the bottom
+///   ╰───────────────╯
 /// ```
+///
+/// ## What this screen is NOT, since 1 October 2026
+///
+/// It is not a briefing **and** a decision list. The approved arrangement
+/// replaces one with the other, and the version that kept both was built off
+/// an instruction — *"if something cannot fit above the fold it moves, it does
+/// not disappear"* — that the arrangement contradicts. The owner read the
+/// result as dense and said so. See [_ScopeNote] for where the list is reached
+/// from now, and `floor_taps_test.dart` for the proof that it is.
+///
+/// Three things went with it and each one is a line of the fold bought back:
+/// the `LAST 30 DAYS` kick over the briefing (the window is on the scope chip,
+/// on the control that sets it), the `NEEDS A DECISION` marker, and the
+/// supporting sentence under each briefing name (spoken, and printed only
+/// where there is no figure — see [FloorBrief]).
 ///
 /// **Cards, since 25 September 2026.** unify §1.3 ruled every list row flush
 /// and this screen's blocks bare on the ground; the owner overruled it twice
@@ -80,6 +108,33 @@ class TheFloorScreen extends ConsumerWidget {
 
   /// The [TorchClaim] id the plate's strip light is declared under.
   static const String plateClaimId = 'floor-plate-strip-light';
+
+  /// ── THE PLATE'S TWO HEIGHTS, AS A SHARE OF THE VIEWPORT ──────────────
+  ///
+  /// Public because they are not an implementation detail of one widget: the
+  /// plate's geometry is what `floor_proportion_test.dart` measures and what
+  /// `floor_plate_tone_test.dart` has to resolve a [PlateSpec] with in order
+  /// to know which band of the picture is clean enough to sample. A test that
+  /// re-derives these from `PlateSpec`'s own defaults measures a plate this
+  /// screen does not draw — which is exactly how the tone test started
+  /// sampling the strip light's own bloom.
+  ///
+  /// The numbers are the mockup's: its plate is 196px of a 649px screen at
+  /// rest and 124px once answered, which is 30.2% and 19.1%. See
+  /// [_PlateFor.shrunk] for why it is a share rather than two dp constants.
+  static const double plateShareAtRest = 0.30;
+  static const double plateShareAnswering = 0.19;
+
+  /// The shortest photographic plate this screen accepts — below
+  /// [PlateSpec.floorShortest], because the answering height is below it on
+  /// both supported phones and a plate that drops its photograph while a
+  /// manager is reading an answer about that territory has dropped the point.
+  static const double plateShortest = 120;
+
+  /// What sits under the plate at each of the two heights. The `ground`
+  /// [PlateSpec.heightFor] takes: *what the screen needs below the picture*.
+  static double plateGroundFor(double viewportHeight, {required bool shrunk}) =>
+      viewportHeight * (1 - (shrunk ? plateShareAnswering : plateShareAtRest));
 
   /// The nav circle's id. It is declared and then *denied*, every time: the
   /// plate takes the one content grant at rung 2 and the circle sits at rung
@@ -123,20 +178,34 @@ class _FloorFrame extends StatelessWidget {
     required this.phase,
     required this.hasPlatePhoto,
     required this.children,
+    this.claims = const <TorchClaim>[],
+    this.band,
   });
 
   final String phase;
   final bool hasPlatePhoto;
   final List<Widget> children;
 
+  /// What the route's current phase declares, **before** the plate's own
+  /// claim is added. See the census table on [TheFloorScreen].
+  final List<TorchClaim> claims;
+
+  /// The composer, pinned above the safe area. Null on the loading and error
+  /// states: there is nothing to ask about a screen whose figures did not
+  /// arrive, and a composer over a skeleton is a promise the route cannot keep.
+  final Widget? band;
+
   @override
   Widget build(BuildContext context) {
     return TorchScope(
       skin: context.skin,
       phase: phase,
-      navRenders: true,
-      tabbedRoute: true,
+      // THE NAV PILL IS GONE FROM THIS ROUTE, and with it the one amber grant
+      // that chrome was taking. See the arithmetic on [TheFloorScreen].
+      navRenders: false,
+      tabbedRoute: false,
       claims: <TorchClaim>[
+        ...claims,
         // Declared only when there is something to light. The allocator is
         // told the truth about the frame rather than handed a claim the
         // widget will then decline to spend.
@@ -148,7 +217,30 @@ class _FloorFrame extends StatelessWidget {
       // 24dp console inset away to let it. The owner's reference insets the
       // plate and rounds it, so the inset comes back for every state — a card
       // hard against the status bar is a card with one edge missing.
-      child: FloorScaffold(bleedTop: false, children: children),
+      child: FloorScaffold(
+        bleedTop: false,
+        showNavPill: false,
+        band: band,
+        // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ──────────────────────
+        //
+        // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
+        // flame: the colour of the sky in the territory photographs the
+        // plate already carries, so the screen glows without a third amber
+        // object standing on a budget of two. The argument, the CSS it is
+        // ported from, the paint cost and the Day gate are all on
+        // [floorDawnWash]; the layer it goes in is [TorchShell.backdrop],
+        // and the reason it has to be that layer is the band.
+        //
+        // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
+        // justification is the plate's sky; the wash's *condition* is not
+        // the plate — it is the ground of this screen, not a light on its
+        // picture, which is exactly the distinction that keeps the strip
+        // light gated on `hasPlatePhoto` and this not. Gating it the same
+        // way would mean a skeleton whose bottom third warms up the moment
+        // a JPEG decodes.
+        backdrop: floorDawnWash(context.skin),
+        children: children,
+      ),
     );
   }
 }
@@ -189,9 +281,55 @@ class FloorScaffold extends StatelessWidget {
     this.onSelectSlot,
     this.onStandingAction,
     this.bleedTop = true,
+    this.showNavPill = true,
+    this.band,
+    this.backdrop = const <Decoration>[],
   });
 
   final List<Widget> children;
+
+  /// The route's ambient wash, over the shell's ground and under everything —
+  /// see [TorchShell.backdrop] for the layer and [floorDawnWash] for what
+  /// goes in it.
+  ///
+  /// **Empty by default, which keeps [FirstRunBoard] out of it.** This
+  /// scaffold is shared by two screens and Dawn belongs to one. The board is
+  /// a brand-new tenant's ladder with no photograph and no composer: there is
+  /// no plate's sky on it to continue, and a glow under a screen that exists
+  /// to say "there is nothing here yet" is the product pretending again —
+  /// which is the sentence that already keeps the board's plate unlit.
+  final List<Decoration> backdrop;
+
+  /// ── THE BOTTOM-REGION SEAM ────────────────────────────────────────────
+  ///
+  /// The composer and the nav pill both want the bottom of the screen, and
+  /// which one wins was a product decision rather than an engineering one. The
+  /// owner took **B** on 30 September 2026: the destinations move behind a
+  /// control on the plate, and the bottom belongs to the composer alone.
+  ///
+  /// These two fields are where that decision lives, and they are the whole of
+  /// it — every other arrangement considered is a change to this one call site:
+  ///
+  /// * **A — both, stacked.** `showNavPill: true` with a `band`. The shell
+  ///   already composes the band above the pill, so A needs no other change.
+  ///   It is **not** shippable as drawn: the pill's active tab takes one of
+  ///   Night's two grants, leaving one for content, and the answered state
+  ///   wants two (the plate's strip light and the answer's focus object). See
+  ///   the census on [TheFloorScreen].
+  /// * **B — what shipped.** `showNavPill: false` with a `band`, and
+  ///   [FloorDestinationsButton] on the plate's top band beside the scope chip.
+  /// * **C — the pill IS the composer.** `showNavPill: false` with a `band`
+  ///   whose composer carries a leading grid button; the button opens
+  ///   [showFloorDestinations], which already exists and is what B's plate
+  ///   control opens. C is a change to the band widget alone.
+  ///
+  /// Whether the nav pill renders. False on The Floor proper since the
+  /// composer took the bottom of the screen; true for [FirstRunBoard], which
+  /// has no composer and is still a tab root.
+  final bool showNavPill;
+
+  /// Pinned above the safe area, below the scroll view. The composer.
+  final Widget? band;
 
   /// Whether the body starts at the top edge. True for every state whose first
   /// child is the plate; see [_FloorFrame].
@@ -215,31 +353,46 @@ class FloorScaffold extends StatelessWidget {
       // viewport "including the status bar, because the plate runs full-bleed
       // to the top edge" — this is the other half of that sentence.
       bleedTop: bleedTop,
-      navPill: TorchNavPill(
-        slots: consoleNavSlots,
-        activeIndex: ConsoleSlot.floor.index,
-        onSelect: onSelectSlot ?? (index) => consoleNavSelect(context, index),
-      ),
-      navCircle: TorchNavCircle(
-        claimId: TheFloorScreen.navCircleClaimId,
-        // The circle is the role's standing action and it is *never* lit on
-        // this route: the ladder denies rung 4 once the plate has taken the
-        // one content grant. Declaring `expected` honestly and letting the
-        // allocator say no is the point — a circle that decided for itself
-        // would be a third light.
-        expected: false,
-        icon: Icons.add,
-        expectedIcon: Icons.add,
-        semanticLabel: 'Raise a task or assign a visit',
-        expectedSemanticLabel: 'Raise a task or assign a visit',
-        onPressed: onStandingAction ?? () => showFloorStandingAction(context),
-      ),
+      band: band,
+      backdrop: backdrop,
+      navPill: !showNavPill
+          ? null
+          : TorchNavPill(
+              slots: consoleNavSlots,
+              activeIndex: ConsoleSlot.floor.index,
+              onSelect:
+                  onSelectSlot ?? (index) => consoleNavSelect(context, index),
+            ),
+      navCircle: !showNavPill
+          ? null
+          : TorchNavCircle(
+              claimId: TheFloorScreen.navCircleClaimId,
+              // The circle is the role's standing action and it is *never* lit on
+              // this route: the ladder denies rung 4 once the plate has taken the
+              // one content grant. Declaring `expected` honestly and letting the
+              // allocator say no is the point — a circle that decided for itself
+              // would be a third light.
+              expected: false,
+              icon: Icons.add,
+              expectedIcon: Icons.add,
+              semanticLabel: 'Raise a task or assign a visit',
+              expectedSemanticLabel: 'Raise a task or assign a visit',
+              onPressed:
+                  onStandingAction ?? () => showFloorStandingAction(context),
+            ),
       children: children,
     );
   }
 }
 
 /// THE STANDING ACTION'S TWO VERBS.
+///
+/// **THE FLOOR ITSELF NO LONGER OPENS THIS**, since 30 September 2026. The
+/// circle sat *in* the nav row and left with it when the composer took the
+/// bottom of the screen; the two verbs are two rows in
+/// [showFloorDestinations] now, leading to the same two routes. This sheet is
+/// still live for [FirstRunBoard], which has no composer, keeps its nav pill
+/// and keeps its circle.
 ///
 /// The circle's own label has always promised "Raise a task or assign a
 /// visit", and `surface-manager.json` says in as many words that tapping it
@@ -301,429 +454,462 @@ class FloorStandingActionSheet extends StatelessWidget {
   }
 }
 
-class _Floor extends ConsumerWidget {
+/// THE FLOOR, ASKING. The landing screen, with the composer on it.
+class _Floor extends ConsumerStatefulWidget {
   const _Floor({required this.view});
 
   final FloorView view;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // THE CLAIM IS DECLARED FOR EVERY LOADED SCREEN, and it used to be
-    // declared only when the first decision carried a photo id.
-    //
-    // The plate's picture is the territory's now, and every scope has one —
-    // including "All territories", which is the scope this screen opens in. So
-    // the honest answer to "is there something to light" is yes, from the
-    // first frame, without waiting for a request to come back and without
-    // recomputing the claim set mid-scroll (which `TorchScope` forbids: a
-    // grant recomputed while the user scrolls is a grant that blinks).
-    //
-    // A claim is permission, not an instruction. When the picture does not
-    // arrive — a 404, a dead signal, a decode failure — `TiqPlate` spends
-    // nothing, the fallback drawing has no light on it, and the frame renders
-    // one amber object. A budget is a ceiling.
-    final measured = view.phase == FloorPhase.measured;
-
-    // `TorchShell` gutter-pads its children, and every block on this screen
-    // hangs off that one line: the plate card, the lead card, the section
-    // marker and — through its own margin — every decision card. The list is
-    // the one child that opts back out to the screen's edges, because a
-    // `SoftRow` owns its own gutter; see [TorchBleed].
-    return _FloorFrame(
-      phase: measured ? 'loaded' : 'window-empty',
-      hasPlatePhoto: true,
-      children: <Widget>[
-        // 1. THE PLATE — an inset, rounded card.
-        _FloorPlate(view: view),
-        // s4 between blocks, and it is arithmetic rather than taste: at s5
-        // the third decision card crossed the nav pill on an 844dp phone by
-        // five pixels. A card has its own edge, so the air between two of
-        // them reads as more than the same number between two bare columns
-        // did.
-        const SizedBox(height: TiqSpace.s4),
-
-        // 2. THE ONE DOMINANT METRIC, as one card: figure, label, one line of
-        //    supporting facts, and a sparkline at the trailing edge.
-        _AvailabilityCard(view: view),
-        const SizedBox(height: TiqSpace.s4),
-
-        // 3. THE SECTION MARKER — words on the ground. No rule, no count.
-        _NeedsADecision(view: view),
-        const SizedBox(height: TiqSpace.s3),
-
-        // 4. THE DECISION CARDS — worst first, out to the edges because each
-        //    card carries the gutter as its own margin.
-        TorchBleed(
-          extra: context.skin.space.gutter * 2,
-          child: _DecisionList(view: view),
-        ),
-      ],
-    );
-  }
+  ConsumerState<_Floor> createState() => _FloorState();
 }
 
-/// `NEEDS A DECISION`, as words rather than as a rule.
+/// The composer's state, and it is **the same state machine Ask runs**.
 ///
-/// **Owner override, 25 September 2026, widened 26 September.** unify §1.17
-/// used to say a screen-level section marker is the knocked-out rule at
-/// `title.m` in sentence case, with The Floor as the single exception. The
-/// owner then asked for this screen's design "global and everywhere on the
-/// app", so [SectionRule] *is* this marker now and every screen wears it.
-///
-/// This widget stays a local [Eyebrow] rather than becoming a `SectionRule`
-/// for one reason: The Floor's marker takes no count. The count is not
-/// dropped, it moves — the list says how many it is not showing in words, at
-/// the foot, where a manager who wants the number is already looking.
-///
-/// The count goes with the line. It was never the thing the marker was for:
-/// the list says how many it is not showing in words, at the foot, where a
-/// manager who wants the number is already looking.
-class _NeedsADecision extends ConsumerWidget {
-  const _NeedsADecision({required this.view});
+/// Every field below exists on `_AskState` for a reason that is written out
+/// there, and none of those reasons stop being true because the transcript now
+/// has a plate above it. The one-way hand-off in particular is load-bearing
+/// here: when the trough takes text, the landed answer's focus object drops its
+/// bloom permanently for that turn, which is what keeps the amber count at two
+/// while the plate's strip light is also lit.
+class _FloorState extends ConsumerState<_Floor> {
+  final TextEditingController _input = TextEditingController();
+  final ScrollController _scroll = ScrollController();
 
-  final FloorView view;
+  bool _typed = false;
+  bool _handedOff = false;
+  bool _following = true;
+  int _turns = 0;
+  bool _scheduled = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _input.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final atTail =
+        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 24;
+    if (atTail != _following) setState(() => _following = atTail);
+  }
+
+  void _onChanged(String text) {
+    final typed = text.trim().isNotEmpty;
+    if (typed == _typed) return;
+    setState(() {
+      _typed = typed;
+      if (typed) _handedOff = true;
+    });
+  }
+
+  void _send([String? text]) {
+    final question = text ?? _input.text;
+    if (question.trim().isEmpty) return;
+    _input.clear();
+    setState(() {
+      _typed = false;
+      _handedOff = false;
+      _following = true;
+    });
+    ref.read(chatControllerProvider.notifier).send(question);
+    _pinToTail();
+  }
+
+  void _pinToTail() {
+    if (_scheduled || !_following) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      if (!mounted || !_scroll.hasClients || !_following) return;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  /// Back to the briefing. The conversation is a session, not an archive —
+  /// the same thing `AskStartOverSheet` does on the Ask route, without the
+  /// sheet, because there is no header here to hang a history chip in and one
+  /// tertiary button above the transcript is cheaper than a modal.
+  void _clear() {
+    ref.read(chatControllerProvider.notifier).clear();
+    _input.clear();
+    setState(() {
+      _typed = false;
+      _handedOff = false;
+      _following = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final view = widget.view;
     final skin = context.skin;
-    final note = _note();
-    return Column(
+    final state = ref.watch(chatControllerProvider);
+    final online = ref.watch(askOnlineProvider);
+    final sessionEnded = ref.watch(askSessionEndedProvider);
+    final measured = view.phase == FloorPhase.measured;
+
+    if (state.messages.length != _turns) {
+      _turns = state.messages.length;
+      _pinToTail();
+    } else if (state.sending) {
+      _pinToTail();
+    }
+
+    final last = state.messages.isEmpty ? null : state.messages.last;
+    final answer = last?.role == ChatRole.assistant ? last : null;
+    final toolRunning = answer != null && answer.tools.any((t) => t.ok == null);
+    final focusTarget = answer == null
+        ? null
+        : AnswerFocusTarget.resolve(answer);
+
+    final phase = resolveAskPhase(
+      transcriptEmpty: state.messages.isEmpty,
+      streaming: state.sending,
+      toolRunning: toolRunning,
+      typed: _typed,
+      lastTurnErrored: answer?.error != null,
+      hasFocusObject: focusTarget != null,
+      handedOff: _handedOff,
+      online: online,
+      sessionEnded: sessionEnded,
+    );
+
+    // THE PLATE SHRINKS RATHER THAN LEAVES, and this boolean is the whole of
+    // that move. See [_PlateFor] for the arithmetic.
+    final asking = state.messages.isNotEmpty;
+
+    // ── WHERE YOU ARE, AND WHERE ELSE YOU CAN GO — ON THE PICTURE ───────
+    //
+    // Top-left and top-right of the plate, which is the approved arrangement
+    // and the thing the rejected screen got wrong. It put the pair on the
+    // GROUND directly under the plate once a question had been asked, and a
+    // bar of controls under a photographic header is a second header: the
+    // screen read as two stacked ones, which is the first thing the owner
+    // named.
+    //
+    // `spaceBetween` rather than a gap, because the two controls answer two
+    // different questions and the mockup separates them to the two corners.
+    // The chip stays `Flexible` and the button does not: a territory name is
+    // arbitrarily long and `Menu` is four characters, so the band gives its
+    // slack to the half that can use it.
+    final controls = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        // Two lines, which is the eyebrow role's own allowance: at 2.0× in
-        // Afrikaans a one-line marker would ellipsise, and half a section
-        // marker is worse than a marker that wraps.
-        const Eyebrow('Needs a decision'),
-        // The empty state keeps its sentence: a marker with nothing under it
-        // is the one case where the screen has to say what the absence means.
-        // With a territory chosen there are four different absences and they
-        // are four different sentences — "nothing here" and "I could not find
-        // out" are not the same fact, which is unify §4 applied to a list
-        // rather than to a figure.
-        if (note != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s3),
-          Text(note, style: skin.text.body.style(color: skin.palette.ink2)),
-        ],
-        // THE WAY BACK IS ONE TAP. A screen that can be scoped and not
-        // unscoped is a trap, and the state that needs the exit is exactly
-        // the state that shows it: a filtered list with nothing in it.
-        if (view.isFiltered && view.nothingNeedsADecision)
-          TorchTertiaryButton(
-            key: const ValueKey<String>('floor-clear-territory'),
-            label: 'Show all territories',
-            onPressed: () => clearFloorTerritory(ref),
-          ),
-        // The coverage request is the only thing that failed, so the retry is
-        // the coverage request — not the route, whose figures are fine.
-        if (view.scope == FloorScope.failed)
-          TorchTertiaryButton(
-            key: const ValueKey<String>('floor-retry-scope'),
-            label: 'Retry loading this territory’s outlets',
-            onPressed: () =>
-                ref.invalidate(territoryCoverageProvider(view.territoryId!)),
-          ),
-      ],
-    );
-  }
-
-  /// One sentence per absence, or null when there is a list to read instead.
-  String? _note() => switch (view.scope) {
-    FloorScope.pending => 'Finding the outlets in ${view.territoryName}…',
-    FloorScope.failed =>
-      'The outlet list for ${view.territoryName} did not load, so these '
-          'decisions are not shown. The figures above are still this '
-          'territory’s.',
-    _ when !view.nothingNeedsADecision => null,
-    _ when view.isFiltered =>
-      'Nothing needs a decision in ${view.territoryName} over '
-          '${view.windowLabel.toLowerCase()}.',
-    _ => 'Everything triaged.',
-  };
-}
-
-/// Back to every territory, from anywhere on The Floor.
-void clearFloorTerritory(WidgetRef ref) => applyTerritory(
-  ref,
-  ref.read(dashboardFilterProvider),
-  allTerritoriesToken,
-);
-
-class _DecisionList extends ConsumerWidget {
-  const _DecisionList({required this.view});
-
-  final FloorView view;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final visible = view.visible;
-    if (visible.isEmpty) return const SizedBox.shrink();
-    final now = ref.read(nowProvider)();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        for (var i = 0; i < visible.length; i++)
-          _DecisionRowFor(
-            decision: visible[i],
-            now: now,
-            last: i == visible.length - 1 && view.moreCount == 0,
-          ),
-        if (view.moreCount > 0) _MoreRow(count: view.moreCount),
-      ],
-    );
-  }
-}
-
-/// One decision, as a row.
-class _DecisionRowFor extends StatelessWidget {
-  const _DecisionRowFor({
-    required this.decision,
-    required this.now,
-    required this.last,
-  });
-
-  final FloorDecision decision;
-  final DateTime now;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final age = decision.ageHoursAt(now);
-
-    return DecisionRow(
-      title: decision.outletName,
-      reason: decision.reason,
-      severity: decision.severity,
-      severityLabel: decision.severityLabel,
-      // The column means ONE thing on every row: how long this has been
-      // broken. An alert's age and a task's SLA deadline are both times and
-      // are not the same measurement, so only one of them is allowed here.
-      value: age,
-      unit: TiqUnit.worded('h', tight: true),
-      figureState: age == null ? FigureState.missing : FigureState.measured,
-      valueSemanticsLabel: age == null
-          ? 'No time recorded for this finding'
-          : 'Open for ${age.round()} hours',
-      // The sparkline slot stays empty until there is a real per-outlet
-      // series to put in it. `DecisionRow` omits the slot rather than holding
-      // a gap, and inventing a shape here would be the one thing the
-      // component's own doc forbids. See the follow-up ticket.
-      sparkline: null,
-      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      // `push`, not `go`: a decision is read on top of The Floor and the
-      // manager comes back to the same scroll offset, which is the behaviour
-      // `surface-manager.json` names. `FloorDecision.route` has carried
-      // "where tapping the row goes" since the model was written and nothing
-      // ever read it.
-      onTap: () => context.push(decision.route),
-    );
-  }
-}
-
-/// `and 11 more need a decision` — a 44dp meta row into the full worklist.
-///
-/// The list is always five plus this. A list that grows with the problem stops
-/// fitting on the fold at exactly the moment it matters most.
-class _MoreRow extends StatelessWidget {
-  const _MoreRow({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final spec = SoftRowSpec.resolve(skin: skin);
-    return Semantics(
-      button: true,
-      label: 'and $count more need a decision',
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // The full worklist. A row that announces itself as a button and then
-        // does nothing is worse than a line of text.
-        onTap: () => context.go('/tasks'),
-        child: Container(
-          constraints: BoxConstraints(minHeight: skin.space.tapTarget),
-          padding: EdgeInsets.symmetric(
-            horizontal: spec.textInset(hasLeading: false),
-            vertical: TiqSpace.s3,
-          ),
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'and $count more need a decision',
-            style: skin.text.meta.style(color: skin.palette.ink2),
+        Flexible(
+          child: PlateScopeChip(
+            key: const ValueKey<String>('floor-scope-chip'),
+            scope: view.territoryName,
+            window: view.windowLabel,
+            filtered: view.isFiltered,
+            onTap: () => showDashboardScope(context, ref),
+            // The printed line is two facts joined by a separator, which a
+            // screen reader spells as a caption. The control has to say what
+            // it does.
+            semanticsLabel:
+                '${view.territoryName}, ${view.windowLabel}. '
+                'Change the territory or the window.',
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// ON-SHELF AVAILABILITY — one card, four things in it.
-///
-/// The label, the figure, one line of supporting facts, and a sparkline at
-/// the trailing edge. Nothing else.
-///
-/// **What this replaced, and why.** The tile shipped as four stacked
-/// elements: the eyebrow, the figure at near-hero size, a full-width meter,
-/// a delta line ("▼ −0.3 pts vs the window before") and a coverage line. That
-/// is five reads for a metric the hero above it is already the headline for,
-/// and on a 390dp phone it cost the fold a whole decision row. The owner's
-/// reference has a card with four things in it, and the two that went are the
-/// two that were saying the figure twice:
-///
-/// * **the meter** — a full-width bar of the same percentage the figure has
-///   already printed, at a size that made it the loudest object under the
-///   plate;
-/// * **the delta line** — a movement on a supporting metric, printed in a
-///   sentence, under a hero whose own delta is the screen's one movement.
-///   The sparkline carries the shape instead, which is what a shape is for.
-///
-/// The supporting facts move to the spec's own subordinates —
-/// "Coverage 79% · Price compliance 91%" — rather than the raw denominators
-/// ("Coverage 33 of 42 outlets · 42 visits"), because the card is a reading
-/// and the denominators are provenance. They are one tap away, where the
-/// figure's own trend is.
-class _AvailabilityCard extends ConsumerWidget {
-  const _AvailabilityCard({required this.view});
-
-  final FloorView view;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final skin = context.skin;
-    final snapshot = view.snapshot;
-    final current = snapshot.current;
-    final measured = view.phase == FloorPhase.measured;
-    final n = current.sampleSizes.osaPct;
-    final baselineN = snapshot.previous?.sampleSizes.osaPct;
-
-    // THE SHAPE OF THE LAST FEW PERIODS. `/trends/availability` is the series
-    // the overview already draws; the sparkline is the same data at 64×20.
-    // A failure or an empty series drops the cell — `Sparkline` renders
-    // nothing under two points, and a fabricated shape is the one thing its
-    // own doc forbids.
-    final trend = ref
-        .watch(availabilityTrendProvider)
-        .maybeWhen(
-          data: (points) => points.map((p) => p.value).toList(),
-          orElse: () => const <double>[],
-        );
-
-    // WHERE IT STANDS AGAINST THE PUBLISHED STANDARD. On-shelf availability
-    // is measured against 95 everywhere in this product — the overview's
-    // indicator list says so in words on its own row — so the figure here
-    // carries the same verdict rather than being the one place the standard
-    // is not applied.
-    final standing = measured
-        ? againstStandard(current.osaPct, availabilityStandard)
-        : null;
-
-    final tile = StatTile(
-      eyebrow: 'On-shelf availability',
-      // A window with no visits is an absence, not a score of zero. The
-      // server's `totals` is what says which, and it is the only thing that
-      // can: eight genuine zeros look exactly like eight missing ones.
-      value: measured ? current.osaPct : null,
-      unit: TiqUnit.percent,
-      // The design asks for a whole-number rate here, as it does for the
-      // hero. The server sends no `decimals` for this metric; the screen
-      // declares the precision the design specifies rather than rounding
-      // inside the widget.
-      decimals: 0,
-      // The standard, in ink. The words are on the supporting line below and
-      // the sparkline beside it carries the same verdict; this is the third
-      // cue, not the only one.
-      figureInk: standingInk(skin, standing),
-      noDataReason: measured ? null : 'No visits in this window',
-      sampling: FigureSampling(
-        kind: MetricKind.rate,
-        n: n,
-        // The baseline denominator is the PREVIOUS window's own sample size,
-        // from the second request the console already makes — not an
-        // inference from this window's.
-        baselineN: baselineN,
-      ),
-      lead: true,
-      // Stacked, not eyebrow-left-figure-right: the reference reads label,
-      // figure, facts down the card's leading edge, and the trailing edge
-      // belongs to the sparkline.
-      layout: StatTileLayout.vertical,
-      // The card has already spent its inset; the tile's own would be a
-      // second, invisible one.
-      padding: EdgeInsets.zero,
-      subordinates: _supports(view),
-      // The hint has promised this since the tile was written; `onTap` is what
-      // makes the promise true. Without it the tile announced itself with a
-      // hint and no action.
-      onTap: () => context.go('/dashboard/overview'),
-      semanticsHint: 'Opens the figures behind on-shelf availability',
+        const SizedBox(width: TiqSpace.s2),
+        // ONE SIZE AT EVERY WIDTH, since 1 October 2026. The `compact` flag
+        // and its 380dp threshold are gone with the printed word — the mockup
+        // has no label at any width, so there is no longer a narrow phone to
+        // special-case. See [FloorDestinationsButton].
+        FloorDestinationsButton(
+          key: const ValueKey<String>('floor-destinations'),
+          onTap: () => showFloorDestinations(context, view),
+        ),
+      ],
     );
 
-    return TorchCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+    return _FloorFrame(
+      phase: '${measured ? 'loaded' : 'window-empty'}-${phase.name}',
+      hasPlatePhoto: true,
+      claims: phase.claims,
+      // ── THE BAND PAINTS NOTHING, AND THAT IS THE FIX ──────────────────
+      //
+      // It was `ColoredBox(color: skin.palette.ground)` from 30 September
+      // 2026, put there because "the decision list read through the chip row
+      // like a printing fault". The owner looked at what the flat fill
+      // actually did: *"The background colour is messed up here please fix
+      // this to be seamless and not have this box blue there."*
+      //
+      // MEASURED on a 390×844 render of this screen at rest. The band's box
+      // is `(20, 706, 370, 844)`; the row at y=708 is 2dp inside it and
+      // nothing is drawn on it, so it reads the backdrop and nothing else:
+      //
+      // | probe | before | after |
+      // |---|---|---|
+      // | y=708, x=19 — outside the left gutter  | `#0F1620` | `#0F1620` |
+      // | y=708, x=20 — inside it                | `#0B1017` | `#0F1620` |
+      // | y=708, x=369 — inside the right gutter | `#0B1017` | `#0F1620` |
+      // | y=708, x=370 — outside it              | `#0F1620` | `#0F1620` |
+      // | y=704, x=195 — above the band's top    | `#0F1620` | `#0F1620` |
+      // | y=708, x=195 — below it                | `#0B1017` | `#0F1620` |
+      //
+      // Three hard edges, each a step of **4, 6, 9**, and after the fix the
+      // row is one colour from x=0 to x=389. The 360×640 phone is the same
+      // reading with the band's top at y=502.
+      //
+      // `TorchShell`'s console profile paints its ground as a **vertical
+      // falloff** — `ground` at the two edges, `vignette` across the middle,
+      // over a 96dp ramp at each end — so at the band's own y the ground is
+      // not `ground`. A flat fill over a gradient is a seam everywhere the
+      // two disagree, and the shell pads the band by the gutter, so the fill
+      // was a rectangle inset 20dp with a hard edge on three sides: the box.
+      // On **Day** it runs the other way and is larger — `#EEE9DF` inside
+      // against `#E6E0D4` outside, a step of 8, 9, 11 — so the same defect
+      // was a *lighter* box on paper, and nobody had named it: a light box on
+      // light paper reads as a highlight rather than a fault.
+      //
+      // AND THE BLEED IT WAS FOR DOES NOT HAPPEN. The band is a **sibling**
+      // of the scroll view in the shell's Column, never an overlay, and a
+      // `ListView` clips to its viewport. Measured the same way — a magenta
+      // body dragged under a band with no material at all — the count of
+      // body pixels inside the band's box is **zero**. The fill was
+      // protecting against nothing and costing the screen a box.
+      //
+      // So the band carries no material and the shell's own ground is its
+      // backdrop: continuous, full-bleed, and seamless by construction
+      // rather than by a matched constant. The zero is pinned in
+      // `torch_shell_band_test.dart` — the invariant that replaced the fill
+      // is a test, not a comment — and the seam is pinned in
+      // `floor_band_seam_test.dart`.
+      band: Column(
+        key: const ValueKey<String>('floor-band'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Expanded(child: tile),
-          if (measured && trend.length >= 2) ...<Widget>[
-            const SizedBox(width: TiqSpace.s4),
-            Padding(
-              // On the figure's baseline rather than the card's: a shape
-              // floating level with the label reads as decoration.
-              padding: const EdgeInsets.only(bottom: TiqSpace.s4),
-              child: Sparkline(
-                points: trend,
-                // THE SHAPE TAKES THE FIGURE'S OWN STANDING, never amber and
-                // never the sign of the last movement.
-                //
-                // It used to read `delta.change! < 0 ? watch : onTarget` —
-                // the direction of one week's movement, which made a run at
-                // 61% against a standard of 95 draw green the moment it
-                // ticked up. The verdict on a series is where the series
-                // *is*, and the figure beside it is already saying so; two
-                // marks in one card must not disagree.
-                severity: standing == null
-                    ? null
-                    : severityFor(standing) ?? SeverityMarkKind.onTarget,
-                semanticsLabel: null,
+          // THE SUGGESTIONS ARE THE AT-REST ROW ONLY. Once a turn has landed
+          // the answer prints its own follow-ups inline, from the server's
+          // `followUps` fence — two chip rows saying different things eight
+          // dp apart is the screen asking a manager which one to believe.
+          if (!asking) ...<Widget>[
+            FloorSuggestionChips(
+              suggestions: floorSuggestions(view),
+              onAsk: _send,
+              enabled: phase.canSend,
+            ),
+            SizedBox(height: skin.space.intraBlock),
+          ],
+          QuestionComposer(
+            controller: _input,
+            phase: phase,
+            onSend: _send,
+            onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+            onChanged: _onChanged,
+            lastTurnErrored: answer?.error != null,
+            // What the composer says it will ask about, from the scope the
+            // plate above it is already showing.
+            hint: floorComposerHint(view),
+            band: _heldBand(context, phase),
+          ),
+        ],
+      ),
+      children: <Widget>[
+        // 1. THE PLATE — the territory, the score, and the one strip of light.
+        _FloorPlate(
+          view: view,
+          shrunk: asking,
+          topSlot: asking ? null : controls,
+        ),
+        SizedBox(height: skin.space.blockGap),
+
+        if (!asking) ...<Widget>[
+          // 2. THE BRIEFING — what moved, in three one-line cards off the
+          //    figures this screen already had. No heading over it.
+          //
+          //    AND THEN NOTHING. The space between the briefing and the chip
+          //    row is the design, not a gap waiting to be filled: the list of
+          //    decisions that used to stand here is on the Work queue, one tap
+          //    from line one. See the note on [TheFloorScreen].
+          FloorBriefingBlock(
+            briefs: floorBriefing(view, ref.read(nowProvider)()),
+          ),
+
+          // THE ONE THING THE BRIEFING CANNOT SAY FOR ITSELF, and only in the
+          // two states where it cannot. Renders nothing on a healthy screen.
+          _ScopeNote(view: view),
+        ] else ...<Widget>[
+          // THE WAY BACK TO THE BRIEFING. A screen that can be asked a
+          // question and not un-asked it is the same trap a scope with no
+          // Clear is, and this route has carried that argument since the
+          // territory filter landed.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TorchTertiaryButton(
+              key: const ValueKey<String>('floor-clear-answers'),
+              label: 'Back to the briefing',
+              semanticLabel: 'Back to the briefing. Clears this conversation.',
+              onPressed: _clear,
+            ),
+          ),
+          SizedBox(height: skin.space.intraBlock),
+          for (var i = 0; i < state.messages.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(height: skin.space.blockGap),
+            AnswerFocusScope(
+              key: ValueKey<int>(i),
+              focus: state.messages[i].focus,
+              target: i == state.messages.length - 1 ? focusTarget : null,
+              child: AskTurnView(
+                message: state.messages[i],
+                previous: i >= 2 ? state.messages[i - 2] : null,
+                phase: phase,
+                onAsk: _send,
               ),
             ),
           ],
         ],
-      ),
+      ],
     );
   }
 
-  /// The supporting figures, as one line of meta. Coverage and price
-  /// compliance — the manager spec's own subordinates for this indicator.
-  static String? _supports(FloorView view) {
-    // An unmeasured window has no supports to state: the tile is already
-    // saying "No visits in this window" under an em dash, and a line of
-    // zeros under that sentence is the scoreboard of zeros this screen
-    // exists to refuse.
-    if (view.phase != FloorPhase.measured) return null;
-    final k = view.snapshot.current;
-    final visited = k.outletsVisited;
-    final total = k.outletsTotal;
-    return <String>[
-      // Coverage needs a denominator to be a rate; without `totals` on the
-      // wire there is no honest percentage to print.
-      if (visited != null && total != null && total > 0)
-        'Coverage ${(visited * 100 / total).round()}%',
-      // Price compliance is printed whatever it is, including 0%. A measured
-      // zero renders zero — it is a finding, and suppressing it would be the
-      // one thing unify §4 says a figure may never do.
-      'Price compliance ${k.priceCompliancePct.round()}%',
-    ].join(' · ');
+  /// The offline or session-ended band, pinned above the composer's label —
+  /// the same two states Ask has, on the same component.
+  Widget? _heldBand(BuildContext context, AskPhase phase) {
+    final l10n = context.l10n;
+    return switch (phase) {
+      AskPhase.sessionEnded => AskHeldBand(
+        message: l10n.askSessionEnded,
+        semanticsLabel: l10n.askSessionEndedSemantic,
+        action: l10n.askSignIn,
+        onAction: () => context.push('/login'),
+      ),
+      AskPhase.offline => AskHeldBand(
+        message: l10n.askOffline,
+        semanticsLabel: l10n.askOffline,
+      ),
+      _ => null,
+    };
   }
 }
 
-/// The plate, wired to the territory in scope.
-class _FloorPlate extends ConsumerWidget {
-  const _FloorPlate({required this.view});
+/// THE DECISION LIST IS NOT ON THIS SCREEN, since 1 October 2026.
+///
+/// It was `NEEDS A DECISION` and five ranked rows under the briefing, and the
+/// approved arrangement replaces one with the other rather than stacking both.
+/// The screen had grown to a plate, a heading, three two-line cards, a second
+/// heading, five rows, a more-row, a chip row and a composer — and the owner's
+/// word for what they asked for is *simplistic*.
+///
+/// **Nothing became unreachable, and the three ways in are all above the
+/// fold:**
+///
+/// 1. The briefing's first line — `Overdue work · 12` — opens `/tasks`, which
+///    is the full worklist the five rows were a preview of. It carries the
+///    same count, off the same `FloorView.decisions`, so the preview and the
+///    list can still not disagree.
+/// 2. The briefing's third line is the worst single outlet by name, and it
+///    opens that decision's own route — which is exactly where tapping its row
+///    went.
+/// 3. `Menu` on the plate opens the destinations sheet, whose Work row prints
+///    the live count beside it.
+///
+/// `floor_taps_test.dart` presses all three.
+///
+/// What is left here is the one thing the briefing genuinely cannot say about
+/// itself: that the list it is counting was not scoped, because the chosen
+/// territory's outlets did not arrive. The overdue line is **withheld** in
+/// that state rather than zeroed (see `floorBriefing`), and a briefing one
+/// line shorter with nothing said about why is the absence failing quietly.
+///
+/// It renders nothing at all on a healthy screen, which is most of them.
+class _ScopeNote extends ConsumerWidget {
+  const _ScopeNote({required this.view});
 
   final FloorView view;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
+    final note = switch (view.scope) {
+      FloorScope.pending => 'Finding the outlets in ${view.territoryName}…',
+      FloorScope.failed =>
+        'The outlet list for ${view.territoryName} did not load, so overdue '
+            'work is not counted here. The figures above are still this '
+            'territory’s.',
+      _ => null,
+    };
+    if (note == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(top: skin.space.blockGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(note, style: skin.text.body.style(color: skin.palette.ink2)),
+          // The coverage request is the only thing that failed, so the retry
+          // is the coverage request — not the route, whose figures are fine.
+          if (view.scope == FloorScope.failed)
+            TorchTertiaryButton(
+              key: const ValueKey<String>('floor-retry-scope'),
+              label: 'Retry loading this territory’s outlets',
+              onPressed: () =>
+                  ref.invalidate(territoryCoverageProvider(view.territoryId!)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Back to every territory, from anywhere on The Floor.
+///
+/// One caller now: the plate's own `All territories` button, which stands
+/// beside the health line whenever a territory is chosen. There used to be a
+/// second under the section marker, for the filtered-and-empty case; the
+/// marker went with the decision list and the plate's button is on screen in
+/// every state that one was, one block higher up.
+void clearFloorTerritory(WidgetRef ref) =>
+    applyTerritory(ref, ref.read(dashboardFilterProvider), allTerritoriesToken);
+
+/// THE AVAILABILITY CARD IS GONE FROM THIS SCREEN, and the figure is not.
+///
+/// It was label, figure, one supporting line and a sparkline, and its own
+/// `onTap` went to `/dashboard/overview`. The briefing above now carries the
+/// same `snapshot.current.osaPct` against the same published 95, as line two,
+/// and its card opens the same route — so the reading stayed on the fold and
+/// got shorter.
+///
+/// What went with the card is the **sparkline** and the two supports
+/// (`Coverage 79% · Price compliance 91%`). Both live on the overview the card
+/// already pointed at, which is one tap from the briefing line that replaced
+/// it. Keeping the card as well would have been the defect its own doc named
+/// when it deleted the meter and the delta line: *the two that went are the
+/// two that were saying the figure twice.* A stat card and a briefing line
+/// printing one number eight dp apart is that, again.
+
+/// The plate, wired to the territory in scope.
+class _FloorPlate extends ConsumerWidget {
+  const _FloorPlate({
+    required this.view,
+    required this.shrunk,
+    required this.topSlot,
+  });
+
+  final FloorView view;
+
+  /// Whether a question has been asked. See [_PlateFor.shrunk].
+  final bool shrunk;
+
+  /// The scope chip and the destinations control, or null once the plate has
+  /// shrunk — see [_FloorState.build], which renders them under the plate
+  /// instead. Passed in rather than built here because the same pair has to
+  /// be one object in two places, and two constructions of "the same controls"
+  /// is how they drift.
+  final Widget? topSlot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -744,10 +930,15 @@ class _FloorPlate extends ConsumerWidget {
     //
     // ≤60 kB, LRU-cached, authed bytes. `Image.network` cannot carry the
     // bearer token on web, so bytes is also the only route that works at all.
-    final picture = ref.watch(plateImageResolverProvider)(ref, view.territoryId);
+    final picture = ref.watch(plateImageResolverProvider)(
+      ref,
+      view.territoryId,
+    );
 
     return _PlateFor(
       view: view,
+      shrunk: shrunk,
+      topSlot: topSlot,
       image: picture.image,
       // WHAT THE PICTURE IS, CARRIED RATHER THAN ASSUMED. The plate speaks one
       // sentence about it and the sentence has to be true of the bytes above
@@ -761,7 +952,6 @@ class _FloorPlate extends ConsumerWidget {
       // the app" — so it is a chip at the top of the plate, in the app's own
       // chip grammar. The sheet behind it is unchanged: the overview's own
       // `TorchFilterRail` and territory rows, from `dashboard_filters.dart`.
-      onScopeTap: () => showDashboardScope(context, ref),
       onClearTerritory: view.isFiltered ? () => clearFloorTerritory(ref) : null,
     );
   }
@@ -773,12 +963,57 @@ class _PlateFor extends StatelessWidget {
   const _PlateFor({
     required this.view,
     required this.image,
+    this.shrunk = false,
     this.imageSource,
-    this.onScopeTap,
+    this.topSlot,
     this.onClearTerritory,
   });
 
   final FloorView view;
+
+  /// ── THE PLATE SHRINKS RATHER THAN LEAVES ──────────────────────────────
+  ///
+  /// True once a question has been asked. The manager stays in the territory
+  /// they are asking about and the score they are asking about stays on screen
+  /// while the answer explains it — which is the move that makes this screen
+  /// The Floor rather than a chat window with a photograph on top.
+  ///
+  /// It is expressed as a **share of the viewport**, not as two dp constants,
+  /// and the share is the mockup's own: its plate is 196px of a 649px screen
+  /// at rest and 124px once answered, which is 30.2% and 19.1%. Two literals
+  /// would have been right on the 844dp phone the mockup was drawn at and
+  /// wrong on the 640dp one this product still supports — at 640 a fixed 254dp
+  /// plate leaves 386dp for a briefing, a chip row and a composer, and the
+  /// briefing loses its third line.
+  ///
+  /// The arithmetic goes through [PlateSpec.heightFor]'s existing `ground`
+  /// parameter — *what the screen needs under the plate* — rather than a new
+  /// one, because that is exactly what changes: at rest the space under the
+  /// plate holds the briefing, and once a question lands it holds an answer.
+  ///
+  /// ```text
+  ///          ground            height     what it is
+  ///   844   0.70 × 844 = 591   253dp      at rest
+  ///   844   0.81 × 844 = 684   160dp      answering
+  ///   640   0.70 × 640 = 448   192dp      at rest
+  ///   640   0.81 × 640 = 518   122dp      answering
+  /// ```
+  ///
+  /// [PlateSpec.floorShortest] is 200 — the height under which The Floor's
+  /// plate gives up its photograph for a band — and every answering height
+  /// above is below it. That constant is The Floor's own and it was written
+  /// for a screen whose plate was decoration above a list; on a screen where
+  /// the plate is the thing the manager is holding on to while they read an
+  /// answer, dropping the photograph is dropping the point. So [shortest] is
+  /// passed instead, which is the parameter `PlateSpec` grew on 30 September
+  /// 2026 for precisely this class of disagreement.
+  ///
+  /// The hero figure steps down on its own: `PlateSpec.resolve` takes the
+  /// compact face under 260dp and `FigureSlot`'s fitting ladder scales from
+  /// there, so the mockup's smaller `73` falls out of the existing arithmetic
+  /// rather than being a second set of numbers to keep in step.
+  final bool shrunk;
+
   final ImageProvider<Object>? image;
 
   /// What [image] is, from the server's `X-Image-Source`. Null when nothing
@@ -818,15 +1053,49 @@ class _PlateFor extends StatelessWidget {
     };
   }
 
-  /// Opens the scope sheet. Null in a test that pumps the plate alone — and
-  /// the chip is then absent rather than inert, because a control that does
-  /// nothing is worse than no control at all.
-  final VoidCallback? onScopeTap;
-
   /// Back to all territories in one tap. Null when nothing is filtered —
   /// a Clear that clears nothing is chrome, and this screen has none to
   /// spare.
   final VoidCallback? onClearTerritory;
+
+  /// THE TOP BAND'S CONTROLS, OR NULL ONCE THE PLATE HAS SHRUNK.
+  ///
+  /// ## Why there is a height at which they are not drawn at all
+  ///
+  /// `TiqPlate`'s own doc has always said the top slot "never reaches the light
+  /// itself, which is the object the amber budget is spent on" — and at the
+  /// answering height that stopped being true. The slot is a 44dp tap target
+  /// 16dp from the top edge, so it occupies y=16..60 whatever the plate's
+  /// height is, while the strip light rides at 0.38h: at 122dp that is y=46,
+  /// underneath the chip.
+  ///
+  /// The amber census is what caught it, and caught it as an over-claim rather
+  /// than as an ugly frame: the controls painted over the middle of the strip
+  /// light and left its two ends showing, so one lit object was counted as
+  /// **two** and the answered state came to three against a budget of two.
+  ///
+  /// ## The repair is a measured clearance, not a second place to stand
+  ///
+  /// The first fix put the pair on the ground under the shrunken plate. That
+  /// is what the owner rejected as a second header, so it is gone and the rule
+  /// is now the one thing that was actually true underneath it: **the controls
+  /// ride the picture at every height where they clear the light, and the
+  /// plate is never given a top slot at a height where they do not.**
+  ///
+  /// [PlateSpec.topSlotRoom] is that clearance as a number, and
+  /// `floor_proportion_test.dart` measures the drawn control against it on
+  /// both supported phones rather than trusting this paragraph. At rest the
+  /// plate is 30% of the viewport — 253dp at 844, 192dp at 640 — so the light
+  /// is at y=96 and y=73 and a one-line control ending at y=60 clears both.
+  /// At 360dp it only clears because [FloorDestinationsButton.compact] drops
+  /// the word `Menu`, which is why that fix is load-bearing rather than
+  /// cosmetic.
+  ///
+  /// Nothing is lost while answering. The approved mockup draws the shrunken
+  /// plate with no control on it, and `Back to the briefing` — directly above
+  /// the transcript, in every answered frame — is one tap back to the state
+  /// that has both.
+  final Widget? topSlot;
 
   @override
   Widget build(BuildContext context) {
@@ -835,7 +1104,16 @@ class _PlateFor extends StatelessWidget {
     final current = snapshot.current;
     final measured = view.phase == FloorPhase.measured;
     final viewportHeight = MediaQuery.sizeOf(context).height;
-    final spec = PlateSpec.resolve(skin: skin, viewportHeight: viewportHeight);
+    final ground = TheFloorScreen.plateGroundFor(
+      viewportHeight,
+      shrunk: shrunk,
+    );
+    final spec = PlateSpec.resolve(
+      skin: skin,
+      viewportHeight: viewportHeight,
+      ground: ground,
+      shortest: TheFloorScreen.plateShortest,
+    );
 
     final delta = snapshot.of((k) => k.executionScore);
     final n = current.sampleSizes.executionScore;
@@ -851,6 +1129,13 @@ class _PlateFor extends StatelessWidget {
     return TiqPlate(
       claimId: TheFloorScreen.plateClaimId,
       viewportHeight: viewportHeight,
+      // The same two numbers the spec above was resolved with. They are passed
+      // twice because `TiqPlate` resolves its own spec for the paint and this
+      // one is read for `figureRole`; handing the widget different numbers
+      // from the ones the hero was sized against is how a plate ends up with
+      // a figure fitted to a height it does not have.
+      ground: ground,
+      shortest: TheFloorScreen.plateShortest,
       image: image,
       // Null, not the string: the reference has no caption line, so what the
       // picture is goes in [semanticLabel] below.
@@ -876,21 +1161,17 @@ class _PlateFor extends StatelessWidget {
       semanticLabel: imageSentence(context),
       // THE SCOPE CONTROL, AT THE TOP OF THE PLATE — visible, 48dp, and
       // carrying the two facts it sets. See [PlateScopeChip].
-      scopeControl: onScopeTap == null
-          ? null
-          : PlateScopeChip(
-              key: const ValueKey<String>('floor-scope-chip'),
-              scope: view.territoryName,
-              window: view.windowLabel,
-              filtered: view.isFiltered,
-              onTap: onScopeTap!,
-              // The printed line is two facts joined by a separator, which a
-              // screen reader spells as a caption. The control has to say what
-              // it does.
-              semanticsLabel:
-                  '${view.territoryName}, ${view.windowLabel}. '
-                  'Change the territory or the window.',
-            ),
+      // THE TOP BAND CARRIES TWO CONTROLS NOW: where you are, and where else
+      // you can go. Both wear a `surface`, so neither is ink on a photograph —
+      // see [FloorDestinationsButton] for the measurement that makes that a
+      // requirement rather than a preference.
+      //
+      // The chip is `Flexible` and the button is not: a territory name is
+      // arbitrarily long and `Menu` is four characters, so the band gives its
+      // slack to the half that can use it. `PlateScopeChip` wraps to two lines
+      // rather than ellipsising, which is its own stated rule — a scope you
+      // cannot read is a scope you cannot trust.
+      topSlot: topSlot,
       hero: PlateHeroCluster(
         // No eyebrow: the chip above prints the territory and the window, and
         // a card that names the territory twice is a card with one line spent
@@ -943,10 +1224,7 @@ class _PlateFor extends StatelessWidget {
           color: standingInk(
             skin,
             measured
-                ? againstStandard(
-                    current.executionScore,
-                    executionScoreTarget,
-                  )
+                ? againstStandard(current.executionScore, executionScoreTarget)
                 : null,
             state: figureState,
           ),
@@ -1036,10 +1314,7 @@ class _PlateFor extends StatelessWidget {
           skin,
           context.l10n,
           measured
-              ? againstStandard(
-                  current.executionScore,
-                  executionScoreTarget,
-                )
+              ? againstStandard(current.executionScore, executionScoreTarget)
               : null,
         ),
         // The decomposition: what the composite figure is made of. A

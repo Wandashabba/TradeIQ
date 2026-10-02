@@ -26,13 +26,16 @@ const Key phase2BoundaryKey = ValueKey<String>('amber-golden-boundary');
 /// therefore the order a failure should be read in.
 List<TiqSkin> get phase2Skins => <TiqSkin>[
   TiqSkin.night(density: TiqDensity.field),
-  TiqSkin.day(),
+  // NAMED. It rode `TiqSkin.day()`'s old field default, which stopped meaning
+  // field on 29 September 2026; the pair above is a pair because both sides
+  // are field, and that now has to be said rather than inherited.
+  TiqSkin.day(density: TiqDensity.field),
 ];
 
 TiqSkin phase2SkinNamed(String name) => switch (name) {
   'night.console' => TiqSkin.night(),
   'night.field' => TiqSkin.night(density: TiqDensity.field),
-  'day.field' => TiqSkin.day(),
+  'day.field' => TiqSkin.day(density: TiqDensity.field),
   'day.console' => TiqSkin.day(density: TiqDensity.console),
   _ => throw ArgumentError('No skin named $name'),
 };

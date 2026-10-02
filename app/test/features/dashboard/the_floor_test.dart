@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
-import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/first_run_board.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/standards.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
+import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
+
 import '../../core/design/amber_golden.dart';
+import '../assistant/ask_harness.dart' show ScriptedRepository, rankedTurn;
 import 'floor_harness.dart';
 
 void main() {
@@ -25,8 +30,8 @@ void main() {
 
   group('The Floor, populated', () {
     testWidgets(
-      'renders the plate, the dominant metric, the rule and the rows — '
-      'worst first',
+      'renders the plate and the briefing, and NOTHING ELSE — no decision '
+      'list, no section markers',
       (tester) async {
         await pumpFloor(
           tester,
@@ -53,83 +58,176 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
         expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-        // The dominant metric and its supports as ONE line of meta. The
-        // subordinates are rates, not denominators: "Coverage 79%", not
-        // "Coverage 33 of 42 outlets · 42 visits". The card is a reading and
-        // the denominators are provenance, one tap away.
-        expect(find.text('ON-SHELF AVAILABILITY'), findsOneWidget);
-        expect(find.textContaining('Coverage 79%'), findsOneWidget);
+        // THE DOMINANT METRIC IS BRIEFING LINE TWO, not a stat card.
+        //
+        // It was `StatTile` under an `ON-SHELF AVAILABILITY` eyebrow, with
+        // "Coverage 79% · Price compliance 91%" as one line of meta under it.
+        // The figure did not move — it is the same `snapshot.current.osaPct`
+        // against the same published 95 — but the card did.
+        expect(
+          find.byKey(const ValueKey<String>('floor-brief-availability')),
+          findsOneWidget,
+        );
+        expect(find.text('On-shelf availability'), findsOneWidget);
+        expect(find.textContaining('Coverage 79%'), findsNothing);
 
-        // The section marker: words on the ground, no rule and no count
-        // (owner override, 25 September 2026). `Eyebrow` uppercases for
-        // display and keeps the sentence-case string in its semantics.
+        // ── THE REJECTED SCREEN, AS THREE ASSERTIONS ──────────────────
+        //
+        // What shipped kept the decision list AND added the briefing, under
+        // two headings. The approved arrangement replaces one with the other
+        // and labels neither. This is now false by instruction rather than by
+        // accident, so it is asserted rather than left to a render:
+        await scrollFloorToTail(tester);
+        expect(
+          find.byType(DecisionRow),
+          findsNothing,
+          reason:
+              'the decision list is on the Work queue. If this finds a row, '
+              'the screen has gone back to being a briefing AND a list — '
+              'which is the thing the owner rejected.',
+        );
         expect(find.byType(SectionRule), findsNothing);
-        expect(find.text('NEEDS A DECISION'), findsOneWidget);
-
-        // Worst first.
-        expect(find.byType(DecisionRow), findsNWidgets(2));
-        final rows = tester
-            .widgetList<DecisionRow>(find.byType(DecisionRow))
-            .toList();
-        expect(rows.first.severity, SoftRowSeverity.critical);
-        expect(rows.first.title, 'Kasi Corner Spaza');
-        expect(rows.last.severity, SoftRowSeverity.watch);
+        expect(find.text('NEEDS A DECISION'), findsNothing);
+        expect(
+          find.text('LAST 30 DAYS'),
+          findsNothing,
+          reason:
+              'the window is on the scope chip, on the control that sets it',
+        );
+        expect(
+          find.byType(Eyebrow),
+          findsNothing,
+          reason: 'no heading of any kind stands over the briefing',
+        );
       },
     );
 
-    testWidgets('the trailing column is one measurement on every row', (
+    testWidgets('a briefing line is ONE line: a name and a figure', (
       tester,
     ) async {
+      // THE DENSITY DEFECT, MEASURED. Each card carried the name and a
+      // supporting sentence under it, which doubles the block's height — three
+      // cards at two lines each was most of why the screen read as dense.
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        current: kpis(osa: 61, execution: 73),
+        previous: kpis(osa: 64, execution: 92),
+        alerts: <AlertItem>[
+          alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 18, 6)),
+        ],
+        outlets: twoOutlets,
+      );
+
+      expect(
+        find.text('under the 95 standard'),
+        findsNothing,
+        reason:
+            'the support is spoken, not printed, wherever there is a figure '
+            'to read instead',
+      );
+      expect(find.textContaining('all of it at'), findsNothing);
+
+      // And it is still said, where a reader who needs it gets it.
+      final handle = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('under the 95 standard')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('AN AGE PICKS ITS OWN UNIT, and only one place picks it', (
+      tester,
+    ) async {
+      // THE OWNER'S SCREENSHOT: the worst-outlet line printed `17 207h` and
+      // the decision row under it `17 206,8h`. Both are 717 days and neither
+      // is a reading. The ladder is `FloorAge` and it lives on the decision,
+      // so there is nowhere else on this screen to get a unit from.
       await pumpFloor(
         tester,
         const TheFloorScreen(),
         now: DateTime.utc(2026, 9, 18, 18),
         alerts: <AlertItem>[
-          alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 18, 6)),
+          alert(outletId: 'o1', createdAt: DateTime.utc(2024, 10, 2, 11, 12)),
         ],
-        tasks: <dynamic>[
-          task(outletId: 'o2', createdAt: DateTime.utc(2026, 9, 18, 12)),
-        ].cast(),
         outlets: twoOutlets,
       );
 
-      final rows = tester
-          .widgetList<DecisionRow>(find.byType(DecisionRow))
-          .toList();
-      // An alert raised at 06:00 and a task raised at 12:00, read at 18:00:
-      // twelve hours and six. One meaning, one unit, one column.
-      expect(rows.map((r) => r.value), <double>[12, 6]);
+      // 17 206,8 hours → 717 days → 102 weeks.
+      final figure = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(figure.value, 102);
+      expect(figure.unit.suffix, 'w');
+      expect(
+        printedFiguresOn(tester),
+        contains('102w'),
+        reason: 'what a human actually reads off the card',
+      );
+      expect(
+        printedFiguresOn(tester).where((f) => f.endsWith('h')),
+        isEmpty,
+        reason: '17 207h is 717 days and nobody divides by 24 at a glance',
+      );
     });
 
-    testWidgets('caps the list at five and says how many it did not show', (
-      tester,
-    ) async {
+    testWidgets('the worst outlet is the head of the list, and it is a line '
+        'that opens that decision', (tester) async {
       await pumpFloor(
         tester,
         const TheFloorScreen(),
+        now: DateTime.utc(2026, 9, 18, 18),
         alerts: <AlertItem>[
-          for (var i = 0; i < 16; i++)
-            alert(
-              id: 'a$i',
-              outletId: 'o1',
-              createdAt: DateTime.utc(2026, 9, 18, 1 + i),
-            ),
+          alert(
+            id: 'watch',
+            severity: 'warning',
+            message: 'Price above the published band',
+            outletId: 'o2',
+            createdAt: DateTime.utc(2026, 9, 18, 12),
+          ),
+          alert(
+            id: 'crit',
+            message: 'Out of stock since Tuesday',
+            outletId: 'o1',
+            createdAt: DateTime.utc(2026, 9, 18, 6),
+          ),
         ],
         outlets: twoOutlets,
       );
 
-      expect(find.byType(DecisionRow), findsNWidgets(FloorView.visibleCount));
-      expect(find.text('and 11 more need a decision'), findsOneWidget);
+      // Worst first, which is what the ranked list was for: the critical one
+      // at 12 hours is the line, not the watch one at six.
+      expect(
+        find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+        findsOneWidget,
+      );
+      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
+      expect(find.text('Shoprite Klipspruit Mall'), findsNothing);
+      expect(printedFiguresOn(tester), contains('12h'));
     });
 
-    testWidgets('nothing needs a decision keeps the marker and says so', (
-      tester,
-    ) async {
+    testWidgets('nothing needs a decision is a zero on the line, not a '
+        'marker over an empty list', (tester) async {
+      final handle = tester.ensureSemantics();
       await pumpFloor(tester, const TheFloorScreen());
 
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
-      expect(find.text('Everything triaged.'), findsOneWidget);
+      expect(find.text('NEEDS A DECISION'), findsNothing);
       expect(find.byType(DecisionRow), findsNothing);
+      // The count is on the briefing's first line, and the word is where the
+      // sentence under the marker used to be.
+      expect(
+        find.byKey(const ValueKey<String>('floor-brief-overdue')),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Overdue work, none. Everything triaged.'),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
   });
 
@@ -178,6 +276,12 @@ void main() {
         expect(find.byType(TiqPlate), findsOneWidget);
 
         expect(find.text(emDash), findsWidgets);
+        // The availability briefing line STAYS in an unmeasured window and
+        // says why, rather than being omitted. An unmeasured window is not a
+        // window without availability, it is a window whose availability
+        // nobody knows, and unify §4 exists to keep those two apart. This is
+        // the same sentence the stat card printed, on the line that replaced
+        // it.
         expect(find.text('No visits in this window'), findsOneWidget);
       },
     );
@@ -196,9 +300,23 @@ void main() {
       // The number stays — a thin sample is a real measurement the reader
       // should trust less, not an absence.
       expect(find.textContaining('61'), findsWidgets);
-      // …and it says how thin, rather than showing a movement computed off
-      // two rows.
-      expect(find.textContaining('from 2'), findsWidgets);
+
+      // …AND IT IS MARKED AS THIN, on the briefing line that now carries this
+      // figure. It used to be the stat card's `FigureSampling`, which drew
+      // "from 2" as a line of meta under the tile; the tile went when the
+      // briefing took the figure (see the note in the populated test above),
+      // and `FigureState.lowSample` is the channel that survived — the slot
+      // holds the number at ink-2 rather than printing a second sentence.
+      //
+      // The fact this test was written to pin has not moved: a thin sample
+      // keeps its figure and loses its delta. Only the carrier has.
+      final availability = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-availability')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(availability.state, FigureState.lowSample);
       expect(find.textContaining('vs the window before'), findsNothing);
     });
 
@@ -265,9 +383,10 @@ void main() {
       );
     });
 
-    testWidgets('a row with no timestamp renders an em dash, not a zero', (
+    testWidgets('a finding with no timestamp renders an em dash, not a zero', (
       tester,
     ) async {
+      final handle = tester.ensureSemantics();
       await pumpFloor(
         tester,
         const TheFloorScreen(),
@@ -275,14 +394,27 @@ void main() {
         outlets: twoOutlets,
       );
 
-      final row = tester.widget<DecisionRow>(find.byType(DecisionRow));
-      expect(row.value, isNull);
-      expect(row.figureState, FigureState.missing);
+      // PIN MOVED WITH THE FIGURE. It was the decision row's trailing column;
+      // the briefing's worst-outlet line is where an age is printed now, and
+      // the rule it is here for has not moved an inch: an age nobody recorded
+      // is an absence, and an absence is not a zero.
+      final figure = tester.widget<FigureSlot>(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('floor-brief-worst-outlet')),
+          matching: find.byType(FigureSlot),
+        ),
+      );
+      expect(figure.value, isNull);
+      expect(figure.state, FigureState.missing);
       expect(
-        row.valueSemanticsLabel,
-        isNotNull,
+        find.bySemanticsLabel(RegExp('No time recorded')),
+        findsOneWidget,
         reason: 'An em dash announced as "em dash" is not a sentence.',
       );
+      // And the card prints the reason in the figure's place, because with no
+      // number on the right the line would otherwise say nothing at all.
+      expect(find.text('Out of stock since Tuesday'), findsOneWidget);
+      handle.dispose();
     });
   });
 
@@ -457,19 +589,78 @@ void main() {
     );
   });
 
+  /// ── THE AMBER CENSUS, PHASE BY PHASE ────────────────────────────────
+  ///
+  /// The Floor gave up its nav pill on 30 September 2026 and this group is
+  /// where that shows. The allocator counts `navActiveTab` as slot 1 **whenever
+  /// the pill renders**, so while it was there Night's budget of two was one
+  /// chrome object plus one content object — and this screen now wants two
+  /// content objects at once: the plate's strip light, plus (by phase) either
+  /// Send or the answer's focus object.
+  ///
+  /// With no pill both grants go to content and every phase fits. The table
+  /// below is the whole claim, and each row of it is a test:
+  ///
+  /// | phase | Night | Day | which |
+  /// |---|---|---|---|
+  /// | at rest | 1 | 0 | the strip light; Send is disabled and a disabled Send is never amber |
+  /// | at rest, no photograph | 0 | 0 | nothing to light — a budget is a ceiling |
+  /// | typing, keyboard up | 2 | 1 | the strip light + Send |
+  /// | typing, keyboard down | 2 | 1 | the same two — the nav is gone, so the keyboard no longer changes the count |
+  /// | answered, with a focus object | 2 | 0 | the strip light + one ranked bar |
+  /// | offline | 1 | 0 | the strip light; Send is held |
+  ///
+  /// The two `typing` rows are the pair that mattered: under the old
+  /// arrangement they differed (the keyboard hid the nav and handed its grant
+  /// back), and the keyboard-down case was a three-object over-claim the
+  /// moment a plate was on the screen. They are now the same number, which is
+  /// the arrangement doing its job.
   group('the amber census', () {
+    /// The screen with a photograph on the plate and something in the list.
+    ///
+    /// **Through the router harness**, because the census now has to type.
+    /// `EditableText` builds a `TextSelectionOverlay` the moment the trough
+    /// takes focus and that needs an `Overlay` ancestor, which `pumpFloor`
+    /// deliberately does not provide — it stands the screen up with no
+    /// Navigator so a sheet has nowhere to open. Typing is behaviour, and
+    /// `pumpFloorRoute` is the harness for behaviour.
+    Future<void> floor(
+      WidgetTester tester, {
+      TiqSkin? skin,
+      double keyboard = 0,
+      bool photograph = true,
+      bool online = true,
+      AssistantRepository? assistant,
+      Size size = const Size(360, 640),
+    }) async {
+      await pumpFloorRoute(
+        tester,
+        skin: skin,
+        size: size,
+        keyboard: keyboard,
+        online: online,
+        assistant: assistant,
+        plateImage: photograph ? await SyncImage.solid(tester) : null,
+        current: kpis(execution: 72, executionSample: 18),
+        previous: kpis(execution: 91, executionSample: 18),
+        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
+        outlets: twoOutlets,
+      );
+    }
+
+    /// Put a question in the trough, which is the only thing that arms Send.
+    Future<void> type(WidgetTester tester) async {
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask-composer-field')),
+        'Why is 72 down?',
+      );
+      await tester.pump();
+    }
+
     testWidgets(
-      'Night with a photograph paints exactly two lit objects: the nav tab '
-      'and the strip light',
+      'Night at rest paints TWO: Send and the plate\'s strip light',
       (tester) async {
-        final image = await SyncImage.solid(tester);
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          plateImage: image,
-          alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
-          outlets: twoOutlets,
-        );
+        await floor(tester);
 
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
@@ -478,61 +669,186 @@ void main() {
           route: 'the-floor',
           phase: 'loaded',
         );
+        // ── THE PIN THE OWNER ASKED FOR, AND THEY DID THE ARITHMETIC ──
+        //
+        // This expected ONE, and the reason read: *"the trough is empty, so
+        // Send is disabled, and a disabled Send is never amber in any skin."*
+        // Both halves of that are still true of a disabled Send — what
+        // changed on 1 October 2026 is that Send is no longer disabled at
+        // rest. See `AskPhase.claims` for the whole argument and
+        // `login_screen.dart` for the precedent it is taken from.
+        //
+        // > *"the send button is amber… an always-amber send changes the
+        // > at-rest count from 1 to 2 on Night and from 0 to 1 on Day"*
+        // > — the owner, 1 October 2026, naming this number before it moved.
+        //
+        // TWO IS THE CEILING AND IT IS NOW SPENT. That is the thing worth
+        // noticing rather than the number: at rest this route has no headroom
+        // left, so the next object that wants a light on this frame cannot
+        // have one. The answered frame is deliberately NOT in this state —
+        // the grant stops at `firstRun` so the answer keeps its own bar.
         expect(
           census.objectCount,
           2,
           reason:
-              "The Floor nominates the plate's strip light; the nav pill "
-              'lights its active tab. Two, counted.\n${census.describe()}',
+              'Send is rung 1 and the strip light rung 2. With no nav tab '
+              'ahead of them both are granted, and the mockup draws exactly '
+              'this pair: its footer says "two on Night (the strip light and '
+              'the send button)".\n${census.describe()}',
         );
       },
     );
 
     testWidgets(
-      'Night with NO photograph spends one — the plate declines a grant it '
-      'has nothing to spend',
+      'Night with NO photograph paints one — a budget is a ceiling',
       (tester) async {
-        await pumpFloor(
-          tester,
-          const TheFloorScreen(),
-          alerts: <AlertItem>[alert(outletId: 'o1')],
-          outlets: twoOutlets,
-          photosFail: true,
-        );
+        await floor(tester, photograph: false);
 
         final census = await amberCensus(tester);
+        // STILL THE SAME POINT, ONE OBJECT ALONG. This expected zero, and the
+        // sentence it was making — a budget is a ceiling, not a quota — is
+        // exactly what the number below demonstrates: Night may light two and
+        // this frame lights one, because the plate has nothing to be a strip
+        // of light ON and does not spend its grant to fill the budget.
         expect(
           census.objectCount,
           1,
           reason:
-              'A budget is a ceiling, not a quota. With no photograph there '
-              'is nothing for a strip light to be a strip of light ON, so '
-              'only the nav tab is lit.\n${census.describe()}',
+              'Send alone. With no photograph the plate\'s rung-2 claim goes '
+              'unspent, and nothing is promoted to take its place — a budget '
+              'is a ceiling, not a quota.\n${census.describe()}',
         );
       },
     );
 
+    for (final (name, keyboard) in const <(String, double)>[
+      ('keyboard up', 320),
+      ('keyboard down', 0),
+    ]) {
+      testWidgets('Night typing, $name: the strip light and Send', (
+        tester,
+      ) async {
+        await floor(tester, keyboard: keyboard);
+        await type(tester);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.night(),
+          route: 'the-floor',
+          phase: 'typing',
+        );
+        expect(
+          census.objectCount,
+          2,
+          reason:
+              'Send is rung 1 and the strip light rung 2, and with no nav tab '
+              'ahead of them both are granted. THIS IS THE PAIR THE '
+              'ARRANGEMENT WAS CHOSEN FOR: with the pill still on the screen '
+              'the keyboard-down case would be three claims against a budget '
+              'of two.\n${census.describe()}',
+        );
+      });
+
+      testWidgets('Day typing, $name: Send alone takes the one grant', (
+        tester,
+      ) async {
+        await floor(tester, skin: TiqSkin.day(), keyboard: keyboard);
+        await type(tester);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.day(),
+          route: 'the-floor',
+          phase: 'typing',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'On a light ground the ladder has one rung and it is the '
+              'primary commit block. The strip light falls back to its unlit '
+              'ink rule, which the plate already did on every Day screen '
+              'before this change.\n${census.describe()}',
+        );
+      });
+    }
+
+    testWidgets(
+      'Night answered: the strip light stays, and the answer lights one bar',
+      (tester) async {
+        // ON THE TALL PHONE, because this census has to see BOTH objects in
+        // one frame and the census measures painted pixels rather than
+        // granted claims. At 360×640 the plate is lit and the answer's bar is
+        // below the fold, which is legal — a budget is a ceiling — but it
+        // proves only half of what this test is for.
+        await floor(
+          tester,
+          assistant: ScriptedRepository(rankedTurn()),
+          size: const Size(390, 844),
+        );
+        await type(tester);
+        // The keyboard's own Send key, which is the composer's `onSubmitted`
+        // and the same closure the button's `onPressed` runs. Tapping the
+        // button would need `ensureSemantics`, and a semantics handle open
+        // across an amber census is a second tree to keep in step.
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.pumpAndSettle();
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          TiqSkin.night(),
+          route: 'the-floor',
+          phase: 'landed-focus',
+        );
+        expect(
+          census.objectCount,
+          2,
+          reason:
+              'THE ANSWERED STATE IS WHY THE PILL WENT. The plate keeps its '
+              'light — the manager is still in the territory they asked '
+              'about — and the answer lights the one bar the server named. '
+              'Those are rungs 2 and 3; a nav tab at rung 0 would have '
+              'outranked one of them and the census would read '
+              'one.\n${census.describe()}',
+        );
+      },
+    );
+
+    testWidgets('Night offline: the composer is held and lights nothing', (
+      tester,
+    ) async {
+      await floor(tester, online: false);
+
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'Offline disables Send, and a disabled Send is never amber. The '
+            'plate is unaffected: the figures on it were measured before the '
+            'connection went and are still true.\n${census.describe()}',
+      );
+    });
+
     testWidgets('a falling hero delta is crimson, and is not a third light', (
       tester,
     ) async {
-      final image = await SyncImage.solid(tester);
-      await pumpFloor(
-        tester,
-        const TheFloorScreen(),
-        plateImage: image,
-        current: kpis(execution: 72, executionSample: 18),
-        previous: kpis(execution: 91, executionSample: 18),
-        alerts: <AlertItem>[alert(outletId: 'o1', photoId: 'p1')],
-        outlets: twoOutlets,
-      );
+      await floor(tester);
+      await type(tester);
 
       final census = await amberCensus(tester);
-      // If severity had drifted into the amber band this would be three.
+      // Two, not three: if severity had drifted into the amber band the
+      // hero's `▼ 19` would be counted here.
       expect(census.objectCount, 2, reason: census.describe());
     });
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
-      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+      testWidgets('${skin.mode.name} at rest paints one: Send\'s block', (
+        tester,
+      ) async {
         final image = await SyncImage.solid(tester);
         await pumpFloor(
           tester,
@@ -550,17 +866,137 @@ void main() {
           route: 'the-floor',
           phase: 'loaded',
         );
+        // THE OTHER NUMBER THE OWNER PREDICTED: 0 → 1 on Day.
+        //
+        // The sentence this test was built on is unchanged and is now the
+        // reason the count is one rather than the reason it is zero: *"on a
+        // light ground the only amber is the primary commit block."* The
+        // Floor has a primary since 1 October 2026 — it is Send, it is live
+        // from the first frame, and on paper it is a solid flame-600 block
+        // with an ink-1 edge rather than a rim.
+        //
+        // The strip light is still out, and that is still the law working:
+        // Day's ladder has one rung, Send takes it by precedence, and the
+        // plate falls back to its dark rule. The mockup says so in as many
+        // words under its own Day panel.
         expect(
           census.objectCount,
-          0,
+          1,
           reason:
-              'On a light ground the only amber is the primary commit block, '
-              'and The Floor has no primary: the nav tab is an Abyssal block '
-              'and the plate keeps its image with an ink rule where the light '
-              'was.\n${census.describe()}',
+              'Send\'s block, and nothing else. Day grants one object; the '
+              'plate\'s strip light is denied and draws its unlit ink rule, '
+              'which is what it already did on every Day screen before this '
+              'change.\n${census.describe()}',
         );
       });
     }
+
+    /// ── THE WHOLE CENSUS, PRINTED, PER PHASE PER SKIN ─────────────────
+    ///
+    /// Every test above asserts one frame. This one **prints the table**,
+    /// which is a different artefact and the one the owner asked for on
+    /// 1 October 2026: *"amber census per phase per skin, printed, with the
+    /// send-button decision reflected."*
+    ///
+    /// It exists because the send-button change touches six frames at once
+    /// and the thing a reviewer needs is not six green ticks in six places —
+    /// it is the shape of the budget across the whole route, where the
+    /// headroom went, and which frames are now at the ceiling. The assertions
+    /// above catch a regression; this says what the design *is*.
+    ///
+    /// Two columns are the point:
+    ///
+    /// * **count vs budget.** Night allows two and Day one. At rest Night is
+    ///   now AT its ceiling — Send plus the strip light — so the next object
+    ///   that wants a light on the at-rest frame cannot have one. That is
+    ///   worth knowing before somebody adds one.
+    /// * **what is lit.** Printed from the census itself rather than from
+    ///   this file's belief about it, so a frame that lights the wrong two
+    ///   objects reads wrong here even while the count reads right.
+    /// ONE PUMP PER TEST, AND THE TABLE PRINTS AT THE END.
+    ///
+    /// Not one test walking all ten frames, which is what this was first
+    /// written as: `pumpFloorRoute` builds a `ProviderScope` whose override
+    /// list differs per frame (`online: false` and `photograph: false` each
+    /// add one), and Riverpod asserts outright that *"overrides cannot be
+    /// removed/added, they can only be updated"*. So each frame gets its own
+    /// `testWidgets` and the rows accumulate in [table], which the last test
+    /// in the group prints. Tests in a group run in declaration order, which
+    /// is what makes that safe.
+    final table = <({String frame, String skin, int count, int budget})>[];
+
+    for (final skin in <TiqSkin>[TiqSkin.night(), TiqSkin.day()]) {
+      for (final (frame, build)
+          in <(String, Future<void> Function(WidgetTester))>[
+            ('at rest', (t) => floor(t, skin: skin)),
+            (
+              'at rest, no picture',
+              (t) => floor(t, skin: skin, photograph: false),
+            ),
+            ('typing', (t) async {
+              await floor(t, skin: skin);
+              await type(t);
+            }),
+            ('answered', (t) async {
+              await floor(
+                t,
+                skin: skin,
+                assistant: ScriptedRepository(rankedTurn()),
+                size: const Size(390, 844),
+              );
+              await type(t);
+              await t.testTextInput.receiveAction(TextInputAction.send);
+              await t.pumpAndSettle();
+            }),
+            ('offline', (t) => floor(t, skin: skin, online: false)),
+          ]) {
+        testWidgets('census row — ${skin.mode.name} · $frame', (tester) async {
+          await build(tester);
+          final census = await amberCensus(tester);
+          final budget = TorchScope.budgetFor(skin);
+          table.add((
+            frame: frame,
+            skin: skin.mode.name,
+            count: census.objectCount,
+            budget: budget,
+          ));
+          expect(
+            census.objectCount,
+            lessThanOrEqualTo(budget),
+            reason:
+                '$frame on ${skin.mode.name} paints ${census.objectCount} lit '
+                'objects against a budget of $budget.\n${census.describe()}',
+          );
+        });
+      }
+    }
+
+    testWidgets('THE CENSUS TABLE — every frame, both skins, printed', (
+      tester,
+    ) async {
+      expect(
+        table,
+        hasLength(10),
+        reason:
+            'five frames × two skins. A short table means a row above it '
+            'failed before it could record, and the printed census would be '
+            'quietly incomplete rather than obviously wrong.',
+      );
+      // ignore: avoid_print
+      print(
+        '\n  THE FLOOR — amber census, 1 October 2026, Send live at rest\n'
+        '  ${'frame'.padRight(22)}${'skin'.padRight(8)}'
+        '${'lit'.padRight(6)}budget',
+      );
+      for (final r in table) {
+        // ignore: avoid_print
+        print(
+          '  ${r.frame.padRight(22)}${r.skin.padRight(8)}'
+          '${r.count.toString().padRight(6)}${r.budget}'
+          '${r.count == r.budget ? '   <- at the ceiling' : ''}',
+        );
+      }
+    });
   });
 
   group('2.0x text', () {
@@ -580,27 +1016,49 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(PlateHeroCluster), findsOneWidget);
 
-      // The rest is past the fold on a 360x640 phone, which is correct — the
-      // guarantee at 2.0x degrades to one full row, by declaration.
-      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
-      await scrollFloorTo(tester, find.byType(DecisionRow).first);
-      expect(find.byType(DecisionRow), findsWidgets);
+      // THE PIN MOVED WITH THE SCREEN. It used to scroll to the section
+      // marker and then to the first decision row. Both left on 1 October
+      // 2026, and the thing worth asserting at 2.0x is what is actually drawn:
+      // the three briefing lines, each of which is a name beside a figure and
+      // therefore the block most exposed to a doubled type scale.
+      await scrollFloorTo(tester, find.byType(FloorBriefingBlock));
+      expect(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(TorchCard),
+        ),
+        findsNWidgets(3),
+      );
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the section marker wraps rather than clipping', (
-      tester,
-    ) async {
-      await pumpFloor(tester, const TheFloorScreen(), textScale: 2.0);
+    testWidgets('a briefing name ellipsises rather than pushing the figure '
+        'off the card', (tester) async {
+      await pumpFloor(
+        tester,
+        const TheFloorScreen(),
+        textScale: 2.0,
+        alerts: <AlertItem>[alert(outletId: 'o2')],
+        outlets: twoOutlets,
+      );
 
-      // The marker is words on the ground now, and at 2.0x it takes the two
-      // lines the eyebrow role allows rather than being cut. The rule it
-      // replaced had its own drop-below-the-name behaviour; that component
-      // still has it, and `section_rule_test.dart` still asserts it.
-      await scrollFloorTo(tester, find.text('NEEDS A DECISION'));
-      expect(find.text('NEEDS A DECISION'), findsOneWidget);
+      // `Shoprite Klipspruit Mall` at 2.0x on a 360dp card, beside a figure.
+      // The card is one line by declaration — the name gives way, the figure
+      // does not, and neither overflows. That is the defect the two-line card
+      // was hiding: the second line absorbed the pressure.
+      await scrollFloorTo(tester, find.byType(FloorBriefingBlock));
       expect(tester.takeException(), isNull);
+      for (final text in tester.widgetList<Text>(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(Text),
+        ),
+      )) {
+        if (text.data == null) continue;
+        expect(text.maxLines, 1, reason: '"${text.data}" wraps on a one-line '
+            'card');
+        expect(text.overflow, TextOverflow.ellipsis);
+      }
     });
   });
 
@@ -646,22 +1104,21 @@ void main() {
         const TheFloorScreen(),
         locale: const Locale('af'),
         current: kpis(osa: 61.5, execution: 72),
-        previous: kpis(osa: 80.5, execution: 91),
-        // A row, so there is a figure on screen that still has a decimal
-        // place: the rates are whole numbers by declaration now, and a test
-        // about decimal separators needs a decimal to separate. 56.9 hours
-        // before the pinned clock.
+        // THE DECIMAL IS ON THE HERO'S DELTA NOW. It used to be a decision
+        // row's `56,9h`, and an age is a whole number in whatever unit it
+        // picks since 1 October 2026 — a test about decimal separators needs a
+        // decimal to separate, and 91,5 − 72 is one that the screen genuinely
+        // prints: `DeltaSlot` passes no `decimals`, so the formatter keeps one
+        // place and the locale decides the separator.
+        previous: kpis(osa: 80.5, execution: 91.5),
         alerts: <AlertItem>[
           alert(outletId: 'o1', createdAt: DateTime.utc(2026, 9, 16, 9, 6)),
         ],
         outlets: twoOutlets,
       );
-
       expect(tester.takeException(), isNull);
-      // 56,9 in Afrikaans — a comma, from the locale, never a format string.
-      expect(find.textContaining('56,9'), findsWidgets);
-      expect(find.textContaining('56.9'), findsNothing);
-      // AND NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
+
+      // NO SIGN AT ALL ON THE HERO'S DELTA — moved 25 September 2026.
       //
       // This pinned the true minus (U+2212, never a hyphen) on `−19`. The
       // minus is gone: the triangle beside it already says "down", and the
@@ -672,6 +1129,16 @@ void main() {
       // this change nothing on The Floor may carry a hyphen before a digit.
       expect(find.textContaining('19'), findsWidgets);
       expect(find.textContaining('\u221219'), findsNothing);
+
+      // 19,5 in Afrikaans — a comma, from the locale, never a format string.
+      expect(
+        printedFiguresOn(tester).any((f) => f.contains('19,5')),
+        isTrue,
+        reason: printedFiguresOn(tester).toString(),
+      );
+      expect(find.textContaining('19.5'), findsNothing);
+
+      // The hyphen sweep runs over everything the screen drew.
       for (final t in tester.widgetList<Text>(find.byType(Text))) {
         expect(
           RegExp(r'-\d').hasMatch(t.data ?? ''),
@@ -854,13 +1321,17 @@ void main() {
       );
     });
 
-    testWidgets('a Night row figure is luminous, and its dot is not', (
+    testWidgets('a Night briefing figure is luminous, and its dot is not', (
       tester,
     ) async {
       // THE OWNER'S ACTUAL COMPLAINT, AS A TEST: "make the numbers lumunuous
-      // white and not red". The decision rows were the crimson they were
-      // looking at. The dot beside the name still carries the verdict, which
-      // is the only reason the colour may leave the figure at all.
+      // white and not red". The crimson they were looking at was on the
+      // figures; the dot beside the name still carries the verdict, which is
+      // the only reason the colour may leave the figure at all.
+      //
+      // PIN MOVED WITH THE ROWS. The decision list left this screen on
+      // 1 October 2026 and the briefing's three lines are what carries a
+      // figure-and-a-dot now. Same rule, same two channels, same file.
       final skin = TiqSkin.night();
       await pumpFloor(
         tester,
@@ -886,30 +1357,202 @@ void main() {
         ],
         outlets: twoOutlets,
       );
-      // The figures themselves: bone, both of them, on a critical row and a
-      // watch row alike.
-      for (final hours in <String>['12', '6']) {
-        expect(inkOf(tester, hours), skin.palette.ink1);
+      // The figures themselves: bone. The availability rate and the worst
+      // outlet's age alike.
+      for (final figure in <String>['61', '12']) {
+        expect(inkOf(tester, figure), skin.palette.ink1);
       }
-      final rows = tester.widgetList<DecisionRow>(find.byType(DecisionRow));
-      expect(rows, isNotEmpty);
-      for (final row in rows) {
+
+      // AND THE DOT IS NOT. Every briefing line carries one, and a line whose
+      // standing is bad takes the palette's own crimson — which is the channel
+      // that makes it safe for the figure to be plain.
+      final dots = tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(FloorBriefingBlock),
+          matching: find.byType(DecoratedBox),
+        ),
+      ).where((b) {
+        final d = b.decoration;
+        return d is BoxDecoration && d.shape == BoxShape.circle;
+      }).toList();
+      expect(dots, hasLength(3), reason: 'one dot per briefing line');
+      expect(
+        dots.map((b) => (b.decoration as BoxDecoration).color),
+        everyElement(isNot(skin.palette.ink1)),
+        reason:
+            'If a line has no coloured dot then its figure WAS the only '
+            'signal and the colour may not leave it. THIS is the assertion '
+            'that makes the reversal safe rather than merely requested.',
+      );
+
+      // And the word is in the line's own label, so a reader who sees neither
+      // hue nor dot still gets the verdict.
+      final handle = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('under the 95 standard')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    /// ── 94 AGAINST 95 IS `watch`, AND THE DOT SAID `critical` ─────────
+    ///
+    /// A DEFECT, FOUND BY THE OWNER ON 1 OCTOBER 2026:
+    ///
+    /// > *"Our render shows On-shelf availability 94% with a crimson dot,
+    /// > while the supporting text elsewhere reads 'close to the 95
+    /// > standard'. A dot is a severity channel and it must reflect the
+    /// > figure's real standing."*
+    ///
+    /// Both halves of their reading are right. `againstStandard` carries a
+    /// 10-point watch band, so 85..94 against a published 95 is
+    /// `StatusLevel.watch` and only under 85 is `critical` — and
+    /// `_availabilitySupport` was already saying `close to the 95 standard`
+    /// off that same value. The dot was crimson **because crimson was the
+    /// only thing wired up**: the switch read `critical || watch => bad`, so
+    /// the briefing had two faces for three standings.
+    ///
+    /// The repair is the system's own two commitment levels, which
+    /// `SeverityMarkToken` has drawn since the severity vocabulary landed and
+    /// `standingInk`'s doc describes in as many words — *"a filled dot
+    /// against an outlined one"*. A sentence that described a dot nobody was
+    /// drawing.
+    ///
+    /// **The mockup's green is not the fix and must not be mistaken for it.**
+    /// The drawing shows this line at **96%**, which is `onTarget`, so its
+    /// green is correct for its own data and says nothing about 94. Painting
+    /// 94 green to match a screenshot would be replacing one wrong verdict
+    /// with another. Three values, three faces, measured below.
+    /// ONE PUMP PER VALUE, for the reason the census table gives: a second
+    /// `pumpFloor` in the same test updates the repository override but the
+    /// snapshot provider has already resolved, so every frame after the first
+    /// renders the FIRST figure. That is how the first draft of this test
+    /// reported 94% drawing `critical` — it was still looking at 61.
+    final dotRows = <({String osa, String standing, String face})>[];
+
+    for (final (osa, standing, filled, sentence) in <(
+      double,
+      StatusLevel,
+      bool,
+      String,
+    )>[
+      // Under the band: a filled disc at the fill grade. This is the only one
+      // of the three the old code got right.
+      (61, StatusLevel.critical, true, 'under the 95 standard'),
+      // IN the band — the owner's own figure, and the defect. A ring.
+      (94, StatusLevel.watch, false, 'close to the 95 standard'),
+      // On the standard: the mockup's own 96, and its green.
+      (96, StatusLevel.onTarget, true, 'on the 95 standard'),
+    ]) {
+      testWidgets('the dot at $osa% says ${standing.name}, not crimson-'
+          'for-everything', (tester) async {
+        final skin = TiqSkin.night();
+        final p = skin.palette;
+        final ink = switch (standing) {
+          StatusLevel.critical => p.badSolid,
+          StatusLevel.watch => p.bad,
+          _ => p.good,
+        };
+
         expect(
-          row.severity,
-          isNot(SoftRowSeverity.none),
+          againstStandard(osa, availabilityStandard),
+          standing,
           reason:
-              'If a row has no severity bar then its figure WAS the only '
-              'signal and the colour may not leave it. THIS is the assertion '
-              'that makes the reversal safe rather than merely requested.',
+              '$osa against $availabilityStandard is not ${standing.name}. '
+              'The dot is only as right as this is — if the BAND moved, fix '
+              'the band, not the dot.',
         );
+
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          skin: skin,
+          current: kpis(osa: osa, execution: 73),
+          previous: kpis(osa: 64, execution: 92),
+          outlets: twoOutlets,
+        );
+
+        final dot = tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: find.byKey(
+                  const ValueKey<String>('floor-brief-availability'),
+                ),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((b) => b.decoration)
+            .whereType<BoxDecoration>()
+            .firstWhere((d) => d.shape == BoxShape.circle);
+
+        if (filled) {
+          expect(dot.color, ink, reason: '$osa%: wrong ink on a filled dot');
+          expect(
+            dot.border,
+            isNull,
+            reason: '$osa%: a filled dot does not also carry a ring',
+          );
+        } else {
+          expect(
+            dot.color,
+            isNull,
+            reason:
+                '94% is `watch`, and a watch mark is a RING — a filled dot '
+                'here is the defect back: the same silhouette as `critical`, '
+                'differing only in a hue step most eyes and all greyscale '
+                'will miss.',
+          );
+          expect(
+            dot.border?.top.color,
+            ink,
+            reason:
+                '94%: the ring is the word grade, which is legible as a '
+                'stroke where the fill grade is not',
+          );
+        }
+
+        // AND THE WORD IS THERE EITHER WAY. The silhouette is never the only
+        // channel — this sentence is what the printed dot was already
+        // contradicting, and it is what made the defect findable.
+        final handle = tester.ensureSemantics();
         expect(
-          row.severityLabel,
-          isNotNull,
+          find.bySemanticsLabel(RegExp(sentence)),
+          findsOneWidget,
           reason:
-              'And the word is announced first in the row label, so a reader '
-              'who sees neither hue nor bar still gets the verdict.',
+              '$osa%: the dot and the sentence have to agree. They did not, '
+              'and the sentence was the one telling the truth.',
         );
+        handle.dispose();
+
+        dotRows.add((
+          osa: '$osa%',
+          standing: standing.name,
+          face: filled
+              ? 'filled disc  ${standing == StatusLevel.onTarget ? 'good' : 'badSolid'}'
+              : 'ring         bad',
+        ));
+      });
+    }
+
+    testWidgets('THE DOT TABLE — three values, three faces, printed', (
+      tester,
+    ) async {
+      expect(dotRows, hasLength(3));
+      // ignore: avoid_print
+      print(
+        '\n  THE BRIEFING DOT — on-shelf availability against a published 95\n'
+        '  ${'osa'.padRight(7)}${'standing'.padRight(11)}silhouette   ink',
+      );
+      for (final r in dotRows) {
+        // ignore: avoid_print
+        print('  ${r.osa.padRight(7)}${r.standing.padRight(11)}${r.face}');
       }
+      // ignore: avoid_print
+      print(
+        '  the owner\'s render was 94% as a FILLED badSolid disc — identical '
+        'to 61%.\n'
+        '  the mockup\'s green is its own 96%, and is not the fix for 94%.',
+      );
     });
 
     testWidgets('an unmeasured window colours nothing', (tester) async {

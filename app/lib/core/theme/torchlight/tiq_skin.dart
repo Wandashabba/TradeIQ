@@ -110,6 +110,64 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
 
   TiqDensity get density => space.density;
 
+  /// THE STOPS OF AN AMBER FILL'S GRADIENT — hot core first, [TiqPalette
+  /// .flame600] last — 1 October 2026.
+  ///
+  /// The owner's note was *"the send button ... and everywhere else for orange
+  /// is very dull, it need to be lumunous and bright and inviting"*, and
+  /// `flame600` was already at value 1.00. Half the answer was chroma, and that
+  /// lives in `tiq_palette.dart`. This is the other half, and it is the bigger
+  /// one: **a flat swatch of one colour cannot glow.** Real emitted light has a
+  /// hot core and falls off, which is exactly what the plate's strip light
+  /// already does — and the strip light is the one object in the product that
+  /// genuinely reads as lit, while the send disc was a flat fill.
+  ///
+  /// ## Why it stops at `flame600` and not past it
+  ///
+  /// Because that is what makes the gradient **free in the contrast table**.
+  /// Dark ink on amber is a declared pairing, and over a gradient the ink sits
+  /// on a *range* of colours rather than one — so the number that matters is
+  /// the worst point under the text, not the average. Every stop here is
+  /// lighter than `flame600` except the last, which IS `flame600`, so the worst
+  /// pixel any ink on an amber fill can land on is `flame600` — the same pixel
+  /// the flat fill painted. Every declared `onAmber` ratio is preserved to the
+  /// digit: 9.68:1 on Night, 7.78:1 on Day.
+  ///
+  /// The falloff *to nothing* that a real light has cannot happen inside a
+  /// fill — past the object's own edge there is only the ground. That is what
+  /// [TiqPalette.glowAmber] is for, and on a dark ground only; see its note.
+  ///
+  /// ## Why the hot end is per skin
+  ///
+  /// Night ramps to `flame900`, the white-hot core, because a dark ground has
+  /// the headroom — the same argument [TiqPalette.plateCeiling] makes for the
+  /// photograph.
+  ///
+  /// **Day stops at `flame700`.** On paper `flame900` measures **1.04:1**
+  /// against Palladian, so a near-white core inside an amber block does not
+  /// read as a hot centre, it reads as a hole in the block — the ground
+  /// showing through. `flame700` is 1.32:1 against the ground and 9.63:1 under
+  /// dark ink, so the Day ramp is shallower, stays unmistakably amber, and
+  /// still has a lit end.
+  ///
+  /// ## The census does not move
+  ///
+  /// Every colour interpolated between these two stops is inside the census's
+  /// flame box (hue 20–48°, value ≥ 0.90, saturation ≥ 0.12) — checked at a
+  /// hundred points across the ramp in both skins. So a gradient-filled object
+  /// is one connected flame-hued region, exactly as the flat fill was, and the
+  /// count is unchanged on every screen. The lit *fraction* of the frame is
+  /// unchanged too, because the same pixels are inside the box; only their
+  /// colour varies.
+  ///
+  /// Geometry is **not** decided here, deliberately: a 36dp disc and a 56dp
+  /// full-width block do not want the same gradient. Each object picks its own
+  /// and says why, the way [TiqPalette.glowAmber]'s call sites do.
+  List<Color> get amberFillRamp => <Color>[
+    amberIsInk ? palette.flame700 : palette.flame900,
+    palette.flame600,
+  ];
+
   /// NIGHT. Console by default — it is the manager's skin.
   factory TiqSkin.night({TiqDensity density = TiqDensity.console}) => TiqSkin(
     mode: SkinMode.night,
@@ -126,8 +184,30 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     standingColoursFigures: false,
   );
 
-  /// DAY. Field by default — it is the agent's skin.
-  factory TiqSkin.day({TiqDensity density = TiqDensity.field}) => TiqSkin(
+  /// DAY. **Console by default, since 29 September 2026** — symmetrical with
+  /// [TiqSkin.night] above.
+  ///
+  /// IT USED TO DEFAULT TO FIELD, on the true observation that the agent is
+  /// the one who starts in Day. That default was a measurement trap and it
+  /// caught things for weeks. `TiqSkin.night()` means console and
+  /// `TiqSkin.day()` meant field, so **every test that paired the two to hold
+  /// the density still and vary the skin was varying both** — and there are
+  /// 118 bare `TiqSkin.day()` calls under `test/`, including three manager
+  /// look harnesses (`floor_look_test.dart`, `overview_look_test.dart`,
+  /// `manager_chip_look_test.dart` via [of]) that were photographing manager
+  /// screens at the agent's density and calling the result a manager screen.
+  /// `tiq_contrast.dart` built the whole declared Day contrast contract off a
+  /// bare call, so the Day walk ran at one type scale and the Night walk at
+  /// another.
+  ///
+  /// A default cannot carry that meaning. Nothing in production relied on it:
+  /// `agent_skin.dart`, `entry_skin.dart`, `console_skin.dart` and
+  /// `app_theme.dart` all name the density at every call site, which is why
+  /// this changes no shipping pixel — proved by sha256 over the 26 manager
+  /// look renders, not assumed. A surface with a density opinion states it;
+  /// a bare call now means "the Day token set, no density opinion", and the
+  /// two factories answer the same way.
+  factory TiqSkin.day({TiqDensity density = TiqDensity.console}) => TiqSkin(
     mode: SkinMode.day,
     brightness: Brightness.light,
     palette: TiqPalette.day,
@@ -145,6 +225,12 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
 
   /// Build the skin a [SkinMode] asks for. [platformBrightness] only matters
   /// for [SkinMode.auto].
+  ///
+  /// [density] defaults to console on **both** arms, since 29 September 2026
+  /// and for the reason on [TiqSkin.day]: a caller that hands this a mode and
+  /// no density is asking for a skin, not for a surface, and it should not
+  /// silently get the agent's geometry on the Day arm and the manager's on
+  /// the Night one. `manager_chip_look_test.dart` was doing exactly that.
   static TiqSkin of(
     SkinMode mode, {
     Brightness platformBrightness = Brightness.dark,
@@ -153,11 +239,11 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     SkinMode.night => TiqSkin.night(
       density: density ?? TiqDensity.console,
     ),
-    SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.field),
+    SkinMode.day => TiqSkin.day(density: density ?? TiqDensity.console),
     SkinMode.auto =>
       platformBrightness == Brightness.dark
           ? TiqSkin.night(density: density ?? TiqDensity.console)
-          : TiqSkin.day(density: density ?? TiqDensity.field),
+          : TiqSkin.day(density: density ?? TiqDensity.console),
   };
 
   /// The default ink for a body of text on this skin's ground.

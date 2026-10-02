@@ -120,7 +120,7 @@ void main() {
         split.prefix,
         'R ',
         reason:
-            'The R is the Onest run and the digits are the mono run. They are '
+            'The R is the Schibsted Grotesk run and the digits are the mono run. They are '
             'split so a widget can set them in two faces.',
       );
       expect(split.run, '1,284,990');

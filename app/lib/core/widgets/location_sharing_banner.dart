@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../location/location_sharing.dart';
 import '../theme/torchlight/tiq_skin.dart';
+import 'torchlight/bleed.dart';
 import 'torchlight/button/buttons.dart';
 import 'torchlight/marks.dart';
 import 'torchlight/row/row.dart';
@@ -32,9 +33,25 @@ import 'torchlight/sheet.dart';
 /// notice nobody can point at afterwards.
 ///
 /// What did change is what it is built out of, and how much of it is on
-/// screen before the agent asks. All three faces are the kit's banner — a
-/// standalone soft row at COMPACT density, which is what the Offline / held
-/// banner declares and what a standing statement under a header is. The
+/// screen before the agent asks. All three faces are the kit's banner — a soft
+/// row at COMPACT density, which is what the Offline / held banner declares
+/// and what a standing statement under a header is.
+///
+/// ## The card grammar, 29 September 2026
+///
+/// The form was `standalone` — radius 14, `surface`, a 1px `edgeStructure`
+/// rim. This banner is the **first object on Today, My work, Me and the map**,
+/// sitting directly above a day block that has been a `TorchCard` since 26
+/// September and a list of radius-22 cards since the 25 September override.
+/// It was the last outlined rectangle at the top of four agent screens, and
+/// the owner named it twice. It takes `SoftRowForm.list` — radius 22,
+/// `surface`, no outline — which is the manager grammar and is the conversion
+/// #483 applied to every other standalone block on this side.
+///
+/// It is NOT a blanket move of the `standalone` form. Nine manager screens
+/// still use it (client config, outlet detail, the sales import sheet, the
+/// dynamic template form, both report forms, templates, dispatch, the contest
+/// form) and none of them changes here. The
 /// notice is that same banner with the full copy and both answers folded
 /// inside it until it is opened; see [_LocationNotice] for why. The buttons
 /// are the button family, and the stop confirmation is a [ConfirmSheet]
@@ -78,7 +95,8 @@ class LocationSharingBanner extends ConsumerWidget {
     } else if (s.acknowledged) {
       child = SoftRow(
         key: const ValueKey<String>('location-sharing-indicator'),
-        form: SoftRowForm.standalone,
+        form: SoftRowForm.list,
+        separator: SoftRowSeparator.none,
         // COMPACT, and the reason line at `meta` rather than `subtitle`: this
         // is the kit's banner, which is a standing statement under the header
         // on every agent screen, not a list row someone is choosing between.
@@ -105,7 +123,8 @@ class LocationSharingBanner extends ConsumerWidget {
     } else {
       child = SoftRow(
         key: const ValueKey<String>('location-sharing-off'),
-        form: SoftRowForm.standalone,
+        form: SoftRowForm.list,
+        separator: SoftRowSeparator.none,
         density: SoftRowDensity.compact,
         title: l10n.locationSharingOffTitle,
         meta: Text(l10n.locationSharingOffSubtitle),
@@ -124,14 +143,19 @@ class LocationSharingBanner extends ConsumerWidget {
     // The gap goes BELOW, not above. Above, the last banner sat flush against
     // the first block of the screen's own body — a standing statement welded
     // to the day block, with all the air stacked on the other side of it.
+    //
+    // THE CARD BRINGS ITS OWN GUTTER, since 29 September 2026. The banner is
+    // a card now, and a card's margin *is* the screen's gutter — so the
+    // legacy scaffold's own padding would double it, and a Torchlight shell
+    // (whose children are already inset) has to be bled out by `2 × gutter`
+    // for the card's margin to land back on the same line the day block and
+    // the stop rows hang off. Exactly what `today_screen`'s `_Route` does
+    // around its list.
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        inset ? skin.space.gutter : 0,
-        0,
-        inset ? skin.space.gutter : 0,
-        TiqSpace.s4,
-      ),
-      child: child,
+      padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+      child: inset
+          ? child
+          : TorchBleed(extra: skin.space.gutter * 2, child: child),
     );
   }
 
@@ -206,11 +230,12 @@ class _LocationNoticeState extends State<_LocationNotice> {
 
     return SoftRow(
       key: const ValueKey<String>('location-notice'),
-      form: SoftRowForm.standalone,
+      form: SoftRowForm.list,
+      separator: SoftRowSeparator.none,
       density: SoftRowDensity.compact,
       title: l10n.locationNoticeTitle,
       // The honest sentence, in the collapsed form. `meta`, not `subtitle`:
-      // the kit's banner puts its second line at meta 12, and this line is a
+      // the kit's banner puts its second line in `meta`, and this line is a
       // qualification of the title rather than a second claim.
       meta: Text(l10n.locationNoticeSummary),
       leading: Icon(

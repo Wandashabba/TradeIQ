@@ -77,9 +77,46 @@ class StatusLevelToken {
   ///
   /// There is no per-skin branch here because a skin is a value set, not a
   /// code path, and every difference is already in the palette.
+  ///
+  /// ## FIVE LEVELS, NO OUTLINES — and what carries each one
+  ///
+  /// #479 argued once that a fill is not what identifies a filter chip. Two
+  /// states needed one argument; **five levels need five**, because a fill
+  /// alone will not separate five standings on a near-black ground — the
+  /// washes below sit between 1.10:1 and 1.39:1 of each other in greyscale
+  /// and no amount of tuning will change that. So the argument is made per
+  /// level, and every level's answer is the same two channels that survive
+  /// greyscale and a torn screen protector — **a silhouette and a word** —
+  /// with ink as the third:
+  ///
+  /// | level | silhouette | word | ink on its own fill (N / D) |
+  /// |---|---|---|---|
+  /// | critical | filled triangle | Critical | 4.55 / 6.95 |
+  /// | watch | half-filled triangle | Watch | 5.14 / 6.26 |
+  /// | onTarget | filled circle | On target | 7.10 / 4.99 |
+  /// | held | square | Held | 8.93 / 8.50 |
+  /// | live | dot, 8dp not 12dp | Live | 8.93 / 8.50 |
+  ///
+  /// Every one clears the 4.5:1 text floor on the fill it is printed on, and
+  /// `torchlight_contrast_test.dart` measures all ten.
+  ///
+  /// **Critical is the one level whose fill is a signal**, and it keeps it:
+  /// solid `badSolid` with the ink inverted against it, 4.55:1 on the Night
+  /// ground and 5.74:1 on the Day one, which is the only chip fill in the
+  /// family that clears WCAG 1.4.11's 3:1 as a boundary. It is also the only
+  /// one whose ink is *dark on light* — a polarity flip no other level has.
+  /// That is deliberate: a severity that is happening *now* should not depend
+  /// on the reader telling two pastels apart.
+  ///
+  /// **Held and Live share a treatment, exactly as they did before this
+  /// change**, and are told apart by silhouette and word alone — a 12dp
+  /// square against an 8dp dot. Removing their outline does not widen that
+  /// gap and this change does not claim it does.
   static StatusLevelToken of(TiqSkin skin, StatusLevel level) {
     final p = skin.palette;
     return switch (level) {
+      // UNCHANGED, on purpose. It was already a solid badge with no outline;
+      // it takes the new radius and nothing else.
       StatusLevel.critical => StatusLevelToken(
         level: level,
         word: 'Critical',
@@ -87,35 +124,59 @@ class StatusLevelToken {
         ink: p.onBadSolid,
         fill: p.badSolid,
       ),
+      // Was a bare crimson outline over nothing. The outline was the whole
+      // object — there was no fill — so it could not simply be deleted; it is
+      // a crimson wash now, at 1.51:1 on the Night ground against the 1.21:1
+      // the mockup's own translucent version would have managed.
+      //
+      // THIS IS ALSO THE `REQUIRED TO SUBMIT` BADGE (`audit_shell_screen`),
+      // and the mockup appears to contradict itself there: its `.req` marker
+      // keeps a 1px `rgba(255,125,140,.45)` border. It is a different object.
+      // `.req` is 7.5px mono, letter-spaced, **with no glyph** — a marker so
+      // small it has neither silhouette nor room for one, and the border is
+      // what makes it an object at all. The mockup's crimson *chip* — "Out of
+      // stock", `rgba(255,125,140,.18)` — carries no border, and that is the
+      // one this maps onto: a full chip, with a triangle and a five-word
+      // label. Keeping the border here would re-line the exact screen the
+      // owner was looking at when they said it is still rectangular.
       StatusLevel.watch => StatusLevelToken(
         level: level,
         word: 'Watch',
         shape: MarkShape.watchTriangle,
         ink: p.bad,
-        border: p.bad,
+        fill: torchChipWash(skin, p.bad),
       ),
+      // The other bare outline, and the one this change was measured against:
+      // it is the green "All sent" box top-right of every agent screen.
       StatusLevel.onTarget => StatusLevelToken(
         level: level,
         word: 'On target',
         shape: MarkShape.onTargetCircle,
         ink: p.good,
-        border: p.good,
+        fill: torchChipWash(skin, p.good),
       ),
+      // `well` → `raised`. NOT the wash: the neutral levels' ink is ink-2 and
+      // ink-3, and a neutral wash is ink-1 over the tier, which on Day means
+      // `ink-3 on well` — the tightest declared pairing in the whole Day set
+      // at **4.52:1 against a 4.5 floor**. There is no headroom there to
+      // spend, so the neutral chip takes an existing tier instead of an
+      // alpha. `raised` is the one that reads: it is 1.19:1 on the Night
+      // ground where `well` was 1.06:1, which is the mockup's own neutral
+      // (1.18:1) to within a rounding error, and it *improves* the Day
+      // pairing to 5.48:1 rather than spending it.
       StatusLevel.held => StatusLevelToken(
         level: level,
         word: 'Held',
         shape: MarkShape.heldSquare,
         ink: p.ink2,
-        fill: p.well,
-        border: p.edgeControl,
+        fill: p.raised,
       ),
       StatusLevel.live => StatusLevelToken(
         level: level,
         word: 'Live',
         shape: MarkShape.dot,
         ink: p.ink2,
-        fill: p.well,
-        border: p.edgeControl,
+        fill: p.raised,
       ),
     };
   }

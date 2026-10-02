@@ -10,9 +10,9 @@ import 'tiq_number.dart';
 /// separately, and wrongly, in every screen that showed a number:
 ///
 /// 1. **The faces.** The digits are JetBrains Mono with tabular figures; the
-///    affixes (`R`, `%`, `pts`) are Onest, because they are language. Onest
-///    has no slashed zero and proportional digits, so a column of stock counts
-///    set in it is not a column.
+///    affixes (`R`, `%`, `pts`) are Schibsted Grotesk, because they are
+///    language. The prose face sets its digits proportionally by default, so
+///    a column of stock counts set in it is not a column.
 /// 2. **The unknown states.** A measured zero prints `0` and keeps its place.
 ///    A null prints an em dash in ink-3, at the figure's own role and face,
 ///    with the unit suppressed and no delta. A low sample keeps the figure at
@@ -55,7 +55,8 @@ class FigureSlot extends StatelessWidget {
   final num? value;
 
   /// The role this figure is set in. Must be a `figure` or `identifier` role —
-  /// asserted, because a figure in Onest is the bug this class exists to stop.
+  /// asserted, because a figure in the prose face is the bug this class exists
+  /// to stop.
   final TiqTypeToken role;
 
   /// Candidate roles, largest first, measured in order. Defaults to [role]
@@ -89,10 +90,9 @@ class FigureSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     assert(
       role.isFigure,
-      'FigureSlot: ${role.name} is a prose role. Onest has no slashed zero, '
-      'its digits are proportional and its I and l are the same shape — all '
-      'three are fine in a sentence and disqualifying in a figure. Use a '
-      'figure or identifier role.',
+      'FigureSlot: ${role.name} is a prose role. Schibsted Grotesk sets its '
+      'digits proportionally unless tnum is on, which is fine in a sentence '
+      'and disqualifying in a figure. Use a figure or identifier role.',
     );
     final skin = context.skin;
     final figure = TiqNumber.of(context).split(

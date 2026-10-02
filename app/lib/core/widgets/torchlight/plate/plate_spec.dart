@@ -54,17 +54,50 @@ class PlateSpec {
   /// numbers left room for two decision rows above the nav; the owner's
   /// reference shows three. 312 is what is left once three decision cards,
   /// the lead card, the section marker, the block gaps and the nav pill have
-  /// taken theirs on an 844dp phone — measured in Onest, not guessed, by
+  /// taken theirs on an 844dp phone — measured, not guessed, by
   /// `floor_proportion_test.dart`, which fails if it stops being true.
   ///
   /// [viewportHeight] is the height the plate may draw into — the full
   /// viewport on a phone, because the arithmetic below it is the whole
   /// screen's.
-  static double heightFor(double viewportHeight) {
-    final proportional = (viewportHeight * 0.40).clamp(200.0, 312.0);
-    final afterTheList = viewportHeight - 440.0;
-    return math.min(proportional, afterTheList);
+  ///
+  /// ## The two numbers are the caller's, and they default to The Floor's
+  ///
+  /// [ground] and [tallest] were the literals `440` and `312` until the plate
+  /// went on the door (`/login`). They are not universal constants and never
+  /// were: **440 is the height of The Floor's decision rows** and 312 is what
+  /// an 844dp phone has left once those rows, the lead card, the section
+  /// marker, the block gaps and the nav pill have taken theirs. A screen with
+  /// different things under its plate has a different second term, and the
+  /// old shape gave it no way to say so — which is how a second plate gets
+  /// written instead of this one being used.
+  ///
+  /// They are named parameters with The Floor's values as defaults, so The
+  /// Floor's call site is unchanged and its arithmetic is bit-for-bit what it
+  /// was. `entry_plate.dart` passes the sign-in form's own two numbers, which
+  /// it measures rather than guesses.
+  static double heightFor(
+    double viewportHeight, {
+    double ground = floorGround,
+    double tallest = floorTallest,
+  }) {
+    assert(
+      tallest >= floorShortest,
+      'A plate taller than $floorShortest is the only kind there is: under it the '
+      'form is `collapsed` and this number is not consulted. tallest=$tallest',
+    );
+    final proportional = (viewportHeight * 0.40).clamp(200.0, tallest);
+    final afterTheGround = viewportHeight - ground;
+    return math.min(proportional, afterTheGround);
   }
+
+  /// What The Floor's decision rows need under the plate. The default for
+  /// [heightFor]'s `ground`, and the number the 440 literal used to be.
+  static const double floorGround = 440;
+
+  /// The tallest The Floor's plate gets, on any viewport. The default for
+  /// [heightFor]'s `tallest`, and the number the 312 literal used to be.
+  static const double floorTallest = 312;
 
   /// Resolve. Pure and synchronous: callable from a test with a bare
   /// [TiqSkin] and a number.
@@ -72,9 +105,12 @@ class PlateSpec {
     required TiqSkin skin,
     required double viewportHeight,
     double textScale = 1.0,
+    double ground = floorGround,
+    double tallest = floorTallest,
+    double shortest = floorShortest,
   }) {
-    final height = heightFor(viewportHeight);
-    if (height < _floor) {
+    final height = heightFor(viewportHeight, ground: ground, tallest: tallest);
+    if (height < shortest) {
       return PlateSpec(
         form: PlateForm.collapsed,
         height: _collapsedHeight,
@@ -128,8 +164,24 @@ class PlateSpec {
     );
   }
 
-  /// Under this the plate does not render.
-  static const double _floor = 200;
+  /// Under this the plate does not render — **the default, not the law.**
+  ///
+  /// 200 is The Floor's number and it is right there: a plate under a manager's
+  /// decision list is context, and a 150dp strip of context above a list of
+  /// work is a band taking room the work needs.
+  ///
+  /// It is a named parameter (`shortest`) because on 30 September 2026 it was
+  /// wrong somewhere else. Sign-in had just been rebuilt *around* the plate —
+  /// the owner picked it out of three directions precisely because the picture
+  /// is the product's signature — and this constant was quietly deleting it on
+  /// any viewport under 766dp. The owner's phone is 810 and showed it; their
+  /// browser window was 749 and did not, and the conclusion from the outside
+  /// was that the web build had not been rebuilt. It had. The same code was
+  /// drawing two different screens 17dp apart.
+  ///
+  /// A floor on a screen where the plate is decoration is not the same number
+  /// as a floor on a screen where the plate is the point.
+  static const double floorShortest = 200;
 
   /// The band that replaces it.
   static const double _collapsedHeight = 96;
@@ -183,6 +235,35 @@ class PlateSpec {
   /// that has to fail rather than be argued about.
   double listRoom(double viewportHeight) =>
       viewportHeight - (form == PlateForm.none ? 0 : height);
+
+  /// ── HOW TALL A TOP SLOT MAY BE BEFORE IT BREAKS THE LIGHT ─────────────
+  ///
+  /// The slot is drawn last, over the picture, inset [topSlotInset] from the
+  /// top edge. Below this height it stays in the band above the strip light,
+  /// where it is ink on its own surface over photograph. Above it, the control
+  /// paints across the **middle** of the line and leaves the two ends showing
+  /// — and the amber census then counts one lit object as two, because what it
+  /// measures is lit pixels and the strip really has been cut in half.
+  ///
+  /// That is how it was found: not as an ugly frame, as an over-claim. A plate
+  /// whose light is split is a plate spending two of a budget of two on one
+  /// object, and on The Floor's answered state that made three.
+  ///
+  /// The bloom is deliberately **not** subtracted. A control may stand in the
+  /// gradient above the line — it already does on the shortest at-rest plate,
+  /// and a gradient has no edges to cut. The line does.
+  ///
+  /// Zero when there is no light to clear, which is every non-photographic
+  /// form: a caller there is bounded by the band's own height instead.
+  double get topSlotRoom =>
+      drawsStripLight ? math.max(0, stripLightY - topSlotInset) : 0;
+
+  /// Where the top slot starts, measured from the plate's top edge. The
+  /// system-bar inset is added on top of this by the widget, and a screen with
+  /// a status bar therefore has *less* room than [topSlotRoom] promises —
+  /// which is the right direction for a clearance to be wrong in, and is why
+  /// the number is a budget rather than a prediction.
+  static const double topSlotInset = TiqSpace.s4;
 
   /// The golden's line. Declared values, so a diff names the number that
   /// moved.

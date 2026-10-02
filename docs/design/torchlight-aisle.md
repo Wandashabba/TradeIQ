@@ -144,13 +144,71 @@ what makes Night look lit rather than switched off.
 | Token | Value | Use |
 |---|---|---|
 | `flame300` | `#8A4A12` | The **only** amber legal as text on a light ground. 5.66:1 on Palladian. |
-| `flame500` | `#F79742` | Pressed amber block; second stop of the strip-light gradient. |
-| `flame600` | `#FFB162` | The signature (Burning Flame). Its role changes by skin; its hex never does. |
-| `flame700` | `#FFCB94` | Amber as text on dark, focus rings, the hot end of a bloom. 12.92:1 on Night ground. |
-| `flame900` | `#FFF1DE` | The white-hot core stop of a glow gradient. **Never ink on an amber fill.** |
+| `flame500` | `#F5892A` | Pressed amber block; second stop of the strip-light gradient. |
+| `flame600` | `#FFA447` | The signature (Burning Flame). Its role changes by skin; **its hex moved once** — see below. |
+| `flame700` | `#FFC180` | Amber as text on dark, focus rings, the hot end of a bloom *on paper*. 11.98:1 on Night ground. |
+| `flame900` | `#FFEBD1` | The white-hot core stop of a glow gradient, and the hot end of an amber fill *on Night*. **Never ink on an amber fill.** |
 | `onAmber` | `#0B1017` / `#1B2632` / `#0E141A` | The ink that goes on an amber block. |
-| `amberPressed` / `onAmberPressed` | `#F79742` + dark | The held-down state. |
-| `TiqPalette.glowAmber` | `#FFF1DE@0.55 → #FFB162@0.30 → transparent` | Every bloom, as gradient stops. |
+| `amberPressed` / `onAmberPressed` | `#F5892A` + dark | The held-down state. |
+| `TiqPalette.glowAmber` | `#FFEBD1@0.55 → #FFA447@0.30 → transparent` | Every bloom, as gradient stops. **Night only** — see below. |
+
+#### The ramp gained chroma on 1 October 2026, and `flame600` moved
+
+The row above used to read *"its hex never does"*. It does once. The owner, on
+the running build: *"The send button on the app and everywhere else for orange
+is very dull, it need to be lumunous and bright and inviting."*
+
+`flame600` was already at **value 1.00** — its red channel was `FF` — so there
+was no brightness left to add. What was low was **chroma**: saturation 0.62 is a
+pastel, and a pastel at full value reads washed out rather than lit. Every token
+in the ramp moved saturation only, holding its own hue to a tenth of a degree
+and its own value:
+
+| token | old | new | hue | sat | value |
+|---|---|---|---|---|---|
+| `flame500` | `#F79742` | `#F5892A` | 28.2° | 0.73 → 0.83 | 0.97 → 0.96 |
+| `flame600` | `#FFB162` | `#FFA447` | 30.2° | 0.62 → 0.72 | 1.00 held |
+| `flame700` | `#FFCB94` | `#FFC180` | 30.8° | 0.42 → 0.50 | 1.00 held |
+| `flame900` | `#FFF1DE` | `#FFEBD1` | 34.5° | 0.13 → 0.18 | 1.00 held |
+| `flame300` | `#8A4A12` | unchanged | — | — | it is ink, and it is not dull |
+
+**What bounded it was not the ink floor.** Dark ink on amber had room to spare —
+at saturation 0.93 it would still measure 8.03:1 on Night. What bounded it is
+the **greyscale separation between the lit focus bar and a neutral bar beside
+it**, pinned at `greaterThan(1.4)`: a more chromatic amber is a darker amber, so
+it walks `flame600` down the luminance range towards `chartNeutral`. 1.584:1
+became 1.440:1 at saturation 0.72 and would have been 1.341:1 at 0.80. 0.72 is
+the most chroma that clears the floor with margin worth having.
+
+Two consequences worth reading twice:
+
+* **Burning Flame and Oatmeal were 1.00:1 and are 1.10:1.** `chartNeutral`
+  stays. §2 will not treat even a 1.12–1.24:1 fill step as a cue, and 1.10 is
+  below the bottom of that band, so two adjacent bars in those colours are
+  still one bar in greyscale, in deuteranopia and in sun. The collision moved
+  by a tenth; it was not fixed.
+* **A bloom is a Night object, and now the arithmetic says so.** Composited over
+  the Night ground `glowAmber`'s stops paint value 0.57 and 0.33 — under the
+  census's 0.90 floor, so a halo there is not a second light. Over Palladian
+  they paint value 0.97 / sat 0.13 and value 0.95 / sat 0.27 — both inside the
+  flame box, so a bloom on paper **is** a counted region and would double the
+  one amber object a light ground is allowed. That was already true of the old
+  ramp, which is why nothing in this system has ever bloomed on a light ground.
+
+#### An amber fill is a gradient, and its cold end is always `flame600`
+
+A flat swatch of one colour cannot glow, which is the other half of "dull". Every
+filled amber object ramps from a hot stop to `flame600` **and no further**:
+`flame900 → flame600` on Night, `flame700 → flame600` on Day (on paper a
+near-white core measures 1.04:1 against Palladian and reads as a hole in the
+block rather than a hot centre). See `TiqSkin.amberFillRamp`.
+
+Because the cold end is `flame600`, the worst pixel under any ink on an amber
+fill is `flame600` — exactly the pixel the flat fill painted — so **every
+declared `onAmber` ratio is preserved to the digit** and the gradient costs
+nothing in the contrast table. And because every interpolated stop between the
+hot end and `flame600` is inside the census's flame box, the gradient is one
+connected region, exactly as the flat fill was.
 
 > ~~**Correction to the spec.** The document declares "there is no token in Veld
 > below 9:1 for text" and separately gives Veld's pressed amber block as
@@ -235,19 +293,95 @@ deuteranopia, in print and on a sun-washed panel. That pairing is banned; see §
 
 Two faces, and a law that divides them.
 
-- **Onest** — the prose face. One bundled variable font,
-  `assets/fonts/Onest-Variable.ttf` (193 KB, wght 100–900, no italic). Flutter
-  maps `FontWeight` onto the wght axis, so no static instances ship.
+- **Schibsted Grotesk** — the prose face. One bundled variable font,
+  `assets/fonts/SchibstedGrotesk-Variable.ttf` (176 KB, wght **400–900**, the
+  italic published separately and not bundled). Flutter maps `FontWeight` onto
+  the wght axis, so no static instances ship. SIL OFL 1.1, licence committed
+  beside it.
 - **JetBrains Mono** — the figure and identifier face.
 
-> **Onest must never render a figure or a code.** It has no slashed zero, its
-> digits are proportional unless `tnum` is switched on, and its capital I and
-> lowercase l are identical shapes. None of that matters in a sentence; all of
-> it matters in an outlet code, a GTIN, an order ref or a column of stock
-> counts. Every `figure` and `identifier` role resolves to JetBrains Mono with
-> `FontFeature.tabularFigures()`; every `prose` role resolves to Onest.
-> `torchlight_type_test.dart` asserts both directions, so this is not a
+> **The prose face must never render a figure or a code.** Its digits are
+> proportional unless `tnum` is switched on. That does not matter in a
+> sentence; it matters in an outlet code, a GTIN, an order ref or a column of
+> stock counts. Every `figure` and `identifier` role resolves to JetBrains Mono
+> with `FontFeature.tabularFigures()`; every `prose` role resolves to Schibsted
+> Grotesk. `torchlight_type_test.dart` asserts both directions, so this is not a
 > convention.
+
+### Schibsted Grotesk replaced Onest — 1 October 2026
+
+The owner chose it from four open-licensed grotesques shown against the
+commercial face they were evaluating (Grotesco); it is the open one that sits
+closest to it. What the swap actually did, measured with a `TextPainter` at
+identical nominal sizes:
+
+| | Onest | Schibsted Grotesk |
+|---|---|---|
+| unitsPerEm | 1000 | 2048 |
+| x-height | 0.5270 em | **0.5273 em** |
+| cap height | 0.7070 em | 0.7031 em |
+| wght axis | 100–900 | **400–900** |
+| typo asc / desc | 0.970 / −0.305 | 0.9766 / −0.2578 |
+| file size | 193 KB | 176 KB |
+| glyph count | 876 | 583 |
+
+**The x-heights are the same to a thousandth of an em**, which is why apparent
+size did not change and why no `letterSpacing` or line-height token had to be
+retuned. **Line heights did not move at all**: every role in `TiqType` declares
+an explicit `height`, so a line box is `size × height` whatever the face's own
+ascent and descent are.
+
+What did move is the horizontal advance. On ordinary mixed-case copy Schibsted
+Grotesk is **about 4% narrower** at every prose role — the lowercase `n`, `t`,
+`g` and `o` are each a little tighter, and the word space is 6% tighter —
+while the full lowercase alphabet differs by only 0.5%, so the saving is a
+letter-frequency effect rather than a condensed face:
+
+| specimen, `body` | Onest | Schibsted Grotesk | delta |
+|---|---|---|---|
+| "Sign in to get to work." | 145.12 | 139.30 | **−4.0%** |
+| "Out of stock at four outlets since Tuesday" | 275.02 | 269.32 | −2.1% |
+| `abcdefghijklmnopqrstuvwxyz` | 192.05 | 191.08 | −0.5% |
+| `ABCDEFGHIJKLMNOPQRSTUVWXYZ` | 241.46 | 240.98 | −0.2% |
+| `0123456789` | 81.37 | 78.42 | −3.6% |
+
+The one role that got **wider** is `eyebrow`, by 1.7%: it is uppercase, and
+Schibsted Grotesk's capital `I` is 0.354 em against Onest's 0.261 em — 35%
+wider, because it is a plain stem in Onest and a much broader glyph here. An
+uppercase label with several `I`s is the one place the swap costs space.
+
+Narrower prose means **later wrapping**, which is the direction a fold budget
+wants. A 230dp reason line that took six lines of Onest takes five; the entry
+headline at 1.6× on a 390dp phone drops from three lines to two. It also
+widens the reading measure: `entry_width_test.dart`, measuring the entry
+screens' own copy, reports **6.458dp per character** against Onest's 6.547,
+so `TiqSpace.readingWidth` = 480 now holds **74.3 characters** against 73.3 —
+one character nearer the top of the 45–75 band, which is the edge to watch,
+because a narrower face at the same size puts MORE words on a line.
+
+#### The three grounds the figure/prose split was written on
+
+Checked against the new face, because the note in `pubspec.yaml` named all
+three and two of them were Onest's rather than the rule's:
+
+| ground | Onest | Schibsted Grotesk |
+|---|---|---|
+| no slashed zero | true | **false** — it has one, under the OpenType `zero` feature (`zero` → `zero.zero`), off by default and not switched on |
+| proportional digits by default | true | true — `0` is 0.611 em, `1` is 0.343 em, with `tnum` available |
+| identical `I` and `l` | effectively true — two plain stems, both 0.707 em tall, 0.087 against 0.085 em of inked width | **false** — `l` rises above cap height (0.732 against 0.703 em) and `I` is much the wider glyph (0.274 against 0.158 em of inked width) |
+
+**The split stays regardless**, and that is the point: a figure face and a
+prose face doing different jobs is the design, not a workaround for a glyph
+set. Only the third ground — proportional digits — still argues for itself on
+its own terms.
+
+Schibsted Grotesk keeps the one property the U+25B2/U+25BC ledger depends on:
+**neither solid triangle is in the face at any weight**, in the variable file
+or in the three PDF subsets. It does carry a lozenge (U+25CA), a white circle
+(U+25CB) and the ten basic arrows (U+2190–2199), none of which are in the PDF
+subset ranges and none of which the app spells — so the wording moved from
+"no geometric shapes" to "no solid triangles", which is what the guard
+actually checks.
 
 Size / weight / line-height / tracking. Tracking is stated as a percentage of
 the size, because that is the only form that survives a size change.
@@ -296,11 +430,13 @@ reader spells it out.
 ### PDF export
 
 `package:pdf` parses `glyf` outlines and ignores a variable font's `gvar`
-deltas, so it cannot use `Onest-Variable.ttf` — every weight would render at
-400. Three static instances at wght 400/500/700, subset to Latin + Latin-Ext
-plus the punctuation and currency the formatters emit, ship as plain assets
-(`Onest-Pdf-400/500/700.ttf`, ~50 KB each) and are declared outside the `fonts:`
-section so the engine never resolves a screen to them. Regenerate with
+deltas, so it cannot use `SchibstedGrotesk-Variable.ttf` — every weight would
+render at 400. Three static instances at wght 400/500/700, subset to Latin +
+Latin-Ext plus the punctuation and currency the formatters emit, ship as plain
+assets (`SchibstedGrotesk-Pdf-400/500/700.ttf`, ~76 KB each — larger than
+Onest's ~50 KB because the face is drawn on a 2048 unitsPerEm grid rather than
+1000) and are declared outside the `fonts:` section so the engine never
+resolves a screen to them. Regenerate with
 `tool/build_pdf_fonts.sh`.
 
 ---
@@ -431,11 +567,11 @@ All in `app/test/core/theme/torchlight/`, run by `flutter test` in
 | Test | What it catches |
 |---|---|
 | `torchlight_lint_test.dart` | A file in `lib/features/**` that gains a `Color(0x…)`, a `Colors.*` or a bare `TextStyle(`. Ledger in `torchlight_style_debt.dart`; the scanner itself is tested against known-bad and known-good source, because a guard that cannot fail is not a guard. |
-| `torchlight_type_test.dart` | A figure or identifier role set in Onest; a prose role set in mono; a missing `tnum`; Onest declared with a weight (which pins the variable axis); Onest shipping without an `fvar` table; Inter creeping back into the bundle. |
+| `torchlight_type_test.dart` | A figure or identifier role set in the prose face; a prose role set in mono; a missing `tnum`; the prose face declared with a weight (which pins the variable axis); the prose face shipping without an `fvar` table; Inter creeping back into the bundle. |
 | `torchlight_contrast_test.dart` | Every declared pairing against its floor, every banned pairing still failing, the ink ramp stepping down, control edges outranking container edges, and every spec-stated ratio recomputed to two decimals. |
 | `torchlight_render_test.dart` | Both skins building a theme and painting a screen that touches every token; `lerp` across a mode change; the spacing scale being base-4 with no twelfth step; the shim mapping. |
 | `torchlight_text_scale_test.dart` | The clamp, the one documented exception, and both skins at 1.0×/1.3×/2.0× on a 360dp phone. |
-| `onest_font_test.dart` | Every theme asking for Onest; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
+| `schibsted_font_test.dart` | Every theme asking for Schibsted Grotesk; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
 | `torchlight_generated_contrast_test.dart` | ~1000 generated ink x role x fill pairings across all five skin/density combinations; the Vienot deuteranopia and protanopia simulations against the ruling's own figures; every declared series pair carrying a non-colour channel. |
 | `torchlight_amber_lint_test.dart` | A `flame*` token named anywhere under `lib/` outside the five-file emitter allowlist. |
 | `torchlight_glyph_coverage_test.dart` | A character the formatters or the translations emit that is missing from the committed PDF font subsets; a new reference to U+25B2 or U+25BC. |
@@ -584,7 +720,7 @@ FigureSlot(
 Four things it owns:
 
 1. **Two faces.** The digits are JetBrains Mono with `tnum`; the affixes are
-   Onest at zero tracking, because `R` and `pts` are language.
+   Schibsted Grotesk at zero tracking, because `R` and `pts` are language.
 2. **Unknown versus zero.** A measured zero renders `0`, keeps its place and is
    never suppressed. A null renders an em dash in **ink-3, at the figure's own
    role and face**, with the unit suppressed and `allowsDelta: false` — a delta
@@ -783,7 +919,7 @@ its light entirely.
 ### 9.7 The other two guards
 
 **The codepoint guard** (`torchlight_glyph_coverage_test.dart`) parses the
-`cmap` tables of the three committed `Onest-Pdf-*.ttf` files — the binaries, not
+`cmap` tables of the three committed `SchibstedGrotesk-Pdf-*.ttf` files — the binaries, not
 `tool/build_pdf_fonts.sh`'s intentions, because a range added to the script and
 never re-run is a range that does not exist — and asserts that every character
 `TiqNumber` emits and every character in both `.arb` files is really in all
@@ -791,7 +927,8 @@ three weights. `package:pdf` does not fall back and does not draw tofu: a
 missing glyph is simply absent from the report, which is how a delta arrow left
 every export in #401 and was found by a customer.
 
-It also ratchets **U+25B2 / U+25BC**, which Onest has never had at any weight.
+It also ratchets **U+25B2 / U+25BC**, which neither Onest nor Schibsted Grotesk
+has ever had at any weight.
 Five call sites survive, in a ledger with the component that deletes each:
 `delta_pill.dart` (2), `rich_figures.dart` (2), `artifact_pdf.dart` (1). No file
 may gain one and a file not in the ledger may not have one at all. It is a
@@ -1110,7 +1247,8 @@ something is filtered.
    its label to the pinned list in `torchlight_contrast_test.dart`, so deleting
    a ban is a visible edit rather than an omission.
 7. If it is a type role, declare its `TiqTypeKind`. `figure` and `identifier`
-   get JetBrains Mono and tabular figures automatically; `prose` gets Onest. Add
+   get JetBrains Mono and tabular figures automatically; `prose` gets Schibsted
+   Grotesk. Add
    the name to the pinned set in `torchlight_type_test.dart`.
 8. Add it to the table in this document.
 
@@ -1557,7 +1695,8 @@ duplicate is gone and the row calls the law.
 
 The overview (`/dashboard/overview`) migrated to Torchlight in #453, **before**
 the card override (§9c/§9d) and before the realistic charts (§17). Rendered at
-390×844 in Onest it was the two-grammar screen the override exists to end: soft
+390×844 in the prose face it was the two-grammar screen the override exists to
+end: soft
 cards for every row, a **crimson-outlined rectangle at radius 6** for the
 headline figure, and a bare column on the ground for every plot.
 
@@ -1654,6 +1793,7 @@ they keep rendering exactly as they did.
 - `AppTheme.dark()` / `AppTheme.light()` are unchanged Lumen themes, except that
   they now also register a `TiqSkin`, so **`context.skin` resolves everywhere
   today**. The only visible change is the typeface: Onest replaces Inter.
+  (Schibsted Grotesk replaced Onest on 1 October 2026; see §4.)
 - `AppTheme.night()` and `AppTheme.day()` are the Torchlight themes
   (~~`AppTheme.veld()`~~ went with the skin, 28 September 2026). They register both a `TiqSkin` and a `TiqColors` derived from it by
   `TiqColors.fromSkin`, so a screen still on `context.colors` renders in
@@ -2176,7 +2316,8 @@ DeltaSlot(
 ```
 
 The triangle is **drawn**, never typed: `TileDelta.text` built `▲`/`▼` as
-characters, Onest does not carry U+25B2/U+25BC once `pyftsubset` has run, and
+characters, the prose face does not carry U+25B2/U+25BC once `pyftsubset` has
+run, and
 the PDF exporter rendered them as nothing (#401). `direction` is the shape and
 comes from the wire's `direction`; `sentiment` is the colour and comes from the
 wire's `sentiment`; neither is derived from the other, because a stock-out count
@@ -3517,3 +3658,249 @@ override** — they write straight into `test/features/goldens/goldens/`. Runnin
 either with `--update-goldens` rewrites committed files. They are skipped
 without their switch, so the committed set is compared against by nobody and
 regenerating it is always an accident.
+
+## 21. Ask lands on The Floor — 30 September 2026
+
+The manager's home became the Ask landing. The owner asked for "the manager
+side to be like Claude, Chatgpt and Gemini, the ask must be on the Floor as
+land, with chat bar that you can ask it anything from the app", chose a
+combination of two of the ten directions drawn for it, and approved the mockup
+this section records.
+
+The Floor and Ask are **one screen**, not two that link. The plate is unchanged
+— the same component, the same territory photograph, the same tone, strip
+light, scope chip, hero and delta. Under it: a briefing of three soft cards, a
+row of suggestion chips derived from what is on screen, and the assistant's own
+composer pinned above the safe area.
+
+### The plate shrinks rather than leaves
+
+30% of the viewport at rest, 19% once a question is asked — the mockup's own
+proportions (196px and 124px of a 649px screen). It is a **share** and not two
+dp constants because a fixed 254dp plate is right on the 844dp phone the mockup
+was drawn at and wrong on the 640dp one this product still supports.
+
+The arithmetic goes through `PlateSpec.heightFor`'s existing `ground`
+parameter — *what the screen needs under the plate* — because that is exactly
+what changes: at rest it holds a briefing, and once a question lands it holds an
+answer. `shortest` is passed as 120, below `PlateSpec.floorShortest`: that
+constant is The Floor's own and was written for a screen whose plate was
+decoration above a list. On a screen where the plate is what a manager holds on
+to while they read an answer about that territory, dropping the photograph is
+dropping the point.
+
+The hero figure steps down on its own — `PlateSpec.resolve` takes the compact
+face under 260dp and `FigureSlot`'s fitting ladder scales from there.
+
+### The nav pill went, and the amber law is why
+
+**This is the decision, recorded as a decision.** Three arrangements were put to
+the owner: (A) composer above the existing pill, (B) destinations behind a
+control on the plate with the bottom belonging to the composer, (C) the pill
+*is* the composer. They chose **B**.
+
+A was not merely unattractive, it was unshippable, and the reason is this
+document's own amber law. `TorchScope` injects `navActiveTab` at rung 0
+whenever the pill renders, and an over-claim **throws** in debug rather than
+degrading. With the pill, Night's budget of two was one chrome object plus one
+content object — and this screen needs two content objects at once. The
+answered state is the case that settled it: the plate's strip light (rung 2) and
+the answer's focus bar (rung 3) are both wanted, and a nav tab ahead of them
+makes that three. Keeping A would have cost either the plate's light or the
+answer's bloom, permanently, in the state the whole change exists to produce.
+
+With no pill both grants go to content and every phase fits:
+
+| phase | Night | Day | which |
+|---|---|---|---|
+| at rest | 1 | 0 | the strip light; Send is disabled and a disabled Send is never amber |
+| at rest, no photograph | 0 | 0 | nothing to light — a budget is a ceiling |
+| typing, keyboard up | 2 | 1 | the strip light + Send |
+| typing, keyboard down | 2 | 1 | the same two — the nav is gone, so the keyboard no longer changes the count |
+| answered, focus object | 2 | 0 | the strip light + one ranked bar |
+| offline | 1 | 0 | the strip light; Send is held |
+
+Every row is a test in `the_floor_test.dart`. Note the two `typing` rows: under
+the old arrangement they differed, because the keyboard hid the nav and handed
+its grant back. They are the same number now, which is the arrangement working.
+
+### The top slot may not stand on the strip light
+
+The amber census caught a defect no assertion had: `TiqPlate`'s doc has always
+said the top slot "never reaches the light itself", and at the answering height
+that stopped being true. The slot is a 44dp target 16dp from the top edge, so it
+occupies y=16..60 whatever the plate's height is, while the strip light rides at
+0.38h — at 122dp that is y=46, underneath the chip. The controls painted over
+the middle of the light and left its two ends showing, so **one lit object was
+counted as two** and the answered state came to three.
+
+So the scope chip and the destinations control leave the plate when it shrinks.
+~~and sit in a row directly under it~~ — **superseded by §22, 1 October 2026.**
+Putting them on the ground is what made the screen read as two stacked headers;
+they are simply not drawn while answering, and `PlateSpec.topSlotRoom` is the
+clearance as a number rather than this paragraph as a claim. The approved mockup
+already draws the shrunken plate with no chip on it.
+
+The same collision, in a milder form, is why the destinations control drops its
+word under 380dp: the label costs the scope chip a line, and a two-line chip is
+68dp tall against a light riding at 0.38 of a 192dp plate. The spoken label does
+not change — the control's meaning has not got narrower.
+
+### Nothing was deleted
+
+- **The four nav destinations** are behind a labelled `Menu` control on the
+  plate's top band, which opens the console's own menu sheet with two
+  live-numbered rows in front of it. It reads `managerDestinations`, so it is
+  one destination list and not a second copy — the failure mode `menu_sheet.dart`
+  and `console_frame.dart` both already warn about.
+- **The `+` circle's two verbs** are two rows in that sheet. `FirstRunBoard`
+  keeps its pill, its circle and the original sheet: it has no composer, nothing
+  to ask about and no briefing to stand on.
+- **The availability stat card** is briefing line two. Its sparkline and its
+  supports stay on the overview the card already opened.
+- ~~**The decision list** is below the briefing. On a 360×640 phone no decision
+  card clears the fold; the briefing's first line is the same question answered
+  shorter, above the fold on every phone, and tappable to `/tasks`.~~
+  **SUPERSEDED, 1 October 2026 — see §22.** The list is not on this screen at
+  all. The second half of that sentence is what survived: the briefing's first
+  line *is* the question answered shorter, and it opens `/tasks`.
+
+### The briefing and the chips read no new feed
+
+Both are pure functions of the `FloorView` the screen already had. A hardcoded
+"Why is 73 down?" is a lie the moment the territory changes, and a briefing
+assembled from a second endpoint is a second version of the truth sitting
+directly above the first. Every chip interpolates a live figure or a live name
+and is gated on the condition that makes it true; the row is allowed to be
+empty, because a chip that is always there is decoration.
+
+### A dot is a mark, not a figure
+
+The briefing's dots first went through `severityInk` and rendered grey. That
+function answers *may this **figure** be coloured*, and on Night at
+`FigureRank.row` the answer is no — which is the entire reason the dot exists.
+Sending a mark through the figures' own suppression rule turns off the channel
+that rule assumes is still on. Marks take the palette directly.
+
+### The renders
+
+`floor_look_test.dart` grew the three phases the composer introduced plus the
+two held states, and loads the Material icon font so the controls are glyphs
+rather than tofu.
+
+```sh
+FLOOR_LOOK=1 FLOOR_LOOK_DIR=/somewhere/ flutter test \
+  test/features/dashboard/floor_look_test.dart --update-goldens
+```
+
+## 22. The Floor, simplistic — 1 October 2026
+
+§21 above was built to a brief that said *"keep every existing capability of The
+Floor… if something cannot fit above the fold it moves, it does not disappear"*.
+Applied to the approved mockup that instruction is a contradiction, and the
+screen that came out of it is the contradiction made visible: a photographic
+header, a bar of controls under it, a `LAST 30 DAYS` heading, three two-line
+cards, a `NEEDS A DECISION` heading, five ranked rows, a more-row, a chip row
+and a composer. The owner looked at it beside the drawing and said *"two
+completely different things"*.
+
+**The mockup replaces one block with the other. It does not stack them.** The
+owner's own word for what they asked for is *simplistic*, and a screen earns
+that by what it leaves out.
+
+### The five differences, and what each one cost
+
+| # | the drawing | what shipped | now |
+|---|---|---|---|
+| 1 | scope chip top-left, Menu top-right, **on the picture** | on the picture at rest; on the **ground under the plate** while answering | on the picture at rest, at the two corners; drawn nowhere while answering |
+| 2 | no decision list | briefing **and** list, under two headings | the briefing, and the list on the Work queue |
+| 3 | one line per card: name, figure | two lines: name + a supporting sentence | one line; the sentence is spoken, and printed only where the figure is an em dash |
+| 4 | no section headers | `LAST 30 DAYS` and `NEEDS A DECISION` | none |
+| 5 | a large calm gap above the chips | the gap filled with rows | the gap, pinned by a test that fails if anything fills it |
+
+### Where the decision list is reached from
+
+Three ways, all above the fold, all off the same `FloorView.decisions` the list
+was drawn from, all pressed in `floor_taps_test.dart`:
+
+1. the briefing's **count** — `Overdue work · 12` — opens `/tasks`;
+2. the briefing's **worst single outlet**, by name, opens that finding;
+3. **Menu → Work**, which prints the live count on the row.
+
+`FloorView.visible`, `moreCount` and `visibleCount` went with the rows. A
+five-plus-a-count cap is a property of a list being *shown*, and a cap that
+nothing applies is a rule waiting to be re-derived differently somewhere else.
+
+### An age renders in the largest unit that keeps it legible
+
+The same screenshot carried a data defect. The worst-outlet line printed
+`17 207h` and the decision row eleven lines under it printed `17 206,8h`. Both
+are correct and it is **717 days**; neither is a reading, and the two spellings
+of one number read as two different facts.
+
+The unit was typed at each site as `TiqUnit.worded('h')`, so *"the column means
+one thing on every row"* was being enforced by two copies of a literal. It is
+`FloorAge` now, on `FloorDecision` beside the timestamp it reads:
+
+```text
+  rounded hours < 48    →  47h
+  rounded days  < 14    →  6d
+  otherwise             →  102w
+```
+
+**The rounding happens before the comparison.** Pick the unit off the raw value
+and round for display, and 47,6 hours prints `48h` — the one hour-reading the
+ladder forbids, sitting one second from `2d`. `floor_age_test.dart` walks both
+seams and asserts the readings are monotone across four hundred days.
+
+It is a *figure* ladder and deliberately not `formatAgo`, which is the app's one
+*prose* ladder. A figure slot takes a number and a suffix; a sentence does not
+go in it.
+
+### The controls ride the picture, and the clearance is a number
+
+Moving the pair back onto the plate re-opens §21's defect: the top slot is inset
+a fixed 16dp while the light rides at 0.38 of the plate's height, so on a short
+enough plate the control paints across the middle of the line, leaves its two
+ends showing, and the census counts one lit object as **two**.
+
+§21 solved it by moving them off the plate. That is the solution the owner
+rejected. The rule is now the clearance itself — `PlateSpec.topSlotRoom`, the
+band between the top slot's inset and the strip light — measured in
+`floor_proportion_test.dart` against the control the screen actually draws:
+
+| phone | plate at rest | light at | band | controls take | at the answering height |
+|---|---|---|---|---|---|
+| 390×844 | 253dp | 96dp | 80dp | 44dp | 45dp of band |
+| 360×640 | 192dp | 73dp | 57dp | 44dp | 30dp of band |
+
+At rest it clears on both. At 360 it clears **only** because
+`FloorDestinationsButton.compact` drops the word `Menu` and keeps the chip on
+one line — that fix is load-bearing, not cosmetic, and the test says so.
+
+At the answering height a 44dp tap target fits on the tall phone by less than a
+millimetre and does not fit on the narrow one at all. An arrangement chosen by
+measurement would therefore draw a chip at 390 and not at 360 — one screen
+rendering as two, 30dp apart, which is exactly the defect `PlateSpec.shortest`
+was made a parameter to stop. So the rule is the **phase**, not the viewport,
+and it is the same on every phone. `Back to the briefing` sits directly above
+the transcript and is one tap to the state that has both controls.
+
+### The census, printed
+
+Per phase, per skin, at 390×844, with the strip light's own region:
+
+```text
+night / at rest                  1 object   350px at 20,121  350x1
+night / at rest, no photograph   0 objects
+night / typing                   2 objects  350x1 (light) + 48x48 (Send)
+night / answering                2 objects  350x2 (light) + 6x6 (focus)
+night / answered                 2 objects  350x2 (light) + 6x6 (focus)
+night / offline                  1 object   350x1 (light)
+day   / at rest                  0 objects
+day   / typing                   1 object   46x46 (Send)
+day   / answered                 0 objects
+```
+
+The strip light is **one** region of 350×1 in every Night frame, which is the
+proof the controls above it are not cutting it in half.

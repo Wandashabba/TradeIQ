@@ -324,7 +324,7 @@ class _Stores extends ConsumerWidget {
         // THE MAP. Full-bleed, a fixed fold-budget height, and absent
         // altogether on a screen too short to give it one.
         AgentOutletMap(view: view),
-        const SizedBox(height: TiqSpace.s5),
+        SizedBox(height: skin.space.blockGap),
 
         // Why the phone will not say where things are. One sentence, once —
         // not an em dash on every row.
@@ -335,7 +335,7 @@ class _Stores extends ConsumerWidget {
             MapLocationProblem.timedOut ||
             MapLocationProblem.failed => l10n.mapLocationNoFix,
           }, style: skin.text.body.style(color: skin.palette.ink2)),
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: skin.space.blockGap),
         ],
 
         SectionRule(
@@ -356,7 +356,7 @@ class _Stores extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
 
         if (rest.isNotEmpty) ...<Widget>[
           SectionRule(l10n.mapPatchHeading, count: rest.length),
@@ -376,7 +376,7 @@ class _Stores extends ConsumerWidget {
         // The marker budget, said out loud. A capped list that does not say it
         // is capped is a list that has quietly lost stores.
         if (view.hidden > 0) ...<Widget>[
-          const SizedBox(height: TiqSpace.s5),
+          SizedBox(height: skin.space.intraBlock),
           PaginationFooter(
             summary: view.hasLocation
                 ? l10n.mapShowingNearest(drawn.length, view.pins.length)

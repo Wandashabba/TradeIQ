@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../location/background_location.dart';
 import '../theme/torchlight/tiq_skin.dart';
+import 'torchlight/bleed.dart';
 import 'torchlight/button/buttons.dart';
+import 'torchlight/card.dart';
 import 'torchlight/marks.dart';
 import 'torchlight/row/row.dart';
 import 'torchlight/sheet.dart';
@@ -40,9 +42,13 @@ import 'torchlight/sheet.dart';
 ///
 /// A restyle. Every sentence and every key is the one that was here — a
 /// consent notice whose wording drifts is a consent notice nobody can point at
-/// afterwards. The standing statements are standalone soft rows, the two walls
-/// of text are the panel material, the buttons are the button family, and the
-/// stop confirmation is a [ConfirmSheet]: unify §1.7 deleted the dialog.
+/// afterwards. The standing statements are soft rows in the card form and the
+/// two walls of text are a [TorchCard] — **both since 29 September 2026**, and
+/// both for the reason #483 gave when it moved the agent's other standalone
+/// blocks: this banner is the first object on Today, My work, Me and the map,
+/// and it was the last radius-14 outlined rectangle on any of them. The
+/// buttons are the button family, and the stop confirmation is a
+/// [ConfirmSheet]: unify §1.7 deleted the dialog.
 class BackgroundLocationBanner extends ConsumerWidget {
   const BackgroundLocationBanner({super.key, this.inset = true});
 
@@ -95,7 +101,8 @@ class BackgroundLocationBanner extends ConsumerWidget {
       ),
       BackgroundTrackingStep.off => SoftRow(
         key: const ValueKey<String>('background-location-off'),
-        form: SoftRowForm.standalone,
+        form: SoftRowForm.list,
+        separator: SoftRowSeparator.none,
         // COMPACT — the kit's banner density. These three faces are standing
         // statements under the header on every agent screen, stacked under
         // the foreground one, and at standard density with a `body` second
@@ -123,7 +130,8 @@ class BackgroundLocationBanner extends ConsumerWidget {
       // a row that opens nothing must not wear a chevron.
       BackgroundTrackingStep.outsideHours => SoftRow(
         key: const ValueKey<String>('background-location-paused'),
-        form: SoftRowForm.standalone,
+        form: SoftRowForm.list,
+        separator: SoftRowSeparator.none,
         density: SoftRowDensity.compact,
         title: l10n.backgroundLocationOutsideHoursTitle,
         meta: Text(l10n.backgroundLocationOutsideHoursSubtitle(hours.start)),
@@ -138,7 +146,8 @@ class BackgroundLocationBanner extends ConsumerWidget {
       ),
       BackgroundTrackingStep.running => SoftRow(
         key: const ValueKey<String>('background-location-active'),
-        form: SoftRowForm.standalone,
+        form: SoftRowForm.list,
+        separator: SoftRowSeparator.none,
         density: SoftRowDensity.compact,
         title: l10n.backgroundLocationActiveTitle,
         meta: Text(l10n.backgroundLocationActiveSubtitle),
@@ -158,14 +167,14 @@ class BackgroundLocationBanner extends ConsumerWidget {
     // The gap goes BELOW, not above. Above, the last banner sat flush against
     // the first block of the screen's own body — a standing statement welded
     // to the day block, with all the air stacked on the other side of it.
+    //
+    // THE CARD BRINGS ITS OWN GUTTER, since 29 September 2026 — see
+    // `LocationSharingBanner`, which this sits under and has to line up with.
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        inset ? skin.space.gutter : 0,
-        0,
-        inset ? skin.space.gutter : 0,
-        TiqSpace.s4,
-      ),
-      child: child,
+      padding: const EdgeInsets.only(bottom: TiqSpace.s4),
+      child: inset
+          ? child
+          : TorchBleed(extra: skin.space.gutter * 2, child: child),
     );
   }
 
@@ -188,33 +197,33 @@ class BackgroundLocationBanner extends ConsumerWidget {
   }
 }
 
-/// The frame both walls of text sit in — the panel material, once.
+/// The frame both walls of text sit in — **a card, since 29 September 2026.**
+///
+/// It was a hand-built radius-14 block with a 1px `edgeStructure` rim: the
+/// standalone row's material, which is the shape #483 took off every other
+/// standalone block on the agent side and the shape the owner named twice.
+/// Under it sit the card-form banners this class shares a column with, and
+/// above it the header — one grammar down the column now, not two.
+///
+/// It is a `TorchCard` and not a hand-built one because the padding, the
+/// radius, the fill and the absence of a shadow were already exactly
+/// `TorchCard`'s four decisions; keeping a second copy of them here is how the
+/// two drift apart in a month.
+///
+/// The gutter is spent here rather than by the caller so that this face and
+/// the three row faces are **one geometry**: a card-form `SoftRow` insets its
+/// own card by `margin: gutter`, and `TorchCard` does not, so without this the
+/// notice would sit a gutter wider than the line it opens into.
 class _Pane extends StatelessWidget {
   const _Pane({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    return Container(
-      padding: const EdgeInsets.all(TiqSpace.s4),
-      decoration: BoxDecoration(
-        color: skin.palette.surface,
-        borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border.all(
-          color: skin.palette.edgeStructure,
-          width: skin.depth.borderWidth,
-        ),
-        // NO SHADOW, since 26 September 2026. `skin.depth.shadows` is empty
-        // in Night and three stacked drops in Day, so this block
-        // floated on the Day ground while every card and row beside it sat
-        // flat on it — two grammars on one screen, in the one skin where it
-        // shows. Neither `TorchCard` nor `SoftRow` paints one in any skin.
-      ),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: context.skin.space.gutter),
+    child: TorchCard(child: child),
+  );
 }
 
 class _Heading extends StatelessWidget {

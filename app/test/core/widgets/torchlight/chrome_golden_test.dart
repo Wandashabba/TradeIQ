@@ -149,14 +149,18 @@ void main() {
         skin.palette.edgeStructure,
         reason: 'a 1px outline on an opaque well — never a frosted edge',
       );
+      // BOTH OF THESE WERE `skin.palette.flame600` UNTIL 1 OCTOBER 2026, when
+      // a filled amber object became a gradient. The pixel is on the object's
+      // own ramp now, which is a stricter statement in one respect — it also
+      // fails if the gradient stops painting. See [isOnAmberRamp].
       expect(
         pixels.at(bar.left + 10, bar.center.dy),
-        skin.palette.flame600,
+        isOnAmberRamp(skin),
         reason: "the active tab, holding the frame's first grant",
       );
       expect(
         pixels.at(circle.center.dx, circle.top + 8),
-        skin.palette.flame600,
+        isOnAmberRamp(skin),
         reason:
             'no primary on this route, so rung 4 is admissible and the '
             'standing action is the expected next move',

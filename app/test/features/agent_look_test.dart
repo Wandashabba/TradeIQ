@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:drift/native.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/geo/geofence.dart';
+import 'package:tradeiq_app/core/location/location_sharing.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
@@ -47,6 +48,8 @@ import 'package:tradeiq_app/features/audit/presentation/submit_gate_screen.dart'
 import 'package:tradeiq_app/features/audit/presentation/visit_outcome_screen.dart';
 import 'package:tradeiq_app/features/audit/presentation/visit_outlet_picker_screen.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
+import 'package:tradeiq_app/features/me/data/my_record_repository.dart'
+    show IncentiveScheme;
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
@@ -97,10 +100,18 @@ import 'me/me_harness.dart';
 /// `/somewhere/agentroute_...png` beside the folder rather than inside it.
 /// Every look test in this repository has the same trap.
 ///
+/// **`AGENT_LOOK_SIZE=360x640`** photographs the same screens on the cheap
+/// Android width instead of the 390×844 default. It exists because the fold is
+/// where a row-height change is felt: a screen that fits on a 390×844 phone
+/// can still be two rows short of its commit action on the 360dp panel a field
+/// agent actually carries, and `floor_look_test.dart` already photographs the
+/// manager's Floor at 360×640 for the same reason. Write the two runs to
+/// different folders — the file names do not carry the size.
+///
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart`, `tasks_look_test.dart` and
-/// `ask_look_test.dart` each give: CI rasterises anti-aliased Onest on
+/// `ask_look_test.dart` each give: CI rasterises anti-aliased Schibsted Grotesk on
 /// `ubuntu-latest` and this repository is developed on macOS, so a pixel
 /// comparison fails on the day it lands and gets skipped within a week. These
 /// are artefacts to *look at*; the pins are the assertions in
@@ -145,7 +156,12 @@ void main() {
   /// The phone the manager side is photographed on. Every image in this file
   /// is this size, so a difference between two pictures is a difference
   /// between two screens.
-  const phone = Size(390, 844);
+  ///
+  /// `AGENT_LOOK_SIZE=WxH` overrides it — 360×640 is the cheap-Android width
+  /// the fold is judged on. Anything unparseable falls back to the default
+  /// rather than throwing, because a mistyped env var should not look like a
+  /// broken screen.
+  final phone = _sizeFromEnv() ?? const Size(390, 844);
 
   /// Night first, then Day — the order the design says to build them in.
   const skins = <(String, SkinMode)>[
@@ -194,6 +210,32 @@ void main() {
           ],
         );
         await shot(tester, 'agent_02_today_empty_$name');
+      }, skip: !looking);
+
+      // THE LOCATION BANNER, which nothing in this repository has ever
+      // photographed.
+      //
+      // The harness leaves `locationSharingControllerProvider` alone, so
+      // `isAgent` is false and both banners render nothing at all — which is
+      // why every image above opens on the day block and the owner's own
+      // screenshots do not. "Your location is shared with your manager /
+      // Nothing is sent in the background" is the **first object** on Today,
+      // My work, Me and the map, and on 29 September 2026 it stopped being an
+      // outlined radius-14 rectangle. A change to the first thing an agent
+      // sees, on four screens, with no picture of it, is the same hole this
+      // whole file was written to close.
+      testWidgets('Today — with the location banner up, $name', (tester) async {
+        await pumpAgentScreen(
+          tester,
+          const TodayScreen(),
+          size: phone,
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: mode),
+            todayRouteProvider.overrideWith((ref) async => _todaysRoute),
+            locationSharingControllerProvider.overrideWith(_SharingOn.new),
+          ],
+        );
+        await shot(tester, 'agent_03_today_located_$name');
       }, skip: !looking);
     }
   });
@@ -602,6 +644,43 @@ void main() {
         await pumpMe(tester, skin: mode, size: phone);
         await shot(tester, 'agent_61_me_$name');
       }, skip: !looking);
+
+      // THE TWO STATES THE STANDING CARD AND THE INCENTIVE CARD EXIST FOR,
+      // photographed, because "it looks right" about a screen whose whole
+      // subject is unknown-versus-zero has to mean the empty readings too.
+      //
+      // `rank: null` is the server's answer to every caller who is not a
+      // field agent, and `/me` is open to managers on purpose. It must read
+      // as an em dash with its reason beside it — never as a zero, and never
+      // as the `leaderboard.length + 1` it was once given.
+      testWidgets("the agent's own record — not ranked, $name", (tester) async {
+        await pumpMe(
+          tester,
+          skin: mode,
+          size: phone,
+          repository: FakeMyRecordRepository(
+            earnings: earningsFixture(rank: null),
+          ),
+        );
+        await shot(tester, 'agent_62_me_unranked_$name');
+      }, skip: !looking);
+
+      // No scheme running: the bar does not render at all and a sentence says
+      // so, because an empty bar reads as zero progress — which is a
+      // different and false statement about a period in which nothing was on
+      // offer. The card stays, so the sentence is not left lying on the
+      // ground between two cards.
+      testWidgets("the agent's own record — no scheme, $name", (tester) async {
+        await pumpMe(
+          tester,
+          skin: mode,
+          size: phone,
+          repository: FakeMyRecordRepository(
+            earnings: earningsFixture(schemes: const <IncentiveScheme>[]),
+          ),
+        );
+        await shot(tester, 'agent_63_me_no_scheme_$name');
+      }, skip: !looking);
     }
   });
 }
@@ -870,6 +949,7 @@ class _Stores implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async => const PaginatedResponse<Outlet>(
@@ -988,9 +1068,45 @@ class _NoTemplateAnswers implements TemplateSectionRepository {
   }) async {}
 }
 
+/// An agent who has said yes: the standing indicator, not the notice.
+///
+/// The indicator is the face that is up for the whole of a working day, so it
+/// is the one worth a picture.
+class _SharingOn extends LocationSharingController {
+  @override
+  LocationSharingState build() => LocationSharingState(
+    isAgent: true,
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          LocationDecision(
+            consent: LocationConsent.acknowledged,
+            noticeVersion: 'v1',
+            decidedAt: DateTime(2026, 9, 15),
+          ),
+        ),
+    running: true,
+  );
+}
+
 class _NoFlush implements QueueFlusher {
   @override
   Future<void> flush(SyncQueueItem item) async {}
+}
+
+/// `AGENT_LOOK_SIZE=360x640` → `Size(360, 640)`; anything else → null.
+///
+/// Silent on a malformed value on purpose: these images are an artefact to
+/// look at, and a throw here would read as the agent side being broken rather
+/// than as a typo in a shell variable.
+Size? _sizeFromEnv() {
+  final raw = Platform.environment['AGENT_LOOK_SIZE'];
+  if (raw == null) return null;
+  final parts = raw.toLowerCase().split('x');
+  if (parts.length != 2) return null;
+  final w = double.tryParse(parts[0]);
+  final h = double.tryParse(parts[1]);
+  if (w == null || h == null || w <= 0 || h <= 0) return null;
+  return Size(w, h);
 }
 
 /// The icon font, out of the Flutter SDK's own cache.

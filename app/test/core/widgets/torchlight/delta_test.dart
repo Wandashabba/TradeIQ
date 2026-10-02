@@ -156,7 +156,7 @@ void main() {
             text.data ?? '',
             isNot(anyOf(contains('▲'), contains('▼'))),
             reason:
-                'Onest does not carry U+25B2/U+25BC once pyftsubset has run, '
+                'Schibsted Grotesk does not carry U+25B2/U+25BC once pyftsubset has run, '
                 'and the PDF exporter rendered them as nothing at all (#401). '
                 'Every triangle in this system is a path.',
           );

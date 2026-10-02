@@ -29,7 +29,7 @@ import '../dashboard/overview_harness.dart' as oh;
 /// `floor_look_test.dart` and `overview_look_test.dart` each render one screen
 /// in the skin that screen was designed in. This renders **The Floor, the
 /// Execution overview, Today and Ask TradeIQ in Night *and* Day**, side by
-/// side, with Onest and JetBrains Mono loaded — because the question this
+/// side, with Schibsted Grotesk and JetBrains Mono loaded — because the question this
 /// batch answers is not "does one screen look right" but "does a figure that
 /// carries a judgement read as one, on both grounds". Day is the point: the
 /// owner's note was written looking at Day, where the whole screen was one
@@ -37,7 +37,7 @@ import '../dashboard/overview_harness.dart' as oh;
 ///
 /// ## Why it does not run in CI
 ///
-/// The reason its two siblings give: CI rasterises anti-aliased Onest on
+/// The reason its two siblings give: CI rasterises anti-aliased Schibsted Grotesk on
 /// `ubuntu-latest` and this repository is developed on macOS, so a pixel
 /// comparison fails on the day it lands and gets skipped within a week. The
 /// images are an artefact to *look at*; the pins are the measurements in the

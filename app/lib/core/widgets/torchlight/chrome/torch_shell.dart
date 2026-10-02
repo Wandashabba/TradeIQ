@@ -73,11 +73,13 @@ class TorchShell extends StatelessWidget {
     this.navCircle,
     this.primary,
     this.secondary,
+    this.underPrimary,
     this.skinCycle,
     this.band,
     this.scrollController,
     this.pinned,
     this.bleedTop = false,
+    this.backdrop = const <Decoration>[],
   }) : assert(
          !bleedTop || header == null,
          'A route with a header does not bleed its body to the top edge: the '
@@ -92,6 +94,21 @@ class TorchShell extends StatelessWidget {
          'action has no nav. The two bottom regions are alternatives, not '
          'layers — 64dp of nav plus 96dp of thumb zone plus a safe area is a '
          'quarter of a 640dp screen given to chrome.',
+       ),
+       assert(
+         pinned == null || profile == TorchShellProfile.agent,
+         'A pinned band fills itself with a flat palette.ground, which is the '
+         'ground only on a profile with no falloff. The console paints its '
+         'ground as a vertical gradient, and a flat fill over a gradient is a '
+         'visible box — The Floor shipped exactly that on 30 September 2026 '
+         'and the owner named it the next day. The one pinned band in the '
+         'product is the stock counter summary, on the agent profile, where '
+         'the flat fill is exact. A console route that wants one has to give '
+         'the fill the SLICE of the falloff it covers: the band pins to the '
+         'top of the viewport, which is y=0 in the shell itself, so the slice '
+         'is [0, its height] of a gradient computed from the shell height — '
+         'and the shell does not thread that height into its slivers today. '
+         'Do that first, then delete this assert.',
        );
 
   final TorchShellProfile profile;
@@ -114,6 +131,10 @@ class TorchShell extends StatelessWidget {
   /// A ghost alternative above the primary.
   final Widget? secondary;
 
+  /// One quiet action directly under the commit, centred. Null everywhere but
+  /// `/login`, so no existing bottom region moves. See [TorchThumbZone].
+  final Widget? underPrimary;
+
   /// The skin cycle. On a tab root it belongs in the header's single trailing
   /// slot, not here; on every other screen it goes at the leading end of the
   /// thumb zone.
@@ -133,6 +154,29 @@ class TorchShell extends StatelessWidget {
   /// itself: without a `Scaffold` nothing else reads `viewInsets`, and a
   /// composer behind a keyboard is a composer nobody can see themselves
   /// typing into.
+  ///
+  /// ## A band paints no backdrop, and must not be given one
+  ///
+  /// "Sibling, not an overlay" has a consequence that cost The Floor a defect
+  /// the owner had to name. A band is **never** underneath the body, so the
+  /// body cannot read through it: the scroll view clips to its own viewport,
+  /// which ends where the band begins. Measured with a magenta body dragged
+  /// under a band with no material at all, the count of body pixels inside
+  /// the band's box is **zero** (`torch_shell_band_test.dart`).
+  ///
+  /// So the shell's own [_Ground] is the band's backdrop, and it is the only
+  /// correct one: on the console that ground is a vertical falloff, so a band
+  /// that fills itself with a flat `palette.ground` disagrees with the ground
+  /// everywhere except the screen's last pixel row — and the shell pads the
+  /// band by the gutter, so the disagreement is a rectangle inset 20dp with a
+  /// hard edge. The Floor carried that fill from 30 September 2026 and the
+  /// owner saw it: *"The background colour is messed up here please fix this
+  /// to be seamless and not have this box blue there."* The measurements are
+  /// on the band in `the_floor_screen.dart`.
+  ///
+  /// A band that wants a material of its own — a raised composer, say — has
+  /// to be a shape *inside* the band's box with ground showing around it, not
+  /// a fill of the box.
   final Widget? band;
 
   final ScrollController? scrollController;
@@ -180,6 +224,39 @@ class TorchShell extends StatelessWidget {
   /// nothing and a plate that visibly is not the header it claims to be.
   final bool bleedTop;
 
+  /// ── A ROUTE'S OWN AMBIENT WASH, OVER THE GROUND AND UNDER EVERYTHING ──
+  ///
+  /// Decorations painted full-bleed between the shell's [_Ground] and the
+  /// shell's content, in **paint order**: `backdrop.first` goes down first and
+  /// ends up at the bottom. Empty on every route but one, and an empty list
+  /// paints nothing and adds no render object at all, so a route that does not
+  /// ask for a wash renders exactly the pixels it did before this slot
+  /// existed.
+  ///
+  /// **The one caller is The Floor's Dawn wash** (`floor_dawn.dart`), and the
+  /// reason it is a slot *here* rather than a widget in the route's body is
+  /// the band. `fix/band-seam` established that [band] paints no material of
+  /// its own and relies on this ground showing through; the body above it is a
+  /// scroll view that **clips to its own viewport**, which ends where the band
+  /// begins. So a wash added inside [children] stops dead at the band's top
+  /// edge — a hard horizontal seam, at the exact y the owner had just had a
+  /// box removed from — and a wash added *behind* the shell is invisible,
+  /// because the ground is opaque. The only layer that is continuous across
+  /// the body, the band and the bottom region is the ground, and this is the
+  /// slot immediately above it.
+  ///
+  /// **A backdrop is a wash, not a surface.** Every decoration here must be
+  /// transparent enough to let the ground through at every pixel: an opaque
+  /// one is the flat-fill-over-a-gradient defect again, one layer up, and the
+  /// shell cannot assert its way out of that — a `Decoration`'s alpha is not
+  /// inspectable. What it can do is keep the slot narrow: decorations, not a
+  /// widget, so a backdrop cannot hit-test, cannot take a child, cannot size
+  /// anything and cannot be a box.
+  ///
+  /// Cost: one `RenderDecoratedBox` per entry, each painting one `drawRect`
+  /// into the call stream it is already in. No layer, no clip, no `saveLayer`.
+  final List<Decoration> backdrop;
+
   /// The share of the screen a [pinned] band may take. unify §4's header rule,
   /// applied to the one other thing that holds a place at the top.
   static const double pinnedBandFraction = 0.4;
@@ -205,11 +282,30 @@ class TorchShell extends StatelessWidget {
 
     final bottom = _bottomRegion(context, skin: skin, showNav: showNav);
 
-    final top = bleedTop
-        ? 0.0
-        : profile == TorchShellProfile.console
-        ? TiqSpace.s6
-        : TiqSpace.s4;
+    // THE TOP INSET, AND THE SYSTEM BAR — 30 September 2026.
+    //
+    // `bleedTop` still means y=0: that shape exists so a plate can run under
+    // the status bar, and it still does. Everything else clears it.
+    //
+    // This was a bare token, and it was wrong on every device the whole time.
+    // Widget tests and browsers both report `padding.top == 0`, so the entire
+    // design — every golden, every look render, every measurement in this
+    // repository — was made on a surface with no system bar. The defect is
+    // invisible in all of them and visible the moment the app is installed:
+    // the owner's phone put a title behind the clock. A screen whose top inset
+    // is a design token rather than the device's own is a screen designed for
+    // the simulator.
+    //
+    // The 26-render manager proof stays byte-identical through this change,
+    // for exactly the reason the bug survived: those renders have no inset to
+    // add. That is the proof's blind spot, not its endorsement.
+    final top =
+        (bleedTop
+            ? 0.0
+            : profile == TorchShellProfile.console
+            ? TiqSpace.s6
+            : TiqSpace.s4) +
+        (bleedTop ? 0.0 : MediaQuery.paddingOf(context).top);
     final headerBlock = <Widget>[
       if (header != null) ...<Widget>[
         header!,
@@ -249,6 +345,13 @@ class TorchShell extends StatelessWidget {
           // rather than a token height that clips them — and capped at 40% of
           // the screen so those words never take the screen instead. See the
           // [pinned] doc for the measurements that put the cap here.
+          // THE FLAT FILL IS EXACT HERE, AND ONLY HERE. A pinned band really
+          // does overlay scrolling slivers, so unlike [band] it has to be
+          // opaque. `palette.ground` is the ground only while the profile has
+          // no falloff, which is the constructor's assert: every pinned band
+          // in the product is on the agent profile. It is full-bleed, which is
+          // the other half — the gutter padding is INSIDE the fill, not around
+          // it, so there is no vertical seam to have.
           PinnedHeaderSliver(
             child: ColoredBox(
               key: const ValueKey<String>('torch-shell-pinned'),
@@ -285,7 +388,9 @@ class TorchShell extends StatelessWidget {
 
     // The letterbox falloff is the shell's **ground**, not a wash over its
     // content: four stops in one draw call, painted once, beneath everything.
-    // Two stops band on a 6-bit panel.
+    // Two stops band on a 6-bit panel. A route that wants an actual wash gets
+    // one from [backdrop], which goes immediately over this and under the
+    // content — not into this gradient, which every route shares.
     final falloff = profile == TorchShellProfile.console;
 
     final keyboard = media.viewInsets.bottom;
@@ -303,6 +408,7 @@ class TorchShell extends StatelessWidget {
       child: _Ground(
         skin: skin,
         falloff: falloff,
+        backdrop: backdrop,
         child: Column(
           children: <Widget>[
             Expanded(child: body),
@@ -360,6 +466,7 @@ class TorchShell extends StatelessWidget {
       skinCycle: skinCycle,
       primary: primary,
       secondary: secondary,
+      underPrimary: underPrimary,
     );
   }
 }
@@ -369,16 +476,36 @@ class _Ground extends StatelessWidget {
     required this.skin,
     required this.falloff,
     required this.child,
+    this.backdrop = const <Decoration>[],
   });
 
   final TiqSkin skin;
   final bool falloff;
+
+  /// See [TorchShell.backdrop]. Nested here rather than stacked: the ground is
+  /// the one full-bleed layer the band, the body and the bottom region all
+  /// share, so a wash belongs between it and them.
+  final List<Decoration> backdrop;
+
   final Widget child;
+
+  /// The route's wash, folded onto [child] in paint order. `backdrop.first` is
+  /// the outermost box and therefore the first to paint — a
+  /// `RenderDecoratedBox` draws its decoration and then its child, so
+  /// outside-in is bottom-up.
+  Widget _washed() {
+    var body = child;
+    for (final decoration in backdrop.reversed) {
+      body = DecoratedBox(decoration: decoration, child: body);
+    }
+    return body;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final body = _washed();
     if (!falloff) {
-      return ColoredBox(color: skin.palette.ground, child: child);
+      return ColoredBox(color: skin.palette.ground, child: body);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -398,7 +525,7 @@ class _Ground extends StatelessWidget {
               stops: <double>[0, band, 1 - band, 1],
             ),
           ),
-          child: child,
+          child: body,
         );
       },
     );

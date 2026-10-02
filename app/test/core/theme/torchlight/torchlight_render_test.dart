@@ -124,6 +124,48 @@ void main() {
       expect(consoleSkinFor(null, ambient), same(ambient));
     });
 
+    /// THE CASE THE TEST ABOVE NEVER ASKED, WHICH IS WHY IT WENT UNSEEN.
+    ///
+    /// Its `ambient` is `TiqSkin.night()`, and that is console density, so
+    /// `consoleSkinFor(null, ambient)` handing the object straight back was
+    /// both the right answer and a passing test. The ambient in the shipping
+    /// app is not that: `main.dart` builds `theme:` from `AppTheme.day()`,
+    /// whose density defaults to **field**, so a manager in light mode who has
+    /// never touched the skin cycle had a FIELD skin as her ambient — and got
+    /// the agent's geometry on every migrated console route.
+    ///
+    /// "Follow the app" is about brightness. It was never about density, and
+    /// a console route is console density by definition.
+    test('a console route never inherits field density from the app theme', () {
+      // Exactly what `main.dart` registers on its light arm.
+      final shipped = AppTheme.day();
+      final ambient = shipped.extension<TiqSkin>()!;
+      expect(
+        ambient.space.density,
+        TiqDensity.field,
+        reason: "main.dart's light theme registers a field skin — if this "
+            'ever stops being true, the defect below is gone at the source '
+            'and this test is the place to say so',
+      );
+
+      final resolved = consoleSkinFor(null, ambient);
+      expect(
+        resolved.space.density,
+        TiqDensity.console,
+        reason: 'a manager who has never cycled the skin still gets the '
+            "manager's geometry",
+      );
+      // The brightness she chose is untouched — only the density is corrected.
+      expect(resolved.mode, SkinMode.day);
+      expect(resolved.brightness, Brightness.light);
+      expect(resolved.palette.ground, ambient.palette.ground);
+
+      // And the console skin is a whole, consistent one rather than a field
+      // skin with one field swapped.
+      expect(resolved.space, same(TiqSpace.console));
+      expect(resolved.text, same(TiqType.console));
+    });
+
     test('the skin cycle is a closed two-state loop', () {
       expect(TorchSkinCycle.next(SkinMode.day), SkinMode.night);
       expect(TorchSkinCycle.next(SkinMode.night), SkinMode.day);
@@ -219,13 +261,55 @@ void main() {
       );
     });
 
-    test('the tap-target floor rises with the density', () {
+    // OVERRIDDEN 29 September 2026. This asserted that the tap-target floor
+    // *rises* with the density — console 44, field 48, "a thumb on a shelf is
+    // less precise than one on a mouse". That is still true about thumbs; it
+    // is no longer true about this product.
+    //
+    // > "Fix the spacing also please check if everything matches with the
+    // > manager side" — the owner, after "literally everything" and "don't
+    // > change the manager side, it looks perfect" the same day.
+    //
+    // So this is a design intention the owner has overridden, not a fact that
+    // now measures differently, and the test says so rather than being
+    // deleted. 44 is the WCAG 2.5.5 floor and is what the manager side has
+    // always run. See `TiqSpace.field` and unify §1.25 for what it cost.
+    test('there is one spacing scale, and it is the console\'s', () {
       expect(TiqSpace.console.tapTarget, 44);
       expect(
         TiqSpace.field.tapTarget,
-        48,
-        reason: 'A thumb on a shelf is less precise than one on a mouse.',
+        44,
+        reason:
+            'Owner override, 29 September 2026. The field scale no longer '
+            'differs from the console anywhere; 48 is in the doc comment.',
       );
+      for (final field in <(String, double, double)>[
+        ('gutter', TiqSpace.console.gutter, TiqSpace.field.gutter),
+        ('gutterWide', TiqSpace.console.gutterWide, TiqSpace.field.gutterWide),
+        (
+          'rowMinHeight',
+          TiqSpace.console.rowMinHeight,
+          TiqSpace.field.rowMinHeight,
+        ),
+        ('blockGap', TiqSpace.console.blockGap, TiqSpace.field.blockGap),
+        ('intraBlock', TiqSpace.console.intraBlock, TiqSpace.field.intraBlock),
+        ('tapTarget', TiqSpace.console.tapTarget, TiqSpace.field.tapTarget),
+        (
+          'primaryActionHeight',
+          TiqSpace.console.primaryActionHeight,
+          TiqSpace.field.primaryActionHeight,
+        ),
+        ('chipHeight', TiqSpace.console.chipHeight, TiqSpace.field.chipHeight),
+      ]) {
+        expect(
+          field.$3,
+          field.$2,
+          reason:
+              '${field.$1} differs between the two scales. There is one '
+              'spacing scale; a new divergence needs an owner ruling and a '
+              'line in unify §1.25, not a token edit.',
+        );
+      }
     });
   });
 

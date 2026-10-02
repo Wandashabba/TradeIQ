@@ -16,14 +16,14 @@ import 'overview_harness.dart';
 /// The sibling of `floor_look_test.dart`, for the other half of the manager's
 /// console. It produces the images the owner and the reviewer compare against
 /// `goldens/floor_390x844.png` — a 390×844 phone and a 360×640 one, in Night
-/// and in Day, populated, with **Onest and JetBrains Mono loaded**. The test
-/// font is wider than Onest, so a screen rendered in it wraps sooner and
+/// and in Day, populated, with **Schibsted Grotesk and JetBrains Mono loaded**. The test
+/// font is wider than Schibsted Grotesk, so a screen rendered in it wraps sooner and
 /// measures taller — a picture of the wrong screen.
 ///
 /// ## Why it does not run in CI
 ///
 /// For the reason `floor_look_test.dart` gives: CI rasterises anti-aliased
-/// Onest on `ubuntu-latest` and this repository is developed on macOS, so a
+/// Schibsted Grotesk on `ubuntu-latest` and this repository is developed on macOS, so a
 /// pixel comparison fails on the day it lands. The images are an artefact to
 /// *look at*, not a regression pin — the pins are the measurements in
 /// `overview_grammar_test.dart`, which do run everywhere.

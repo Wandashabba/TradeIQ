@@ -130,7 +130,7 @@ void main() {
     // The assertions below are the ratchet that stops it coming back. They
     // count ink rather than matching a golden, because a golden of a drawing
     // is a picture of the drawing and this repository's goldens do not run in
-    // CI (the Onest rasterisation difference on `ubuntu-latest`).
+    // CI (the Schibsted Grotesk rasterisation difference on `ubuntu-latest`).
     testWidgets('each drawing inks its middle and leaves its edge alone', (
       tester,
     ) async {

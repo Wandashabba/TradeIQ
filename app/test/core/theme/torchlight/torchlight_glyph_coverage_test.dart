@@ -20,16 +20,17 @@ import 'package:tradeiq_app/core/design/tiq_number.dart';
 ///    committed. A range added to the script and never re-run is a range that
 ///    does not exist. This test reads the committed binaries' `cmap` tables,
 ///    not the script's intentions.
-/// 2. **The app does not print what Onest has never had.** Onest carries no
+/// 2. **The app does not print what the prose face has never had.** Neither
+///    Onest nor Schibsted Grotesk carries
 ///    geometric shapes. U+25B2 and U+25BC — the solid up and down triangles —
 ///    are not in the face at any weight, are not in the subset, and cannot be
 ///    added to it.
 void main() {
   // `flutter test` runs with the package root as cwd.
   final pdfFonts = <String>[
-    'assets/fonts/Onest-Pdf-400.ttf',
-    'assets/fonts/Onest-Pdf-500.ttf',
-    'assets/fonts/Onest-Pdf-700.ttf',
+    'assets/fonts/SchibstedGrotesk-Pdf-400.ttf',
+    'assets/fonts/SchibstedGrotesk-Pdf-500.ttf',
+    'assets/fonts/SchibstedGrotesk-Pdf-700.ttf',
   ];
 
   group('the pyftsubset script and the committed fonts agree', () {
@@ -64,7 +65,7 @@ void main() {
         final holes = <int>[];
         for (final range in declared) {
           for (var c = range.start; c <= range.end && holes.length < 20; c++) {
-            // A range may legitimately contain codepoints Onest never had —
+            // A range may legitimately contain codepoints the face never had —
             // Latin Extended-B is sparse in almost every face. What must hold
             // is that the range is not wholly absent, and that the specific
             // characters the formatters emit are present (asserted below).
@@ -160,7 +161,7 @@ void main() {
     });
   });
 
-  group('no Dart source reaches for a glyph Onest has never had', () {
+  group('no Dart source reaches for a glyph the prose face has never had', () {
     // U+25B2 / U+25BC. The PDF exporter carries a JetBrains Mono fallback
     // purely to draw these two, which is a whole extra embedded face for two
     // characters — and the fallback is why the bug was survivable rather than
@@ -241,7 +242,8 @@ void main() {
       if (problems.isNotEmpty) {
         fail(
           'Dart source references U+25B2 or U+25BC.\n\n'
-          'Onest has no geometric shapes, at any weight. On screen the glyph '
+          'The prose face has no solid triangles, at any weight. On screen the '
+          'glyph '
           'falls back to whatever the platform has; in an exported PDF '
           '`package:pdf` draws NOTHING — no tofu, no warning — and the arrow '
           'is simply absent from the report. That is #401.\n\n'
@@ -265,17 +267,18 @@ void main() {
       }
     });
 
-    test('the two triangles are genuinely absent from every Onest face', () {
+    test('the two triangles are genuinely absent from every prose face', () {
       for (final path in <String>[
         ...pdfFonts,
-        'assets/fonts/Onest-Variable.ttf',
+        'assets/fonts/SchibstedGrotesk-Variable.ttf',
       ]) {
         final covered = _cmapCodepoints(File(path).readAsBytesSync());
         expect(
           covered.contains(blackUpTriangle),
           isFalse,
           reason:
-              '$path now has U+25B2. If Onest has gained geometric shapes '
+              '\$path now has U+25B2. If the prose face has gained solid '
+              'triangles '
               'this whole ledger can go — check U+25BC too and delete both.',
         );
         expect(covered.contains(blackDownTriangle), isFalse);

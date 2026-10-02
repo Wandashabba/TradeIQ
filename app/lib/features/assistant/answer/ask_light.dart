@@ -74,12 +74,45 @@ class AskLight {
 
   /// The composer's Send key.
   ///
-  /// Night's granted form is a **lit block, not an amber one**: `lifted` fill
-  /// with a 2px flame-600 rim, the glyph in Palladian. The rim is 2px for the
-  /// reason §12.1 gives — a 1px stroke on a radius-10 shoulder anti-aliases to
-  /// about 72% value at the corners, under the census's 0.90 floor, so the
-  /// census reads a 1px rim as four separate lights and a correctly built
-  /// commit button fails the budget it obeys.
+  /// ## THE GRANTED FORM IS FILLED IN BOTH SKINS — 1 October 2026
+  ///
+  /// It was a **lit block rather than an amber one** on Night: `lifted` fill
+  /// with a 2px flame-600 rim, the glyph in Palladian. That is §1.7's Night
+  /// primary — *"a dark block that is lit"* — on the reading that amber on a
+  /// dark ground is light rather than paint. The reading is intact and is
+  /// still what every other primary in the app does.
+  ///
+  /// It is not what this control's mockup draws. The approved artifact's
+  /// `.send` is `width:27px; height:27px; border-radius:50%;
+  /// background:#FFB162` with `color:#16202B` on it — a **solid amber disc**,
+  /// in the same two colours, in all three of its panels. The owner, looking
+  /// at the running screen: *"the send button is amber… ours is an outlined
+  /// disc, not amber."*
+  ///
+  /// **THIS IS NOT A NEW RULING; IT IS THE SAME ONE, A SECOND TIME.**
+  /// `TorchPrimaryButton.filled` exists for exactly this, by owner decision on
+  /// 29 September 2026, over Today's `Check in here`: the mockup drew that
+  /// control as `background:#FFB162; color:#16202B` too, the owner's note on
+  /// the outlined form was that it *"reads weak and boxy"*, and the
+  /// resolution was a solid `flame600` block carrying `onAmber` at 9.68:1.
+  /// The argument recorded there transfers without modification, including
+  /// the part that makes it safe:
+  ///
+  /// > *"It changes no budget. The census counts connected flame-hued
+  /// > regions, not area: a rim is one region and a filled block is one
+  /// > region."*
+  ///
+  /// So Night and Day now differ only in the edge — Day keeps its `ink1` rule,
+  /// because on paper nothing is identified by a fill alone and an amber block
+  /// on Palladian is 1.6:1 against its own ground. On Night the disc carries
+  /// its own contrast and needs no rule.
+  ///
+  /// The 2px rim and the §12.1 anti-aliasing argument it rested on go with the
+  /// rim: that argument was about a **1px stroke** reading as four separate
+  /// lights to the census, and a filled disc has no stroke to misread. The
+  /// disc is also 36dp now rather than 48dp square — see `_sendDisc` — so the
+  /// lit area is about 60% of what the rimmed block enclosed, which is the
+  /// other half of why a fill here is not more light than before.
   ///
   /// The spec's 6dp amber top bleed is **cut**. An emitted gradient is
   /// indistinguishable in kind from the focus bloom, so on this surface it
@@ -118,25 +151,74 @@ class AskLight {
         edgeWidth: skin.depth.borderWidth,
       );
     }
-    if (skin.amberIsInk) {
-      // On a light ground amber stops being light and becomes a carrier of
-      // ink. A solid block with a real ink-1 edge: an amber block on
-      // Palladian is 1.6:1 against its own ground, and nothing in this system
-      // is identified by a fill alone.
-      return AskSendLook(
-        fill: p.flame600,
-        ink: p.onAmber,
-        edge: p.ink1,
-        edgeWidth: skin.depth.borderWidth,
-      );
-    }
+    // ONE FILL, BOTH SKINS, and the edge is the only thing that differs.
+    //
+    // On a light ground amber stops being light and becomes a carrier of ink,
+    // so Day keeps a real `ink1` edge: an amber block on Palladian is 1.6:1
+    // against its own ground, and nothing in this system is identified by a
+    // fill alone. On Night the disc carries its own contrast against the
+    // ground and a rule on it would be a second silhouette for nothing.
+    //
+    // THE FILL IS A RADIAL GRADIENT AS OF 1 OCTOBER 2026 — see [bloom]. The
+    // flat `flame600` stays as `fill`, because a `BoxDecoration` paints the
+    // colour whenever the gradient is null and the one skin setting with
+    // `allowsGradients: false` must still get a disc.
     return AskSendLook(
-      fill: p.lifted,
-      ink: p.ink1,
-      edge: p.flame600,
-      edgeWidth: 2,
+      fill: p.flame600,
+      ink: p.onAmber,
+      edge: skin.amberIsInk ? p.ink1 : null,
+      edgeWidth: skin.depth.borderWidth,
+      bloom: sendBloom(skin),
     );
   }
+
+  /// THE SEND DISC'S OWN GRADIENT — a radial, off-centre, 1 October 2026.
+  ///
+  /// The owner: *"the send button on the app and everywhere else for orange is
+  /// very dull, it need to be lumunous and bright and inviting."* The disc was
+  /// already a solid `flame600` at value 1.00, so there was no brightness to
+  /// add; what it was missing is that **a flat fill cannot glow.** The plate's
+  /// strip light has a hot core running out to the flame and it is the one
+  /// object in the product that genuinely reads as lit. This gives the route's
+  /// primary action the same treatment.
+  ///
+  /// ## Why radial, and why off-centre
+  ///
+  /// It is a 36dp disc. A linear ramp across a circle reads as a bevel — a
+  /// lighting cue about a *surface*, which is what a plastic button is. A
+  /// radial with its centre inside the object reads as an emitter: the light
+  /// comes from a point and falls off in every direction, which is what the
+  /// object is pretending to be. The centre sits up and to the left
+  /// (`Alignment(-0.35, -0.45)`) rather than dead middle, because a core
+  /// exactly concentric with its own silhouette reads as a ring rather than a
+  /// source, and up-left is where every other lit object in this product is
+  /// lit from.
+  ///
+  /// `radius: 0.95` rather than 0.5: the ramp has to reach the far rim, so the
+  /// coldest pixel is at the edge furthest from the core and the disc has a
+  /// genuine falloff across its whole face instead of flattening to `flame600`
+  /// two-thirds of the way out.
+  ///
+  /// ## The arrow, and the worst point under it
+  ///
+  /// The glyph is 16dp, centred in 36dp, so it spans the middle ±8dp — and the
+  /// core is offset, so the glyph's bottom-right corner is the part of it
+  /// furthest from the core and therefore the coldest. That pixel is
+  /// `flame600`, because [TiqSkin.amberFillRamp]'s last stop is `flame600` and
+  /// the gradient goes no further. So the ink's worst case under this gradient
+  /// is **the same colour the flat disc painted** — 9.68:1 on Night, 7.78:1 on
+  /// Day — and the contrast table does not move. That is the whole reason the
+  /// ramp stops where it does rather than running on to `flame500`.
+  ///
+  /// Null on every unlit state, because a disc that is not carrying the route's
+  /// light has nothing to glow with.
+  static Gradient? sendBloom(TiqSkin skin) => skin.depth.allowsGradients
+      ? RadialGradient(
+          center: const Alignment(-0.35, -0.45),
+          radius: 0.95,
+          colors: skin.amberFillRamp,
+        )
+      : null;
 
   /// The fill of the one focus object — a ranked bar, or the trend's primary
   /// series stroke.
@@ -200,7 +282,8 @@ class AskLight {
       : null;
 }
 
-/// The resolved look of the Send key: one fill, one ink, one edge.
+/// The resolved look of the Send key: one fill, one ink, one edge, and — only
+/// when it is carrying the route's light — one gradient over the fill.
 @immutable
 class AskSendLook {
   const AskSendLook({
@@ -208,10 +291,16 @@ class AskSendLook {
     required this.ink,
     required this.edge,
     required this.edgeWidth,
+    this.bloom,
   });
 
   final Color fill;
   final Color ink;
   final Color? edge;
   final double edgeWidth;
+
+  /// The granted disc's radial fill ramp, hot core to [TiqPalette.flame600].
+  /// Null on every other state and in any skin without a gradient budget, and
+  /// then [fill] is painted flat. See [AskLight.sendBloom].
+  final Gradient? bloom;
 }

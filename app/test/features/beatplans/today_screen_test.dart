@@ -230,28 +230,69 @@ void main() {
       );
     });
 
-    testWidgets('the Next-up meta line is the card\'s smallest voice', (
+    // REWRITTEN 29 September 2026. The assertion this replaces said the
+    // outlet name is "the loudest thing in the card, and by a margin" and
+    // pinned it to `title.l` (24) over a bare `figure.s` numeral. That
+    // described the composition the owner rejected: the app stacked a naked
+    // number, then a 24pt name, then the code, then the button, where the
+    // approved mockup has **a tile and the name on one row** at `.ttl` 12.5px
+    // — row scale — with the button beneath. A 24pt name is a heading, and a
+    // heading is what made this card read as a block about a store rather
+    // than as the first stop in the list under it.
+    testWidgets('the Next-up card is a stop row, not a heading block', (
       tester,
     ) async {
       await _pump(tester, route: _route());
       final card = find.byKey(const ValueKey<String>('next-stop'));
       final skin = agentSkinFor(SkinMode.night);
 
-      // The sequence: mono 16, not 22. It is a badge, not a headline.
+      // The sequence: mono 16, in a tile, not a bare numeral.
       final sequence = tester.widget<FigureSlot>(
         find.descendant(of: card, matching: find.byType(FigureSlot)).first,
       );
       expect(sequence.role.name, 'figure.s');
       expect(sequence.role.size, 16);
 
-      // The outlet name is the loudest thing in the card, and by a margin.
-      final name = tester.widget<Text>(
-        find.descendant(of: card, matching: find.text('Sunrise Spaza')),
+      // ROW SCALE — the same role a stop row's own title takes, so the next
+      // stop and the rest of the day are one series read at one size.
+      final nameFinder = find.descendant(
+        of: card,
+        matching: find.text('Sunrise Spaza'),
       );
-      expect(name.style!.fontSize, skin.text.titleL.size);
-      expect(name.style!.fontSize! > sequence.role.size, isTrue);
+      final name = tester.widget<Text>(nameFinder);
+      expect(name.style!.fontSize, skin.text.titleM.size);
+
+      // ON ONE ROW: the tile is to the left of the name and they overlap
+      // vertically. Measured, because "one row" is a layout claim and a
+      // Column of the same two widgets would satisfy every other assertion
+      // here.
+      final tile = tester.getRect(
+        find.descendant(of: card, matching: find.byType(FigureSlot)).first,
+      );
+      final title = tester.getRect(nameFinder);
+      expect(tile.right, lessThanOrEqualTo(title.left));
+      expect(tile.top, lessThan(title.bottom));
+      expect(title.top, lessThan(tile.bottom));
     });
 
+    testWidgets('and the check-in is a filled block, not an outlined one', (
+      tester,
+    ) async {
+      // The owner: the outlined amber block "reads weak and boxy". The
+      // mockup's `.cta` is `background:#FFB162; color:#16202B`. `filled` is
+      // scoped to this call site — `TorchPrimaryButton`'s default, and so the
+      // sign-in screen, is untouched.
+      await _pump(tester, route: _route());
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('check-in-next')),
+      );
+      expect(button.filled, isTrue);
+      expect(
+        button.icon,
+        isNull,
+        reason: 'the mockup centres the label and carries no chevron',
+      );
+    });
   });
 
   group('distance is a figure or a sentence, never a guess', () {
@@ -367,41 +408,52 @@ void main() {
     // whichever font the test binding loaded rather than the rule. The
     // English and Afrikaans strings the app actually ships are asserted
     // underneath, against the ladder rather than against one step.
-    testWidgets('one line stays at display 40', (tester) async {
+    // The three rungs, named once. They came down with the rest of the prose
+    // scale on 1 October 2026 — 40/32/26 was Onest's ladder at the old size —
+    // and they are read from the scale rather than retyped so the next
+    // reduction moves this file in one place.
+    final ladder = TiqType.console;
+
+    testWidgets('one line stays at display', (tester) async {
       final role = await roleFor(tester, 'One');
       expect(role.name, 'display');
-      expect(role.size, 40);
+      expect(role.size, ladder.display.size);
+      expect(role.size, 37);
     });
 
-    testWidgets('two lines stay at display 40', (tester) async {
+    testWidgets('two lines stay at display', (tester) async {
       final role = await roleFor(tester, 'One\nTwo');
       expect(role.name, 'display');
-      expect(role.size, 40);
+      expect(role.size, 37);
     });
 
-    testWidgets('three lines step to display.m 32', (tester) async {
+    testWidgets('three lines step to display.m', (tester) async {
       final role = await roleFor(tester, 'One\nTwo\nThree');
       expect(role.name, 'display.m');
-      expect(role.size, 32);
+      expect(role.size, 30);
     });
 
-    testWidgets('four lines step to display.s 26, the floor', (tester) async {
+    testWidgets('four lines step to display.s, the floor', (tester) async {
       final role = await roleFor(tester, 'One\nTwo\nThree\nFour');
       expect(role.name, 'display.s');
-      expect(role.size, 26);
+      expect(role.size, 24);
     });
 
-    testWidgets('and six lines are still 26 — 26 is the floor', (tester) async {
+    testWidgets('and six lines are still display.s — it is the floor', (
+      tester,
+    ) async {
       final role = await roleFor(tester, 'a\nb\nc\nd\ne\nf');
-      expect(role.size, 26);
+      expect(role.size, ladder.displayS.size);
     });
 
-    testWidgets('there is no step between 40 and 32', (tester) async {
+    testWidgets('there is no step between display and display.m', (
+      tester,
+    ) async {
       // The old helper stepped display → title.l → title.m and returned the
       // first role that laid out in two lines, so a three-line headline came
-      // back at title.l 24 — smaller than the outlet name on the populated
-      // screen two blocks below it. The declared ladder is 40 / 32 / 26 and
-      // nothing else.
+      // back at title.l — smaller than the outlet name on the populated
+      // screen two blocks below it. The declared ladder is display /
+      // display.m / display.s and nothing else.
       for (final headline in <String>[
         'a',
         'a\nb',
@@ -411,7 +463,11 @@ void main() {
       ]) {
         final role = await roleFor(tester, headline);
         expect(
-          <double>[40, 32, 26],
+          <double>[
+            ladder.display.size,
+            ladder.displayM.size,
+            ladder.displayS.size,
+          ],
           contains(role.size),
           reason: '"$headline" resolved to ${role.name} at ${role.size}',
         );
@@ -428,7 +484,11 @@ void main() {
           await _pump(tester, route: null, locale: locale);
           final text = tester.widget<Text>(find.text(headline));
           expect(
-            <double?>[40, 32, 26],
+            <double?>[
+              ladder.display.size,
+              ladder.displayM.size,
+              ladder.displayS.size,
+            ],
             contains(text.style!.fontSize),
             reason:
                 'the empty-state headline is display prose under the fitting '
@@ -448,7 +508,11 @@ void main() {
         textScale: 2.0,
       );
       final text = tester.widget<Text>(find.text('Geen roete vandag nie'));
-      expect(<double?>[40, 32, 26], contains(text.style!.fontSize));
+      expect(<double?>[
+        ladder.display.size,
+        ladder.displayM.size,
+        ladder.displayS.size,
+      ], contains(text.style!.fontSize));
     });
   });
 

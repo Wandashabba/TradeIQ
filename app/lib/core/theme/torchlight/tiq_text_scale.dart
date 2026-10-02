@@ -25,8 +25,29 @@ class TiqTextScale {
   /// The app-wide ceiling.
   static const double maxScale = 2.0;
 
-  /// The floor. Below 1.0 the type scale's own optical sizing stops holding.
-  static const double minScale = 1.0;
+  /// The floor.
+  ///
+  /// **0.8, not 1.0 — changed 30 September 2026, on a real device.** The owner
+  /// opened the Android build on their own phone and said the words were *"too
+  /// big and just not giving app"*. It was not the phone: `font_scale` there
+  /// reads **0.8**, and they had turned screen zoom down as well. They had
+  /// asked the platform for smaller text, every other app on the handset was
+  /// giving it to them, and this one was clamping it back to 1.0 — rendering
+  /// **25% larger than everything else on their screen**. A product that
+  /// ignores an accessibility preference set *against* it is as wrong as one
+  /// that ignores the preference set for it; the ceiling exists so a reader who
+  /// needs bigger text gets it, and the floor was quietly refusing a reader who
+  /// needs more on screen.
+  ///
+  /// 0.8 is the bottom of the range the platform actually offers, so the clamp
+  /// now spans every setting a person can choose rather than half of them.
+  ///
+  /// The old floor's stated reason — "below 1.0 the type scale's own optical
+  /// sizing stops holding" — is a real concern and is why this is a floor at
+  /// all rather than no floor. It was simply set at the wrong number: it was
+  /// defending the type scale against a value the platform will not produce,
+  /// at the cost of a value it produces routinely.
+  static const double minScale = 0.8;
 
   /// Clamp an ambient scaler to the app policy.
   static TextScaler clamp(TextScaler scaler) =>

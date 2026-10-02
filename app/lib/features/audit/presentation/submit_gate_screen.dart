@@ -147,7 +147,7 @@ class SubmitGateScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: TiqSpace.s5),
+              SizedBox(height: context.skin.space.blockGap),
             ],
             ...children,
           ],
@@ -207,14 +207,14 @@ class SubmitGateScreen extends ConsumerWidget {
                   color: context.skin.palette.ink2,
                 ),
               ),
-              const SizedBox(height: TiqSpace.s4),
+              SizedBox(height: context.skin.space.intraBlock),
               _CapturedBlock(
                 sectionsDone: progress?.doneCount,
                 sectionsTotal: progress?.captureCount,
                 line: review.capturedLineIn(l10n),
                 unconfirmed: cantConfirm.length,
               ),
-              const SizedBox(height: TiqSpace.s7),
+              SizedBox(height: context.skin.space.blockGap),
               if (raised == 0 && !progressUnread)
                 const _NothingToRaise()
               else ...<Widget>[
@@ -250,7 +250,7 @@ class SubmitGateScreen extends ConsumerWidget {
                 // The whole sentence, off the row: a row caps its lines, and
                 // this is the one line on the gate that must not be cut.
                 if (progressUnread) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   Text(
                     l10n.submitSectionsUnreadNote,
                     key: const ValueKey<String>('submit-sections-unread-note'),
@@ -260,7 +260,7 @@ class SubmitGateScreen extends ConsumerWidget {
                   ),
                 ],
                 if (raised > 0) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s4),
+                  SizedBox(height: context.skin.space.intraBlock),
                   Text(
                     l10n.submitAccusation(raised),
                     style: context.skin.text.meta.style(
@@ -393,7 +393,7 @@ class _CapturedBlock extends StatelessWidget {
             // not a section somebody skipped, and it is excluded from the
             // readiness count rather than failing it.
             if (unconfirmed > 0) ...<Widget>[
-              const SizedBox(height: TiqSpace.s3),
+              SizedBox(height: skin.space.intraBlock),
               Row(
                 key: const ValueKey<String>('submit-unconfirmed'),
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,8 +416,22 @@ class _CapturedBlock extends StatelessWidget {
   }
 }
 
-/// ONE ACCUSATION. The severity is the bar and the silhouette; the priority is
-/// always in the word, never carried by the hue alone.
+/// ONE ACCUSATION. The severity is a small dot and a word, never a hue alone.
+///
+/// ## The leading mark came off — 29 September 2026
+///
+/// *"Match the manager side please."* This row drew a [SeverityMark] in the
+/// **leading slot**, which is the 40dp lane a state tile lives in — so a
+/// crimson triangle was rendered at tile scale down the left of the gate, and
+/// the row's own severity dot was drawn beside it. Two marks for one fact, one
+/// of them four times the size it is anywhere else in the product.
+///
+/// The manager's rows put severity in exactly two places and both are small:
+/// the dot in the reserved lane, and a `SeverityMark` inline before the reason
+/// line at meta size. That is what this row does now, and the leading lane
+/// goes back to being empty — which also lines these rows up with the
+/// can't-confirm rows beneath them, whose leading slot carries a real state
+/// tile.
 class _TaskRow extends StatelessWidget {
   const _TaskRow({required this.task, required this.last});
 
@@ -430,19 +444,38 @@ class _TaskRow extends StatelessWidget {
     final title = task.titleIn(l10n);
     final line = l10n.submitTaskForManager(l10n.submitPriority(task.priority));
 
+    final skin = context.skin;
     return SoftRow(
       key: ValueKey<String>('task-$title'),
       title: title,
-      subtitle: line,
-      leading: SeverityMark(
-        kind: task.isUrgent
-            ? SeverityMarkKind.critical
-            : SeverityMarkKind.watch,
-      ),
       severity: task.isUrgent
           ? SoftRowSeverity.critical
           : SoftRowSeverity.watch,
       severityLabel: title,
+      // The reason line, behind its own small silhouette — the manager's task
+      // row, line for line.
+      meta: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SeverityMark(
+              kind: task.isUrgent
+                  ? SeverityMarkKind.critical
+                  : SeverityMarkKind.watch,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              line,
+              style: skin.text.meta.style(
+                color: task.isUrgent ? skin.palette.bad : skin.palette.ink2,
+              ),
+            ),
+          ),
+        ],
+      ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       // Severity first, so a reader knows what kind of thing is coming before
       // they hear what it is.
@@ -578,9 +611,9 @@ class _GateSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         SkeletonLine(role: skin.text.body, widthFactor: 0.9),
-        const SizedBox(height: TiqSpace.s4),
+        SizedBox(height: skin.space.intraBlock),
 const SkeletonShell(height: 96, outlined: true),
-        const SizedBox(height: TiqSpace.s7),
+        SizedBox(height: skin.space.blockGap),
         const SkeletonRows(count: 3),
       ],
     );

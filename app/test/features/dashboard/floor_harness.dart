@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -16,9 +17,18 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/floor_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
+import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
+import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
+import 'package:tradeiq_app/features/assistant/presentation/chat_screen.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
+
+// ONE SET OF ASSISTANT FAKES FOR THE WHOLE SUITE. The Floor renders the
+// assistant's own transcript now, so it stands the assistant up the way the
+// assistant's own tests do rather than keeping a second `ScriptedRepository`
+// that would drift from it on the first wire-format change.
+import '../assistant/ask_harness.dart' show ScriptedRepository;
 
 /// Everything The Floor's tests need to stand a screen up without a server.
 ///
@@ -124,10 +134,29 @@ class FakeDashboardRepository implements DashboardRepository {
     DashboardKpis? current,
     this.previous,
     this.byTerritory = const <String, DashboardKpis>{},
+    this.pending = false,
+    this.failure,
   }) : current = current ?? kpis();
 
   final DashboardKpis current;
   final DashboardKpis? previous;
+
+  /// ── THE TWO PHASES THE ROUTE HAS AND THIS FAKE COULD NOT REACH ───────
+  ///
+  /// `_FloorFrame` wears four phase names — `loading`, `error`,
+  /// `loaded-…` and `window-empty-…` — and until the Dawn wash needed a
+  /// census of **every** one of them, two of the four had no spelling here. A
+  /// caller cannot add them from outside either: `floorOverrides` already
+  /// overrides `dashboardRepositoryProvider`, and Riverpod refuses the same
+  /// provider twice in one container, so an `extraOverrides` entry for a
+  /// silent repository fails with "Tried to override a provider twice" rather
+  /// than replacing it.
+  ///
+  /// So they live on the fake, exactly as `overview_harness.dart` has had
+  /// them since the overview's own skeleton was tested: [pending] never
+  /// answers and [failure] refuses.
+  final bool pending;
+  final Object? failure;
 
   /// A territory's own figures, keyed by the id the filter carries.
   ///
@@ -158,6 +187,8 @@ class FakeDashboardRepository implements DashboardRepository {
     String? from,
     String? to,
   }) async {
+    if (failure != null) throw failure!;
+    if (pending) return Completer<DashboardKpis>().future;
     final key = '$territoryId|$from|$to';
     final already = _answered[key];
     if (already != null) return already;
@@ -225,6 +256,7 @@ class FakeOutletsRepository implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
+    String? territoryId,
     int? limit,
     String? cursor,
   }) async => PaginatedResponse(data: outlets, nextCursor: null);
@@ -523,13 +555,36 @@ List<Override> floorOverrides({
   /// absent passes null.
   PlaceImageSource? plateImageSource = PlaceImageSource.generated,
   DateTime? now,
+  /// THE ASSISTANT SEAM. The Floor became the Ask landing on 30 September
+  /// 2026, so every pump of this screen now builds a composer and a phase
+  /// machine. The **repository** is replaced and the controller above it is
+  /// not, exactly as `ask_harness.dart` does it: the event handling, the phase
+  /// decision and the focus resolution all run for real, and a test that
+  /// overrode `chatControllerProvider` would prove only that a widget can draw
+  /// a record.
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
+  /// See [FakeDashboardRepository.pending] / [FakeDashboardRepository.failure]
+  /// — the route's `loading` and `error` phases.
+  bool kpisPending = false,
+  Object? kpisFailure,
   List<Override> extraOverrides = const <Override>[],
 }) => <Override>[
+  assistantRepositoryProvider.overrideWithValue(
+    assistant ?? ScriptedRepository(const <AssistantEvent>[]),
+  ),
+  askOnlineProvider.overrideWithValue(online),
+  // The real provider reads the session controller, which reaches for secure
+  // storage. The state is what is under test, not the plumbing.
+  askSessionEndedProvider.overrideWithValue(sessionEnded),
   dashboardRepositoryProvider.overrideWithValue(
     FakeDashboardRepository(
       current: current,
       previous: previous,
       byTerritory: byTerritory,
+      pending: kpisPending,
+      failure: kpisFailure,
     ),
   ),
   alertsRepositoryProvider.overrideWithValue(FakeAlertsRepository(alerts)),
@@ -593,6 +648,26 @@ Future<void> pumpFloor(
   double textScale = 1.0,
   DateTime? now,
   Locale locale = const Locale('en'),
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
+  /// The software keyboard's height. Non-zero is what `TorchShell` reads to
+  /// decide the nav does not render — which on this route no longer changes
+  /// the amber arithmetic, because the nav pill left with option B, but still
+  /// moves the composer up over the fold.
+  double keyboard = 0,
+  /// The phone's own bottom inset — the gesture bar on a modern Android
+  /// handset, the home indicator on an iPhone. **Zero by default, which is
+  /// what every Floor test and every committed render has always used**, so
+  /// `TorchShell`'s `safeBottom` reservation has never been exercised by
+  /// anything. A test that cares where the composer's bottom edge lands on a
+  /// real phone has to set this; on a browser and in a golden it is genuinely
+  /// 0, which is exactly why this class of defect stays invisible here.
+  double safeBottom = 0,
+  /// The route's `loading` and `error` phases. See
+  /// [FakeDashboardRepository.pending].
+  bool kpisPending = false,
+  Object? kpisFailure,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
@@ -605,6 +680,11 @@ Future<void> pumpFloor(
   await tester.pumpWidget(
     ProviderScope(
       overrides: floorOverrides(
+        kpisPending: kpisPending,
+        kpisFailure: kpisFailure,
+        assistant: assistant,
+        online: online,
+        sessionEnded: sessionEnded,
         current: current,
         previous: previous,
         alerts: alerts,
@@ -626,6 +706,8 @@ Future<void> pumpFloor(
           size: size,
           devicePixelRatio: 1.0,
           textScaler: TextScaler.linear(textScale),
+          viewInsets: EdgeInsets.only(bottom: keyboard),
+          padding: EdgeInsets.only(bottom: safeBottom),
         ),
         child: Localizations(
           locale: locale,
@@ -658,6 +740,50 @@ Future<void> pumpFloor(
 }
 
 
+/// DRAG THE BODY TO ITS END, so a lazy `ListView` has built everything.
+///
+/// **This replaces `revealDecisions`, and the reason it is named differently
+/// matters.** That helper scrolled down to the decision rows, which were below
+/// the fold. There are no decision rows on this screen since 1 October 2026 —
+/// the approved arrangement replaces the list with the briefing — so a helper
+/// called "reveal decisions" would be a test fixture asserting a screen the
+/// product does not draw.
+///
+/// What is left is the honest version of the same mechanic: a test that wants
+/// to prove something is **absent** has to make sure it is absent rather than
+/// merely unbuilt. `find.byType(DecisionRow)` returning none at the top of a
+/// lazy list is not evidence of anything.
+Future<void> scrollFloorToTail(WidgetTester tester) async {
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+  await tester.pumpAndSettle();
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+  await tester.pumpAndSettle();
+}
+
+/// BACK TO THE TOP, so the plate and its two controls are hit-testable again.
+///
+/// The companion to [scrollFloorToTail]. `tap()` on a widget scrolled off the
+/// top reports an offset outside the render tree rather than a missing
+/// control, which is a confusing way to learn that the screen got taller.
+Future<void> revealPlate(WidgetTester tester) async {
+  await tester.drag(find.byType(Scrollable).first, const Offset(0, 1800));
+  await tester.pumpAndSettle();
+}
+
+/// EVERY FIGURE ON THE SCREEN, AS THE SCREEN PRINTS IT — `61%`, `102w`, `—`.
+///
+/// `FigureSlot` paints a `TextSpan` rather than a `Text` with `data`, and it
+/// paints the digits and the unit in two different faces in the same span. So
+/// `find.text('102')` finds nothing and `find.textContaining('h')` finds
+/// "Territory health": neither is a test of what a manager reads.
+///
+/// This flattens the spans instead, which is the only form in which "the
+/// figure and its unit agree" is a statement about the screen.
+List<String> printedFiguresOn(WidgetTester tester) => <String>[
+  for (final widget in tester.widgetList<RichText>(find.byType(RichText)))
+    if (widget.text.toPlainText().isNotEmpty) widget.text.toPlainText(),
+];
+
 /// THE FLOOR INSIDE A ROUTER, so a press can be asserted on where it went.
 ///
 /// [pumpFloor] stands the screen up on its own, which is right for everything
@@ -688,6 +814,10 @@ Future<GoRouter> pumpFloorRoute(
   Size size = const Size(360, 640),
   double textScale = 1.0,
   DateTime? now,
+  AssistantRepository? assistant,
+  bool online = true,
+  bool sessionEnded = false,
+  double keyboard = 0,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
@@ -713,6 +843,8 @@ Future<GoRouter> pumpFloorRoute(
         '/alerts',
         '/outlets',
         '/account/password',
+        '/dashboard/overview',
+        '/login',
       ])
         GoRoute(path: route, builder: (context, state) => stub(route)),
     ],
@@ -722,6 +854,9 @@ Future<GoRouter> pumpFloorRoute(
   await tester.pumpWidget(
     ProviderScope(
       overrides: floorOverrides(
+        assistant: assistant,
+        online: online,
+        sessionEnded: sessionEnded,
         current: current,
         previous: previous,
         alerts: alerts,
@@ -744,9 +879,10 @@ Future<GoRouter> pumpFloorRoute(
         localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: appSupportedLocales,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            viewInsets: EdgeInsets.only(bottom: keyboard),
+          ),
           // The same boundary [pumpFloor] carries, so the amber census can be
           // taken of a screen that has a Navigator over it — which is the
           // only way to census a sheet, and a sheet is exactly where the
