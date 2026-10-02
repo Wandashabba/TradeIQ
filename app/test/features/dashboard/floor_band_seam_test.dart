@@ -29,8 +29,7 @@ import 'floor_harness.dart';
 /// On **Day** the same fill is a *lighter* box and the step is larger —
 /// `#EEE9DF` inside against `#E6E0D4` outside, 8, 9, 11 — which is why nobody
 /// had named it on paper: a light box on light paper reads as a highlight.
-/// After the fix the row is one colour from x=0 to x=389 on Day, and free of
-/// any step on Night — see the note below for why those are two sentences now.
+/// After the fix the row is free of any step in either skin.
 ///
 /// What is asserted is not "the band is `ground`". It is that **the band is
 /// not an edge**, and every seam in the table above is many times wider than
@@ -67,8 +66,9 @@ import 'floor_harness.dart';
 /// A 4-wide window cancels a period-2 dither exactly, a real edge survives it
 /// at its full height, and a gradient's own travel across 8 pixels is under
 /// two levels. Measured with the wash on: worst smoothed step **1.00** and
-/// **1.50** along the two bare rows, **2.00** across the band's top edge, and
-/// **0.00–0.25** on Day.
+/// **1.50** along the two bare rows and **2.00** across the band's top edge,
+/// against **0.00–0.25** on Day — which was then a skin with no wash at all.
+/// Day's figures moved on 2 October 2026; see the next note.
 ///
 /// **And it was shown to fail on the code it is aimed at**, which is the test
 /// the band-seam PR set for its own guards. Re-introducing the
@@ -79,24 +79,43 @@ import 'floor_harness.dart';
 /// below the defect.
 ///
 /// The old form compared every pixel to one reference at x=2 and so could
-/// never say *where* a seam was; this one names the x. And the ONE-COLOUR form
-/// is kept where it is still exact: on **Day**, where there is no wash at all,
-/// the row is asserted to be a single colour across the whole screen exactly
-/// as before — which is also a second, independent proof that Dawn does not
-/// paint on a light ground.
+/// never say *where* a seam was; this one names the x.
+///
+/// ## The Day one-colour form is gone, and what replaced it — 2 October 2026
+///
+/// Until now the ONE-COLOUR form was kept on **Day**, where it was still
+/// exact: Dawn was Night-only, so a light-ground row had nothing on it but the
+/// vertical falloff, and asserting a single colour from x=0 to x=389 doubled
+/// as an independent proof of that.
+///
+/// The owner: *"Please also add that background shade on the white theme as
+/// well"*. Dawn now paints on Day — one clay gradient at 0.22, the mirror of
+/// Night's — so a Day row varies across the screen exactly as a Night row
+/// does, by 1 to 3 levels. **That sentence had to be deleted rather than
+/// relaxed**, because relaxing it would have left a test asserting a
+/// tolerance with no reason behind the number.
+///
+/// What replaced it is **skin-independent and needs no tolerance at all**:
+/// the worst smoothed step *within 4px of a gutter* must be no larger than the
+/// worst smoothed step *anywhere else on the row*. A radial wash does not know
+/// where the gutter is; a box inset `fromLTRB(gutter, 0, gutter, …)` puts its
+/// only two hard edges exactly there. The Night half of this test never had a
+/// second instrument at all, so this is a gain on both skins and not a
+/// concession on one.
+///
+/// **It was shown to fail on what it is aimed at, twice.** The full
+/// `ColoredBox(color: skin.palette.ground)` trips the step test first, at
+/// 10.50–15.50 levels in all four cases, so the gutter test never runs. A
+/// **ten percent** ghost of the same box — too small for the 3-level
+/// tolerance, measuring 1.00–2.00 — slips past the step test and is caught by
+/// the gutter test in all four cases: 1.50 against 1.00, 2.00 against 0.50,
+/// 1.00 against 0.75, 2.00 against 0.50.
 ///
 /// `torch_shell_band_test.dart` holds the other half: why the band is allowed
 /// to paint nothing at all. `floor_dawn_test.dart` holds the wash's own
 /// measurements.
 void main() {
   setUpAll(loadAgentFonts);
-
-  const tolerance = 2;
-
-  bool same(Color a, Color b) =>
-      ((a.r - b.r).abs() * 255).round() <= tolerance &&
-      ((a.g - b.g).abs() * 255).round() <= tolerance &&
-      ((a.b - b.b).abs() * 255).round() <= tolerance;
 
   /// ── THE INSTRUMENT: A 4-PIXEL BOX MEAN EITHER SIDE OF A BOUNDARY ─────
   ///
@@ -141,13 +160,6 @@ void main() {
               '${m[2].round().toRadixString(16).padLeft(2, '0')}'
           .toUpperCase();
 
-  String show(Color c) =>
-      '#'
-              '${(c.r * 255).round().toRadixString(16).padLeft(2, '0')}'
-              '${(c.g * 255).round().toRadixString(16).padLeft(2, '0')}'
-              '${(c.b * 255).round().toRadixString(16).padLeft(2, '0')}'
-          .toUpperCase();
-
   final outlets = <Outlet>[
     outlet('o1', 'SaveMor Glenwood'),
     outlet('o2', 'Shoprite Klipspruit Mall'),
@@ -169,24 +181,14 @@ void main() {
     ),
   ];
 
-  // `flat` is whether this skin's ground is a single colour along a row —
-  // true on Day, where Dawn paints nothing, and false on Night, where the
-  // wash is two radial gradients. See the note at the top of this file.
-  for (final (name, size, skin, flat) in <(String, Size, TiqSkin?, bool)>[
-    ('390x844 night', Size(390, 844), null, false),
-    (
-      '390x844 day',
-      Size(390, 844),
-      TiqSkin.day(density: TiqDensity.console),
-      true,
-    ),
-    ('360x640 night', Size(360, 640), null, false),
-    (
-      '360x640 day',
-      Size(360, 640),
-      TiqSkin.day(density: TiqDensity.console),
-      true,
-    ),
+  // Dawn now paints in both skins, so there is no `flat` case left: a row
+  // through the band varies in Night and in Day alike. See the note at the
+  // top of this file for what the one-colour assertion was replaced with.
+  for (final (name, size, skin) in <(String, Size, TiqSkin?)>[
+    ('390x844 night', Size(390, 844), null),
+    ('390x844 day', Size(390, 844), TiqSkin.day(density: TiqDensity.console)),
+    ('360x640 night', Size(360, 640), null),
+    ('360x640 day', Size(360, 640), TiqSkin.day(density: TiqDensity.console)),
   ]) {
     testWidgets('$name: the band is not an edge', (tester) async {
       await pumpFloor(
@@ -249,25 +251,51 @@ void main() {
               'boundary between two materials.',
         );
 
-        // AND ON DAY IT IS STILL ONE COLOUR, which is the stronger statement
-        // and is still exact there: Dawn is Night-only, so a light-ground row
-        // has nothing on it but the vertical falloff. A failure here is
-        // either the box coming back or the wash painting on paper.
-        if (flat) {
-          final ground = pixels.at(2, y);
-          for (var x = 0; x < pixels.width; x++) {
-            final here = pixels.at(x.toDouble(), y);
-            expect(
-              same(here, ground),
-              isTrue,
-              reason:
-                  'At y=${y.round()}, x=$x reads ${show(here)} against a '
-                  'ground of ${show(ground)}. On a light ground this row is '
-                  'one colour across the screen: the band fills nothing and '
-                  'the Dawn wash does not render on Day.',
-            );
+        // ── AND THE GUTTER IS NOT SPECIAL ────────────────────────────────
+        //
+        // The step test above holds the whole row to one tolerance, which a
+        // small fill could in principle hide under. This is the sharper form
+        // of the same claim and it needs no tolerance at all: **the largest
+        // step at the gutter is no larger than the largest step anywhere else
+        // on the row.** A radial wash does not know where the gutter is, so
+        // its biggest wobble is wherever the dither happens to land; a box
+        // inset `fromLTRB(gutter, 0, gutter, …)` puts its two hard edges at
+        // exactly x=gutter and x=width-gutter and nowhere else.
+        //
+        // This replaces the old `flat` form — "on Day the row is one colour
+        // from x=0 to x=389" — which was exact only because Dawn did not
+        // paint on a light ground. It does now (2 October 2026, the owner:
+        // *"Please also add that background shade on the white theme as
+        // well"*), so that sentence had to go rather than be relaxed. The
+        // replacement is skin-independent, which is better: the Night half of
+        // this test never had a second instrument at all.
+        final gutter = band.left.round();
+        final gutters = <int>[gutter, pixels.width - gutter];
+        var atGutter = 0.0;
+        var elsewhere = 0.0;
+        for (var x = window; x + window <= pixels.width; x++) {
+          final here = gap(
+            mean(pixels, x - window, true, fixed: y),
+            mean(pixels, x, true, fixed: y),
+          );
+          final nearAGutter = gutters.any((g) => (x - g).abs() <= window);
+          if (nearAGutter) {
+            atGutter = here > atGutter ? here : atGutter;
+          } else {
+            elsewhere = here > elsewhere ? here : elsewhere;
           }
         }
+        expect(
+          atGutter,
+          lessThanOrEqualTo(elsewhere),
+          reason:
+              'At y=${y.round()} the worst smoothed step within $window px of '
+              'a gutter is ${atGutter.toStringAsFixed(2)} levels against '
+              '${elsewhere.toStringAsFixed(2)} everywhere else on the row. '
+              'The gutter has become a boundary between two materials, which '
+              'is the box coming back. The backdrop is one surface: the band '
+              'fills nothing and the wash does not know where the gutter is.',
+        );
       }
 
       // ── NO HORIZONTAL EDGE: no step across the band's top ────────────
