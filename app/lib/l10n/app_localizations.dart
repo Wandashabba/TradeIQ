@@ -12556,6 +12556,18 @@ abstract class AppLocalizations {
   /// **'Every figure below is scoped to this choice.'**
   String get dashTerritorySheetBody;
 
+  /// The quiet note on the right of the filter sheet's one-line header. Says what the sheet does without spending a full-width sentence on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Scopes every figure'**
+  String get dashScopeNote;
+
+  /// What a screen reader hears on a territory group's expander. The expanded/collapsed state travels as the Semantics flag, not as a word.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{name}, 1 territory} other{{name}, {count} territories}}'**
+  String dashTerritoryGroup(String name, int count);
+
   /// Announced first in a picker row's label, because a tick is silence to a screen reader.
   ///
   /// In en, this message translates to:

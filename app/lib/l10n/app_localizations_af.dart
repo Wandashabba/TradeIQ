@@ -7998,6 +7998,20 @@ class AppLocalizationsAf extends AppLocalizations {
       'Elke syfer hieronder val binne hierdie keuse.';
 
   @override
+  String get dashScopeNote => 'Beperk elke syfer';
+
+  @override
+  String dashTerritoryGroup(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name, $count gebiede',
+      one: '$name, 1 gebied',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get dashSelected => 'Gekies';
 
   @override
