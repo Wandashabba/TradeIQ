@@ -96,7 +96,6 @@ class LeaderboardScreen extends ConsumerWidget {
     Widget frame({required String phase, required List<Widget> children}) =>
         ConsoleFrame(
           phase: phase,
-          active: ConsoleSlot.menu,
           header: TorchAppHeader(
             title: l10n.leaderboardTitle,
             facts: <String>[l10n.leaderboardFact],

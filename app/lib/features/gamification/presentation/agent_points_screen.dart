@@ -98,7 +98,6 @@ class AgentPointsScreen extends ConsumerWidget {
       required List<Widget> children,
     }) => ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: title,
         facts: facts,

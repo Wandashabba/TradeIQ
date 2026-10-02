@@ -2045,6 +2045,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askComposerHint => 'Team, stock, shelf, competitors';
 
   @override
+  String get askComposerConsoleHint => 'Ask TradeIQ…';
+
+  @override
   String get askComposerRephrase => 'Ask again, or rephrase';
 
   @override
@@ -2138,18 +2141,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askStopShort => 'Stop';
-
-  @override
-  String get askNavFloor => 'Floor';
-
-  @override
-  String get askNavWork => 'Work';
-
-  @override
-  String get askNavAsk => 'Ask';
-
-  @override
-  String get askNavMenu => 'Menu';
 
   @override
   String get askStepsLive => 'Live';

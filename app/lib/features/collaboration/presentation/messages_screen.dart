@@ -308,7 +308,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       phase: onAnnouncements
           ? 'announcements-${_phaseOf(announcements)}'
           : 'messages-${_phaseOf(messages)}',
-      active: ConsoleSlot.menu,
       claims: <TorchClaim>[
         if (!onAnnouncements && armed)
           TorchPrimaryButton.claim(messageSendClaimId),

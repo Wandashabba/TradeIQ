@@ -16,19 +16,34 @@ import 'ask_harness.dart';
 /// without asking, a bloom where no object was declared, three answers each
 /// reading one grant as their own.
 ///
-/// | phase | Night | Day |
-/// |---|---|---|---|
-/// | first run | 1 | 0 | 0 |
-/// | thinking | 2 | 0 | 0 |
-/// | writing | 1 | 0 | 0 |
-/// | landed, a ranking with a server focus | 2 | 0 | 0 |
-/// | landed, a trend and no ranking | 2 | 0 | 0 |
-/// | landed, tiles only | 1 | 0 | 0 |
-/// | typing a follow-up (keyboard up) | 1 | 1 | 1 |
-/// | error, offline, session ended | 1 | 0 | 0 |
+/// ## THE WHOLE COLUMN CAME DOWN BY ONE — 2 October 2026
 ///
-/// Night's 1 is the nav's active tab; Day paints the tab as an ink
-/// block, so their only amber is Send's block — and only while it is armed.
+/// The nav pill is retired (see `ConsoleFrame`), and **Ask is the one console
+/// route where that is a straight reduction rather than a reassignment**: it
+/// carried the active tab AND Send, so Night sat at its ceiling of two in the
+/// armed phases and at two again in `landedFocus`. Every Night figure below
+/// is the old one minus the tab. Day does not move at all — the tab was an
+/// Abyssal block on a light ground and was never counted there.
+///
+/// | phase | Night before | Night after | Day |
+/// |---|---|---|---|
+/// | first run | 2 | **1** | 1 |
+/// | thinking | 2 | **1** | 0 |
+/// | writing | 1 | **0** | 0 |
+/// | landed, a ranking with a server focus | 2 | **1** | 0 |
+/// | landed, a trend and no ranking | 2 | **1** | 0 |
+/// | landed, tiles only | 1 | **0** | 0 |
+/// | typing a follow-up (keyboard up) | 1 | 1 | 1 |
+/// | error, offline, session ended | 1 | **0** | 0 |
+///
+/// The keyboard-up row is the one that does not move, and it is the row that
+/// explains the mechanism: the nav never rendered there, so its grant had
+/// already gone back to the content. What this change did was make every
+/// other row behave like that one permanently.
+///
+/// **A budget is a ceiling, not a quota**, so the zeros are not a regression:
+/// `writing`, `landed` and the three held phases genuinely have nothing
+/// armed and nothing named, and they used to be paying for a tab.
 void main() {
   AskPhase phaseOf(WidgetTester tester) {
     final scope = tester.widget<TorchScope>(find.byType(TorchScope).first);
@@ -79,7 +94,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.firstRun,
-          night: 2,
+          night: 1,
           light: 1,
         );
         await disposeAsk(tester);
@@ -106,7 +121,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.thinking,
-          night: 2,
+          night: 1,
           light: 0,
         );
 
@@ -137,7 +152,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.writing,
-          night: 1,
+          night: 0,
           light: 0,
         );
 
@@ -164,7 +179,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.landedFocus,
-          night: 2,
+          night: 1,
           light: 0,
         );
         await disposeAsk(tester);
@@ -183,7 +198,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.landedFocus,
-          night: 2,
+          night: 1,
           light: 0,
         );
         await disposeAsk(tester);
@@ -200,7 +215,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.landed,
-          night: 1,
+          night: 0,
           light: 0,
         );
         await disposeAsk(tester);
@@ -243,7 +258,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.errored,
-          night: 1,
+          night: 0,
           light: 0,
         );
         await disposeAsk(tester);
@@ -255,7 +270,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.offline,
-          night: 1,
+          night: 0,
           light: 0,
         );
         await disposeAsk(tester);
@@ -267,7 +282,7 @@ void main() {
           tester,
           skin,
           phase: AskPhase.sessionEnded,
-          night: 1,
+          night: 0,
           light: 0,
         );
         await disposeAsk(tester);
@@ -299,10 +314,11 @@ void main() {
         final census = await amberCensus(tester);
         expect(
           census.objectCount,
-          2,
+          1,
           reason:
-              'The nav tab and ONE bar. The earlier answer\'s light went out '
-              'when the next question was asked.\n${census.describe()}',
+              'ONE bar, and no nav tab to go with it any more. The earlier '
+              'answer\'s light went out when the next question was '
+              'asked.\n${census.describe()}',
         );
         await disposeAsk(tester);
       },
@@ -331,7 +347,8 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(phaseOf(tester), AskPhase.landedFocus);
       final census = await amberCensus(tester);
-      expect(census.objectCount, 2, reason: census.describe());
+      // The ranking's bar, alone. It was the bar and the nav tab.
+      expect(census.objectCount, 1, reason: census.describe());
       await disposeAsk(tester);
     });
 
@@ -350,7 +367,9 @@ void main() {
         reason: 'No focus field means nothing is lit — never a guess at 0.',
       );
       final census = await amberCensus(tester);
-      expect(census.objectCount, 1, reason: census.describe());
+      // NOTHING, now that the nav tab is not standing behind it. The test
+      // name was always "lights nothing" and the 1 was the chrome.
+      expect(census.objectCount, 0, reason: census.describe());
       await disposeAsk(tester);
     });
 

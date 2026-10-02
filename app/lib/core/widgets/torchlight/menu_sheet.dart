@@ -15,11 +15,28 @@ import 'row/row.dart';
 import 'section_rule.dart';
 import 'sheet.dart';
 
-/// THE MENU — the console's overflow, as the one modal container.
+/// THE MENU — the console's DESTINATIONS, as the one modal container.
 ///
-/// Every destination that does not fit the four slots, grouped by the verb it
-/// serves, and under them the housekeeping that has nowhere else to live on a
-/// phone: the app's brightness, the password, and the way out.
+/// Every destination the manager has, grouped by the verb it serves, and under
+/// them the housekeeping that has nowhere else to live on a phone: the app's
+/// brightness, the password, and the way out.
+///
+/// ## IT IS NOT AN OVERFLOW ANY MORE — 2 October 2026
+///
+/// It was "every destination that does not fit the four slots", reached from
+/// the nav pill's fourth tab. There is no pill: the bottom of every console
+/// screen is one bar, and the grid button at its leading end opens this
+/// (through `showFloorDestinations`, which adds two lead rows). So this sheet
+/// is no longer the leftovers — **it is the whole list**, and it is reached by
+/// the same gesture from all 29 console screens rather than from one tab on
+/// 27 of them.
+///
+/// Two things follow and both are in the copy. `menuSubtitle` read "Everything
+/// the four tabs do not hold" and now reads "Everywhere you can go from here",
+/// because the old sentence became false rather than merely dated. And the
+/// list is no longer edited against what the four slots already carry: The
+/// Floor and Tasks are in it on their own merits, which is why
+/// `showFloorDestinations` puts them at the top under "Where you were".
 ///
 /// It reads [managerDestinations] rather than keeping a second list — a
 /// destination added there appears here at once. **It is the only reader of

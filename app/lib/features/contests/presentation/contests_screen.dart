@@ -112,7 +112,6 @@ class ContestsScreen extends ConsumerWidget {
   }) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: 'Contests',
         facts: const <String>[

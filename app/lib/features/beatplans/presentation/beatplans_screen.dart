@@ -211,7 +211,6 @@ class _BeatPlans extends ConsumerWidget {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.beatPlansTitle,
         facts: <String>[l10n.beatPlansSubtitle],

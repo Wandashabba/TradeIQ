@@ -613,7 +613,7 @@ void main() {
     });
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
-      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+      testWidgets('${skin.mode.name}: the Send disc, alone', (tester) async {
         await _pump(tester, skin: skin, rules: <AlertRule>[_rule()]);
 
         final census = await amberCensus(tester);
@@ -623,7 +623,12 @@ void main() {
           route: 'alert-rules',
           phase: 'loaded',
         );
-        expect(census.objectCount, 0, reason: census.describe());
+        // DAY PAINTS ONE SINCE MODEL 1. The pill's active tab was an
+        // Abyssal block on a light ground and was never counted here; the
+        // ask bar's Send is a `primaryCommit`, which is the one object
+        // Day allows to be amber. Inside the budget of one. See
+        // `ConsoleFrame`.
+        expect(census.objectCount, 1, reason: census.describe());
       });
     }
   });
@@ -662,7 +667,19 @@ void main() {
       TiqSkin.night(),
       TiqSkin.day(),
     ]) {
-      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      // ── ONE IN BOTH SKINS SINCE MODEL 1 — 2 October 2026 ───────────
+      //
+      // It was `night ? 1 : 0`, and the 1 was the **nav pill's active tab**:
+      // amber on Night, and on a light ground an Abyssal block rather than
+      // amber, which is why Day counted zero. The pill is retired and the
+      // bottom of every console screen is the ask bar, whose Send is a
+      // `primaryCommit` — the one object Day permits to be amber.
+      //
+      // So Night's count does not move (the grant changed hands from chrome
+      // to a control that commits something) and **Day goes 0 to 1**. That is
+      // an honest increase, it is inside Day's budget of one, and it is the
+      // first amber this route has ever painted on paper. See `ConsoleFrame`.
+      const lit = 1;
       final phases = <String, Future<void> Function(WidgetTester)>{
         'loaded': (t) => _pump(
           t,

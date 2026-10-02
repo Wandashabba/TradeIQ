@@ -137,7 +137,6 @@ class DashboardShellScreen extends ConsumerWidget {
 
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.dashOverviewTitle,
         facts: <String>[

@@ -126,7 +126,6 @@ class AgentTrailScreen extends ConsumerWidget {
       List<String> extraFacts = const <String>[],
     }) => ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.trailTitle,
         facts: <String>[_isoDay(day), ...extraFacts],

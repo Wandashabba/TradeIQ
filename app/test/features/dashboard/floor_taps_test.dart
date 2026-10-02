@@ -229,9 +229,19 @@ void main() {
             'a control under the shrunken plate is the stacked-header defect; '
             'a control ON it splits the strip light in two',
       );
+      // AND THE DESTINATIONS CONTROL IS STILL THERE, which is the one line of
+      // this test that changed on 2 October 2026 — it used to assert
+      // `findsNothing`. It is not on the plate any more, so the shrunken
+      // plate's missing band is no longer its problem: it is in the ask bar,
+      // 20dp off the safe area, where it is on EVERY console screen in every
+      // phase. The scope chip still goes, because the scope chip really does
+      // belong to the briefing.
+      //
+      // This is the half of Model 1 that is hard to see in a render and easy
+      // to lose: navigation does not come and go with the screen's state.
       expect(
         find.byKey(const ValueKey<String>('floor-destinations')),
-        findsNothing,
+        findsOneWidget,
       );
 
       await tester.tap(
@@ -267,18 +277,36 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('the first-run board KEEPS its nav pill', (tester) async {
+    // ── THE FIRST-RUN BOARD GAVE UP ITS NAV PILL — 2 October 2026 ──────
+    //
+    // This test read "the first-run board KEEPS its nav pill", and the
+    // argument was sound while the board was the only screen with no
+    // composer: nothing to ask about, no briefing to stand on, so keep the
+    // four labelled tabs. `FloorScaffold.showNavPill` was the seam.
+    //
+    // Model 1 removes the seam. The board was the LAST tab root on the
+    // manager side, which means a brand-new client's very first screen would
+    // have been the one screen in the product that still navigated by tabs —
+    // the inconsistency the owner named, concentrated at the worst possible
+    // moment. It takes the ask bar like everything else, and a tenant with no
+    // data at all is exactly the tenant with the most to ask.
+    //
+    // What is kept from the old test is what it was really for: **that the
+    // board can be navigated off.** The route it proves is the same one.
+    testWidgets('the first-run board navigates by the ask bar\'s grid', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
-      // Nothing on the books at all: The Floor hands off to the board, which
-      // wears the same `FloorScaffold` — and is deliberately NOT the Ask
-      // landing. It has no composer, nothing to ask about and no briefing to
-      // stand on, so it keeps the four labelled tabs. The seam that decides
-      // this is `FloorScaffold.showNavPill`.
       final router = await pumpFloorRoute(tester, current: firstRunKpis());
       expect(find.byType(FirstRunBoard), findsOneWidget);
-      expect(find.byType(TorchNavPill), findsOneWidget);
+      expect(find.byType(TorchNavPill), findsNothing);
+      expect(find.byType(TorchAskDestinations), findsOneWidget);
 
-      await tester.tap(navSlot('Work'));
+      await tester.tap(find.byType(TorchAskDestinations));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('floor-destination-work')),
+      );
       await tester.pumpAndSettle();
 
       expect(currentRoute(router), '/tasks');

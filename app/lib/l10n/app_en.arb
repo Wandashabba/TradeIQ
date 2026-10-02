@@ -2644,6 +2644,10 @@
   "@askComposerHint": {
     "description": "Placeholder inside the empty composer."
   },
+  "askComposerConsoleHint": "Ask TradeIQ\u2026",
+  "@askComposerConsoleHint": {
+    "description": "Placeholder in the ask bar on a console screen that names no subject of its own. 25 of the 27 framed routes use it."
+  },
   "askComposerRephrase": "Ask again, or rephrase",
   "@askComposerRephrase": {
     "description": "Replaces the composer label after a failed turn."
@@ -2772,22 +2776,6 @@
   "askStopShort": "Stop",
   "@askStopShort": {
     "description": "The ghost button offered under the rail after thirty silent seconds. Stopping keeps what is already written."
-  },
-  "askNavFloor": "Floor",
-  "@askNavFloor": {
-    "description": "Manager nav slot 1: The Floor, the dashboard."
-  },
-  "askNavWork": "Work",
-  "@askNavWork": {
-    "description": "Manager nav slot 2: alerts and tasks."
-  },
-  "askNavAsk": "Ask",
-  "@askNavAsk": {
-    "description": "Manager nav slot 3: Ask TradeIQ."
-  },
-  "askNavMenu": "Menu",
-  "@askNavMenu": {
-    "description": "Manager nav slot 4: everything else."
   },
   "askStepsLive": "Live",
   "@askStepsLive": {
@@ -4849,11 +4837,11 @@
   },
   "menuTitle": "Menu",
   "@menuTitle": {
-    "description": "Title of the console's overflow sheet, opened from the nav's Menu slot."
+    "description": "Title of the console's destinations sheet, opened by the grid button at the leading end of the ask bar on every console screen. It was the nav's Menu slot until 2 October 2026."
   },
-  "menuSubtitle": "Everything the four tabs do not hold.",
+  "menuSubtitle": "Everywhere you can go from here.",
   "@menuSubtitle": {
-    "description": "Subtitle of the menu sheet."
+    "description": "Subtitle of the menu sheet. It read 'Everything the four tabs do not hold' until the four tabs were retired on 2 October 2026; the sheet is now the console's whole destination list rather than its overflow."
   },
   "menuThisApp": "This app",
   "@menuThisApp": {

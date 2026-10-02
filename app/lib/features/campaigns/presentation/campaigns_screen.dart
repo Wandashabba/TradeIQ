@@ -108,7 +108,6 @@ class CampaignsScreen extends ConsumerWidget {
   }) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: 'Campaigns',
         facts: const <String>['Tap a row for its compliance rollup.'],

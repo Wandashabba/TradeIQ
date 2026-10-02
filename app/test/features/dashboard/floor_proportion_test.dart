@@ -6,6 +6,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/input/filter_chip.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/assistant/answer/composer.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/floor_ask.dart';
@@ -351,10 +352,20 @@ void main() {
   ///
   /// So the clearance is a number (`PlateSpec.topSlotRoom`) and this is where
   /// it is measured against the control the screen actually draws, on both
-  /// supported phones. At 360dp it passes only because
-  /// `FloorDestinationsButton.compact` drops the word `Menu` and keeps the
-  /// chip on one line: that fix is load-bearing, and this is the test that
-  /// says so.
+  /// supported phones.
+  ///
+  /// ## IT IS ONE CONTROL NOW, NOT TWO — 2 October 2026
+  ///
+  /// This measured `max(chip.bottom, menu.bottom)`, because arrangement B put
+  /// `FloorDestinationsButton` on the plate's top band beside the chip. Model
+  /// 1 moves the destinations into the ask bar at the bottom of every console
+  /// screen, so the plate's band is the scope chip alone and the chip has the
+  /// full width to wrap in.
+  ///
+  /// The clearance therefore got **easier**, which is worth stating plainly
+  /// rather than quietly passing: the 360dp phone used to clear only because
+  /// the Menu control had already dropped its printed word, and that argument
+  /// is retired along with the control.
   group('the plate\'s controls clear its strip light', () {
     for (final (name, size) in <(String, Size)>[
       ('390x844 phone', Size(390, 844)),
@@ -377,17 +388,20 @@ void main() {
           reason: 'the spec and the drawn plate have to be the same plate',
         );
 
-        // The whole top band: the chip and the Menu control, as one row.
+        // The whole top band, which is the scope chip and nothing else.
         final chip = tester.getRect(
           find.byKey(const ValueKey<String>('floor-scope-chip')),
         );
-        final menu = tester.getRect(
-          find.byKey(const ValueKey<String>('floor-destinations')),
+        // AND THE DESTINATIONS CONTROL IS NOT ON THE PLATE. It is in the ask
+        // bar, below the fold of this measurement entirely — proved here so
+        // the clearance cannot quietly start measuring it again.
+        expect(
+          tester
+              .getRect(find.byKey(const ValueKey<String>('floor-destinations')))
+              .top,
+          greaterThan(plate.bottom),
         );
-        final controlsBottom = chip.bottom > menu.bottom
-            ? chip.bottom
-            : menu.bottom;
-        final taken = controlsBottom - plate.top - PlateSpec.topSlotInset;
+        final taken = chip.bottom - plate.top - PlateSpec.topSlotInset;
 
         expect(
           taken,
@@ -402,7 +416,7 @@ void main() {
         // Belt and braces, in the units the defect was reported in: the
         // control's own bottom edge, against the light's own y.
         expect(
-          controlsBottom - plate.top,
+          chip.bottom - plate.top,
           lessThan(spec.stripLightY),
           reason: 'the control reaches the strip light itself',
         );
@@ -603,8 +617,15 @@ void main() {
         '${tester.getRect(chip).height.toStringAsFixed(0)}dp',
       ),
       (
-        'Menu control',
-        '22x22, r7, icon only',
+        // IT MOVED, AND IT GREW — 2 October 2026. The 22x22 in the drawing is
+        // a control sitting ON a photograph, where a quiet 29dp box is right
+        // because the picture is doing the work. In the ask bar it stands on
+        // the ground beside a 36dp Send disc and a 56dp trough, and at 29dp
+        // it read as a smudge rather than a control. It is drawn at the
+        // tap-target floor instead, which is the one size on this screen
+        // where drawn and targeted are the same number.
+        'grid control (was Menu)',
+        'n/a — moved off the plate',
         '${paintedHeight(menu).toStringAsFixed(0)}'
             'x${tester.getRect(find.descendant(of: menu, matching: find.byType(Container))).width.toStringAsFixed(0)}dp,'
             ' no word',
@@ -660,7 +681,9 @@ void main() {
     // figure is held to the mockup's within a dp of rounding, and each target
     // to the floor the rule sets.
     expect(paintedHeight(chip), closeTo(plateQuietExtent, 0.5));
-    expect(paintedHeight(menu), closeTo(plateQuietExtent, 0.5));
+    // The grid control is `TorchAskDestinations.extent`, not the plate's quiet
+    // extent: it is no longer a control on a picture. See the row above.
+    expect(paintedHeight(menu), closeTo(TorchAskDestinations.extent, 0.5));
     expect(paintedHeight(suggestion), closeTo(TorchFilterChip.quietExtent, 0.5));
     expect(card1.top - card0.bottom, FloorBriefingBlock.cardGap);
     for (final control in <Finder>[chip, menu, suggestion]) {

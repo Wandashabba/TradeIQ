@@ -102,7 +102,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
     Widget frame({required String phase, required List<Widget> children}) =>
         ConsoleFrame(
           phase: phase,
-          active: ConsoleSlot.menu,
           header: TorchAppHeader(
             title: l10n.fraudTitle,
             facts: <String>[l10n.fraudFact],

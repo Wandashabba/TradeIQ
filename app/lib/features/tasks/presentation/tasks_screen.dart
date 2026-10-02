@@ -167,7 +167,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   Widget _frame({required String phase, required List<Widget> children}) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.work,
+      // One of the two console routes that names its own subject — see
+      // `ConsoleFrame.askHint` for why the other 25 do not.
+      askHint: 'Ask about your tasks…',
       header: TorchAppHeader(
         title: 'Tasks',
         // ONE CLAUSE, not a paragraph. `facts` is a middot-joined line of

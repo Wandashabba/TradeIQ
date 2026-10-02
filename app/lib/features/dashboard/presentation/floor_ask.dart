@@ -463,9 +463,22 @@ class FloorDestinationsButton extends StatelessWidget {
 /// go there is a better control than a tab that does not — and they come off
 /// the [FloorView] this screen already has, so the sheet cannot disagree with
 /// the briefing above it.
-Future<void> showFloorDestinations(BuildContext context, FloorView view) {
-  final overdue = view.decisions.length;
-  final measured = view.phase == FloorPhase.measured;
+///
+/// ## [view] IS NULLABLE SINCE 2 OCTOBER 2026, and that is the whole change
+///
+/// This is now the sheet the grid button opens from **every** console screen,
+/// and Webhooks has no [FloorView]. A null view is the same epistemic state
+/// the `failed` and `pending` scopes below already have a branch for — the
+/// backlog is unknown — so the subtitles are **withheld rather than zeroed**,
+/// by the same rule and in the same `switch`. "0 need a decision" is the one
+/// reading that is certainly wrong.
+///
+/// What does **not** change is the rows, their order, their keys or where they
+/// go. One sheet, one destination list, one gesture; the live numbers are an
+/// upgrade the screen that has them gets, never a different menu.
+Future<void> showFloorDestinations(BuildContext context, FloorView? view) {
+  final overdue = view?.decisions.length;
+  final measured = view != null && view.phase == FloorPhase.measured;
 
   return showTorchMenuSheet(
     context,
@@ -480,8 +493,10 @@ Future<void> showFloorDestinations(BuildContext context, FloorView view) {
           // Withheld rather than zeroed when the list is: a scope whose
           // coverage request failed has an unknown backlog, and "0 need a
           // decision" is the one reading that is certainly wrong.
-          subtitle: switch (view.scope) {
-            FloorScope.failed || FloorScope.pending => null,
+          subtitle: switch (view?.scope) {
+            // No view at all — a screen that is not The Floor — reads the
+            // same as a scope whose coverage request failed: unknown.
+            null || FloorScope.failed || FloorScope.pending => null,
             _ when overdue == 0 => 'Everything triaged',
             _ =>
               '$overdue ${overdue == 1 ? 'thing needs' : 'things need'} '
@@ -499,7 +514,13 @@ Future<void> showFloorDestinations(BuildContext context, FloorView view) {
           key: const ValueKey<String>('floor-destination-overview'),
           density: SoftRowDensity.compact,
           title: 'Overview',
-          subtitle: measured
+          // Three states, not two: measured prints the reading, a measured-
+          // but-empty window says so, and NO VIEW says nothing. "No visits in
+          // this window" off a screen that never asked about a window would
+          // be the sheet inventing a fact.
+          subtitle: view == null
+              ? null
+              : measured
               ? 'Health ${view.snapshot.current.executionScore.round()} · '
                     'availability ${view.snapshot.current.osaPct.round()}%'
               : 'No visits in this window',

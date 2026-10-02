@@ -750,11 +750,12 @@ void main() {
           );
           // Nothing on this route is armed, so the nav tab is the whole of
           // Night's spend and Day paints none.
-          expect(
-            census.objectCount,
-            skin.mode == SkinMode.night ? 1 : 0,
-            reason: census.describe(),
-          );
+          // ONE IN BOTH SKINS SINCE MODEL 1 — the ask bar's Send at rung 1,
+          // where the nav pill's active tab used to be. Night does not move;
+          // Day goes 0 to 1, because a `primaryCommit` block is the one
+          // object a light ground permits to be amber and a nav tab was
+          // never one. See `ConsoleFrame`.
+          expect(census.objectCount, 1, reason: census.describe());
         });
       }
     }

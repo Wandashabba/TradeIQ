@@ -108,7 +108,6 @@ class ContestStandingsScreen extends ConsumerWidget {
   }) {
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: title,
         facts: facts,

@@ -82,7 +82,6 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.templatesTitle,
         facts: <String>[l10n.templatesFact],

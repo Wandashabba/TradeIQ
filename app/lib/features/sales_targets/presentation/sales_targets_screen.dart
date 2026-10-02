@@ -270,7 +270,6 @@ class _SalesTargets extends ConsumerWidget {
 
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.salesTargetsTitle,
         facts: <String>[l10n.salesTargetsSubtitle, l10n.salesTargetsHelp],

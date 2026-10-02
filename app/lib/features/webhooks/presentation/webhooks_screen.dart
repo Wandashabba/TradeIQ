@@ -139,7 +139,6 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
-      active: ConsoleSlot.menu,
       header: TorchAppHeader(
         title: l10n.webhooksTitle,
         facts: <String>[l10n.webhooksFactPost, l10n.webhooksFactRetries],
