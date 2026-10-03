@@ -170,7 +170,7 @@ class AlertsView {
     return (
       summary: whole == null || whole <= rows.length
           ? 'Showing the first $shown. There are more.'
-          : 'Showing the $shown newest of ${figure(whole)} alerts.',
+          : 'Showing the $shown newest of ${figure(whole)} exceptions.',
       scope: 'The counts above are of these $shown.',
     );
   }

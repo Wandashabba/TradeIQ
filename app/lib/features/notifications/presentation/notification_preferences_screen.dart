@@ -344,8 +344,8 @@ class _ManagerNotificationPreferences extends ConsumerWidget {
   static const List<_Item> _items = <_Item>[
     _Item(
       NotificationCategory.alerts,
-      'Alerts',
-      'When a visit raises an alert for your team',
+      'Exceptions',
+      'When a visit raises an exception for your team',
     ),
     _Item(
       NotificationCategory.tasks,

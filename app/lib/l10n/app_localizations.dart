@@ -5684,16 +5684,16 @@ abstract class AppLocalizations {
   /// **'We could not sign you in'**
   String get loginFailedTitle;
 
-  /// Title of the console's overflow sheet, opened from the nav's Menu slot.
+  /// Title of the console's destinations sheet, opened by the grid button at the leading end of the ask bar on every console screen. It was the nav's Menu slot until 2 October 2026.
   ///
   /// In en, this message translates to:
   /// **'Menu'**
   String get menuTitle;
 
-  /// Subtitle of the menu sheet.
+  /// Subtitle of the menu sheet. It read 'Everything the four tabs do not hold' until the four tabs were retired on 2 October 2026; the sheet is now the console's whole destination list rather than its overflow.
   ///
   /// In en, this message translates to:
-  /// **'Everything the four tabs do not hold.'**
+  /// **'Everywhere you can go from here.'**
   String get menuSubtitle;
 
   /// Section rule above the menu sheet's housekeeping rows: brightness, password, sign out.
@@ -5732,22 +5732,22 @@ abstract class AppLocalizations {
   /// **'Sign out'**
   String get menuSignOut;
 
-  /// Name of the nav group holding the day's work: the floor, tasks, alerts, orders, outlets.
+  /// Name of the nav group holding the day's work: the floor, tasks, exceptions, orders, outlets. Reads 'Execution'; the NavGroup identifier is still `operate`.
   ///
   /// In en, this message translates to:
-  /// **'Operate'**
+  /// **'Execution'**
   String get navGroupOperate;
 
-  /// Name of the nav group holding the reading surfaces: Ask, reports, trends, contests.
+  /// Name of the nav group holding the reading surfaces: Ask, reports, trends, contests. Reads 'Performance'; the NavGroup identifier is still `insight`.
   ///
   /// In en, this message translates to:
-  /// **'Insight'**
+  /// **'Performance'**
   String get navGroupInsight;
 
-  /// Name of the nav group holding setup: rules, territories, users, templates.
+  /// Name of the nav group holding setup: rules, territories, the field force, templates. Reads 'Setup'; the NavGroup identifier is still `configure`.
   ///
   /// In en, this message translates to:
-  /// **'Configure'**
+  /// **'Setup'**
   String get navGroupConfigure;
 
   /// Nav destination: the manager's home screen.
@@ -5756,10 +5756,10 @@ abstract class AppLocalizations {
   /// **'The Floor'**
   String get navTheFloor;
 
-  /// Nav destination: the KPI overview.
+  /// Nav destination: the Perfect Store KPI overview. Route is still /dashboard/overview.
   ///
   /// In en, this message translates to:
-  /// **'Execution overview'**
+  /// **'Perfect Store'**
   String get navExecutionOverview;
 
   /// The floating bottom bar's first slot — the manager's home (/dashboard). Short on purpose: the rail and the menu sheet call the same route 'The Floor', but five slots share a phone's width on one line.
@@ -5774,10 +5774,10 @@ abstract class AppLocalizations {
   /// **'Tasks'**
   String get navTasks;
 
-  /// Nav destination: the alert worklist.
+  /// Nav destination: the exception worklist. Route is still /alerts.
   ///
   /// In en, this message translates to:
-  /// **'Alerts'**
+  /// **'Exceptions'**
   String get navAlerts;
 
   /// Nav destination: orders captured in store.
@@ -5846,22 +5846,22 @@ abstract class AppLocalizations {
   /// **'Contests'**
   String get navContests;
 
-  /// Nav destination: the fraud review queue.
+  /// Nav destination: the visit verification queue. Route is still /fraud.
   ///
   /// In en, this message translates to:
-  /// **'Fraud review'**
+  /// **'Visit verification'**
   String get navFraudReview;
 
-  /// Nav destination: campaigns.
+  /// Nav destination: activations. Route is still /campaigns.
   ///
   /// In en, this message translates to:
-  /// **'Campaigns'**
+  /// **'Activations'**
   String get navCampaigns;
 
-  /// Nav destination: the rules that raise alerts.
+  /// Nav destination: the rules that raise exceptions. Route is still /alert-rules.
   ///
   /// In en, this message translates to:
-  /// **'Alert rules'**
+  /// **'Exception rules'**
   String get navAlertRules;
 
   /// Nav destination: territories.
@@ -5870,16 +5870,16 @@ abstract class AppLocalizations {
   /// **'Territories'**
   String get navTerritories;
 
-  /// Nav destination: user administration.
+  /// Nav destination: the field force — user administration. Route is still /users.
   ///
   /// In en, this message translates to:
-  /// **'Users'**
+  /// **'Field force'**
   String get navUsers;
 
-  /// Nav destination: audit templates.
+  /// Nav destination: survey templates. Route is still /audit-templates.
   ///
   /// In en, this message translates to:
-  /// **'Audit templates'**
+  /// **'Survey templates'**
   String get navAuditTemplates;
 
   /// Nav destination: incentives.
@@ -5894,10 +5894,10 @@ abstract class AppLocalizations {
   /// **'Webhooks'**
   String get navWebhooks;
 
-  /// Nav destination: the client's scoring configuration.
+  /// Nav destination: the client's Perfect Store scorecard. Route is still /client-config.
   ///
   /// In en, this message translates to:
-  /// **'Scoring config'**
+  /// **'Perfect Store scorecard'**
   String get navScoringConfig;
 
   /// Title of the session-ended sheet. A state, not an error: no triangle, no crimson, no word 'error'.
@@ -6161,7 +6161,7 @@ abstract class AppLocalizations {
   /// Body under territoryNoAgentsHeadline.
   ///
   /// In en, this message translates to:
-  /// **'Add a field agent under Users, then assign them here.'**
+  /// **'Add a field agent under Field force, then assign them here.'**
   String get territoryNoAgentsBody;
 
   /// Title of the create-territory screen.
@@ -8532,10 +8532,10 @@ abstract class AppLocalizations {
   /// **'Set monthly SKU targets under Sales targets to track sell-in against them.'**
   String get salesPanelEmptyBody;
 
-  /// Screen title: the client's own audit templates.
+  /// Screen title: the client's own survey templates.
   ///
   /// In en, this message translates to:
-  /// **'Audit templates'**
+  /// **'Survey templates'**
   String get templatesTitle;
 
   /// Header fact under the Audit templates title.
@@ -8649,7 +8649,7 @@ abstract class AppLocalizations {
   /// Failure toast. The reason is the sanitised server message.
   ///
   /// In en, this message translates to:
-  /// **'The audit template was not changed. {reason}'**
+  /// **'The survey template was not changed. {reason}'**
   String templatesChangeFailed(String reason);
 
   /// Row word: this template is the one agents answer.
@@ -8715,7 +8715,7 @@ abstract class AppLocalizations {
   /// The way out of the template preview, naming where it lands.
   ///
   /// In en, this message translates to:
-  /// **'Back to Audit templates'**
+  /// **'Back to Survey templates'**
   String get templatePreviewBack;
 
   /// What the skeleton and the error region say they are for, inside 'Still fetching the …'.
@@ -11382,10 +11382,10 @@ abstract class AppLocalizations {
   /// **'Showing the first 200 agents.'**
   String get liveFirst200;
 
-  /// Title of the fraud review queue.
+  /// Title of the visit verification queue.
   ///
   /// In en, this message translates to:
-  /// **'Fraud review'**
+  /// **'Visit verification'**
   String get fraudTitle;
 
   /// Header fact explaining how a risk score is arrived at.
@@ -12529,7 +12529,7 @@ abstract class AppLocalizations {
   /// The title of the manager's multi-panel console at /dashboard/overview.
   ///
   /// In en, this message translates to:
-  /// **'Execution overview'**
+  /// **'Perfect Store'**
   String get dashOverviewTitle;
 
   /// Screen-reader label for the header's refetch button. It refetches all panels together so none can disagree with another.
@@ -12646,16 +12646,16 @@ abstract class AppLocalizations {
   /// **'Needs attention'**
   String get dashNeedsAttention;
 
-  /// The needs-attention section's ghost action, into the alerts worklist.
+  /// The needs-attention section's ghost action, into the exceptions worklist.
   ///
   /// In en, this message translates to:
-  /// **'All alerts'**
+  /// **'All exceptions'**
   String get dashViewAllAlerts;
 
-  /// Row title: open alerts at critical severity.
+  /// Row title: open exceptions at critical severity.
   ///
   /// In en, this message translates to:
-  /// **'Critical alerts open'**
+  /// **'Critical exceptions open'**
   String get dashCriticalAlerts;
 
   /// Row title: open alerts below critical severity.
@@ -13375,7 +13375,7 @@ abstract class AppLocalizations {
   /// The way on from the not-found state.
   ///
   /// In en, this message translates to:
-  /// **'Back to alerts'**
+  /// **'Back to exceptions'**
   String get visitBackToAlerts;
 
   /// The reviewed visit's score and its band as one utterance, so a reader never hears the figure without the verdict.

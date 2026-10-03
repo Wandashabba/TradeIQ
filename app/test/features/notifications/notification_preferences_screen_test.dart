@@ -234,7 +234,7 @@ void main() {
       expect(find.text('Notifications'), findsWidgets);
       expect(find.text('Push notifications'.toUpperCase()), findsOneWidget);
       for (final label in <String>[
-        'Alerts',
+        'Exceptions',
         'Tasks assigned to you',
         'Messages and announcements',
         'Overdue tasks',

@@ -88,12 +88,12 @@ void main() {
       await tester.tap(keyed('campaign-save-button'));
       await tester.pumpAndSettle();
 
-      expect(find.text('A campaign needs a name.'), findsOneWidget);
+      expect(find.text('An activation needs a name.'), findsOneWidget);
       expect(repo.created, isNull);
 
       await tester.enterText(keyed('campaign-name-field'), 'Spring Reset');
       await tester.pumpAndSettle();
-      expect(find.text('A campaign needs a name.'), findsNothing);
+      expect(find.text('An activation needs a name.'), findsNothing);
     });
 
     testWidgets('missing dates are named, not shrugged at', (tester) async {
@@ -107,7 +107,7 @@ void main() {
 
       await scrollConsoleTo(tester, keyed('campaign-date-error'));
       expect(
-        find.text('A campaign needs a start date and an end date.'),
+        find.text('An activation needs a start date and an end date.'),
         findsOneWidget,
       );
       expect(repo.created, isNull);

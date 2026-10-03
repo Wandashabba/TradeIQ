@@ -405,18 +405,18 @@ void main() {
 
       expect(find.text('Kieslys'), findsOneWidget);
       // The group rows, in Afrikaans, carrying their counts.
-      expect(find.text('Bedryf · 9'), findsOneWidget);
-      expect(find.text('Insig · 8'), findsOneWidget);
-      expect(find.text('Stel op · 7'), findsOneWidget);
+      expect(find.text('Uitvoering · 9'), findsOneWidget);
+      expect(find.text('Prestasie · 8'), findsOneWidget);
+      expect(find.text('Opstelling · 7'), findsOneWidget);
       // And a destination inside one, which needs the fold opened first.
       await openGroup(tester, NavGroup.operate);
       expect(find.text('Die Vloer'), findsOneWidget);
       // The English words are nowhere on an Afrikaans screen.
       for (final english in <String>[
         'Menu',
-        'Operate',
-        'Insight',
-        'Configure',
+        'Execution',
+        'Performance',
+        'Setup',
         'The Floor',
         'Sign out',
       ]) {

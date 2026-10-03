@@ -471,7 +471,7 @@ void main() {
     ) async {
       await _pump(tester, repo: FakeUsersRepository(users: const <AppUser>[]));
       expect(find.byType(EmptyState), findsOneWidget);
-      expect(find.text('No users yet.'), findsOneWidget);
+      expect(find.text('No one here yet.'), findsOneWidget);
       expect(find.byType(PersonRow), findsNothing);
       // And no cluster of nought against nought, which reads as a broken
       // screen rather than as an empty one.

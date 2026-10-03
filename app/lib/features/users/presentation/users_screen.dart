@@ -82,7 +82,7 @@ class UsersScreen extends ConsumerWidget {
         canEdit: canEdit,
         children: <Widget>[
           Skeleton(
-            label: 'users',
+            label: 'the field force',
             child: const SkeletonRows(count: 5, rowHeight: 80),
           ),
         ],
@@ -132,7 +132,7 @@ class UsersScreen extends ConsumerWidget {
     return ConsoleFrame(
       phase: phase,
       header: TorchAppHeader(
-        title: 'Users',
+        title: 'Field force',
         facts: <String>[
           canEdit
               ? 'Deactivating a user revokes sign-in immediately.'
@@ -141,7 +141,7 @@ class UsersScreen extends ConsumerWidget {
         trailing: TorchIconButton(
           key: const ValueKey<String>('users-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the user list',
+          semanticLabel: 'Refresh the field force',
           onPressed: () => ref.invalidate(usersListProvider),
         ),
       ),
@@ -193,14 +193,14 @@ class UsersScreen extends ConsumerWidget {
           SizedBox(height: context.skin.space.blockGap),
         ],
 
-        SectionRule('Users', count: list.isEmpty ? null : list.length),
+        SectionRule('Field force', count: list.isEmpty ? null : list.length),
         const SizedBox(height: TiqSpace.s5),
 
         if (list.isEmpty)
           const EmptyState(
             key: ValueKey<String>('users-empty'),
             scope: EmptyScope.inPanel,
-            headline: 'No users yet.',
+            headline: 'No one here yet.',
             body: 'Add a user to give someone access to this client.',
           )
         else
@@ -726,8 +726,8 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
               ChoiceOption<String>(
                 value: 'admin',
                 label: 'Administrator',
-                consequence: 'Everything a manager can do, plus users and '
-                    'scoring config.',
+                consequence: 'Everything a manager can do, plus the field force '
+                    'and the Perfect Store scorecard.',
               ),
             ],
             onChanged: (value) => setState(() => _role = value),

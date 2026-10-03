@@ -513,7 +513,7 @@ Future<void> showFloorDestinations(BuildContext context, FloorView? view) {
         builder: (rowContext) => SoftRow(
           key: const ValueKey<String>('floor-destination-overview'),
           density: SoftRowDensity.compact,
-          title: 'Overview',
+          title: 'Perfect Store',
           // Three states, not two: measured prints the reading, a measured-
           // but-empty window says so, and NO VIEW says nothing. "No visits in
           // this window" off a screen that never asked about a window would

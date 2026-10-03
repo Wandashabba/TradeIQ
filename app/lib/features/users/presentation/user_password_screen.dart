@@ -249,7 +249,7 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
           ? 'error'
           : 'ready',
       title: 'Reset password',
-      back: AccountFrame.backTo('Back to users', _leave),
+      back: AccountFrame.backTo('Back to the field force', _leave),
       primaryArmed: !_issuing,
       // Wrapped in TorchlightRoute above, so the agent cycle is the one that
       // moves this screen's own ground.

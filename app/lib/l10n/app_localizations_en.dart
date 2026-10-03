@@ -3671,7 +3671,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuTitle => 'Menu';
 
   @override
-  String get menuSubtitle => 'Everything the four tabs do not hold.';
+  String get menuSubtitle => 'Everywhere you can go from here.';
 
   @override
   String get menuThisApp => 'This app';
@@ -3700,19 +3700,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuSignOut => 'Sign out';
 
   @override
-  String get navGroupOperate => 'Operate';
+  String get navGroupOperate => 'Execution';
 
   @override
-  String get navGroupInsight => 'Insight';
+  String get navGroupInsight => 'Performance';
 
   @override
-  String get navGroupConfigure => 'Configure';
+  String get navGroupConfigure => 'Setup';
 
   @override
   String get navTheFloor => 'The Floor';
 
   @override
-  String get navExecutionOverview => 'Execution overview';
+  String get navExecutionOverview => 'Perfect Store';
 
   @override
   String get navHome => 'Home';
@@ -3721,7 +3721,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navTasks => 'Tasks';
 
   @override
-  String get navAlerts => 'Alerts';
+  String get navAlerts => 'Exceptions';
 
   @override
   String get navOrders => 'Orders';
@@ -3757,22 +3757,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navContests => 'Contests';
 
   @override
-  String get navFraudReview => 'Fraud review';
+  String get navFraudReview => 'Visit verification';
 
   @override
-  String get navCampaigns => 'Campaigns';
+  String get navCampaigns => 'Activations';
 
   @override
-  String get navAlertRules => 'Alert rules';
+  String get navAlertRules => 'Exception rules';
 
   @override
   String get navTerritories => 'Territories';
 
   @override
-  String get navUsers => 'Users';
+  String get navUsers => 'Field force';
 
   @override
-  String get navAuditTemplates => 'Audit templates';
+  String get navAuditTemplates => 'Survey templates';
 
   @override
   String get navIncentives => 'Incentives';
@@ -3781,7 +3781,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navWebhooks => 'Webhooks';
 
   @override
-  String get navScoringConfig => 'Scoring config';
+  String get navScoringConfig => 'Perfect Store scorecard';
 
   @override
   String get sessionEndedTitle => 'You have been signed out';
@@ -3964,7 +3964,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get territoryNoAgentsBody =>
-      'Add a field agent under Users, then assign them here.';
+      'Add a field agent under Field force, then assign them here.';
 
   @override
   String get territoryNewTitle => 'New territory';
@@ -5425,7 +5425,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Set monthly SKU targets under Sales targets to track sell-in against them.';
 
   @override
-  String get templatesTitle => 'Audit templates';
+  String get templatesTitle => 'Survey templates';
 
   @override
   String get templatesFact =>
@@ -5494,7 +5494,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String templatesChangeFailed(String reason) {
-    return 'The audit template was not changed. $reason';
+    return 'The survey template was not changed. $reason';
   }
 
   @override
@@ -5534,7 +5534,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get templatePreviewTitle => 'Template preview';
 
   @override
-  String get templatePreviewBack => 'Back to Audit templates';
+  String get templatePreviewBack => 'Back to Survey templates';
 
   @override
   String get templatePreviewSkeleton => 'the template';
@@ -7204,7 +7204,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveFirst200 => 'Showing the first 200 agents.';
 
   @override
-  String get fraudTitle => 'Fraud review';
+  String get fraudTitle => 'Visit verification';
 
   @override
   String get fraudFact =>
@@ -7923,7 +7923,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get dashOverviewTitle => 'Execution overview';
+  String get dashOverviewTitle => 'Perfect Store';
 
   @override
   String get dashRefresh => 'Refresh every panel';
@@ -7994,10 +7994,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashNeedsAttention => 'Needs attention';
 
   @override
-  String get dashViewAllAlerts => 'All alerts';
+  String get dashViewAllAlerts => 'All exceptions';
 
   @override
-  String get dashCriticalAlerts => 'Critical alerts open';
+  String get dashCriticalAlerts => 'Critical exceptions open';
 
   @override
   String get dashWarningAlerts => 'Warnings awaiting acknowledgement';
@@ -8426,7 +8426,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'It does not exist, or it belongs to another client.';
 
   @override
-  String get visitBackToAlerts => 'Back to alerts';
+  String get visitBackToAlerts => 'Back to exceptions';
 
   @override
   String visitReviewScoreSemantics(int value, String band) {

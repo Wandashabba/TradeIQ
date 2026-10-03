@@ -59,14 +59,23 @@ class NavDestination {
   };
 }
 
+/// The three groups, by identifier.
+///
+/// **The identifiers are not the labels, and deliberately so.** As of
+/// 3 October 2026 these print as *Execution*, *Performance* and *Setup* — the
+/// trade-marketing words the data layer has always used — while the enum
+/// stays `operate`/`insight`/`configure`. Renaming the identifiers would
+/// rewrite `ValueKey('menu-fold-operate')` in the fold, the golden names and
+/// every test that reaches for a group by key, for no reader-visible gain:
+/// nobody sees an enum. [navGroupName] is the single place the two meet.
 enum NavGroup { operate, insight, configure }
 
 /// The group's name in [l10n]'s language, sentence case.
 ///
 /// Sentence case **in the data**, which is the half of this that never
-/// changed: "OPERATE" shouted into a string is a word a screen reader spells
-/// out letter by letter, and it reaches the search index and the PDF exporter
-/// too. [SectionRule] uppercases for display only and hands this string to
+/// changed: "EXECUTION" shouted into a string is a word a screen reader
+/// spells out letter by letter, and it reaches the search index and the PDF
+/// exporter too. [SectionRule] uppercases for display only and hands this string to
 /// anything that reads — so the menu's groups print as kickers and are still
 /// announced as words.
 String navGroupName(AppLocalizations l10n, NavGroup group) => switch (group) {
@@ -102,7 +111,7 @@ String navGroupName(AppLocalizations l10n, NavGroup group) => switch (group) {
 /// else.** If it is manager-only, add it to `managerOnly` in `app_router.dart`
 /// too, by hand, until somebody makes that guard read this list.
 const managerDestinations = <NavDestination>[
-  // Operate
+  // operate — prints as "Execution"
   NavDestination(
     route: '/dashboard',
     label: 'The Floor',
@@ -111,7 +120,7 @@ const managerDestinations = <NavDestination>[
   ),
   NavDestination(
     route: '/dashboard/overview',
-    label: 'Execution overview',
+    label: 'Perfect Store',
     icon: Icons.insights_outlined,
     group: NavGroup.operate,
   ),
@@ -123,7 +132,7 @@ const managerDestinations = <NavDestination>[
   ),
   NavDestination(
     route: '/alerts',
-    label: 'Alerts',
+    label: 'Exceptions',
     icon: Icons.warning_amber_outlined,
     group: NavGroup.operate,
   ),
@@ -157,7 +166,7 @@ const managerDestinations = <NavDestination>[
     icon: Icons.store_outlined,
     group: NavGroup.operate,
   ),
-  // Insight
+  // insight — prints as "Performance"
   //
   // First in the group deliberately. The whole bet is that a manager asks a
   // question instead of hunting for the screen that answers it, and a
@@ -208,20 +217,20 @@ const managerDestinations = <NavDestination>[
   ),
   NavDestination(
     route: '/fraud',
-    label: 'Fraud review',
+    label: 'Visit verification',
     icon: Icons.gpp_maybe_outlined,
     group: NavGroup.insight,
   ),
   NavDestination(
     route: '/campaigns',
-    label: 'Campaigns',
+    label: 'Activations',
     icon: Icons.campaign_outlined,
     group: NavGroup.insight,
   ),
-  // Configure
+  // configure — prints as "Setup"
   NavDestination(
     route: '/alert-rules',
-    label: 'Alert rules',
+    label: 'Exception rules',
     icon: Icons.rule_outlined,
     group: NavGroup.configure,
   ),
@@ -233,13 +242,13 @@ const managerDestinations = <NavDestination>[
   ),
   NavDestination(
     route: '/users',
-    label: 'Users',
+    label: 'Field force',
     icon: Icons.group_outlined,
     group: NavGroup.configure,
   ),
   NavDestination(
     route: '/audit-templates',
-    label: 'Audit templates',
+    label: 'Survey templates',
     icon: Icons.description_outlined,
     group: NavGroup.configure,
   ),
@@ -257,7 +266,7 @@ const managerDestinations = <NavDestination>[
   ),
   NavDestination(
     route: '/client-config',
-    label: 'Scoring config',
+    label: 'Perfect Store scorecard',
     icon: Icons.tune_outlined,
     group: NavGroup.configure,
   ),

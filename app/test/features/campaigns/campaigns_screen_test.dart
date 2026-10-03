@@ -108,12 +108,12 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('New campaign opens the form', (tester) async {
+    testWidgets('New activation opens the form', (tester) async {
       await _pump(tester);
       await scrollConsoleTo(tester, keyed('campaign-create'));
       await tester.tap(keyed('campaign-create'));
       await tester.pumpAndSettle();
-      expect(find.text('New campaign'), findsWidgets);
+      expect(find.text('New activation'), findsWidgets);
     });
   });
 
@@ -271,7 +271,7 @@ void main() {
 
       // Coverage is a division by zero here, not a rate of nought.
       expect(
-        find.text('Visit coverage · No outlets in this campaign'),
+        find.text('Visit coverage · No outlets in this activation'),
         findsOneWidget,
       );
       expect(find.textContaining('0.0%', findRichText: true), findsNothing);
@@ -388,7 +388,7 @@ void main() {
         repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),
       );
       expect(find.byType(EmptyState), findsOneWidget);
-      expect(find.text('No campaigns yet.'), findsOneWidget);
+      expect(find.text('No activations yet.'), findsOneWidget);
       expect(find.byType(SectionRule), findsOneWidget);
       expect(find.byType(SoftRow), findsNothing);
     });
@@ -406,7 +406,7 @@ void main() {
       expect(find.byType(Skeleton), findsOneWidget);
     });
 
-    testWidgets('New campaign is on the screen in every phase, not only when '
+    testWidgets('New activation is on the screen in every phase, not only when '
         'the list loaded', (tester) async {
       // The capability, written as the failure. Before the fix the create
       // control was built inside `_loaded`, so an admin whose GET /campaigns
@@ -423,7 +423,7 @@ void main() {
       expect(keyed('campaign-create'), findsOneWidget);
     });
 
-    testWidgets('New campaign is there while the list is still loading', (
+    testWidgets('New activation is there while the list is still loading', (
       tester,
     ) async {
       await _pump(
@@ -436,7 +436,7 @@ void main() {
       expect(keyed('campaign-create'), findsOneWidget);
     });
 
-    testWidgets('New campaign is there on an empty list', (tester) async {
+    testWidgets('New activation is there on an empty list', (tester) async {
       await _pump(
         tester,
         repo: FakeCampaignsRepository(campaigns: const <Campaign>[]),

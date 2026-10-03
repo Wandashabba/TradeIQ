@@ -31,7 +31,9 @@ import '../../../features/auth/entry_harness.dart';
 /// theme and password rows), **2,132dp** of content inside a **710.7dp**
 /// viewport — **1,421.3dp of scroll**. Every destination row was **68dp**
 /// except *Execution overview*, which was **74dp** because its label already
-/// wrapped to two lines at 390dp.
+/// wrapped to two lines at 390dp. That destination is called **Perfect Store**
+/// as of 3 October 2026 and is six characters shorter, so the wrap this file
+/// recorded is gone twice over — once by folding, once by the word.
 ///
 /// Those numbers are a historical record and cannot be re-measured from here:
 /// the code that produced them is gone. The two constants below carry them so
@@ -42,7 +44,7 @@ const double beforeContentHeight = 2132;
 void main() {
   // EVERY ASSERTION IN HERE IS ABOUT GEOMETRY, so it is made in the real
   // faces. Flutter's default test font is a square-ish stand-in that measures
-  // "Execution overview" about 15% wider than Schibsted Grotesk does — wide
+  // "Perfect Store scorecard" about 15% wider than Schibsted Grotesk does — wide
   // enough to wrap it at 360dp and report a defect this sheet does not have.
   // `agent_harness.dart` says out loud that a file which calls this should be
   // a file whose assertions are about fitting on a phone. This is that file.
@@ -288,9 +290,10 @@ void main() {
               reason:
                   '"$label" wraps to $count lines at $scale× on a 360dp '
                   'phone (${paragraph.size.height}dp tall, one line is '
-                  '${oneLine}dp). It is the label the brief names: Execution '
-                  'overview wrapped at 390dp BEFORE this change, and the '
-                  'point of the smaller scale is that it stops.',
+                  '${oneLine}dp). This is the check the trade-marketing '
+                  'rename has to clear: "Perfect Store scorecard" is the '
+                  'longest label in the app and it replaced "Scoring '
+                  'config", which was nine characters shorter.',
             );
             // And it is not ellipsised either, which a line count cannot see.
             expect(

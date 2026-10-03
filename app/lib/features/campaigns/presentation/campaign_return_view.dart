@@ -12,8 +12,8 @@ import '../data/campaigns_repository.dart';
 /// overlap (#94).
 const campaignReturnCaveat =
     'Sell-in, not shopper sales: these are orders stores placed with you, not '
-    'what shoppers bought. Where campaigns overlap, an order counts toward '
-    'one campaign only.';
+    'what shoppers bought. Where activations overlap, an order counts toward '
+    'one activation only.';
 
 /// The honest sentence shown in place of a percentage that cannot be measured.
 String roiUnmeasurableReason(RoiUnmeasurable reason) => switch (reason) {
@@ -112,7 +112,7 @@ class CampaignReturnView extends StatelessWidget {
         ),
         const SizedBox(height: TiqSpace.s4),
         _ReturnLine(
-          'Sell-in during campaign',
+          'Sell-in during activation',
           _orders(numbers, roi.attributedOrders),
           roi.attributedRevenue,
         ),

@@ -526,7 +526,7 @@ void main() {
 
       expect(find.text('No rules yet.'), findsOneWidget);
       expect(
-        find.text('Alerts only exist because a rule says so.'),
+        find.text('Exceptions only exist because a rule says so.'),
         findsOneWidget,
       );
     });

@@ -11,7 +11,10 @@ import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_scre
 import '../agent_harness.dart';
 import 'overview_harness.dart';
 
-/// THE EXECUTION OVERVIEW, RENDERED, SO SOMEBODY CAN LOOK AT IT.
+/// PERFECT STORE, RENDERED, SO SOMEBODY CAN LOOK AT IT.
+///
+/// Called the execution overview until 3 October 2026. The route is still
+/// `/dashboard/overview` and the golden files still read `overview_*.png`.
 ///
 /// The sibling of `floor_look_test.dart`, for the other half of the manager's
 /// console. It produces the images the owner and the reviewer compare against
@@ -88,7 +91,7 @@ void main() {
     ('390xfull-night', const Size(390, 4200), _night),
     ('390xfull-day', const Size(390, 4200), _day),
   ]) {
-    testWidgets('Execution overview at $name, populated', (tester) async {
+    testWidgets('Perfect Store at $name, populated', (tester) async {
       await pumpOverview(
         tester,
         const DashboardShellScreen(),

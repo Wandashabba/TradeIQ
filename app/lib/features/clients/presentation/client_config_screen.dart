@@ -20,11 +20,11 @@ import '../../../core/widgets/torchlight/state.dart';
 import '../data/clients_repository.dart';
 import '../data/iana_time_zones.dart';
 
-/// SCORING CONFIG — the four things the engine reads, and the calendar it
+/// PERFECT STORE SCORECARD — the four things the engine reads, and the calendar it
 /// counts days in.
 ///
 /// ```text
-///   Scoring config                                [ ⟳ ]
+///   Perfect Store scorecard                       [ ⟳ ]
 ///   ── Timezone ──────────────────────────────────
 ///   Timezone                        Africa/Johannesburg
 ///   The calendar your team's days are counted in      ›
@@ -70,7 +70,7 @@ class ClientConfigScreen extends ConsumerWidget {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'scoring config',
+            label: 'the Perfect Store scorecard',
             child: const SkeletonRows(count: 6, rowHeight: 64),
           ),
         ],
@@ -108,12 +108,12 @@ class ClientConfigScreen extends ConsumerWidget {
     return ConsoleFrame(
       phase: phase,
       header: TorchAppHeader(
-        title: 'Scoring config',
+        title: 'Perfect Store scorecard',
         facts: const <String>['What the engine reads, and nothing else.'],
         trailing: TorchIconButton(
           key: const ValueKey<String>('config-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the scoring config',
+          semanticLabel: 'Refresh the Perfect Store scorecard',
           onPressed: () => ref.invalidate(clientConfigProvider),
         ),
       ),
@@ -1205,7 +1205,8 @@ bool canEditTimezone(WidgetRef ref) {
 /// [forbidden] is what a 403 means for the thing being saved.
 String describeSaveFailure(
   Object error, {
-  String forbidden = 'Only an administrator can change scoring config.',
+  String forbidden =
+      'Only an administrator can change the Perfect Store scorecard.',
 }) {
   if (error is DioException && error.response?.statusCode == 403) {
     return forbidden;
@@ -1232,8 +1233,8 @@ class ReadOnlyNotice extends StatelessWidget {
       key: ValueKey<String>('read-only-notice'),
       scope: EmptyScope.inline,
       headline: 'Read-only.',
-      body: 'Only an administrator can change scoring config — these figures '
-          'are shown because they explain your scores.',
+      body: 'Only an administrator can change the Perfect Store scorecard — '
+          'these figures are shown because they explain your scores.',
     );
   }
 }
