@@ -120,7 +120,6 @@ class DashboardShellScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final snapshot = ref.watch(dashboardSnapshotProvider);
     final filter = ref.watch(dashboardFilterProvider);
-    final gutter = context.skin.space.gutter;
     final blockGap = context.skin.space.blockGap;
 
     // Resolved once, from the view model, per declared phase — never from a
@@ -156,7 +155,7 @@ class DashboardShellScreen extends ConsumerWidget {
         ),
       ),
       children: <Widget>[
-        TorchBleed(extra: gutter * 2, child: const DashboardFilters()),
+        TorchBleed(child: const DashboardFilters()),
         SizedBox(height: blockGap),
         if (phase == 'first-run')
           const _FirstRun()
@@ -595,7 +594,6 @@ class _NeedsAttentionSection extends ConsumerWidget {
     final l10n = context.l10n;
     final alerts = ref.watch(alertsListProvider);
     final tasks = ref.watch(tasksListProvider);
-    final gutter = context.skin.space.gutter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -611,7 +609,6 @@ class _NeedsAttentionSection extends ConsumerWidget {
         ),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -926,7 +923,6 @@ class _StandardsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -957,7 +953,6 @@ class _StandardsSection extends ConsumerWidget {
             ),
           ),
           data: (snap) => TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -1224,7 +1219,6 @@ class _DistributionSection extends StatelessWidget {
 
     final total = bands.fold<int>(0, (sum, b) => sum + b.outlets);
     final most = bands.fold<int>(0, (m, b) => m > b.outlets ? m : b.outlets);
-    final gutter = context.skin.space.gutter;
     final skin = context.skin;
 
     return Column(
@@ -1241,7 +1235,6 @@ class _DistributionSection extends StatelessWidget {
           ),
         ),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -1290,7 +1283,6 @@ class _TerritorySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final territories = ref.watch(territoriesListProvider);
-    final gutter = context.skin.space.gutter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1328,7 +1320,6 @@ class _TerritorySection extends ConsumerWidget {
               );
             }
             return TorchBleed(
-              extra: gutter * 2,
               child: _TerritoryScores(territories: list),
             );
           },
@@ -1594,7 +1585,6 @@ class AgentActivityPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final gutter = skin.space.gutter;
     final activity = ref.watch(agentActivityTodayProvider);
     final filter = ref.watch(dashboardFilterProvider);
     // `maybeWhen` rather than `.when`: outlets are a base layer, not the
@@ -1667,7 +1657,6 @@ class AgentActivityPanel extends ConsumerWidget {
             ];
             final notPlotted = page.agents.length - withStops.length;
             final list = TorchBleed(
-              extra: gutter * 2,
               child: _AgentList(agents: page.agents),
             );
             // The map draws as long as there is EITHER a checked-in agent OR

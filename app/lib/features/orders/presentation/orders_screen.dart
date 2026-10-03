@@ -155,9 +155,6 @@ class _Orders extends ConsumerWidget {
   ) {
     final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     final orders = sortedOrders(page.data);
     final cut = page.nextCursor != null;
     final shown = numbers.format(page.data.length);
@@ -234,7 +231,6 @@ class _Orders extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -246,7 +242,6 @@ class _Orders extends ConsumerWidget {
         if (cut) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter.left * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('orders-footer'),
               summary: page.total == null || page.total! <= page.data.length

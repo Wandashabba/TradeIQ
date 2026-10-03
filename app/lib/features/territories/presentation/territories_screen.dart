@@ -141,7 +141,6 @@ class TerritoriesScreen extends ConsumerWidget {
           );
         }
 
-        final gutter = context.skin.space.gutter;
         return frame(
           phase: 'loaded',
           children: <Widget>[
@@ -158,7 +157,6 @@ class TerritoriesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: TiqSpace.s5),
             TorchBleed(
-              extra: gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

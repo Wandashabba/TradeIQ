@@ -278,7 +278,6 @@ class _QueueState extends ConsumerState<_Queue> {
           SectionRule(heading, count: items.length),
           const SizedBox(height: TiqSpace.s4),
           TorchBleed(
-            extra: skin.space.gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

@@ -198,7 +198,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   Widget _loaded(TasksView view) {
     final visible = view.visible(_filter);
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final footer = view.footer((n) => numbers.format(n));
 
@@ -254,7 +253,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         // `Open 1 190`. The selected chip names the section and counts it, in
         // one object, and the footer says how much of it is on screen.
         TorchBleed(
-          extra: gutter * 2,
           child: _Filters(
             filter: _filter,
             view: view,
@@ -271,7 +269,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -293,7 +290,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         if (footer != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s5),
           TorchBleed(
-            extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('tasks-footer'),
               summary: footer.summary,

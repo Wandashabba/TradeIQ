@@ -69,7 +69,6 @@ class TrendsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final view = ref.watch(trendsViewProvider);
-    final gutter = context.skin.space.gutter;
 
     return ConsoleFrame(
       phase: view == TrendsView.compareTerritories ? 'compare' : 'over-time',
@@ -78,7 +77,7 @@ class TrendsScreen extends ConsumerWidget {
         facts: <String>[l10n.trendsFact],
       ),
       children: <Widget>[
-        TorchBleed(extra: gutter * 2, child: const _TrendFilters()),
+        TorchBleed(child: const _TrendFilters()),
         SizedBox(height: context.skin.space.blockGap),
         if (view == TrendsView.compareTerritories)
           const _TerritoryBenchmarkPanel(
@@ -380,7 +379,6 @@ class _TerritoryBenchmarkPanelState
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final metric = ref.watch(benchmarkMetricProvider);
-    final gutter = context.skin.space.gutter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -389,7 +387,6 @@ class _TerritoryBenchmarkPanelState
         SectionRule(l10n.trendsCompare),
         const SizedBox(height: TiqSpace.s3),
         TorchBleed(
-          extra: gutter * 2,
           child: TorchFilterRail(
             semanticsLabel: l10n.trendsMetric,
             chips: <Widget>[
@@ -452,7 +449,6 @@ class _TerritoryBenchmarkPanelState
       (t) => t.territoryId == _selectedId,
       orElse: () => report.territories.first,
     );
-    final gutter = context.skin.space.gutter;
     final unit = report.isPercent ? TiqUnit.percent : TiqUnit.none;
 
     return Column(
@@ -462,7 +458,6 @@ class _TerritoryBenchmarkPanelState
         _ClientAverage(report: report, average: clientAverage, unit: unit),
         SizedBox(height: context.skin.space.blockGap),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

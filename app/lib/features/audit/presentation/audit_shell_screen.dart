@@ -660,7 +660,6 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             SectionRule(l10n.visitAuditHeading),
             const SizedBox(height: TiqSpace.s5),
             TorchBleed(
-              extra: skin.space.gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

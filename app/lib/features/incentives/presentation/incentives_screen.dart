@@ -123,7 +123,6 @@ class IncentivesScreen extends ConsumerWidget {
         ],
       ),
       data: (data) {
-        final gutter = context.skin.space.gutter;
         final numbers = TiqNumber.of(context);
         return frame(
           phase: data.rows.isEmpty ? 'empty' : 'loaded',
@@ -155,7 +154,6 @@ class IncentivesScreen extends ConsumerWidget {
               )
             else
               TorchBleed(
-                extra: gutter * 2,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[

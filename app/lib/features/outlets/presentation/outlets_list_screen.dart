@@ -152,9 +152,6 @@ class _Outlets extends ConsumerWidget {
 
   Widget _loaded(BuildContext context, WidgetRef ref, List<Outlet> outlets) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     // The provider walks every page, so this is a count of every store IN
     // SCOPE — a measured figure, and a measured zero that renders "0". Scoped
     // to a territory it counts that territory's, which is the question a
@@ -234,7 +231,6 @@ class _Outlets extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -480,9 +476,6 @@ class _OpenPinReportsState extends ConsumerState<_OpenPinReports> {
     // none" — the same unknown-versus-zero distinction the figures make.
     final next = _cursorRead ? _cursor : page?.nextCursor;
 
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -498,7 +491,6 @@ class _OpenPinReportsState extends ConsumerState<_OpenPinReports> {
         ),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter.left * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

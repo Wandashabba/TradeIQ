@@ -275,13 +275,11 @@ class _Ledger extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -297,7 +295,6 @@ class _Ledger extends StatelessWidget {
         if (hasMore) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('points-footer'),
               summary: l10n.pointsFooterSummary(

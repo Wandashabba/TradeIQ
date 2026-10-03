@@ -126,7 +126,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget _loaded(PaginatedResponse<ReportDefinition> page) {
     final l10n = context.l10n;
     final reports = page.data;
-    final gutter = context.skin.space.gutter;
 
     return _frame(
       phase: reports.isEmpty ? 'empty' : 'loaded',
@@ -163,7 +162,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -187,7 +185,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         if (page.nextCursor != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('reports-footer'),
               summary: _footerSummary(page),

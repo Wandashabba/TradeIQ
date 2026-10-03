@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/bleed.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_state_glyph.dart';
 import 'package:tradeiq_app/features/agents/data/agent_locations_repository.dart';
@@ -366,7 +368,15 @@ void main() {
 
       await tester.pumpWidget(
         routedApp(
-          const Scaffold(body: AgentActivityPanel()),
+          // `TorchGutter` stands in for the `TorchShell` the panel is inside
+          // in the app: the agent list bleeds past its frame's gutter and has
+          // to be told what that gutter is. See [TorchGutter].
+          Scaffold(
+            body: TorchGutter(
+              extent: TiqSkin.night().space.gutter,
+              child: const AgentActivityPanel(),
+            ),
+          ),
           theme: theme,
           overrides: [
             agentsRepositoryProvider.overrideWithValue(_FakeActivity([_checkedIn])),

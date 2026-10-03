@@ -163,7 +163,6 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
 
   Widget _loaded(List<Webhook> webhooks) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final unhealthy = webhooks
         .where((w) => w.health == WebhookHealth.unhealthy)
         .length;
@@ -210,7 +209,6 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
           )
         else ...<Widget>[
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

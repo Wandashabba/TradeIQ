@@ -337,7 +337,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ),
       children: <Widget>[
         TorchBleed(
-          extra: gutter * 2,
           child: TorchFilterRail(
             semanticsLabel: l10n.messagesWhichFeed,
             chips: <Widget>[
@@ -511,7 +510,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -572,7 +570,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

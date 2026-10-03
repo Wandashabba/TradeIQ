@@ -27,7 +27,17 @@ void main() {
 
   // ── THE THRESHOLD ────────────────────────────────────────────────────
   group('the threshold is derived, and the derivation is printed', () {
-    test('deskMinWidth is the sum of its seven terms, and it is 1132', () {
+    // UPDATED 3 OCTOBER 2026, FROM 1132 AND SEVEN TERMS TO 1212 AND NINE.
+    //
+    // The two new terms are the panes' own gutters. They are not a widening
+    // for its own sake: with no gutter inside a pane there is nothing for a
+    // `SoftRow` list to bleed back out to, so every row in every pane was laid
+    // out `2 × gutterWide` wider than the viewport that clips it and the
+    // right-hand figure was cut (measured, before: viewport 462→1246, row
+    // 422→1286 at 1440×900 on Orders). The old assertion was pinning a
+    // derivation that produced clipped rows; it is re-stated rather than
+    // deleted so the arithmetic is still printed and still checked.
+    test('deskMinWidth is the sum of its nine terms, and it is 1212', () {
       for (final (name, skin) in <(String, TiqSkin)>[
         ('night', night),
         ('day', day),
@@ -37,17 +47,65 @@ void main() {
             2 * space.gutterWide +
             ConsoleDesk.railWidth +
             2 * space.blockGap +
-            ConsoleDesk.listMinWidth +
-            TiqSpace.readingWidth;
+            (ConsoleDesk.listMinWidth + 2 * ConsoleDesk.paneGutter) +
+            (TiqSpace.readingWidth + 2 * ConsoleDesk.paneGutter);
         // ignore: avoid_print
         print(
           'deskMinWidth [$name] = '
           '2×${space.gutterWide} gutterWide + ${ConsoleDesk.railWidth} rail + '
-          '2×${space.blockGap} blockGap + ${ConsoleDesk.listMinWidth} list + '
-          '${TiqSpace.readingWidth} readingWidth = $sum',
+          '2×${space.blockGap} blockGap + '
+          '(${ConsoleDesk.listMinWidth} list + 2×${ConsoleDesk.paneGutter} '
+          'paneGutter) + (${TiqSpace.readingWidth} readingWidth + '
+          '2×${ConsoleDesk.paneGutter} paneGutter) = $sum',
         );
         expect(ConsoleDesk.deskMinWidth(skin), sum);
-        expect(sum, 1132);
+        expect(sum, 1212);
+      }
+    });
+
+    // THE PANE GUTTER IS THE PHONE'S GUTTER, AND IT HAS TO STAY THAT WAY.
+    //
+    // `ConsoleDesk.paneGutter` is written as `TiqSpace.s5` because
+    // `deskMinWidth` needs a compile-time constant, and `space.gutter` is an
+    // instance field. If a skin ever moves its phone gutter off s5 the two
+    // disagree silently and every bleeding row in a pane is out by the
+    // difference — so they are checked rather than assumed.
+    test('a pane spends the phone\'s own gutter, in both skins', () {
+      for (final (name, skin) in <(String, TiqSkin)>[
+        ('night', night),
+        ('day', day),
+      ]) {
+        expect(
+          ConsoleDesk.paneGutter,
+          skin.space.gutter,
+          reason:
+              'ConsoleDesk.paneGutter (${ConsoleDesk.paneGutter}) and '
+              '$name space.gutter (${skin.space.gutter}) have to be the same '
+              'number: the pane pads by the constant and TorchGutter publishes '
+              'it, so a bleed gives back exactly what was spent.',
+        );
+      }
+    });
+
+    // THE DETAIL PANE IS A WIDTH, NOT A SHARE, AND AT THE THRESHOLD THE
+    // ARITHMETIC CLOSES ON ITSELF.
+    test('at deskMinWidth the list pane is exactly a 360dp phone', () {
+      for (final skin in <TiqSkin>[night, day]) {
+        final left =
+            ConsoleDesk.deskMinWidth(skin) -
+            2 * skin.space.gutterWide -
+            ConsoleDesk.railWidth -
+            2 * skin.space.blockGap -
+            ConsoleDesk.detailWidth(skin);
+        // ignore: avoid_print
+        print(
+          'AT THE THRESHOLD: detail pane ${ConsoleDesk.detailWidth(skin)}dp '
+          '(readingWidth + 2 × paneGutter), list pane ${left}dp — which is '
+          '${ConsoleDesk.listMinWidth} of content between two '
+          '${ConsoleDesk.paneGutter}dp gutters, i.e. a 360dp phone.',
+        );
+        expect(left, ConsoleDesk.listMinWidth + 2 * ConsoleDesk.paneGutter);
+        expect(left, 360);
       }
     });
 
@@ -107,10 +165,19 @@ void main() {
         expect(ConsoleDesk.isDesk(skin, const Size(390, 844)), isFalse);
         expect(ConsoleDesk.isDesk(skin, const Size(360, 640)), isFalse);
         // A phone in landscape. `EntryFrame` needed a height test to exclude
-        // these; at 1120 the width test already does, which is the whole of
+        // these; at 1212 the width test already does, which is the whole of
         // why this file does not quote 900.
         expect(ConsoleDesk.isDesk(skin, const Size(852, 393)), isFalse);
         expect(ConsoleDesk.isDesk(skin, const Size(1024, 768)), isFalse);
+        // 1920×1080 — the owner's own window, and the width at which the
+        // 8 : 11 split left a quarter of the screen as ground.
+        expect(ConsoleDesk.isDesk(skin, const Size(1920, 1080)), isTrue);
+        // THE 79dp BAND THE GUTTER COST. A window here used to get the desk
+        // and now gets the phone column. It is asserted rather than regretted:
+        // no standard laptop viewport is in it, and the alternative was panes
+        // that cut their rows.
+        expect(ConsoleDesk.isDesk(skin, const Size(1132, 900)), isFalse);
+        expect(ConsoleDesk.isDesk(skin, const Size(1211, 900)), isFalse);
         // One pixel either side of the line.
         final w = ConsoleDesk.deskMinWidth(skin);
         expect(ConsoleDesk.isDesk(skin, Size(w, 900)), isTrue);
@@ -378,13 +445,24 @@ void main() {
     final column = tester.getRect(
       find.byKey(const ValueKey<String>('console-column')),
     );
+    // THE COLUMN FILLS WHAT IS LEFT AFTER THE RAIL, AND THE CAP IS GONE.
+    //
+    // It used to be capped at 784 and centred, which at 1440 left 154dp of
+    // ground between the rail and the content and 194 on the other side. The
+    // owner photographed the same shape at about 2000dp and called it empty.
+    final expected =
+        1440 -
+        2 * night.space.gutterWide -
+        ConsoleDesk.railWidth -
+        night.space.blockGap;
     // ignore: avoid_print
     print(
-      'THE ONE-COLUMN ROUTE: the column pane is ${column.width}dp wide and its '
-      'content is capped at '
-      '${ConsoleDeskBody.columnMaxWidth(night)}dp — the space the list and '
-      'detail panes occupy together at the threshold.',
+      'THE ONE-COLUMN ROUTE: the column pane is ${column.width}dp wide at '
+      '1440×900 — everything after the rail and its gap, with no cap and no '
+      'centring. Expected $expected.',
     );
+    expect(column.width, expected);
+    expect(column.right, 1440 - night.space.gutterWide);
   });
 
   // ── SMOOTH AND SEAMLESS, AS TWO MEASUREMENTS ─────────────────────────

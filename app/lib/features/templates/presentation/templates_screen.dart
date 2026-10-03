@@ -103,7 +103,6 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     final selected = ref.watch(selectedTemplateProvider);
     // While the selection loads (or if it fails) no row claims to be in use.
     final selectedId = selected.value?.template.id;
-    final gutter = context.skin.space.gutter;
 
     return templates.when(
       loading: () => _frame(
@@ -155,7 +154,6 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
             )
           else
             TorchBleed(
-              extra: gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

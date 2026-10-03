@@ -194,7 +194,6 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
               _TilesOff(territoryName: widget.territory.name)
             else if (height > 0)
               TorchBleed(
-                extra: skin.space.gutter * 2,
                 child: SizedBox(
                   height: height,
                   child: _Basemap(outlets: outlets, onTileError: _tileFailed),
@@ -210,7 +209,6 @@ class _TerritoryMapScreenState extends ConsumerState<TerritoryMapScreen> {
             SectionRule(l10n.territoryOutletsWord, count: ordered.length),
             const SizedBox(height: TiqSpace.s3),
             TorchBleed(
-              extra: skin.space.gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

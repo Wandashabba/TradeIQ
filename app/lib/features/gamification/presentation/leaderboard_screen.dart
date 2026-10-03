@@ -224,9 +224,7 @@ class _Rows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gutter = context.skin.space.gutter;
     return TorchBleed(
-      extra: gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

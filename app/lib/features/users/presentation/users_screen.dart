@@ -169,7 +169,6 @@ class UsersScreen extends ConsumerWidget {
     required bool canEdit,
     required String? role,
   }) {
-    final gutter = context.skin.space.gutter;
     final active = list.where((u) => u.active).length;
 
     return _frame(
@@ -205,7 +204,6 @@ class UsersScreen extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

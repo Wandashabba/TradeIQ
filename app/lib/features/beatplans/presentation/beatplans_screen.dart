@@ -123,9 +123,6 @@ class _BeatPlans extends ConsumerWidget {
   ) {
     final l10n = context.l10n;
     final numbers = TiqNumber.of(context);
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     final plans = page.data;
     final cut = page.nextCursor != null;
     final shown = numbers.format(plans.length);
@@ -166,7 +163,6 @@ class _BeatPlans extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -178,7 +174,6 @@ class _BeatPlans extends ConsumerWidget {
         if (cut) ...<Widget>[
           SizedBox(height: context.skin.space.blockGap),
           TorchBleed(
-            extra: gutter.left * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('beatplans-footer'),
               summary: page.total == null || page.total! <= plans.length
@@ -500,8 +495,6 @@ class _StopsState extends ConsumerState<_Stops> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final skin = context.skin;
-    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
     final stops = widget.detail.stops;
     // The branch is on the `AsyncValue`, not on `.value`: null is both "still
     // walking the pages of GET /outlets" and "that request failed", and a
@@ -537,7 +530,6 @@ class _StopsState extends ConsumerState<_Stops> {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

@@ -179,7 +179,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
         : list.where((r) => r.metric == _metric).toList();
     final active = visible.where((r) => r.active).toList();
     final off = visible.where((r) => !r.active).toList();
-    final gutter = context.skin.space.gutter;
 
     return _frame(
       phase: list.isEmpty
@@ -189,7 +188,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
           : 'loaded',
       children: <Widget>[
         TorchBleed(
-          extra: gutter * 2,
           child: TorchFilterRail(
             semanticsLabel: 'Filter by metric',
             chips: <Widget>[
@@ -244,7 +242,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             )
           else
             TorchBleed(
-              extra: gutter * 2,
               child: _RuleList(rules: active, shadowed: shadowed),
             ),
           const SizedBox(height: TiqSpace.s8),
@@ -258,7 +255,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             )
           else
             TorchBleed(
-              extra: gutter * 2,
               child: _RuleList(rules: off, shadowed: shadowed),
             ),
         ],

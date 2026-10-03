@@ -272,7 +272,6 @@ class _ReportSchedulesScreenState
         const SizedBox(height: TiqSpace.s5),
         if (rows.isNotEmpty)
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

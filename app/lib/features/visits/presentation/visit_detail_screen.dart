@@ -294,9 +294,7 @@ class _Facts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final skin = context.skin;
     final numbers = TiqNumber.of(context);
-    final gutter = skin.space.gutter;
     final dwell = detail.dwellMinutes;
     final dispute = detail.pinDispute;
 
@@ -364,7 +362,6 @@ class _Facts extends StatelessWidget {
         SectionRule(l10n.visitTheVisit),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -492,7 +489,6 @@ class _Score extends StatelessWidget {
 
     final band = RatingBand.fromWire(score.ratingBand);
     final word = band == null ? l10n.visitUnbanded : band.word(l10n);
-    final gutter = skin.space.gutter;
 
     return Column(
       key: const ValueKey<String>('visit-score'),
@@ -570,7 +566,6 @@ class _Score extends StatelessWidget {
         SectionRule(l10n.visitHowScored),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -672,7 +667,6 @@ class _TemplateAnswers extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final gutter = skin.space.gutter;
     final schema = TemplateSchema.parse(answers.schema);
     final given = Map<String, Object?>.from(answers.answers);
     final known = <String>{for (final f in schema.fields) f.id};
@@ -742,7 +736,6 @@ class _TemplateAnswers extends StatelessWidget {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -867,7 +860,6 @@ class _Sections extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -881,7 +873,6 @@ class _Sections extends StatelessWidget {
         const SizedBox(height: TiqSpace.s4),
         if (sections.isNotEmpty)
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -1064,7 +1055,6 @@ class _Fraud extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final gutter = skin.space.gutter;
     // The band is a fact about the number and lives with the data, so this
     // screen and the review queue cannot drift into calling 71 "High risk" in
     // one place and "Elevated" in the other.
@@ -1131,7 +1121,6 @@ class _Fraud extends StatelessWidget {
         ),
         const SizedBox(height: TiqSpace.s5),
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,

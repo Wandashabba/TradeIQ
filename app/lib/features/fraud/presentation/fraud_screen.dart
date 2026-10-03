@@ -114,7 +114,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
           ),
           children: <Widget>[
             TorchBleed(
-              extra: context.skin.space.gutter * 2,
               child: _Filters(
                 filter: _filter,
                 onFilter: (f) => setState(() => _filter = f),
@@ -160,7 +159,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
 
   List<Widget> _body(FraudView view) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final unscored = view.unscoredNote(l10n);
 
@@ -180,7 +178,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -200,7 +197,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
       if (unscored != null || view.hasMore) ...<Widget>[
         const SizedBox(height: TiqSpace.s6),
         TorchBleed(
-          extra: gutter * 2,
           child: PaginationFooter(
             key: const ValueKey<String>('fraud-footer'),
             summary: view.hasMore

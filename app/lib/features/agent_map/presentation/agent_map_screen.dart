@@ -314,7 +314,6 @@ class _Stores extends ConsumerWidget {
       for (final pin in drawn)
         if (pin.state == MapPinState.territory) pin,
     ];
-    final bleed = skin.space.gutter * 2;
 
     return AgentMapFrame(
       phase: 'loaded',
@@ -346,7 +345,6 @@ class _Stores extends ConsumerWidget {
         if (planned.isNotEmpty) ...<Widget>[
           const SizedBox(height: TiqSpace.s5),
           TorchBleed(
-            extra: bleed,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -362,7 +360,6 @@ class _Stores extends ConsumerWidget {
           SectionRule(l10n.mapPatchHeading, count: rest.length),
           const SizedBox(height: TiqSpace.s5),
           TorchBleed(
-            extra: bleed,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

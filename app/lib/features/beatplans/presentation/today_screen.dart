@@ -393,7 +393,6 @@ class _Route extends ConsumerWidget {
           // A row owns its own gutter and draws its rule inset to the text
           // edge, so the list goes out to the screen's edges.
           TorchBleed(
-            extra: skin.space.gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -413,7 +412,6 @@ class _Route extends ConsumerWidget {
         // can phone with something urgent. This row deliberately duplicates
         // the nav circle, because a circle is not discoverable.
         TorchBleed(
-          extra: skin.space.gutter * 2,
           child: SoftRow(
             key: const ValueKey<String>('visit-another'),
             title: l10n.todayVisitAnotherStore,

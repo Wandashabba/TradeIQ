@@ -130,7 +130,6 @@ class _ConfigBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
-    final gutter = skin.space.gutter;
     final canEditPolicy = canEditConfig(ref);
     final canEditCalendar = canEditTimezone(ref);
 
@@ -205,7 +204,6 @@ class _ConfigBody extends ConsumerWidget {
         ),
         const SizedBox(height: TiqSpace.s5),
         TorchBleed(
-          extra: gutter * 2,
           child: _WeightRows(weights: config.scorecardWeights),
         ),
         const SizedBox(height: TiqSpace.s5),
@@ -234,7 +232,6 @@ class _ConfigBody extends ConsumerWidget {
         SectionRule('KPI thresholds', count: KpiThreshold.values.length),
         const SizedBox(height: TiqSpace.s5),
         TorchBleed(
-          extra: gutter * 2,
           child: _ThresholdRows(thresholds: config.kpiThresholds),
         ),
         const SizedBox(height: TiqSpace.s5),

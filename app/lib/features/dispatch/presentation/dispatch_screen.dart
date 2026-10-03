@@ -206,7 +206,6 @@ class _Candidates extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final result = ref.watch(dispatchResultProvider(outlet.id));
-    final gutter = context.skin.space.gutter;
 
     return result.when(
       loading: () => Skeleton(
@@ -242,7 +241,6 @@ class _Candidates extends ConsumerWidget {
             ),
             const SizedBox(height: TiqSpace.s3),
             TorchBleed(
-              extra: gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

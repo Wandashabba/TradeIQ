@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/bleed.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/features/agents/data/agent_locations_repository.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
@@ -616,7 +617,19 @@ Future<void> pumpOverview(
               routes: <GoRoute>[
                 GoRoute(
                   path: '/dashboard/overview',
-                  builder: (context, state) => screen,
+                  // THE FRAME THE FRAGMENT LIVES UNDER IN THE APP.
+                  //
+                  // Several callers pump a *panel* rather than the screen —
+                  // `AgentActivityPanel` is public for exactly that reason —
+                  // and a panel that bleeds past its gutter needs to be told
+                  // what the gutter is. In the app that comes from the
+                  // `TorchShell` the panel is inside; here there is no shell,
+                  // so the harness stands in for it with the same number the
+                  // console profile spends at these widths. See [TorchGutter].
+                  builder: (context, state) => TorchGutter(
+                    extent: resolved.space.gutter,
+                    child: screen,
+                  ),
                 ),
                 for (final path in const <String>[
                   '/dashboard',

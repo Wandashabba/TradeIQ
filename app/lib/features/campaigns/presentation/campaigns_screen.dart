@@ -138,7 +138,6 @@ class CampaignsScreen extends ConsumerWidget {
   }
 
   Widget _loaded(BuildContext context, WidgetRef ref, List<Campaign> list) {
-    final gutter = context.skin.space.gutter;
 
     return _frame(
       context,
@@ -158,7 +157,6 @@ class CampaignsScreen extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

@@ -153,7 +153,6 @@ class ContestsScreen extends ConsumerWidget {
     PaginatedResponse<Contest> page,
   ) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final list = page.data;
 
     return _frame(
@@ -177,7 +176,6 @@ class ContestsScreen extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

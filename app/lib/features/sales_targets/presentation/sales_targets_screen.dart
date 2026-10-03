@@ -152,9 +152,6 @@ class _SalesTargets extends ConsumerWidget {
   ) {
     final l10n = context.l10n;
     final month = ref.watch(salesTargetsMonthProvider);
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     final metric = salesMetricLabel(l10n, report.metricLabel);
 
     return _frame(
@@ -214,7 +211,6 @@ class _SalesTargets extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -246,7 +242,6 @@ class _SalesTargets extends ConsumerWidget {
         if (report.truncated) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter.left * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('sales-targets-footer'),
               summary: l10n.salesSkusTruncated(
