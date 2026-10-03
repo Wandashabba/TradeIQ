@@ -13,6 +13,7 @@ import 'package:tradeiq_app/core/auth/token_store.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/nav_destinations.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/menu_sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -24,12 +25,19 @@ import '../../../features/auth/entry_harness.dart';
 
 /// THE SIGN-OFF RENDERS for the folding menu — the frames a human looks at.
 ///
-/// Twenty PNGs: both phone sizes, both skins, the sheet shut / one group open
+/// Both phone sizes, both skins, the sheet shut / **each group open in turn**
 /// / The Floor's `lead` block above it, and the whole set again at 1.3× text.
 /// Written to `MENU_LOOK_OUT` (default `build/menu-look`) in the real faces,
 /// because the question they answer — does a label wrap, do an open group's
 /// children read as subordinate — is a question about Schibsted Grotesk and
 /// not about Flutter's test font.
+///
+/// **Each group, not only Operate** — 3 October 2026. The groups print as
+/// *Execution*, *Performance* and *Setup* now, and the longest destination
+/// label in the app, *Perfect Store scorecard*, is the last row of Setup. A
+/// camera that only ever opened the first group could not see the one row the
+/// rename put most at risk of truncating, so an open group is also scrolled to
+/// the sheet's end.
 ///
 /// **Gated behind `MENU_LOOK=1`**, for the reason `soft_look_test.dart` gives:
 /// CI rasterises anti-aliased Schibsted Grotesk on Linux and this repository
@@ -70,7 +78,7 @@ void main() {
     SoftRow(
       key: const ValueKey<String>('floor-destination-overview'),
       density: SoftRowDensity.compact,
-      title: 'Execution overview',
+      title: 'Perfect Store',
       subtitle: '71% of today measured',
       trailing: const SoftRowChevron(),
       onTap: () {},
@@ -84,7 +92,7 @@ void main() {
     required SkinMode skin,
     required double textScale,
     required String at,
-    bool openOperate = false,
+    NavGroup? open,
     List<Widget> lead = const <Widget>[],
   }) async {
     TorchSheets.resetForTest();
@@ -150,8 +158,18 @@ void main() {
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
 
-    if (openOperate) {
-      await tester.tap(find.byKey(const ValueKey<String>('menu-fold-operate')));
+    if (open != null) {
+      await tester.tap(find.byKey(ValueKey<String>('menu-fold-${open.name}')));
+      await tester.pumpAndSettle();
+      // Setup's last row is the longest label in the app and sits below the
+      // fold on the 360dp phone. A render that cannot show it cannot answer
+      // the one question this change raises, so the sheet is scrolled to its
+      // end whenever a group is open.
+      await tester.dragUntilVisible(
+        find.byKey(const ValueKey<String>('menu-sign-out')),
+        find.byType(Scrollable).last,
+        const Offset(0, -120),
+      );
       await tester.pumpAndSettle();
     }
 
@@ -186,17 +204,19 @@ void main() {
         );
       }, skip: !looking);
 
-      testWidgets('$stem — Operate open', (tester) async {
-        await shoot(
-          tester,
-          name: '${stem}_open',
-          size: size,
-          skin: skin,
-          textScale: 1.0,
-          at: '/here',
-          openOperate: true,
-        );
-      }, skip: !looking);
+      for (final group in NavGroup.values) {
+        testWidgets('$stem — ${group.name} open', (tester) async {
+          await shoot(
+            tester,
+            name: '${stem}_open_${group.name}',
+            size: size,
+            skin: skin,
+            textScale: 1.0,
+            at: '/here',
+            open: group,
+          );
+        }, skip: !looking);
+      }
 
       // On The Floor: the lead block above the groups, Operate already open
       // because /dashboard is in it, and The Floor row emboldened inside it.
@@ -224,17 +244,19 @@ void main() {
         );
       }, skip: !looking);
 
-      testWidgets('$stem — Operate open at 1.3×', (tester) async {
-        await shoot(
-          tester,
-          name: '${stem}_open_1.3x',
-          size: size,
-          skin: skin,
-          textScale: 1.3,
-          at: '/here',
-          openOperate: true,
-        );
-      }, skip: !looking);
+      for (final group in NavGroup.values) {
+        testWidgets('$stem — ${group.name} open at 1.3×', (tester) async {
+          await shoot(
+            tester,
+            name: '${stem}_open_${group.name}_1.3x',
+            size: size,
+            skin: skin,
+            textScale: 1.3,
+            at: '/here',
+            open: group,
+          );
+        }, skip: !looking);
+      }
     }
   }
 }

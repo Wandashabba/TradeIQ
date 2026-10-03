@@ -131,7 +131,7 @@ class FirstRunBoard extends ConsumerWidget {
                   noDataReason: 'no visits in this window',
                 ),
                 StatTile(
-                  eyebrow: 'Open critical alerts',
+                  eyebrow: 'Open critical exceptions',
                   value: null,
                   noDataReason: 'no visits in this window',
                 ),

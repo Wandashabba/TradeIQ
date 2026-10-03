@@ -3706,7 +3706,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get menuTitle => 'Kieslys';
 
   @override
-  String get menuSubtitle => 'Alles wat nie in die vier oortjies pas nie.';
+  String get menuSubtitle => 'Oral waarheen jy van hier af kan gaan.';
 
   @override
   String get menuThisApp => 'Hierdie program';
@@ -3735,19 +3735,19 @@ class AppLocalizationsAf extends AppLocalizations {
   String get menuSignOut => 'Teken uit';
 
   @override
-  String get navGroupOperate => 'Bedryf';
+  String get navGroupOperate => 'Uitvoering';
 
   @override
-  String get navGroupInsight => 'Insig';
+  String get navGroupInsight => 'Prestasie';
 
   @override
-  String get navGroupConfigure => 'Stel op';
+  String get navGroupConfigure => 'Opstelling';
 
   @override
   String get navTheFloor => 'Die Vloer';
 
   @override
-  String get navExecutionOverview => 'Uitvoeringsoorsig';
+  String get navExecutionOverview => 'Perfekte Winkel';
 
   @override
   String get navHome => 'Tuis';
@@ -3756,7 +3756,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get navTasks => 'Take';
 
   @override
-  String get navAlerts => 'Waarskuwings';
+  String get navAlerts => 'Uitsonderings';
 
   @override
   String get navOrders => 'Bestellings';
@@ -3792,22 +3792,22 @@ class AppLocalizationsAf extends AppLocalizations {
   String get navContests => 'Kompetisies';
 
   @override
-  String get navFraudReview => 'Bedrogoorsig';
+  String get navFraudReview => 'Besoekverifikasie';
 
   @override
-  String get navCampaigns => 'Veldtogte';
+  String get navCampaigns => 'Aktiverings';
 
   @override
-  String get navAlertRules => 'Waarskuwingreëls';
+  String get navAlertRules => 'Uitsonderingsreëls';
 
   @override
   String get navTerritories => 'Gebiede';
 
   @override
-  String get navUsers => 'Gebruikers';
+  String get navUsers => 'Veldmag';
 
   @override
-  String get navAuditTemplates => 'Oudit-sjablone';
+  String get navAuditTemplates => 'Opnamesjablone';
 
   @override
   String get navIncentives => 'Aansporings';
@@ -3816,7 +3816,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get navWebhooks => 'Webhooks';
 
   @override
-  String get navScoringConfig => 'Punte-opstelling';
+  String get navScoringConfig => 'Perfekte Winkel-telkaart';
 
   @override
   String get sessionEndedTitle => 'Jy is uitgeteken';
@@ -4000,7 +4000,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get territoryNoAgentsBody =>
-      'Voeg ’n veldagent onder Gebruikers by, en ken hom of haar dan hier toe.';
+      'Voeg ’n veldagent onder Veldmag by, en ken hom of haar dan hier toe.';
 
   @override
   String get territoryNewTitle => 'Nuwe gebied';
@@ -5477,7 +5477,7 @@ class AppLocalizationsAf extends AppLocalizations {
       'Stel maandelikse SKU-teikens onder Verkoopsteikens om inverkope daarteen te volg.';
 
   @override
-  String get templatesTitle => 'Ouditsjablone';
+  String get templatesTitle => 'Opnamesjablone';
 
   @override
   String get templatesFact =>
@@ -5549,7 +5549,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String templatesChangeFailed(String reason) {
-    return 'Die ouditsjabloon is nie verander nie. $reason';
+    return 'Die opnamesjabloon is nie verander nie. $reason';
   }
 
   @override
@@ -5589,7 +5589,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get templatePreviewTitle => 'Sjabloonvoorskou';
 
   @override
-  String get templatePreviewBack => 'Terug na Ouditsjablone';
+  String get templatePreviewBack => 'Terug na Opnamesjablone';
 
   @override
   String get templatePreviewSkeleton => 'die sjabloon';
@@ -7269,7 +7269,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get liveFirst200 => 'Wys die eerste 200 agente.';
 
   @override
-  String get fraudTitle => 'Bedrogoorsig';
+  String get fraudTitle => 'Besoekverifikasie';
 
   @override
   String get fraudFact =>
@@ -7994,7 +7994,7 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String get dashOverviewTitle => 'Uitvoeringsoorsig';
+  String get dashOverviewTitle => 'Perfekte Winkel';
 
   @override
   String get dashRefresh => 'Verfris elke paneel';
@@ -8065,10 +8065,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get dashNeedsAttention => 'Benodig aandag';
 
   @override
-  String get dashViewAllAlerts => 'Alle waarskuwings';
+  String get dashViewAllAlerts => 'Alle uitsonderings';
 
   @override
-  String get dashCriticalAlerts => 'Kritieke waarskuwings oop';
+  String get dashCriticalAlerts => 'Kritieke uitsonderings oop';
 
   @override
   String get dashWarningAlerts => 'Waarskuwings wat erkenning afwag';
@@ -8499,7 +8499,7 @@ class AppLocalizationsAf extends AppLocalizations {
       'Dit bestaan nie, of dit behoort aan ’n ander kliënt.';
 
   @override
-  String get visitBackToAlerts => 'Terug na waarskuwings';
+  String get visitBackToAlerts => 'Terug na uitsonderings';
 
   @override
   String visitReviewScoreSemantics(int value, String band) {

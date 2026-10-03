@@ -4875,25 +4875,25 @@
   "@menuSignOut": {
     "description": "The menu sheet's way out of the app. Held work stays on the phone."
   },
-  "navGroupOperate": "Operate",
+  "navGroupOperate": "Execution",
   "@navGroupOperate": {
-    "description": "Name of the nav group holding the day's work: the floor, tasks, alerts, orders, outlets."
+    "description": "Name of the nav group holding the day's work: the floor, tasks, exceptions, orders, outlets. Reads 'Execution'; the NavGroup identifier is still `operate`."
   },
-  "navGroupInsight": "Insight",
+  "navGroupInsight": "Performance",
   "@navGroupInsight": {
-    "description": "Name of the nav group holding the reading surfaces: Ask, reports, trends, contests."
+    "description": "Name of the nav group holding the reading surfaces: Ask, reports, trends, contests. Reads 'Performance'; the NavGroup identifier is still `insight`."
   },
-  "navGroupConfigure": "Configure",
+  "navGroupConfigure": "Setup",
   "@navGroupConfigure": {
-    "description": "Name of the nav group holding setup: rules, territories, users, templates."
+    "description": "Name of the nav group holding setup: rules, territories, the field force, templates. Reads 'Setup'; the NavGroup identifier is still `configure`."
   },
   "navTheFloor": "The Floor",
   "@navTheFloor": {
     "description": "Nav destination: the manager's home screen."
   },
-  "navExecutionOverview": "Execution overview",
+  "navExecutionOverview": "Perfect Store",
   "@navExecutionOverview": {
-    "description": "Nav destination: the KPI overview."
+    "description": "Nav destination: the Perfect Store KPI overview. Route is still /dashboard/overview."
   },
   "navHome": "Home",
   "@navHome": {
@@ -4903,9 +4903,9 @@
   "@navTasks": {
     "description": "Nav destination: the task worklist."
   },
-  "navAlerts": "Alerts",
+  "navAlerts": "Exceptions",
   "@navAlerts": {
-    "description": "Nav destination: the alert worklist."
+    "description": "Nav destination: the exception worklist. Route is still /alerts."
   },
   "navOrders": "Orders",
   "@navOrders": {
@@ -4951,29 +4951,29 @@
   "@navContests": {
     "description": "Nav destination: contests."
   },
-  "navFraudReview": "Fraud review",
+  "navFraudReview": "Visit verification",
   "@navFraudReview": {
-    "description": "Nav destination: the fraud review queue."
+    "description": "Nav destination: the visit verification queue. Route is still /fraud."
   },
-  "navCampaigns": "Campaigns",
+  "navCampaigns": "Activations",
   "@navCampaigns": {
-    "description": "Nav destination: campaigns."
+    "description": "Nav destination: activations. Route is still /campaigns."
   },
-  "navAlertRules": "Alert rules",
+  "navAlertRules": "Exception rules",
   "@navAlertRules": {
-    "description": "Nav destination: the rules that raise alerts."
+    "description": "Nav destination: the rules that raise exceptions. Route is still /alert-rules."
   },
   "navTerritories": "Territories",
   "@navTerritories": {
     "description": "Nav destination: territories."
   },
-  "navUsers": "Users",
+  "navUsers": "Field force",
   "@navUsers": {
-    "description": "Nav destination: user administration."
+    "description": "Nav destination: the field force — user administration. Route is still /users."
   },
-  "navAuditTemplates": "Audit templates",
+  "navAuditTemplates": "Survey templates",
   "@navAuditTemplates": {
-    "description": "Nav destination: audit templates."
+    "description": "Nav destination: survey templates. Route is still /audit-templates."
   },
   "navIncentives": "Incentives",
   "@navIncentives": {
@@ -4983,9 +4983,9 @@
   "@navWebhooks": {
     "description": "Nav destination: outgoing webhooks. A technical term, left as is."
   },
-  "navScoringConfig": "Scoring config",
+  "navScoringConfig": "Perfect Store scorecard",
   "@navScoringConfig": {
-    "description": "Nav destination: the client's scoring configuration."
+    "description": "Nav destination: the client's Perfect Store scorecard. Route is still /client-config."
   },
   "sessionEndedTitle": "You have been signed out",
   "@sessionEndedTitle": {
@@ -5210,7 +5210,7 @@
   "@territoryNoAgentsHeadline": {
     "description": "The roster is empty."
   },
-  "territoryNoAgentsBody": "Add a field agent under Users, then assign them here.",
+  "territoryNoAgentsBody": "Add a field agent under Field force, then assign them here.",
   "@territoryNoAgentsBody": {
     "description": "Body under territoryNoAgentsHeadline."
   },
@@ -7236,9 +7236,9 @@
   "@salesPanelEmptyBody": {
     "description": "Body of the dashboard panel's empty state."
   },
-  "templatesTitle": "Audit templates",
+  "templatesTitle": "Survey templates",
   "@templatesTitle": {
-    "description": "Screen title: the client's own audit templates."
+    "description": "Screen title: the client's own survey templates."
   },
   "templatesFact": "A template is the form an agent fills in on a visit.",
   "@templatesFact": {
@@ -7330,7 +7330,7 @@
       }
     }
   },
-  "templatesChangeFailed": "The audit template was not changed. {reason}",
+  "templatesChangeFailed": "The survey template was not changed. {reason}",
   "@templatesChangeFailed": {
     "description": "Failure toast. The reason is the sanitised server message.",
     "placeholders": {
@@ -7397,7 +7397,7 @@
   "@templatePreviewTitle": {
     "description": "Title of the manager's walk through a template's form, while it loads or fails."
   },
-  "templatePreviewBack": "Back to Audit templates",
+  "templatePreviewBack": "Back to Survey templates",
   "@templatePreviewBack": {
     "description": "The way out of the template preview, naming where it lands."
   },
@@ -9703,9 +9703,9 @@
   "@liveFirst200": {
     "description": "Said when the live location layer holds more agents than it draws."
   },
-  "fraudTitle": "Fraud review",
+  "fraudTitle": "Visit verification",
   "@fraudTitle": {
-    "description": "Title of the fraud review queue."
+    "description": "Title of the visit verification queue."
   },
   "fraudFact": "Risk is scored 0–100 on submit. The signals are the evidence.",
   "@fraudFact": {
@@ -10747,7 +10747,7 @@
       }
     }
   },
-  "dashOverviewTitle": "Execution overview",
+  "dashOverviewTitle": "Perfect Store",
   "@dashOverviewTitle": {
     "description": "The title of the manager's multi-panel console at /dashboard/overview."
   },
@@ -10836,13 +10836,13 @@
   "@dashNeedsAttention": {
     "description": "Section heading over the open alert and task counts."
   },
-  "dashViewAllAlerts": "All alerts",
+  "dashViewAllAlerts": "All exceptions",
   "@dashViewAllAlerts": {
-    "description": "The needs-attention section's ghost action, into the alerts worklist."
+    "description": "The needs-attention section's ghost action, into the exceptions worklist."
   },
-  "dashCriticalAlerts": "Critical alerts open",
+  "dashCriticalAlerts": "Critical exceptions open",
   "@dashCriticalAlerts": {
-    "description": "Row title: open alerts at critical severity."
+    "description": "Row title: open exceptions at critical severity."
   },
   "dashWarningAlerts": "Warnings awaiting acknowledgement",
   "@dashWarningAlerts": {
@@ -11452,7 +11452,7 @@
   "@visitNotFoundBody": {
     "description": "Body of the not-found state."
   },
-  "visitBackToAlerts": "Back to alerts",
+  "visitBackToAlerts": "Back to exceptions",
   "@visitBackToAlerts": {
     "description": "The way on from the not-found state."
   },

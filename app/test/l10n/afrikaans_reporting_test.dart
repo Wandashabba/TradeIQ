@@ -25,7 +25,7 @@ import '../features/worklist_harness.dart';
 // ── THE FAILURE, WRITTEN OUT ─────────────────────────────────────────────
 //
 // An Afrikaans manager taps a nav item that reads "Verslae", "Webhake",
-// "Ouditsjablone" or "Boodskappe" — `nav_destinations.dart` has translated
+// "Opnamesjablone" or "Boodskappe" — `nav_destinations.dart` has translated
 // those four labels for a while — and lands on a screen that says "Reports ·
 // Definitions run on demand against live data · Run · Delete · New report".
 // Territories, Dispatch and Trends, reached from the same menu sheet, read
@@ -111,7 +111,7 @@ void main() {
       expect(find.text('Refresh'), findsNothing);
     });
 
-    testWidgets('Audit templates', (tester) async {
+    testWidgets('Survey templates', (tester) async {
       await pumpWorklist(
         tester,
         const TemplatesScreen(),
@@ -123,11 +123,11 @@ void main() {
         ],
       );
 
-      expect(find.text('Ouditsjablone'), findsWidgets);
+      expect(find.text('Opnamesjablone'), findsWidgets);
       expect(find.text('In veldoudits gebruik'.toUpperCase()), findsOneWidget);
       expect(find.text('Gebruik in oudits'), findsWidgets);
 
-      expect(find.text('Audit templates'), findsNothing);
+      expect(find.text('Survey templates'), findsNothing);
       expect(find.text('Used in field audits'), findsNothing);
       expect(find.text('Use in audits'), findsNothing);
     });

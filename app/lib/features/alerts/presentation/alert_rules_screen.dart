@@ -66,8 +66,8 @@ String _conditionSentence(AlertRule rule) => switch (rule.metric) {
 /// WHAT RAISES THE ROWS — visible and editable, one hop from the worklist.
 ///
 /// ```text
-///   ← Back to alerts
-///   Alert rules
+///   ← Back to exceptions
+///   Exception rules
 ///   A rule evaluates on every visit submit. Turning one off
 ///   stops new alerts; it does not clear existing ones.
 ///   ( All metrics )( Out of stock )( Price deviation )…
@@ -124,7 +124,10 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
       loading: () => _frame(
         phase: 'loading',
         children: <Widget>[
-          Skeleton(label: 'alert rules', child: const SkeletonRows(count: 4)),
+          Skeleton(
+            label: 'exception rules',
+            child: const SkeletonRows(count: 4),
+          ),
         ],
       ),
       error: (error, stack) => _frame(
@@ -151,15 +154,15 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
     return ConsoleFrame(
       phase: phase,
       header: TorchAppHeader(
-        title: 'Alert rules',
+        title: 'Exception rules',
         facts: const <String>[
           'A rule evaluates on every visit submit. Turning one off stops new '
-              'alerts; it does not clear existing ones.',
+              'exceptions; it does not clear existing ones.',
         ],
         back: TorchIconButton(
           key: const ValueKey<String>('back-to-alerts'),
           icon: Icons.arrow_back,
-          semanticLabel: 'Back to alerts',
+          semanticLabel: 'Back to exceptions',
           onPressed: () => context.go('/alerts'),
         ),
       ),
@@ -214,7 +217,7 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
           const EmptyState(
             scope: EmptyScope.inPanel,
             headline: 'No rules yet.',
-            body: 'Alerts only exist because a rule says so.',
+            body: 'Exceptions only exist because a rule says so.',
           )
         else if (visible.isEmpty)
           EmptyState(
@@ -236,7 +239,8 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             const EmptyState(
               scope: EmptyScope.inline,
               headline: 'Nothing is active.',
-              body: 'No alert will be raised until one of these is turned on.',
+              body: 'No exception will be raised until one of these is turned '
+                  'on.',
             )
           else
             TorchBleed(
@@ -559,10 +563,10 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
   @override
   Widget build(BuildContext context) {
     return TorchSheet(
-      title: _isEdit ? widget.rule!.name : 'New alert rule',
+      title: _isEdit ? widget.rule!.name : 'New exception rule',
       subtitle: _isEdit
           ? 'A rule evaluates on every visit submit.'
-          : 'A rule is the only thing that raises an alert.',
+          : 'A rule is the only thing that raises an exception.',
       claims: const <TorchClaim>[TorchClaim.primaryCommit(commitClaimId)],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -28,7 +28,7 @@ import '../dashboard/overview_harness.dart' as oh;
 ///
 /// `floor_look_test.dart` and `overview_look_test.dart` each render one screen
 /// in the skin that screen was designed in. This renders **The Floor, the
-/// Execution overview, Today and Ask TradeIQ in Night *and* Day**, side by
+/// Perfect Store, Today and Ask TradeIQ in Night *and* Day**, side by
 /// side, with Schibsted Grotesk and JetBrains Mono loaded — because the question this
 /// batch answers is not "does one screen look right" but "does a figure that
 /// carries a judgement read as one, on both grounds". Day is the point: the
@@ -166,7 +166,7 @@ void main() {
     }, skip: !looking);
   }
 
-  // ── 2. The Execution overview ───────────────────────────────────────
+  // ── 2. Perfect Store ────────────────────────────────────────────────
   const bands = <ScoreBand>[
     ScoreBand(label: 'Excellent', minScore: 90, outlets: 4),
     ScoreBand(label: 'Good', minScore: 75, outlets: 11),
@@ -185,7 +185,7 @@ void main() {
   ];
 
   for (final (name, mode) in skins) {
-    testWidgets('Execution overview — $name', (tester) async {
+    testWidgets('Perfect Store — $name', (tester) async {
       await oh.pumpOverview(
         tester,
         const DashboardShellScreen(),

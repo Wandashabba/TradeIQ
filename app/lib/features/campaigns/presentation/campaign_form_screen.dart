@@ -121,7 +121,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
     String? dateError;
     if (!widget.isEditing) {
       if (_startDate == null || _endDate == null) {
-        dateError = 'A campaign needs a start date and an end date.';
+        dateError = 'An activation needs a start date and an end date.';
       } else if (_endDate!.isBefore(_startDate!)) {
         dateError = 'The end date cannot be before the start date.';
       }
@@ -129,7 +129,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
 
     if (nameBlank || budgetBad || dateError != null) {
       setState(() {
-        _nameError = nameBlank ? 'A campaign needs a name.' : null;
+        _nameError = nameBlank ? 'An activation needs a name.' : null;
         _budgetError = budgetBad ? 'That is not a number.' : null;
         _dateError = dateError;
       });
@@ -178,8 +178,8 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final label = widget.isEditing
-        ? 'Save the campaign'
-        : 'Create the campaign';
+        ? 'Save the activation'
+        : 'Create the activation';
 
     return TorchScope(
       skin: skin,
@@ -193,14 +193,14 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
       child: TorchShell(
         profile: TorchShellProfile.console,
         header: TorchAppHeader(
-          title: widget.isEditing ? widget.campaign!.name : 'New campaign',
+          title: widget.isEditing ? widget.campaign!.name : 'New activation',
           facts: <String>[
-            widget.isEditing ? 'Editing a campaign' : 'A new campaign',
+            widget.isEditing ? 'Editing an activation' : 'A new activation',
           ],
           back: TorchIconButton(
             key: const ValueKey<String>('campaign-form-back'),
             icon: Icons.arrow_back,
-            semanticLabel: 'Back to Campaigns',
+            semanticLabel: 'Back to Activations',
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -277,7 +277,7 @@ class _CampaignFormScreenState extends ConsumerState<CampaignFormScreen> {
             ),
             const SizedBox(height: TiqSpace.s3),
             Text(
-              'Dates and outlets are fixed once a campaign exists — the server '
+              'Dates and outlets are fixed once an activation exists — the server '
               'accepts neither on an edit.',
               key: const ValueKey<String>('campaign-edit-note'),
               style: skin.text.meta.style(color: skin.palette.ink3),
@@ -436,7 +436,7 @@ class _OutletMultiSelect extends ConsumerWidget {
               key: ValueKey<String>('campaign-outlets-empty'),
               scope: EmptyScope.inline,
               headline: 'No outlets yet.',
-              body: 'A campaign with no outlets covers every outlet you add '
+              body: 'An activation with no outlets covers every outlet you add '
                   'later.',
             )
           else ...<Widget>[

@@ -17,19 +17,19 @@ import '../data/campaigns_repository.dart';
 import 'campaign_form_screen.dart';
 import 'campaign_return_view.dart';
 
-/// CAMPAIGNS — the live ones first, each row carrying its status as a mark and
+/// ACTIVATIONS — the live ones first, each row carrying its status as a mark and
 /// a word, and opening its compliance rollup and its return on tap.
 ///
 /// ```text
-///   Campaigns                                     [ ⟳ ]
+///   Activations                                   [ ⟳ ]
 ///   Tap a row for its compliance rollup and return.
-///   ── Campaigns                            4 ────
+///   ── Activations                          4 ────
 ///   Spring planogram reset                  Active
 ///   12 outlets · 2026-09-01 → 2026-09-30
 ///   CMP-4821                                     ›
 ///   Edit
 ///   …
-///   [ New campaign ]
+///   [ New activation ]
 ///   [ nav pill ]
 /// ```
 ///
@@ -62,7 +62,7 @@ class CampaignsScreen extends ConsumerWidget {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'campaigns',
+            label: 'activations',
             child: const SkeletonRows(count: 4, rowHeight: 80),
           ),
         ],
@@ -109,12 +109,12 @@ class CampaignsScreen extends ConsumerWidget {
     return ConsoleFrame(
       phase: phase,
       header: TorchAppHeader(
-        title: 'Campaigns',
+        title: 'Activations',
         facts: const <String>['Tap a row for its compliance rollup.'],
         trailing: TorchIconButton(
           key: const ValueKey<String>('campaigns-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the campaigns list',
+          semanticLabel: 'Refresh the activations list',
           onPressed: () => ref.invalidate(campaignsListProvider),
         ),
       ),
@@ -125,7 +125,7 @@ class CampaignsScreen extends ConsumerWidget {
           alignment: AlignmentDirectional.centerStart,
           child: TorchSecondaryButton(
             key: const ValueKey<String>('campaign-create'),
-            label: 'New campaign',
+            label: 'New activation',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const CampaignFormScreen(),
@@ -145,14 +145,14 @@ class CampaignsScreen extends ConsumerWidget {
       ref,
       phase: list.isEmpty ? 'empty' : 'loaded',
       children: <Widget>[
-        SectionRule('Campaigns', count: list.isEmpty ? null : list.length),
+        SectionRule('Activations', count: list.isEmpty ? null : list.length),
         const SizedBox(height: TiqSpace.s5),
 
         if (list.isEmpty)
           const EmptyState(
             key: ValueKey<String>('campaigns-empty'),
             scope: EmptyScope.inPanel,
-            headline: 'No campaigns yet.',
+            headline: 'No activations yet.',
             body: 'Create one to track visit coverage, planogram and promo '
                 'compliance against a date window.',
           )
@@ -389,7 +389,7 @@ class _Compliance extends StatelessWidget {
   /// field team. The Spend line two sections down already refuses the same
   /// trade.
   String? get _noOutlets =>
-      compliance.outletsTotal == 0 ? 'No outlets in this campaign' : null;
+      compliance.outletsTotal == 0 ? 'No outlets in this activation' : null;
 
   String? get _noVisits =>
       compliance.outletsVisited == 0 ? 'No visits in the window' : null;

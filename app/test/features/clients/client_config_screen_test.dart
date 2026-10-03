@@ -345,7 +345,9 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(keyed('weights-error'), findsOneWidget);
       expect(
-        find.text('Only an administrator can change scoring config.'),
+        find.text(
+          'Only an administrator can change the Perfect Store scorecard.',
+        ),
         findsOneWidget,
       );
     });

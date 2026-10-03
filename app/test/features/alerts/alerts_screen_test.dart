@@ -341,7 +341,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('None among the 2 alerts loaded'),
+        find.textContaining('None among the 2 exceptions loaded'),
         findsOneWidget,
       );
       expect(
@@ -510,7 +510,7 @@ void main() {
       // An unacknowledged alert never silently vanishes.
       expect(find.byType(SoftRow), findsOneWidget);
       expect(
-        find.text('That alert was not acknowledged. It is still open.'),
+        find.text('That exception was not acknowledged. It is still open.'),
         findsOneWidget,
       );
       await settleToasts(tester);
@@ -766,7 +766,9 @@ void main() {
 
       expect(find.text('Nothing to triage.'), findsOneWidget);
       expect(
-        find.text('Alerts appear here when a rule fires on a submitted visit.'),
+        find.text(
+          'Exceptions appear here when a rule fires on a submitted visit.',
+        ),
         findsOneWidget,
       );
       // The section still renders: a section that vanishes when empty makes a
@@ -838,7 +840,7 @@ void main() {
       // "riskiest", which is a ranking it did not do. The total is grouped
       // by the locale formatter.
       expect(
-        find.text('Showing the 2 newest of 1,284 alerts.'),
+        find.text('Showing the 2 newest of 1,284 exceptions.'),
         findsOneWidget,
       );
       expect(find.text('The counts above are of these 2.'), findsOneWidget);
@@ -1058,7 +1060,7 @@ void main() {
       // Never the English comma: the figure goes through the one formatter.
       expect(total, isNot(contains(',')));
       expect(
-        find.text('Showing the 2 newest of $total alerts.'),
+        find.text('Showing the 2 newest of $total exceptions.'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

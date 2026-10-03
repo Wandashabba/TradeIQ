@@ -40,11 +40,11 @@ const Map<String, String> toolStepLabels = {
   // Outside data: prices read from retailers' public websites (gated off by
   // default on the backend). Named so it is never confused with our own.
   'getCompetitorShelfPrices': 'Competitor shelf prices',
-  'getCampaignPerformance': 'Campaign results',
+  'getCampaignPerformance': 'Activation results',
   'getSellInForecast': 'Sell-in forecast',
   'getContestStandings': 'Contest standings',
   'getTaskSummary': 'Tasks',
-  'getAlerts': 'Alerts',
+  'getAlerts': 'Exceptions',
   'findTerritories': 'Finding the territory',
   'webSearch': 'Searching the web',
   'getCalendarContext': 'Holidays & paydays',

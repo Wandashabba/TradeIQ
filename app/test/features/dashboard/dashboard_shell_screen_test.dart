@@ -217,7 +217,10 @@ void main() {
       final critical = tester.widget<SoftRow>(
         find.byKey(const ValueKey<String>('attention-critical-alerts')),
       );
-      expect(critical.semanticsLabel, contains('Critical alerts open. 2'));
+      expect(
+        critical.semanticsLabel,
+        contains('Critical exceptions open. 2'),
+      );
       // Crimson is never the only channel: the word rides with the bar.
       expect(critical.severity, SoftRowSeverity.critical);
       expect(critical.severityLabel, 'Critical');
@@ -780,12 +783,12 @@ void main() {
         territories: const <Territory>[north],
       );
 
-      expect(find.text('Uitvoeringsoorsig'), findsWidgets);
+      expect(find.text('Perfekte Winkel'), findsWidgets);
       expect(find.text('Laaste 30 dae'), findsWidgets);
       expect(find.text('Benodig aandag'.toUpperCase()), findsOneWidget);
       expect(find.text('Waar ons teenoor die standaard staan'.toUpperCase()), findsOneWidget);
       // And none of the English it replaced.
-      expect(find.text('Execution overview'), findsNothing);
+      expect(find.text('Perfect Store'), findsNothing);
       expect(find.text('Needs attention'), findsNothing);
 
       // Past the fold, where a half-translated route usually hides.

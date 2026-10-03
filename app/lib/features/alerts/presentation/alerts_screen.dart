@@ -21,11 +21,15 @@ import '../data/alerts_repository.dart';
 import '../data/alerts_view.dart';
 import 'alert_detail_sheet.dart';
 
-/// ALERTS — everything a rule fired on, in the order a manager should deal
-/// with it.
+/// EXCEPTIONS — everything a rule fired on, in the order a manager should
+/// deal with it.
+///
+/// Named *Exceptions* since 3 October 2026; the route is still `/alerts` and
+/// the records are still `AlertRow`. Exception management is what this screen
+/// has always been — the trade word for a store that has broken a standard.
 ///
 /// ```text
-///   Alerts                                        [ ⟳ ]
+///   Exceptions                                    [ ⟳ ]
 ///   Rules evaluate on every visit submit.
 ///   Manage rules
 ///   ┌────────────────────────────────────────┐
@@ -39,7 +43,7 @@ import 'alert_detail_sheet.dart';
 ///   ▌ OSA_BELOW_50
 ///   ▌ View visit   Acknowledge
 ///   …
-///   Showing the 50 newest of 74 alerts.
+///   Showing the 50 newest of 74 exceptions.
 ///   The counts above are of these 50.
 ///   [ nav pill ]
 /// ```
@@ -88,7 +92,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         phase: 'loading',
         children: <Widget>[
           Skeleton(
-            label: 'alerts',
+            label: 'exceptions',
             child: const SkeletonRows(count: 4, rowHeight: 76),
           ),
         ],
@@ -117,12 +121,12 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     return ConsoleFrame(
       phase: phase,
       header: TorchAppHeader(
-        title: 'Alerts',
+        title: 'Exceptions',
         facts: const <String>['Rules evaluate on every visit submit.'],
         trailing: TorchIconButton(
           key: const ValueKey<String>('alerts-refresh'),
           icon: Icons.refresh,
-          semanticLabel: 'Refresh the alerts list',
+          semanticLabel: 'Refresh the exceptions list',
           onPressed: _refresh,
         ),
       ),
@@ -187,7 +191,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           const EmptyState(
             scope: EmptyScope.inPanel,
             headline: 'Nothing to triage.',
-            body: 'Alerts appear here when a rule fires on a submitted visit.',
+            body: 'Exceptions appear here when a rule fires on a submitted '
+                'visit.',
           )
         else if (visible.isEmpty)
           EmptyState(
@@ -196,7 +201,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             body: 'Clear the filter to see the rest.',
             action: TorchSecondaryButton(
               key: const ValueKey<String>('clear-filters'),
-              label: 'Show all alerts',
+              label: 'Show all exceptions',
               onPressed: () => setState(() {
                 _tab = AlertTab.all;
                 _severity = null;
@@ -244,13 +249,14 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   String _sectionName() => switch (_tab) {
     AlertTab.open => 'Open',
     AlertTab.acknowledged => 'Acknowledged',
-    AlertTab.all => 'All alerts',
+    AlertTab.all => 'All exceptions',
   };
 
   String _filteredEmptyHeadline() {
     final severity = _severity;
     if (severity != null) {
-      return 'No ${severity.toLowerCase()} alerts in ${_sectionName().toLowerCase()}.';
+      return 'No ${severity.toLowerCase()} exceptions in '
+          '${_sectionName().toLowerCase()}.';
     }
     return switch (_tab) {
       AlertTab.open => 'Nothing open.',
@@ -320,11 +326,13 @@ class _LeadIndicator extends StatelessWidget {
               // and the reason.
               value: unknown ? null : critical,
               noDataReason: unknown
-                  ? 'None among the $loaded alerts loaded. The rest of the list '
+                  ? 'None among the $loaded exceptions loaded. The rest of the '
+                        'list '
                         'was not fetched.'
                   : null,
               stateLine: partial && critical > 0
-                  ? 'At least this many: counted over the $loaded alerts loaded.'
+                  ? 'At least this many: counted over the $loaded exceptions '
+                        'loaded.'
                   : null,
               lead: true,
               subordinates:
@@ -494,7 +502,7 @@ class _AlertRowState extends ConsumerState<_AlertRow>
       }
       showTorchToast(
         context,
-        message: 'That alert was not acknowledged. It is still open.',
+        message: 'That exception was not acknowledged. It is still open.',
         kind: ToastKind.failure,
         // A second toast replaces the first rather than stacking, so a retry
         // that fails again reports once.

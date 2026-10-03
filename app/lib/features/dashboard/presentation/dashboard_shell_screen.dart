@@ -57,7 +57,7 @@ import 'standards.dart';
 ///   EXECUTION SCORE                                  72,4
 ///   ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁│▁▁▁▁▁   ▲ 1,8 vs the window before
 ///   ── Needs attention 3 ───────────────────────────────
-///   ▌ Critical alerts open                              4
+///   ▌ Critical exceptions open                              4
 ///   ── Where we sit against the standard ───────────────
 ///   ── Execution score by territory ────────────────────
 ///   ── On-shelf availability ───────────────────────────

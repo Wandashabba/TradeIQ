@@ -737,7 +737,7 @@ void main() {
       // Only managers/admins may write rules (requireRole on the backend), so
       // the screen is manager-only — an agent lands back on the outlet picker.
       expect(find.byType(TodayScreen), findsOneWidget);
-      expect(find.text('Alert rules'), findsNothing);
+      expect(find.text('Exception rules'), findsNothing);
     },
   );
 
