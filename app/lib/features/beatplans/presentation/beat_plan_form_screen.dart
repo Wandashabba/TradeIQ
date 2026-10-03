@@ -386,7 +386,6 @@ class _StopBuilder extends StatelessWidget {
     final l10n = context.l10n;
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
-    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
 
     String nameFor(String id) =>
         outlets.where((o) => o.id == id).map((o) => o.name).firstOrNull ?? id;
@@ -406,7 +405,6 @@ class _StopBuilder extends StatelessWidget {
         SizedBox(height: skin.space.intraBlock),
         if (selectedIds.isNotEmpty)
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -470,7 +468,6 @@ class _StopBuilder extends StatelessWidget {
         SizedBox(height: skin.space.intraBlock),
         if (available.isNotEmpty)
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

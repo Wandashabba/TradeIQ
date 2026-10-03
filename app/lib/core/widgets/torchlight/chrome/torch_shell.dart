@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
+import '../bleed.dart';
 import 'nav_circle.dart';
 import 'nav_pill.dart';
 import 'thumb_zone.dart';
@@ -591,7 +592,13 @@ class TorchShell extends StatelessWidget {
 
     return DefaultTextStyle(
       style: skin.text.body.style(color: skin.palette.ink1),
-      child: _Ground(
+      // WHAT THIS SHELL ACTUALLY SPENT, said once, where a `TorchBleed` can
+      // read it. Every caller used to compute this itself off the window's
+      // width — right on a phone, 40dp wrong inside one of the desk's panes.
+      // See [TorchGutter].
+      child: TorchGutter(
+        extent: gutter,
+        child: _Ground(
         skin: skin,
         falloff: falloff,
         backdrop: backdrop,
@@ -610,6 +617,7 @@ class TorchShell extends StatelessWidget {
                       : media.size.height,
                 ),
               ),
+        ),
       ),
     );
   }

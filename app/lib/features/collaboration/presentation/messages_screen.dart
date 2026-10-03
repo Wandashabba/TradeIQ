@@ -15,7 +15,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -304,10 +306,92 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final announcements = ref.watch(announcementsListProvider);
     final feed = onAnnouncements ? announcements : messages;
 
+    // WHICH FEED, as one object handed to both arms. The phone bleeds it out
+    // to the window's gutter; the list pane supplies its own, so the pane is
+    // given the identical rail un-bled.
+    final feedRail = TorchFilterRail(
+      semanticsLabel: l10n.messagesWhichFeed,
+      chips: <Widget>[
+        TorchFilterChip(
+          key: const ValueKey<String>('tab-messages'),
+          label: l10n.messagesTitle,
+          // The tab's count is what is loaded, which is what the feed
+          // below it shows — the footer is where "there are more" is
+          // said, in words, rather than in a number that would then be
+          // a different number from the list.
+          count: messages.value == null
+              ? null
+              : messages.value!.data.length + _olderMessages.length,
+          countLoading: messages.isLoading,
+          selected: !onAnnouncements,
+          onSelected: () => setState(() => _feed = _Feed.messages),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('tab-announcements'),
+          label: l10n.messagesFeedAnnouncements,
+          count: announcements.value == null
+              ? null
+              : announcements.value!.data.length + _olderAnnouncements.length,
+          countLoading: announcements.isLoading,
+          selected: onAnnouncements,
+          onSelected: () => setState(() => _feed = _Feed.announcements),
+        ),
+      ],
+    );
+
+    final compose = Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TorchSecondaryButton(
+        key: const ValueKey<String>('announcement-create'),
+        label: l10n.announcementNew,
+        onPressed: _compose,
+      ),
+    );
+
     return ConsoleFrame(
       phase: onAnnouncements
           ? 'announcements-${_phaseOf(announcements)}'
           : 'messages-${_phaseOf(messages)}',
+      // ── WHAT THE DESK GETS, AND THE ONE THING IT DROPS ──────────────────
+      //
+      // Null while a feed is loading and after it failed — a skeleton and an
+      // error are not records — and non-null on every phase that has an
+      // answer, **including an empty feed**: with no records the detail pane
+      // already has words for that ("Nothing to read yet."), which is the same
+      // arrangement `alerts_screen.dart` ships.
+      //
+      // Which feed is in `filters`, because it is this screen's rail and it
+      // names and counts both slices — so the section markers are **not** in
+      // `lead`, by the argument Alerts makes for dropping its own.
+      //
+      // ## THE DESK CURRENTLY DROPS THE TEAM COMPOSER, and that is a gap
+      //
+      // `band:` below is the composer, and `ConsoleFrame` passes `band` to the
+      // phone arm only: `ConsoleDeskBody` takes a header, an ask bar, records
+      // and children, and has **no slot for a pinned region of the screen's
+      // own**. The composer is therefore absent above 1212dp, which means a
+      // manager on a desktop can read the thread and cannot answer it — the
+      // one capability this route exists for.
+      //
+      // It is left where it is rather than smuggled into `lead` or into a
+      // record's pane. `lead` draws *above* the list, and a composer at the
+      // top of the feed is not the composer; the detail pane is one message at
+      // rest, and a composer there would post to the feed from a card about
+      // somebody else's message. The honest fix is a `band`/composer slot on
+      // `ConsoleDeskRecords` that lands at the foot of the LIST pane, which is
+      // where the phone's band sits relative to its list — and that is a
+      // change to the shared desk contract rather than to this screen, so it
+      // is named here instead of invented.
+      desk: switch (feed) {
+        AsyncLoading<Object?>() || AsyncError<Object?>() => null,
+        _ => onAnnouncements
+            ? _announcementsDesk(
+                announcements.value,
+                filters: feedRail,
+                compose: canAnnounce ? compose : null,
+              )
+            : _messagesDesk(messages.value, filters: feedRail),
+      },
       claims: <TorchClaim>[
         if (!onAnnouncements && armed)
           TorchPrimaryButton.claim(messageSendClaimId),
@@ -336,51 +420,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               onRemove: _removeAttachment,
             ),
       children: <Widget>[
-        TorchBleed(
-          extra: gutter * 2,
-          child: TorchFilterRail(
-            semanticsLabel: l10n.messagesWhichFeed,
-            chips: <Widget>[
-              TorchFilterChip(
-                key: const ValueKey<String>('tab-messages'),
-                label: l10n.messagesTitle,
-                // The tab's count is what is loaded, which is what the feed
-                // below it shows — the footer is where "there are more" is
-                // said, in words, rather than in a number that would then be
-                // a different number from the list.
-                count: messages.value == null
-                    ? null
-                    : messages.value!.data.length + _olderMessages.length,
-                countLoading: messages.isLoading,
-                selected: !onAnnouncements,
-                onSelected: () => setState(() => _feed = _Feed.messages),
-              ),
-              TorchFilterChip(
-                key: const ValueKey<String>('tab-announcements'),
-                label: l10n.messagesFeedAnnouncements,
-                count: announcements.value == null
-                    ? null
-                    : announcements.value!.data.length +
-                          _olderAnnouncements.length,
-                countLoading: announcements.isLoading,
-                selected: onAnnouncements,
-                onSelected: () =>
-                    setState(() => _feed = _Feed.announcements),
-              ),
-            ],
-          ),
-        ),
+        // THE SAME RAIL AND THE SAME BUTTON THE PANES HOLD, and the same
+        // instances. Only one arm of `ConsoleFrame` is ever mounted.
+        TorchBleed(child: feedRail),
         const SizedBox(height: TiqSpace.s6),
 
         if (onAnnouncements && canAnnounce) ...<Widget>[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TorchSecondaryButton(
-              key: const ValueKey<String>('announcement-create'),
-              label: l10n.announcementNew,
-              onPressed: _compose,
-            ),
-          ),
+          compose,
           const SizedBox(height: TiqSpace.s6),
         ],
 
@@ -471,22 +517,46 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     required ValueKey<String> key,
     required VoidCallback onPressed,
   }) {
-    if (next == null && !_feedFailed) return const <Widget>[];
-    return <Widget>[
-      const SizedBox(height: TiqSpace.s4),
-      PaginationFooter(
-        summary: summary,
-        narrowLine: _feedFailed ? context.l10n.feedMoreFailed : null,
-        action: next == null
-            ? null
-            : TorchTertiaryButton(
-                key: key,
-                label: action,
-                busy: _feedLoading,
-                onPressed: _feedLoading ? null : onPressed,
-              ),
-      ),
-    ];
+    final bar = _feedFooterBar(
+      next: next,
+      summary: summary,
+      action: action,
+      key: key,
+      onPressed: onPressed,
+    );
+    if (bar == null) return const <Widget>[];
+    return <Widget>[const SizedBox(height: TiqSpace.s4), bar];
+  }
+
+  /// The footer itself, with no gap above it.
+  ///
+  /// Split out of [_feedFooter] for the desk, whose `footer:` slot supplies
+  /// the gap: the pane puts a `blockGap` above whatever it is given, so the
+  /// `s4` the phone spends here would be spent twice. Same summary, same
+  /// failure line, same "Show older" button on the same handler — one object
+  /// with two framings rather than two footers that have to agree.
+  Widget? _feedFooterBar({
+    required String? next,
+    required String summary,
+    required String action,
+    required ValueKey<String> key,
+    required VoidCallback onPressed,
+    ValueKey<String>? footerKey,
+  }) {
+    if (next == null && !_feedFailed) return null;
+    return PaginationFooter(
+      key: footerKey,
+      summary: summary,
+      narrowLine: _feedFailed ? context.l10n.feedMoreFailed : null,
+      action: next == null
+          ? null
+          : TorchTertiaryButton(
+              key: key,
+              label: action,
+              busy: _feedLoading,
+              onPressed: _feedLoading ? null : onPressed,
+            ),
+    );
   }
 
   List<Widget> _messages(PaginatedResponse<Message>? page, double gutter) {
@@ -511,7 +581,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -540,6 +609,119 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         }),
       ),
     ];
+  }
+
+  /// The messages feed, as records.
+  ///
+  /// The same list the phone arm builds — page one plus whatever "Show older"
+  /// has added — the same `_MessageRow` keyed the same way, and the same
+  /// footer on the same handler. The rows need no tap suppressed because they
+  /// have never had one; **they keep their long press**, so the message id is
+  /// as reachable on the desk as it is on a phone and for the same gesture.
+  ConsoleDeskRecords _messagesDesk(
+    PaginatedResponse<Message>? page, {
+    required Widget filters,
+  }) {
+    final l10n = context.l10n;
+    final directory = ref.watch(userDirectoryProvider);
+    final messages = <Message>[...?page?.data, ..._olderMessages];
+    final next = _messagesCursorRead ? _messagesCursor : page?.nextCursor;
+
+    return ConsoleDeskRecords(
+      filters: filters,
+      footer: _feedFooterBar(
+        next: next,
+        summary: l10n.messagesShowing(messages.length),
+        action: l10n.messagesShowOlder,
+        key: const ValueKey<String>('messages-older-desk'),
+        footerKey: const ValueKey<String>('messages-footer-desk'),
+        onPressed: () => _loadOlder(() async {
+          final older = await ref
+              .read(collaborationRepositoryProvider)
+              .listMessages(cursor: next);
+          _olderMessages.addAll(older.data);
+          _messagesCursor = older.nextCursor;
+          _messagesCursorRead = true;
+        }),
+      ),
+      records: <ConsoleDeskRecord>[
+        for (var i = 0; i < messages.length; i++)
+          ConsoleDeskRecord(
+            id: messages[i].id,
+            row: (context, selected) => _MessageRow(
+              key: ValueKey<String>('message-${messages[i].id}'),
+              message: messages[i],
+              directory: directory,
+              last: i == messages.length - 1,
+            ),
+            detail: (context) =>
+                _MessageDetail(message: messages[i], directory: directory),
+          ),
+      ],
+    );
+  }
+
+  /// The announcements feed, as records.
+  ///
+  /// [compose] is null for everybody POST /announcements would answer 403 —
+  /// the same condition the phone arm checks — and it goes in `lead` because
+  /// there is nowhere else: `ConsoleDeskRecords` has `lead`, `filters`,
+  /// `records` and `footer`, and `filters` is already the feed rail. **So on
+  /// the desk "New announcement" sits above the two feed chips rather than
+  /// below them**, which is a worse place for it; the alternative was a
+  /// desktop on which an announcement cannot be posted at all, and that is
+  /// worse than a button one block too high.
+  ConsoleDeskRecords _announcementsDesk(
+    PaginatedResponse<Announcement>? page, {
+    required Widget filters,
+    required Widget? compose,
+  }) {
+    final l10n = context.l10n;
+    final announcements = <Announcement>[
+      ...?page?.data,
+      ..._olderAnnouncements,
+    ];
+    final next = _announcementsCursorRead
+        ? _announcementsCursor
+        : page?.nextCursor;
+
+    return ConsoleDeskRecords(
+      lead: <Widget>[
+        if (compose != null) ...<Widget>[
+          compose,
+          const SizedBox(height: TiqSpace.s6),
+        ],
+      ],
+      filters: filters,
+      footer: _feedFooterBar(
+        next: next,
+        summary: l10n.announcementsShowing(announcements.length),
+        action: l10n.announcementsShowOlder,
+        key: const ValueKey<String>('announcements-older-desk'),
+        footerKey: const ValueKey<String>('announcements-footer-desk'),
+        onPressed: () => _loadOlder(() async {
+          final older = await ref
+              .read(collaborationRepositoryProvider)
+              .listAnnouncements(cursor: next);
+          _olderAnnouncements.addAll(older.data);
+          _announcementsCursor = older.nextCursor;
+          _announcementsCursorRead = true;
+        }),
+      ),
+      records: <ConsoleDeskRecord>[
+        for (var i = 0; i < announcements.length; i++)
+          ConsoleDeskRecord(
+            id: announcements[i].id,
+            row: (context, selected) => _AnnouncementRow(
+              key: ValueKey<String>('announcement-${announcements[i].id}'),
+              announcement: announcements[i],
+              last: i == announcements.length - 1,
+            ),
+            detail: (context) =>
+                _AnnouncementDetail(announcement: announcements[i]),
+          ),
+      ],
+    );
   }
 
   List<Widget> _announcements(
@@ -572,7 +754,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -772,6 +953,154 @@ class _AnnouncementRow extends StatelessWidget {
         announcement.title,
         announcement.body,
       ),
+    );
+  }
+}
+
+/// ONE MESSAGE, IN THE DETAIL PANE — who, what it says, and its photographs.
+///
+/// A message row is a dead end on a phone: no `onTap`, no route, and the whole
+/// record in a title, a `who` line, two words of kind and a wrap of thumbs.
+/// So the pane is [ConsoleRecordDetail] over exactly those, with the
+/// attachments allowed to be the size they are.
+///
+/// ## There is no "when", and it is not an omission this pane can fix
+///
+/// `GET /messages` does not send one: `Message` carries an id, a body, a
+/// sender, a recipient and its attachments, and nothing else (see
+/// `collaboration_repository.dart`). The row prints no time for the same
+/// reason. A pane that printed "just now", or a date derived from a cursor,
+/// would be inventing the one field a reader would most trust — so the record
+/// says who and what, and the server has to grow a timestamp before it can
+/// say when.
+///
+/// ## The id stays behind the long press
+///
+/// The row's own ruling is that an id appears "in exactly one case: as the
+/// explicit unknown state", and that the id proper is **reachable** rather
+/// than printed. The row is handed to the list pane unchanged, long press and
+/// all, so on the desk the id is copied with the same gesture. What this pane
+/// does print is that one case: a sender or a recipient the roster cannot
+/// name, as a mono field whose label supplies the words the row's sentence
+/// supplies.
+///
+/// **The thumbs are in `blocks`, not `actions`.** They sit in `SoftRow.actions`
+/// on the row because that slot is what keeps their semantics nodes under the
+/// row's; in the pane `actions` is a stack of full-width verbs, and a 56dp
+/// photograph stretched to 440dp is not a verb. `blocks` is the slot
+/// `ConsoleRecordDetail` documents for an evidence thumbnail.
+///
+/// Amber: none. There is no verb on the row to lift, and the composer's Send
+/// — the one primary this route declares — stays on the composer.
+class _MessageDetail extends StatelessWidget {
+  const _MessageDetail({required this.message, required this.directory});
+
+  final Message message;
+  final Map<String, AppUser> directory;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final images = message.attachments;
+    // An image can be the whole message; the record still needs a headline,
+    // and it is the row's own.
+    final title = message.body.trim().isNotEmpty
+        ? message.body
+        : images.length == 1
+        ? l10n.messagePhotoOne
+        : l10n.messagePhotoMany(images.length);
+
+    final direct = message.recipientId != null;
+    final sender = _MessageRow.nameOf(directory, message.senderId);
+    final recipient = _MessageRow.nameOf(directory, message.recipientId);
+    final unknowns = <String>[
+      if (message.senderId != null && sender == null)
+        l10n.messageSenderNotOnRoster(message.senderId!),
+      if (direct && recipient == null)
+        l10n.messageRecipientNotOnRoster(message.recipientId!),
+    ];
+    final who = <String>[
+      if (sender != null) l10n.messageFrom(sender),
+      if (direct)
+        recipient != null
+            ? l10n.messageTo(recipient)
+            : l10n.messageDirectUnknownRecipient
+      else
+        l10n.messageToTeam,
+    ].join(' · ');
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('message-detail-${message.id}'),
+      title: title,
+      kicker: Eyebrow(direct ? l10n.messageDirect : l10n.messageBroadcast),
+      lede: who.isEmpty ? null : who,
+      // NO `facts` BLOCK, AND THE UNKNOWNS KEEP THE SENTENCE THEY ALREADY
+      // HAVE. The id appears in exactly one case — the explicit unknown state
+      // — and `messageSenderNotOnRoster` / `messageRecipientNotOnRoster` are
+      // whole localised sentences with the id inside them. Splitting them into
+      // a label and a value would have meant two new ARB keys saying what two
+      // existing ones already say, in English only; `_MessageRow` prints the
+      // same strings on the phone, so the pane and the row cannot drift.
+      blocks: <Widget>[
+        for (final unknown in unknowns)
+          Text(
+            unknown,
+            style: context.skin.text.monoIdent.style(
+              color: context.skin.palette.ink3,
+            ),
+          ),
+        if (images.isNotEmpty)
+          Wrap(
+            key: ValueKey<String>('message-attachments-${message.id}-pane'),
+            spacing: TiqSpace.s2,
+            runSpacing: TiqSpace.s2,
+            children: <Widget>[
+              for (final (index, a) in images.indexed)
+                MessageAttachmentThumb(
+                  key: ValueKey<String>(
+                    'message-attachment-${message.id}-$index-pane',
+                  ),
+                  photoId: a.photoId,
+                  label: l10n.messagePhotoOfCount(index + 1, images.length),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// ONE ANNOUNCEMENT, IN THE DETAIL PANE.
+///
+/// The row has the headline in its title and the whole broadcast in its
+/// `meta`, where a long one is a paragraph squeezed into a list. In the pane
+/// the headline is the title and the body is a block, which is the one thing
+/// this record actually needed room for.
+///
+/// Amber: none, and nothing lifted — posting is the list's verb and it stays
+/// with the list (see [_MessagesScreenState._announcementsDesk]).
+class _AnnouncementDetail extends StatelessWidget {
+  const _AnnouncementDetail({required this.announcement});
+
+  final Announcement announcement;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('announcement-detail-${announcement.id}'),
+      title: announcement.title,
+      lede: l10n.announcementSubtitle,
+      blocks: <Widget>[
+        // The same Text the row draws in its `meta`, at the same size and the
+        // same ink — allowed to wrap rather than to be a row's third line.
+        Text(
+          announcement.body,
+          style: skin.text.body.style(color: skin.palette.ink2),
+        ),
+      ],
     );
   }
 }

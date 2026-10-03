@@ -226,7 +226,6 @@ class SubmitGateScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: TiqSpace.s5),
                 TorchBleed(
-                  extra: context.skin.space.gutter * 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[

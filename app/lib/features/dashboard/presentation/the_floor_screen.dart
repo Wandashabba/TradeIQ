@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
@@ -240,33 +241,60 @@ class _FloorFrame extends StatelessWidget {
         if (hasPlatePhoto)
           const TorchClaim.plateStripLight(TheFloorScreen.plateClaimId),
       ],
-      // THE PLATE IS A CARD AND NO LONGER THE TOP EDGE. It ran full-bleed to
-      // y=0 until 25 September 2026, and `bleedTop` is what took the shell's
-      // 24dp console inset away to let it. The owner's reference insets the
-      // plate and rounds it, so the inset comes back for every state — a card
-      // hard against the status bar is a card with one edge missing.
-      child: FloorScaffold(
-        bleedTop: false,
-        band: band,
-        // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ──────────────────────
-        //
-        // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
-        // flame: the colour of the sky in the territory photographs the
-        // plate already carries, so the screen glows without a third amber
-        // object standing on a budget of two. The argument, the CSS it is
-        // ported from, the paint cost and the Day gate are all on
-        // [floorDawnWash]; the layer it goes in is [TorchShell.backdrop],
-        // and the reason it has to be that layer is the band.
-        //
-        // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
-        // justification is the plate's sky; the wash's *condition* is not
-        // the plate — it is the ground of this screen, not a light on its
-        // picture, which is exactly the distinction that keeps the strip
-        // light gated on `hasPlatePhoto` and this not. Gating it the same
-        // way would mean a skeleton whose bottom third warms up the moment
-        // a JPEG decodes.
-        backdrop: floorDawnWash(context.skin),
+      // ── AND AT A DESK, THE RAIL BESIDE IT ───────────────────────────
+      //
+      // > *"Please make the floor desktop as well follow that artifact I
+      // > gave please, you doing your own things and I dont like it."*
+      //
+      // The first desk shipped to 23 destinations behind `ConsoleFrame` and
+      // to this one — the manager's landing screen, the most important one —
+      // not at all, because this route builds its own shell. What it needed
+      // was not `ConsoleFrame`: it was the **branch**, which is now
+      // [ConsoleDeskBranch] and is all this route takes from it. No app
+      // header is added, the plate is still the first block of the column and
+      // still the thing that says where you are, the briefing is under it, and
+      // [band] — the suggestion chips and the composer — is at the foot of
+      // that column rather than at the bottom of a 1920dp window.
+      //
+      // **`bleedTop` is false here and the desk does not reinstate it.**
+      // `FloorScaffold`'s own doc still says the plate "has to run full-bleed
+      // to the top edge"; that stopped being true on 25 September 2026, when
+      // the owner's reference inset the plate and rounded it (see the comment
+      // on the phone arm below). The desk draws the plate the way the phone
+      // draws it today, which is the instruction that outranks the stale
+      // sentence: *don't touch mobile as it is perfect*.
+      child: ConsoleDeskBranch(
+        bar: band ?? const SizedBox.shrink(),
         children: children,
+        phone: (context) => FloorScaffold(
+          // THE PLATE IS A CARD AND NO LONGER THE TOP EDGE. It ran full-bleed
+          // to y=0 until 25 September 2026, and `bleedTop` is what took the
+          // shell's 24dp console inset away to let it. The owner's reference
+          // insets the plate and rounds it, so the inset comes back for every
+          // state — a card hard against the status bar is a card with one edge
+          // missing.
+          bleedTop: false,
+          band: band,
+          // ── DAWN, ON EVERY PHASE OF THIS ONE ROUTE ────────────────────
+          //
+          // *"Lets ship in C. Dawn — the plate's own sky"*. It is clay, not
+          // flame: the colour of the sky in the territory photographs the
+          // plate already carries, so the screen glows without a third amber
+          // object standing on a budget of two. The argument, the CSS it is
+          // ported from, the paint cost and the Day gate are all on
+          // [floorDawnWash]; the layer it goes in is [TorchShell.backdrop],
+          // and the reason it has to be that layer is the band.
+          //
+          // ON EVERY PHASE, INCLUDING THE ONES WITH NO PHOTOGRAPH. The hue's
+          // justification is the plate's sky; the wash's *condition* is not
+          // the plate — it is the ground of this screen, not a light on its
+          // picture, which is exactly the distinction that keeps the strip
+          // light gated on `hasPlatePhoto` and this not. Gating it the same
+          // way would mean a skeleton whose bottom third warms up the moment
+          // a JPEG decodes.
+          backdrop: floorDawnWash(context.skin),
+          children: children,
+        ),
       ),
     );
   }

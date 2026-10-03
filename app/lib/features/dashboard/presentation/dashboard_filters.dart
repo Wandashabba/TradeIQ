@@ -942,6 +942,11 @@ class _ScopeSheet extends ConsumerWidget {
           //
           // The bleed stays because the chips still carry a gutter of their
           // own at each end; it is the rail's `padding` that is gone.
+          //
+          // AND IT IS ONE OF THE TWO PLACES THAT STILL STATES ITS OWN AMOUNT.
+          // A sheet is mounted in the navigator's overlay, not under the shell
+          // that opened it, so there is no [TorchGutter] overhead to read and
+          // the sheet's own padding is the only answer. See [TorchBleed.extra].
           TorchBleed(
             extra: context.skin.space.gutter * 2,
             child: Padding(

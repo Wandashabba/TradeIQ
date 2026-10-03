@@ -7,10 +7,15 @@ import 'package:tradeiq_app/core/widgets/torchlight/menu_sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 import 'package:tradeiq_app/features/assistant/answer/composer.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../design/amber_golden.dart';
+// THE NON-LIST ROUTE'S OWN FAKES, reused rather than re-invented. Prefixed
+// because this harness exports a dozen record types and two of them share a
+// name with `worklist_harness.dart`'s.
+import '../../../features/dashboard/overview_harness.dart' as oh;
 import 'console_desk_harness.dart';
 
 /// THE DESK, PINNED — the measurements, as against the pictures.
@@ -27,7 +32,17 @@ void main() {
 
   // ── THE THRESHOLD ────────────────────────────────────────────────────
   group('the threshold is derived, and the derivation is printed', () {
-    test('deskMinWidth is the sum of its seven terms, and it is 1132', () {
+    // UPDATED 3 OCTOBER 2026, FROM 1132 AND SEVEN TERMS TO 1212 AND NINE.
+    //
+    // The two new terms are the panes' own gutters. They are not a widening
+    // for its own sake: with no gutter inside a pane there is nothing for a
+    // `SoftRow` list to bleed back out to, so every row in every pane was laid
+    // out `2 × gutterWide` wider than the viewport that clips it and the
+    // right-hand figure was cut (measured, before: viewport 462→1246, row
+    // 422→1286 at 1440×900 on Orders). The old assertion was pinning a
+    // derivation that produced clipped rows; it is re-stated rather than
+    // deleted so the arithmetic is still printed and still checked.
+    test('deskMinWidth is the sum of its nine terms, and it is 1212', () {
       for (final (name, skin) in <(String, TiqSkin)>[
         ('night', night),
         ('day', day),
@@ -37,17 +52,65 @@ void main() {
             2 * space.gutterWide +
             ConsoleDesk.railWidth +
             2 * space.blockGap +
-            ConsoleDesk.listMinWidth +
-            TiqSpace.readingWidth;
+            (ConsoleDesk.listMinWidth + 2 * ConsoleDesk.paneGutter) +
+            (TiqSpace.readingWidth + 2 * ConsoleDesk.paneGutter);
         // ignore: avoid_print
         print(
           'deskMinWidth [$name] = '
           '2×${space.gutterWide} gutterWide + ${ConsoleDesk.railWidth} rail + '
-          '2×${space.blockGap} blockGap + ${ConsoleDesk.listMinWidth} list + '
-          '${TiqSpace.readingWidth} readingWidth = $sum',
+          '2×${space.blockGap} blockGap + '
+          '(${ConsoleDesk.listMinWidth} list + 2×${ConsoleDesk.paneGutter} '
+          'paneGutter) + (${TiqSpace.readingWidth} readingWidth + '
+          '2×${ConsoleDesk.paneGutter} paneGutter) = $sum',
         );
         expect(ConsoleDesk.deskMinWidth(skin), sum);
-        expect(sum, 1132);
+        expect(sum, 1212);
+      }
+    });
+
+    // THE PANE GUTTER IS THE PHONE'S GUTTER, AND IT HAS TO STAY THAT WAY.
+    //
+    // `ConsoleDesk.paneGutter` is written as `TiqSpace.s5` because
+    // `deskMinWidth` needs a compile-time constant, and `space.gutter` is an
+    // instance field. If a skin ever moves its phone gutter off s5 the two
+    // disagree silently and every bleeding row in a pane is out by the
+    // difference — so they are checked rather than assumed.
+    test('a pane spends the phone\'s own gutter, in both skins', () {
+      for (final (name, skin) in <(String, TiqSkin)>[
+        ('night', night),
+        ('day', day),
+      ]) {
+        expect(
+          ConsoleDesk.paneGutter,
+          skin.space.gutter,
+          reason:
+              'ConsoleDesk.paneGutter (${ConsoleDesk.paneGutter}) and '
+              '$name space.gutter (${skin.space.gutter}) have to be the same '
+              'number: the pane pads by the constant and TorchGutter publishes '
+              'it, so a bleed gives back exactly what was spent.',
+        );
+      }
+    });
+
+    // THE DETAIL PANE IS A WIDTH, NOT A SHARE, AND AT THE THRESHOLD THE
+    // ARITHMETIC CLOSES ON ITSELF.
+    test('at deskMinWidth the list pane is exactly a 360dp phone', () {
+      for (final skin in <TiqSkin>[night, day]) {
+        final left =
+            ConsoleDesk.deskMinWidth(skin) -
+            2 * skin.space.gutterWide -
+            ConsoleDesk.railWidth -
+            2 * skin.space.blockGap -
+            ConsoleDesk.detailWidth(skin);
+        // ignore: avoid_print
+        print(
+          'AT THE THRESHOLD: detail pane ${ConsoleDesk.detailWidth(skin)}dp '
+          '(readingWidth + 2 × paneGutter), list pane ${left}dp — which is '
+          '${ConsoleDesk.listMinWidth} of content between two '
+          '${ConsoleDesk.paneGutter}dp gutters, i.e. a 360dp phone.',
+        );
+        expect(left, ConsoleDesk.listMinWidth + 2 * ConsoleDesk.paneGutter);
+        expect(left, 360);
       }
     });
 
@@ -107,10 +170,19 @@ void main() {
         expect(ConsoleDesk.isDesk(skin, const Size(390, 844)), isFalse);
         expect(ConsoleDesk.isDesk(skin, const Size(360, 640)), isFalse);
         // A phone in landscape. `EntryFrame` needed a height test to exclude
-        // these; at 1120 the width test already does, which is the whole of
+        // these; at 1212 the width test already does, which is the whole of
         // why this file does not quote 900.
         expect(ConsoleDesk.isDesk(skin, const Size(852, 393)), isFalse);
         expect(ConsoleDesk.isDesk(skin, const Size(1024, 768)), isFalse);
+        // 1920×1080 — the owner's own window, and the width at which the
+        // 8 : 11 split left a quarter of the screen as ground.
+        expect(ConsoleDesk.isDesk(skin, const Size(1920, 1080)), isTrue);
+        // THE 79dp BAND THE GUTTER COST. A window here used to get the desk
+        // and now gets the phone column. It is asserted rather than regretted:
+        // no standard laptop viewport is in it, and the alternative was panes
+        // that cut their rows.
+        expect(ConsoleDesk.isDesk(skin, const Size(1132, 900)), isFalse);
+        expect(ConsoleDesk.isDesk(skin, const Size(1211, 900)), isFalse);
         // One pixel either side of the line.
         final w = ConsoleDesk.deskMinWidth(skin);
         expect(ConsoleDesk.isDesk(skin, Size(w, 900)), isTrue);
@@ -353,15 +425,32 @@ void main() {
   });
 
   // ── A ROUTE THAT IS NOT A LIST ───────────────────────────────────────
+  //
+  // THE EXAMPLE USED TO BE WEBHOOKS, AND WEBHOOKS IS NOW A LIST.
+  //
+  // This test pumped `WebhooksScreen` and asserted `console-detail` was
+  // absent, on the argument written into its own `reason`: *"Webhooks has no
+  // record detail — its rows expand in place"*. The rows expanding in place is
+  // precisely what made it a list with a detail pane — the thing they expand
+  // to show is the delivery log, and on the desk that log is the third pane.
+  // So Webhooks passes a `ConsoleDeskRecords` now and the old assertion is
+  // false about this route rather than wrong about the layout. It is
+  // **re-aimed, not deleted**: the one-column shape still has to be pinned,
+  // and the route that has it is the Perfect Store scorecard — a figure block,
+  // a trend and two lists of cards, with no record to select. The Webhooks
+  // case is directly below, asserting the opposite.
   testWidgets('a non-list route gets the rail and ONE centred column', (
     tester,
   ) async {
     await pumpDesk(
       tester,
-      const WebhooksScreen(),
+      const DashboardShellScreen(),
       size: const Size(1440, 900),
-      path: '/webhooks',
-      overrides: deskWebhookOverrides(),
+      path: '/dashboard/overview',
+      overrides: oh.overviewOverrides(
+        current: oh.kpis(),
+        previous: oh.kpis(execution: 66),
+      ),
     );
     expect(find.byType(ConsoleRail), findsOneWidget);
     expect(
@@ -372,18 +461,76 @@ void main() {
       find.byKey(const ValueKey<String>('console-detail')),
       findsNothing,
       reason:
-          'Webhooks has no record detail — its rows expand in place. A third '
-          'pane here would be a pane whose content is an apology.',
+          'The scorecard has no records to select. A third pane here would be '
+          'a pane whose content is an apology.',
     );
     final column = tester.getRect(
       find.byKey(const ValueKey<String>('console-column')),
     );
+    // THE COLUMN FILLS WHAT IS LEFT AFTER THE RAIL, AND THE CAP IS GONE.
+    //
+    // It used to be capped at 784 and centred, which at 1440 left 154dp of
+    // ground between the rail and the content and 194 on the other side. The
+    // owner photographed the same shape at about 2000dp and called it empty.
+    final expected =
+        1440 -
+        2 * night.space.gutterWide -
+        ConsoleDesk.railWidth -
+        night.space.blockGap;
     // ignore: avoid_print
     print(
-      'THE ONE-COLUMN ROUTE: the column pane is ${column.width}dp wide and its '
-      'content is capped at '
-      '${ConsoleDeskBody.columnMaxWidth(night)}dp — the space the list and '
-      'detail panes occupy together at the threshold.',
+      'THE ONE-COLUMN ROUTE: the column pane is ${column.width}dp wide at '
+      '1440×900 — everything after the rail and its gap, with no cap and no '
+      'centring. Expected $expected.',
+    );
+    expect(column.width, expected);
+    expect(column.right, 1440 - night.space.gutterWide);
+  });
+
+  // ── AND THE ROUTE THAT USED TO BE THE EXAMPLE ────────────────────────
+  //
+  // Webhooks, whose rows expand in place on a phone. On the desk the fold is
+  // suppressed and `_DeliveriesList` is the detail pane, which is the whole
+  // reason a pane exists: on a phone, reading an endpoint's log costs the
+  // manager the list they were reading.
+  testWidgets('Webhooks gets three panes, and the deliveries are the third', (
+    tester,
+  ) async {
+    await pumpDesk(
+      tester,
+      const WebhooksScreen(),
+      size: const Size(1440, 900),
+      path: '/webhooks',
+      overrides: deskWebhookOverrides(),
+    );
+    expect(find.byKey(const ValueKey<String>('console-list')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('console-detail')),
+      findsOneWidget,
+      reason:
+          'Webhooks was the product\'s example of a route that is not a list, '
+          'and the example was wrong: the log its rows expand to show is '
+          'exactly what a detail pane is for.',
+    );
+    expect(find.byKey(const ValueKey<String>('console-column')), findsNothing);
+
+    // Nothing selected is the pane at rest, and the log arrives with the
+    // record rather than with a second request from the frame.
+    expect(
+      find.byKey(const ValueKey<String>('console-detail-at-rest')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('console-record-w1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('deliveries-w1')),
+      findsOneWidget,
+      reason: 'The chosen endpoint\'s delivery log is the pane.',
+    );
+    // And the row in the list pane no longer carries the fold it used to.
+    expect(
+      find.byKey(const ValueKey<String>('deliveries-toggle-w1')),
+      findsNothing,
     );
   });
 
@@ -535,7 +682,12 @@ void main() {
         });
       }
 
-      testWidgets('$skinName, a one-column route', (tester) async {
+      // WEBHOOKS, WHICH IS NO LONGER THE ONE-COLUMN CASE. It is censused with
+      // a record open, because that is the state its pane actually has
+      // something in it: a toggle, a destructive tertiary and a delivery log.
+      // The budget is unchanged, which is the claim worth pinning — lifting a
+      // row's verbs into a pane must not light anything.
+      testWidgets('$skinName, a lifted-verb pane adds none', (tester) async {
         await pumpDesk(
           tester,
           const WebhooksScreen(),
@@ -544,6 +696,10 @@ void main() {
           path: '/webhooks',
           overrides: deskWebhookOverrides(),
         );
+        await tester.tap(
+          find.byKey(const ValueKey<String>('console-record-w1')),
+        );
+        await tester.pumpAndSettle();
         final census = await amberCensus(tester);
         // ignore: avoid_print
         print('DESK 1440x900 $skinName / webhooks: ${census.describe()}');

@@ -155,7 +155,7 @@ class LocationSharingBanner extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: TiqSpace.s4),
       child: inset
           ? child
-          : TorchBleed(extra: skin.space.gutter * 2, child: child),
+          : TorchBleed(child: child),
     );
   }
 

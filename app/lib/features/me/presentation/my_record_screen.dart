@@ -641,10 +641,8 @@ class _Ledger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
 
     return TorchBleed(
-      extra: skin.space.gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -983,9 +981,7 @@ class _VisitList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     return TorchBleed(
-      extra: skin.space.gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

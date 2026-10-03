@@ -8,7 +8,9 @@ import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/evidence_thumb.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
@@ -101,8 +103,116 @@ class TasksScreen extends ConsumerStatefulWidget {
   ConsumerState<TasksScreen> createState() => _TasksScreenState();
 }
 
+/// ── THE TWO VERBS, FROM EITHER SIDE OF THE DESK ────────────────────────
+///
+/// `Close with photo` and `Verify` sit in `SoftRow.actions` on a phone and are
+/// **lifted into the detail pane** at desk width, which means two callers for
+/// each. They are functions rather than two copies of a method because the
+/// halves that matter are the ones a copy drifts on: the gate (no photo, no
+/// closure), the upload contract the fraud engine reads, and the honesty on
+/// failure — a task that did not close must still read as open, from whichever
+/// control was pressed.
+///
+/// [setBusy] is the caller's own one-tap-one-outcome flag: the row holds it per
+/// row, the screen holds it per selected record, and neither can see the
+/// other's. [retry] is what the failure toast offers, so it is the caller's own
+/// entry point rather than this function re-entering itself with a stale
+/// `context`.
+///
+/// Closing a task means producing evidence it was actually fixed. The photo is
+/// the evidence, so the capture is the gate.
+///
+/// The photo is geotagged at the shutter (#317), so the closure evidence also
+/// says where the fix was photographed, and its `timestamp` is the capture time
+/// in UTC — the same contract as the audit sections (#310). The fraud engine
+/// does not place a closure photo against its visit's outlet
+/// (`isTaskClosurePhoto`), so a closure taken away from the outlet, days later,
+/// flags nobody. No fix means an empty tag and the closure goes ahead.
+Future<void> closeTaskWithPhoto(
+  BuildContext context,
+  WidgetRef ref, {
+  required TaskRow task,
+  required ValueChanged<bool> setBusy,
+  required VoidCallback onChanged,
+  required VoidCallback retry,
+}) async {
+  final photo = await showCloseWithPhotoSheet(context, task: task);
+  // Backing out leaves the task open, which is the correct outcome.
+  if (photo == null || !context.mounted) return;
+
+  setBusy(true);
+  try {
+    final result = await ref
+        .read(photosRepositoryProvider)
+        .uploadPhoto(
+          visitId: task.visitId!,
+          section: 'task_closure',
+          dataUrl: photo.dataUrl,
+          gpsTag: photo.gpsTag,
+          timestamp: photo.capturedAt.toUtc().toIso8601String(),
+        );
+    await ref
+        .read(tasksAdminRepositoryProvider)
+        .closeTask(id: task.id, closurePhotoUrl: result.url);
+    if (!context.mounted) return;
+    setBusy(false);
+    onChanged();
+    showTorchToast(
+      context,
+      message: 'Closed · ${task.title}',
+      kind: ToastKind.success,
+    );
+  } catch (error) {
+    if (!context.mounted) return;
+    // The task stays open and the failure is named. A closure that silently
+    // did not happen is the worklist lying.
+    setBusy(false);
+    showTorchToast(
+      context,
+      message: 'That task was not closed. It is still open.',
+      kind: ToastKind.failure,
+      action: TorchTertiaryButton(label: 'Try again', onPressed: retry),
+    );
+  }
+}
+
+/// Verifying a closure. See [closeTaskWithPhoto] for why these are functions.
+Future<void> verifyTaskClosure(
+  BuildContext context,
+  WidgetRef ref, {
+  required TaskRow task,
+  required ValueChanged<bool> setBusy,
+  required VoidCallback onChanged,
+  required VoidCallback retry,
+}) async {
+  setBusy(true);
+  try {
+    await ref.read(tasksAdminRepositoryProvider).verifyTask(task.id);
+    if (!context.mounted) return;
+    setBusy(false);
+    onChanged();
+  } catch (error) {
+    if (!context.mounted) return;
+    setBusy(false);
+    showTorchToast(
+      context,
+      message: 'That closure was not verified.',
+      kind: ToastKind.failure,
+      action: TorchTertiaryButton(label: 'Try again', onPressed: retry),
+    );
+  }
+}
+
 class _TasksScreenState extends ConsumerState<TasksScreen> {
   TaskFilter _filter = TaskFilter.open;
+
+  /// The task whose closure or verification is in flight **from the detail
+  /// pane**, or null.
+  ///
+  /// The pane is not a row and has no `_TaskRowTileState` to borrow: the row's
+  /// own `_busy` is private to the element the manager did not press. One tap,
+  /// one receipt, one outcome, on this side too.
+  String? _paneBusy;
 
   void _refresh() {
     // Every slice, not only the one on screen. Closing a task changes the
@@ -164,9 +274,47 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  Widget _frame({required String phase, required List<Widget> children}) {
+  /// Closing from the **detail pane**, which has no row to hold the flag.
+  void _setPaneBusy(String id, bool value) {
+    if (!mounted) return;
+    setState(() => _paneBusy = value ? id : null);
+  }
+
+  Future<void> _closeInPane(TaskRow task) async {
+    if (_paneBusy != null) return;
+    await closeTaskWithPhoto(
+      context,
+      ref,
+      task: task,
+      setBusy: (busy) => _setPaneBusy(task.id, busy),
+      onChanged: _refresh,
+      retry: () => _closeInPane(task),
+    );
+  }
+
+  Future<void> _verifyInPane(TaskRow task) async {
+    if (_paneBusy != null) return;
+    await verifyTaskClosure(
+      context,
+      ref,
+      task: task,
+      setBusy: (busy) => _setPaneBusy(task.id, busy),
+      onChanged: _refresh,
+      retry: () => _verifyInPane(task),
+    );
+  }
+
+  Widget _frame({
+    required String phase,
+    required List<Widget> children,
+    ConsoleDeskRecords? desk,
+  }) {
     return ConsoleFrame(
       phase: phase,
+      // Null on `loading`, `error` and the whole-screen `empty`: a skeleton, a
+      // failure and an account with no tasks at all are not records, so those
+      // phases keep the rail and one centred column at desk width.
+      desk: desk,
       // One of the two console routes that names its own subject — see
       // `ConsoleFrame.askHint` for why the other 25 do not.
       askHint: 'Ask about your tasks…',
@@ -198,7 +346,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   Widget _loaded(TasksView view) {
     final visible = view.visible(_filter);
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final footer = view.footer((n) => numbers.format(n));
 
@@ -233,13 +380,76 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       );
     }
 
+    final lead = _LeadBlock(view: view);
+    final filters = _Filters(
+      filter: _filter,
+      view: view,
+      onChanged: (f) => setState(() => _filter = f),
+    );
+
     return _frame(
       phase: visible.isEmpty ? 'filtered-empty' : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────────
+      //
+      // The rows, the rail and the lead card — the same `_LeadBlock`, the same
+      // `_Filters`, the same `_TaskRowTile` and the same `PaginationFooter`
+      // instances the phone arm is handed below, so there is no second
+      // composition of this screen to keep in step. The rows need no tap
+      // suppressed because they have never had one: a task row is a dead end
+      // on a phone, which is the whole reason this screen is wired here.
+      //
+      // What the pane adds is the record and **the two verbs, lifted**. They
+      // keep `closeTaskWithPhoto` and `verifyTaskClosure` — the row's own
+      // functions — and take `-pane` keys and this screen's own busy flag,
+      // because the row's is private to an element nobody pressed.
+      //
+      // There is no `SectionRule` to put in `lead`: this screen dropped its
+      // own when the counts landed, and the selected chip in `filters` is what
+      // names and counts the slice. See the comment on the rail below.
+      //
+      // **What the desk loses, stated.** On `filtered-empty` the pane is
+      // non-null so the rail stays reachable, but `children` is not drawn —
+      // so `_FilteredEmpty`'s sentence and its `Show all tasks` button are
+      // absent at desk width. The way out is the rail itself, one block above
+      // the gap where the rows would be, and every chip on it carries the
+      // account's own count, so the slice that has rows is readable without
+      // the sentence. It is a real loss and `ConsoleDeskRecords` has no slot
+      // for a filtered-to-nothing state to go in; the detail pane says
+      // "Nothing to read yet." and that is the only words on the screen.
+      desk: ConsoleDeskRecords(
+        lead: <Widget>[lead, const SizedBox(height: TiqSpace.s4)],
+        filters: filters,
+        footer: footer == null
+            ? null
+            : PaginationFooter(
+                key: const ValueKey<String>('tasks-footer-desk'),
+                summary: footer.summary,
+                narrowLine: footer.scope,
+              ),
+        records: <ConsoleDeskRecord>[
+          for (var i = 0; i < visible.length; i++)
+            ConsoleDeskRecord(
+              id: visible[i].id,
+              row: (context, selected) => _TaskRowTile(
+                key: ValueKey<String>('task-row-${visible[i].id}'),
+                task: visible[i],
+                last: i == visible.length - 1,
+                onChanged: _refresh,
+              ),
+              detail: (context) => _TaskDetail(
+                task: visible[i],
+                busy: _paneBusy == visible[i].id,
+                onClose: () => _closeInPane(visible[i]),
+                onVerify: () => _verifyInPane(visible[i]),
+              ),
+            ),
+        ],
+      ),
       children: <Widget>[
         // THE LEAD BLOCK. Overdue is the dominant figure because the SLA is
         // the axis that costs something; open and awaiting-verification are
         // its subordinates, not its peers.
-        _LeadBlock(view: view),
+        lead,
         const SizedBox(height: TiqSpace.s4),
 
         // THE RAIL IS THE SECTION MARKER on this screen, and that is why there
@@ -253,14 +463,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         // contradiction rather than a duplication: `OPEN · 50` under
         // `Open 1 190`. The selected chip names the section and counts it, in
         // one object, and the footer says how much of it is on screen.
-        TorchBleed(
-          extra: gutter * 2,
-          child: _Filters(
-            filter: _filter,
-            view: view,
-            onChanged: (f) => setState(() => _filter = f),
-          ),
-        ),
+        // THE SAME RAIL THE LIST PANE HOLDS, and the same instance: the pane
+        // supplies its own gutter, so there it is handed over un-bled.
+        TorchBleed(child: filters),
         const SizedBox(height: TiqSpace.s4),
 
         if (visible.isEmpty)
@@ -271,7 +476,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -293,7 +497,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         if (footer != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s5),
           TorchBleed(
-            extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('tasks-footer'),
               summary: footer.summary,
@@ -624,6 +827,19 @@ class _Filters extends StatelessWidget {
   }
 }
 
+/// The SLA's silhouette, from the SLA's own state.
+///
+/// Read by the row, which draws it beside the reason line, and by the detail
+/// pane, which draws it beside the severity word in its kicker. Null on a task
+/// that is open and inside its deadline: a mark there would be a silhouette
+/// for "nothing in particular".
+SeverityMarkKind? taskMarkKind(TaskSlaState state) => switch (state) {
+  TaskSlaState.overdue => SeverityMarkKind.critical,
+  TaskSlaState.dueSoon => SeverityMarkKind.watch,
+  TaskSlaState.closed || TaskSlaState.verified => SeverityMarkKind.onTarget,
+  TaskSlaState.open => null,
+};
+
 /// One task, as a row.
 ///
 /// The SLA is a phrase in the reason line, behind its own mark — "Overdue by
@@ -650,88 +866,41 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
   /// tap, one receipt, one outcome.
   bool _busy = false;
 
-  /// Closing a task means producing evidence it was actually fixed. The photo
-  /// is the evidence, so the capture is the gate: no photo, no closure.
-  ///
-  /// The photo is geotagged at the shutter (#317), so the closure evidence
-  /// also says where the fix was photographed, and its `timestamp` is the
-  /// capture time in UTC — the same contract as the audit sections (#310).
-  /// The fraud engine does not place a closure photo against its visit's
-  /// outlet (`isTaskClosurePhoto`), so a closure taken away from the outlet,
-  /// days later, flags nobody. No fix means an empty tag and the closure goes
-  /// ahead.
+  /// The row's own copy of the busy flag. `setState` only where the element is
+  /// still mounted, which is the guard the two verbs used to carry inline.
+  void _setBusy(bool value) {
+    if (mounted) setState(() => _busy = value);
+  }
+
   Future<void> _close() async {
     if (_busy) return;
-    final photo = await showCloseWithPhotoSheet(context, task: widget.task);
-    // Backing out leaves the task open, which is the correct outcome.
-    if (photo == null || !mounted) return;
-
-    setState(() => _busy = true);
-    try {
-      final result = await ref
-          .read(photosRepositoryProvider)
-          .uploadPhoto(
-            visitId: widget.task.visitId!,
-            section: 'task_closure',
-            dataUrl: photo.dataUrl,
-            gpsTag: photo.gpsTag,
-            timestamp: photo.capturedAt.toUtc().toIso8601String(),
-          );
-      await ref
-          .read(tasksAdminRepositoryProvider)
-          .closeTask(id: widget.task.id, closurePhotoUrl: result.url);
-      if (!mounted) return;
-      setState(() => _busy = false);
-      widget.onChanged();
-      showTorchToast(
-        context,
-        message: 'Closed · ${widget.task.title}',
-        kind: ToastKind.success,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      // The task stays open and the failure is named. A closure that silently
-      // did not happen is the worklist lying.
-      setState(() => _busy = false);
-      showTorchToast(
-        context,
-        message: 'That task was not closed. It is still open.',
-        kind: ToastKind.failure,
-        action: TorchTertiaryButton(label: 'Try again', onPressed: _close),
-      );
-    }
+    await closeTaskWithPhoto(
+      context,
+      ref,
+      task: widget.task,
+      setBusy: _setBusy,
+      onChanged: widget.onChanged,
+      retry: _close,
+    );
   }
 
   Future<void> _verify() async {
     if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await ref.read(tasksAdminRepositoryProvider).verifyTask(widget.task.id);
-      if (!mounted) return;
-      setState(() => _busy = false);
-      widget.onChanged();
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      showTorchToast(
-        context,
-        message: 'That closure was not verified.',
-        kind: ToastKind.failure,
-        action: TorchTertiaryButton(label: 'Try again', onPressed: _verify),
-      );
-    }
+    await verifyTaskClosure(
+      context,
+      ref,
+      task: widget.task,
+      setBusy: _setBusy,
+      onChanged: widget.onChanged,
+      retry: _verify,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final task = widget.task;
-    final markKind = switch (task.slaState) {
-      TaskSlaState.overdue => SeverityMarkKind.critical,
-      TaskSlaState.dueSoon => SeverityMarkKind.watch,
-      TaskSlaState.closed || TaskSlaState.verified => SeverityMarkKind.onTarget,
-      TaskSlaState.open => null,
-    };
+    final markKind = taskMarkKind(task.slaState);
     // ONE CRIMSON FOR BOTH COMMITMENT LEVELS, in the word grade. Overdue read
     // `badSolid`, which is a FILL: it is 4.09:1 on Night's `surface`, and this
     // is a phrase on a card. The level is carried by the mark beside it —
@@ -855,6 +1024,115 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
         task.outletName,
         if (task.owner != null) 'Assigned to ${task.owner}',
       ].join('. '),
+    );
+  }
+}
+
+/// ONE TASK, IN THE DETAIL PANE — the record, and the verbs off the row.
+///
+/// A task row is a dead end on a phone: no `onTap`, no route, and the whole
+/// record spread across its title, its subtitle and three lines of `meta`.
+/// So the pane is [ConsoleRecordDetail] over exactly those lines — the store
+/// in the headline where the row puts it, the finding under it, and the SLA
+/// phrase, the required fix, the priority and the owner as the record's
+/// fields.
+///
+/// **The outlet is not repeated as a fact.** It is the title, because it is
+/// the row's title; a record whose headline and whose first field are the same
+/// string is a field spent on nothing.
+///
+/// **The evidence is the same thumbnail.** `TorchEvidenceThumb` with the same
+/// `photoId` the row hands it — a task with no photo shows no thumb and no
+/// placeholder here either.
+///
+/// ## The verbs, lifted
+///
+/// `Close with photo` and `Verify` are the row's own
+/// [TorchTertiaryButton]s on the row's own functions, keyed `-pane` so a row
+/// and a pane showing one task do not collide, and driven by the screen's
+/// [_TasksScreenState._paneBusy] rather than the row's private flag. They are
+/// offered on exactly the conditions the row offers them on: no visit, no
+/// closure — not a disabled control that would fail afterwards.
+///
+/// **Amber: none.** Both are outline-and-ink forms the ladder never lights,
+/// and the one lit object in this feature is still `Close task` on the closure
+/// sheet, where the amber beneath it has already gone out.
+class _TaskDetail extends StatelessWidget {
+  const _TaskDetail({
+    required this.task,
+    required this.busy,
+    required this.onClose,
+    required this.onVerify,
+  });
+
+  final TaskRow task;
+
+  /// True from the tap in this pane until the closure or the verification
+  /// resolves.
+  final bool busy;
+
+  final VoidCallback onClose;
+  final VoidCallback onVerify;
+
+  @override
+  Widget build(BuildContext context) {
+    final mark = taskMarkKind(task.slaState);
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('task-detail-${task.id}'),
+      title: task.outletName,
+      // The row's two surviving channels: the silhouette and the word. Never
+      // the hue alone, and never the hue at all on an open task inside its
+      // deadline, which has no silhouette to wear.
+      kicker: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (mark != null) ...<Widget>[
+            SeverityMark(kind: mark),
+            const SizedBox(width: TiqSpace.s2),
+          ],
+          Flexible(child: Eyebrow(task.severityLabel)),
+        ],
+      ),
+      lede: task.title,
+      facts: <RecordFact>[
+        RecordFact('Deadline', task.slaPhrase),
+        RecordFact('Required fix', task.requiredFix),
+        // The axis the list is SORTED by. The bar is the SLA — a High and a
+        // Normal task both due on Friday carry the same bar — so without this
+        // the sort order is invisible here as well as on the row.
+        if (!task.isClosed) RecordFact('Priority', task.priorityPhrase),
+        // An owner the roster cannot name is left out rather than printed as
+        // an id (#399/#400), exactly as the row leaves them out.
+        if (task.owner != null) RecordFact('Assigned to', task.owner!),
+      ],
+      blocks: <Widget>[
+        if (task.evidencePhotoId != null && task.visitId != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchEvidenceThumb(
+              photoId: task.evidencePhotoId!,
+              semanticLabel:
+                  'Shelf photograph from ${task.outletName} for ${task.title}',
+            ),
+          ),
+      ],
+      actions: <Widget>[
+        if (!task.isClosed && task.visitId != null)
+          TorchTertiaryButton(
+            key: ValueKey<String>('close-${task.id}-pane'),
+            label: 'Close with photo',
+            busy: busy,
+            onPressed: onClose,
+          ),
+        if (task.slaState == TaskSlaState.closed)
+          TorchTertiaryButton(
+            key: ValueKey<String>('verify-${task.id}-pane'),
+            label: 'Verify',
+            busy: busy,
+            onPressed: onVerify,
+          ),
+      ],
     );
   }
 }

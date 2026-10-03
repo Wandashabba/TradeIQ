@@ -313,7 +313,6 @@ class _ContestBlock extends StatelessWidget {
           if (entry.standings.isNotEmpty) ...<Widget>[
             const SizedBox(height: TiqSpace.s4),
             TorchBleed(
-              extra: skin.space.gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[

@@ -1,11 +1,15 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
+import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
@@ -78,34 +82,111 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
     final outlets = ref.watch(dispatchOutletsProvider);
     final chosen = _outlet;
 
+    // THE SAME PROVIDER `_Candidates` WATCHES, read here as well so the frame
+    // can hand the ranking to the desk. It is one provider instance per outlet
+    // id and Riverpod caches it, so this is a second listener on the same
+    // subscription rather than a second POST /dispatch — the list below and
+    // the panes beside it are the same ranking, resolved once.
+    final ranked = chosen == null
+        ? null
+        : ref.watch(dispatchResultProvider(chosen.id)).value;
+
+    final outletSection = SectionRule(l10n.dispatchOutletSection);
+    final picker = SoftRow(
+      key: const ValueKey<String>('outlet-select'),
+      form: SoftRowForm.standalone,
+      density: SoftRowDensity.tall,
+      title: chosen?.name ?? l10n.dispatchChooseOutlet,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: chosen == null ? l10n.dispatchChooseOutletHint : null,
+      meta: chosen == null
+          ? null
+          : Text(
+              chosen.code,
+              style: skin.text.monoIdent.style(color: skin.palette.ink3),
+            ),
+      trailing: const SoftRowChevron(),
+      onTap: () => _pickOutlet(outlets),
+      semanticsLabel: chosen == null
+          ? l10n.dispatchChooseOutlet
+          : l10n.dispatchChangeOutlet(chosen.name),
+    );
+
     return ConsoleFrame(
       phase: chosen == null ? 'no-outlet' : 'ranking',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────────
+      //
+      // This screen **can** take three panes, and the thing that made it look
+      // as though it could not is that its records are two widgets down: the
+      // ranking is watched inside `_Candidates`, so the frame could not see
+      // the rows it was framing. Watching the same provider here fixes that
+      // and costs nothing — see `ranked` above.
+      //
+      // `lead` is the outlet picker with its own marker, **and it keeps its
+      // tap**: it is not a record, it is the control that decides which
+      // records exist, so the frame's selection gesture has no business
+      // taking it. The candidates' own marker goes in `lead` too — Dispatch
+      // has no filter rail, so nothing else would name or count the column.
+      //
+      // Null until an outlet is chosen and until the ranking is in hand: the
+      // picker, the skeleton, the error and "no agent can be ranked" are all
+      // one-column states, and a detail pane beside a screen whose question
+      // has not been asked yet would be a pane apologising twice.
+      //
+      // The rows are inert on a phone — no tap, no route, no verbs — so
+      // nothing is suppressed and nothing is lifted. What the pane adds is the
+      // agent's record: the figures the row crams into one reason line, each
+      // on its own, which is the whole of what a pane is for here.
+      desk: chosen == null || ranked == null || ranked.candidates.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                outletSection,
+                const SizedBox(height: TiqSpace.s3),
+                picker,
+                SizedBox(height: skin.space.blockGap),
+                SectionRule(
+                  l10n.dispatchCandidatesSection,
+                  count: ranked.candidates.length,
+                ),
+                const SizedBox(height: TiqSpace.s3),
+              ],
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < ranked.candidates.length; i++)
+                  ConsoleDeskRecord(
+                    // Keyed by email, which is unique; the agent id is a
+                    // database key and this screen does not print one.
+                    id: ranked.candidates[i].email,
+                    row: (context, selected) => _CandidateRow(
+                      key: ValueKey<String>(
+                        'candidate-${ranked.candidates[i].email}',
+                      ),
+                      candidate: ranked.candidates[i],
+                      recommended:
+                          ranked.recommended?.agentId ==
+                          ranked.candidates[i].agentId,
+                      last: i == ranked.candidates.length - 1,
+                    ),
+                    detail: (context) => _CandidateDetail(
+                      candidate: ranked.candidates[i],
+                      recommended:
+                          ranked.recommended?.agentId ==
+                          ranked.candidates[i].agentId,
+                      place: i + 1,
+                    ),
+                  ),
+              ],
+            ),
       header: TorchAppHeader(
         title: l10n.dispatchTitle,
         facts: <String>[l10n.dispatchFact],
       ),
       children: <Widget>[
-        SectionRule(l10n.dispatchOutletSection),
+        // THE SAME TWO OBJECTS THE LIST PANE'S `lead` HOLDS, and the same
+        // instances. Only one arm of `ConsoleFrame` is ever mounted.
+        outletSection,
         const SizedBox(height: TiqSpace.s3),
-        SoftRow(
-          key: const ValueKey<String>('outlet-select'),
-          form: SoftRowForm.standalone,
-          density: SoftRowDensity.tall,
-          title: chosen?.name ?? l10n.dispatchChooseOutlet,
-          titleTruncation: SoftRowTruncation.middle,
-          subtitle: chosen == null ? l10n.dispatchChooseOutletHint : null,
-          meta: chosen == null
-              ? null
-              : Text(
-                  chosen.code,
-                  style: skin.text.monoIdent.style(color: skin.palette.ink3),
-                ),
-          trailing: const SoftRowChevron(),
-          onTap: () => _pickOutlet(outlets),
-          semanticsLabel: chosen == null
-              ? l10n.dispatchChooseOutlet
-              : l10n.dispatchChangeOutlet(chosen.name),
-        ),
+        picker,
         SizedBox(height: skin.space.blockGap),
 
         if (chosen == null)
@@ -206,7 +287,6 @@ class _Candidates extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final result = ref.watch(dispatchResultProvider(outlet.id));
-    final gutter = context.skin.space.gutter;
 
     return result.when(
       loading: () => Skeleton(
@@ -242,7 +322,6 @@ class _Candidates extends ConsumerWidget {
             ),
             const SizedBox(height: TiqSpace.s3),
             TorchBleed(
-              extra: gutter * 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
@@ -314,6 +393,84 @@ class _CandidateRow extends StatelessWidget {
       // statement.
       trailingWord: recommended ? l10n.dispatchRecommended : null,
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+    );
+  }
+}
+
+/// ONE CANDIDATE, IN THE DETAIL PANE.
+///
+/// The row is inert and crams the whole record into one reason line —
+/// `Field agent · In territory · 120 m away` — because a row has one line.
+/// The pane is where each of those gets its own, which is the difference
+/// between a line a reader parses and three figures they can compare across
+/// the records they select in turn.
+///
+/// ## Unknown is not zero here either
+///
+/// `distanceM` is null for an agent the server cannot place, and the pane says
+/// `No last-known location` in the same words the row's reason line does. It
+/// never prints a nought: an agent with no fix must not read as one standing
+/// on the doorstep, in a pane any more than on a row.
+///
+/// ## The place in the ranking is read off, not computed
+///
+/// [place] is this candidate's position in the order `POST /dispatch`
+/// answered in — the ordering the header fact describes in words
+/// (`dispatchFact`) — and nothing here ranks anybody. `Recommended` is the
+/// server's own pick and appears only where the server named one, exactly as
+/// on the row: where it names nobody, no pane carries the kicker and the order
+/// is the whole statement.
+///
+/// **Neither the agent id nor the email is printed.** The id is a database key
+/// and the row never shows one (unify §1.15); the email is already the title
+/// for an agent the roster never named, and printing it twice for the ones it
+/// did would be a field spent on nothing.
+///
+/// Amber: none. Dispatch reads a ranking; assigning the visit is a different
+/// screen's commit, so there is no verb on the row to lift and the card
+/// declares no claim.
+class _CandidateDetail extends StatelessWidget {
+  const _CandidateDetail({
+    required this.candidate,
+    required this.recommended,
+    required this.place,
+  });
+
+  final DispatchCandidate candidate;
+  final bool recommended;
+
+  /// One-based, in the server's own order. See the class comment.
+  final int place;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final numbers = TiqNumber.of(context);
+    final placed = candidate.distanceM != null;
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('candidate-detail-${candidate.email}'),
+      // The name when there is one, otherwise the address people mail — the
+      // row's own `label`, so the two cannot disagree about what to call
+      // somebody.
+      title: candidate.label,
+      kicker: recommended ? Eyebrow(l10n.dispatchRecommended) : null,
+      lede: l10n.roleFieldAgent,
+      facts: <RecordFact>[
+        RecordFact(
+          'Territory',
+          candidate.inTerritory
+              ? l10n.dispatchInTerritory
+              : l10n.dispatchOutsideTerritory,
+        ),
+        RecordFact(
+          'Distance',
+          placed
+              ? l10n.dispatchMetresAway(candidate.distanceM!.round())
+              : l10n.dispatchNoLocation,
+        ),
+        RecordFact('Place in the ranking', numbers.format(place)),
+      ],
     );
   }
 }

@@ -9,7 +9,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -99,9 +101,21 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
     final l10n = context.l10n;
     final view = ref.watch(fraudViewProvider(_filter));
 
-    Widget frame({required String phase, required List<Widget> children}) =>
-        ConsoleFrame(
+    Widget frame({
+      required String phase,
+      required List<Widget> children,
+      ConsoleDeskRecords? desk,
+    }) => ConsoleFrame(
           phase: phase,
+          // Null on the skeleton and on the error, and non-null on **every**
+          // data phase, empty queue included. This screen has a filter rail,
+          // so the phase a manager reaches by filtering to nothing is one
+          // they have to be able to filter back out of — and a desk that
+          // collapsed to one column the moment the queue emptied, then sprang
+          // back to three when they pressed All, would move the chips they
+          // are aiming at. `alerts_screen.dart` does the same, for the same
+          // reason.
+          desk: desk,
           header: TorchAppHeader(
             title: l10n.fraudTitle,
             facts: <String>[l10n.fraudFact],
@@ -114,7 +128,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
           ),
           children: <Widget>[
             TorchBleed(
-              extra: context.skin.space.gutter * 2,
               child: _Filters(
                 filter: _filter,
                 onFilter: (f) => setState(() => _filter = f),
@@ -153,14 +166,122 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
       ),
       data: (data) => frame(
         phase: data.rows.isEmpty ? 'empty' : 'loaded',
+        desk: _desk(data),
         children: _body(data),
       ),
     );
   }
 
+  /// ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────────
+  ///
+  /// The queue, as records. Every widget here is **already built below** for
+  /// the phone arm — the same `_Filters`, the same `_FlaggedRow`, the same
+  /// `SectionRule`, the same `EmptyState`, the same `PaginationFooter` — so
+  /// there is no second composition of this screen to keep in step. The rows
+  /// are dead ends on a phone (no tap, two verbs in `actions`), and the pane
+  /// is `ConsoleRecordDetail` built from the row's own facts with those two
+  /// verbs lifted into it.
+  ///
+  /// **The `_Evidence` block goes into the pane**, which is the point of the
+  /// pane on this screen. On a 360dp row the codes, what they found and who
+  /// ruled are three lines of `meta` under a name; in a 440dp column they are
+  /// a block with room to be read, which matters here more than anywhere
+  /// else in the console — the row is an accusation against a person and the
+  /// evidence is the only thing that makes it answerable.
+  ///
+  /// **The section marker travels with the rail, not in `lead`.** `lead` is
+  /// above the chips, and this marker names the slice the chips *chose* —
+  /// "Open · 4" — so above them it would be naming a thing the reader has not
+  /// met yet. `alerts_screen.dart` dropped its own marker instead, on the
+  /// grounds that its chips already name **and count** the slice; these chips
+  /// carry no counts, so dropping it here would take the queue's length off
+  /// the screen, and the `emptyLine` that says what an empty queue means with
+  /// it.
+  ///
+  /// **The empty queue's own words are the `footer`.** With no records, the
+  /// footer slot renders directly under the chips — which is where the phone
+  /// puts the empty state — so a filtered-to-nothing queue still says which
+  /// queue is empty and what that means, rather than leaving the pane's
+  /// generic "nothing chosen" to carry it. The unscored note renders beside
+  /// it whenever it is true, empty queue included: a queue with nothing in it
+  /// and three visits nobody scored is not an all-clear (#236).
+  ConsoleDeskRecords _desk(FraudView view) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final numbers = TiqNumber.of(context);
+    final unscored = view.unscoredNote(l10n);
+
+    final footerBlocks = <Widget>[
+      if (view.rows.isEmpty)
+        EmptyState(
+          key: const ValueKey<String>('fraud-empty-desk'),
+          scope: EmptyScope.inPanel,
+          headline: _emptyHeadline(l10n),
+          body: _emptyBody(l10n),
+        ),
+      if (unscored != null || view.hasMore)
+        PaginationFooter(
+          key: const ValueKey<String>('fraud-footer-desk'),
+          summary: view.hasMore
+              ? l10n.fraudFooterShowing(numbers.format(view.rows.length))
+              : '',
+          unscoredNote: unscored,
+        ),
+    ];
+
+    return ConsoleDeskRecords(
+      // The rail the phone draws, un-bled — the pane supplies the gutter now
+      // — and under it the marker the rail selects.
+      filters: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _Filters(
+            filter: _filter,
+            onFilter: (f) => setState(() => _filter = f),
+          ),
+          SizedBox(height: skin.space.blockGap),
+          SectionRule(
+            _sectionName(l10n),
+            count: view.rows.isEmpty ? null : view.rows.length,
+            emptyLine: view.rows.isEmpty ? _emptyLine(l10n) : null,
+          ),
+        ],
+      ),
+      footer: footerBlocks.isEmpty
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (var i = 0; i < footerBlocks.length; i++) ...<Widget>[
+                  if (i > 0) SizedBox(height: skin.space.blockGap),
+                  footerBlocks[i],
+                ],
+              ],
+            ),
+      records: <ConsoleDeskRecord>[
+        for (var i = 0; i < view.rows.length; i++)
+          ConsoleDeskRecord(
+            id: view.rows[i].visitId,
+            row: (context, selected) => _FlaggedRow(
+              key: ValueKey<String>('flagged-${view.rows[i].visitId}'),
+              row: view.rows[i],
+              last: i == view.rows.length - 1,
+              onRuled: _refresh,
+            ),
+            detail: (context) => _FlaggedPane(
+              key: ValueKey<String>('flagged-pane-${view.rows[i].visitId}'),
+              row: view.rows[i],
+              onRuled: _refresh,
+            ),
+          ),
+      ],
+    );
+  }
+
   List<Widget> _body(FraudView view) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final unscored = view.unscoredNote(l10n);
 
@@ -180,7 +301,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
         )
       else
         TorchBleed(
-          extra: gutter * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -200,7 +320,6 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
       if (unscored != null || view.hasMore) ...<Widget>[
         const SizedBox(height: TiqSpace.s6),
         TorchBleed(
-          extra: gutter * 2,
           child: PaginationFooter(
             key: const ValueKey<String>('fraud-footer'),
             summary: view.hasMore
@@ -304,9 +423,7 @@ class _FlaggedRow extends ConsumerWidget {
     final numbers = TiqNumber.of(context);
     final score = numbers.format(row.riskScore, decimals: 0);
     final verdict = row.verdict;
-    final standing = verdict == null
-        ? l10n.fraudNotYetReviewed
-        : verdictWord(l10n, verdict.kind);
+    final standing = _standingWord(l10n, row);
 
     void openSheet() =>
         showVerdictSheet(context, ref, row: row, onRuled: onRuled);
@@ -370,6 +487,85 @@ class _FlaggedRow extends ConsumerWidget {
     );
   }
 
+}
+
+/// ── ONE ACCUSATION, IN THE DETAIL PANE ─────────────────────────────────
+///
+/// The row's own facts at the pane's width, with the evidence block that was
+/// three lines of `meta` on the row given a column of its own, and the row's
+/// two verbs lifted to full width beneath it.
+///
+/// The **visit reference is always printed here**, and on the row it is not:
+/// the row drops it to its own line only where the roster carries no name,
+/// because a UUID as the primary line on the screen where somebody gets
+/// accused of faking their work is the defect #399 was filed for. A pane is
+/// not that line — it is where a manager who is about to rule has room for
+/// the one string a support ticket is opened with.
+///
+/// Nothing here is fetched. Every value comes off the [FraudRow] the queue
+/// was already holding, through the same `TiqNumber` call the row resolves.
+class _FlaggedPane extends ConsumerWidget {
+  const _FlaggedPane({super.key, required this.row, required this.onRuled});
+
+  final FraudRow row;
+  final VoidCallback onRuled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final numbers = TiqNumber.of(context);
+    final score = numbers.format(row.riskScore, decimals: 0);
+    final standing = _standingWord(l10n, row);
+
+    return ConsoleRecordDetail(
+      // The person, by name, or the words that say the roster does not carry
+      // them — never the shop's name, because the subject of this record is a
+      // person and an accusation against a shop is not a thing.
+      title: row.agentName ?? l10n.fraudUnknownAgent,
+      // The row's own trailing figure, in the row's own figure face.
+      kicker: Text(
+        l10n.fraudRisk(score),
+        style: skin.text.figureS.style(color: skin.palette.ink2),
+      ),
+      lede: row.outletLabel(l10n),
+      facts: <RecordFact>[
+        RecordFact(l10n.fraudVisitIdentifier, row.visitId, mono: true),
+      ],
+      // THE EVIDENCE, as the row builds it: the flag and its word, the codes
+      // that fired in the identifier face, what they found, and who ruled.
+      blocks: <Widget>[_Evidence(row: row, standing: standing)],
+      // THE ROW'S VERBS, LIFTED — the same sheet, the same route, the same
+      // label off the same verdict.
+      actions: <Widget>[
+        TorchTertiaryButton(
+          key: ValueKey<String>('fraud-rule-${row.visitId}-pane'),
+          label: row.verdict == null
+              ? l10n.fraudRuleOnThisVisit
+              : l10n.fraudSeeTheRuling,
+          onPressed: () =>
+              showVerdictSheet(context, ref, row: row, onRuled: onRuled),
+        ),
+        TorchTertiaryButton(
+          key: ValueKey<String>('view-visit-${row.visitId}-pane'),
+          label: l10n.fraudSeeTheVisit,
+          onPressed: () => context.push('/visits/${row.visitId}'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Where this visit stands: the ruling's word, or that nobody has looked.
+///
+/// One function, because the row's `meta` label, the `_Evidence` block and the
+/// detail pane all print it — and a row that said "Cleared" beside a pane
+/// that said "Not yet reviewed" would be the queue lying about a person.
+String _standingWord(AppLocalizations l10n, FraudRow row) {
+  final verdict = row.verdict;
+  return verdict == null
+      ? l10n.fraudNotYetReviewed
+      : verdictWord(l10n, verdict.kind);
 }
 
 /// A ruling, as the word that names it.

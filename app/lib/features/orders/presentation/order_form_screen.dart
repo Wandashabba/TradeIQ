@@ -313,13 +313,11 @@ class _SkuLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         TorchBleed(
-          extra: gutter.left * 2,
           child: SoftRow(
             density: SoftRowDensity.compact,
             title: sku.name,

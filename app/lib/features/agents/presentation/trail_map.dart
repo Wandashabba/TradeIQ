@@ -109,13 +109,11 @@ class _TrailMapState extends State<TrailMap> {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     final height = trailMapHeight(context);
     if (height <= 0) return const SizedBox.shrink();
     if (_failures >= TrailMap.debugFailureThreshold) return const _TilesOff();
 
     return TorchBleed(
-      extra: skin.space.gutter * 2,
       child: SizedBox(
         height: height,
         child: _Basemap(state: this),

@@ -3,12 +3,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -100,7 +103,53 @@ class AlertRulesScreen extends ConsumerStatefulWidget {
 class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
   String? _metric;
 
+  /// The rule whose on/off is in flight **from the detail pane**, or null.
+  ///
+  /// `_RuleRowState._busy` is the row's, and it cannot be reused here: it
+  /// belongs to the element the toggle sits on, and the pane's button is a
+  /// different element showing a record the row may have scrolled away from.
+  /// One id rather than a set, because the pane shows one record at a time and
+  /// a second press while the first is in flight is the duplicate PATCH this
+  /// guard exists to stop — `alerts_screen.dart`'s `_acknowledgeInPane`
+  /// argument, with a busy flag on it.
+  String? _switching;
+
   void _refresh() => ref.invalidate(alertRulesListProvider);
+
+  /// Turning a rule on or off **from the detail pane**.
+  ///
+  /// The same PATCH and the same two sentences as the row's own toggle; what
+  /// it does not have is the row's `setState`, because the control that was
+  /// pressed is in the pane and the list beside it is what changes.
+  Future<void> _setActiveInPane(AlertRule rule, bool value) async {
+    if (_switching != null) return;
+    setState(() => _switching = rule.id);
+    try {
+      await ref
+          .read(alertRulesRepositoryProvider)
+          .updateRule(rule.id, active: value);
+      if (!mounted) return;
+      setState(() => _switching = null);
+      ref.invalidate(alertRulesListProvider);
+    } catch (error) {
+      if (!mounted) return;
+      // The list never changed, so the pane's own words are still true — and
+      // the toast says the change did not happen rather than leaving a button
+      // offering the state the server does not hold.
+      setState(() => _switching = null);
+      showTorchToast(
+        context,
+        message: value
+            ? 'That rule was not turned on.'
+            : 'That rule was not turned off.',
+        kind: ToastKind.failure,
+        action: TorchTertiaryButton(
+          label: 'Try again',
+          onPressed: () => _setActiveInPane(rule, value),
+        ),
+      );
+    }
+  }
 
   /// Only one active rule drives each metric — the evaluator takes the newest
   /// and ignores the rest. `GET /alerts/rules` returns newest-first, so the
@@ -150,9 +199,17 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
     );
   }
 
-  Widget _frame({required String phase, required List<Widget> children}) {
+  Widget _frame({
+    required String phase,
+    required List<Widget> children,
+    ConsoleDeskRecords? desk,
+  }) {
     return ConsoleFrame(
       phase: phase,
+      // Null on `loading`, `error` and `empty`: a skeleton, an error region
+      // and "no rules yet" are not records, so those phases get the rail and
+      // one centred column, which is what they already looked like.
+      desk: desk,
       header: TorchAppHeader(
         title: 'Exception rules',
         facts: const <String>[
@@ -179,7 +236,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
         : list.where((r) => r.metric == _metric).toList();
     final active = visible.where((r) => r.active).toList();
     final off = visible.where((r) => !r.active).toList();
-    final gutter = context.skin.space.gutter;
 
     return _frame(
       phase: list.isEmpty
@@ -187,28 +243,70 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
           : visible.isEmpty
           ? 'filtered-empty'
           : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DELIBERATELY DOES NOT ──────────
+      //
+      // The records — both sections, because an off rule is configuration a
+      // manager edits and not a disabled row — the same `_Filters` rail the
+      // phone draws, and `New rule` under the list where the phone puts it.
+      //
+      // **The pane is not the form.** Tapping a rule on a phone opens
+      // `showRuleFormSheet`, which is a form, and the recipe is explicit that
+      // a form is not a detail pane: a pane that was a form would commit
+      // every time the selection moved. So the pane is the rule's own fields
+      // — state, severity, metric, threshold, and whether a newer rule
+      // shadows it — with `Edit this rule` opening that same sheet.
+      //
+      // **The Active/Off rules are not in `lead`.** `lead` is above the whole
+      // list and there are two sections, so one marker there would name the
+      // wrong half of it. Nothing is lost: every row's reason line leads with
+      // `On` or `Off`, which is the channel it was already carrying for the
+      // reader on row eleven, and the pane repeats it as a fact.
+      desk: list.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              filters: _Filters(
+                list: list,
+                metric: _metric,
+                onMetric: (m) => setState(() => _metric = m),
+              ),
+              // Under the records, where the phone puts it. Not a pagination
+              // footer — this screen has none — but the same slot, because
+              // dropping it would have left a manager on a desktop with no
+              // way to add a rule at all.
+              footer: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TorchSecondaryButton(
+                  key: const ValueKey<String>('add-rule-desk'),
+                  label: 'New rule',
+                  onPressed: () => showRuleFormSheet(context, rule: null),
+                ),
+              ),
+              records: <ConsoleDeskRecord>[
+                for (final section in <List<AlertRule>>[active, off])
+                  for (var i = 0; i < section.length; i++)
+                    ConsoleDeskRecord(
+                      id: section[i].id,
+                      row: (context, selected) => _RuleRow(
+                        key: ValueKey<String>('rule-row-${section[i].id}'),
+                        rule: section[i],
+                        shadowed: shadowed.contains(section[i].id),
+                        last: i == section.length - 1,
+                        onDesk: true,
+                      ),
+                      detail: (context) => _ruleDetail(
+                        context,
+                        section[i],
+                        shadowed: shadowed.contains(section[i].id),
+                      ),
+                    ),
+              ],
+            ),
       children: <Widget>[
         TorchBleed(
-          extra: gutter * 2,
-          child: TorchFilterRail(
-            semanticsLabel: 'Filter by metric',
-            chips: <Widget>[
-              TorchFilterChip(
-                key: const ValueKey<String>('filter-metric-all'),
-                label: 'All metrics',
-                count: list.length,
-                selected: _metric == null,
-                onSelected: () => setState(() => _metric = null),
-              ),
-              for (final metric in alertRuleMetrics)
-                TorchFilterChip(
-                  key: ValueKey<String>('filter-metric-$metric'),
-                  label: _metricLabel(metric),
-                  count: list.where((r) => r.metric == metric).length,
-                  selected: _metric == metric,
-                  onSelected: () => setState(() => _metric = metric),
-                ),
-            ],
+          child: _Filters(
+            list: list,
+            metric: _metric,
+            onMetric: (m) => setState(() => _metric = m),
           ),
         ),
         const SizedBox(height: TiqSpace.s6),
@@ -244,7 +342,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             )
           else
             TorchBleed(
-              extra: gutter * 2,
               child: _RuleList(rules: active, shadowed: shadowed),
             ),
           const SizedBox(height: TiqSpace.s8),
@@ -258,7 +355,6 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             )
           else
             TorchBleed(
-              extra: gutter * 2,
               child: _RuleList(rules: off, shadowed: shadowed),
             ),
         ],
@@ -274,6 +370,118 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
             onPressed: () => showRuleFormSheet(context, rule: null),
           ),
         ),
+      ],
+    );
+  }
+
+  /// ── ONE RULE, IN THE DETAIL PANE ────────────────────────────────────
+  ///
+  /// The rule's own fields, read off the same record the row reads, and the
+  /// two verbs: the toggle that is also on the row, lifted here as a labelled
+  /// button, and the opener for the form the row's tap used to be.
+  ///
+  /// The threshold is formatted by the **same expression the row's
+  /// `FigureSlot` is given** — `TiqNumber` and the metric's own precision — so
+  /// the pane and the row cannot print two different numbers for one rule.
+  /// They do not share a type role: the row draws a figure, the pane prints a
+  /// value beside a label, which is what [RecordFact] is.
+  Widget _ruleDetail(
+    BuildContext context,
+    AlertRule rule, {
+    required bool shadowed,
+  }) {
+    final skin = context.skin;
+    final mark = _severityMark(rule.severity);
+    final busy = _switching == rule.id;
+    final threshold = rule.threshold;
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('rule-detail-${rule.id}'),
+      // The row's own mark and word, in the row's own order.
+      kicker: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: TiqSpace.s2,
+        children: <Widget>[
+          if (mark != null) SeverityMark(kind: mark),
+          Text(
+            _severityLabel(rule.severity),
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
+      ),
+      title: rule.name,
+      lede: _conditionSentence(rule),
+      facts: <RecordFact>[
+        RecordFact('State', rule.active ? 'On' : 'Off'),
+        // The metric is what the evaluator matches on, so it keeps the
+        // identifier face it wears on the row.
+        RecordFact('Metric', rule.metric, mono: true),
+        RecordFact(
+          'Threshold',
+          threshold == null
+              ? 'The server’s own'
+              : TiqNumber.of(context).format(
+                  threshold,
+                  decimals: threshold == threshold.roundToDouble() ? 0 : 1,
+                ),
+        ),
+        if (shadowed)
+          RecordFact('Shadowed', 'By a newer active rule on this metric'),
+      ],
+      actions: <Widget>[
+        TorchSecondaryButton(
+          key: ValueKey<String>('toggle-${rule.id}-pane'),
+          label: rule.active ? 'Turn this rule off' : 'Turn this rule on',
+          busy: busy,
+          blockedReason: busy ? 'Saving.' : null,
+          onPressed: busy ? null : () => _setActiveInPane(rule, !rule.active),
+        ),
+        TorchSecondaryButton(
+          key: ValueKey<String>('edit-rule-${rule.id}-pane'),
+          label: 'Edit this rule',
+          onPressed: () => showRuleFormSheet(context, rule: rule),
+        ),
+      ],
+    );
+  }
+}
+
+/// The metric rail, handed to both arms rather than composed twice.
+///
+/// The phone wraps it in [TorchBleed] and the list pane does not: the pane
+/// supplies its own gutter, and a rail that opted out of one that is not there
+/// would be laid out wider than the viewport that clips it.
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.list,
+    required this.metric,
+    required this.onMetric,
+  });
+
+  final List<AlertRule> list;
+  final String? metric;
+  final ValueChanged<String?> onMetric;
+
+  @override
+  Widget build(BuildContext context) {
+    return TorchFilterRail(
+      semanticsLabel: 'Filter by metric',
+      chips: <Widget>[
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-metric-all'),
+          label: 'All metrics',
+          count: list.length,
+          selected: metric == null,
+          onSelected: () => onMetric(null),
+        ),
+        for (final m in alertRuleMetrics)
+          TorchFilterChip(
+            key: ValueKey<String>('filter-metric-$m'),
+            label: _metricLabel(m),
+            count: list.where((r) => r.metric == m).length,
+            selected: metric == m,
+            onSelected: () => onMetric(m),
+          ),
       ],
     );
   }
@@ -313,6 +521,7 @@ class _RuleRow extends ConsumerStatefulWidget {
     required this.rule,
     required this.shadowed,
     required this.last,
+    this.onDesk = false,
   });
 
   final AlertRule rule;
@@ -322,6 +531,15 @@ class _RuleRow extends ConsumerStatefulWidget {
   final bool shadowed;
 
   final bool last;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**.
+  ///
+  /// It nulls the tap and changes nothing else: the toggle stays on the row
+  /// because it is a control rather than a destination, and the row draws the
+  /// same three lines it draws on a phone. Opening the form sheet here would
+  /// put a scrim over the list the manager chose from and arm a commit they
+  /// did not ask for — the pane's `Edit this rule` is the deliberate press.
+  final bool onDesk;
 
   @override
   ConsumerState<_RuleRow> createState() => _RuleRowState();
@@ -440,7 +658,9 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
       ),
       // The whole row opens the form. No inline threshold editing in a list:
       // a stray tap must never change what raises an alert.
-      onTap: () => showRuleFormSheet(context, rule: rule),
+      onTap: widget.onDesk
+          ? null
+          : () => showRuleFormSheet(context, rule: rule),
       separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         rule.name,

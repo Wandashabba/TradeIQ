@@ -10,10 +10,14 @@ import 'package:tradeiq_app/core/widgets/torchlight/console_wash.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 import 'package:tradeiq_app/features/assistant/answer/composer.dart'
     show QuestionComposer;
-import 'package:tradeiq_app/features/users/data/users_repository.dart'
-    show AppUser;
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
+import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/trends/presentation/trends_screen.dart';
+
+import '../../../features/assistant/ask_harness.dart';
+import '../../../features/dashboard/floor_harness.dart';
 import '../../design/amber_golden.dart';
 import 'console_desk_harness.dart';
 import 'torch_harness.dart' show TorchPixels, torchPixels;
@@ -42,6 +46,82 @@ void main() {
   const size = Size(1440, 900);
 
   setUpAll(loadDeskFonts);
+
+  /// ── EVERY SHAPE THE DESK HAS, NOT JUST THE THREE-PANE ONE ───────────
+  ///
+  /// This file used to measure Exceptions alone, which was honest while
+  /// Exceptions was the only screen with three panes and The Floor and Ask had
+  /// no desk at all. Both of those changed on 3 October 2026: the two routes
+  /// that build their own shell now stand on the console's two lights for the
+  /// first time, and *"contrast at the worst point of each wash under every
+  /// text run"* is a measurement that has to be taken where the text actually
+  /// is.
+  ///
+  /// So the two contrast probes and the census run over four frames:
+  ///
+  /// | frame | why it is in the set |
+  /// |---|---|
+  /// | exceptions, a record open | three panes, outlined controls in all three |
+  /// | the floor | a photographic plate and a composer, on the washes |
+  /// | ask | a transcript column, nothing but ink on the ground |
+  /// | trends | one column that fills, charts rather than rows |
+  ///
+  /// Webhooks is no longer the one-column case — it got its third pane in this
+  /// change — so Trends replaces it. See `console_desk_harness.dart`.
+  final frames = <(String, Future<void> Function(WidgetTester, TiqSkin))>[
+    (
+      'exceptions (three panes)',
+      (tester, skin) async {
+        await pumpDesk(
+          tester,
+          const AlertsScreen(),
+          size: size,
+          skin: skin,
+          path: '/alerts',
+          overrides: deskAlertOverrides(),
+          users: deskPeople(),
+        );
+        await tester.tap(
+          find.byKey(const ValueKey<String>('console-record-a2')),
+        );
+        await tester.pumpAndSettle();
+      },
+    ),
+    (
+      'the floor (plate and composer)',
+      (tester, skin) async {
+        await pumpFloor(
+          tester,
+          const TheFloorScreen(),
+          size: size,
+          skin: skin,
+          path: '/dashboard',
+          current: kpis(osa: 61, execution: 73, priceCompliance: 74),
+          previous: kpis(osa: 64, execution: 92),
+          outlets: <Outlet>[outlet('o1', 'SaveMor Glenwood')],
+          plateImage: await SyncImage.fromFile(
+            tester,
+            '../backend/assets/places/ALL.jpg',
+          ),
+        );
+      },
+    ),
+    (
+      'ask (one transcript column)',
+      (tester, skin) async => pumpAsk(tester, size: size, skin: skin),
+    ),
+    (
+      'trends (one column)',
+      (tester, skin) async => pumpDesk(
+        tester,
+        const TrendsScreen(),
+        size: size,
+        skin: skin,
+        path: '/trends',
+        overrides: deskTrendOverrides(),
+      ),
+    ),
+  ];
 
   String hex(Color c) =>
       '#'
@@ -214,388 +294,430 @@ void main() {
       ('night', night),
       ('day', day),
     ]) {
-      testWidgets('$skinName: every outlined control, against the washed ground', (
-        tester,
-      ) async {
-        await pumpDesk(
-          tester,
-          const AlertsScreen(),
-          size: size,
-          skin: skin,
-          path: '/alerts',
-          overrides: deskAlertOverrides(),
-          users: deskPeople(),
-        );
-        await tester.tap(
-          find.byKey(const ValueKey<String>('console-record-a2')),
-        );
-        await tester.pumpAndSettle();
-        final pixels = await torchPixels(tester);
+      for (final (frame, pump) in frames) {
+        testWidgets('$skinName, $frame: every outlined control, against the '
+            'washed ground', (tester) async {
+          await pump(tester, skin);
+          final pixels = await torchPixels(tester);
 
-        // The outlined things on a desk screen, by the key that finds them,
-        // and which edge token each one wears. There is no list of "every
-        // outlined control" in the product, so this is the set this screen
-        // actually paints — named rather than discovered, so a reviewer can
-        // see what was and was not measured.
-        final controls = <String, (Finder, Color, String)>{
-          'the ask bar\'s grid key': (
-            find.byKey(const ValueKey<String>('console-destinations')),
-            skin.palette.edgeControl,
-            'edgeControl',
-          ),
-          'the selected record\'s ring': (
-            find.byKey(const ValueKey<String>('console-record-a2')),
-            skin.palette.edgeControl,
-            'edgeControl',
-          ),
-          'a filter chip': (
-            find.byKey(const ValueKey<String>('tab-acknowledged')),
-            skin.palette.edgeControl,
-            'edgeControl',
-          ),
-        };
+          // The outlined things on a desk screen, by the key that finds them,
+          // and which edge token each one wears. There is no list of "every
+          // outlined control" in the product, so this is the set this screen
+          // actually paints — named rather than discovered, so a reviewer can
+          // see what was and was not measured.
+          final controls = <String, (Finder, Color, String)>{
+            // THE SAME CONTROL UNDER THREE KEYS, and all three are here
+            // because the three routes that draw it key it differently:
+            // `ConsoleAskBar` on the 27 framed screens, Ask's own composer,
+            // and The Floor's. A map with only the first measured nothing at
+            // all on Ask and The Floor and printed `+Infinity` for its
+            // tightest margin, which is a probe reporting that it looked in
+            // the wrong place.
+            'the ask bar\'s grid key': (
+              find.byKey(const ValueKey<String>('console-destinations')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+            'Ask\'s grid key': (
+              find.byKey(const ValueKey<String>('ask-destinations')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+            'The Floor\'s grid key': (
+              find.byKey(const ValueKey<String>('floor-destinations')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+            'the selected record\'s ring': (
+              find.byKey(const ValueKey<String>('console-record-a2')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+            'a filter chip': (
+              find.byKey(const ValueKey<String>('tab-acknowledged')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+          };
 
-        final table = StringBuffer(
-          'OUTLINES ON THE WASHED GROUND — 1440x900 $skinName\n'
-          '| control | edge token | worst backdrop, and where | before | '
-          'after | floor | margin | |\n'
-          '|---|---|---|---|---|---|---|---|\n',
-        );
-        var tightest = double.infinity;
-        var tightestWhat = '';
-
-        for (final entry in controls.entries) {
-          final (finder, ink, token) = entry.value;
-          if (tester.widgetList(finder).isEmpty) continue;
-          final rect = tester.getRect(finder);
-          final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
-          final after = contrastRatio(ink, backdrop);
-          // The "before" is the bare falloff at the same y, which is what the
-          // ground would be with no wash on it. `torchGroundAt` is the shell's
-          // own function, so this is not an estimate of the before — it is
-          // the before.
-          final before = contrastRatio(
-            ink,
-            torchGroundAt(skin, falloff: true, height: size.height, y: at.dy),
+          final table = StringBuffer(
+            'OUTLINES ON THE WASHED GROUND — 1440x900 $skinName\n'
+            '| control | edge token | worst backdrop, and where | before | '
+            'after | floor | margin | |\n'
+            '|---|---|---|---|---|---|---|---|\n',
           );
-          const floor = 3.0;
-          if (after - floor < tightest) {
-            tightest = after - floor;
-            tightestWhat = '${entry.key} at ${after.toStringAsFixed(2)}:1';
-          }
-          table.writeln(
-            '| ${entry.key} | $token ${hex(ink)} | ${hex(backdrop)} at '
-            '(${at.dx.toInt()},${at.dy.toInt()}) | '
-            '${before.toStringAsFixed(2)}:1 | ${after.toStringAsFixed(2)}:1 | '
-            '3.0:1 | ${after - floor >= 0 ? '+' : ''}'
-            '${(after - floor).toStringAsFixed(2)} | '
-            '${after >= floor ? 'pass' : 'FAIL'} |',
-          );
-        }
+          var tightest = double.infinity;
+          var tightestWhat = '';
 
-        // ── AND THE HYPOTHETICAL EDGE, which is a GUARD, not a floor ────
-        //
-        // `floor_dawn_test.dart` established this distinction and it applies
-        // here unchanged: **`edgeStructure` does not survive a wash at
-        // Dawn's alpha, in either skin, and never did.** That file records
-        // the Day figure — 3.14:1 on the bare ground, crossing 3:1 at clay
-        // alpha 0.038 — and says The Floor is safe because it paints no
-        // outline on the bare ground down there: every container is a
-        // `TorchCard`, which has no outline in any skin.
-        //
-        // The console's ground is a different ground with different things on
-        // it, so the guard has to be re-established rather than inherited.
-        // What is asserted is therefore **absence**: no fragile token is
-        // painted on the washed ground where its backdrop is under its floor.
-        // The number it would read if one were is printed either way, so a
-        // reviewer sees what the guard is guarding.
-        final fragile = <String, (Color, double)>{
-          'edgeStructure': (skin.palette.edgeStructure, 3.0),
-          if (skin.amberIsInk) 'ink3': (skin.palette.ink3, 4.5),
-        };
-        bool same(Color a, Color b) =>
-            (a.r * 255).round() == (b.r * 255).round() &&
-            (a.g * 255).round() == (b.g * 255).round() &&
-            (a.b * 255).round() == (b.b * 255).round();
-
-        // ── WHAT COUNTS AS "ON THE WASHED GROUND" ────────────────────────
-        //
-        // The first draft of this probe sampled 4dp below each found pixel and
-        // it reported two things that are not findings, which is worth writing
-        // down because both are the shape of mistake this instrument invites:
-        //
-        // * `edgeStructure` at (941,201) with a backdrop of `#E2DBCC`, which
-        //   is Day's **`well`** exactly. 2.99:1 there is a pairing
-        //   `tiq_palette.dart` already declares and bans — *"except the Day
-        //   well, where it is banned (2.99:1)"* — and it is unmoved by the
-        //   wash, because the wash is under an opaque fill.
-        // * `ink3` with backdrops of `#70695B` and `#696255`, which are within
-        //   a few levels of `ink3` itself: the probe had landed on the
-        //   antialiased edge of another glyph.
-        //
-        // So a pixel only counts when its backdrop **is the ground**: within
-        // 1.6:1 of what the bare falloff reads at that y, which is wider than
-        // anything either wash can do to it (the worst is Dawn's own peak at
-        // 1.52:1) and far narrower than the step to any material or any ink.
-        // The two rejected classes are counted and printed, so "nothing was
-        // found" cannot quietly mean "nothing was looked at".
-        final opaque = <String, Color>{
-          'surface': skin.palette.surface,
-          'raised': skin.palette.raised,
-          'lifted': skin.palette.lifted,
-          'well': skin.palette.well,
-        };
-        var onMaterial = 0;
-        final hypothetical = <String>[];
-        for (final entry in fragile.entries) {
-          final token = entry.value.$1;
-          final floor = entry.value.$2;
-          final found = <String>[];
-          for (var y = 0; y < pixels.height; y++) {
-            for (var x = 0; x < pixels.width; x++) {
-              if (!same(pixels.at(x + 0.5, y + 0.5), token)) continue;
-              final backdrop = ringAround(pixels, x + 0.5, y + 0.5);
-              final material = opaque.entries
-                  .where((e) => same(backdrop, e.value))
-                  .map((e) => e.key)
-                  .firstOrNull;
-              if (material != null) {
-                onMaterial++;
-                break;
-              }
-              if (contrastRatio(token, backdrop) < floor) {
-                found.add(
-                  '$x,$y (backdrop ${hex(backdrop)}, '
-                  '${contrastRatio(token, backdrop).toStringAsFixed(2)}:1)',
-                );
-              }
-              break;
+          for (final entry in controls.entries) {
+            final (finder, ink, token) = entry.value;
+            if (tester.widgetList(finder).isEmpty) continue;
+            final rect = tester.getRect(finder);
+            final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
+            final after = contrastRatio(ink, backdrop);
+            // The "before" is the bare falloff at the same y, which is what the
+            // ground would be with no wash on it. `torchGroundAt` is the shell's
+            // own function, so this is not an estimate of the before — it is
+            // the before.
+            final before = contrastRatio(
+              ink,
+              torchGroundAt(skin, falloff: true, height: size.height, y: at.dy),
+            );
+            const floor = 3.0;
+            if (after - floor < tightest) {
+              tightest = after - floor;
+              tightestWhat = '${entry.key} at ${after.toStringAsFixed(2)}:1';
             }
-            if (found.length > 3) break;
+            table.writeln(
+              '| ${entry.key} | $token ${hex(ink)} | ${hex(backdrop)} at '
+              '(${at.dx.toInt()},${at.dy.toInt()}) | '
+              '${before.toStringAsFixed(2)}:1 | ${after.toStringAsFixed(2)}:1 | '
+              '3.0:1 | ${after - floor >= 0 ? '+' : ''}'
+              '${(after - floor).toStringAsFixed(2)} | '
+              '${after >= floor ? 'pass' : 'FAIL'} |',
+            );
           }
-          if (found.isNotEmpty) {
-            hypothetical.add('${entry.key} at ${found.join(' ')}');
-          }
-        }
 
-        table.writeln(
-          '\nTHE HYPOTHETICAL EDGE — what a fragile token WOULD '
-          'read on the washed ground, at four points nothing paints one:',
-        );
-        for (final (name, probe) in <(String, Offset)>[
-          ('the cool peak, behind the rail', const Offset(20, 20)),
-          ('the rail\'s foot', Offset(20, size.height - 20)),
-          ('where the two washes overlap', Offset(size.width * 0.35, 870)),
-          (
-            'Dawn\'s peak, under the detail pane',
-            Offset(size.width * 0.76, 898),
-          ),
-        ]) {
-          final c = pixels.at(probe.dx, probe.dy);
-          final bare = torchGroundAt(
-            skin,
-            falloff: true,
-            height: size.height,
-            y: probe.dy,
-          );
+          // ── AND THE HYPOTHETICAL EDGE, which is a GUARD, not a floor ────
+          //
+          // `floor_dawn_test.dart` established this distinction and it applies
+          // here unchanged: **`edgeStructure` does not survive a wash at
+          // Dawn's alpha, in either skin, and never did.** That file records
+          // the Day figure — 3.14:1 on the bare ground, crossing 3:1 at clay
+          // alpha 0.038 — and says The Floor is safe because it paints no
+          // outline on the bare ground down there: every container is a
+          // `TorchCard`, which has no outline in any skin.
+          //
+          // The console's ground is a different ground with different things on
+          // it, so the guard has to be re-established rather than inherited.
+          // What is asserted is therefore **absence**: no fragile token is
+          // painted on the washed ground where its backdrop is under its floor.
+          // The number it would read if one were is printed either way, so a
+          // reviewer sees what the guard is guarding.
+          final fragile = <String, (Color, double)>{
+            'edgeStructure': (skin.palette.edgeStructure, 3.0),
+            if (skin.amberIsInk) 'ink3': (skin.palette.ink3, 4.5),
+          };
+          bool same(Color a, Color b) =>
+              (a.r * 255).round() == (b.r * 255).round() &&
+              (a.g * 255).round() == (b.g * 255).round() &&
+              (a.b * 255).round() == (b.b * 255).round();
+
+          // ── WHAT COUNTS AS "ON THE WASHED GROUND" ────────────────────────
+          //
+          // The first draft of this probe sampled 4dp below each found pixel and
+          // it reported two things that are not findings, which is worth writing
+          // down because both are the shape of mistake this instrument invites:
+          //
+          // * `edgeStructure` at (941,201) with a backdrop of `#E2DBCC`, which
+          //   is Day's **`well`** exactly. 2.99:1 there is a pairing
+          //   `tiq_palette.dart` already declares and bans — *"except the Day
+          //   well, where it is banned (2.99:1)"* — and it is unmoved by the
+          //   wash, because the wash is under an opaque fill.
+          // * `ink3` with backdrops of `#70695B` and `#696255`, which are within
+          //   a few levels of `ink3` itself: the probe had landed on the
+          //   antialiased edge of another glyph.
+          //
+          // So a pixel only counts when its backdrop **is the ground**: within
+          // 1.6:1 of what the bare falloff reads at that y, which is wider than
+          // anything either wash can do to it (the worst is Dawn's own peak at
+          // 1.52:1) and far narrower than the step to any material or any ink.
+          // The two rejected classes are counted and printed, so "nothing was
+          // found" cannot quietly mean "nothing was looked at".
+          final opaque = <String, Color>{
+            'surface': skin.palette.surface,
+            'raised': skin.palette.raised,
+            'lifted': skin.palette.lifted,
+            'well': skin.palette.well,
+          };
+          var onMaterial = 0;
+          var onInk = 0;
+          final hypothetical = <String>[];
           for (final entry in fragile.entries) {
             final token = entry.value.$1;
             final floor = entry.value.$2;
-            final after = contrastRatio(token, c);
-            table.writeln(
-              '| $name | ${entry.key} ${hex(token)} | ${hex(c)} at '
-              '(${probe.dx.toInt()},${probe.dy.toInt()}) | '
-              '${contrastRatio(token, bare).toStringAsFixed(2)}:1 | '
-              '${after.toStringAsFixed(2)}:1 | ${floor.toStringAsFixed(1)}:1 | '
-              '${after - floor >= 0 ? '+' : ''}'
-              '${(after - floor).toStringAsFixed(2)} | '
-              '${after >= floor ? 'would pass' : 'WOULD FAIL — guarded by '
-                        'absence'} |',
-            );
-          }
-        }
-        table.writeln(
-          '\n${hypothetical.isEmpty ? 'Nothing paints a fragile token on this '
-                    'ground' : 'A fragile token IS on this ground'}: every container '
-          'on a console screen is a `TorchCard` or a `SoftRow`, which have no '
-          'outline in any skin, and the rail\'s rows are flat on the ground '
-          'with no edge at all. $onMaterial pixel row(s) carrying a fragile '
-          'token were found with an opaque material around them and are not '
-          'on the ground: the wash is under the fill and cannot have moved '
-          'those. The Day `well` case is one of them, and it is a pairing '
-          '`tiq_palette.dart` already declares and bans at 2.99:1 — '
-          'pre-existing, and unmoved.',
-        );
-
-        table.writeln(
-          '\nTightest margin among PAINTED outlines: '
-          '+${tightest.toStringAsFixed(2)} — $tightestWhat',
-        );
-        // ignore: avoid_print
-        print(table);
-
-        expect(
-          tightest,
-          greaterThanOrEqualTo(0),
-          reason:
-              'A PAINTED outline fell under 3.0:1 on the washed ground.\n'
-              '$table\n'
-              'The declared floor for a structural edge is 3.0 and it is not '
-              'negotiable: a wash that takes the separation out of an outline '
-              'takes away the thing that makes a control look like a control. '
-              'Back the alpha off, or ship Dawn alone. Do not lower a floor.',
-        );
-        expect(
-          hypothetical,
-          isEmpty,
-          reason:
-              'A fragile token landed on the washed ground under its floor. '
-              'The fix is NOT a lower alpha and it is certainly not a lower '
-              'floor: it is that the object wants the grammar the console '
-              'already uses — a card on `surface` with no outline, or an '
-              'opaque fill under the ink.\n${hypothetical.join('\n')}\n$table',
-        );
-      });
-
-      testWidgets('$skinName: every text run on the washed ground', (
-        tester,
-      ) async {
-        await pumpDesk(
-          tester,
-          const AlertsScreen(),
-          size: size,
-          skin: skin,
-          path: '/alerts',
-          overrides: deskAlertOverrides(),
-          users: deskPeople(),
-        );
-        await tester.tap(
-          find.byKey(const ValueKey<String>('console-record-a2')),
-        );
-        await tester.pumpAndSettle();
-        final pixels = await torchPixels(tester);
-
-        // The opaque materials a desk screen may print on. A sampled backdrop
-        // that matches one EXACTLY has nothing composited over it — the wash
-        // is under the fill and cannot have moved the reading.
-        final materials = <String, Color>{
-          'surface': skin.palette.surface,
-          'raised': skin.palette.raised,
-          'lifted': skin.palette.lifted,
-          'well': skin.palette.well,
-        };
-        bool exactly(Color a, Color b) =>
-            (a.r * 255).round() == (b.r * 255).round() &&
-            (a.g * 255).round() == (b.g * 255).round() &&
-            (a.b * 255).round() == (b.b * 255).round();
-
-        final table = StringBuffer(
-          'EVERY TEXT RUN ON THE WASHED GROUND — 1440x900 $skinName\n'
-          '| run | ink | worst backdrop under it | before | after | floor | '
-          'margin | |\n|---|---|---|---|---|---|---|---|\n',
-        );
-        var tightest = double.infinity;
-        var tightestWhat = '';
-        var onGround = 0;
-        var onMaterial = 0;
-
-        for (final element in find.byType(Text).evaluate()) {
-          final widget = element.widget as Text;
-          final ink = widget.style?.color;
-          final text = widget.data;
-          if (ink == null || text == null || text.trim().isEmpty) continue;
-          final Rect rect;
-          try {
-            rect = tester.getRect(find.byWidget(widget));
-          } on StateError {
-            continue;
-          }
-          if (rect.isEmpty) continue;
-
-          final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-          // AN ICON IS NOT A WORD — `floor_dawn_test.dart`'s rule: a single
-          // rune in the Unicode private-use area is a Material glyph, and WCAG
-          // puts a graphical object at 1.4.11's 3:1 rather than 1.4.3's 4.5:1.
-          final glyph =
-              flat.runes.length == 1 &&
-              flat.runes.first >= 0xE000 &&
-              flat.runes.first <= 0xF8FF;
-          final floor = glyph ? 3.0 : 4.5;
-          final label = glyph
-              ? 'an icon glyph, U+'
-                    '${flat.runes.first.toRadixString(16).toUpperCase()}'
-              : (flat.length <= 30 ? flat : '${flat.substring(0, 28)}…');
-
-          final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
-          final material = materials.entries
-              .where((e) => exactly(backdrop, e.value))
-              .map((e) => e.key)
-              .firstOrNull;
-          if (material != null) {
-            onMaterial++;
-            final ratio = contrastRatio(ink, backdrop);
-            expect(
-              ratio,
-              greaterThanOrEqualTo(floor),
-              reason:
-                  '"$label" on $material is ${ratio.toStringAsFixed(2)}:1, '
-                  'which is a pre-existing reading and not this change: the '
-                  'wash is under an opaque fill.',
-            );
-            continue;
+            final found = <String>[];
+            for (var y = 0; y < pixels.height; y++) {
+              for (var x = 0; x < pixels.width; x++) {
+                if (!same(pixels.at(x + 0.5, y + 0.5), token)) continue;
+                final backdrop = ringAround(pixels, x + 0.5, y + 0.5);
+                final material = opaque.entries
+                    .where((e) => same(backdrop, e.value))
+                    .map((e) => e.key)
+                    .firstOrNull;
+                if (material != null) {
+                  onMaterial++;
+                  break;
+                }
+                // ── THE THIRD REJECTION: THE PROBE NEVER LEFT THE GLYPH ──
+                //
+                // Added 3 October 2026, when this probe was extended from
+                // Exceptions alone to Trends, Ask and The Floor. On a chart
+                // panel the ring around an `ink3` pixel is often **`ink3`
+                // itself** — a solid run of small type, or the fill of a
+                // plotted mark — and the probe duly reported `1.00:1`, which
+                // is not a finding about a wash. It is the same class of
+                // artefact the comment above records for an antialiased glyph
+                // edge, seen from the inside rather than the side.
+                //
+                // 1.2:1 is deliberately generous: nothing the console paints
+                // on the ground is within 1.2 of a fragile token except that
+                // token, and the two washes at their peak move the ground by
+                // at most 1.52:1 (Dawn's own), so no real reading can hide
+                // under it. The rejects are counted and printed, so "nothing
+                // was found" still cannot mean "nothing was looked at".
+                if (contrastRatio(token, backdrop) < 1.2) {
+                  onInk++;
+                  break;
+                }
+                if (contrastRatio(token, backdrop) < floor) {
+                  found.add(
+                    '$x,$y (backdrop ${hex(backdrop)}, '
+                    '${contrastRatio(token, backdrop).toStringAsFixed(2)}:1)',
+                  );
+                }
+                break;
+              }
+              if (found.length > 3) break;
+            }
+            if (found.isNotEmpty) {
+              hypothetical.add('${entry.key} at ${found.join(' ')}');
+            }
           }
 
-          onGround++;
-          final after = contrastRatio(ink, backdrop);
-          final before = contrastRatio(
-            ink,
-            torchGroundAt(skin, falloff: true, height: size.height, y: at.dy),
+          table.writeln(
+            '\nTHE HYPOTHETICAL EDGE — what a fragile token WOULD '
+            'read on the washed ground, at four points nothing paints one:',
           );
-          if (after - floor < tightest) {
-            tightest = after - floor;
-            tightestWhat =
-                '"$label" at ${after.toStringAsFixed(2)}:1 '
-                'against ${floor.toStringAsFixed(1)}:1';
+          for (final (name, probe) in <(String, Offset)>[
+            ('the cool peak, behind the rail', const Offset(20, 20)),
+            ('the rail\'s foot', Offset(20, size.height - 20)),
+            ('where the two washes overlap', Offset(size.width * 0.35, 870)),
+            (
+              'Dawn\'s peak, under the detail pane',
+              Offset(size.width * 0.76, 898),
+            ),
+          ]) {
+            final c = pixels.at(probe.dx, probe.dy);
+            final bare = torchGroundAt(
+              skin,
+              falloff: true,
+              height: size.height,
+              y: probe.dy,
+            );
+            for (final entry in fragile.entries) {
+              final token = entry.value.$1;
+              final floor = entry.value.$2;
+              final after = contrastRatio(token, c);
+              table.writeln(
+                '| $name | ${entry.key} ${hex(token)} | ${hex(c)} at '
+                '(${probe.dx.toInt()},${probe.dy.toInt()}) | '
+                '${contrastRatio(token, bare).toStringAsFixed(2)}:1 | '
+                '${after.toStringAsFixed(2)}:1 | ${floor.toStringAsFixed(1)}:1 | '
+                '${after - floor >= 0 ? '+' : ''}'
+                '${(after - floor).toStringAsFixed(2)} | '
+                '${after >= floor ? 'would pass' : 'WOULD FAIL — guarded by '
+                          'absence'} |',
+              );
+            }
           }
           table.writeln(
-            '| $label | ${hex(ink)} | ${hex(backdrop)} at '
-            '(${at.dx.toInt()},${at.dy.toInt()}) | '
-            '${before.toStringAsFixed(2)}:1 | ${after.toStringAsFixed(2)}:1 | '
-            '${floor.toStringAsFixed(1)}:1 | '
-            '${after - floor >= 0 ? '+' : ''}'
-            '${(after - floor).toStringAsFixed(2)} | '
-            '${after >= floor ? 'pass' : 'FAIL'} |',
+            '\n${hypothetical.isEmpty ? 'Nothing paints a fragile token on this '
+                      'ground' : 'A fragile token IS on this ground'}: every container '
+            'on a console screen is a `TorchCard` or a `SoftRow`, which have no '
+            'outline in any skin, and the rail\'s rows are flat on the ground '
+            'with no edge at all. $onInk pixel row(s) were rejected because '
+            'the ring around the probe read within 1.2:1 of the token itself '
+            '— the probe was inside a glyph, not on the ground. '
+            '$onMaterial pixel row(s) carrying a fragile '
+            'token were found with an opaque material around them and are not '
+            'on the ground: the wash is under the fill and cannot have moved '
+            'those. The Day `well` case is one of them, and it is a pairing '
+            '`tiq_palette.dart` already declares and bans at 2.99:1 — '
+            'pre-existing, and unmoved.',
           );
-        }
 
-        table.writeln(
-          '\n$onGround run(s) on the bare washed ground, $onMaterial on an '
-          'opaque material. Tightest margin on the ground: '
-          '${tightest.isFinite ? '+${tightest.toStringAsFixed(2)} — $tightestWhat' : 'none'}',
-        );
-        // ignore: avoid_print
-        print(table);
+          table.writeln(
+            '\nTightest margin among PAINTED outlines: '
+            '+${tightest.toStringAsFixed(2)} — $tightestWhat',
+          );
+          // ignore: avoid_print
+          print(table);
 
-        expect(
-          onGround,
-          greaterThan(0),
-          reason:
-              'No text run was classified as sitting on the washed ground, so '
-              'this test proved nothing. The rail\'s labels and the route\'s '
-              'header are on it; if the classifier stopped finding them, fix '
-              'the classifier.',
-        );
-        expect(
-          tightest,
-          greaterThanOrEqualTo(0),
-          reason:
-              'Ink on the washed ground fell under its floor.\n$table\n'
-              'A wash moves the ground the WRONG WAY in both skins — it '
-              'lightens a dark ground under light ink and darkens a light one '
-              'under dark ink — which is exactly the failure a wash passes by '
-              'eye and fails by ratio. The number is the finding.',
-        );
-      });
+          expect(
+            tightest,
+            greaterThanOrEqualTo(0),
+            reason:
+                'A PAINTED outline fell under 3.0:1 on the washed ground.\n'
+                '$table\n'
+                'The declared floor for a structural edge is 3.0 and it is not '
+                'negotiable: a wash that takes the separation out of an outline '
+                'takes away the thing that makes a control look like a control. '
+                'Back the alpha off, or ship Dawn alone. Do not lower a floor.',
+          );
+          expect(
+            hypothetical,
+            isEmpty,
+            reason:
+                'A fragile token landed on the washed ground under its floor. '
+                'The fix is NOT a lower alpha and it is certainly not a lower '
+                'floor: it is that the object wants the grammar the console '
+                'already uses — a card on `surface` with no outline, or an '
+                'opaque fill under the ink.\n${hypothetical.join('\n')}\n$table',
+          );
+        });
+
+        testWidgets('$skinName, $frame: every text run on the washed ground', (
+          tester,
+        ) async {
+          await pump(tester, skin);
+          final pixels = await torchPixels(tester);
+
+          // The opaque materials a desk screen may print on. A sampled backdrop
+          // that matches one EXACTLY has nothing composited over it — the wash
+          // is under the fill and cannot have moved the reading.
+          final materials = <String, Color>{
+            'surface': skin.palette.surface,
+            'raised': skin.palette.raised,
+            'lifted': skin.palette.lifted,
+            'well': skin.palette.well,
+          };
+          bool exactly(Color a, Color b) =>
+              (a.r * 255).round() == (b.r * 255).round() &&
+              (a.g * 255).round() == (b.g * 255).round() &&
+              (a.b * 255).round() == (b.b * 255).round();
+
+          final table = StringBuffer(
+            'EVERY TEXT RUN ON THE WASHED GROUND — 1440x900 $skinName, '
+            '$frame\n'
+            '| run | ink | worst backdrop under it | before | after | floor | '
+            'margin | |\n|---|---|---|---|---|---|---|---|\n',
+          );
+          var tightest = double.infinity;
+          var tightestWhat = '';
+          var onGround = 0;
+          var onMaterial = 0;
+          var offFrame = 0;
+
+          for (final element in find.byType(Text).evaluate()) {
+            final widget = element.widget as Text;
+            final ink = widget.style?.color;
+            final text = widget.data;
+            if (ink == null || text == null || text.trim().isEmpty) continue;
+            final Rect rect;
+            try {
+              rect = tester.getRect(find.byWidget(widget));
+            } on StateError {
+              continue;
+            }
+            if (rect.isEmpty) continue;
+            // ── AND A RUN THAT IS NOT ON THE RENDERED FRAME ──────────────
+            //
+            // Added 3 October 2026, with Trends. A `ListView` builds a child
+            // slightly past the viewport and a `Wrap` inside a horizontal rail
+            // lays one out off the right edge; `getRect` reports where it
+            // *would* be, the pixel buffer has nothing there, and
+            // `worstGroundUnder` dutifully returns `#000000 at (0,0)` — which
+            // then reads as a 3.37:1 failure against a backdrop the frame does
+            // not contain. A run nobody can see is not a contrast finding; it
+            // is a run nobody can see.
+            final frame = Rect.fromLTWH(
+              0,
+              0,
+              pixels.width.toDouble(),
+              pixels.height.toDouble(),
+            );
+            if (!rect.overlaps(frame)) {
+              offFrame++;
+              continue;
+            }
+
+            final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+            // AN ICON IS NOT A WORD — `floor_dawn_test.dart`'s rule: a single
+            // rune in the Unicode private-use area is a Material glyph, and WCAG
+            // puts a graphical object at 1.4.11's 3:1 rather than 1.4.3's 4.5:1.
+            final glyph =
+                flat.runes.length == 1 &&
+                flat.runes.first >= 0xE000 &&
+                flat.runes.first <= 0xF8FF;
+            final floor = glyph ? 3.0 : 4.5;
+            final label = glyph
+                ? 'an icon glyph, U+'
+                      '${flat.runes.first.toRadixString(16).toUpperCase()}'
+                : (flat.length <= 30 ? flat : '${flat.substring(0, 28)}…');
+
+            final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
+            final material = materials.entries
+                .where((e) => exactly(backdrop, e.value))
+                .map((e) => e.key)
+                .firstOrNull;
+            if (material != null) {
+              onMaterial++;
+              final ratio = contrastRatio(ink, backdrop);
+              expect(
+                ratio,
+                greaterThanOrEqualTo(floor),
+                reason:
+                    '"$label" on $material is ${ratio.toStringAsFixed(2)}:1, '
+                    'which is a pre-existing reading and not this change: the '
+                    'wash is under an opaque fill.',
+              );
+              continue;
+            }
+
+            onGround++;
+            final after = contrastRatio(ink, backdrop);
+            final before = contrastRatio(
+              ink,
+              torchGroundAt(skin, falloff: true, height: size.height, y: at.dy),
+            );
+            if (after - floor < tightest) {
+              tightest = after - floor;
+              tightestWhat =
+                  '"$label" at ${after.toStringAsFixed(2)}:1 '
+                  'against ${floor.toStringAsFixed(1)}:1';
+            }
+            table.writeln(
+              '| $label | ${hex(ink)} | ${hex(backdrop)} at '
+              '(${at.dx.toInt()},${at.dy.toInt()}) | '
+              '${before.toStringAsFixed(2)}:1 | ${after.toStringAsFixed(2)}:1 | '
+              '${floor.toStringAsFixed(1)}:1 | '
+              '${after - floor >= 0 ? '+' : ''}'
+              '${(after - floor).toStringAsFixed(2)} | '
+              '${after >= floor ? 'pass' : 'FAIL'} |',
+            );
+          }
+
+          table.writeln(
+            '\n$offFrame run(s) off the rendered frame, '
+            '$onGround run(s) on the bare washed ground, $onMaterial on an '
+            'opaque material. Tightest margin on the ground: '
+            '${tightest.isFinite ? '+${tightest.toStringAsFixed(2)} — $tightestWhat' : 'none'}',
+          );
+          // ignore: avoid_print
+          print(table);
+
+          expect(
+            onGround,
+            greaterThan(0),
+            reason:
+                'No text run was classified as sitting on the washed ground, so '
+                'this test proved nothing. The rail\'s labels and the route\'s '
+                'header are on it; if the classifier stopped finding them, fix '
+                'the classifier.',
+          );
+          expect(
+            tightest,
+            greaterThanOrEqualTo(0),
+            reason:
+                'Ink on the washed ground fell under its floor.\n$table\n'
+                'A wash moves the ground the WRONG WAY in both skins — it '
+                'lightens a dark ground under light ink and darkens a light one '
+                'under dark ink — which is exactly the failure a wash passes by '
+                'eye and fails by ratio. The number is the finding.',
+          );
+        });
+      }
     }
   });
 
@@ -610,10 +732,25 @@ void main() {
       ('night', night, 2),
       ('day', day, 1),
     ]) {
-      for (final (route, screen, path) in <(String, Widget, String)>[
-        ('exceptions (three panes)', const AlertsScreen(), '/alerts'),
-        ('webhooks (one column)', const WebhooksScreen(), '/webhooks'),
-      ]) {
+      // THE SAME FOUR FRAMES THE CONTRAST PROBES USE, plus Webhooks, which
+      // was the one-column example here and is a three-pane screen as of this
+      // change. It stays in the census — a screen that grew a detail pane is
+      // exactly a screen whose amber count could have moved.
+      for (final (route, pump)
+          in <(String, Future<void> Function(WidgetTester, TiqSkin))>[
+            ...frames,
+            (
+              'webhooks (three panes)',
+              (tester, skin) async => pumpDesk(
+                tester,
+                const WebhooksScreen(),
+                size: size,
+                skin: skin,
+                path: '/webhooks',
+                overrides: deskWebhookOverrides(),
+              ),
+            ),
+          ]) {
         // TWO TESTS, NOT TWO PUMPS. Pumping the same tester twice and reading
         // the boundary after each was the obvious shape and it lied: the
         // second census came back with **zero lit pixels on a frame that
@@ -628,17 +765,7 @@ void main() {
           // frame commit 1 shipped. It also flattens the amber fill ramp, so
           // the Send disc is a flat `flame600`: still one region, in the same
           // box, which is the only property this census is about.
-          await pumpDesk(
-            tester,
-            screen,
-            size: size,
-            skin: skin.copyWith(depth: _noGradients(skin)),
-            path: path,
-            overrides: path == '/alerts'
-                ? deskAlertOverrides()
-                : deskWebhookOverrides(),
-            users: path == '/alerts' ? deskPeople() : const <AppUser>[],
-          );
+          await pump(tester, skin.copyWith(depth: _noGradients(skin)));
           final census = await amberCensus(tester);
           _before['$route/$skinName'] = census;
           // ignore: avoid_print
@@ -655,17 +782,7 @@ void main() {
         });
 
         testWidgets('$route, $skinName — AFTER, two lights', (tester) async {
-          await pumpDesk(
-            tester,
-            screen,
-            size: size,
-            skin: skin,
-            path: path,
-            overrides: path == '/alerts'
-                ? deskAlertOverrides()
-                : deskWebhookOverrides(),
-            users: path == '/alerts' ? deskPeople() : const <AppUser>[],
-          );
+          await pump(tester, skin);
           final census = await amberCensus(tester);
           final before = _before['$route/$skinName'];
           // ignore: avoid_print

@@ -219,7 +219,6 @@ class AgentTrailScreen extends ConsumerWidget {
                   ],
                   if (page.truncated)
                     TorchBleed(
-                      extra: context.skin.space.gutter * 2,
                       child: PaginationFooter(
                         key: const ValueKey<String>('agent-trail-footer'),
                         summary: l10n.trailFooterSummary,
@@ -285,12 +284,10 @@ class _AgentTrail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutter;
     final stops = agent.stops;
     final count = l10n.trailStopCount(stops.length);
 
     return TorchBleed(
-      extra: gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

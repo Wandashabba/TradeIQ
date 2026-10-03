@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
-import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 
+// THE NON-LIST ROUTE'S OWN FAKES, reused rather than re-invented. Prefixed
+// because that harness exports a dozen record types and two of them share a
+// name with `worklist_harness.dart`'s.
+import '../../../features/dashboard/overview_harness.dart' as oh;
 import 'console_desk_harness.dart';
 
 /// THE CONSOLE AT A DESK, RENDERED, SO SOMEBODY CAN LOOK AT IT.
@@ -26,7 +30,7 @@ import 'console_desk_harness.dart';
 /// | `1440x900-selected` | three panes, a record open, the bar in the detail pane |
 /// | `1440x900-at-rest` | the detail pane reading **at rest**, not empty |
 /// | `1280x900-selected` | the same at the narrower of the two approved widths |
-/// | `1440x900-column` | a NON-list route: rail + one centred column, no third pane |
+/// | `1440x900-column` | a NON-list route — the **Perfect Store scorecard**: rail + one column that fills, no third pane |
 /// | `390x844-phone` | the phone, **unchanged** — the before/after pair's "after" |
 ///
 /// Both skins, every row. The phone pair is in the set because "below the
@@ -104,21 +108,37 @@ void main() {
       }
     }
 
-    // ── THE NON-LIST SET: rail + one centred column ────────────────────
+    // ── THE NON-LIST SET: rail + one column that fills ─────────────────
     //
-    // Webhooks, which the brief names as a screen that is not a list of
-    // records in the sense the third pane needs: its rows expand in place and
-    // have no detail destination at all. It passes no desk and gets no diff,
-    // which is the image.
-    testWidgets('Webhooks at 1440x900 $skinName, one column', (tester) async {
+    // IT USED TO BE WEBHOOKS, AND WEBHOOKS IS NOW A LIST. The old image was
+    // captioned "a screen that is not a list of records … its rows expand in
+    // place and have no detail destination at all", and the expanding is what
+    // disproved it: the thing those rows expand to show is the delivery log,
+    // which is a detail pane. Webhooks passes a `ConsoleDeskRecords` now, so
+    // the one-column shape needs a route that genuinely has no record to
+    // select — the **Perfect Store scorecard**: a figure block, a trend and
+    // two lists of cards. It passes no desk and gets no diff, which is the
+    // image.
+    //
+    // **The committed `-column` pair is still the old screen** until somebody
+    // regenerates the set with the command in this file's comment. It is an
+    // artefact to look at rather than a pin, and `console_desk_test.dart` is
+    // where the one-column geometry is actually asserted.
+    testWidgets('Perfect Store at 1440x900 $skinName, one column', (
+      tester,
+    ) async {
       await pumpDesk(
         tester,
-        const WebhooksScreen(),
+        const DashboardShellScreen(),
         size: const Size(1440, 900),
         skin: skin,
         textScale: scale,
-        path: '/webhooks',
-        overrides: deskWebhookOverrides(),
+        path: '/dashboard/overview',
+        // The scorecard's own fakes, reused rather than re-invented.
+        overrides: oh.overviewOverrides(
+          current: oh.kpis(),
+          previous: oh.kpis(execution: 66),
+        ),
       );
       await expectLater(
         find.byKey(const ValueKey<String>('amber-golden-boundary')),

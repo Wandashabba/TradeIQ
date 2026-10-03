@@ -175,7 +175,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
   Widget _loaded(AlertsView view) {
     final visible = view.visible(_tab, _severity);
-    final gutter = context.skin.space.gutter;
     final numbers = TiqNumber.of(context);
     final footer = view.footer((n) => numbers.format(n));
 
@@ -263,7 +262,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
         // THE FILTER RAIL — never amber, on any screen, in any skin.
         TorchBleed(
-          extra: gutter * 2,
           child: _Filters(
             tab: _tab,
             severity: _severity,
@@ -307,7 +305,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -331,7 +328,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         if (footer != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('alerts-footer'),
               summary: footer.summary,

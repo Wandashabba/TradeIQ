@@ -11,7 +11,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -128,9 +130,14 @@ class UsersScreen extends ConsumerWidget {
     required String phase,
     required bool canEdit,
     required List<Widget> children,
+    ConsoleDeskRecords? desk,
   }) {
     return ConsoleFrame(
       phase: phase,
+      // Non-null on `loaded` only. A skeleton and an error region are not
+      // records — and neither is "No one here yet", which is a screen with
+      // nothing to select.
+      desk: desk,
       header: TorchAppHeader(
         title: 'Field force',
         facts: <String>[
@@ -169,31 +176,95 @@ class UsersScreen extends ConsumerWidget {
     required bool canEdit,
     required String? role,
   }) {
-    final gutter = context.skin.space.gutter;
     final active = list.where((u) => u.active).length;
+
+    // THE TWO BLOCKS ABOVE THE LIST, BUILT ONCE. The desk's `lead` and the
+    // phone's `children` are handed the same two widgets rather than two
+    // compositions of them, so the cluster cannot count one thing here and
+    // another there.
+    //
+    // A measured zero renders 0 and keeps its place: "nobody is deactivated"
+    // is a fact a reader needs, and a tile that vanished would change the
+    // cluster's shape between clients.
+    final counts = StatCluster(
+      key: const ValueKey<String>('users-counts'),
+      semanticsLabel: 'Who can sign in',
+      tiles: <StatTile>[
+        StatTile(eyebrow: 'Active', value: active),
+        StatTile(eyebrow: 'Inactive', value: list.length - active),
+      ],
+    );
+    final section = SectionRule(
+      'Field force',
+      count: list.isEmpty ? null : list.length,
+    );
 
     return _frame(
       context,
       ref,
       phase: list.isEmpty ? 'empty' : 'loaded',
       canEdit: canEdit,
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────
+      //
+      // The roster as records, the two blocks above it in `lead` — the
+      // cluster and the named, counted section marker, which stay because
+      // this screen has no filter rail to name the slice — and `Add user` in
+      // the footer. The footer is where the phone puts it and it is the one
+      // control `_frame` appends to `children`, which the desk does not draw:
+      // leaving it there would have taken adding a user away from an admin on
+      // a desktop, which is the kind of quiet loss this frame exists to stop.
+      //
+      // The pane is the sheet's **read** side — the sign-in address and the
+      // role key, both machine-facing, both in the identifier face — with the
+      // sheet's three verbs lifted onto it. `Edit name` is a form, so it
+      // opens the sheet on that form rather than drawing it in the pane.
+      desk: list.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                counts,
+                SizedBox(height: context.skin.space.blockGap),
+                section,
+                const SizedBox(height: TiqSpace.s5),
+              ],
+              footer: canEdit
+                  ? Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TorchSecondaryButton(
+                        key: const ValueKey<String>('user-create-desk'),
+                        label: 'Add user',
+                        onPressed: () => showCreateUserSheet(context),
+                      ),
+                    )
+                  : null,
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < list.length; i++)
+                  ConsoleDeskRecord(
+                    id: list[i].id,
+                    row: (context, selected) => _UserRow(
+                      key: ValueKey<String>('user-${list[i].id}'),
+                      user: list[i],
+                      canEdit: canEdit,
+                      actorRole: role,
+                      last: i == list.length - 1,
+                      onDesk: true,
+                    ),
+                    detail: (context) => _UserDetail(
+                      key: ValueKey<String>('user-detail-${list[i].id}'),
+                      user: list[i],
+                      canEdit: canEdit,
+                      actorRole: role,
+                    ),
+                  ),
+              ],
+            ),
       children: <Widget>[
         if (list.isNotEmpty) ...<Widget>[
-          // A measured zero renders 0 and keeps its place: "nobody is
-          // deactivated" is a fact a reader needs, and a tile that vanished
-          // would change the cluster's shape between clients.
-          StatCluster(
-            key: const ValueKey<String>('users-counts'),
-            semanticsLabel: 'Who can sign in',
-            tiles: <StatTile>[
-              StatTile(eyebrow: 'Active', value: active),
-              StatTile(eyebrow: 'Inactive', value: list.length - active),
-            ],
-          ),
+          counts,
           SizedBox(height: context.skin.space.blockGap),
         ],
 
-        SectionRule('Field force', count: list.isEmpty ? null : list.length),
+        section,
         const SizedBox(height: TiqSpace.s5),
 
         if (list.isEmpty)
@@ -205,7 +276,6 @@ class UsersScreen extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -241,12 +311,21 @@ class _UserRow extends StatelessWidget {
     required this.canEdit,
     required this.actorRole,
     required this.last,
+    this.onDesk = false,
   });
 
   final AppUser user;
   final bool canEdit;
   final String? actorRole;
   final bool last;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**
+  /// and the sheet's facts and verbs are already in the detail pane.
+  ///
+  /// It nulls the tap and changes nothing else — the initials, the name, the
+  /// role line and the status chip are the four things this row has always
+  /// drawn.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context) {
@@ -268,12 +347,180 @@ class _UserRow extends StatelessWidget {
       ),
       trailingLabel: word,
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      onTap: () => showUserSheet(
-        context,
-        user: user,
-        canEdit: canEdit,
-        actorRole: actorRole,
+      onTap: onDesk
+          ? null
+          : () => showUserSheet(
+              context,
+              user: user,
+              canEdit: canEdit,
+              actorRole: actorRole,
+            ),
+    );
+  }
+}
+
+/// ── ONE PERSON, IN THE DETAIL PANE ─────────────────────────────────────
+///
+/// The **read side of [showUserSheet]**, in the pane's own grammar: the two
+/// machine-facing facts the sheet's verbs pane opens with, and then the sheet's
+/// three verbs lifted onto the record — the sign-in toggle, `Edit name` and
+/// `Reset password`, gated by exactly the rules the sheet gates them by, so the
+/// console never offers a door that answers 403.
+///
+/// ## Why it holds its own state rather than calling the sheet's
+///
+/// `_UserSheetState._setActive` is optimistic: the toggle moves on the tap and
+/// stands back up if the PATCH fails. That state belongs to the element the
+/// toggle is on, and in the pane that is this widget — so this is the same two
+/// calls and the same failure sentence, held here. What it is **not** is a
+/// second set of rules about who may press them: `canEdit` and
+/// `staffMaySetPasswordFor` are the sheet's own, read the same way.
+///
+/// `Edit name` stays a form. It opens the sheet already on its name pane
+/// rather than putting a text field and a commit in a pane that changes every
+/// time the selection moves.
+///
+/// **Amber: none.** A toggle is an Abyssal block with a state word, the two
+/// buttons are ghosts, and the only commit on either is inside the sheet.
+class _UserDetail extends ConsumerStatefulWidget {
+  const _UserDetail({
+    super.key,
+    required this.user,
+    required this.canEdit,
+    required this.actorRole,
+  });
+
+  final AppUser user;
+  final bool canEdit;
+  final String? actorRole;
+
+  @override
+  ConsumerState<_UserDetail> createState() => _UserDetailState();
+}
+
+class _UserDetailState extends ConsumerState<_UserDetail> {
+  late bool _active = widget.user.active;
+  bool _saving = false;
+  TorchErrorMessage? _failure;
+
+  @override
+  void didUpdateWidget(_UserDetail old) {
+    super.didUpdateWidget(old);
+    // The refetch this pane's own toggle triggered comes back through the
+    // list. Taking the server's answer as the truth is what stops a pane
+    // holding an optimistic value after the record it describes has changed
+    // under it — including from the row's own sheet on a narrower window.
+    if (widget.user.active != old.user.active) _active = widget.user.active;
+  }
+
+  Future<void> _setActive(bool next) async {
+    setState(() {
+      _active = next;
+      _saving = true;
+      _failure = null;
+    });
+    try {
+      await ref.read(usersRepositoryProvider).setActive(widget.user.id, next);
+      ref.invalidate(usersListProvider);
+      if (mounted) setState(() => _saving = false);
+    } catch (error) {
+      if (!mounted) return;
+      // Honesty: sign-in was not revoked, so the toggle goes back and the
+      // reason is printed under it rather than somewhere else on the screen.
+      setState(() {
+        _active = !next;
+        _saving = false;
+        _failure = TorchErrorMessage.sanitise(error);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final user = widget.user;
+    final maySetPassword = staffMaySetPasswordFor(widget.actorRole, user.role);
+    final word = user.active ? 'Active' : 'Inactive';
+
+    return ConsoleRecordDetail(
+      // The row's own chip, in the row's own words: hue, silhouette and word
+      // in one token.
+      kicker: StatusChip(
+        level: user.active ? StatusLevel.onTarget : StatusLevel.held,
+        label: word,
       ),
+      title: user.label,
+      lede: roleWord(user.role),
+      facts: <RecordFact>[
+        RecordFact('Signs in as', user.email, mono: true),
+        RecordFact('Role key', user.role, mono: true),
+      ],
+      blocks: <Widget>[
+        if (_failure != null)
+          TorchErrorRegion(
+            name: 'user',
+            child: ErrorState(
+              key: ValueKey<String>('active-error-${user.id}-pane'),
+              scope: ErrorScope.inline,
+              message: _failure!,
+            ),
+          ),
+        if (!widget.canEdit && !maySetPassword)
+          const EmptyState(
+            key: ValueKey<String>('user-read-only-pane'),
+            scope: EmptyScope.inline,
+            headline: 'Nothing to change here.',
+            body: 'Only an administrator can add or change users.',
+          ),
+      ],
+      actions: <Widget>[
+        if (widget.canEdit) ...<Widget>[
+          // The toggle and the sentence that says what it costs, as one
+          // action: a switch that revokes sign-in immediately is not a control
+          // to separate from its consequence.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TorchToggle(
+                key: ValueKey<String>('active-${user.id}-pane'),
+                label: 'Can sign in',
+                value: _active,
+                onChanged: _saving ? null : _setActive,
+                onWord: 'Active',
+                offWord: 'Inactive',
+                disabledReason: _saving ? 'Saving.' : null,
+              ),
+              const SizedBox(height: TiqSpace.s3),
+              Text(
+                'Switching this off revokes sign-in immediately.',
+                style: skin.text.meta.style(color: skin.palette.ink3),
+              ),
+            ],
+          ),
+          TorchSecondaryButton(
+            key: ValueKey<String>('edit-name-${user.id}-pane'),
+            label: 'Edit name',
+            onPressed: () => showUserSheet(
+              context,
+              user: user,
+              canEdit: widget.canEdit,
+              actorRole: widget.actorRole,
+              editingName: true,
+            ),
+          ),
+        ],
+        if (maySetPassword)
+          TorchSecondaryButton(
+            key: ValueKey<String>('reset-password-${user.id}-pane'),
+            label: 'Reset password',
+            semanticLabel: 'Reset the password for ${user.label}',
+            // No pop: there is no modal above the route here, and popping
+            // would take the roster with it.
+            onPressed: () =>
+                context.push('/users/${user.id}/password', extra: user),
+          ),
+      ],
     );
   }
 }
@@ -290,11 +537,16 @@ Future<void> showUserSheet(
   required AppUser user,
   required bool canEdit,
   required String? actorRole,
+  bool editingName = false,
 }) {
   return showTorchSheet<void>(
     context,
-    builder: (_) =>
-        _UserSheet(user: user, canEdit: canEdit, actorRole: actorRole),
+    builder: (_) => _UserSheet(
+      user: user,
+      canEdit: canEdit,
+      actorRole: actorRole,
+      editingName: editingName,
+    ),
   );
 }
 
@@ -306,11 +558,20 @@ class _UserSheet extends ConsumerStatefulWidget {
     required this.user,
     required this.canEdit,
     required this.actorRole,
+    this.editingName = false,
   });
 
   final AppUser user;
   final bool canEdit;
   final String? actorRole;
+
+  /// Opens straight on the name pane.
+  ///
+  /// False for every tap on a phone row — the verbs pane is what a row opens.
+  /// True from the **detail pane**, whose own `Edit name` would otherwise land
+  /// on a copy of the pane behind it and make the manager press the same verb
+  /// twice.
+  final bool editingName;
 
   @override
   ConsumerState<_UserSheet> createState() => _UserSheetState();
@@ -321,7 +582,9 @@ class _UserSheetState extends ConsumerState<_UserSheet> {
   /// commit at all — every action on it is a ghost or a toggle.
   static const String editNameClaimId = 'edit-name-save';
 
-  _UserPane _pane = _UserPane.verbs;
+  late _UserPane _pane = widget.editingName
+      ? _UserPane.editName
+      : _UserPane.verbs;
   late bool _active = widget.user.active;
   bool _saving = false;
   TorchErrorMessage? _failure;

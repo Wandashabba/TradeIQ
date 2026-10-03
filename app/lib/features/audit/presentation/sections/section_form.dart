@@ -836,7 +836,6 @@ class _Entry extends StatelessWidget {
         // the gutter back explicitly, so it stops at the same line rather
         // than riding out to the screen edge.
         TorchBleed(
-          extra: skin.space.gutter * 2,
           child: Row(
             children: <Widget>[
               Expanded(

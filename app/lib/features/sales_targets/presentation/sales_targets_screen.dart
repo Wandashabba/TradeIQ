@@ -10,7 +10,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -152,9 +154,6 @@ class _SalesTargets extends ConsumerWidget {
   ) {
     final l10n = context.l10n;
     final month = ref.watch(salesTargetsMonthProvider);
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     final metric = salesMetricLabel(l10n, report.metricLabel);
 
     return _frame(
@@ -165,6 +164,101 @@ class _SalesTargets extends ConsumerWidget {
           : report.hasTargets
           ? 'loaded'
           : 'no-targets',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ───────────────────────
+      //
+      // **The record is the SKU.** A scoped target is not a peer of the SKU it
+      // narrows — the phone nests it statically beneath its own SKU and never
+      // sorts it anywhere else — so the scoped rows go into
+      // `ConsoleRecordDetail.blocks`, under the SKU they belong to, carrying
+      // their own Edit and Remove with them. Promoting them to records of
+      // their own would have put "Cola 2L · North (territory)" in the list
+      // pane as though a manager could have reached it without first choosing
+      // Cola 2L.
+      //
+      // `lead` is the month stepper, the timezone line and the
+      // `AttainmentLevels` scorecard — the identical widgets the phone arm
+      // builds below, not a second composition — plus both section markers,
+      // which this screen keeps because it has no filter rail to name its
+      // slice and because each marker counts exactly what is under it.
+      //
+      // What the scoped rows wear in the pane is `SoftRowForm.standalone`
+      // rather than the list form. A `SoftRow` fills with `surface` and
+      // `ConsoleRecordDetail` is a `TorchCard`, which fills with the same
+      // `surface`: in the list form the nested rows would have been invisible
+      // boxes with gaps between them. The standalone form's 1px
+      // `edgeStructure` outline is what makes them read as blocks, and it is
+      // the form `outlet_sheet.dart` already uses for a row inside a card.
+      desk: report.skus.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                _MonthStepper(month: month),
+                if (report.timeZone.isNotEmpty) ...<Widget>[
+                  Text(
+                    l10n.salesTimeZone(report.timeZone),
+                    style: context.skin.text.meta.style(
+                      color: context.skin.palette.ink3,
+                    ),
+                  ),
+                  const SizedBox(height: TiqSpace.s5),
+                ],
+                SectionRule(l10n.salesLevelsHeading),
+                const SizedBox(height: TiqSpace.s4),
+                if (report.hasTargets)
+                  AttainmentLevels(report: report)
+                else
+                  EmptyState(
+                    scope: EmptyScope.inPanel,
+                    headline: l10n.salesNoTargetsHeadline(
+                      salesMonthLabelIn(context, month),
+                    ),
+                    body: l10n.salesNoTargetsBody,
+                  ),
+                const SizedBox(height: TiqSpace.s7),
+                SectionRule(
+                  l10n.salesSkusHeading,
+                  count: report.skus.length,
+                  action: SectionRuleAction(
+                    l10n.salesSetTarget,
+                    onTap: () => showSalesTargetSheet(
+                      context,
+                      ref,
+                      skus: report.skus,
+                      month: month,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: TiqSpace.s5),
+              ],
+              footer: report.truncated
+                  ? PaginationFooter(
+                      key: const ValueKey<String>('sales-targets-footer-desk'),
+                      summary: l10n.salesSkusTruncated(
+                        TiqNumber.of(context).format(report.skus.length),
+                      ),
+                    )
+                  : null,
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < report.skus.length; i++)
+                  ConsoleDeskRecord(
+                    id: report.skus[i].skuId,
+                    row: (context, selected) => _SkuRow(
+                      sku: report.skus[i],
+                      skus: report.skus,
+                      month: month,
+                      metric: metric,
+                      last: i == report.skus.length - 1,
+                    ),
+                    detail: (context) => _SkuPane(
+                      key: ValueKey<String>('sku-pane-${report.skus[i].skuId}'),
+                      sku: report.skus[i],
+                      skus: report.skus,
+                      month: month,
+                      metric: metric,
+                    ),
+                  ),
+              ],
+            ),
       children: <Widget>[
         if (report.timeZone.isNotEmpty) ...<Widget>[
           Text(
@@ -214,7 +308,6 @@ class _SalesTargets extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -246,7 +339,6 @@ class _SalesTargets extends ConsumerWidget {
         if (report.truncated) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
-            extra: gutter.left * 2,
             child: PaginationFooter(
               key: const ValueKey<String>('sales-targets-footer'),
               summary: l10n.salesSkusTruncated(
@@ -264,12 +356,18 @@ class _SalesTargets extends ConsumerWidget {
     WidgetRef ref, {
     required String phase,
     required List<Widget> children,
+    ConsoleDeskRecords? desk,
   }) {
     final l10n = context.l10n;
     final month = ref.watch(salesTargetsMonthProvider);
 
     return ConsoleFrame(
       phase: phase,
+      // Null on the skeleton, on the error and on an account with no SKUs at
+      // all: none of those is a list of records, and the empty phase has no
+      // filter to widen, so it keeps the one centred column its own empty
+      // state was written for.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.salesTargetsTitle,
         facts: <String>[l10n.salesTargetsSubtitle, l10n.salesTargetsHelp],
@@ -396,6 +494,8 @@ class _ScopedRow extends ConsumerWidget {
     required this.month,
     required this.metric,
     required this.last,
+    this.form = SoftRowForm.list,
+    this.keySuffix = '',
   });
 
   final SkuAttainment sku;
@@ -405,12 +505,21 @@ class _ScopedRow extends ConsumerWidget {
   final String metric;
   final bool last;
 
+  /// See [_AttainmentRow.form].
+  final SoftRowForm form;
+
+  /// Empty on the phone. `-pane` in the desk's detail pane, where this row is
+  /// drawn a second time beside the list it was nested in — two live Edit
+  /// buttons on one screen need two keys, because a key is not a label.
+  final String keySuffix;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
 
     return _AttainmentRow(
-      rowKey: ValueKey<String>('scoped-${scoped.targetId}'),
+      rowKey: ValueKey<String>('scoped-${scoped.targetId}$keySuffix'),
+      form: form,
       title: l10n.salesScopedRowTitle(
         sku.skuName,
         salesScopeLabel(l10n, scoped),
@@ -422,7 +531,7 @@ class _ScopedRow extends ConsumerWidget {
       last: last,
       actions: <Widget>[
         TorchTertiaryButton(
-          key: ValueKey<String>('edit-target-${scoped.targetId}'),
+          key: ValueKey<String>('edit-target-${scoped.targetId}$keySuffix'),
           label: l10n.salesEditTarget,
           onPressed: () => showSalesTargetSheet(
             context,
@@ -438,7 +547,7 @@ class _ScopedRow extends ConsumerWidget {
           ),
         ),
         TorchTertiaryButton(
-          key: ValueKey<String>('delete-target-${scoped.targetId}'),
+          key: ValueKey<String>('delete-target-${scoped.targetId}$keySuffix'),
           label: l10n.salesRemoveTarget,
           destructive: true,
           onPressed: () => deleteSalesTarget(context, ref, scoped.targetId),
@@ -447,6 +556,44 @@ class _ScopedRow extends ConsumerWidget {
     );
   }
 }
+
+/// What the row prints under its title, and what the detail pane prints as
+/// its lede. One function, so a pane can never report a different sell-in
+/// from the row it was chosen from.
+///
+/// A target that does not exist is not a target of zero (#396): the line says
+/// so in words rather than printing a nought.
+String _figuresLine(
+  AppLocalizations l10n,
+  TiqNumber numbers, {
+  required String metric,
+  required int actualUnits,
+  required int? targetUnits,
+}) => targetUnits == null
+    ? l10n.salesRowNoTargetFigures(metric, numbers.format(actualUnits))
+    : l10n.salesRowFigures(
+        metric,
+        numbers.format(actualUnits),
+        numbers.format(targetUnits),
+      );
+
+/// Where this line stands against its target, as the one word for it.
+///
+/// A target of zero is not the absence of one. The row used to print
+/// "target 0 units" and then say "No target" underneath it, in the same
+/// breath and to the same screen reader, because the word was chosen off a
+/// null attainment. A nought-unit target is a target that asks for nothing:
+/// it is named as that, and it still carries no severity, because nothing is
+/// what it is being missed by.
+String _standingWord(
+  AppLocalizations l10n, {
+  required double? attainmentPct,
+  required int? targetUnits,
+}) =>
+    salesBandWord(l10n, attainmentPct) ??
+    (targetUnits != null && targetUnits <= 0
+        ? l10n.salesZeroTarget
+        : l10n.salesNoTarget);
 
 /// The shape both rows wear.
 class _AttainmentRow extends StatelessWidget {
@@ -459,6 +606,7 @@ class _AttainmentRow extends StatelessWidget {
     required this.attainmentPct,
     required this.actions,
     required this.last,
+    this.form = SoftRowForm.list,
   });
 
   final Key rowKey;
@@ -470,6 +618,12 @@ class _AttainmentRow extends StatelessWidget {
   final List<Widget> actions;
   final bool last;
 
+  /// `list` everywhere the phone draws this row, and
+  /// [SoftRowForm.standalone] in the desk's detail pane, where the row sits
+  /// **inside** a `TorchCard` and needs its own outline to read as a block.
+  /// Nothing else about the row changes with it.
+  final SoftRowForm form;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -478,30 +632,23 @@ class _AttainmentRow extends StatelessWidget {
     final band = salesBandWord(l10n, attainmentPct);
     final severity = salesSeverity(attainmentPct);
 
-    final figures = targetUnits == null
-        // A target that does not exist is not a target of zero (#396). The
-        // row says so in words rather than printing a nought.
-        ? l10n.salesRowNoTargetFigures(metric, numbers.format(actualUnits))
-        : l10n.salesRowFigures(
-            metric,
-            numbers.format(actualUnits),
-            numbers.format(targetUnits!),
-          );
+    final figures = _figuresLine(
+      l10n,
+      numbers,
+      metric: metric,
+      actualUnits: actualUnits,
+      targetUnits: targetUnits,
+    );
 
-    // …and a target of zero is not the absence of one. The row used to print
-    // "target 0 units" and then say "No target" underneath it, in the same
-    // breath and to the same screen reader, because the word was chosen off a
-    // null attainment. A nought-unit target is a target that asks for
-    // nothing: it is named as that, and it still carries no severity, because
-    // nothing is what it is being missed by.
-    final word =
-        band ??
-        (targetUnits != null && targetUnits! <= 0
-            ? l10n.salesZeroTarget
-            : l10n.salesNoTarget);
+    final word = _standingWord(
+      l10n,
+      attainmentPct: attainmentPct,
+      targetUnits: targetUnits,
+    );
 
     return SoftRow(
       key: rowKey,
+      form: form,
       density: SoftRowDensity.tall,
       title: title,
       titleTruncation: SoftRowTruncation.middle,
@@ -536,6 +683,120 @@ class _AttainmentRow extends StatelessWidget {
       actions: Wrap(spacing: TiqSpace.s4, children: actions),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[title, figures, word].join('. '),
+    );
+  }
+}
+
+/// ── ONE SKU'S MONTH, IN THE DETAIL PANE ────────────────────────────────
+///
+/// The record is the SKU, so this is the SKU's own line plus everything that
+/// hangs off it: its standing as the word, its figures as the row prints
+/// them, the attainment through the same formatter the row's [FigureSlot]
+/// uses — so the pane and the row can never print two different percentages —
+/// and **the scoped targets nested beneath it**, each still carrying its own
+/// Edit and Remove.
+///
+/// There is no existing read-only body to reuse here and no detail route to
+/// point at: the only other widget this screen owns is `showSalesTargetSheet`,
+/// which is a **form**, and a form is not a record at rest. So the form's
+/// opener is one of the lifted verbs instead, which is what it already is on
+/// the row.
+class _SkuPane extends ConsumerWidget {
+  const _SkuPane({
+    super.key,
+    required this.sku,
+    required this.skus,
+    required this.month,
+    required this.metric,
+  });
+
+  final SkuAttainment sku;
+  final List<SkuAttainment> skus;
+  final DateTime month;
+  final String metric;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final numbers = TiqNumber.of(context);
+    final targetId = sku.targetId;
+    final pct = sku.attainmentPct;
+    final word = _standingWord(
+      l10n,
+      attainmentPct: pct,
+      targetUnits: sku.targetUnits,
+    );
+
+    return ConsoleRecordDetail(
+      title: sku.skuName,
+      // The row's own standing word, in the row's own meta face. Not a
+      // severity bar: the bar is a lane in a list of rows and there is no
+      // column of them to read down in a pane of one record.
+      kicker: Text(word, style: skin.text.meta.style(color: skin.palette.ink3)),
+      lede: _figuresLine(
+        l10n,
+        numbers,
+        metric: metric,
+        actualUnits: sku.actualUnits,
+        targetUnits: sku.targetUnits,
+      ),
+      facts: <RecordFact>[
+        RecordFact(
+          l10n.salesLevelsHeading,
+          // The same value, the same unit and the same precision rule the
+          // row's `FigureSlot` resolves — and where there is no attainment,
+          // the reason in words rather than an em dash with nothing beside it,
+          // which is exactly what the row announces in its place.
+          pct == null
+              ? word
+              : numbers.format(
+                  pct,
+                  unit: TiqUnit.percent,
+                  decimals: pct == pct.roundToDouble() ? 0 : 1,
+                ),
+        ),
+      ],
+      // THE SCOPED TARGETS, where the phone nests them: under their SKU.
+      blocks: <Widget>[
+        for (var j = 0; j < sku.scoped.length; j++)
+          _ScopedRow(
+            sku: sku,
+            scoped: sku.scoped[j],
+            skus: skus,
+            month: month,
+            metric: metric,
+            // Inside a card each block is separated by the card's own gap, so
+            // no row draws a hairline under itself.
+            last: true,
+            form: SoftRowForm.standalone,
+            keySuffix: '-pane',
+          ),
+      ],
+      // THE ROW'S VERBS, LIFTED — the same labels off the same `targetId`, the
+      // same sheet, the same destructive form on Remove.
+      actions: <Widget>[
+        TorchTertiaryButton(
+          key: ValueKey<String>('set-target-${sku.skuId}-pane'),
+          label: targetId == null ? l10n.salesSetTarget : l10n.salesEditTarget,
+          onPressed: () => showSalesTargetSheet(
+            context,
+            ref,
+            skus: skus,
+            month: month,
+            skuId: sku.skuId,
+            units: sku.targetUnits,
+            locked: true,
+          ),
+        ),
+        if (targetId != null)
+          TorchTertiaryButton(
+            key: ValueKey<String>('delete-target-$targetId-pane'),
+            label: l10n.salesRemoveTarget,
+            destructive: true,
+            onPressed: () => deleteSalesTarget(context, ref, targetId),
+          ),
+      ],
     );
   }
 }

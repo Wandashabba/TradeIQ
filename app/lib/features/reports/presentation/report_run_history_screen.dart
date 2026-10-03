@@ -370,7 +370,6 @@ class _ReportRunHistoryScreenState
     final moreError = _moreError;
     return <Widget>[
       TorchBleed(
-        extra: gutter * 2,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
@@ -395,7 +394,6 @@ class _ReportRunHistoryScreenState
           const SizedBox(height: TiqSpace.s3),
         ],
         TorchBleed(
-          extra: gutter * 2,
           child: PaginationFooter(
             key: const ValueKey<String>('runs-footer'),
             summary: runHistoryFooterSummary(

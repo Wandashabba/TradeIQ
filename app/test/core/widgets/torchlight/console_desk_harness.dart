@@ -12,6 +12,7 @@ import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
 import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
+import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 
 import '../../../features/worklist_harness.dart';
@@ -80,11 +81,57 @@ List<AppUser> deskPeople() => <AppUser>[
   person('u1', 'thandi@acme.test', name: 'Thandi Mokoena'),
 ];
 
-/// Three webhooks, which is a list of records whose rows expand **in place**
-/// and have no detail destination at all — the one-column case, rendered.
+/// Three webhooks.
 List<Override> deskWebhookOverrides() => <Override>[
   webhooksRepositoryProvider.overrideWithValue(_FakeWebhooks()),
 ];
+
+/// ── THE ONE-COLUMN CASE, AND IT IS TRENDS NOW ──────────────────────────
+///
+/// It used to be Webhooks, on the grounds that its rows expand in place and
+/// have no detail destination. The second of those was never a reason — *"the
+/// row has no detail route yet" is not a reason to leave a screen at one
+/// column* — and the first is an argument **for** a pane rather than against
+/// one: what the row expands into is what the pane is for.
+///
+/// Trends is the honest non-list: three chart panels, and the only rows on it
+/// are the benchmark picker, whose tap changes which series the chart beneath
+/// draws. A detail pane there would be a second copy of the chart that is
+/// already on screen.
+List<Override> deskTrendOverrides() => <Override>[
+  trendsRepositoryProvider.overrideWithValue(_FakeTrends()),
+];
+
+class _FakeTrends implements TrendsRepository {
+  static const List<TrendPoint> _points = <TrendPoint>[
+    TrendPoint(period: '2026-W34', value: 71, count: 42),
+    TrendPoint(period: '2026-W35', value: 74, count: 51),
+    TrendPoint(period: '2026-W36', value: 69, count: 47),
+    TrendPoint(period: '2026-W37', value: 78, count: 55),
+    TrendPoint(period: '2026-W38', value: 73, count: 49),
+  ];
+
+  @override
+  Future<List<TrendPoint>> scorecards([
+    TrendQuery query = const TrendQuery(),
+  ]) async => _points;
+
+  @override
+  Future<List<TrendPoint>> availability([
+    TrendQuery query = const TrendQuery(),
+  ]) async => _points;
+
+  @override
+  Future<List<TrendPoint>> perfectStore([
+    TrendQuery query = const TrendQuery(),
+  ]) async => _points;
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => throw UnimplementedError();
+}
 
 /// The fake, and the instrument for one of the two seamlessness claims:
 /// **selecting a record must not refetch**, which is only a measurement if

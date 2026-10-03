@@ -511,7 +511,6 @@ class _FailedAttempts extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final gutter = skin.space.gutterFor(MediaQuery.sizeOf(context).width);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -534,7 +533,6 @@ class _FailedAttempts extends StatelessWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -841,9 +839,6 @@ class _ChangeLedger extends StatelessWidget {
   Widget build(BuildContext context) {
     if (changes.isEmpty) return const SizedBox.shrink();
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -851,7 +846,6 @@ class _ChangeLedger extends StatelessWidget {
         SectionRule(l10n.outletChangesHeading, count: changes.length),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter.left * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

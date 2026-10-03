@@ -10,7 +10,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -152,9 +154,6 @@ class _Outlets extends ConsumerWidget {
 
   Widget _loaded(BuildContext context, WidgetRef ref, List<Outlet> outlets) {
     final l10n = context.l10n;
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
     // The provider walks every page, so this is a count of every store IN
     // SCOPE — a measured figure, and a measured zero that renders "0". Scoped
     // to a territory it counts that territory's, which is the question a
@@ -164,25 +163,78 @@ class _Outlets extends ConsumerWidget {
       dashboardFilterProvider.select((filter) => filter.territoryId),
     );
 
+    final lead = _UnplacedLead(count: unplaced);
+    final sectionRule = SectionRule(
+      l10n.outletsSectionHeading,
+      count: outlets.isEmpty ? null : outlets.length,
+      action: SectionRuleAction(
+        l10n.outletsCreateStore,
+        onTap: () async {
+          await context.push('/outlets/create');
+          _refresh(ref);
+        },
+      ),
+    );
+
     return _frame(
       context,
       ref,
       phase: outlets.isEmpty ? 'empty' : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────────
+      //
+      // `lead` is this screen's whole head, in the phone's own order: the
+      // territory chip, the unplaced figure, the open pin reports and the
+      // stores marker — the same `_TerritoryScope`, the same `_UnplacedLead`,
+      // the same `_OpenPinReports` and the same `SectionRule` instances the
+      // phone arm is handed.
+      //
+      // **The territory chip is in `lead` and not in `filters`, deliberately.**
+      // `ConsoleDeskRecords` draws `filters` *below* `lead`, and this chip is a
+      // scope rather than a rail: it scopes the unplaced count as well as the
+      // rows, and the phone puts it "ABOVE EVERYTHING IT SCOPES" for a reason
+      // that does not stop being true at 1440dp. A single chip under the figure
+      // it governs would read as a filter on the list alone.
+      //
+      // The marker stays for the same reason it does on Orders: one chip naming
+      // a territory neither names nor counts the column of stores under it, so
+      // dropping the marker would leave the rows unnamed and uncounted.
+      //
+      // The pin-report rows in `lead` **keep their own push** to the repair
+      // screen. They are a different queue over a different endpoint — the
+      // account's, not the territory's — and they are not records of this list,
+      // so the frame's selection has no claim on them.
+      desk: outlets.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                const _TerritoryScope(),
+                const SizedBox(height: TiqSpace.s5),
+                lead,
+                const SizedBox(height: TiqSpace.s6),
+                const _OpenPinReports(),
+                sectionRule,
+                const SizedBox(height: TiqSpace.s5),
+              ],
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < outlets.length; i++)
+                  ConsoleDeskRecord(
+                    id: outlets[i].id,
+                    row: (context, selected) => _OutletRow(
+                      outlet: outlets[i],
+                      last: i == outlets.length - 1,
+                      onDesk: true,
+                    ),
+                    detail: (context) => _OutletPane(outlet: outlets[i]),
+                  ),
+              ],
+            ),
       children: <Widget>[
-        _UnplacedLead(count: unplaced),
+        // THE SAME TWO OBJECTS THE LIST PANE'S `lead` HOLDS, and the same
+        // instances. Only one arm of `ConsoleFrame` is ever mounted.
+        lead,
         const SizedBox(height: TiqSpace.s6),
         const _OpenPinReports(),
-        SectionRule(
-          l10n.outletsSectionHeading,
-          count: outlets.isEmpty ? null : outlets.length,
-          action: SectionRuleAction(
-            l10n.outletsCreateStore,
-            onTap: () async {
-              await context.push('/outlets/create');
-              _refresh(ref);
-            },
-          ),
-        ),
+        sectionRule,
         const SizedBox(height: TiqSpace.s5),
         // TWO EMPTIES, AND THEY ARE NOT THE SAME SENTENCE.
         //
@@ -234,7 +286,6 @@ class _Outlets extends ConsumerWidget {
           )
         else
           TorchBleed(
-            extra: gutter.left * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -252,10 +303,17 @@ class _Outlets extends ConsumerWidget {
     WidgetRef ref, {
     required String phase,
     required List<Widget> children,
+    ConsoleDeskRecords? desk,
   }) {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
+      // Null on `loading`, `error` and both empties: a skeleton, a failure, an
+      // account with no stores and a territory with none are not records, so
+      // those phases keep the rail and one centred column — and the territory
+      // chip stays at the top of that column, where the `children` list below
+      // puts it in every phase.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.outletsTitle,
         facts: <String>[l10n.outletsSubtitle],
@@ -363,10 +421,24 @@ class _UnplacedLead extends StatelessWidget {
 
 /// One store, as a row.
 class _OutletRow extends StatelessWidget {
-  const _OutletRow({required this.outlet, required this.last});
+  const _OutletRow({
+    required this.outlet,
+    required this.last,
+    this.onDesk = false,
+  });
 
   final Outlet outlet;
   final bool last;
+
+  /// True in the desk's list pane, where the row's press is the **selection**
+  /// and the store's record is already beside it.
+  ///
+  /// `context.push('/outlets/:id')` there would put a whole second console
+  /// route — header, back button, thumb zone and its one amber commit — over
+  /// the list the manager chose from. So the press goes to the frame instead,
+  /// and the way into the repair screen is a verb **in the pane**: see
+  /// [_OutletPane], which is where that push now lives at desk width.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context) {
@@ -393,13 +465,117 @@ class _OutletRow extends StatelessWidget {
       // The way into the repair screen (#386). Until it existed there was
       // nowhere in the product an outlet's coordinates could be corrected, so
       // this list was a dead end for the one problem it displays.
-      onTap: () => context.push('/outlets/${outlet.id}'),
+      onTap: onDesk ? null : () => context.push('/outlets/${outlet.id}'),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         outlet.name,
         outlet.code,
         located ? l10n.outletsPlaced : l10n.outletsNoLocation,
       ].join('. '),
+    );
+  }
+}
+
+/// ── ONE STORE, IN THE DETAIL PANE — and why it is NOT the repair screen ──
+///
+/// The instruction for this screen was to reuse `_OutletDetailBody` from
+/// `outlet_detail_screen.dart` in the pane. **It cannot be reused, and the
+/// reason is what that widget actually is**, read rather than assumed:
+///
+/// * it is not a body. `_OutletDetailBody.build` returns `_OutletFrame`,
+///   which is a `TorchScope` wrapping a `TorchShell` with an app header, a
+///   back button and a thumb zone. Dropping it in here would mount a second
+///   console screen inside a 440dp pane of the first one.
+/// * it is a **form**: three `TextEditingController`s, a `ChoiceRow`, a
+///   validator and a PATCH. The recipe's own ruling is that a form is not a
+///   detail pane; the pane is built from the record's fields and the form's
+///   opener goes in `actions`.
+/// * it declares `TorchPrimaryButton.claim(OutletDetailScreen.saveClaimId)`.
+///   The pane may add no amber and declare no new claim, so even the form's
+///   Save could not come with it.
+///
+/// So this is the record, from the `Outlet` the list already holds — which
+/// also means **the pane fetches nothing at all**: no `outletDetailProvider`
+/// watch, no request on selection, and no loading state to draw.
+///
+/// ## What it carries, and what it refuses to print
+///
+/// The row's own three lines — the name, the code in the identifier face, and
+/// the "No location" word behind its bar — plus the fields the repair screen
+/// edits. The **coordinates only where there are coordinates**: 0,0 is the
+/// API's unset for a required double, so a store with no pin gets the kicker
+/// and the sentence rather than a latitude of 0 printed as a measured fact.
+/// The channel type only where the response carried one — an empty string
+/// means "not sent", not "no channel".
+///
+/// ## The way into the repair screen is the one lifted verb
+///
+/// The row's whole-row tap *was* that way in, and the frame has taken the tap
+/// for the selection, so without this button the desk would make the repair
+/// screen unreachable from Stores — the dead end #386 existed to remove,
+/// reintroduced at 1440dp. It is a [TorchSecondaryButton]: outline and ink,
+/// which the ladder never lights, so the pane still paints no amber. The
+/// commit itself is still on the route it pushes, where that route's own
+/// scope owns it.
+class _OutletPane extends StatelessWidget {
+  const _OutletPane({required this.outlet});
+
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final located = outletIsLocated(outlet);
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('outlet-detail-${outlet.id}'),
+      title: outlet.name,
+      // The row's severity bar, as its two channels that survive greyscale:
+      // the silhouette and the word. A placed store has no standing and gets
+      // no kicker rather than a grey one saying it is fine.
+      kicker: located
+          ? null
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SeverityMark(kind: SeverityMarkKind.watch),
+                const SizedBox(width: TiqSpace.s2),
+                Flexible(child: Eyebrow(l10n.outletsNoLocation)),
+              ],
+            ),
+      lede: located ? null : l10n.outletsNoCoordinates,
+      facts: <RecordFact>[
+        // What an agent quotes and what an import keys on, in the face the row
+        // prints it in.
+        RecordFact('Code', outlet.code, mono: true),
+        RecordFact(
+          l10n.outletFieldStatus,
+          outlet.status == 'closed'
+              ? l10n.outletStatusClosed
+              : l10n.outletStatusActive,
+        ),
+        if (outlet.channelType.isNotEmpty)
+          RecordFact(l10n.outletFieldChannel, outlet.channelType),
+        if (located) ...<RecordFact>[
+          RecordFact(
+            l10n.outletFieldLatitude,
+            outlet.lat.toString(),
+            mono: true,
+          ),
+          RecordFact(
+            l10n.outletFieldLongitude,
+            outlet.lng.toString(),
+            mono: true,
+          ),
+        ],
+      ],
+      actions: <Widget>[
+        TorchSecondaryButton(
+          key: ValueKey<String>('outlet-open-${outlet.id}-pane'),
+          label: 'Open the store record',
+          onPressed: () => context.push('/outlets/${outlet.id}'),
+        ),
+      ],
     );
   }
 }
@@ -480,9 +656,6 @@ class _OpenPinReportsState extends ConsumerState<_OpenPinReports> {
     // none" — the same unknown-versus-zero distinction the figures make.
     final next = _cursorRead ? _cursor : page?.nextCursor;
 
-    final gutter = context.skin.space.gutterFor(
-      MediaQuery.sizeOf(context).width,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -498,7 +671,6 @@ class _OpenPinReportsState extends ConsumerState<_OpenPinReports> {
         ),
         const SizedBox(height: TiqSpace.s4),
         TorchBleed(
-          extra: gutter.left * 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

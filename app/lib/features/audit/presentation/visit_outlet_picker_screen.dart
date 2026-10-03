@@ -269,10 +269,8 @@ class _OutletList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     final l10n = context.l10n;
     return TorchBleed(
-      extra: skin.space.gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

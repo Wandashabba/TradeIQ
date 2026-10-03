@@ -6,7 +6,9 @@ import '../../../l10n/l10n.dart';
 import '../../design/motion_budget.dart';
 import '../../theme/torchlight/tiq_skin.dart';
 import '../nav_destinations.dart';
+import 'bleed.dart';
 import 'chrome/chrome.dart';
+import 'console_wash.dart';
 import 'menu_sheet.dart';
 import 'section_rule.dart';
 import 'state.dart';
@@ -45,20 +47,31 @@ import 'state.dart';
 /// | [railWidth] | 244 | the widest destination label, measured — see below |
 /// | `blockGap` | 24 | what separates two blocks everywhere else in the product |
 /// | [listMinWidth] | 320 | the narrowest record row the product already draws |
+/// | 2 × [paneGutter] | 40 | the list pane's own gutter — see [paneGutter] |
 /// | `blockGap` | 24 | |
 /// | `readingWidth` | 440 | THE MEASURE — the detail pane is one column of prose |
+/// | 2 × [paneGutter] | 40 | the detail pane's own gutter |
 /// | `gutterWide` | 40 | |
-/// | **total** | **1132** | |
+/// | **total** | **1212** | |
 ///
-/// Three of those seven terms are existing tokens, one is the measure, and the
+/// Four of those nine terms are existing tokens, one is the measure, and the
 /// two that are new are each the narrowest the product has already approved
-/// rather than a new judgement. **1132 is not a round number and is not meant
+/// rather than a new judgement. **1212 is not a round number and is not meant
 /// to be**; it is what the arithmetic says, and it moves on its own the day
-/// any term in it moves — it already has, once: the rail measured 244 rather
-/// than the 232 the first draft estimated, and the threshold went with it.
+/// any term in it moves — it has, twice. The rail measured 244 rather than the
+/// 232 the first draft estimated, and the threshold went with it; and on 3
+/// October 2026 **the panes started spending a gutter of their own**, which
+/// took it from 1132 to 1212.
+///
+/// That second move cost something and it is worth stating: a window between
+/// 1132 and 1211 logical pixels used to get the desk and now gets the phone
+/// column. No standard laptop viewport lives in that 79dp band — 1280 and
+/// 1366 are both above it — and the alternative was panes whose rows are cut
+/// at both edges, which is the defect this branch exists to remove. See
+/// [paneGutter].
 ///
 /// One consequence is worth reading off: `TiqSpace.gutterFor` switches to
-/// `gutterWide` at 1080dp, and 1132 > 1080, so **the desk cannot exist at a
+/// `gutterWide` at 1080dp, and 1212 > 1080, so **the desk cannot exist at a
 /// width where the shell is still spending its phone gutter.** The derivation
 /// is self-consistent rather than approximately so.
 ///
@@ -67,7 +80,7 @@ import 'state.dart';
 /// `EntryFrame.pageMinHeight` is 900 and its argument is explicit: *a phone in
 /// landscape is wide and is still a phone* — 852×393 clears a 520dp width test
 /// and must not get the page shape. **That argument does not transfer, because
-/// 1132 is not 520.** No phone in any orientation reaches 1132 logical pixels,
+/// 1212 is not 520.** No phone in any orientation reaches 1212 logical pixels,
 /// so the width test alone already excludes every device the 900 was written
 /// to exclude.
 ///
@@ -80,7 +93,7 @@ import 'state.dart';
 /// So [deskMinHeight] is derived from what the panes need rather than from
 /// what a phone is: the shell's top inset, the header, the gap under it, the
 /// **three rows that are the smallest thing which reads as a list**, and the
-/// ask bar at the foot of the detail pane with its gaps. 348dp. At 1120dp of
+/// ask bar at the foot of the detail pane with its gaps. 348dp. At 1212dp of
 /// width that test discriminates nothing a device produces — it is the floor
 /// below which the list pane stops being a list, and it is written down so the
 /// next reader does not have to rediscover that the width is doing all the
@@ -171,14 +184,63 @@ class ConsoleDesk {
   /// The narrowest viewport the product keeps goldens for. See [listMinWidth].
   static const double _narrowestPhone = 360;
 
+  /// ── A PANE IS A PHONE COLUMN, AND IT SPENDS A PHONE'S GUTTER ─────────
+  ///
+  /// The first desk gave its panes no horizontal padding at all, on the
+  /// argument that the desk had already spent one gutter outside the rail and
+  /// "a gutter inside each pane as well would be three columns of air in a
+  /// row". The argument was about air and the consequence was about **ink**:
+  /// a `SoftRow` list opts out of its frame's gutter through [TorchBleed], and
+  /// with no gutter to opt out of, every row in every pane was laid out 40dp
+  /// wider than the viewport that clips it. Measured at 1440×900 on Orders,
+  /// before: viewport `x = 462 → 1246`, row `x = 422 → 1286`. The right-hand
+  /// figure is cut the moment the list is long enough to scroll.
+  ///
+  /// So a pane pads itself, and the amount is not a new judgement either —
+  /// it is [TiqSpace.gutter], the phone's own 20, for the same reason
+  /// [listMinWidth] is 320: **the list pane at its minimum is exactly a 360dp
+  /// phone**, 320 of content between two 20dp gutters. Every row in the
+  /// product has been approved at that width.
+  ///
+  /// It is deliberately *not* `gutterWide`. 40 would put [deskMinWidth] at
+  /// 1292 and take the desk away from a 1280dp laptop, which is the viewport
+  /// [deskMinHeight]'s own note says this layout exists to serve.
+  /// `TiqSpace.s5`, which is what both shipping skins set `space.gutter` to.
+  /// It is written as the scale step rather than read off a skin because it
+  /// has to be a compile-time constant for [deskMinWidth]; `console_desk_test`
+  /// asserts the two agree in both skins, so a skin that moved its phone
+  /// gutter fails there rather than drawing a pane the bleed overshoots.
+  static const double paneGutter = TiqSpace.s5;
+
+  /// The detail pane's width, and it does not grow.
+  ///
+  /// THE MEASURE plus the pane's own two gutters. It is a fixed width rather
+  /// than a share, which is the change that fills the window: the list pane is
+  /// [Expanded] against whatever is left, so at 1920 the slack goes into the
+  /// records instead of into dead ground beside them.
+  ///
+  /// The old layout split the remainder 8 : 11 and then capped the record
+  /// *inside* the detail pane at [TiqSpace.readingWidth] and centred it, which
+  /// produced the second defect the owner named: at 1440 the pane was 618 and
+  /// the column inside it 440, so the ask bar at the pane's foot was 618 wide
+  /// with a left edge 89dp off the column it belongs to. A pane that is the
+  /// column's width cannot disagree with it.
+  static double detailWidth(TiqSkin skin) =>
+      TiqSpace.readingWidth + 2 * paneGutter;
+
   /// The narrowest viewport that holds the three panes with the wide gutter on
-  /// both sides. See the class comment's table.
+  /// both sides and a phone's gutter inside each pane. See the class comment's
+  /// table.
+  ///
+  /// At exactly this width the arithmetic closes on itself: the detail pane is
+  /// exactly [detailWidth] and the list pane is exactly
+  /// `listMinWidth + 2 × paneGutter` — a 360dp phone — with nothing left over.
   static double deskMinWidth(TiqSkin skin) =>
       2 * skin.space.gutterWide +
       railWidth +
       2 * skin.space.blockGap +
-      listMinWidth +
-      TiqSpace.readingWidth;
+      (listMinWidth + 2 * paneGutter) +
+      detailWidth(skin);
 
   /// The shortest viewport in which the list pane is still a list. See the
   /// class comment for why this is derived rather than quoted from
@@ -199,17 +261,12 @@ class ConsoleDesk {
   static bool isDesk(TiqSkin skin, Size size) =>
       size.width >= deskMinWidth(skin) && size.height >= deskMinHeight(skin);
 
-  /// The share of the space left over after the rail that the **list** takes.
-  ///
-  /// The two panes split the remainder in the ratio of their own minimums —
-  /// 320 : 440, which reduces to 8 : 11 — so the proportion the derivation
-  /// produces at 1120dp is the proportion the layout keeps at 1440dp. There is
-  /// no second ratio to pick and nothing to tune.
-  static const int listFlex = 8;
-
-  /// See [listFlex]. 11 because [TiqSpace.readingWidth] is 440 and
-  /// 440 / 40 = 11, as 320 / 40 = 8.
-  static const int detailFlex = 11;
+  // THE 8 : 11 SPLIT IS GONE. `listFlex` and `detailFlex` divided the space
+  // after the rail in the ratio of the two panes' minimums, which is a
+  // proportion rather than a width: at 1920 it handed the detail pane 824dp
+  // to draw a 440dp column in and left the difference as ground. The list pane
+  // is now `Expanded` against a fixed [detailWidth], so the slack goes into
+  // the records. See [detailWidth].
 }
 
 /// ── WHAT A ROUTE HANDS THE FRAME TO BECOME THREE PANES ─────────────────
@@ -327,6 +384,16 @@ class ConsoleDeskScope extends StatefulWidget {
 class ConsoleDeskSelection {
   const ConsoleDeskSelection({required this.id, required this.select});
 
+  /// A route with no records to select — The Floor, Ask, a scorecard. It is a
+  /// const rather than a nullable field on [ConsoleDeskBody] so the pane code
+  /// has one shape rather than two.
+  static const ConsoleDeskSelection none = ConsoleDeskSelection(
+    id: null,
+    select: _nothingToSelect,
+  );
+
+  static void _nothingToSelect(String _) {}
+
   /// Null until a record is chosen, and null again when the one that was
   /// chosen leaves the list. See [_ConsoleDeskScopeState.resolve].
   final String? id;
@@ -411,7 +478,7 @@ class ConsoleDeskBody extends StatelessWidget {
     required this.askBar,
     required this.children,
     required this.records,
-    required this.selection,
+    this.selection = ConsoleDeskSelection.none,
     required this.scrollController,
   });
 
@@ -429,19 +496,30 @@ class ConsoleDeskBody extends StatelessWidget {
   /// Null on a route that is not a list of records.
   final ConsoleDeskRecords? records;
 
+  /// [ConsoleDeskSelection.none] on a route with no records.
   final ConsoleDeskSelection selection;
 
   final ScrollController? scrollController;
 
-  /// The widest a one-column route's column gets.
+  /// ── A ONE-COLUMN ROUTE FILLS THE WINDOW ──────────────────────────────
   ///
-  /// Derived, and from the same three numbers the threshold is: it is exactly
-  /// the space the **list and detail panes together** occupy at
-  /// [ConsoleDesk.deskMinWidth]. So a scorecard gets the same content width a
-  /// worklist does, and there is no fourth number to argue about.
-  static double columnMaxWidth(TiqSkin skin) =>
-      ConsoleDesk.listMinWidth + skin.space.blockGap + TiqSpace.readingWidth;
-
+  /// There used to be a cap here — `listMinWidth + blockGap + readingWidth`,
+  /// 784 — and the column was centred under it. Measured on Orders, that is
+  /// where the owner's second complaint came from:
+  ///
+  /// | at 2000×1100, before | |
+  /// |---|---|
+  /// | the content column | x = 742 → 1526 |
+  /// | the ask bar beneath it | x = 308 → 1960 |
+  /// | ground to the right of the content | **474dp** |
+  ///
+  /// Two widths, two left edges, and a quarter of the window empty. A pane is
+  /// not a page of prose: it is the frame the screen's own blocks lay
+  /// themselves out in, exactly as the phone's viewport is, and the phone does
+  /// not cap it either. What stays capped is the one thing the cap was written
+  /// for — the detail pane, which really is one column of prose, and which is
+  /// capped by **being** [ConsoleDesk.detailWidth] rather than by centring
+  /// something narrower inside itself.
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -468,7 +546,7 @@ class ConsoleDeskBody extends StatelessWidget {
           ),
           SizedBox(width: skin.space.blockGap),
           if (list == null)
-            // ── RAIL + ONE CENTRED COLUMN ────────────────────────────────
+            // ── RAIL + ONE COLUMN, AND THE COLUMN FILLS ──────────────────
             //
             // A scorecard, a settings form, a chart dashboard or a chat. It
             // gets the rail and nothing else new: no empty third pane, which
@@ -477,14 +555,12 @@ class ConsoleDeskBody extends StatelessWidget {
               child: _Pane(
                 key: const ValueKey<String>('console-column'),
                 foot: askBar,
-                maxWidth: columnMaxWidth(skin),
                 scrollController: scrollController,
                 children: <Widget>[...?_headerBlock(skin), ...children],
               ),
             )
           else ...<Widget>[
             Expanded(
-              flex: ConsoleDesk.listFlex,
               child: _Pane(
                 key: const ValueKey<String>('console-list'),
                 scrollController: scrollController,
@@ -510,8 +586,12 @@ class ConsoleDeskBody extends StatelessWidget {
               ),
             ),
             SizedBox(width: skin.space.blockGap),
-            Expanded(
-              flex: ConsoleDesk.detailFlex,
+            SizedBox(
+              // THE MEASURE, AS THE PANE'S OWN WIDTH. See
+              // [ConsoleDesk.detailWidth]: a pane that is exactly the column
+              // plus its gutters cannot disagree with the bar at its foot
+              // about where the column's left edge is.
+              width: ConsoleDesk.detailWidth(skin),
               child: _Detail(
                 key: const ValueKey<String>('console-detail'),
                 records: list,
@@ -536,46 +616,66 @@ class ConsoleDeskBody extends StatelessWidget {
 /// is, and for the reason written there: nothing is ever drawn underneath it,
 /// so its height is whatever its content measures at 2.0× rather than a token
 /// somebody has to keep in step with the type scale.
+///
+/// ## IT SPENDS A GUTTER, AND IT SAYS SO
+///
+/// [ConsoleDesk.paneGutter] on both sides of the scroll view, and the same on
+/// the foot — so a pane is the phone's own frame at a different width, and
+/// everything that opts out of a gutter on the phone opts out of exactly this
+/// one here. [TorchGutter] is how a [TorchBleed] inside it finds out; before
+/// it existed each caller computed the window's gutter and every row in every
+/// pane was laid out 40dp wider than the viewport that clips it.
+///
+/// ## THE FOOT IS INSIDE THE SAME PADDING AS THE BODY
+///
+/// > *"the bar runs x=296→1400 while the content column runs x=456→1240"* —
+/// > the owner's render, before.
+///
+/// The foot used to be a sibling of a **capped and centred** body, so the ask
+/// bar was the pane's full width and the content was not. Both now hang off
+/// one `EdgeInsets`, which is the only arrangement in which they cannot drift:
+/// there is no second number to keep in step, because there is no second
+/// number.
 class _Pane extends StatelessWidget {
   const _Pane({
     super.key,
     required this.children,
     this.foot,
-    this.maxWidth,
     this.scrollController,
   });
 
   final List<Widget> children;
   final Widget? foot;
-  final double? maxWidth;
   final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final cap = maxWidth;
-    Widget body = ListView(
-      controller: scrollController,
-      padding: EdgeInsets.only(bottom: foot == null ? 0 : skin.space.blockGap),
-      children: children,
-    );
-    if (cap != null) {
-      // One [Center] for both axes, the way `EntryFrame._ReadingColumn` does
-      // it: the column is centred on a pane it does not fill and left at its
-      // cap on one it overflows, with no branch to get wrong.
-      body = Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: cap),
-          child: body,
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Expanded(child: body),
-        ?foot,
-      ],
+    const gutter = ConsoleDesk.paneGutter;
+    return TorchGutter(
+      extent: gutter,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                0,
+                gutter,
+                foot == null ? 0 : skin.space.blockGap,
+              ),
+              children: children,
+            ),
+          ),
+          if (foot != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: gutter),
+              child: foot,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -791,44 +891,46 @@ class _Detail extends StatelessWidget {
       // component, same scope — the only thing that changed is where in the
       // pane they sit, and it is the whole difference between the two
       // renders.
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: TiqSpace.readingWidth,
-                ),
-                child: EmptyState(
-                  key: const ValueKey<String>('console-detail-at-rest'),
-                  scope: EmptyScope.inPanel,
-                  headline: records.isEmpty
-                      ? 'Nothing to read yet.'
-                      : 'No record chosen.',
-                  body: records.isEmpty
-                      ? 'When this list has something in it, the record you '
-                            'choose is read here.'
-                      : 'Choose a record from the list and it opens here, '
-                            'beside the list you chose it from.',
+      return TorchGutter(
+        extent: ConsoleDesk.paneGutter,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ConsoleDesk.paneGutter,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: Center(
+                  child: EmptyState(
+                    key: const ValueKey<String>('console-detail-at-rest'),
+                    scope: EmptyScope.inPanel,
+                    headline: records.isEmpty
+                        ? 'Nothing to read yet.'
+                        : 'No record chosen.',
+                    body: records.isEmpty
+                        ? 'When this list has something in it, the record you '
+                              'choose is read here.'
+                        : 'Choose a record from the list and it opens here, '
+                              'beside the list you chose it from.',
+                  ),
                 ),
               ),
-            ),
+              askBar,
+            ],
           ),
-          askBar,
-        ],
+        ),
       );
     }
 
     return _Pane(
       foot: askBar,
-      // THE MEASURE, inside the pane rather than as the pane. At 1440dp the
-      // detail pane is about 625dp and the record inside it is capped at
-      // `readingWidth` and centred, which is `EntryFrame`'s own grammar: a
-      // column of prose and the controls that belong to it does not get wider
-      // because the window did. The ask bar is outside the cap — it is chrome,
-      // and it is the width of the pane it belongs to.
-      maxWidth: TiqSpace.readingWidth,
+      // NO CAP INSIDE THE PANE, BECAUSE THE PANE *IS* THE CAP. The record used
+      // to be constrained to `readingWidth` and centred in a pane 180dp wider
+      // than that, which left the ask bar at the pane's width and the column
+      // at the measure — two widths, two left edges. The pane is now
+      // `readingWidth + 2 × paneGutter` and the column is what is inside its
+      // padding. See [ConsoleDesk.detailWidth].
       children: <Widget>[
         Builder(
           key: ValueKey<String>('console-detail-${chosen.id}'),
@@ -836,6 +938,80 @@ class _Detail extends StatelessWidget {
         ),
         SizedBox(height: skin.space.blockGap),
       ],
+    );
+  }
+}
+
+/// ── THE DESK FOR A ROUTE THAT CANNOT USE [ConsoleFrame] ────────────────
+///
+/// > *"Dont be choosy make the app desktop everywhere"* — the owner, 3
+/// > October 2026, having opened The Floor and Ask on a desktop and found the
+/// > phone column on both.
+///
+/// Two routes build their own shell and always will. **The Floor** has no app
+/// header — the plate is the header — and **Ask** is a transcript with a
+/// composer rather than a body with a bar. Neither can hand itself to
+/// [ConsoleFrame] without acquiring a title row it has an argument against.
+///
+/// What they *can* share is the branch, which is the part that was missing:
+/// `isDesk`, the shell in its desk slot, the two lights, and
+/// [ConsoleDeskBody] with no records. So this is that branch and nothing else
+/// — it owns no layout of its own, and [phone] is the tree the route built
+/// before this widget existed, called unchanged below the threshold.
+class ConsoleDeskBranch extends StatelessWidget {
+  const ConsoleDeskBranch({
+    super.key,
+    required this.bar,
+    required this.children,
+    required this.phone,
+    this.header,
+    this.scrollController,
+  });
+
+  /// The route's own bar, at the foot of the content column: The Floor's
+  /// suggestion chips and composer, Ask's composer. Not [ConsoleAskBar] —
+  /// these two routes answer their own questions.
+  final Widget bar;
+
+  /// The route's body, in the content column.
+  final List<Widget> children;
+
+  /// Null on The Floor, which has no app header and will not grow one. See
+  /// `FloorScaffold`.
+  final Widget? header;
+
+  final ScrollController? scrollController;
+
+  /// Everything below [ConsoleDesk.deskMinWidth], unchanged.
+  final WidgetBuilder phone;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // An unbounded height is not a tall viewport, it is no viewport —
+        // `ConsoleFrame`'s own guard, for its own reason.
+        final desk =
+            constraints.hasBoundedHeight &&
+            ConsoleDesk.isDesk(
+              skin,
+              Size(constraints.maxWidth, constraints.maxHeight),
+            );
+        if (!desk) return phone(context);
+        return TorchShell(
+          profile: TorchShellProfile.console,
+          backdrop: consoleDeskWash(skin),
+          desk: ConsoleDeskBody(
+            header: header,
+            askBar: bar,
+            records: null,
+            scrollController: scrollController,
+            children: children,
+          ),
+          children: const <Widget>[],
+        );
+      },
     );
   }
 }

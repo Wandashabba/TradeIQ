@@ -128,7 +128,6 @@ class ContestStandingsScreen extends ConsumerWidget {
   Widget _loaded(BuildContext context, ContestStandings s) {
     final c = s.contest;
     final rows = s.standings;
-    final gutter = context.skin.space.gutter;
     final statusWord = contestStatusWord(c.status);
 
     return _frame(
@@ -185,7 +184,6 @@ class ContestStandingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: TiqSpace.s4),
           TorchBleed(
-            extra: gutter * 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
