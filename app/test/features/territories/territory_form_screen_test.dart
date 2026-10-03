@@ -75,28 +75,61 @@ Future<void> _fill(
 
 void main() {
   group('the gate', () {
-    testWidgets('the commit is blocked, with the reason above it', (
+    // THESE TWO MOVED WITH THE BEHAVIOUR, THEY WERE NOT DELETED.
+    //
+    // The rule they protect is unchanged — this form never refuses without
+    // saying what it wants — and only the *moment* it says it has moved, from
+    // before the reader has typed to the press that asks for it. That is the
+    // house pattern #515 landed on `/login` and `/account/password`, and the
+    // reason is argued there: a dead button that has already told you off is
+    // worse than one that answers when you press it.
+    //
+    // The first assertion was `onPressed, isNull` plus an always-visible
+    // reason; it is now a live button, silent on arrival, naming the same two
+    // fields in the same words once pressed.
+    testWidgets('the commit is live, and says nothing until pressed', (
       tester,
     ) async {
       await _pump(tester);
 
-      final button = tester.widget<TorchPrimaryButton>(
+      final before = tester.widget<TorchPrimaryButton>(
         find.byKey(const ValueKey<String>('territory-save-button')),
       );
-      expect(button.onPressed, isNull);
-      expect(button.blockedReason, 'A name and a code are both required.');
-      // Disabled rather than hidden, so the reason is visible.
+      expect(before.onPressed, isNotNull);
+      expect(before.blockedReason, isNull);
+      expect(find.text('A name and a code are both required.'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('territory-save-button')),
+      );
+      await tester.pumpAndSettle();
+
+      final after = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('territory-save-button')),
+      );
+      // Still pressable — the reason is an answer, not a refusal.
+      expect(after.onPressed, isNotNull);
+      expect(after.blockedReason, 'A name and a code are both required.');
       expect(find.text('A name and a code are both required.'), findsOneWidget);
     });
 
-    testWidgets('a name alone is not enough', (tester) async {
+    testWidgets('a name alone is not enough, and the press says so', (
+      tester,
+    ) async {
       await _pump(tester);
       await _fill(tester, code: '');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('territory-save-button')),
+      );
+      await tester.pumpAndSettle();
 
       final button = tester.widget<TorchPrimaryButton>(
         find.byKey(const ValueKey<String>('territory-save-button')),
       );
-      expect(button.onPressed, isNull);
+      expect(button.blockedReason, 'A name and a code are both required.');
+      // And nothing was sent on that press.
+      expect(find.text('Gauteng North created.'), findsNothing);
     });
 
     testWidgets('both fields unlock it', (tester) async {
@@ -183,7 +216,21 @@ void main() {
 
   group('the amber census, per phase × skin', () {
     for (final skin in torchSkins) {
-      testWidgets('${skin.mode.name} · blocked', (tester) async {
+      // WAS `· blocked`, EXPECTING 0, AND THE 0 WAS THE GHOST'S SIGNATURE.
+      //
+      // The old comment read "a disabled primary is not a lit one: nothing is
+      // armed yet", which was a true reading of a screen that arrived with a
+      // dead button. The button is live from the first frame now, so an
+      // untouched form spends **one** object in both skins — measured at
+      // `320x56` at `20,644`, which is the commit block itself.
+      //
+      // This is the grant #515 spent on `/forgot-password` and
+      // `/account/password`, spent again here: Night allows two and uses one,
+      // **Day allows one and this is now it.** Anything this screen later
+      // wants lit has to take it from this button.
+      testWidgets('${skin.mode.name} · untouched spends exactly one', (
+        tester,
+      ) async {
         await _pump(tester, skin: skin);
 
         final census = await amberCensus(tester);
@@ -191,10 +238,9 @@ void main() {
           census,
           skin,
           route: 'territory form',
-          phase: 'blocked',
+          phase: 'untouched',
         );
-        // A disabled primary is not a lit one: nothing is armed yet.
-        expect(census.objectCount, 0, reason: census.describe());
+        expect(census.objectCount, 1, reason: census.describe());
       });
 
       testWidgets('${skin.mode.name} · armed spends exactly one', (
@@ -233,11 +279,22 @@ void main() {
 
       expect(find.text('Nuwe gebied'), findsWidgets);
       expect(find.text('Skep gebied'), findsOneWidget);
+      expect(find.text('Create territory'), findsNothing);
+
+      // The Afrikaans reason is still asserted, and still at 2.0× on a 320dp
+      // phone — it is simply earned by a press now, like the English one.
+      // That is the point of keeping this assertion rather than dropping it:
+      // the longest blocked reason in either language is the one most likely
+      // to overflow the bar note, so it has to be on screen to be measured.
+      await tester.tap(
+        find.byKey(const ValueKey<String>('territory-save-button')),
+      );
+      await tester.pumpAndSettle();
+
       expect(
         find.text('’n Naam en ’n kode is albei verpligtend.'),
         findsOneWidget,
       );
-      expect(find.text('Create territory'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

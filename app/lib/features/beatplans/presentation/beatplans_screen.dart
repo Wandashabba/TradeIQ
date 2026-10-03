@@ -417,7 +417,10 @@ class _DetailFrame extends StatelessWidget {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
+        // NO THUMB ZONE. The comment above already says nothing here is a
+        // commit; the theme control was the bar's only other occupant and it
+        // lives in the menu sheet's "This app" section now, so the bar has
+        // nothing to hold.
         children: children,
       ),
     );
