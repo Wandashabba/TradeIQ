@@ -164,17 +164,65 @@ import 'entry_brand.dart';
 /// the complaint #495 exists to have fixed. What changes between the two is
 /// the crop's aspect, 358×250 against 480×250, and `BoxFit.cover` is what that
 /// is for.
+/// ## 5. FOUR SCREENS NOW, AND THE RESERVE IS THE ONE THING THAT DIFFERS
+///
+/// `/forgot-password`, `/account/password` and `/update-required` wear this
+/// plate as well, through [AccountFrame] — the owner, 3 October 2026: *"Lets
+/// fix the change password page, it's outdated from the app"*. The redesign
+/// of #494 landed on the door and on nothing else, so the three screens
+/// behind it kept a 96dp `TorchAppHeader`, a `titleM` heading and a disabled
+/// commit, and stood next to a sign-in screen they no longer resembled.
+///
+/// Everything above is unchanged by that and none of it is per-screen except
+/// §3: what has to be on screen *beside* the plate is a fact about the form
+/// under it, and the account screens' form is not sign-in's. So the reserve
+/// moved out of three constants into [EntryPlateReserve], of which
+/// [EntryPlateReserve.door] is the numbers argued for in §3 and
+/// [EntryPlateReserve.account] is the account frame's own, measured by
+/// `account_plate_test.dart` in the same way and for the same reason.
+///
+/// **The account screens have MORE room than the door, not less**, which is
+/// the opposite of what counting fields would suggest. Change password has
+/// three fields and reset password has four, against sign-in's two — but the
+/// fields below the first one are reached by the scroll the screen already
+/// has, and §3 is the long version of why that is the whole answer. What the
+/// account screens do not carry is sign-in's "Forgot password?" under the
+/// commit, so their pinned thumb zone is 102dp where the door's is 142.
 class EntryPlate extends StatelessWidget {
   const EntryPlate({
     super.key,
     required this.headline,
-    required this.supporting,
-    this.skinCycle,
+    this.supporting,
+    this.leading,
+    this.reserve = EntryPlateReserve.door,
   });
 
-  /// The skin cycle, in the plate's top-right. See the note where it is
-  /// placed: it lives here so the commit row below can be edge to edge.
-  final Widget? skinCycle;
+  /// THE TOP SLOT'S ONE OCCUPANT — the way out, where there is one.
+  ///
+  /// The account screens' back arrow, and nothing else today. It is here
+  /// rather than in a `TorchAppHeader` above the plate because that header is
+  /// 96dp before it prints a word ([TorchAppHeader.minHeightFor]) and it
+  /// printed the same sentence the plate's headline now prints — the
+  /// duplication `login_screen.dart` deleted on the door, one component up.
+  /// The plate already reserves a band for a small control and already
+  /// scrims it, so the arrow costs the fold nothing.
+  ///
+  /// **It REPLACES the wordmark rather than standing beside it**, and that is
+  /// a measurement before it is a taste. Beside it, at 360dp wide and 2.0×,
+  /// the arrow takes 56 of the 320dp inner width and the mark wraps to two
+  /// lines: the slot becomes 94dp, and `PlateSpec.topSlotInset` plus 94 runs
+  /// 15dp past `PlateSpec.stripLightY` on a 250dp plate. `plate_spec.dart`
+  /// records what a control painted across the light costs — the census reads
+  /// one cut light as two objects. One occupant is 48dp, 56 from 1.3× up, and
+  /// clears it at every size and scale with 23dp to spare.
+  ///
+  /// It is also the better reading of the slot. **The mark says which product
+  /// before anyone has typed a character**, which is a thing the door needs to
+  /// say and these three do not: `/account/password` is behind a session,
+  /// and `/forgot-password` and `/update-required` are both one step from a
+  /// sign-in screen that has just said it. So the slot carries one thing —
+  /// the mark on the door, the way out on a screen that has one.
+  final Widget? leading;
 
   /// `loginHeadline`. Printed by a [TorchDisplayHeadline], which is the same
   /// widget the masthead used and the reason the header landmark a screen
@@ -182,7 +230,23 @@ class EntryPlate extends StatelessWidget {
   final String headline;
 
   /// `loginSubtitle`. One line of `body` in `ink2` under the headline.
-  final String supporting;
+  ///
+  /// **Null on the three account screens, and that is a decision.** None of
+  /// them has a second sentence that is true in one line: reset password's
+  /// `forgotIntro` is three sentences about a code a manager reads out and
+  /// stays on the ground under the plate where it has room to wrap, and
+  /// change password has no such sentence at all. Inventing one for the
+  /// picture is the §1 mistake with a different subject.
+  ///
+  /// It also happens to be the direction the recorded [tallest] defect wants:
+  /// the cluster this slot is part of is what the text zone has to hold, so a
+  /// headline on its own needs much less of the plate than a headline and a
+  /// sentence. `account_plate_test.dart` prints both numbers.
+  final String? supporting;
+
+  /// What has to stay on screen beside this plate, and how it grows with the
+  /// text scale. The door's by default; see §5.
+  final EntryPlateReserve reserve;
 
   /// The bundled picture. See the note beside it in `pubspec.yaml` for why
   /// this one and why bundled.
@@ -439,9 +503,9 @@ class EntryPlate extends StatelessWidget {
         return TiqPlate(
           claimId: claimId,
           viewportHeight: MediaQuery.sizeOf(context).height,
-          ground: groundFor(scale),
+          ground: reserve.at(scale),
           tallest: tallest,
-          shortest: shortest,
+          shortest: reserve.shortest,
           image: const AssetImage(asset),
           // THE TOP OF THE PICTURE CARRIES TYPE HERE, SO IT GETS A SCRIM.
           //
@@ -473,36 +537,27 @@ class EntryPlate extends StatelessWidget {
           // THE WORDMARK, SMALL, AT THE TOP OF THE PICTURE. The same 24dp
           // compact mark the masthead carried, at the same address on the
           // plate The Floor puts its scope chip.
-          // THE MARK LEFT, THE SKIN CYCLE RIGHT — 30 September 2026.
+          // THE WAY OUT LEFT, THE MARK BESIDE IT — 3 October 2026.
           //
-          // The cycle used to sit in the commit row, beside the button, which
-          // is why the button was not full width. The approved mockup's commit
-          // is edge to edge and carries nothing else: *"look at the Sign in
-          // and forgot password on this image and do exactly that"*.
-          //
-          // It moves rather than goes. "Never a screen without the cycle" is a
-          // standing rule and a person who cannot read this ground has to be
-          // able to change it before they can sign in — so it takes the corner
-          // opposite the wordmark, on the band the plate already reserves for
-          // exactly this kind of small control.
+          // This slot carried the skin cycle in the corner opposite the mark
+          // from 30 September, on the standing rule that no screen may be
+          // without the cycle. **The owner struck the control the next day**
+          // — *"That change of theme on the sign in we can remove it. Let's
+          // only make the change of theme only on settings."* — and it came
+          // off the door then and off the three account screens on 3 October.
+          // The slot is not empty, because the account screens have the thing
+          // the door does not: somewhere to go back to. See [leading].
           //
           // `Flexible`, not a `Spacer` between two fixed children: at 2.0x the
           // wordmark is twice the width it is at 1.0 and this Row overflowed
-          // by 124 logical pixels the first time it was written. The cycle is
-          // a fixed 44dp target and may not shrink; the mark is type and can.
-          topSlot: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Flexible(
-                child: Semantics(
-                  container: true,
-                  child: const EntryBrand(monogram: 24, compact: true),
-                ),
+          // by 124 logical pixels the first time it was written. The arrow is
+          // a fixed tap target and may not shrink; the mark is type and can.
+          topSlot:
+              leading ??
+              Semantics(
+                container: true,
+                child: const EntryBrand(monogram: 24, compact: true),
               ),
-              const SizedBox(width: TiqSpace.s3),
-              ?skinCycle,
-            ],
-          ),
           hero: SizedBox(
             width: text < 0 ? 0 : text,
             child: Column(
@@ -533,14 +588,16 @@ class EntryPlate extends StatelessWidget {
                   container: true,
                   child: TorchDisplayHeadline(headline),
                 ),
-                SizedBox(height: skin.space.intraBlock),
-                Semantics(
-                  container: true,
-                  child: Text(
-                    supporting,
-                    style: skin.text.body.style(color: skin.palette.ink2),
+                if (supporting != null) ...<Widget>[
+                  SizedBox(height: skin.space.intraBlock),
+                  Semantics(
+                    container: true,
+                    child: Text(
+                      supporting!,
+                      style: skin.text.body.style(color: skin.palette.ink2),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -548,4 +605,124 @@ class EntryPlate extends StatelessWidget {
       },
     );
   }
+}
+
+/// WHAT A SCREEN KEEPS ON SCREEN BESIDE ITS PLATE, AND THE FLOOR UNDER IT.
+///
+/// `PlateSpec.heightFor` is `min(clamp(0.40 × vh, 200, tallest), vh − ground)`
+/// and `ground` is the only term in it that is a fact about the form rather
+/// than about the picture. [EntryPlate] §3 is the long argument for what
+/// belongs in it — *not* the form's height, because the screen scrolls, and
+/// *not* the commit row twice, because the commit row is pinned outside the
+/// scroll. What belongs in it is the top inset, the gap and the whole first
+/// field, and the pinned thumb zone.
+///
+/// It was three constants on [EntryPlate] while the door was the only screen
+/// with a plate. Three screens joined it on 3 October 2026 with a different
+/// thing under the picture, and three constants is how a second plate gets
+/// written instead of this one being used — which is word for word the reason
+/// `PlateSpec` gave for taking `ground` and `tallest` off The Floor in the
+/// first place.
+@immutable
+class EntryPlateReserve {
+  const EntryPlateReserve({
+    required this.ground,
+    required this.prose,
+    required this.shortest,
+  });
+
+  /// The reserve at 1.0×, in dp. Measured, never guessed: the test that owns
+  /// each of these fails with the number to put here.
+  final double ground;
+
+  /// How much [ground] grows per unit of text scale. Linear, because the
+  /// pieces that grow are type and the pieces that do not are tokens.
+  final double prose;
+
+  /// The shortest photographic plate the screen accepts; under it the plate
+  /// collapses to the 96dp band.
+  final double shortest;
+
+  /// The reserve at a given text scale.
+  double at(double textScale) => ground + (textScale - 1) * prose;
+
+  /// `/login`. The three numbers §3 argues for, and nothing has moved.
+  static const EntryPlateReserve door = EntryPlateReserve(
+    ground: EntryPlate.ground,
+    prose: EntryPlate.groundProse,
+    shortest: EntryPlate.shortest,
+  );
+
+  /// ## THE THREE ACCOUNT SCREENS, EACH WITH ITS OWN, EACH MEASURED
+  ///
+  /// `account_plate_test.dart` renders all three at 390 **and 360** wide and
+  /// prints the reserve it measured off the frame, at the four scales the app
+  /// allows. Every cell below is the worse of the two widths — a paragraph
+  /// takes more lines in a narrower column, and update required's reserve is
+  /// 40dp larger at 360 than at 390 at 2.0× for exactly that reason. The test
+  /// fails with the numbers to put here:
+  ///
+  /// | screen | 1.0× | 1.3× | 1.6× | 2.0× | `ground` | `prose` |
+  /// |---|---|---|---|---|---|---|
+  /// | change password | 215 | 226 | 237 | 255 | **216** | **40** |
+  /// | update required | 197 | 241 | 265 | 381 | **200** | **185** |
+  /// | reset password | 299 | 328 | 389 | 479 | **304** | **180** |
+  ///
+  /// **One reserve for the three was tried first and it is wrong.** Taking
+  /// reset password's for all of them over-reserves change password by 84dp
+  /// at 1.0× and by 228 at 2.0×, which costs that screen its photograph on a
+  /// 360×640 handset at a scale where it provably has the room. The three
+  /// differ for one reason worth stating: **change password puts the plate
+  /// straight onto its first field, and the other two put a paragraph in
+  /// between** — `forgotIntro` and `updateBody` — and a paragraph does not
+  /// grow with the type so much as gain whole lines (60 → 78 → 128 → 200 for
+  /// the first of those). That is also why their `prose` is three and four
+  /// times change password's and why none of these surfaces is the straight
+  /// line the door's is: each one's binding segment is the top of its range,
+  /// not the bottom.
+  ///
+  /// Change password's 215 is **45dp under the door's 260**, which counting
+  /// fields would not predict — it has three where sign-in has two. The
+  /// fields below the first are reached by the scroll the screen already has,
+  /// which is §3's whole argument; what the door carries and these do not is
+  /// "Forgot password?" under the commit, so their pinned thumb zone is 97dp
+  /// where the door's is 142.
+  ///
+  /// ## `shortest` IS 190 HERE, AND IT IS A CLEARANCE
+  ///
+  /// [EntryPlate.shortest] is 150 and says a photograph under 150dp with type
+  /// over it is a smear. True here too, and not the binding number: these
+  /// plates carry a **control**, and `PlateSpec.topSlotInset` (16) plus a tap
+  /// target that reaches 56dp from 1.3× up has to clear
+  /// `PlateSpec.stripLightY`, which is `0.38 × h`. `(16 + 56) / 0.38` is
+  /// 189.5.
+  ///
+  /// It bites in **exactly one cell of the supported matrix** — reset
+  /// password at 360×640 and 2.0×, where the reserve is 484 and the plate
+  /// would otherwise be 156dp with a 72dp control standing 13dp into its own
+  /// light. The band takes that cell instead, and the band has no light to
+  /// cut and grows past its 96dp minimum rather than clipping. Every other
+  /// screen, size and scale resolves at or above 228dp of photographic plate,
+  /// so this constant is not load-bearing anywhere a person actually is —
+  /// which is the property [EntryPlate.shortest]'s own note says to aim for
+  /// after three rounds of moving it.
+  static const EntryPlateReserve changePassword = EntryPlateReserve(
+    ground: 216,
+    prose: 40,
+    shortest: 190,
+  );
+
+  /// `/update-required`. See the table on [changePassword].
+  static const EntryPlateReserve updateRequired = EntryPlateReserve(
+    ground: 200,
+    prose: 185,
+    shortest: 190,
+  );
+
+  /// `/forgot-password`. See the table on [changePassword].
+  static const EntryPlateReserve resetPassword = EntryPlateReserve(
+    ground: 304,
+    prose: 180,
+    shortest: 190,
+  );
 }

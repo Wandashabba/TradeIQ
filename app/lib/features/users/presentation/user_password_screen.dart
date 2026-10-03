@@ -9,7 +9,6 @@ import '../../../core/auth/password_rule.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -251,9 +250,15 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
       title: 'Reset password',
       back: AccountFrame.backTo('Back to the field force', _leave),
       primaryArmed: !_issuing,
-      // Wrapped in TorchlightRoute above, so the agent cycle is the one that
-      // moves this screen's own ground.
-      skinCycle: const AgentSkinCycle(),
+      // THE ONE SCREEN ON THIS FRAME THAT KEEPS THE HEADER.
+      //
+      // A manager resetting somebody else's password is inside the console,
+      // and the three auth screens' plate is a photograph of a trade route at
+      // first light under the product's own wordmark. That belongs on the
+      // door and on the screens behind it; it does not belong here. The skin
+      // cycle went with the frame's slot on 3 October 2026 and this screen is
+      // one tap from the console's own cycle.
+      onThePlate: false,
       primary: primary,
       children: <Widget>[
         AccountHeadline(who),
