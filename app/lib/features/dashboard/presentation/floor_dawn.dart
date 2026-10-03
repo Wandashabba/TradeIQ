@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../core/design/ambient_wash.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 
 /// ── DAWN — THE PLATE'S OWN SKY, CONTINUED DOWN THE SCREEN ──────────────
@@ -213,7 +214,23 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 /// *under* every object on the screen and the only thing beneath it is
 /// `ground`/`vignette`. The counts per phase per skin are in
 /// `floor_dawn_test.dart`, printed rather than asserted blind.
-List<Decoration> floorDawnWash(TiqSkin skin) {
+///
+/// ## It takes a centre now — 3 October 2026
+///
+/// [clayCentre] and [hotCentre] default to The Floor's own, so this screen is
+/// unchanged in every pixel. They exist because **the console desk's warm
+/// light is this wash, relocated**: the brief asked for *"the app's own warm
+/// Dawn, low and right, under the detail pane"*, and the honest way to give it
+/// that is one function with a parameter rather than a second file with the
+/// same three stops in it. The alphas, the stops, the ellipse radii, the Night
+/// hot-breath layer and every number argued for above travel with it, which is
+/// also what makes the console's warm wash already proven rather than newly
+/// claimed.
+List<Decoration> floorDawnWash(
+  TiqSkin skin, {
+  Alignment clayCentre = _clayCentre,
+  Alignment hotCentre = _hotCentre,
+}) {
   // A WASH IS A GRADIENT AND A SKIN MAY REFUSE GRADIENTS. The honest flat
   // fallback for a wash is **no wash**: a bottom-rising falloff has no
   // single-colour form, and the shell's own ground is already the right
@@ -234,18 +251,18 @@ List<Decoration> floorDawnWash(TiqSkin skin) {
   final (double peak, double tail) = skin.amberIsInk
       ? _dayAlphas
       : _nightAlphas;
-  final BoxDecoration clayLayer = BoxDecoration(
-    gradient: RadialGradient(
-      center: _clayCentre,
-      radius: 1,
-      transform: const _Ellipse(_clayCentre, width: 1.30, height: 0.48),
-      colors: <Color>[
-        clay.withValues(alpha: peak),
-        clay.withValues(alpha: tail),
-        clay.withValues(alpha: 0),
-      ],
-      stops: const <double>[0, 0.44, 0.76],
-    ),
+  //
+  // THE GEOMETRY MOVED TO `core/design/ambient_wash.dart` ON 3 OCTOBER 2026,
+  // unchanged, so the console desk's two washes use the shape this file
+  // proved rather than a second copy of it. Not one Dawn pixel moves: the
+  // goldens in `goldens/` and this file's own gradient-shape assertions both
+  // still hold.
+  final BoxDecoration clayLayer = ambientWash(
+    colour: clay,
+    centre: clayCentre,
+    radii: (width: 1.30, height: 0.48),
+    stops: const <double>[0, 0.44, 0.76],
+    alphas: <double>[peak, tail, 0],
   );
 
   // AMBER IS INK HERE, SO THERE IS NO LIGHT TO EMIT — and therefore no hot
@@ -266,14 +283,12 @@ List<Decoration> floorDawnWash(TiqSkin skin) {
     //    `flame900` is the white-hot core of a glow gradient everywhere else
     //    in the system; at 9% over a navy-black ground it is the hint of
     //    something behind the clay rather than a light of its own.
-    BoxDecoration(
-      gradient: RadialGradient(
-        center: _hotCentre,
-        radius: 1,
-        transform: const _Ellipse(_hotCentre, width: 0.90, height: 0.30),
-        colors: <Color>[hot.withValues(alpha: 0.09), hot.withValues(alpha: 0)],
-        stops: const <double>[0, 0.70],
-      ),
+    ambientWash(
+      colour: hot,
+      centre: hotCentre,
+      radii: (width: 0.90, height: 0.30),
+      stops: const <double>[0, 0.70],
+      alphas: const <double>[0.09, 0],
     ),
     // 2. THE CLAY, on top.
     clayLayer,
@@ -311,55 +326,3 @@ const Alignment _clayCentre = Alignment(0, 1.08);
 
 /// `at 50% 100%` — exactly the bottom edge.
 const Alignment _hotCentre = Alignment(0, 1);
-
-/// Flutter's [RadialGradient] is a circle: its `radius` is one number against
-/// the paint box's **shortest side**. CSS states an ellipse — a share of the
-/// width and a different share of the height — and `radial-gradient(130% 48%
-/// …)` is 507×405 on a 390×844 phone, which no single radius expresses.
-///
-/// So the gradient is declared at `radius: 1` (a circle the width of the
-/// shortest side) and this scales it about its own centre into the ellipse.
-/// The matrix rides on the shader Flutter was going to build anyway: it is a
-/// `localMatrix` on one `drawRect`, not a transform layer, and it costs
-/// nothing beyond the gradient. [GradientTransform] is handed the box and not
-/// the gradient, which is why the centre is repeated here.
-@immutable
-class _Ellipse extends GradientTransform {
-  const _Ellipse(this.centre, {required this.width, required this.height});
-
-  /// The same `center` the gradient was given. The scale is **about the
-  /// centre**; about the box's origin it would slide the dome sideways and
-  /// down, which on a 390×844 phone is a wash whose brightest point is off
-  /// the bottom-right corner.
-  final Alignment centre;
-
-  /// The ellipse's radii, as a share of the box's width and of its height.
-  final double width;
-  final double height;
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
-    final side = bounds.shortestSide;
-    if (side == 0) return null;
-    final origin = centre.withinRect(bounds);
-    return Matrix4.identity()
-      ..translateByDouble(origin.dx, origin.dy, 0, 1)
-      ..scaleByDouble(
-        width * bounds.width / side,
-        height * bounds.height / side,
-        1,
-        1,
-      )
-      ..translateByDouble(-origin.dx, -origin.dy, 0, 1);
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      other is _Ellipse &&
-      other.centre == centre &&
-      other.width == width &&
-      other.height == height;
-
-  @override
-  int get hashCode => Object.hash(centre, width, height);
-}

@@ -44,6 +44,7 @@ class TiqPalette {
     required this.onBadSolid,
     required this.comparison,
     required this.comparisonWash,
+    required this.ambientCool,
     required this.onAmber,
     required this.amberPressed,
     required this.onAmberPressed,
@@ -281,6 +282,42 @@ class TiqPalette {
   final Color comparison;
   final Color comparisonWash;
 
+  /// ── THE COOL AMBIENT LIGHT, and it is a different animal per skin ────
+  ///
+  /// The console desk's cool wash, high and left behind the rail — the
+  /// counterpart to Dawn, which is the warm one, low and right. Like
+  /// [comparison] it is **one token whose value inverts the design with the
+  /// skin**, and like [comparison] that inversion is forced by arithmetic
+  /// rather than chosen.
+  ///
+  /// **Night `#7196C4`** — a slate at hue 214°, which is *the ground's own
+  /// hue*: Night's ground is `#0B1017` at 212°, so the wash is the room's own
+  /// blue, brighter. The same move Dawn makes with the plate's sky. It
+  /// lightens a near-black ground, because on a near-black ground there is no
+  /// other way to be a light, and that costs outline contrast — the ceiling is
+  /// measured and stated in `console_wash.dart`.
+  ///
+  /// **Day `#D5E2F1`** — hue 212°, the same family, and chosen for one
+  /// property that makes the Day wash free: its relative luminance is
+  /// **0.748897** against [vignette]'s **0.748878**, a difference of 1.9 parts
+  /// in 100,000. Contrast is a function of luminance alone, and the console
+  /// ground is a falloff that already runs between `vignette` and `ground`, so
+  /// compositing it toward a colour at the vignette's own luminance cannot
+  /// take any pairing below the value it already has at the darkest row of
+  /// that falloff. Measured at alpha 0.26 over both bases: `edgeStructure`
+  /// **3.149:1** against **3.137:1** bare, `ink3` **4.756:1** against
+  /// **4.739:1** bare — not worse, by the 8-bit rounding.
+  ///
+  /// That asymmetry is the exact mirror of Dawn's. There, **Night** had the
+  /// easy escape from the amber census (hue 10.4°, value 0.325) and Day had to
+  /// be argued by a forbidden-alpha interval. Here **Day** has the easy escape
+  /// from the contrast floors and Night is the one with a ceiling.
+  ///
+  /// It is not in the amber census's reach in either skin: hue 212–215° is
+  /// 163° from the nearest edge of the 20–48° box, and an exhaustive walk of
+  /// both bases × 4,097 alpha steps finds zero pixels inside it.
+  final Color ambientCool;
+
   /// Sheet and dialog scrim.
   final Color scrim;
 
@@ -475,6 +512,7 @@ class TiqPalette {
     onBadSolid: Color(0xFF0B1017),
     comparison: Color(0xFFE08E71),
     comparisonWash: Color(0xFF7A3A28),
+    ambientCool: Color(0xFF7196C4),
     scrim: Color(0xB80B1017), // abyss-000 @ 72%
     // The picture may reach 40% of full value, and has no floor: on a
     // near-black ground the shadows of a photograph ARE the ground.
@@ -534,6 +572,8 @@ class TiqPalette {
     onBadSolid: Color(0xFFFFFFFF),
     comparison: Color(0xFFA35139),
     comparisonWash: Color(0xFFF7DCD2),
+    // Iso-luminant with `vignette` to five decimal places. See [ambientCool].
+    ambientCool: Color(0xFFD5E2F1),
     scrim: Color(0xB81B2632),
     // Paper: the picture sits in the top 30% of the range, never below 60%.
     // Dark ink on a light ground needs the photograph to be the pale half of
@@ -578,6 +618,7 @@ class TiqPalette {
       onBadSolid: c(onBadSolid, other.onBadSolid),
       comparison: c(comparison, other.comparison),
       comparisonWash: c(comparisonWash, other.comparisonWash),
+      ambientCool: c(ambientCool, other.ambientCool),
       scrim: c(scrim, other.scrim),
       plateCeiling: c(plateCeiling, other.plateCeiling),
       plateLift: plateLift + (other.plateLift - plateLift) * t,

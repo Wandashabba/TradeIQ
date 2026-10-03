@@ -5,6 +5,7 @@ import '../../theme/torchlight/tiq_skin.dart';
 import '../../../features/assistant/answer/ask_light.dart' show AskLight;
 import 'chrome/chrome.dart';
 import 'console_desk.dart';
+import 'console_wash.dart';
 import 'sheet.dart';
 
 /// THE CONSOLE'S FRAME, for every manager route that is not The Floor.
@@ -164,8 +165,7 @@ class ConsoleFrame extends StatelessWidget {
     );
     return <TorchClaim>[
       ...claims,
-      if (!hasOwnPrimary)
-        const TorchClaim.primaryCommit(AskLight.sendClaimId),
+      if (!hasOwnPrimary) const TorchClaim.primaryCommit(AskLight.sendClaimId),
     ];
   }
 
@@ -208,6 +208,11 @@ class ConsoleFrame extends StatelessWidget {
                   ConsoleDesk.isDesk(skin, size)) {
                 return TorchShell(
                   profile: TorchShellProfile.console,
+                  // THE TWO LIGHTS, and only at desk width. `backdrop` is the
+                  // one layer continuous across the three panes; a wash put
+                  // inside a pane would stop at that pane's clip, which is the
+                  // seam `fix/band-seam` removed from The Floor.
+                  backdrop: consoleDeskWash(skin),
                   desk: ConsoleDeskBody(
                     header: header,
                     askBar: askBar,

@@ -383,6 +383,7 @@ TiqPalette _withInk3(TiqPalette base, Color ink3) => TiqPalette(
   onBadSolid: base.onBadSolid,
   comparison: base.comparison,
   comparisonWash: base.comparisonWash,
+  ambientCool: base.ambientCool,
   plateCeiling: base.plateCeiling,
   plateLift: base.plateLift,
   onAmber: base.onAmber,
