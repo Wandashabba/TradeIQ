@@ -58,6 +58,8 @@ class TorchTextField extends StatefulWidget {
     this.textInputAction,
     this.obscureText = false,
     this.autofillHints,
+    this.geometry,
+    this.labelVisible = true,
   }) : assert(
          maximumLines >= minLines,
          'A field cannot grow to fewer lines than it starts at.',
@@ -140,6 +142,29 @@ class TorchTextField extends StatefulWidget {
   /// Lets a password manager fill the field, e.g. [AutofillHints.password].
   final Iterable<String>? autofillHints;
 
+  /// Overrides the trough's height, radius and vertical padding.
+  ///
+  /// Null everywhere but the ask bar, and null means [TroughSpec]'s own
+  /// numbers — 44dp minimum, `radii.input`, [TiqSpace.s4] of padding — so
+  /// every other field in the app is unchanged by this parameter existing.
+  /// See [TroughGeometry.pill].
+  final TroughGeometry? geometry;
+
+  /// Whether the standing label is **drawn**. It is always the accessible
+  /// name.
+  ///
+  /// False in one place: the ask bar, where the label read *"Ask a question"*
+  /// directly above a placeholder reading *"Ask about your territories…"* —
+  /// the same sentence twice, and the upper one indented to the field's left
+  /// edge rather than the bar's, so the bottom of the screen had a ragged left
+  /// margin as well as a redundant line. The owner's words were that it
+  /// *"doesn't look proportioned"*.
+  ///
+  /// It does **not** make the field anonymous to a screen reader. [label] is
+  /// still the `Semantics` label on the trough, which is the node a reader
+  /// lands on; what goes is a `Text` widget, not a name.
+  final bool labelVisible;
+
   @override
   State<TorchTextField> createState() => _TorchTextFieldState();
 }
@@ -187,7 +212,11 @@ class _TorchTextFieldState extends State<TorchTextField> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final spec = TroughSpec.resolve(skin: skin, state: _state);
+    final spec = TroughSpec.resolve(
+      skin: skin,
+      state: _state,
+      geometry: widget.geometry,
+    );
     final role = widget.identifier ? skin.text.monoIdent : skin.text.body;
     final length = _controller.text.characters.length;
     final cap = widget.maximumLength;
@@ -270,7 +299,17 @@ class _TorchTextFieldState extends State<TorchTextField> {
           horizontal: spec.horizontalPadding,
           vertical: spec.verticalPadding,
         ),
-        alignment: widget.maximumLines > 1
+        // TOP-LEFT SO A GROWING FIELD STARTS ITS TEXT AT THE TOP, which is
+        // what a multi-line field wants and the only reason this is not
+        // simply centred.
+        //
+        // A trough with a [geometry] is the exception: its extent is larger
+        // than one line **by design**, so top-left would sit its only line
+        // about 5dp high in a 48dp pill — 30dp of content box against a
+        // 20.2dp line, with all of the slack under it. Once it has grown past the extent the box
+        // is exactly as tall as its text and the alignment stops mattering,
+        // so centring costs the growth nothing.
+        alignment: widget.maximumLines > 1 && widget.geometry == null
             ? Alignment.topLeft
             : Alignment.centerLeft,
         child: field,
@@ -279,6 +318,7 @@ class _TorchTextFieldState extends State<TorchTextField> {
 
     return TorchFieldShell(
       label: widget.label,
+      labelVisible: widget.labelVisible,
       spec: spec,
       help: widget.help,
       error: widget.error,

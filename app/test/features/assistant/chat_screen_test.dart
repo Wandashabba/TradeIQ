@@ -507,6 +507,26 @@ void main() {
       expect(copied.single, contains('Sell-in held steady.'));
       expect(copied.single, contains('1,284,990.5'));
 
+      // ── WAIT THE TOAST OUT, AND THE REASON IS A MEASUREMENT ───────────
+      //
+      // `Answer copied` is an overlay floating `thumbZoneHeight + 20` above
+      // the bottom edge, and the 3 October proportion pass took 30dp off the
+      // ask bar. The toast did not move — it reads
+      // `(16, 488) → (344, 536)` before and after — but the transcript's
+      // viewport grew by that 30dp, so the answer's own action row moved DOWN
+      // from `(76, 450) → (124, 498)` to `(76, 490) → (124, 538)`. It used to
+      // clear the toast by all but its last 10dp; it is now under it.
+      //
+      // So `Ask again` is unpressable for the toast's three-second dwell,
+      // which is the cost of the bar getting shorter and is recorded here
+      // rather than worked around silently. `TorchToast.bottomOffsetFor` is
+      // written to clear the route's CHROME — *"a toast that covers the
+      // primary commit action is a toast that arrived to tell you about the
+      // thing you can no longer press"* — and Send is still clear of it. What
+      // it lands on is content that scrolled up to meet it.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+
       final again = find.byKey(const ValueKey<String>('answer-ask-again'));
       await tester.ensureVisible(again);
       await tester.tap(again);

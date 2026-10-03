@@ -6,6 +6,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/torch_press.dart';
 import '../../../core/widgets/torchlight/input/text_field.dart';
+import '../../../core/widgets/torchlight/input/trough.dart';
 import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
 import '../../../l10n/l10n.dart';
 import 'ask_light.dart';
@@ -14,13 +15,48 @@ import 'ask_phase.dart';
 /// THE QUESTION COMPOSER — where the manager types, and the one place on this
 /// surface that commits an action.
 ///
-/// A standing label, a trough, and a 48dp Send key. The label is a **real
-/// label and it never moves**: the critic's suggestion to fold it into the
-/// trough while the keyboard is up was measured and rejected — the label
-/// inside the trough forces it from 56 to 72 to hold it, so the net win is
-/// 10dp, not 26, and it costs the composer its most-defended property. The
-/// 84dp comes from the nav pill instead, which is chrome that has nothing to
-/// say while someone is typing.
+/// ```text
+///   ╭──╮ ╭───────────────────────────╮ ╭──╮
+///   │▦▦│ │ Ask about your tasks…     │ │ ↑│
+///   ╰──╯ ╰───────────────────────────╯ ╰──╯
+///   48dp  48dp                          48dp
+/// ```
+///
+/// ## ONE HEIGHT, ONE CORNER LANGUAGE — 3 October 2026
+///
+/// > *"the bottom doesn't look proportioned"* — the owner, on a screenshot of
+/// > the bar.
+///
+/// They were right, and it was three defects at once rather than a styling
+/// preference. Measured on `main` at 390×844, Night, console density:
+///
+/// | object | was | is |
+/// |---|---|---|
+/// | the grid key | 44dp drawn, round | **48dp**, round |
+/// | the field | 54dp drawn, radius 16 | **48dp**, radius 24 |
+/// | the Send disc | 36dp drawn, round | **48dp**, round |
+/// | the standing label | 16dp of text + an 8dp gap | **gone** |
+///
+/// Three heights in one row and two corner languages in it. [barExtent] is now
+/// the only size in the row, so the three objects cannot drift apart again,
+/// and every one of them is a full pill — `extent / 2` on all four corners.
+///
+/// **The standing label goes**, which is the part that was not only geometry.
+/// It read *"Ask a question"* directly above a placeholder reading *"Ask about
+/// your territories…"*: the same sentence twice, and the upper one indented to
+/// the FIELD's left edge rather than the row's — **56dp in**, measured, which
+/// is the grid key's 48 plus the 8dp gap — so the bar's left margin was
+/// ragged. It survives as the field's accessible name — see
+/// [TorchTextField.labelVisible] — and the one thing it said that the hint did
+/// not, *"Ask again, or rephrase"* after a failed turn, moves into the hint
+/// rather than being dropped. See [_hint].
+///
+/// The earlier defence of the label is kept here because it still holds for
+/// the thing it was defending against: the critic's suggestion was to fold the
+/// label **into** the trough as a floating placeholder, which forces the
+/// trough from 56 to 72 to hold it. That is not what happened. The label was
+/// not moved anywhere; it was deleted as a drawn object, and the trough got
+/// 6dp SHORTER rather than 16dp taller.
 ///
 /// ## Amber
 ///
@@ -98,7 +134,40 @@ class QuestionComposer extends StatefulWidget {
 
   /// The hard stop. Past this the field refuses more; the counter warns at
   /// 45% of it.
+  ///
+  /// **A KNOWN MISALIGNMENT, PRE-DATING THIS WIDGET'S PROPORTION PASS AND NOT
+  /// FIXED BY IT.** The counter appears at 80% of the cap — 800 characters —
+  /// and `TorchFieldShell` draws it beneath the trough, inside the block the
+  /// `Row` bottom-aligns the two keys to. So past 800 characters the keys sit
+  /// `helpGap` + a line of `axisLabel` below the pill's bottom edge: **23dp**
+  /// at 390×844, measured, where it measured 17dp before — the key's BOX was
+  /// always 23dp down and 6dp of it used to be the transparent ring around a
+  /// 36dp disc. It is the same defect at the same place; growing the disc took
+  /// the ring off it and made the whole of it visible.
+  ///
+  /// It is written down rather than fixed because the fix is to lift the
+  /// counter out of the shell's column for this one field — a change to a
+  /// shared widget's layout, for a state the ask bar reaches at 800 characters
+  /// of a 1000-character cap, and the owner's brief was the three objects at
+  /// rest.
   static const int maximumQuestion = 1000;
+
+  /// ── THE ONE SIZE IN THE ROW ───────────────────────────────────────────
+  ///
+  /// 48dp: the grid key, the field and the Send disc, drawn and targeted, in
+  /// every state the bar has. It is `torchTapTarget`'s floor for a glyph
+  /// action, it clears WCAG 2.5.5's 44dp, and it is the number
+  /// [TorchAskDestinations] and [TroughGeometry.pill] both read rather than
+  /// restate — a row whose three objects each carried their own number is how
+  /// 44, 54 and 36 ended up beside one another.
+  ///
+  /// It is **not** `space.primaryActionHeight` (44). That token is the height
+  /// of a commit button inside a form, and the two numbers being different is
+  /// what `TroughSpec`'s own comment warns about. The bar is not in a form: it
+  /// is chrome standing on the ground on 29 screens, its two keys are glyph
+  /// actions at 48, and a 44dp field between two 48dp keys is the defect this
+  /// replaced, one notch smaller.
+  static const double barExtent = 48;
 
   @override
   State<QuestionComposer> createState() => _QuestionComposerState();
@@ -146,6 +215,32 @@ class _QuestionComposerState extends State<QuestionComposer> {
     widget.onSend();
   }
 
+  /// ── WHAT THE EMPTY FIELD SAYS, AND THE ONE THING THE LABEL TOOK WITH IT ──
+  ///
+  /// The standing label is gone because it repeated the hint. In one state it
+  /// did not: after a failed turn it read *"Ask again, or rephrase"*, which is
+  /// the only place on the screen that says what to do next — the error block
+  /// above says what went wrong. Deleting the label and letting that sentence
+  /// go with it would have been the change costing a behaviour nobody asked
+  /// to lose, so it lands in the hint instead.
+  ///
+  /// It costs the scope: The Floor's `Ask about Gauteng North…` is not printed
+  /// for the one turn after an error. That is the right way round. The scope is
+  /// a standing invitation and the rephrase is a reply to something that just
+  /// happened, and only one of the two can hold a placeholder.
+  ///
+  /// It also costs the sentence the moment somebody types, because a hint is
+  /// not drawn over a value. By then they are rephrasing.
+  ///
+  /// **Neither ARB key is dead.** `askComposerRephrase` is now printed here
+  /// as well as announced, and `askComposerLabel` is unrendered everywhere but
+  /// is still the field's accessible name — see the `label:` argument in
+  /// [build]. A pass that swept the ARB for unused keys would take a screen
+  /// reader's only name for the one control this product is built around.
+  String _hint(AppLocalizations l10n) => widget.lastTurnErrored
+      ? l10n.askComposerRephrase
+      : (widget.hint ?? l10n.askComposerHint);
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -172,13 +267,20 @@ class _QuestionComposerState extends State<QuestionComposer> {
             Expanded(
               child: TorchTextField(
                 key: const ValueKey<String>('ask-composer-field'),
-                // The label is the semantic label, not a duplicate of a hint.
+                // STILL THE SEMANTIC LABEL, no longer a drawn one. A reader
+                // lands on the trough and hears this; an eye sees the hint,
+                // which was saying the same thing one line lower.
                 label: widget.lastTurnErrored
                     ? l10n.askComposerRephrase
                     : l10n.askComposerLabel,
+                labelVisible: false,
+                // A 48dp PILL, and the only trough in the app that is not
+                // `radii.input`. The row's three objects are one height and
+                // one shape or the bar is not one object — see [barExtent].
+                geometry: TroughGeometry.pill(QuestionComposer.barExtent),
                 controller: widget.controller,
                 focusNode: _node,
-                hint: widget.hint ?? l10n.askComposerHint,
+                hint: _hint(l10n),
                 // ONE GRADE UP FROM EVERY OTHER TROUGH'S HINT, in both skins
                 // and on all 29 console screens. See [TorchTextField.hintInk]
                 // for the measurement: on The Floor's washed Day ground
@@ -202,8 +304,10 @@ class _QuestionComposerState extends State<QuestionComposer> {
             ),
             const SizedBox(width: TiqSpace.s2),
             Padding(
-              // The label sits above the trough, so the key aligns to the
-              // trough's own bottom edge rather than to the block's.
+              // Zero, and kept as a named zero rather than deleted: the keys
+              // align to the BOTTOM of the field's block, and the block is the
+              // trough alone only while no counter is showing. See the comment
+              // on [QuestionComposer.maximumQuestion].
               padding: const EdgeInsets.only(bottom: 0),
               child: streaming
                   ? _StopKey(onPressed: widget.onStop)
@@ -225,30 +329,38 @@ class _QuestionComposerState extends State<QuestionComposer> {
   }
 }
 
-/// The key's TAP TARGET: 48dp, which is `torchTapTarget`'s floor for a glyph
-/// action and is not negotiable.
-double _keySize(TiqSkin skin) => 48;
+/// The key's TAP TARGET, and since 3 October 2026 its DRAWN size too:
+/// [QuestionComposer.barExtent]. Both keys read this, in every state.
+double _keySize(TiqSkin skin) => QuestionComposer.barExtent;
 
-/// ── THE DRAWN DISC, AND WHY IT IS SMALLER THAN THE TARGET ──────────────
+/// ── THE DRAWN DISC: 48dp, AND IT IS THE TARGET ─────────────────────────
 ///
-/// 36dp. The mockup's send is `width:27px; height:27px; border-radius:50%`,
-/// which is **35dp** at 1.3 dp/px, and 36 is that on the 4dp scale.
+/// It was 36 — the mockup's `width:27px; height:27px; border-radius:50%`,
+/// which is 35dp at 1.3 dp/px and 36 on the 4dp scale — inside a 48dp target,
+/// so 6dp of transparent ring on every side that a finger landed in and an eye
+/// did not see.
 ///
-/// **A MOCKUP-VERSUS-LAW COLLISION, RESOLVED IN FAVOUR OF THE LAW, AND
-/// RECORDED RATHER THAN SPLIT THE DIFFERENCE.** 35dp is under the 44dp floor
-/// WCAG 2.5.5 sets and under the 48 `torchTapTarget` holds a glyph action at.
-/// The one object on this surface that commits an action is the last place to
-/// go under it. So the target stays 48 and the *paint* comes down to the
-/// drawing's 36: 6dp of transparent ring on every side, which a finger lands
-/// in and an eye does not see.
+/// **THE OWNER OVERRODE THE MOCKUP ON 3 OCTOBER 2026 AND THIS RECORDS IT
+/// RATHER THAN LEAVING A DERIVATION FOR A NUMBER NO LONGER IN THE CODE.** The
+/// eye did see it, in the one place a composed row makes it visible: beside a
+/// 48dp grid key and a 54dp field, a 36dp disc was the smallest of three
+/// objects that should have read as one row, and the first thing the owner said
+/// about the bar was that it *"doesn't look proportioned"*. Drawn and targeted
+/// are now the same number and that number is the row's.
 ///
-/// The same split is made for both controls on the plate and for the
-/// suggestion chips — see `plateQuietExtent` and `TorchFilterChip.quiet`. It
-/// is the through-line of the 1 October weight pass: **every number in the
-/// drawing's chrome is between 29 and 35dp, every one of them is under the
-/// product's tap-target floor, and the answer at all five is to draw at the
-/// drawing's size and target at the rule's.**
-const double _sendDisc = 36;
+/// What the 1 October weight pass argued — *draw at the drawing's size, target
+/// at the rule's* — still stands for the two controls it was about, which sit
+/// **on a photograph** where the picture carries the weight: see
+/// `plateQuietExtent` and `TorchFilterChip.quiet`. The grid key already left
+/// that rule on 2 October for the same reason this disc does, and with the
+/// same words in `ask_bar.dart`: a control standing on the ground in a row
+/// with two others is not a control on a picture.
+///
+/// The disc now fills the target exactly, so there is no transparent ring left
+/// to hold the two apart; the constant is kept rather than inlined because
+/// `_sendDisc` is what the amber census measures and a reader asking "how big
+/// is the lit object" should find it named.
+const double _sendDisc = QuestionComposer.barExtent;
 
 class _SendKey extends StatelessWidget {
   const _SendKey({
@@ -284,11 +396,14 @@ class _SendKey extends StatelessWidget {
     final l10n = context.l10n;
     final size = _keySize(skin);
     // A CIRCLE, NOT A RADIUS-16 SQUARE — the mockup's `border-radius:50%`.
-    // `radii.control` is 16, which at 48dp is a rounded square, and against
-    // the drawing's disc it is one of the places the owner read our chrome as
-    // louder. The key is the one round object in the composer and the trough
-    // beside it is the one soft rectangle; nothing else in the row is at risk
-    // of being confused with it.
+    // `radii.control` is 16, which at 48dp is a rounded square.
+    //
+    // It was the one round object in a row with a radius-16 trough, which is
+    // the half of the shape argument that turned out to be the defect rather
+    // than the fix: two corner languages in one row of three objects. The
+    // whole row is `extent / 2` now — the trough included, through
+    // `TroughGeometry.pill` — so the radius below is the row's, not this
+    // key's.
     final radius = BorderRadius.circular(_sendDisc / 2);
     final lit = TorchScope.lit(context, AskLight.sendClaimId);
 
@@ -314,7 +429,7 @@ class _SendKey extends StatelessWidget {
           pressed: pressed,
           disabled: !enabled,
         );
-        // 48dp of target around a 36dp disc. See [_sendDisc].
+        // ONE BOX: the target IS the disc. See [_sendDisc].
         return SizedBox.square(
           dimension: size,
           child: Center(
@@ -348,8 +463,12 @@ class _SendKey extends StatelessWidget {
   }
 }
 
-/// Stop. A ghost square with a filled square glyph — never amber, because
+/// Stop. A ghost disc with a filled square glyph — never amber, because
 /// stopping is not the expected next move, it is the escape from one.
+///
+/// The glyph stays a square. A round key with a round glyph in it would be two
+/// concentric circles saying nothing; the square is the universal stop mark and
+/// it is the one thing in the row that is allowed a corner.
 class _StopKey extends StatelessWidget {
   const _StopKey({required this.onPressed});
 
@@ -360,7 +479,12 @@ class _StopKey extends StatelessWidget {
     final skin = context.skin;
     final p = skin.palette;
     final size = _keySize(skin);
-    final radius = BorderRadius.circular(skin.radii.control);
+    // THE SAME PILL AS EVERY OTHER OBJECT IN THE ROW. It was
+    // `radii.control` — 16, a rounded square — which meant the bar changed
+    // corner language the moment a turn started streaming. The point of the
+    // proportion pass is that nothing in the row disagrees, and "in every
+    // state" includes this one.
+    final radius = BorderRadius.circular(size / 2);
 
     return TorchPressable(
       onPressed: onPressed,

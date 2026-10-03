@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/torch_press.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/card.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input/filter_chip.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
@@ -608,6 +609,15 @@ void main() {
           matching: find.byType(TorchFilterChip),
         )
         .first;
+    // The ask bar's trailing key. Depth-first order puts the grid's pressable
+    // first and Send's last; measured rather than quoted, like every other
+    // right-hand number in this table.
+    final send = find
+        .descendant(
+          of: find.byType(QuestionComposer),
+          matching: find.byType(TorchPressable),
+        )
+        .last;
 
     final rows = <(String, String, String, String)>[
       (
@@ -617,13 +627,17 @@ void main() {
         '${tester.getRect(chip).height.toStringAsFixed(0)}dp',
       ),
       (
-        // IT MOVED, AND IT GREW — 2 October 2026. The 22x22 in the drawing is
-        // a control sitting ON a photograph, where a quiet 29dp box is right
-        // because the picture is doing the work. In the ask bar it stands on
-        // the ground beside a 36dp Send disc and a 56dp trough, and at 29dp
-        // it read as a smudge rather than a control. It is drawn at the
-        // tap-target floor instead, which is the one size on this screen
-        // where drawn and targeted are the same number.
+        // IT MOVED, AND IT GREW TWICE. The 22x22 in the drawing is a control
+        // sitting ON a photograph, where a quiet 29dp box is right because
+        // the picture is doing the work; in the ask bar it stands on the
+        // ground and at 29dp it read as a smudge rather than a control, so on
+        // 2 October it went to 44, the tap-target floor.
+        //
+        // That left the row at 44 drawn, 54 for the trough and 36 for Send —
+        // three heights — and on 3 October 2026 the owner said the bottom of
+        // the screen does not look proportioned. All three are
+        // `QuestionComposer.barExtent` now. This is still the row where drawn
+        // and targeted are the same number; it is now the whole row.
         'grid control (was Menu)',
         'n/a — moved off the plate',
         '${paintedHeight(menu).toStringAsFixed(0)}'
@@ -650,10 +664,17 @@ void main() {
         '${tester.getRect(suggestion).height.toStringAsFixed(0)}dp',
       ),
       (
+        // OVERRIDDEN BY THE OWNER, 3 OCTOBER 2026, and the one row in this
+        // table where our number is deliberately not the drawing's. The
+        // mockup's 27px is 35dp and 36 was that on the 4dp scale; beside a
+        // 48dp grid key and a 48dp trough it was the smallest of three
+        // objects that have to read as one row. See `composer.dart`'s
+        // `_sendDisc`, which records the override rather than leaving a
+        // derivation for a number no longer in the code.
         'send button',
         '27x27, r50%, filled',
-        '36dp amber disc',
-        '48dp',
+        '${paintedHeight(send).toStringAsFixed(0)}dp amber disc',
+        '${tester.getRect(send).height.toStringAsFixed(0)}dp',
       ),
     ];
 
@@ -684,6 +705,14 @@ void main() {
     // The grid control is `TorchAskDestinations.extent`, not the plate's quiet
     // extent: it is no longer a control on a picture. See the row above.
     expect(paintedHeight(menu), closeTo(TorchAskDestinations.extent, 0.5));
+    // AND THE ROW IS ONE HEIGHT. Three objects, one number, which is the
+    // claim the 3 October proportion pass exists to make true.
+    expect(paintedHeight(send), closeTo(QuestionComposer.barExtent, 0.5));
+    expect(
+      paintedHeight(menu),
+      closeTo(paintedHeight(send), 0.5),
+      reason: 'the two ends of the bar',
+    );
     expect(paintedHeight(suggestion), closeTo(TorchFilterChip.quietExtent, 0.5));
     expect(card1.top - card0.bottom, FloorBriefingBlock.cardGap);
     for (final control in <Finder>[chip, menu, suggestion]) {

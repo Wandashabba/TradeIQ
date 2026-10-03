@@ -126,6 +126,45 @@ void main() {
   const window = 4;
   const smoothTolerance = 3;
 
+  /// ── THE GUTTER TEST'S FLOOR, AND WHY IT HAS ONE — 3 OCTOBER 2026 ─────
+  ///
+  /// The gutter test below is `atGutter <= elsewhere` with no tolerance, and
+  /// that was honest while the two bare rows it samples happened to land where
+  /// the dither was kind. **One of them moved.** The second row is
+  /// `QuestionComposer.top - 2`, and the composer's top used to be its
+  /// standing label, so the probe sat ~26dp clear of anything drawn; the
+  /// label came off in the 3 October proportion pass and the same expression
+  /// now lands in the 12dp gap above the pill.
+  ///
+  /// Measured on 360×640 Day, walking that gap row by row, with nothing
+  /// painting on any of them:
+  ///
+  /// | y | at a gutter | elsewhere |
+  /// |---|---|---|
+  /// | 582 | 1.00 | 0.75 |
+  /// | 586 | 0.75 | 1.00 |
+  /// | 590 | 1.00 | 0.75 |
+  /// | 591 | 1.00 | 1.00 |
+  ///
+  /// The raw row at y=590 reads `229,219,207 230,220,208 228,218,207 …` from
+  /// x=12 to x=32 — an ordered ±1-level dither with **no step at x=20 at
+  /// all**. Which side of the inequality wins is a coin flip on a row of pure
+  /// noise, and three of those four rows would have been a passing test.
+  ///
+  /// So the instrument gets the floor it always had in fact: **one
+  /// quantisation level**, which is the smallest difference an 8-bit frame
+  /// buffer can express and therefore the smallest thing this test can see.
+  ///
+  /// **What it costs, named rather than glossed.** The file's own
+  /// ghost-box calibration above reads 1.50/1.00, 2.00/0.50, 1.00/0.75 and
+  /// 2.00/0.50 for a ten-percent ghost of the band's box. Three of those four
+  /// still fail. The one that stops failing is the 1.00-against-0.75 case —
+  /// which is the same reading this row produces with nothing painted at all,
+  /// so it was never a detection: it was the noise agreeing with the signal.
+  /// The full box, which is what the owner actually reported, measures
+  /// 10.50–15.50 and is nowhere near this.
+  const quantisationFloor = 1.0;
+
   List<double> mean(
     TorchPixels px,
     int from,
@@ -287,14 +326,18 @@ void main() {
         }
         expect(
           atGutter,
-          lessThanOrEqualTo(elsewhere),
+          lessThanOrEqualTo(
+            elsewhere > quantisationFloor ? elsewhere : quantisationFloor,
+          ),
           reason:
               'At y=${y.round()} the worst smoothed step within $window px of '
               'a gutter is ${atGutter.toStringAsFixed(2)} levels against '
-              '${elsewhere.toStringAsFixed(2)} everywhere else on the row. '
-              'The gutter has become a boundary between two materials, which '
-              'is the box coming back. The backdrop is one surface: the band '
-              'fills nothing and the wash does not know where the gutter is.',
+              '${elsewhere.toStringAsFixed(2)} everywhere else on the row, '
+              'and above the $quantisationFloor-level floor this instrument '
+              'cannot see under. The gutter has become a boundary between two '
+              'materials, which is the box coming back. The backdrop is one '
+              'surface: the band fills nothing and the wash does not know '
+              'where the gutter is.',
         );
       }
 

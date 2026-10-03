@@ -32,6 +32,61 @@ enum TroughState {
   readOnly,
 }
 
+/// ── ONE TROUGH'S GEOMETRY, OVERRIDDEN, AND THE REASON IT IS A PARAMETER ──
+///
+/// Three numbers — height, radius, vertical padding — for the one call site
+/// that is allowed to disagree with [TroughSpec]'s defaults. Null means the
+/// defaults, which is every field in the app but one, so the forty-odd other
+/// troughs are byte-identical with this class in the tree.
+///
+/// **It is a parameter rather than a token** because `radii.control` is 16 for
+/// every button, input and thumbnail in the product. Raising that to make one
+/// field round would round every field, every button and every thumbnail, on
+/// every screen, to fix the bottom of one bar. See `tiq_space.dart`'s
+/// [TiqRadii.control], which records what the 10 → 16 move cost the last time
+/// that number changed.
+@immutable
+class TroughGeometry {
+  const TroughGeometry({
+    required this.minHeight,
+    required this.radius,
+    required this.verticalPadding,
+  });
+
+  /// ── THE ASK BAR'S PILL ──────────────────────────────────────────────
+  ///
+  /// [extent] tall, round on all four corners at `extent / 2`, and padded so
+  /// that a one-line field's natural height stays **under** the extent at the
+  /// two text scales this product measures at, which is what makes the extent
+  /// the height rather than a floor it overshoots:
+  ///
+  /// | scale | natural (border 2 + pad 16 + line) | drawn |
+  /// |---|---|---|
+  /// | 1.0× | 2 + 16 + 20.2 = 38.2 | **48** |
+  /// | 1.3× | 2 + 16 + 26.2 = 44.2 | **48** |
+  /// | 2.0× | 2 + 16 + 40.3 = 58.3 | 58 |
+  ///
+  /// The padding is [TiqSpace.s2] rather than the default [TiqSpace.s4]
+  /// precisely so the 1.3× row reads 48 and not 52: the point of the ask bar
+  /// is that the grid key, the field and Send are one height, and the keys do
+  /// not grow with the text scale. At 2.0× the field does outgrow them, and
+  /// that is reported rather than clamped — a field that refused to hold its
+  /// own text would be the worse failure.
+  ///
+  /// The radius does **not** track the drawn height. A field that has grown to
+  /// five lines is a 119dp box at radius 24, which is a soft rectangle and is
+  /// the right shape for a paragraph; a stadium 119dp tall is not.
+  factory TroughGeometry.pill(double extent) => TroughGeometry(
+    minHeight: extent,
+    radius: BorderRadius.circular(extent / 2),
+    verticalPadding: TiqSpace.s2,
+  );
+
+  final double minHeight;
+  final BorderRadius radius;
+  final double verticalPadding;
+}
+
 /// THE TROUGH — the one input shape.
 ///
 /// Radius 10 at the **bottom** corners and 0 at the top. That is not a
@@ -62,6 +117,12 @@ enum TroughState {
 /// amber form lands it is one token, in one place: a `focusClaimId` on the
 /// field, an allowlist entry, and a `TorchClaim.textFieldFocus` declared by
 /// the route. Nothing else moves.
+///
+/// ## One trough is allowed to be a different shape, and only one
+///
+/// [TroughGeometry] overrides the height, the radius and the vertical padding
+/// for a single call site. It is null everywhere but the ask bar — see
+/// [TroughGeometry.pill] for the arithmetic and the reason.
 @immutable
 class TroughSpec {
   const TroughSpec({
@@ -108,6 +169,7 @@ class TroughSpec {
     required TiqSkin skin,
     TroughState state = TroughState.empty,
     bool numeric = false,
+    TroughGeometry? geometry,
   }) {
     final p = skin.palette;
     final border = skin.depth.borderWidth;
@@ -126,7 +188,11 @@ class TroughSpec {
     // Reading the token is the fix and the guard: a field and the button
     // under it cannot disagree again, because there is only one number now.
     // `chipHeight` was rewired the same way and for the same reason.
-    final minHeight = skin.space.primaryActionHeight;
+    //
+    // The ask bar overrides it, and the same argument is what licences that:
+    // its number is the height of the two keys standing beside it, which is
+    // the button that commits it. See [TroughGeometry.pill].
+    final minHeight = geometry?.minHeight ?? skin.space.primaryActionHeight;
 
     // READ-ONLY stops looking like a field entirely: no fill, no edge, no
     // rule, ink-1 text. The previous draft dimmed it to 0.8, which is a state
@@ -143,6 +209,7 @@ class TroughSpec {
         bottomRuleWidth: 0,
         ink: p.ink1,
         numeric: numeric,
+        geometry: geometry,
       );
     }
 
@@ -197,6 +264,7 @@ class TroughSpec {
           ? p.bad
           : p.ink1,
       numeric: numeric,
+      geometry: geometry,
     );
   }
 
@@ -211,20 +279,22 @@ class TroughSpec {
     required double bottomRuleWidth,
     required Color ink,
     required bool numeric,
+    TroughGeometry? geometry,
   }) {
     final p = skin.palette;
     return TroughSpec(
       state: state,
       minHeight: minHeight,
-      // The one shape rule of this whole folder.
-      radius: skin.radii.input,
+      // The one shape rule of this whole folder, and the one call site that
+      // is allowed out of it.
+      radius: geometry?.radius ?? skin.radii.input,
       fill: fill,
       outline: outline,
       outlineWidth: outlineWidth,
       bottomRule: bottomRule,
       bottomRuleWidth: bottomRuleWidth,
       horizontalPadding: 14,
-      verticalPadding: TiqSpace.s4,
+      verticalPadding: geometry?.verticalPadding ?? TiqSpace.s4,
       labelGap: TiqSpace.s2,
       helpGap: 6,
       ink: ink,
