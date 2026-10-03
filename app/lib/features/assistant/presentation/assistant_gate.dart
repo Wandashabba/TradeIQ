@@ -75,7 +75,6 @@ class _GateFrame extends ConsumerWidget {
             profile: TorchShellProfile.console,
             header: TorchAppHeader(
               title: context.l10n.askTitle,
-              trailing: consoleSkinCycleButton(context, ref),
             ),
             children: <Widget>[child],
           ),

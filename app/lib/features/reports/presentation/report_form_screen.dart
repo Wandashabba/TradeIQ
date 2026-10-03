@@ -191,7 +191,11 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final blocked = _blocked;
-    final armed = blocked == null && !_saving;
+    // Armed whenever it can be pressed at all — which is always, unless a
+    // press is already in flight. `_submit` sets `_shownErrors` and then
+    // re-reads `_blocked`, so pressing an incomplete form names what is
+    // missing instead of being refused. See `console_page.dart`.
+    final armed = !_saving;
     final failure = _failure;
 
     return ConsolePage(
@@ -214,7 +218,13 @@ class _ReportFormScreenState extends ConsumerState<ReportFormScreen> {
         label: l10n.reportFormCommit,
         claimId: ConsolePage.primaryClaimId,
         busy: _saving,
-        blockedReason: blocked ?? (_saving ? l10n.reportFormSaving : null),
+        // Nothing is named until the reader has pressed once — the same rule
+        // the field errors below already followed via `_shownErrors`.
+        blockedReason: _saving
+            ? l10n.reportFormSaving
+            : _shownErrors
+            ? blocked
+            : null,
         onPressed: armed ? _submit : null,
       ),
       children: <Widget>[

@@ -144,8 +144,15 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
             claimId: createClaimId,
             label: l10n.territoryCreate,
             busy: _submitting,
-            blockedReason: _ready ? null : l10n.territoryCreateBlocked,
-            onPressed: _ready ? _submit : null,
+            // Live from the first frame, and silent until pressed. `_submit`
+            // sets `_submitted` before it checks `_ready`, so an empty form
+            // answers the press by naming the two fields rather than by
+            // standing there dead. The field errors below already worked
+            // this way; only the button did not.
+            blockedReason: _submitted && !_ready
+                ? l10n.territoryCreateBlocked
+                : null,
+            onPressed: _submitting ? null : _submit,
           ),
           children: <Widget>[
             TorchTextField(

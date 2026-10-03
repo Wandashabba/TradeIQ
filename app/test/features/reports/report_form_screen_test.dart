@@ -143,16 +143,23 @@ void main() {
   });
 
   group('a form that cannot save says why on the button', () {
-    testWidgets('an empty name', (tester) async {
+    // MOVED WITH THE BEHAVIOUR, NOT DELETED. The rule is unchanged — this
+    // form never refuses without saying why, and it still refuses to send —
+    // and only the moment it says it has moved to the press. #515's reasoning
+    // on `/account/password`, applied to the console's forms.
+    testWidgets('an empty name, said on the press', (tester) async {
       final repo = FakeReportsRepository();
       await pump(tester, repo: repo);
 
-      expect(find.text('Give the report a name first.'), findsOneWidget);
+      // Silent on arrival, and live.
+      expect(find.text('Give the report a name first.'), findsNothing);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('report-save-button')),
       );
       await tester.pumpAndSettle();
+
+      expect(find.text('Give the report a name first.'), findsOneWidget);
       expect(repo.createdName, isNull);
     });
 
@@ -162,6 +169,11 @@ void main() {
       await type(tester, 'report-name-field', 'Backwards');
       await type(tester, 'report-from-date', '2026-09-30');
       await type(tester, 'report-to-date', '2026-09-01');
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('report-save-button')),
+      );
+      await tester.pumpAndSettle();
 
       expect(
         find.text('The To date is before the From date.'),
@@ -175,6 +187,11 @@ void main() {
       await type(tester, 'report-name-field', 'Sloppy');
       await type(tester, 'report-from-date', '20/09/2026');
 
+      await tester.tap(
+        find.byKey(const ValueKey<String>('report-save-button')),
+      );
+      await tester.pumpAndSettle();
+
       expect(
         find.text('The From date is not a date. Use the form 2026-09-20.'),
         findsOneWidget,
@@ -183,9 +200,13 @@ void main() {
   });
 
   group('the amber census', () {
-    testWidgets('Night, blocked: nothing is armed, so nothing is lit', (
-      tester,
-    ) async {
+    // WAS `blocked: nothing is armed, so nothing is lit`, EXPECTING 0.
+    //
+    // The 0 was the ghost's signature: the primary declared no claim until
+    // every required field was filled. It is pressable from the first frame
+    // now, so an untouched form spends **one** object — the commit block
+    // itself. Night allows two and uses one; Day allows one and this is it.
+    testWidgets('Night, untouched: exactly the commit', (tester) async {
       await pump(tester, repo: FakeReportsRepository());
 
       final census = await amberCensus(tester);
@@ -193,13 +214,13 @@ void main() {
         census,
         TiqSkin.night(),
         route: 'reports/new',
-        phase: 'blocked',
+        phase: 'untouched',
       );
       expect(
         census.objectCount,
-        0,
+        1,
         reason:
-            'No nav on a pushed route, and a disabled primary declares no '
+            'No nav on a pushed route, and the live primary is the one '
             'claim.\n${census.describe()}',
       );
     });
@@ -219,7 +240,14 @@ void main() {
     });
 
     for (final skin in <TiqSkin>[TiqSkin.day()]) {
-      testWidgets('${skin.mode.name}: zero blocked, one armed', (tester) async {
+      // WAS `zero blocked, one armed`. It is **one either way** now: Day's
+      // single grant is spent on this button from the first frame, which is
+      // the trade #515 made on the auth forms and this PR carries to the
+      // console's. Filling the name does not add a second object; it only
+      // stops the press having anything to complain about.
+      testWidgets('${skin.mode.name}: one untouched, one armed', (
+        tester,
+      ) async {
         await pump(tester, repo: FakeReportsRepository(), skin: skin);
 
         var census = await amberCensus(tester);
@@ -227,9 +255,9 @@ void main() {
           census,
           skin,
           route: 'reports/new',
-          phase: 'blocked',
+          phase: 'untouched',
         );
-        expect(census.objectCount, 0, reason: census.describe());
+        expect(census.objectCount, 1, reason: census.describe());
 
         await type(tester, 'report-name-field', 'Weekly coverage');
 

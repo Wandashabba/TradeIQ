@@ -192,7 +192,6 @@ class _BeatPlanFormState extends ConsumerState<_BeatPlanForm> {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('beatplan-save-button'),
           label: l10n.beatPlanFormSubmit,

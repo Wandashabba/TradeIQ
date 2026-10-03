@@ -182,7 +182,6 @@ class _OrderFormState extends ConsumerState<_OrderForm> {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('order-save-button'),
           label: l10n.orderFormSubmit,

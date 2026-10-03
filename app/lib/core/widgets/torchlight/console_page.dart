@@ -6,7 +6,6 @@ import '../../theme/torchlight/tiq_skin.dart';
 import 'button/buttons.dart';
 import 'chrome/chrome.dart';
 import 'sheet.dart';
-import 'skin_controls.dart';
 
 /// THE CONSOLE'S FRAME FOR A ROUTE THAT IS NOT A TAB ROOT.
 ///
@@ -17,18 +16,43 @@ import 'skin_controls.dart';
 /// frame rather than a flag on the other one:
 ///
 /// * **The bottom region is different.** A screen with a commit action gets a
-///   [TorchThumbZone]; a screen with none gets the 76dp zone holding the skin
-///   cycle alone. Never a screen without the cycle.
+///   [TorchThumbZone]; a screen with none now gets **no bottom region at
+///   all** — see below.
 /// * **The amber arithmetic is different.** Untabbed, so Night has **two**
 ///   content grants rather than one, and Day still has exactly one.
 /// * **There is a way back**, and it names where it goes.
 ///
-/// ## The claim is declared only while the primary is armed
+/// ## THE THEME CONTROL IS OFF THIS FRAME
 ///
-/// [primaryArmed] decides the claim, not the button. A disabled primary
-/// declares nothing, so a form with an empty required field carries **zero**
-/// amber in every skin and a fillable one carries exactly one. The light and
-/// the button can never disagree, because they are the same boolean.
+/// The bullet above used to end *"a screen with none gets the 76dp zone
+/// holding the skin cycle alone. Never a screen without the cycle."* It is
+/// now never a screen *with* one. On 1 October 2026 and again on 3 October the
+/// owner said the theme control belongs in settings and nowhere else; #515
+/// took it off [EntryFrame] for the four auth routes and this is the same
+/// removal on the console's four. Nothing is lost — the control lives in the
+/// menu sheet's "This app" section.
+///
+/// It was also wired wrong, which is worth recording rather than quietly
+/// fixing. The cycle here was an `AgentSkinCycle`, so it wrote
+/// `agentSkinProvider`; none of the four routes that use this frame wraps
+/// itself in `TorchlightRoute`, so none of them *watches* that provider.
+/// `account_frame.dart` names this exact failure in its own history — *"the
+/// control and the ground must read the same provider. A cycle wired to a
+/// provider the enclosing route does not watch still moves and still repaints
+/// nothing"* — and this frame was the surviving instance of it.
+///
+/// A consequence, stated: `report_run_history_screen` has no primary, so it
+/// had the 76dp zone for the cycle's sake alone and now has no bottom region.
+/// The three form screens keep theirs, because they keep their commit.
+///
+/// ## The claim is declared while the primary can be pressed
+///
+/// [primaryArmed] decides the claim, not the button, and since this frame
+/// joined the house pattern it means **"pressable"** rather than "every
+/// required field is filled". A form on arrival therefore carries exactly one
+/// amber object instead of zero, and names what is missing when the reader
+/// presses rather than before they have typed. The light and the button can
+/// never disagree, because they are still the same boolean.
 class ConsolePage extends StatelessWidget {
   const ConsolePage({
     super.key,
@@ -100,9 +124,6 @@ class ConsolePage extends StatelessWidget {
           profile: TorchShellProfile.console,
           header: TorchAppHeader(title: title, facts: facts, back: back),
           scrollController: scrollController,
-          // Not a tab root, so the cycle is at the leading end of the bottom
-          // region rather than in the header's single trailing slot.
-          skinCycle: const AgentSkinCycle(),
           primary: primary,
           secondary: secondary,
           children: children,

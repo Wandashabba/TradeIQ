@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/rating_band.dart';
-import '../../../core/theme/torchlight/console_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -235,7 +234,10 @@ class _VisitFrame extends StatelessWidget {
                 canPop ? context.pop() : context.go('/dashboard'),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
+        // NO THUMB ZONE, because there is nothing left to put in one. The
+        // theme control was this bar's only occupant, and the theme control
+        // belongs in the menu sheet's "This app" section and nowhere else.
+        // Review is a reading surface: its only verb is the back chip above.
         children: children,
       ),
     );

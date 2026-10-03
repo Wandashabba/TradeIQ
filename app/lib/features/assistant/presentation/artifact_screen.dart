@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
-import '../../../core/theme/torchlight/console_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
@@ -398,7 +397,6 @@ class _ArtifactFrame extends StatelessWidget {
             onPressed: () => canPop ? context.pop() : context.go('/dashboard'),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
         primary: primary,
         children: children,
       ),

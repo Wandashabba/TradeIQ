@@ -316,7 +316,6 @@ class _AskState extends ConsumerState<_Ask> {
           scrollController: _scroll,
           header: TorchAppHeader(
             title: l10n.askTitle,
-            trailing: consoleSkinCycleButton(context, ref),
             flagChips: <Widget>[
               // A session, not an archive — and absent entirely while there
               // is nothing to look back at.

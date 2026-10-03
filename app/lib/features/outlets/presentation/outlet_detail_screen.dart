@@ -168,7 +168,6 @@ class _OutletFrame extends StatelessWidget {
             onPressed: () => context.pop(),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
         primary: primary,
         children: children,
       ),

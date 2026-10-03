@@ -293,7 +293,6 @@ class _CreateOutletState extends ConsumerState<_CreateOutlet> {
             onPressed: () => context.pop(),
           ),
         ),
-        skinCycle: const ConsoleSkinCycle(),
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('create-outlet-submit'),
           label: l10n.createOutletSubmit,
