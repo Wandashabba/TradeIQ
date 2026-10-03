@@ -37,6 +37,76 @@ void main() {
       }
     });
 
+    // ── THE GEOMETRY OVERRIDE, AND THE PROOF IT COSTS NOBODY ELSE ──────
+    //
+    // `TroughGeometry` exists so the ask bar's field can be a 48dp pill
+    // without `radii.control` moving — that number is the radius of every
+    // button, input and thumbnail in the product, and raising it to round one
+    // field would round all of them. The guard is that a trough resolved
+    // WITHOUT a geometry is identical to the one that shipped before the
+    // parameter existed, in every skin and every state.
+    group('the geometry override', () {
+      test('is null by default, and the default trough is byte-identical', () {
+        for (final name in phase2SkinNames) {
+          final skin = phase2SkinNamed(name);
+          for (final state in TroughState.values) {
+            final spec = TroughSpec.resolve(skin: skin, state: state);
+            expect(
+              spec.minHeight,
+              skin.space.primaryActionHeight,
+              reason: '$name/${state.name}: an input is as tall as the button '
+                  'that commits it.',
+            );
+            expect(
+              spec.radius,
+              skin.radii.input,
+              reason: '$name/${state.name}: the one shape rule of the folder.',
+            );
+            expect(
+              spec.verticalPadding,
+              TiqSpace.s4,
+              reason: '$name/${state.name}: the padding the folder shipped.',
+            );
+          }
+        }
+      });
+
+      test('the pill is 48, round at 24, and padded to stay 48 at 1.3x', () {
+        for (final name in phase2SkinNames) {
+          final skin = phase2SkinNamed(name);
+          final spec = TroughSpec.resolve(
+            skin: skin,
+            geometry: TroughGeometry.pill(48),
+          );
+          expect(spec.minHeight, 48);
+          expect(spec.radius, BorderRadius.circular(24));
+          // s2, not s4. The arithmetic is on `TroughGeometry.pill`: at s4 a
+          // one-line field's natural height is 54 at 1.0x and the extent
+          // would be a floor it overshot rather than the height.
+          expect(spec.verticalPadding, TiqSpace.s2);
+          // Everything else is the trough's. A geometry changes three numbers
+          // and may not change a colour, a rule or a hue.
+          final plain = TroughSpec.resolve(skin: skin);
+          expect(spec.fill, plain.fill);
+          expect(spec.outline, plain.outline);
+          expect(spec.outlineWidth, plain.outlineWidth);
+          expect(spec.bottomRule, plain.bottomRule);
+          expect(spec.bottomRuleWidth, plain.bottomRuleWidth);
+          expect(spec.ink, plain.ink);
+          expect(spec.hintInk, plain.hintInk);
+          expect(spec.horizontalPadding, plain.horizontalPadding);
+        }
+      });
+
+      // The radius is `extent / 2` and it does NOT track the drawn height. A
+      // field grown to five lines is a 119dp box at radius 24, which is the
+      // right shape for a paragraph; a 119dp stadium is not.
+      test('the radius comes off the extent, not off what gets drawn', () {
+        expect(TroughGeometry.pill(48).radius, BorderRadius.circular(24));
+        expect(TroughGeometry.pill(56).radius, BorderRadius.circular(28));
+      });
+    });
+
     test('carries a real edge on all four sides, because a fill step is not a '
         'boundary', () {
       final night = TiqSkin.night(density: TiqDensity.field);

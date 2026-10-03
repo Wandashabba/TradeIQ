@@ -14,6 +14,12 @@ import 'trough.dart';
 /// field's own name at exactly the point a person looks up from a shelf and
 /// asks "what was I typing into?".
 ///
+/// One field draws no label at all — see [labelVisible]. That is not the
+/// floating-placeholder compromise this paragraph refuses: the label is not
+/// moved into the control, it is **deleted as a drawn thing** and survives as
+/// the accessible name, because on that one field the placeholder beneath it
+/// was already saying the same sentence.
+///
 /// **The error replaces the help line; it does not push it.** A layout that
 /// grows by a line when a value is refused moves every control beneath it
 /// under a thumb that is already travelling.
@@ -28,6 +34,7 @@ class TorchFieldShell extends StatelessWidget {
     this.counter,
     this.trailing,
     this.semanticsLabel,
+    this.labelVisible = true,
   });
 
   /// The field's name, in sentence case. It is also the semantic label: a
@@ -55,6 +62,11 @@ class TorchFieldShell extends StatelessWidget {
 
   final String? semanticsLabel;
 
+  /// Whether [label] is drawn above the control. See
+  /// [TorchTextField.labelVisible] — it is false for one field in the app and
+  /// the label is still that field's accessible name.
+  final bool labelVisible;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -63,13 +75,15 @@ class TorchFieldShell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(
-          label,
-          style: spec.labelStyle.style(color: spec.labelInk),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        SizedBox(height: spec.labelGap),
+        if (labelVisible) ...<Widget>[
+          Text(
+            label,
+            style: spec.labelStyle.style(color: spec.labelInk),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: spec.labelGap),
+        ],
         child,
         if (showError || help != null || counter != null)
           SizedBox(height: spec.helpGap),

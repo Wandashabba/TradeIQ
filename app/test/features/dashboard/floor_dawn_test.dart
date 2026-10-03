@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_contrast.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
+import 'package:tradeiq_app/features/assistant/answer/composer.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/floor_dawn.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
@@ -1454,8 +1455,24 @@ void main() {
       ('night', night),
       ('day', day),
     ]) {
-      testWidgets('$skinName: the composer label at 2.0x, and the 360x640 '
-          'phone', (tester) async {
+      // ── THE GROUND THE ASK BAR STANDS ON ────────────────────────────
+      //
+      // THIS PROBED `find.text('Ask a question')` UNTIL 3 OCTOBER 2026 — the
+      // composer's standing label, which was the one piece of ink sitting
+      // directly on the washed ground at the bottom of this screen. The
+      // proportion pass deleted it: it repeated the hint beneath it word for
+      // word and was indented 56dp from the bar's left edge, which is what
+      // made the bar's left margin ragged. See `QuestionComposer`.
+      //
+      // The probe moves to the bar's own top row rather than going with it.
+      // Nothing of the bar's ink touches the wash now — the hint is on the
+      // trough's `well` fill, which is opaque — so the measurement would be
+      // vacuous if it followed the words. What is worth pinning is the
+      // ground: the next thing anybody puts at the bottom of The Floor lands
+      // in this band, and `ink2` on it has to clear 4.5:1 there or the fix is
+      // the ground and not the object.
+      testWidgets('$skinName: the ground under the ask bar at 2.0x, and the '
+          '360x640 phone', (tester) async {
         for (final (name, size, scale) in const <(String, Size, double)>[
           ('390x844 @ 2.0x', Size(390, 844), 2.0),
           ('390x844 @ 1.3x', Size(390, 844), 1.3),
@@ -1464,21 +1481,25 @@ void main() {
         ]) {
           await floor(tester, skin: skin, size: size, textScale: scale);
           final pixels = await torchPixels(tester);
-          final label = tester.getRect(find.text('Ask a question'));
-          // THE LABEL'S BOTTOM ROW AT THE SCREEN'S HORIZONTAL CENTRE, which is
-          // the point of the label's box closest to the wash's ellipse centre
-          // and therefore the worst point of the gradient under it. Not the
-          // label's own centre and not an endpoint.
-          final ground = pixels.at(size.width / 2, label.bottom - 0.5);
+          final bar = tester.getRect(find.byType(QuestionComposer));
+          // THE LAST GROUND ROW ABOVE THE BAR, AT THE SCREEN'S HORIZONTAL
+          // CENTRE — the point closest to the wash's ellipse centre and
+          // therefore the worst point of the gradient in this band. One row
+          // lower is the trough's own `edgeControl` outline and the ratio
+          // there is a measurement of a border against a label, which means
+          // nothing; `bar.top - 0.5` is where the scrim has finished and the
+          // ground is the only thing painting.
+          final y = bar.top - 0.5;
+          final ground = pixels.at(size.width / 2, y);
           final ratio = contrastRatio(skin.palette.ink2, ground);
           final bare = contrastRatio(
             skin.palette.ink2,
-            unwashed(skin, label.bottom - 0.5, size.height),
+            unwashed(skin, y, size.height),
           );
           // ignore: avoid_print
           print(
-            'THE COMPOSER LABEL at $skinName $name: bottom row '
-            'y=${label.bottom}, ground ${hex(ground)}, ink-2 at '
+            'THE GROUND UNDER THE ASK BAR at $skinName $name: last ground '
+            'row y=$y, ground ${hex(ground)}, ink-2 at '
             '${bare.toStringAsFixed(2)}:1 before and '
             '${ratio.toStringAsFixed(2)}:1 after (floor 4.5:1, margin '
             '${ratio - 4.5 >= 0 ? '+' : ''}${(ratio - 4.5).toStringAsFixed(2)})',
@@ -1486,7 +1507,7 @@ void main() {
           expect(
             ratio,
             greaterThanOrEqualTo(4.5),
-            reason: 'The composer\'s standing label at $skinName $name.',
+            reason: 'The ground the ask bar stands on at $skinName $name.',
           );
         }
       });

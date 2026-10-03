@@ -53,6 +53,29 @@
 /// ramp, after the ramp, and after the fill gradients. Three screens moved by a
 /// single lit *pixel*, which is anti-aliasing at a gradient's rim and is
 /// reported rather than budgeted — see `AmberCensus.litFraction`.
+///
+/// ## 3 October 2026 — THE COUNTS HELD AND THE BOUNDS MOVED, ON PURPOSE
+///
+/// The ask bar's proportion pass grew the Send disc from 36dp to 48 (see
+/// `QuestionComposer.barExtent`). Send is an amber object on all three console
+/// rows below, so its **region bounds change and its lit pixels nearly
+/// double**. Measured, both skins, 390×844:
+///
+/// | row | was | is |
+/// |---|---|---|
+/// | Floor / Ask / Tasks, night | 36×36 at 328,802 — 804–809px | **48×48 at 322,796 — 1590–1592px** |
+/// | Floor / Ask / Tasks, day | 34×34 at 329,803 — 709px | **46×46 at 323,797 — 1429px** |
+///
+/// Day's region is 2dp smaller than the disc in both readings because Day's
+/// Send carries a 1px ink border that is not flame-hued, so the scan sees the
+/// block inset by one on each side. The Floor's second Night object — the
+/// plate's strip light, `350px at 20,121 350x1` — is **unmoved**, and
+/// `AGENT_LOOK` and `ENTRY_LOOK` are byte-identical in both skins: neither
+/// screen carries the ask bar.
+///
+/// **No count moved anywhere.** That is the assertion in this file and it is
+/// the one that had to hold: a bigger amber object is a bigger object, and a
+/// second amber object would have been a budget breach.
 library;
 
 import 'package:flutter/widgets.dart';

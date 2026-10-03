@@ -26,32 +26,42 @@ import '../mark/tiq_mark.dart';
 ///
 /// ## Why it is a ghost and not a filled control
 ///
-/// It is the second round object in a row whose first one is Send, and Send is
-/// the route's light. A filled disc beside a lit disc is two objects competing
-/// at the same weight; a rim beside a block is a control beside an action. The
-/// material is `_StopKey`'s, in the same file as Send and for the same reason
-/// — transparent fill, `edgeControl` rim, `torchPressSurface` under the
-/// finger. **Amber: none.** It is a control, and controls are never amber
-/// (unify §1.6).
+/// Send is the route's light, and since 3 October 2026 this key is exactly the
+/// same size and shape as it. A filled disc beside a lit disc of identical
+/// geometry is two objects competing at the same weight, and the only channel
+/// left to tell a control from an action would be hue. A rim beside a block
+/// is a control beside an action, in a channel that survives both skins and a
+/// reader who cannot separate them by colour. The material is `_StopKey`'s, in
+/// the same file as Send and for the same reason — transparent fill,
+/// `edgeControl` rim, `torchPressSurface` under the finger. **Amber: none.**
+/// It is a control, and controls are never amber (unify §1.6).
 ///
-/// ## 44 drawn, 48 targeted
+/// ## 48 drawn, 48 targeted — 3 October 2026
 ///
-/// The drawn disc is [extent], which is `torchTapTarget`'s own floor and WCAG
-/// 2.5.5's, so the drawing is already at the rule rather than under it. The
-/// target is 48 — the same square Send stands in — so the two ends of the bar
-/// have the same reach and the row has one height.
+/// It was 44 drawn inside a 48 target: the tap-target floor, drawn at full
+/// size because unlike the plate's quiet controls this one is not sitting on a
+/// photograph and had no mockup weight to come down to. The claim written here
+/// was that *"the two ends of the bar have the same reach and the row has one
+/// height"*, and the reach was true. **The height was not** — the drawn boxes
+/// were 44, 54 and 36 across the row, which is what the owner was looking at
+/// when they said the bottom of the screen does not look proportioned.
+///
+/// Both numbers are [QuestionComposer.barExtent] now. They are kept as two
+/// named constants, equal, because the distinction between what is painted and
+/// what a finger hits is the one `floor_proportion_test.dart`'s weight table
+/// is built on, and a row where the two agree is a fact worth being able to
+/// read off.
 class TorchAskDestinations extends StatelessWidget {
   const TorchAskDestinations({super.key, required this.onTap});
 
   final VoidCallback onTap;
 
-  /// The drawn disc. 44dp: the tap-target floor, drawn at full size because
-  /// unlike the plate's quiet controls this one is not sitting on a
-  /// photograph and has no mockup weight to come down to.
-  static const double extent = 44;
+  /// The drawn disc — the row's one size.
+  static const double extent = QuestionComposer.barExtent;
 
-  /// The square the finger lands in — Send's, so the row is one height.
-  static const double target = 48;
+  /// The square the finger lands in. The same number as [extent] since
+  /// 3 October 2026, and Send's.
+  static const double target = QuestionComposer.barExtent;
 
   @override
   Widget build(BuildContext context) {
