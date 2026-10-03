@@ -4,6 +4,7 @@ import '../../design/torch_scope.dart';
 import '../../theme/torchlight/tiq_skin.dart';
 import '../../../features/assistant/answer/ask_light.dart' show AskLight;
 import 'chrome/chrome.dart';
+import 'console_desk.dart';
 import 'sheet.dart';
 
 /// THE CONSOLE'S FRAME, for every manager route that is not The Floor.
@@ -95,6 +96,7 @@ class ConsoleFrame extends StatelessWidget {
     this.scrollController,
     this.band,
     this.askHint,
+    this.desk,
   });
 
   /// `loading`, `loaded`, `empty`, `filtered-empty`, `error`. Resolution
@@ -140,6 +142,20 @@ class ConsoleFrame extends StatelessWidget {
   /// unfiltered Floor.
   final String? askHint;
 
+  /// ── THE DESK, ON A ROUTE THAT IS A LIST OF RECORDS ───────────────────
+  ///
+  /// Null on 23 of the 24 destinations, and **null is not "no desktop
+  /// layout"**: above [ConsoleDesk.isDesk] a route with no desk still gets the
+  /// rail and one centred column, which is the right shape for a scorecard, a
+  /// settings form, a chart dashboard or a chat and costs those screens no
+  /// diff at all.
+  ///
+  /// What passing one buys is the **third pane**. A route that is a list of
+  /// records hands over its records, its filter rail and the blocks above the
+  /// list; the frame owns the selection, the panes and the motion. See
+  /// `console_desk.dart`.
+  final ConsoleDeskRecords? desk;
+
   /// The route's full claim set. See the class comment's table, and the
   /// Messages paragraph for the one condition.
   List<TorchClaim> _claims() {
@@ -168,22 +184,70 @@ class ConsoleFrame extends StatelessWidget {
         tabbedRoute: false,
         beneathSheet: beneathSheet,
         claims: _claims(),
-        child: TorchShell(
-          profile: TorchShellProfile.console,
-          header: header,
-          scrollController: scrollController,
-          band: band == null
-              ? askBar
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    band!,
-                    SizedBox(height: skin.space.intraBlock),
-                    askBar,
-                  ],
-                ),
-          children: children,
+        // ── THE SELECTION LIVES ABOVE THE BREAKPOINT BRANCH ──────────────
+        //
+        // `ConsoleDeskScope` is outside the `LayoutBuilder` on purpose: the
+        // two arms are different widget types, so a window dragged across the
+        // threshold unmounts one element tree and mounts the other, and a
+        // `State` held inside the branch would lose the selected record on the
+        // way past. Mounted at every width, it does not — drag narrow and back
+        // and the same record is still open, having asked the network nothing.
+        //
+        // It costs one `StatefulWidget` on the 23 routes that never select
+        // anything, which is one element and no paint.
+        child: ConsoleDeskScope(
+          builder: (context, selection) => LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              // An unbounded height is not a tall viewport, it is no viewport:
+              // the panes are `Expanded` against a free height and there is
+              // none to divide. `EntryFrame` guards the same way, for the same
+              // reason — degrade to the phone shape rather than to an infinite
+              // constraint.
+              if (constraints.hasBoundedHeight &&
+                  ConsoleDesk.isDesk(skin, size)) {
+                return TorchShell(
+                  profile: TorchShellProfile.console,
+                  desk: ConsoleDeskBody(
+                    header: header,
+                    askBar: askBar,
+                    records: desk,
+                    selection: selection,
+                    scrollController: scrollController,
+                    children: children,
+                  ),
+                  // The shell's own body list is empty and the desk is the
+                  // body. See `TorchShell.desk`.
+                  children: const <Widget>[],
+                );
+              }
+
+              // ── THE PHONE ARM, UNCHANGED ────────────────────────────────
+              //
+              // Not a narrower desk: the tree this frame built before
+              // `console_desk.dart` existed, line for line. `band`, the ask
+              // bar, the header, the children and the gutter are all where
+              // they were, and `console_desk_test.dart` asserts at 390×844 and
+              // 360×640 that no rail and no pane is in the tree at all.
+              return TorchShell(
+                profile: TorchShellProfile.console,
+                header: header,
+                scrollController: scrollController,
+                band: band == null
+                    ? askBar
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          band!,
+                          SizedBox(height: skin.space.intraBlock),
+                          askBar,
+                        ],
+                      ),
+                children: children,
+              );
+            },
+          ),
         ),
       ),
     );

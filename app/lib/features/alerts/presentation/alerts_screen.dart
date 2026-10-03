@@ -9,6 +9,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/evidence_thumb.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
@@ -83,6 +84,34 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     ref.invalidate(alertsListProvider);
   }
 
+  /// Acknowledging from the **detail pane**, which has no row to collapse.
+  ///
+  /// `_AlertRowState._acknowledge` is the phone's, and it cannot be reused
+  /// here: half of it is the optimistic collapse of the row that was tapped,
+  /// driven by that row's own `AnimationController`. In the pane the record
+  /// stays where it is and the list beside it is what changes, so this is the
+  /// same two calls without the animation — and with the same honesty on
+  /// failure, because an exception that did not get acknowledged must still
+  /// read as open.
+  Future<void> _acknowledgeInPane(String id) async {
+    try {
+      await ref.read(alertsRepositoryProvider).acknowledge(id);
+      if (!mounted) return;
+      _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      showTorchToast(
+        context,
+        message: 'That exception was not acknowledged. It is still open.',
+        kind: ToastKind.failure,
+        action: TorchTertiaryButton(
+          label: 'Try again',
+          onPressed: () => _acknowledgeInPane(id),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final view = ref.watch(alertsViewProvider);
@@ -117,9 +146,19 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     );
   }
 
-  Widget _frame({required String phase, required List<Widget> children}) {
+  Widget _frame({
+    required String phase,
+    required List<Widget> children,
+    ConsoleDeskRecords? desk,
+  }) {
     return ConsoleFrame(
       phase: phase,
+      // ── THE ONE SCREEN WIRED FOR THREE PANES ───────────────────────────
+      //
+      // Null on every phase but `loaded`/`filtered-empty`: a skeleton and an
+      // error are not records, so at desk width those phases get the rail and
+      // one centred column, which is what they already looked like.
+      desk: desk,
       header: TorchAppHeader(
         title: 'Exceptions',
         facts: const <String>['Rules evaluate on every visit submit.'],
@@ -146,6 +185,63 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           : visible.isEmpty
           ? 'filtered-empty'
           : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ───────────────────────
+      //
+      // The records, the filter rail and the two blocks that belong above the
+      // list. Everything here is **already built below** for the phone arm —
+      // the same `_Filters`, the same `_LeadIndicator`, the same `_AlertRow`,
+      // the same `PaginationFooter` — so there is no second composition of
+      // this screen to keep in step. What the rows lose is their tap, which
+      // the frame takes over (`_AlertRow.onDesk`), and what the pane gains is
+      // `AlertDetailBody`: the identical evidence the sheet draws on a phone,
+      // without a scrim over the list it was chosen from.
+      //
+      // `Manage rules` and the section rule are deliberately **not** here.
+      // The first is a hop to another destination and the rail is now the
+      // place destinations live; the second counted the rows under a marker,
+      // and the selected filter chip above the list already names and counts
+      // the slice — which is the argument `tasks_screen.dart` makes for having
+      // dropped its own.
+      desk: ConsoleDeskRecords(
+        lead: <Widget>[
+          _LeadIndicator(view: view),
+          SizedBox(height: context.skin.space.blockGap),
+        ],
+        filters: _Filters(
+          tab: _tab,
+          severity: _severity,
+          view: view,
+          onTab: (t) => setState(() => _tab = t),
+          onSeverity: (s) => setState(() => _severity = s),
+        ),
+        footer: footer == null
+            ? null
+            : PaginationFooter(
+                key: const ValueKey<String>('alerts-footer-desk'),
+                summary: footer.summary,
+                narrowLine: footer.scope,
+              ),
+        records: <ConsoleDeskRecord>[
+          for (var i = 0; i < visible.length; i++)
+            ConsoleDeskRecord(
+              id: visible[i].id,
+              row: (context, selected) => _AlertRow(
+                key: ValueKey<String>('alert-row-${visible[i].id}'),
+                alert: visible[i],
+                last: i == visible.length - 1,
+                onAcknowledged: _refresh,
+                onDesk: true,
+              ),
+              detail: (context) => TorchCard(
+                key: ValueKey<String>('alert-detail-${visible[i].id}'),
+                child: AlertDetailBody(
+                  alert: visible[i],
+                  onAcknowledge: () => _acknowledgeInPane(visible[i].id),
+                ),
+              ),
+            ),
+        ],
+      ),
       children: <Widget>[
         // What raises these rows is one hop away — a manager reading "a rule
         // fired" should be able to go and see, or silence, the rule itself.
@@ -191,7 +287,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           const EmptyState(
             scope: EmptyScope.inPanel,
             headline: 'Nothing to triage.',
-            body: 'Exceptions appear here when a rule fires on a submitted '
+            body:
+                'Exceptions appear here when a rule fires on a submitted '
                 'visit.',
           )
         else if (visible.isEmpty)
@@ -424,11 +521,22 @@ class _AlertRow extends ConsumerStatefulWidget {
     required this.alert,
     required this.last,
     required this.onAcknowledged,
+    this.onDesk = false,
   });
 
   final AlertRow alert;
   final bool last;
   final VoidCallback onAcknowledged;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**
+  /// and the evidence is already on screen in the detail pane.
+  ///
+  /// Opening `showAlertDetailSheet` there would put a scrim over the list the
+  /// manager chose from and draw the same [AlertDetailBody] twice, one of them
+  /// behind the other. So the tap goes to the frame instead — `_Record` in
+  /// `console_desk.dart` — and this row draws exactly the same four lines it
+  /// draws on a phone, minus a gesture it is no longer the owner of.
+  final bool onDesk;
 
   @override
   ConsumerState<_AlertRow> createState() => _AlertRowState();
@@ -591,11 +699,13 @@ class _AlertRowState extends ConsumerState<_AlertRow>
         actions: verbs.isEmpty
             ? null
             : Wrap(spacing: TiqSpace.s4, children: verbs),
-        onTap: () => showAlertDetailSheet(
-          context,
-          alert: alert,
-          onAcknowledge: _acknowledge,
-        ),
+        onTap: widget.onDesk
+            ? null
+            : () => showAlertDetailSheet(
+                context,
+                alert: alert,
+                onAcknowledge: _acknowledge,
+              ),
         separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
         semanticsLabel: <String>[
           alert.severityLabel,

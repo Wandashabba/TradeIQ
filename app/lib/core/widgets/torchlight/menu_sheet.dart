@@ -153,6 +153,19 @@ Future<void> showTorchMenuSheet(
   );
 }
 
+/// THE GROUP'S NAME AND ITS COUNT, as one string — `Execution · 9`.
+///
+/// One function because there are now **two** readers: this sheet's fold
+/// header and the desk's rail marker (`console_desk.dart`). The count is
+/// `destinationsIn(group).length` — a `const` list's length, already in hand —
+/// and no count was invented for either caller.
+///
+/// Sentence case in the data. [SectionRule] uppercases for display only, so
+/// the rail prints `EXECUTION · 9` and a screen reader still hears a word
+/// rather than nine letters; the sheet's own `SoftRow` prints it as written.
+String menuGroupLabel(AppLocalizations l10n, NavGroup group) =>
+    '${navGroupName(l10n, group)} · ${destinationsIn(group).length}';
+
 /// The current location, or null if nobody can say.
 ///
 /// `GoRouter.of` reads `InheritedGoRouter`, which the delegate puts **above**
@@ -160,7 +173,11 @@ Future<void> showTorchMenuSheet(
 /// over one alike. It still catches: a widget test may pump [MenuSheetBody]
 /// with no router at all, and a menu that throws because it could not find out
 /// which row to embolden would be a navigation sheet broken by a decoration.
-@visibleForTesting
+///
+/// **No longer test-only.** The desk's rail (`console_desk.dart`) asks the same
+/// question for the same reason — which row is the one you are standing on —
+/// so `@visibleForTesting` came off rather than being worked around with a
+/// second copy of the try/catch.
 String? currentMenuLocation(BuildContext context) {
   try {
     return GoRouter.of(context).state.uri.path;
@@ -178,7 +195,9 @@ String? currentMenuLocation(BuildContext context) {
 /// screen. Null for a location that is not a destination at all, such as
 /// `/account/password`: nothing opens, and guessing would be worse than
 /// nothing.
-@visibleForTesting
+///
+/// **No longer test-only**: the desk's rail reads it too. See
+/// [currentMenuLocation].
 NavDestination? menuDestinationFor(String? location) {
   if (location == null || location.isEmpty) return null;
   NavDestination? best;
@@ -370,7 +389,11 @@ class _GroupFold extends StatelessWidget {
         // this is a row with a title now rather than a marker on the ground,
         // and uppercase-plus-tracking is the most space-hungry setting in the
         // system on the one change whose brief is "smaller".
-        title: '$name · ${destinations.length}',
+        //
+        // The string is [menuGroupLabel]'s, because the desk's rail prints the
+        // same group and the same count and two formatters for one label is
+        // the drift this file has already been corrected for twice.
+        title: menuGroupLabel(l10n, group),
         trailing: _FoldCaret(open: open),
         onTap: onToggle,
       ),
@@ -390,7 +413,7 @@ class _GroupFold extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 for (final destination in destinations)
-                  _DestinationRow(
+                  MenuDestinationRow(
                     key: ValueKey<String>('menu-${destination.route}'),
                     destination: destination,
                     here: destination.route == here?.route,
@@ -544,8 +567,8 @@ class _FoldCaret extends StatelessWidget {
 /// **The row you are on** is `body.strong` on `ink1` in a `surface` box — the
 /// same size, more weight, more light, and a silhouette. Weight and fill are
 /// free; the amber they stand in for is not, and this sheet's census is zero.
-class _DestinationRow extends StatefulWidget {
-  const _DestinationRow({
+class MenuDestinationRow extends StatefulWidget {
+  const MenuDestinationRow({
     super.key,
     required this.destination,
     required this.here,
@@ -568,10 +591,10 @@ class _DestinationRow extends StatefulWidget {
   static const double glyph = 18;
 
   @override
-  State<_DestinationRow> createState() => _DestinationRowState();
+  State<MenuDestinationRow> createState() => _MenuDestinationRowState();
 }
 
-class _DestinationRowState extends State<_DestinationRow> {
+class _MenuDestinationRowState extends State<MenuDestinationRow> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
@@ -606,7 +629,7 @@ class _DestinationRowState extends State<_DestinationRow> {
       children: <Widget>[
         Icon(
           widget.destination.icon,
-          size: MarkScale.glyph(context, _DestinationRow.glyph),
+          size: MarkScale.glyph(context, MenuDestinationRow.glyph),
           color: ink,
         ),
         const SizedBox(width: TiqSpace.s3),
@@ -644,8 +667,8 @@ class _DestinationRowState extends State<_DestinationRow> {
         onTapCancel: () => _setPressed(false),
         child: Padding(
           padding: const EdgeInsetsDirectional.only(
-            start: _DestinationRow.indent,
-            end: _DestinationRow.indent,
+            start: MenuDestinationRow.indent,
+            end: MenuDestinationRow.indent,
             bottom: TiqSpace.s1,
           ),
           child: DecoratedBox(

@@ -80,7 +80,25 @@ class TorchShell extends StatelessWidget {
     this.pinned,
     this.bleedTop = false,
     this.backdrop = const <Decoration>[],
+    this.desk,
   }) : assert(
+         desk == null || profile == TorchShellProfile.console,
+         'The desk is the manager console at desktop width. The agent side is '
+         'phone-only by the same sentence that asked for it.',
+       ),
+       assert(
+         desk == null ||
+             (header == null &&
+                 band == null &&
+                 pinned == null &&
+                 navPill == null &&
+                 primary == null),
+         'A desk places the header, the ask bar and the records itself, in the '
+         'panes they belong to. Handing it the shell slots as well would draw '
+         'each of them twice — see ConsoleDeskBody on where the header and the '
+         'bar went.',
+       ),
+       assert(
          !bleedTop || header == null,
          'A route with a header does not bleed its body to the top edge: the '
          'header IS the top edge. bleedTop exists for the one shape that has '
@@ -257,6 +275,24 @@ class TorchShell extends StatelessWidget {
   /// into the call stream it is already in. No layer, no clip, no `saveLayer`.
   final List<Decoration> backdrop;
 
+  /// ── A BODY THAT LAYS ITSELF OUT: the manager's desk ──────────────────
+  ///
+  /// The third body shape, beside the plain scroll view and the [pinned]
+  /// variant. `ConsoleDeskBody` (`console_desk.dart`) is the one caller, and
+  /// it is handed **the whole shell minus the safe area**, with the ground and
+  /// any [backdrop] already painted under it.
+  ///
+  /// It gets its own slot rather than being a child because a desk is not one
+  /// scrollable: each of its three panes scrolls on its own, which is what
+  /// panes are for, and the shell's `ListView` would have given it an
+  /// unbounded height to lay a `Row` of `Expanded`s out in.
+  ///
+  /// The ground is still the shell's, which is the whole reason this is a slot
+  /// here and not a route that replaces the shell: the falloff and the ambient
+  /// wash are the one full-bleed layer all three panes share, exactly as
+  /// [backdrop]'s own note says of the band and the bottom region.
+  final Widget? desk;
+
   /// The share of the screen a [pinned] band may take. unify §4's header rule,
   /// applied to the one other thing that holds a place at the top.
   static const double pinnedBandFraction = 0.4;
@@ -321,6 +357,27 @@ class TorchShell extends StatelessWidget {
         ? skin.space.gutterFor(width).left
         : skin.space.gutter;
     final showNav = navWillRender(context, hasNav: navPill != null);
+
+    // THE DESK TAKES THE SHELL'S WHOLE BOX, and the ground comes with it. It
+    // is checked before anything else is computed because every local below
+    // this line is about a region a desk does not have.
+    final deskBody = desk;
+    if (deskBody != null) {
+      return DefaultTextStyle(
+        style: skin.text.body.style(color: skin.palette.ink1),
+        child: _Ground(
+          skin: skin,
+          falloff: true,
+          backdrop: backdrop,
+          child: Column(
+            children: <Widget>[
+              Expanded(child: deskBody),
+              SizedBox(height: safeBottom),
+            ],
+          ),
+        ),
+      );
+    }
 
     final bottom = _bottomRegion(context, skin: skin, showNav: showNav);
 

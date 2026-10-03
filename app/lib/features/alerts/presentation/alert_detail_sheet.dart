@@ -47,8 +47,43 @@ Future<void> showAlertDetailSheet(
   );
 }
 
-class _AlertDetailSheet extends ConsumerWidget {
+/// The sheet, on a phone. On the desk this evidence is not a modal — it is
+/// the detail pane — so the sheet is the chrome around [AlertDetailBody] and
+/// the body is a widget both callers build. See `console_desk.dart`.
+class _AlertDetailSheet extends StatelessWidget {
   const _AlertDetailSheet({required this.alert, required this.onAcknowledge});
+
+  final AlertRow alert;
+  final Future<void> Function() onAcknowledge;
+
+  @override
+  Widget build(BuildContext context) => TorchSheet(
+    semanticsLabel: '${alert.severityLabel}. ${alert.message}',
+    child: AlertDetailBody(alert: alert, onAcknowledge: onAcknowledge),
+  );
+}
+
+/// EVERYTHING BEHIND ONE FIRED RULE, as a column — the sheet's own body,
+/// lifted out so the desk's detail pane can draw the identical evidence
+/// without a scrim over a list the manager is still reading.
+///
+/// It is the same widget in both places, which is the point: there is no
+/// desktop version of this screen's detail, there is one detail with two
+/// addresses. The one thing the sheet adds is the grabber and the dismissal,
+/// which a pane does not have and does not need.
+///
+/// It paints on [TiqPalette.surface] in both: the sheet's fill is `surface`
+/// and the pane wraps it in a `TorchCard`, whose fill is also `surface`, so
+/// every contrast pairing measured for the sheet holds unchanged in the pane —
+/// including the knocked-out tick below, which names `surface` as its ground.
+/// **That is also why the ambient washes cannot reach any of it**: the wash is
+/// under an opaque fill.
+class AlertDetailBody extends ConsumerWidget {
+  const AlertDetailBody({
+    super.key,
+    required this.alert,
+    required this.onAcknowledge,
+  });
 
   final AlertRow alert;
   final Future<void> Function() onAcknowledge;
@@ -68,136 +103,141 @@ class _AlertDetailSheet extends ConsumerWidget {
               .watch(visitDetailProvider(alert.visitId!))
               .maybeWhen(data: (d) => d, orElse: () => null);
 
-    return TorchSheet(
-      semanticsLabel: '${alert.severityLabel}. ${alert.message}',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // 1. The severity, first — a mark, a word, and only then a hue.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              SeverityMark(kind: kind),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // 1. The severity, first — a mark, a word, and only then a hue.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SeverityMark(kind: kind),
+            const SizedBox(width: 6),
+            Text(
+              alert.severityLabel,
+              style: skin.text.label.style(color: p.ink1),
+            ),
+            if (alert.acknowledged) ...<Widget>[
               const SizedBox(width: 6),
               Text(
-                alert.severityLabel,
-                style: skin.text.label.style(color: p.ink1),
-              ),
-              if (alert.acknowledged) ...<Widget>[
-                const SizedBox(width: 6),
-                Text(
-                  '· acknowledged',
-                  style: skin.text.label.style(color: p.ink2),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: TiqSpace.s3),
-
-          // 2. The message.
-          Semantics(
-            header: true,
-            child: Text(
-              alert.message,
-              style: skin.text.titleL.style(color: p.ink1),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: TiqSpace.s3),
-
-          // 3. The rule, on a well block, in the identifier face — a manager
-          //    can read it back into the rules screen character by character.
-          _RuleBlock(rule: alert.rule, outlet: alert.outletName),
-
-          // 4. The evidence. Absent entirely when there is none: no
-          //    placeholder, because a placeholder is a claim that a photograph
-          //    exists.
-          if (alert.evidencePhotoId != null) ...<Widget>[
-            const SizedBox(height: TiqSpace.s5),
-            TorchEvidenceThumb(
-              photoId: alert.evidencePhotoId!,
-              aspectRatio: 16 / 9,
-              semanticLabel:
-                  'Shelf photograph from ${alert.outletName} for '
-                  '${alert.message}',
-            ),
-            if (_captureTime(visit, alert.evidencePhotoId!) !=
-                null) ...<Widget>[
-              const SizedBox(height: TiqSpace.s2),
-              Text(
-                _stamp(_captureTime(visit, alert.evidencePhotoId!)!),
-                style: skin.text.monoIdent.style(color: p.ink3),
+                '· acknowledged',
+                style: skin.text.label.style(color: p.ink2),
               ),
             ],
           ],
+        ),
+        const SizedBox(height: TiqSpace.s3),
 
-          // 5. Who submitted it. The visit carries the agent's id and sign-in
-          //    address; the name comes from the roster. Named, the row reads
-          //    name / role · outlet. Unnamed — no display name, or not on the
-          //    roster yet — the sign-in address is the identifier line. Never
-          //    a UUID, and never a name we made up.
-          if (visit != null) ...<Widget>[
-            const SizedBox(height: TiqSpace.s5),
-            PersonRow(
-              key: const ValueKey<String>('sheet-agent'),
-              name: nonBlankName(directory[visit.agent.id]?.displayName),
-              role: 'Field agent',
-              outlet: visit.outlet.name,
-              identifier: visit.agent.email,
-              identifierLabel: 'Signed in as',
-              separator: SoftRowSeparator.none,
-            ),
-          ],
+        // 2. The message.
+        Semantics(
+          header: true,
+          child: Text(
+            alert.message,
+            style: skin.text.titleL.style(color: p.ink1),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
 
-          // 6. The flags. Facts, not verdicts, and every one of them tappable
-          //    to its explanation would be better still — the map is not a
-          //    console destination yet.
-          if (visit != null && !visit.geofencePass) ...<Widget>[
-            const SizedBox(height: TiqSpace.s3),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: FlagChip(
-                kind: FlagKind.outOfFence,
-                detail: visit.distanceM == null
-                    ? null
-                    : '${visit.distanceM!.round()} m',
-              ),
-            ),
-          ],
+        // 3. The rule, on a well block, in the identifier face — a manager
+        //    can read it back into the rules screen character by character.
+        _RuleBlock(rule: alert.rule, outlet: alert.outletName),
 
-          // 7. Two stacked ghosts. Destructive actions do not live here.
-          const SizedBox(height: TiqSpace.s6),
-          if (alert.acknowledged)
-            _AlreadyAcknowledged()
-          else
-            TorchSecondaryButton(
-              key: const ValueKey<String>('sheet-acknowledge'),
-              label: 'Acknowledge',
-              onPressed: () {
-                // Close first, then collapse the row behind it, so the manager
-                // sees the list update rather than a sheet sitting over a
-                // change they cannot see.
-                Navigator.of(context).pop();
-                onAcknowledge();
-              },
-            ),
-          // A link with nowhere to go is dishonest chrome: an alert with no
-          // visit gets no control at all, not a disabled one.
-          if (alert.visitId != null) ...<Widget>[
-            const SizedBox(height: TiqSpace.s3),
-            TorchSecondaryButton(
-              key: const ValueKey<String>('sheet-open-visit'),
-              label: 'Open the visit',
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.push('/visits/${alert.visitId}');
-              },
+        // 4. The evidence. Absent entirely when there is none: no
+        //    placeholder, because a placeholder is a claim that a photograph
+        //    exists.
+        if (alert.evidencePhotoId != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s5),
+          TorchEvidenceThumb(
+            photoId: alert.evidencePhotoId!,
+            aspectRatio: 16 / 9,
+            semanticLabel:
+                'Shelf photograph from ${alert.outletName} for '
+                '${alert.message}',
+          ),
+          if (_captureTime(visit, alert.evidencePhotoId!) != null) ...<Widget>[
+            const SizedBox(height: TiqSpace.s2),
+            Text(
+              _stamp(_captureTime(visit, alert.evidencePhotoId!)!),
+              style: skin.text.monoIdent.style(color: p.ink3),
             ),
           ],
         ],
-      ),
+
+        // 5. Who submitted it. The visit carries the agent's id and sign-in
+        //    address; the name comes from the roster. Named, the row reads
+        //    name / role · outlet. Unnamed — no display name, or not on the
+        //    roster yet — the sign-in address is the identifier line. Never
+        //    a UUID, and never a name we made up.
+        if (visit != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s5),
+          PersonRow(
+            key: const ValueKey<String>('sheet-agent'),
+            name: nonBlankName(directory[visit.agent.id]?.displayName),
+            role: 'Field agent',
+            outlet: visit.outlet.name,
+            identifier: visit.agent.email,
+            identifierLabel: 'Signed in as',
+            separator: SoftRowSeparator.none,
+          ),
+        ],
+
+        // 6. The flags. Facts, not verdicts, and every one of them tappable
+        //    to its explanation would be better still — the map is not a
+        //    console destination yet.
+        if (visit != null && !visit.geofencePass) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FlagChip(
+              kind: FlagKind.outOfFence,
+              detail: visit.distanceM == null
+                  ? null
+                  : '${visit.distanceM!.round()} m',
+            ),
+          ),
+        ],
+
+        // 7. Two stacked ghosts. Destructive actions do not live here.
+        const SizedBox(height: TiqSpace.s6),
+        if (alert.acknowledged)
+          _AlreadyAcknowledged()
+        else
+          TorchSecondaryButton(
+            key: const ValueKey<String>('sheet-acknowledge'),
+            label: 'Acknowledge',
+            onPressed: () {
+              // Close first, then collapse the row behind it, so the manager
+              // sees the list update rather than a sheet sitting over a
+              // change they cannot see.
+              Navigator.of(context).pop();
+              onAcknowledge();
+            },
+          ),
+        // A link with nowhere to go is dishonest chrome: an alert with no
+        // visit gets no control at all, not a disabled one.
+        if (alert.visitId != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          TorchSecondaryButton(
+            key: const ValueKey<String>('sheet-open-visit'),
+            label: 'Open the visit',
+            onPressed: () {
+              // POP ONLY IF THERE IS A MODAL TO POP. In the sheet this
+              // closes the scrim before navigating, which is the sheet's own
+              // rule; in the **detail pane** there is no modal above the
+              // route, so an unconditional pop would pop the console screen
+              // itself and the manager would arrive at the visit having also
+              // lost the exceptions list behind it. `canPop` is the one
+              // question that distinguishes the two addresses, and it is
+              // asked rather than assumed.
+              final navigator = Navigator.of(context);
+              if (navigator.canPop()) navigator.pop();
+              context.push('/visits/${alert.visitId}');
+            },
+          ),
+        ],
+      ],
     );
   }
 
