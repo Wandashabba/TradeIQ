@@ -7,6 +7,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../l10n/l10n.dart';
 import 'account_frame.dart';
+import 'entry_plate.dart';
 
 /// `/update-required` — the server has refused this build (#400).
 ///
@@ -42,7 +43,8 @@ class _UpdateRequired extends StatelessWidget {
           phase: 'update-required',
           title: l10n.updateTitle,
           primaryArmed: true,
-          skinCycle: const EntrySkinCycle(),
+          onThePlate: true,
+          reserve: EntryPlateReserve.updateRequired,
           primary: TorchPrimaryButton(
             key: const ValueKey<String>('update-try-again'),
             label: l10n.updateTryAgain,

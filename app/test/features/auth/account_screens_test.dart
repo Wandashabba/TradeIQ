@@ -189,9 +189,24 @@ void main() {
       expect(email.controller.text, 'a@b.co');
     });
 
-    testWidgets('a disabled primary names what is missing', (tester) async {
+    // THE PRIMARY STILL NAMES WHAT IS MISSING — IT WAITS TO BE ASKED.
+    //
+    // This read the reason off the first frame and required `onPressed` to be
+    // null. Both described the ghost-until-complete primary these two screens
+    // used to carry, and neither is what sign-in does: there the button is
+    // pressable from the start and the reason arrives on the attempt
+    // (`_tried`, #494). 3 October brought forgot and change into line.
+    //
+    // The behaviour worth protecting is unchanged and still asserted: the app
+    // never refuses without saying what it wants. What moved is when it says
+    // it — on the press, rather than at somebody who has not typed yet.
+    testWidgets('the primary names what is missing, once asked', (
+      tester,
+    ) async {
       await _pumpForgot(tester, FakePasswordRepository());
-      expect(_primary(tester, 'forgot-submit').onPressed, isNull);
+      expect(_primary(tester, 'forgot-submit').blockedReason, isNull);
+
+      await _press(tester, 'forgot-submit');
       expect(
         _primary(tester, 'forgot-submit').blockedReason,
         'Enter your email first',
@@ -326,6 +341,9 @@ void main() {
     ) async {
       final repo = FakePasswordRepository();
       await _pumpChange(tester, repo);
+      // The reason arrives on the attempt now, not from the first frame —
+      // see "the primary names what is missing, once asked" above for why.
+      await _press(tester, 'change-submit');
       expect(
         _primary(tester, 'change-submit').blockedReason,
         'Enter your current password',
@@ -557,9 +575,24 @@ void main() {
       expect(find.byType(AgentSkinCycle), findsNothing);
     });
 
-    testWidgets('and the signed-in one carries the other', (tester) async {
+    // AND THE SIGNED-IN ONE CARRIES NONE EITHER, AS OF 3 OCTOBER.
+    //
+    // This asserted `findsOneWidget` because change password was the one
+    // screen in this file behind the door, and the standing rule was that a
+    // signed-in screen always offers the cycle. The owner has now said twice
+    // that the theme control belongs in one place: *"That change of theme on
+    // the sign in we can remove it. Let's only make the change of theme only
+    // on settings"* (1 October), and then, seeing it still here, *"remember I
+    // also said the theme button must not be there, only on settings"*.
+    //
+    // The first pass took it off the sign-in screen rather than off the frame
+    // the four routes share, which is why it survived here. It is off the
+    // frame now, so this screen has none — and nothing is lost: change
+    // password is reached from the menu sheet, whose "This app" section is
+    // where the control lives.
+    testWidgets('and the signed-in one carries none either', (tester) async {
       await _pumpChange(tester, FakePasswordRepository());
-      expect(find.byType(AgentSkinCycle), findsOneWidget);
+      expect(find.byType(AgentSkinCycle), findsNothing);
       expect(find.byType(EntrySkinCycle), findsNothing);
     });
   });
@@ -568,7 +601,20 @@ void main() {
     for (final skin in agentSkinModes) {
       final name = skin.name;
 
-      testWidgets('forgot, nothing typed, $name: 0 — nothing is armed', (
+      // NOTHING TYPED IS NOW ONE LIT OBJECT, NOT NONE — 3 OCTOBER.
+      //
+      // This read 0 and was named "nothing is armed", because these two
+      // screens stood their commit button up as a ghost until the form was
+      // complete. Sign-in never did: it has shown a lit primary from the
+      // first frame since #494 and names what is missing only once you press
+      // (`_tried`). The owner called these screens "outdated from the app",
+      // and that difference was the largest part of it.
+      //
+      // So the button is lit here from the first frame too, and the count
+      // goes 0 -> 1. **That is inside budget and it spends all of Day's.**
+      // Night allows 2 and uses 1; Day allows 1 and now uses it. Anything
+      // these screens later want lit has to take it from this button.
+      testWidgets('forgot, nothing typed, $name: 1 — the primary, unarmed', (
         tester,
       ) async {
         await _pumpForgot(tester, FakePasswordRepository(), skin: skin);
@@ -579,7 +625,7 @@ void main() {
           route: 'forgot-password',
           phase: 'blocked',
         );
-        expect(census.objectCount, 0, reason: census.describe());
+        expect(census.objectCount, 1, reason: census.describe());
       });
 
       testWidgets('forgot, filled, $name: 1 — the primary', (tester) async {
@@ -627,7 +673,12 @@ void main() {
         expect(census.objectCount, 1, reason: census.describe());
       });
 
-      testWidgets('change, nothing typed, $name: 0', (tester) async {
+      // Same move as `forgot, nothing typed` above, same arithmetic: the
+      // commit button is lit from the first frame now instead of waiting for
+      // a complete form, so this goes 0 -> 1 and Day's single grant is spent.
+      testWidgets('change, nothing typed, $name: 1 — the primary, unarmed', (
+        tester,
+      ) async {
         await _pumpChange(tester, FakePasswordRepository(), skin: skin);
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
@@ -636,7 +687,7 @@ void main() {
           route: 'account-password',
           phase: 'blocked',
         );
-        expect(census.objectCount, 0, reason: census.describe());
+        expect(census.objectCount, 1, reason: census.describe());
       });
 
       testWidgets('change, wrong current password, $name: 1', (tester) async {

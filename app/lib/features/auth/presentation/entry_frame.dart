@@ -20,13 +20,22 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// ## Two shapes, and the viewport chooses
 ///
 /// **The phone screen.** Below [pageMinWidth] or [pageMinHeight] this is
-/// `TorchShell` exactly as #494 shipped it: the body scrolls, the commit bar
-/// is a [TorchThumbZone] pinned at the bottom edge, and the skin cycle is at
-/// its leading end. That bar is in the thumb zone, which is the whole of why
-/// it is there, and **at 360×640 the form already runs past the fold** — the
-/// "Forgot password?" link is clipped by the bar in the render #494 shipped.
-/// There is not one spare pixel on that screen to spend on top padding or on
-/// centring, and nothing below the thresholds moves.
+/// `TorchShell` exactly as #494 shipped it: the body scrolls and the commit
+/// bar is a [TorchThumbZone] pinned at the bottom edge. That bar is in the
+/// thumb zone, which is the whole of why it is there, and **at 360×640 the
+/// form already runs past the fold** — the "Forgot password?" link is clipped
+/// by the bar in the render #494 shipped. There is not one spare pixel on
+/// that screen to spend on top padding or on centring, and nothing below the
+/// thresholds moves.
+///
+/// That sentence has been read as a fold budget for the whole form and it is
+/// not one. **The commit bar is a sibling of the scroll view, not a row in
+/// it**, so a form that runs long runs long *above* a bar that is still on
+/// the bottom edge — the button cannot be pushed off a short screen by
+/// anything in the column. `entry_plate.dart` §3 is the long version, and it
+/// is the reason the three screens with more fields than sign-in carry the
+/// same plate: what the fold actually constrains is how much has to be
+/// visible *beside* the picture, which is [EntryPlateReserve].
 ///
 /// **The page.** At or above both thresholds the screen becomes a page: one
 /// column, capped at [TiqSpace.readingWidth], centred horizontally **and
@@ -41,18 +50,39 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// browser is not held, and on a 1280×1800 window the argument inverts — the
 /// bar is not in reach of anything, it is 1200dp below the password field,
 /// and the sentence that says *why* it is disabled ("Email is required") is
-/// that far from the field that is empty. So above the thresholds the same
-/// row — skin cycle, 12dp, primary — moves to the foot of the column it
-/// belongs to. **The composition does not change; its address does.** The
-/// skin cycle stays beside the button for the same reason it is there on a
-/// phone: it is the control that gets somebody out of a skin they cannot
-/// read, and the way in is the one screen a person can be stuck on before
-/// they have an account to remember a preference against.
+/// that far from the field that is empty. So above the thresholds the commit
+/// moves to the foot of the column it belongs to. **The composition does not
+/// change; its address does.**
 ///
-/// It keeps the thumb zone's gap ([TiqSpace.s3]) and loses the zone's
-/// hairline rule and its 20dp inset: a rule inside a column is a section
-/// divider, and the column already has a gutter. The separation is
-/// `blockGap`, which is what separates two blocks everywhere else.
+/// It loses the zone's hairline rule and its 20dp inset: a rule inside a
+/// column is a section divider, and the column already has a gutter. The
+/// separation is `blockGap`, which is what separates two blocks everywhere
+/// else.
+///
+/// ### The skin cycle is gone from this frame, on all four routes
+///
+/// > *"That change of theme on the sign in we can remove it. Let's only make
+/// > the change of theme only on settings."* — the owner, 1 October 2026.
+///
+/// This frame used to carry a `skinCycle` at the leading end of the commit
+/// row — pinned on a phone, at the foot of the column on a page — and the
+/// argument written here for it was that the way in is the one screen a
+/// person can be stuck on before they have an account to remember a
+/// preference against. The owner overruled it. It came off `/login` the same
+/// day and off the other three on 3 October 2026, and the slot came off the
+/// frame with them so that the next screen to wear this frame cannot quietly
+/// get one back.
+///
+/// The standing rule it supersedes — never a screen without the cycle — was
+/// written so the control could not become unreachable, and it stays true
+/// where it was aimed: behind the door the cycle is on nineteen screens, and
+/// `/account/password` is one tap from the menu sheet's "This app" section.
+/// **`/update-required` is the one route this leaves without a way to the
+/// control**, because it is a gate: the button clears the flag and goes home,
+/// and if the build is still too old the next request brings the screen
+/// straight back. Nothing on it is unreadable — it is prose and one commit on
+/// the skin the phone was already in — but it is the honest cost of taking
+/// the slot off the frame rather than off three call sites.
 ///
 /// ### Why vertical centring, and why only here
 ///
@@ -99,7 +129,6 @@ class EntryFrame extends StatelessWidget {
     super.key,
     required this.children,
     required this.primary,
-    this.skinCycle,
     this.underPrimary,
     this.header,
   });
@@ -109,9 +138,6 @@ class EntryFrame extends StatelessWidget {
 
   /// The route's one commit action.
   final Widget primary;
-
-  /// The skin cycle wired to the provider this route's wrapper watches.
-  final Widget? skinCycle;
 
   /// One quiet action directly under the commit, centred.
   ///
@@ -169,7 +195,6 @@ class EntryFrame extends StatelessWidget {
           return TorchShell(
             profile: TorchShellProfile.agent,
             header: header,
-            skinCycle: skinCycle,
             primary: primary,
             underPrimary: underPrimary,
             children: capped
@@ -206,16 +231,7 @@ class EntryFrame extends StatelessWidget {
                   ],
                   ...children,
                   SizedBox(height: skin.space.blockGap),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      if (skinCycle != null) ...<Widget>[
-                        skinCycle!,
-                        const SizedBox(width: TiqSpace.s3),
-                      ],
-                      Expanded(child: primary),
-                    ],
-                  ),
+                  primary,
                   if (underPrimary != null) ...<Widget>[
                     SizedBox(height: skin.space.intraBlock),
                     Center(child: underPrimary),

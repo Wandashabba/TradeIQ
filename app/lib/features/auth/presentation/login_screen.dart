@@ -307,12 +307,10 @@ class _SignInState extends ConsumerState<_SignIn> {
           // brand hold and not a destination, and `/forgot-password` is
           // reached from the link that is still on this screen.
           //
-          // Not a tab root: the cycle sits at the leading end of the commit
-          // row — pinned in the thumb zone on a phone, at the foot of the
-          // column on a page. Never a screen without it.
-          // The cycle is on the plate now, so the commit row is the button
-          // alone, edge to edge, as the mockup has it.
-          skinCycle: null,
+          // No skin cycle anywhere on this frame any more — the owner struck
+          // the control on 1 October 2026 and `entry_frame.dart` records what
+          // that cost. The commit row is the button alone, edge to edge, as
+          // the mockup has it.
           // UNDER THE COMMIT, CENTRED — owner instruction, 30 September 2026,
           // pointing at the approved mockup: "look at the Sign in and forgot
           // password on this image and do exactly that".

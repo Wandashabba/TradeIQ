@@ -13,6 +13,7 @@ import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import 'account_frame.dart';
+import 'entry_plate.dart';
 
 /// `/forgot-password` — redeem a code a manager read out (#400).
 ///
@@ -102,7 +103,20 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
     return null;
   }
 
+  /// Whether the reader has pressed the commit yet. See change password's
+  /// own copy of this and `account_frame.dart`.
+  bool _tried = false;
+
   Future<void> _submit() async {
+    // Validate on press, not on sight.
+    final missing = _missing(context.l10n);
+    if (missing != null) {
+      setState(() {
+        _tried = true;
+        _failure = null;
+      });
+      return;
+    }
     final problem = checkNewPassword(_password.text, email: _email.text);
     final mismatch = _password.text != _confirm.text;
     if (problem != null || mismatch) {
@@ -172,9 +186,13 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
     if (_done) {
       return AccountFrame(
         phase: 'done',
-        title: l10n.forgotTitle,
+        // The outcome on the plate, not the errand — see the same note on
+        // change password's done state.
+        title: l10n.forgotDoneTitle,
         back: back,
         primaryArmed: true,
+        onThePlate: true,
+        reserve: EntryPlateReserve.resetPassword,
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('forgot-go-to-sign-in'),
           label: l10n.forgotGoToSignIn,
@@ -182,8 +200,6 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
           onPressed: () => context.go('/login'),
         ),
         children: <Widget>[
-          AccountHeadline(l10n.forgotDoneTitle),
-          const SizedBox(height: TiqSpace.s3),
           AccountText(l10n.forgotDoneBody),
           const SizedBox(height: TiqSpace.s5),
           AccountText(l10n.passwordOtherSessions, muted: true),
@@ -192,7 +208,8 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
     }
 
     final missing = _missing(l10n);
-    final armed = missing == null && !_sending;
+    // Armed whenever it can be pressed at all — see [_submit].
+    final armed = !_sending;
     final failure = _failure;
 
     return AccountFrame(
@@ -206,15 +223,26 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
       title: l10n.forgotTitle,
       back: back,
       primaryArmed: armed,
+      onThePlate: true,
+      // The paragraph under the picture is in the reserve, gap and all.
+      reserve: EntryPlateReserve.resetPassword,
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('forgot-submit'),
         label: l10n.forgotSubmit,
         claimId: AccountFrame.primaryClaimId,
         busy: _sending,
-        blockedReason: missing,
+        blockedReason: _tried ? missing : null,
         onPressed: armed ? _submit : null,
       ),
       children: <Widget>[
+        // IT STAYS ON THE GROUND, UNDER THE PICTURE.
+        //
+        // Three sentences about a code a manager reads out is not a line that
+        // goes on a plate — the door's `supporting` is one short sentence,
+        // and this one takes four or five lines at phone width, inside a text
+        // zone the plate caps at `0.52 × height − 16`. It is also the reason
+        // this screen's reserve is 84dp larger than change password's, and
+        // `EntryPlateReserve.account` carries the larger of the two.
         AccountText(l10n.forgotIntro),
         // The one gap on this screen that is a BLOCK gap — the instruction
         // ends and the form begins. The `s5`s below it are the rhythm between
@@ -267,7 +295,7 @@ class _ForgotPasswordState extends ConsumerState<_ForgotPassword> {
             if (armed) _submit();
           },
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: context.skin.space.intraBlock),
         TorchCheckbox(
           key: const ValueKey<String>('forgot-show-passwords'),
           label: l10n.passwordShow,

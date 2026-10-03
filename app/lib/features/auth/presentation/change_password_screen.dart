@@ -7,13 +7,13 @@ import '../../../core/auth/password_repository.dart';
 import '../../../core/auth/password_rule.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import 'account_frame.dart';
+import 'entry_plate.dart';
 
 /// `/account/password` — the signed-in user changes their own password (#400).
 ///
@@ -95,7 +95,25 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
     }
   }
 
+  /// Whether the reader has pressed the commit yet.
+  ///
+  /// Nothing tells them what is missing until they have — the same rule
+  /// sign-in landed on. The screen used to print "Enter your current
+  /// password" under a dead button on a form nobody had touched.
+  bool _tried = false;
+
   Future<void> _submit() async {
+    // VALIDATE ON PRESS, NOT ON SIGHT. The button is live from the first
+    // frame; press it empty and it says what is missing, which is an action
+    // and is what earns it the route's light. See `account_frame.dart`.
+    final missing = _missing(context.l10n);
+    if (missing != null) {
+      setState(() {
+        _tried = true;
+        _failure = null;
+      });
+      return;
+    }
     final problem = checkNewPassword(_password.text);
     final mismatch = _password.text != _confirm.text;
     if (problem != null || mismatch) {
@@ -159,10 +177,19 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
     if (_done) {
       return AccountFrame(
         phase: 'done',
-        title: l10n.changePasswordTitle,
+        // THE OUTCOME IS WHAT THE PLATE SAYS, NOT THE ERRAND.
+        //
+        // The done state used to print `changePasswordTitle` in the header
+        // and `changeDoneTitle` in the body at `titleM`, which put the news
+        // ("Password changed") below the location ("Change password") in the
+        // type hierarchy. Both strings are unchanged and both are still on
+        // the screen's flow — the errand is the commit button's label on the
+        // form state this follows.
+        title: l10n.changeDoneTitle,
         back: back,
         primaryArmed: true,
-        skinCycle: const AgentSkinCycle(),
+        onThePlate: true,
+        reserve: EntryPlateReserve.changePassword,
         primary: TorchPrimaryButton(
           key: const ValueKey<String>('change-done'),
           label: l10n.changeDone,
@@ -170,8 +197,6 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
           onPressed: _leave,
         ),
         children: <Widget>[
-          AccountHeadline(l10n.changeDoneTitle),
-          const SizedBox(height: TiqSpace.s3),
           AccountText(l10n.changeDoneBody),
           const SizedBox(height: TiqSpace.s5),
           AccountText(l10n.passwordOtherSessions, muted: true),
@@ -180,7 +205,9 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
     }
 
     final missing = _missing(l10n);
-    final armed = missing == null && !_sending;
+    // Armed whenever it can be pressed at all — which is always, unless a
+    // press is already in flight. See [_submit] and `AccountFrame`.
+    final armed = !_sending;
     final failure = _failure;
 
     return AccountFrame(
@@ -194,13 +221,14 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
       title: l10n.changePasswordTitle,
       back: back,
       primaryArmed: armed,
-      skinCycle: const AgentSkinCycle(),
+      onThePlate: true,
+      reserve: EntryPlateReserve.changePassword,
       primary: TorchPrimaryButton(
         key: const ValueKey<String>('change-submit'),
         label: l10n.changePasswordTitle,
         claimId: AccountFrame.primaryClaimId,
         busy: _sending,
-        blockedReason: missing,
+        blockedReason: _tried ? missing : null,
         onPressed: armed ? _submit : null,
       ),
       children: <Widget>[
@@ -237,7 +265,7 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
             if (armed) _submit();
           },
         ),
-        const SizedBox(height: TiqSpace.s3),
+        SizedBox(height: context.skin.space.intraBlock),
         TorchCheckbox(
           key: const ValueKey<String>('change-show-passwords'),
           label: l10n.passwordShow,
