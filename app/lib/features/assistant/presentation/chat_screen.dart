@@ -8,6 +8,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/console_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/input/filter_chip.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../l10n/l10n.dart';
@@ -23,8 +24,7 @@ import '../answer/composer.dart';
 import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
 import '../../dashboard/data/floor_repository.dart' show floorViewProvider;
-import '../../dashboard/presentation/floor_ask.dart'
-    show showFloorDestinations;
+import '../../dashboard/presentation/floor_ask.dart' show showFloorDestinations;
 import '../data/chat_controller.dart';
 import '../view_specs/answer_focus.dart';
 import '../view_specs/instrument_panel.dart';
@@ -163,8 +163,8 @@ class _AskState extends ConsumerState<_Ask> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
-    final atTail = _scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 24;
+    final atTail =
+        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 24;
     if (atTail != _following) setState(() => _following = atTail);
   }
 
@@ -225,8 +225,9 @@ class _AskState extends ConsumerState<_Ask> {
 
   Future<void> _openStartOver() async {
     final state = ref.read(chatControllerProvider);
-    final questions =
-        state.messages.where((m) => m.role == ChatRole.user).length;
+    final questions = state.messages
+        .where((m) => m.role == ChatRole.user)
+        .length;
     await showTorchSheet<void>(
       context,
       builder: (sheetContext) => AskStartOverSheet(
@@ -265,13 +266,13 @@ class _AskState extends ConsumerState<_Ask> {
 
     final last = state.messages.isEmpty ? null : state.messages.last;
     final answer = last?.role == ChatRole.assistant ? last : null;
-    final toolRunning =
-        answer != null && answer.tools.any((t) => t.ok == null);
+    final toolRunning = answer != null && answer.tools.any((t) => t.ok == null);
     // Resolved once per build from the server's word, and handed to exactly
     // one turn: the claim and the paint read the same target, so they cannot
     // disagree about whether — or where — the answer is lit.
-    final focusTarget =
-        answer == null ? null : AnswerFocusTarget.resolve(answer);
+    final focusTarget = answer == null
+        ? null
+        : AnswerFocusTarget.resolve(answer);
     final focusArtifact = focusTarget != null;
 
     final phase = resolveAskPhase(
@@ -286,8 +287,68 @@ class _AskState extends ConsumerState<_Ask> {
       sessionEnded: sessionEnded,
     );
 
-    final questions =
-        state.messages.where((m) => m.role == ChatRole.user).length;
+    final questions = state.messages
+        .where((m) => m.role == ChatRole.user)
+        .length;
+
+    // Built once and used by both arms of [ConsoleDeskBranch]: the phone's
+    // shell and the desk's content column draw the *same* three widgets, so
+    // there is no second composition of this screen to keep in step.
+    final header = TorchAppHeader(
+      title: l10n.askTitle,
+      flagChips: <Widget>[
+        // A session, not an archive — and absent entirely while there
+        // is nothing to look back at.
+        if (questions > 0)
+          TorchFilterChip(
+            key: const ValueKey<String>('ask-history-chip'),
+            label: l10n.askHistoryAction,
+            count: questions,
+            selected: false,
+            onSelected: _openHistory,
+          ),
+      ],
+    );
+    final composer = QuestionComposer(
+      controller: _input,
+      phase: phase,
+      onSend: _send,
+      onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+      onChanged: _onChanged,
+      lastTurnErrored: answer?.error != null,
+      // The same grid button, in the same slot, on the same widget. Ask
+      // keeps its own send because it draws the transcript: a question
+      // asked here is answered here, and `ConsoleAskBar`'s go-to-Ask is
+      // for the 27 screens that have nowhere to put an answer.
+      leading: TorchAskDestinations(
+        key: const ValueKey<String>('ask-destinations'),
+        onTap: () => showFloorDestinations(
+          context,
+          ref
+              .read(floorViewProvider)
+              .maybeWhen(data: (v) => v, orElse: () => null),
+        ),
+      ),
+      band: _band(context, phase),
+    );
+    final turns = state.messages.isEmpty
+        ? <Widget>[AskFirstRun(onAsk: _send, enabled: phase.canSend)]
+        : <Widget>[
+            for (var i = 0; i < state.messages.length; i++) ...<Widget>[
+              if (i > 0) SizedBox(height: skin.space.blockGap + 8),
+              AnswerFocusScope(
+                key: ValueKey<int>(i),
+                focus: state.messages[i].focus,
+                target: i == state.messages.length - 1 ? focusTarget : null,
+                child: AskTurnView(
+                  message: state.messages[i],
+                  previous: i >= 2 ? state.messages[i - 2] : null,
+                  phase: phase,
+                  onAsk: _send,
+                ),
+              ),
+            ],
+          ];
 
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
@@ -311,68 +372,33 @@ class _AskState extends ConsumerState<_Ask> {
         tabbedRoute: false,
         beneathSheet: beneathSheet,
         claims: phase.claims,
-        child: TorchShell(
-          profile: TorchShellProfile.console,
+        // ── AND AT A DESK, THE RAIL BESIDE THE TRANSCRIPT ─────────────
+        //
+        // > *"Dont be choosy make the app desktop everywhere"*
+        //
+        // Ask had no desk at all until 3 October 2026 for the same reason The
+        // Floor had none: it builds its own shell — a transcript with a
+        // composer pinned under it — rather than handing a body to
+        // `ConsoleFrame`. [ConsoleDeskBranch] is the branch on its own, so the
+        // header, the composer and the turns are the identical widgets below
+        // and above the threshold; what changes is that they stand in a
+        // content column beside the rail instead of across the whole window.
+        //
+        // The composer goes to the **foot of that column**, which is where
+        // every other desk screen's bar is and is the only place it lines up
+        // with the text it answers.
+        child: ConsoleDeskBranch(
+          header: header,
+          bar: composer,
           scrollController: _scroll,
-          header: TorchAppHeader(
-            title: l10n.askTitle,
-            flagChips: <Widget>[
-              // A session, not an archive — and absent entirely while there
-              // is nothing to look back at.
-              if (questions > 0)
-                TorchFilterChip(
-                  key: const ValueKey<String>('ask-history-chip'),
-                  label: l10n.askHistoryAction,
-                  count: questions,
-                  selected: false,
-                  onSelected: _openHistory,
-                ),
-            ],
+          children: turns,
+          phone: (context) => TorchShell(
+            profile: TorchShellProfile.console,
+            scrollController: _scroll,
+            header: header,
+            band: composer,
+            children: turns,
           ),
-          band: QuestionComposer(
-            controller: _input,
-            phase: phase,
-            onSend: _send,
-            onStop: () => ref.read(chatControllerProvider.notifier).stop(),
-            onChanged: _onChanged,
-            lastTurnErrored: answer?.error != null,
-            // The same grid button, in the same slot, on the same widget. Ask
-            // keeps its own send because it draws the transcript: a question
-            // asked here is answered here, and `ConsoleAskBar`'s go-to-Ask is
-            // for the 27 screens that have nowhere to put an answer.
-            leading: TorchAskDestinations(
-              key: const ValueKey<String>('ask-destinations'),
-              onTap: () => showFloorDestinations(
-                context,
-                ref
-              .read(floorViewProvider)
-              .maybeWhen(data: (v) => v, orElse: () => null),
-              ),
-            ),
-            band: _band(context, phase),
-          ),
-          children: state.messages.isEmpty
-              ? <Widget>[
-                  AskFirstRun(onAsk: _send, enabled: phase.canSend),
-                ]
-              : <Widget>[
-                  for (var i = 0; i < state.messages.length; i++) ...<Widget>[
-                    if (i > 0) SizedBox(height: skin.space.blockGap + 8),
-                    AnswerFocusScope(
-                      key: ValueKey<int>(i),
-                      focus: state.messages[i].focus,
-                      target: i == state.messages.length - 1
-                          ? focusTarget
-                          : null,
-                      child: AskTurnView(
-                        message: state.messages[i],
-                        previous: i >= 2 ? state.messages[i - 2] : null,
-                        phase: phase,
-                        onAsk: _send,
-                      ),
-                    ),
-                  ],
-                ],
         ),
       ),
     );
@@ -431,9 +457,11 @@ class AskTurnView extends ConsumerWidget {
     final animate = message.streaming && !MotionBudget.of(context).still;
     final parsed = parseAnswer(message.text, streaming: message.streaming);
     final figures = AnswerFigures.of(message);
-    final writing = message.streaming && message.tools.every((t) => t.ok != null);
+    final writing =
+        message.streaming && message.tools.every((t) => t.ok != null);
 
-    final rich = message.error == null &&
+    final rich =
+        message.error == null &&
         (parsed.hasMarkdown || parsed.followUps.isNotEmpty);
 
     final trailing = <Widget>[
@@ -520,11 +548,7 @@ class AskTurnView extends ConsumerWidget {
         children: <Widget>[
           for (var i = 0; i < body.length; i++) ...<Widget>[
             if (i > 0) SizedBox(height: skin.space.blockGap),
-            Arrive(
-              key: ValueKey<int>(i),
-              enabled: false,
-              child: body[i],
-            ),
+            Arrive(key: ValueKey<int>(i), enabled: false, child: body[i]),
           ],
         ],
       ),

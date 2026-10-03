@@ -669,6 +669,18 @@ Future<void> pumpFloor(
   bool kpisPending = false,
   Object? kpisFailure,
   List<Override> extraOverrides = const <Override>[],
+
+  /// ── A ROUTER, FOR THE DESK ONLY ──────────────────────────────────────
+  ///
+  /// Null for every call that existed before 3 October 2026, and null builds
+  /// the tree this harness has always built — no `MaterialApp`, no navigator,
+  /// no router — so every committed Floor golden is byte for byte what it was.
+  ///
+  /// The desk needs one. `ConsoleRail` asks `currentMenuLocation(context)`
+  /// which destination it is standing on, and that reads `GoRouter.of`; with
+  /// no router every rail row renders unselected and the image is of a rail
+  /// that cannot exist. Pass `'/dashboard'` to photograph The Floor at a desk.
+  String? path,
 }) async {
   tester.view
     ..physicalSize = size
@@ -727,7 +739,39 @@ Future<void> pumpFloor(
                 key: const ValueKey<String>('amber-golden-boundary'),
                 child: ColoredBox(
                   color: resolved.palette.ground,
-                  child: SizedBox.fromSize(size: size, child: screen),
+                  child: SizedBox.fromSize(
+                  size: size,
+                  child: path == null
+                      ? screen
+                      : MaterialApp.router(
+                          debugShowCheckedModeBanner: false,
+                          theme: ThemeData(
+                            extensions: <ThemeExtension<dynamic>>[resolved],
+                          ),
+                          locale: locale,
+                          supportedLocales: appSupportedLocales,
+                          localizationsDelegates: appLocalizationsDelegates,
+                          routerConfig: GoRouter(
+                            initialLocation: path,
+                            routes: <RouteBase>[
+                              GoRoute(
+                                path: path,
+                                builder: (context, state) => screen,
+                              ),
+                              for (final other in <String>[
+                                '/alerts',
+                                '/tasks',
+                                '/orders',
+                                '/assistant',
+                              ])
+                                GoRoute(
+                                  path: other,
+                                  builder: (context, state) => Text(other),
+                                ),
+                            ],
+                          ),
+                        ),
+                ),
                 ),
               ),
             ),

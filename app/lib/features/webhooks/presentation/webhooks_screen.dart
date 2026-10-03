@@ -7,7 +7,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -135,10 +137,17 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
     );
   }
 
-  Widget _frame({required String phase, required List<Widget> children}) {
+  Widget _frame({
+    required String phase,
+    required List<Widget> children,
+    ConsoleDeskRecords? desk,
+  }) {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
+      // Non-null on `loaded` only: a skeleton, an error and "no endpoints yet"
+      // are not records.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.webhooksTitle,
         facts: <String>[l10n.webhooksFactPost, l10n.webhooksFactRetries],
@@ -167,17 +176,16 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
         .where((w) => w.health == WebhookHealth.unhealthy)
         .length;
 
-    return _frame(
-      phase: webhooks.isEmpty ? 'empty' : 'loaded',
-      children: <Widget>[
-        SectionRule(
-          l10n.webhooksSection,
-          count: webhooks.isEmpty ? null : webhooks.length,
-        ),
-        const SizedBox(height: TiqSpace.s5),
-
-        if (unhealthy > 0) ...<Widget>[
-          Row(
+    // THE TWO BLOCKS ABOVE THE LIST, BUILT ONCE and handed to both arms: the
+    // named, counted section marker and — only when there is one — the note
+    // that says how many endpoints have stopped receiving.
+    final section = SectionRule(
+      l10n.webhooksSection,
+      count: webhooks.isEmpty ? null : webhooks.length,
+    );
+    final unhealthyNote = unhealthy == 0
+        ? null
+        : Row(
             key: const ValueKey<String>('webhooks-unhealthy'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -192,7 +200,73 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
                 ),
               ),
             ],
-          ),
+          );
+
+    return _frame(
+      phase: webhooks.isEmpty ? 'empty' : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHY THIS SCREEN CHANGED THE MOST ──────
+      //
+      // This route was the product's example of a screen that is **not** a
+      // list of records: its rows expand in place, so the argument went, and
+      // there was nowhere for a third pane to point. That was backwards. The
+      // thing the row expands to show — the delivery log — is exactly what a
+      // detail pane is for, and on a phone it costs the manager the list they
+      // were reading to see it.
+      //
+      // So on the desk the expansion is **suppressed** (`_WebhookRow.onDesk`)
+      // and `_DeliveriesList` is the pane, with the row's own verbs — the
+      // receiving toggle and `Delete` — lifted beside it, and each delivery's
+      // `Redeliver` arriving with the log it belongs to. The phone keeps the
+      // fold exactly as it was: `Show deliveries` still opens underneath the
+      // row it belongs to, because there is no second pane to open it in.
+      //
+      // `Add an endpoint` moves to the footer, under the records, where the
+      // phone puts it — the desk does not draw `children`, and dropping it
+      // would have left a manager on a desktop with no way to add one.
+      desk: webhooks.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                section,
+                const SizedBox(height: TiqSpace.s5),
+                if (unhealthyNote != null) ...<Widget>[
+                  unhealthyNote,
+                  const SizedBox(height: TiqSpace.s6),
+                ],
+              ],
+              footer: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TorchSecondaryButton(
+                  key: const ValueKey<String>('webhook-create-desk'),
+                  label: l10n.webhookAdd,
+                  onPressed: _create,
+                ),
+              ),
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < webhooks.length; i++)
+                  ConsoleDeskRecord(
+                    id: webhooks[i].id,
+                    row: (context, selected) => _WebhookRow(
+                      key: ValueKey<String>('webhook-${webhooks[i].id}'),
+                      webhook: webhooks[i],
+                      last: i == webhooks.length - 1,
+                      onChanged: _refresh,
+                      onDesk: true,
+                    ),
+                    detail: (context) => _WebhookDetail(
+                      key: ValueKey<String>('webhook-detail-${webhooks[i].id}'),
+                      webhook: webhooks[i],
+                      onChanged: _refresh,
+                    ),
+                  ),
+              ],
+            ),
+      children: <Widget>[
+        section,
+        const SizedBox(height: TiqSpace.s5),
+
+        if (unhealthyNote != null) ...<Widget>[
+          unhealthyNote,
           const SizedBox(height: TiqSpace.s6),
         ],
 
@@ -237,48 +311,46 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
   }
 }
 
-class _WebhookRow extends ConsumerStatefulWidget {
-  const _WebhookRow({
-    super.key,
-    required this.webhook,
-    required this.last,
-    required this.onChanged,
-  });
+/// ── AN ENDPOINT'S TWO VERBS, HELD ONCE ─────────────────────────────────
+///
+/// Pausing an endpoint and deleting one are the same two flows at two
+/// addresses — the row on a phone, the detail pane on a desk — and the only
+/// difference is which element the optimistic value belongs to. So they live
+/// here rather than in two copies, one of which would eventually stop asking
+/// the confirmation or stop standing the switch back up on a failure.
+///
+/// [active] is the optimistic read every caller uses: the switch moves on the
+/// tap and goes back if the PATCH fails, because a switch that waits for a
+/// round trip in a shop reads as a switch that does not work.
+mixin _WebhookVerbs<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  bool busy = false;
+  bool? optimisticActive;
 
-  final Webhook webhook;
-  final bool last;
-  final VoidCallback onChanged;
+  /// The endpoint this state is acting on.
+  Webhook get endpoint;
 
-  @override
-  ConsumerState<_WebhookRow> createState() => _WebhookRowState();
-}
+  /// What to tell the screen when the list it is showing has changed.
+  VoidCallback get onEndpointChanged;
 
-class _WebhookRowState extends ConsumerState<_WebhookRow> {
-  bool _expanded = false;
-  bool _busy = false;
-  bool? _optimisticActive;
+  bool get active => optimisticActive ?? endpoint.active;
 
-  bool get _active => _optimisticActive ?? widget.webhook.active;
-
-  Future<void> _setActive(bool value) async {
+  Future<void> setActive(bool value) async {
     final l10n = context.l10n;
     setState(() {
-      _optimisticActive = value;
-      _busy = true;
+      optimisticActive = value;
+      busy = true;
     });
     try {
-      await ref
-          .read(webhooksRepositoryProvider)
-          .setActive(widget.webhook.id, value);
+      await ref.read(webhooksRepositoryProvider).setActive(endpoint.id, value);
       if (!mounted) return;
-      setState(() => _busy = false);
-      widget.onChanged();
+      setState(() => busy = false);
+      onEndpointChanged();
     } catch (error) {
       if (!mounted) return;
       // Honesty: the change did not happen, so the switch goes back.
       setState(() {
-        _optimisticActive = null;
-        _busy = false;
+        optimisticActive = null;
+        busy = false;
       });
       showTorchToast(
         context,
@@ -290,8 +362,8 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
     }
   }
 
-  Future<void> _delete() async {
-    if (_busy) return;
+  Future<void> delete() async {
+    if (busy) return;
     final l10n = context.l10n;
     final confirmed = await showTorchSheet<bool>(
       context,
@@ -305,20 +377,18 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
         ],
         commitLabel: l10n.webhookDeleteCommit,
         cancelLabel: l10n.webhookDeleteCancel,
-        record: widget.webhook.url,
+        record: endpoint.url,
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _busy = true);
+    setState(() => busy = true);
     try {
-      await ref
-          .read(webhooksRepositoryProvider)
-          .deleteWebhook(widget.webhook.id);
+      await ref.read(webhooksRepositoryProvider).deleteWebhook(endpoint.id);
       if (!mounted) return;
-      widget.onChanged();
+      onEndpointChanged();
     } catch (error) {
       if (!mounted) return;
-      setState(() => _busy = false);
+      setState(() => busy = false);
       showTorchToast(
         context,
         message: l10n.webhookDeleteFailed(
@@ -328,6 +398,48 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
       );
     }
   }
+}
+
+class _WebhookRow extends ConsumerStatefulWidget {
+  const _WebhookRow({
+    super.key,
+    required this.webhook,
+    required this.last,
+    required this.onChanged,
+    this.onDesk = false,
+  });
+
+  final Webhook webhook;
+  final bool last;
+  final VoidCallback onChanged;
+
+  /// True in the desk's list pane, where **the deliveries are the detail
+  /// pane**.
+  ///
+  /// It takes two things off the row and puts neither of them nowhere: the
+  /// fold (`Show deliveries`, and the `_DeliveriesList` it reveals) is the
+  /// pane itself, and the two verbs are lifted into that pane beside it. What
+  /// is left is the row a manager scans — the event in words, when it last
+  /// delivered, the health chip, the URL and whether it is signed.
+  ///
+  /// The phone arm passes nothing and keeps the fold: below the threshold
+  /// there is no second pane to open a log in, which is the whole reason the
+  /// row expanded in the first place.
+  final bool onDesk;
+
+  @override
+  ConsumerState<_WebhookRow> createState() => _WebhookRowState();
+}
+
+class _WebhookRowState extends ConsumerState<_WebhookRow>
+    with _WebhookVerbs<_WebhookRow> {
+  bool _expanded = false;
+
+  @override
+  Webhook get endpoint => widget.webhook;
+
+  @override
+  VoidCallback get onEndpointChanged => widget.onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -387,38 +499,44 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
               ),
             ],
           ),
-          actions: Wrap(
-            spacing: TiqSpace.s4,
-            runSpacing: TiqSpace.s2,
-            children: <Widget>[
-              SizedBox(
-                width: double.infinity,
-                child: TorchToggle(
-                  key: ValueKey<String>('toggle-${webhook.id}'),
-                  label: l10n.webhookReceivingEvents,
-                  value: _active,
-                  onWord: l10n.webhookOn,
-                  offWord: l10n.webhookOff,
-                  onChanged: _busy ? null : _setActive,
-                  disabledReason: _busy
-                      ? l10n.webhookWaitingForServer
-                      : null,
+          // ON THE DESK THESE THREE ARE THE PANE. See [_WebhookRow.onDesk]:
+          // the fold is the pane itself and the two verbs are lifted into it,
+          // so a desk row carries no action slot at all rather than offering
+          // the same toggle twice, 40dp apart.
+          actions: widget.onDesk
+              ? null
+              : Wrap(
+                  spacing: TiqSpace.s4,
+                  runSpacing: TiqSpace.s2,
+                  children: <Widget>[
+                    SizedBox(
+                      width: double.infinity,
+                      child: TorchToggle(
+                        key: ValueKey<String>('toggle-${webhook.id}'),
+                        label: l10n.webhookReceivingEvents,
+                        value: active,
+                        onWord: l10n.webhookOn,
+                        offWord: l10n.webhookOff,
+                        onChanged: busy ? null : setActive,
+                        disabledReason: busy
+                            ? l10n.webhookWaitingForServer
+                            : null,
+                      ),
+                    ),
+                    TorchTertiaryButton(
+                      key: ValueKey<String>('deliveries-toggle-${webhook.id}'),
+                      label: _expanded
+                          ? l10n.webhookHideDeliveries
+                          : l10n.webhookShowDeliveries,
+                      onPressed: () => setState(() => _expanded = !_expanded),
+                    ),
+                    TorchTertiaryButton(
+                      key: ValueKey<String>('delete-${webhook.id}'),
+                      label: l10n.webhookDelete,
+                      onPressed: busy ? null : delete,
+                    ),
+                  ],
                 ),
-              ),
-              TorchTertiaryButton(
-                key: ValueKey<String>('deliveries-toggle-${webhook.id}'),
-                label: _expanded
-                    ? l10n.webhookHideDeliveries
-                    : l10n.webhookShowDeliveries,
-                onPressed: () => setState(() => _expanded = !_expanded),
-              ),
-              TorchTertiaryButton(
-                key: ValueKey<String>('delete-${webhook.id}'),
-                label: l10n.webhookDelete,
-                onPressed: _busy ? null : _delete,
-              ),
-            ],
-          ),
           separator: widget.last && !_expanded
               ? SoftRowSeparator.none
               : SoftRowSeparator.auto,
@@ -426,22 +544,131 @@ class _WebhookRowState extends ConsumerState<_WebhookRow> {
             webhookEventWords(l10n, webhook.event),
             webhook.url,
             webhook.health.wordIn(l10n),
-            _active ? l10n.webhookReceiving : l10n.webhookPaused,
+            active ? l10n.webhookReceiving : l10n.webhookPaused,
             webhook.hasSecret
                 ? l10n.webhookSignedShort
                 : l10n.webhookNotSignedShort,
           ].join('. '),
         ),
-        if (_expanded) _DeliveriesList(webhookId: webhook.id),
+        // Unreachable on the desk — the control that sets this is not drawn
+        // there — and the guard says so rather than relying on it.
+        if (_expanded && !widget.onDesk)
+          _DeliveriesList(webhookId: webhook.id),
       ],
     );
   }
 }
 
+/// ── ONE ENDPOINT, IN THE DETAIL PANE ───────────────────────────────────
+///
+/// The record the row identifies, and then **the log the row used to expand to
+/// show**: the same [_DeliveriesList], at the measure, with the list it was
+/// chosen from still on screen beside it. That is the whole argument for this
+/// screen having a third pane at all.
+///
+/// The facts are the two things a manager pastes into a config file — the
+/// address and the event token — in the identifier face, and the signing
+/// sentence is the row's own, printed in full rather than shortened: **the
+/// secret itself is not here, obscured or behind a reveal, it is absent**, as
+/// it is everywhere else on this screen.
+///
+/// The verbs are the row's, lifted: the receiving toggle and `Delete`. Each
+/// delivery's `Redeliver` comes with the log, where it belongs.
+///
+/// **Amber: none.** A toggle is an Abyssal block with its state word, `Delete`
+/// is the row's own tertiary, and the commit is inside the confirm sheet,
+/// which puts out every amber beneath it.
+class _WebhookDetail extends ConsumerStatefulWidget {
+  const _WebhookDetail({
+    super.key,
+    required this.webhook,
+    required this.onChanged,
+  });
+
+  final Webhook webhook;
+  final VoidCallback onChanged;
+
+  @override
+  ConsumerState<_WebhookDetail> createState() => _WebhookDetailState();
+}
+
+class _WebhookDetailState extends ConsumerState<_WebhookDetail>
+    with _WebhookVerbs<_WebhookDetail> {
+  @override
+  Webhook get endpoint => widget.webhook;
+
+  @override
+  VoidCallback get onEndpointChanged => widget.onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final webhook = widget.webhook;
+    final lastDelivery = webhook.lastDeliveryAt;
+
+    return ConsoleRecordDetail(
+      // The row's own chip, in the row's own words.
+      kicker: StatusChip(
+        key: ValueKey<String>('health-${webhook.id}-pane'),
+        level: webhook.health.level,
+        label: webhook.health.wordIn(l10n),
+      ),
+      title: webhookEventWords(l10n, webhook.event),
+      lede: lastDelivery == null
+          ? l10n.webhookNoDeliveriesYet
+          : l10n.webhookLastDelivery(relativeTime(lastDelivery, l10n)),
+      facts: <RecordFact>[
+        RecordFact(l10n.webhookCreateAddress, webhook.url, mono: true),
+        RecordFact(l10n.webhookCreateEvent, webhook.event, mono: true),
+      ],
+      blocks: <Widget>[
+        Text(
+          // The word, never the value — the screen's own rule.
+          webhook.hasSecret ? l10n.webhookSigned : l10n.webhookNotSigned,
+          key: ValueKey<String>('signing-${webhook.id}-pane'),
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+        _DeliveriesList(webhookId: webhook.id, inCard: true),
+      ],
+      actions: <Widget>[
+        TorchToggle(
+          key: ValueKey<String>('toggle-${webhook.id}-pane'),
+          label: l10n.webhookReceivingEvents,
+          value: active,
+          onWord: l10n.webhookOn,
+          offWord: l10n.webhookOff,
+          onChanged: busy ? null : setActive,
+          disabledReason: busy ? l10n.webhookWaitingForServer : null,
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: ValueKey<String>('delete-${webhook.id}-pane'),
+            label: l10n.webhookDelete,
+            onPressed: busy ? null : delete,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// ── THE DELIVERY LOG ────────────────────────────────────────────────────
+///
+/// Under the row it belongs to on a phone; **the detail pane** on a desk. One
+/// widget either way: the log is the same log, and the only thing that differs
+/// is who pays the gutter — see [inCard].
 class _DeliveriesList extends ConsumerWidget {
-  const _DeliveriesList({required this.webhookId});
+  const _DeliveriesList({required this.webhookId, this.inCard = false});
 
   final String webhookId;
+
+  /// True in the detail pane, where this list is inside a [TorchCard] that has
+  /// already spent its own padding. On the phone the list hangs off a
+  /// full-bleed row list and pays the gutter back itself; paying it twice
+  /// would indent the log from the record it is about.
+  final bool inCard;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -450,12 +677,14 @@ class _DeliveriesList extends ConsumerWidget {
     final deliveries = ref.watch(webhookDeliveriesProvider(webhookId));
     return Padding(
       key: ValueKey<String>('deliveries-$webhookId'),
-      padding: EdgeInsets.fromLTRB(
-        skin.space.gutter,
-        TiqSpace.s3,
-        skin.space.gutter,
-        TiqSpace.s5,
-      ),
+      padding: inCard
+          ? EdgeInsets.zero
+          : EdgeInsets.fromLTRB(
+              skin.space.gutter,
+              TiqSpace.s3,
+              skin.space.gutter,
+              TiqSpace.s5,
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

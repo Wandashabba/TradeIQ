@@ -42,11 +42,15 @@ Future<void> showTerritoryDetailSheet(
   BuildContext context, {
   required Territory territory,
   required bool canManage,
+  bool assigning = false,
 }) {
   return showTorchSheet<void>(
     context,
-    builder: (_) =>
-        _TerritoryDetailSheet(territory: territory, canManage: canManage),
+    builder: (_) => _TerritoryDetailSheet(
+      territory: territory,
+      canManage: canManage,
+      assigning: assigning,
+    ),
   );
 }
 
@@ -54,10 +58,21 @@ class _TerritoryDetailSheet extends ConsumerStatefulWidget {
   const _TerritoryDetailSheet({
     required this.territory,
     required this.canManage,
+    this.assigning = false,
   });
 
   final Territory territory;
   final bool canManage;
+
+  /// Opens straight on the roster rather than on the evidence.
+  ///
+  /// False for every tap on a phone row — the evidence is what a manager came
+  /// for and the roster is the second pane they ask for. True from the
+  /// **detail pane**, where the evidence is already on screen beside the list
+  /// and the only thing this sheet is still needed for is the pick: a sheet
+  /// that opened on a copy of the pane behind it would make the manager press
+  /// `Assign an agent` twice.
+  final bool assigning;
 
   @override
   ConsumerState<_TerritoryDetailSheet> createState() =>
@@ -67,7 +82,7 @@ class _TerritoryDetailSheet extends ConsumerStatefulWidget {
 class _TerritoryDetailSheetState extends ConsumerState<_TerritoryDetailSheet> {
   static const String assignClaimId = 'assign-agent';
 
-  bool _assigning = false;
+  late bool _assigning = widget.assigning;
   String? _picked;
   bool _submitting = false;
 
@@ -121,83 +136,14 @@ class _TerritoryDetailSheetState extends ConsumerState<_TerritoryDetailSheet> {
           : const <TorchClaim>[],
       child: TorchSheetSwap(
         paneKey: _assigning ? 'roster' : 'evidence',
-        child: _assigning ? _roster(context) : _evidence(context),
+        child: _assigning
+            ? _roster(context)
+            : TerritoryDetailBody(
+                territory: widget.territory,
+                canManage: widget.canManage,
+                onAssign: () => setState(() => _assigning = true),
+              ),
       ),
-    );
-  }
-
-  // ── The evidence pane ───────────────────────────────────────────────
-
-  Widget _evidence(BuildContext context) {
-    final l10n = context.l10n;
-    final async = ref.watch(territoryCoverageProvider(widget.territory.id));
-    final row = TerritoryRow.from(widget.territory, async);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (widget.territory.region != null)
-          Text(
-            widget.territory.region!,
-            style: context.skin.text.body.style(
-              color: context.skin.palette.ink2,
-            ),
-          ),
-        const SizedBox(height: TiqSpace.s5),
-
-        switch (row.state) {
-          TerritoryCoverageState.loading => Skeleton(
-            label: l10n.territoryCoverageLoading,
-            slowLine: l10n.torchStillFetching,
-            child: const SkeletonRows(count: 2, rowHeight: 64),
-          ),
-          TerritoryCoverageState.failed => TorchErrorRegion(
-            name: 'territory coverage',
-            child: ErrorState(
-              scope: ErrorScope.inline,
-              message: TorchErrorMessage.sanitise(
-                async is AsyncError ? (async as AsyncError).error : null,
-              ),
-              action: TorchTertiaryButton(
-                key: const ValueKey<String>('coverage-retry'),
-                label: l10n.torchTryAgain,
-                onPressed: () => ref.invalidate(
-                  territoryCoverageProvider(widget.territory.id),
-                ),
-              ),
-            ),
-          ),
-          _ => _CoverageCluster(row: row),
-        },
-
-        const SizedBox(height: TiqSpace.s6),
-        // The verbs. `Assign` is a tertiary here and becomes the pane's
-        // primary once the roster is up — a verb is only a commit when there
-        // is something committed.
-        Wrap(
-          spacing: TiqSpace.s5,
-          runSpacing: TiqSpace.s3,
-          children: <Widget>[
-            TorchTertiaryButton(
-              key: ValueKey<String>('territory-map-${widget.territory.id}'),
-              label: l10n.territoryOpenMap,
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.push('/territories/${widget.territory.id}/map');
-              },
-            ),
-            if (widget.canManage)
-              TorchTertiaryButton(
-                key: ValueKey<String>(
-                  'territory-assign-${widget.territory.id}',
-                ),
-                label: l10n.territoryAssign,
-                onPressed: () => setState(() => _assigning = true),
-              ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -295,6 +241,119 @@ class _TerritoryDetailSheetState extends ConsumerState<_TerritoryDetailSheet> {
               _picked = null;
             }),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// ── THE EVIDENCE, AT TWO ADDRESSES ─────────────────────────────────────
+///
+/// This was `_TerritoryDetailSheetState._evidence` and it is the same tree,
+/// lifted out so the **detail pane** can draw it without a scrim over the list
+/// the manager chose from. The sheet still shows it on a phone, as its first
+/// pane, and nothing about it moved: the region line, the coverage cluster in
+/// whichever of its four states it is in, and the two verbs.
+///
+/// It is a [ConsumerWidget] rather than a method because the pane has no sheet
+/// state to hang off, and the coverage request it watches is
+/// `territoryCoverageProvider` — the one the row beside it is already
+/// watching, so selecting a territory on the desk asks the server nothing it
+/// has not already asked.
+///
+/// **Amber: none.** Coverage is a reading. `Assign` is a tertiary here and
+/// only becomes a commit on the roster pane, where there is something to
+/// commit.
+class TerritoryDetailBody extends ConsumerWidget {
+  const TerritoryDetailBody({
+    super.key,
+    required this.territory,
+    required this.canManage,
+    required this.onAssign,
+  });
+
+  final Territory territory;
+  final bool canManage;
+
+  /// What `Assign an agent` does. In the sheet it swaps to the roster pane; in
+  /// the detail pane it opens the sheet already on that roster. Null draws no
+  /// assign verb at all — a control with nowhere to go is dishonest chrome.
+  final VoidCallback? onAssign;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final async = ref.watch(territoryCoverageProvider(territory.id));
+    final row = TerritoryRow.from(territory, async);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (territory.region != null)
+          Text(
+            territory.region!,
+            style: context.skin.text.body.style(
+              color: context.skin.palette.ink2,
+            ),
+          ),
+        const SizedBox(height: TiqSpace.s5),
+
+        switch (row.state) {
+          TerritoryCoverageState.loading => Skeleton(
+            label: l10n.territoryCoverageLoading,
+            slowLine: l10n.torchStillFetching,
+            child: const SkeletonRows(count: 2, rowHeight: 64),
+          ),
+          TerritoryCoverageState.failed => TorchErrorRegion(
+            name: 'territory coverage',
+            child: ErrorState(
+              scope: ErrorScope.inline,
+              message: TorchErrorMessage.sanitise(
+                async is AsyncError ? (async as AsyncError).error : null,
+              ),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('coverage-retry'),
+                label: l10n.torchTryAgain,
+                onPressed: () =>
+                    ref.invalidate(territoryCoverageProvider(territory.id)),
+              ),
+            ),
+          ),
+          _ => _CoverageCluster(row: row),
+        },
+
+        const SizedBox(height: TiqSpace.s6),
+        // The verbs. `Assign` is a tertiary here and becomes the pane's
+        // primary once the roster is up — a verb is only a commit when there
+        // is something committed.
+        Wrap(
+          spacing: TiqSpace.s5,
+          runSpacing: TiqSpace.s3,
+          children: <Widget>[
+            TorchTertiaryButton(
+              key: ValueKey<String>('territory-map-${territory.id}'),
+              label: l10n.territoryOpenMap,
+              onPressed: () {
+                // POP ONLY IF THERE IS A MODAL TO POP. In the sheet this
+                // closes the scrim before navigating, which is the sheet's own
+                // rule; in the **detail pane** there is no modal above the
+                // route, and an unconditional pop would take the console
+                // screen with it — the manager would arrive at the map having
+                // also lost the list behind it. `alert_detail_sheet.dart` asks
+                // the same question for the same reason.
+                final navigator = Navigator.of(context);
+                if (navigator.canPop()) navigator.pop();
+                context.push('/territories/${territory.id}/map');
+              },
+            ),
+            if (canManage && onAssign != null)
+              TorchTertiaryButton(
+                key: ValueKey<String>('territory-assign-${territory.id}'),
+                label: l10n.territoryAssign,
+                onPressed: onAssign,
+              ),
+          ],
         ),
       ],
     );

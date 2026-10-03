@@ -3904,3 +3904,112 @@ day   / answered                 0 objects
 
 The strip light is **one** region of 350×1 in every Night frame, which is the
 proof the controls above it are not cutting it in half.
+
+## 23. The desk everywhere — 3 October 2026
+
+> *"Please make the floor desktop as well follow that artifact I gave please,
+> you doing your own things and I dont like it."*
+> *"You also not fully changing to desktop theres things cut, please fix…
+> Dont be choosy make the app desktop everywhere and don't touch mobile as it
+> is perfect"* — the owner, having opened #517's console on a desktop.
+
+Three sentences, three defects, and one of them caused another.
+
+### 23.1 The rows were laid out wider than the pane that clips them
+
+A `SoftRow` list opts out of its frame's gutter through `TorchBleed`, and every
+one of the 82 callers computed the amount itself off the **window's** width.
+On a phone the window and the slot spend the same gutter and the bug is
+invisible. Inside one of the desk's panes they do not. Measured at 1440×900 on
+Orders, before:
+
+| | |
+|---|---|
+| the list pane's scroll viewport | x = 462 → 1246 (784 wide) |
+| the `SoftRow` inside it | x = **422 → 1286** (864 wide) |
+
+A viewport clips, so the moment the list is long enough to scroll the
+right-hand figure is cut mid-glyph. That is the `R 2,350.7…` the owner
+photographed at about 2000dp, and nothing in 4,579 tests saw it: Flutter's
+overflow warning fires on a child bigger than its **constraints**, and this
+child was exactly the size it asked to be — it was simply asked for the wrong
+size.
+
+The fix is that the frame says what it spent, once. `TorchGutter` is published
+by `TorchShell` and by each pane; `TorchBleed` reads it and gives back exactly
+that. Two call sites still state their own amount and both are sheets, which
+are mounted in the navigator's overlay rather than under the shell that opened
+them and so have no frame overhead to ask.
+
+And the panes now spend a gutter to opt out of: `ConsoleDesk.paneGutter`, which
+is `TiqSpace.s5` — the phone's own — for the same reason `listMinWidth` is 320.
+**At the threshold the list pane is exactly a 360dp phone**: 320 of content
+between two 20dp gutters. The threshold moves with it, 1132 → 1212, and the
+cost is a 79dp band of window widths that used to get the desk and now get the
+phone column. No standard laptop viewport is in it.
+
+`desk_clipping_test.dart` holds the invariant: walk every scroll viewport,
+assert nothing it paints is outside it **on the cross axis** (a list is meant
+to run past its viewport on the scroll axis — that is scrolling), at ten widths
+in both skins. It carries its own control: a `TorchBleed(extra: 80)` in a 400dp
+viewport, asserted to fail the walk.
+
+### 23.2 The bar did not line up with the column it belongs to
+
+The detail pane split the remainder 8 : 11, then capped the record *inside*
+itself at `readingWidth` and centred it, with the ask bar as a sibling of the
+capped box. At 1440 that is a 618dp pane, a 440dp column and a 618dp bar whose
+left edge is 89dp off the column's.
+
+The pane is now `readingWidth + 2 × paneGutter` and the column is what is
+inside its padding. There is no second number to keep in step because there is
+no second number.
+
+### 23.3 A quarter of the window was ground
+
+A one-column route capped its column at 784 and centred it. At 2000×1100:
+content x = 742 → 1526, bar x = 308 → 1960, **474dp of ground to the right**.
+
+The cap is gone. A pane is the frame a screen lays itself out in, exactly as
+the phone's viewport is, and the phone does not cap it either. What stays
+capped is the one thing the cap was written for — a column of prose — and it is
+capped by *being* `detailWidth` rather than by centring something narrower
+inside itself. The list pane is `Expanded` against that fixed width, so at 1920
+the slack goes into the records.
+
+### 23.4 Every screen, including the two that build their own shell
+
+#517 gave three panes to one screen and rail-plus-column to 23. The Floor and
+Ask got nothing, because neither uses `ConsoleFrame`: The Floor has no app
+header (the plate is the header) and Ask is a transcript with a composer rather
+than a body with a bar.
+
+What they needed was never `ConsoleFrame` — it was the **branch**.
+`ConsoleDeskBranch` is `isDesk`, the shell's desk slot and the two lights, and
+nothing else; the phone arm is the tree each route built before it existed.
+The Floor keeps its plate as the first block of the content column with no
+header above it, the briefing under it and its composer at the column's foot.
+
+One stale sentence is corrected rather than obeyed: `FloorScaffold`'s doc still
+says the plate "has to run full-bleed to the top edge". That stopped being true
+on 25 September 2026, when the owner's reference inset the plate and rounded it
+and `bleedTop` went to false. The desk draws the plate the way the phone draws
+it **today**, because *don't touch mobile as it is perfect* outranks a comment
+nobody updated.
+
+### 23.5 A dead-end row is still a record
+
+Nine list screens have no detail route at all — their verbs live in
+`SoftRow.actions` — and the first desk left every one of them at one column on
+the grounds that there was nowhere for a second pane to point. That is a
+statement about routes, not about records. `ConsoleRecordDetail` is the shape
+they share: the row's kicker, its title, its supporting line, its figures on a
+`well` block, and **the verbs currently sitting on the row, lifted into the
+pane**.
+
+It is a `TorchCard`, and the card is why nothing in it needed re-measuring:
+`surface` is opaque, so neither ambient wash reaches a pixel inside it and
+every pairing is the one the kit already measured. The wash is measured where
+it actually lands — the ground around the card, the rail, and the list pane's
+rows — in `console_wash_test.dart`, which now runs its two contrast probes and
+its before/after census over four frames instead of one.

@@ -7,7 +7,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -78,10 +80,17 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     }
   }
 
-  Widget _frame({required String phase, required List<Widget> children}) {
+  Widget _frame({
+    required String phase,
+    required List<Widget> children,
+    ConsoleDeskRecords? desk,
+  }) {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
+      // Non-null on `loaded` only: a skeleton, an error and "no templates yet"
+      // are not records, so those phases keep the rail and one column.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.templatesTitle,
         facts: <String>[l10n.templatesFact],
@@ -130,21 +139,72 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
           ),
         ],
       ),
-      data: (list) => _frame(
-        phase: list.isEmpty ? 'empty' : 'loaded',
-        children: <Widget>[
-          _InAudits(
-            selected: selected,
-            busy: _selecting == '',
-            onClear: () => _select(null),
-          ),
-          SizedBox(height: context.skin.space.blockGap),
+      data: (list) {
+        // THE TWO BLOCKS ABOVE THE LIST, BUILT ONCE and handed to both arms.
+        // `_InAudits` is the one place this screen says which template agents
+        // are answering, and it carries `Stop using`; a second composition of
+        // it for the desk is the one that would one day disagree.
+        final inAudits = _InAudits(
+          selected: selected,
+          busy: _selecting == '',
+          onClear: () => _select(null),
+        );
+        final section = SectionRule(
+          l10n.templatesSection,
+          count: list.isEmpty ? null : list.length,
+        );
 
-          SectionRule(
-            l10n.templatesSection,
-            count: list.isEmpty ? null : list.length,
-          ),
-          const SizedBox(height: TiqSpace.s5),
+        return _frame(
+          phase: list.isEmpty ? 'empty' : 'loaded',
+          // ── WHAT THE DESK GETS ─────────────────────────────────────────
+          //
+          // The templates as records, with `_InAudits` and the section marker
+          // in `lead` — the marker stays because there is no filter rail here
+          // to name or count the slice, and the standalone block is about the
+          // list rather than about any one row in it.
+          //
+          // The pane is built from the record's own fields rather than from a
+          // sheet, because this screen has none: the row's tap is a **route**,
+          // `/audit-templates/:id/preview`, which walks the template's form
+          // and is a page rather than a pane. So the pane says what the row
+          // says — the mark, the word, the version line and the id in the
+          // identifier face — and keeps the push as a tertiary verb.
+          desk: list.isEmpty
+              ? null
+              : ConsoleDeskRecords(
+                  lead: <Widget>[
+                    inAudits,
+                    SizedBox(height: context.skin.space.blockGap),
+                    section,
+                    const SizedBox(height: TiqSpace.s5),
+                  ],
+                  records: <ConsoleDeskRecord>[
+                    for (var i = 0; i < list.length; i++)
+                      ConsoleDeskRecord(
+                        id: list[i].id,
+                        row: (context, selected) => _TemplateRow(
+                          key: ValueKey<String>('template-${list[i].id}'),
+                          template: list[i],
+                          inAudits: list[i].id == selectedId,
+                          busy: _selecting == list[i].id,
+                          last: i == list.length - 1,
+                          onUseInAudits: () => _select(list[i].id),
+                          onDesk: true,
+                        ),
+                        detail: (context) => _templateDetail(
+                          context,
+                          list[i],
+                          inAudits: list[i].id == selectedId,
+                        ),
+                      ),
+                  ],
+                ),
+          children: <Widget>[
+            inAudits,
+            SizedBox(height: context.skin.space.blockGap),
+
+            section,
+            const SizedBox(height: TiqSpace.s5),
 
           if (list.isEmpty)
             EmptyState(
@@ -169,8 +229,93 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                 ],
               ),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// ── ONE TEMPLATE, IN THE DETAIL PANE ────────────────────────────────
+  ///
+  /// The row's own four channels — the mark, the state word, the version line
+  /// and the id in the identifier face — and the row's own verb, lifted, with
+  /// the preview route behind a tertiary.
+  ///
+  /// **No facts block, and that is a localisation decision rather than a
+  /// design one.** A `label: value` pair needs a word for the label, this
+  /// screen is translated into both locales, and `l10n` has no `Version` or
+  /// `Identifier` in it. Printing two English labels on a translated screen
+  /// would be a regression on the Afrikaans build, and inventing two keys for
+  /// a pane is a change that belongs in a change about words. The id keeps the
+  /// face the row gives it and reads as what it is.
+  Widget _templateDetail(
+    BuildContext context,
+    AuditTemplate t, {
+    required bool inAudits,
+  }) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final industry = t.industry;
+    final busy = _selecting == t.id;
+    final word = inAudits
+        ? l10n.templateWordInAudits
+        : (t.active ? l10n.templateWordActive : l10n.templateWordPaused);
+
+    return ConsoleRecordDetail(
+      key: ValueKey<String>('template-detail-${t.id}'),
+      kicker: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: TiqSpace.s2,
+        children: <Widget>[
+          TiqMark(
+            shape: inAudits
+                ? MarkShape.sectionTickDisc
+                : t.active
+                ? MarkShape.onTargetCircle
+                : MarkShape.heldSquare,
+            color: inAudits || t.active
+                ? skin.palette.good
+                : skin.palette.ink2,
+            size: MarkScale.glyph(context, 16),
+          ),
+          Text(word, style: skin.text.meta.style(color: skin.palette.ink3)),
         ],
       ),
+      title: t.name,
+      lede: industry == null
+          ? l10n.templateVersionShort(t.version)
+          : l10n.templateVersionAndIndustry(t.version, industry),
+      blocks: <Widget>[
+        // The id is what the API and the agent app know this template by, so
+        // it wears the identifier face here exactly as it does on the row.
+        Text(t.id, style: skin.text.monoIdent.style(color: skin.palette.ink3)),
+      ],
+      actions: <Widget>[
+        // Only an active template can be put in front of agents, and the one
+        // already in use is changed from the block above the list — the same
+        // two guards the row applies, so the pane offers no press the row
+        // would have refused.
+        if (t.active && !inAudits)
+          TorchSecondaryButton(
+            key: ValueKey<String>('template-use-${t.id}-pane'),
+            label: busy ? l10n.templateSwitching : l10n.templateUseInAudits,
+            busy: busy,
+            blockedReason: busy ? l10n.templateSwitching : null,
+            onPressed: busy ? null : () => _select(t.id),
+          ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: ValueKey<String>('template-preview-${t.id}-pane'),
+            // The destination's own title. A tertiary that is stretched to a
+            // 440dp pane centres its label, which is why it is aligned rather
+            // than full width: the pane's verbs read down the leading edge.
+            label: l10n.templatePreviewTitle,
+            semanticLabel: '${t.name}. ${l10n.templateOpensPreview}',
+            onPressed: () => context.push('/audit-templates/${t.id}/preview'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -252,6 +397,7 @@ class _TemplateRow extends StatelessWidget {
     required this.busy,
     required this.last,
     required this.onUseInAudits,
+    this.onDesk = false,
   });
 
   final AuditTemplate template;
@@ -259,6 +405,13 @@ class _TemplateRow extends StatelessWidget {
   final bool busy;
   final bool last;
   final VoidCallback onUseInAudits;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**.
+  ///
+  /// It nulls the tap and changes nothing else — the chevron stays, because
+  /// the preview is still one press away in the pane and a row that lost its
+  /// trailing lane would move every other row's text column with it.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +466,9 @@ class _TemplateRow extends StatelessWidget {
             )
           : null,
       // Preview walks the template's dynamic form (issue #54 step 2).
-      onTap: () => context.push('/audit-templates/${t.id}/preview'),
+      onTap: onDesk
+          ? null
+          : () => context.push('/audit-templates/${t.id}/preview'),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         t.name,

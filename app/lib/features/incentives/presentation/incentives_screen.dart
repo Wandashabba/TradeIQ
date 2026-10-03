@@ -8,7 +8,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
@@ -81,8 +83,12 @@ class IncentivesScreen extends ConsumerWidget {
       required String phase,
       required List<Widget> children,
       String? facts,
+      ConsoleDeskRecords? desk,
     }) => ConsoleFrame(
       phase: phase,
+      // Non-null on `loaded` only: a skeleton, an error and "no schemes
+      // configured" are not records.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.incentivesTitle,
         facts: <String>[l10n.incentivesFact, ?facts],
@@ -124,6 +130,19 @@ class IncentivesScreen extends ConsumerWidget {
       ),
       data: (data) {
         final numbers = TiqNumber.of(context);
+        // THE SECTION MARKER, BUILT ONCE and handed to both arms. It carries
+        // `Add one`, which is this screen's only create control and which the
+        // desk does not draw `children` to find.
+        final section = SectionRule(
+          l10n.incentivesSchemes,
+          count: data.rows.isEmpty ? null : data.rows.length,
+          emptyLine: data.rows.isEmpty ? l10n.incentivesNoneConfigured : null,
+          action: SectionRuleAction(
+            l10n.incentivesAddScheme,
+            onTap: () => showSchemeFormSheet(context, ref),
+          ),
+        );
+
         return frame(
           phase: data.rows.isEmpty ? 'empty' : 'loaded',
           facts: data.rows.isEmpty
@@ -132,18 +151,56 @@ class IncentivesScreen extends ConsumerWidget {
                   numbers.format(data.awarding),
                   numbers.format(data.rows.length),
                 ),
+          // ── WHAT THE DESK GETS, AND THE ONE JUDGEMENT IN IT ───────────
+          //
+          // The schemes as records and the marker in `lead` — kept, because
+          // there is no filter rail here to name the list or carry `Add one`.
+          //
+          // **The reward bar is not in the list pane.** `_SchemeBlock` is a
+          // row *and* an always-visible `_Progress` on the phone, and on the
+          // desk the bar goes to the pane alone (`onDesk`). Two reasons, and
+          // the first is the pane's whole argument: a bar with a milestone
+          // label on it — "250 pts at 20 visits" — is the first thing in this
+          // product to break at [ConsoleDesk.listMinWidth], which is 320dp,
+          // while the detail pane is the measure and has room for the label,
+          // the fraction and the earned line. The second is that the desk's
+          // own floor is three records on screen, and a bar under every row is
+          // roughly half as many schemes visible at once. Nothing is lost: the
+          // selected scheme's bar is in the pane, at a width it reads at.
+          //
+          // The row keeps its on/off control, because it is a control and the
+          // state it carries is about the row; the two verbs that were in
+          // `SoftRow.actions` are lifted into the pane, where a 440dp column
+          // can say what each one does.
+          desk: data.rows.isEmpty
+              ? null
+              : ConsoleDeskRecords(
+                  lead: <Widget>[section, const SizedBox(height: TiqSpace.s5)],
+                  records: <ConsoleDeskRecord>[
+                    for (var i = 0; i < data.rows.length; i++)
+                      ConsoleDeskRecord(
+                        id: data.rows[i].scheme.id,
+                        row: (context, selected) => _SchemeBlock(
+                          key: ValueKey<String>(
+                            'scheme-${data.rows[i].scheme.id}',
+                          ),
+                          row: data.rows[i],
+                          agentsMeasured: data.agentsMeasured,
+                          last: i == data.rows.length - 1,
+                          onDesk: true,
+                        ),
+                        detail: (context) => _SchemeDetail(
+                          key: ValueKey<String>(
+                            'scheme-detail-${data.rows[i].scheme.id}',
+                          ),
+                          row: data.rows[i],
+                          agentsMeasured: data.agentsMeasured,
+                        ),
+                      ),
+                  ],
+                ),
           children: <Widget>[
-            SectionRule(
-              l10n.incentivesSchemes,
-              count: data.rows.isEmpty ? null : data.rows.length,
-              emptyLine: data.rows.isEmpty
-                  ? l10n.incentivesNoneConfigured
-                  : null,
-              action: SectionRuleAction(
-                l10n.incentivesAddScheme,
-                onTap: () => showSchemeFormSheet(context, ref),
-              ),
-            ),
+            section,
             const SizedBox(height: TiqSpace.s5),
             if (data.rows.isEmpty)
               EmptyState(
@@ -176,6 +233,83 @@ class IncentivesScreen extends ConsumerWidget {
   }
 }
 
+/// ── THE TWO VERBS A SCHEME HAS, HELD ONCE ──────────────────────────────
+///
+/// Starting or pausing a scheme and deleting one are the same two flows at two
+/// addresses — the row on a phone, and the detail pane on a desk — and the
+/// only thing that differs is which element the busy flag belongs to. So they
+/// live here rather than in two copies that would one day stop asking the same
+/// confirmation or stop invalidating the same two providers.
+///
+/// [busy] is the flag both callers already had: one press, one request, and no
+/// second press while the first is in flight.
+mixin _SchemeVerbs<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  bool busy = false;
+
+  /// The scheme this state is acting on.
+  IncentiveSchemeRow get schemeRow;
+
+  Future<void> setActive(bool value) async {
+    setState(() => busy = true);
+    try {
+      await ref
+          .read(incentivesRepositoryProvider)
+          .setActive(schemeRow.scheme.id, value);
+      if (!mounted) return;
+      ref.invalidate(incentivesViewProvider);
+      ref.invalidate(incentivesListProvider);
+    } catch (error) {
+      if (!mounted) return;
+      showTorchToast(
+        context,
+        kind: ToastKind.failure,
+        message: value
+            ? context.l10n.incentivesCouldNotStart(schemeRow.scheme.name)
+            : context.l10n.incentivesCouldNotPause(schemeRow.scheme.name),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> confirmDelete() async {
+    final l10n = context.l10n;
+    final scheme = schemeRow.scheme;
+    final confirmed = await showTorchSheet<bool>(
+      context,
+      dismissible: false,
+      builder: (sheetContext) => ConfirmSheet(
+        action: l10n.incentivesDeleteAction(scheme.name),
+        record: scheme.metric,
+        consequences: <String>[
+          l10n.incentivesDeleteStops,
+          l10n.incentivesDeleteKeeps,
+          l10n.incentivesEarnedSoFar(schemeRow.earnedCount),
+        ],
+        commitLabel: l10n.incentivesDeleteScheme,
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => busy = true);
+    try {
+      await ref.read(incentivesRepositoryProvider).deleteScheme(scheme.id);
+      if (!mounted) return;
+      ref.invalidate(incentivesViewProvider);
+      ref.invalidate(incentivesListProvider);
+    } catch (error) {
+      if (!mounted) return;
+      showTorchToast(
+        context,
+        kind: ToastKind.failure,
+        message: context.l10n.incentivesCouldNotDelete(scheme.name),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+}
+
 /// One scheme: the rule, whether it is paying, and who is closest to it.
 class _SchemeBlock extends ConsumerStatefulWidget {
   const _SchemeBlock({
@@ -183,18 +317,30 @@ class _SchemeBlock extends ConsumerStatefulWidget {
     required this.row,
     required this.agentsMeasured,
     required this.last,
+    this.onDesk = false,
   });
 
   final IncentiveSchemeRow row;
   final int agentsMeasured;
   final bool last;
 
+  /// True in the desk's list pane.
+  ///
+  /// Two things go, and both are in the detail pane instead: the reward bar
+  /// under the row, and the two verbs in the row's action slot. The on/off
+  /// control in the trailing lane stays — it is a control, and the state it
+  /// shows is about this row. See the `desk:` argument above for why the bar
+  /// is not drawn at a 320dp list pane's width.
+  final bool onDesk;
+
   @override
   ConsumerState<_SchemeBlock> createState() => _SchemeBlockState();
 }
 
-class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
-  bool _busy = false;
+class _SchemeBlockState extends ConsumerState<_SchemeBlock>
+    with _SchemeVerbs<_SchemeBlock> {
+  @override
+  IncentiveSchemeRow get schemeRow => widget.row;
 
   @override
   Widget build(BuildContext context) {
@@ -249,39 +395,40 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
             semanticLabel: scheme.active
                 ? l10n.incentivesPauseScheme(scheme.name)
                 : l10n.incentivesStartScheme(scheme.name),
-            onPressed: _busy ? null : () => _setActive(!scheme.active),
+            onPressed: busy ? null : () => setActive(!scheme.active),
           ),
-          actions: Wrap(
-            spacing: TiqSpace.s4,
-            runSpacing: TiqSpace.s2,
-            children: <Widget>[
-              if (row.progress.isNotEmpty)
-                TorchTertiaryButton(
-                  key: ValueKey<String>('scheme-everyone-${scheme.id}'),
-                  label: l10n.incentivesSeeEveryone,
-                  onPressed: () => showSchemeProgressSheet(context, row: row),
+          actions: widget.onDesk
+              ? null
+              : Wrap(
+                  spacing: TiqSpace.s4,
+                  runSpacing: TiqSpace.s2,
+                  children: <Widget>[
+                    if (row.progress.isNotEmpty)
+                      TorchTertiaryButton(
+                        key: ValueKey<String>('scheme-everyone-${scheme.id}'),
+                        label: l10n.incentivesSeeEveryone,
+                        onPressed: () =>
+                            showSchemeProgressSheet(context, row: row),
+                      ),
+                    TorchTertiaryButton(
+                      key: ValueKey<String>('delete-${scheme.id}'),
+                      label: l10n.incentivesDeleteScheme,
+                      destructive: true,
+                      onPressed: busy ? null : confirmDelete,
+                    ),
+                  ],
                 ),
-              TorchTertiaryButton(
-                key: ValueKey<String>('delete-${scheme.id}'),
-                label: l10n.incentivesDeleteScheme,
-                destructive: true,
-                onPressed: _busy ? null : _confirmDelete,
-              ),
-            ],
-          ),
           separator: SoftRowSeparator.none,
         ),
-        Padding(
-          padding: EdgeInsets.only(
-            left: skin.space.gutter,
-            right: skin.space.gutter,
-            bottom: TiqSpace.s5,
+        if (!widget.onDesk)
+          Padding(
+            padding: EdgeInsets.only(
+              left: skin.space.gutter,
+              right: skin.space.gutter,
+              bottom: TiqSpace.s5,
+            ),
+            child: _Progress(row: row, agentsMeasured: widget.agentsMeasured),
           ),
-          child: _Progress(
-            row: row,
-            agentsMeasured: widget.agentsMeasured,
-          ),
-        ),
         if (!widget.last)
           Padding(
             padding: const EdgeInsets.only(bottom: TiqSpace.s5),
@@ -294,64 +441,108 @@ class _SchemeBlockState extends ConsumerState<_SchemeBlock> {
     );
   }
 
-  Future<void> _setActive(bool value) async {
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(incentivesRepositoryProvider)
-          .setActive(widget.row.scheme.id, value);
-      if (!mounted) return;
-      ref.invalidate(incentivesViewProvider);
-      ref.invalidate(incentivesListProvider);
-    } catch (error) {
-      if (!mounted) return;
-      showTorchToast(
-        context,
-        kind: ToastKind.failure,
-        message: value
-            ? context.l10n.incentivesCouldNotStart(widget.row.scheme.name)
-            : context.l10n.incentivesCouldNotPause(widget.row.scheme.name),
-      );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+}
 
-  Future<void> _confirmDelete() async {
+/// ── ONE SCHEME, IN THE DETAIL PANE ─────────────────────────────────────
+///
+/// The rule as the row states it, the reward bar the row carries, and all
+/// three of the row's verbs at a width that can say what they do.
+///
+/// **No facts block.** The rule sentence in the lede already prints the state,
+/// the metric, the threshold and the reward, and `_Progress` prints the reward
+/// again on the bar's milestone and the earned count under it. A `Threshold` /
+/// `Reward` pair here would be the third printing of two numbers on one card,
+/// which is what the facts block is for everywhere it is *not* already said.
+///
+/// **Amber: none.** The on/off verb is a ghost, `See everyone` is a tertiary
+/// and the delete is the destructive tertiary the row already used; the only
+/// commit is inside the confirm sheet, which extinguishes the route beneath it.
+class _SchemeDetail extends ConsumerStatefulWidget {
+  const _SchemeDetail({
+    super.key,
+    required this.row,
+    required this.agentsMeasured,
+  });
+
+  final IncentiveSchemeRow row;
+  final int agentsMeasured;
+
+  @override
+  ConsumerState<_SchemeDetail> createState() => _SchemeDetailState();
+}
+
+class _SchemeDetailState extends ConsumerState<_SchemeDetail>
+    with _SchemeVerbs<_SchemeDetail> {
+  @override
+  IncentiveSchemeRow get schemeRow => widget.row;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final scheme = widget.row.scheme;
-    final confirmed = await showTorchSheet<bool>(
-      context,
-      dismissible: false,
-      builder: (sheetContext) => ConfirmSheet(
-        action: l10n.incentivesDeleteAction(scheme.name),
-        record: scheme.metric,
-        consequences: <String>[
-          l10n.incentivesDeleteStops,
-          l10n.incentivesDeleteKeeps,
-          l10n.incentivesEarnedSoFar(widget.row.earnedCount),
-        ],
-        commitLabel: l10n.incentivesDeleteScheme,
-      ),
+    final row = widget.row;
+    final scheme = row.scheme;
+    final numbers = TiqNumber.of(context);
+    // THE SAME SENTENCE THE ROW'S SUBTITLE IS, from the same four pieces: a
+    // pane that re-worded the rule would be a second statement of the thing
+    // the manager is about to pause.
+    final threshold = numbers.format(scheme.threshold);
+    final reward = l10n.incentivesRewardPoints(
+      numbers.format(scheme.rewardPoints),
     );
-    if (confirmed != true || !mounted) return;
+    final metricLabel = row.metric?.label(l10n) ?? scheme.metric;
+    final unit = row.metric?.unitWord(l10n);
+    final stateWord = scheme.active
+        ? l10n.incentivesAwarding
+        : l10n.incentivesPaused;
+    final rule = unit == null
+        ? l10n.incentivesRuleNoUnit(stateWord, metricLabel, threshold, reward)
+        : l10n.incentivesRuleWithUnit(
+            stateWord,
+            metricLabel,
+            threshold,
+            unit,
+            reward,
+          );
 
-    setState(() => _busy = true);
-    try {
-      await ref.read(incentivesRepositoryProvider).deleteScheme(scheme.id);
-      if (!mounted) return;
-      ref.invalidate(incentivesViewProvider);
-      ref.invalidate(incentivesListProvider);
-    } catch (error) {
-      if (!mounted) return;
-      showTorchToast(
-        context,
-        kind: ToastKind.failure,
-        message: context.l10n.incentivesCouldNotDelete(scheme.name),
-      );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    return ConsoleRecordDetail(
+      title: scheme.name,
+      lede: rule,
+      blocks: <Widget>[
+        _Progress(row: row, agentsMeasured: widget.agentsMeasured),
+      ],
+      actions: <Widget>[
+        // The trailing icon button's verb, in words. The row's own semantics
+        // label is the label here — "Pause Twenty visits" — because a pane
+        // button has room for the sentence the glyph was standing in for.
+        TorchSecondaryButton(
+          key: ValueKey<String>('toggle-${scheme.id}-pane'),
+          label: scheme.active
+              ? l10n.incentivesPauseScheme(scheme.name)
+              : l10n.incentivesStartScheme(scheme.name),
+          busy: busy,
+          blockedReason: busy ? l10n.incentivesAwarding : null,
+          onPressed: busy ? null : () => setActive(!scheme.active),
+        ),
+        if (row.progress.isNotEmpty)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchTertiaryButton(
+              key: ValueKey<String>('scheme-everyone-${scheme.id}-pane'),
+              label: l10n.incentivesSeeEveryone,
+              onPressed: () => showSchemeProgressSheet(context, row: row),
+            ),
+          ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: ValueKey<String>('delete-${scheme.id}-pane'),
+            label: l10n.incentivesDeleteScheme,
+            destructive: true,
+            onPressed: busy ? null : confirmDelete,
+          ),
+        ),
+      ],
+    );
   }
 }
 

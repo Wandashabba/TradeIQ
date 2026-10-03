@@ -7,10 +7,15 @@ import 'package:tradeiq_app/core/widgets/torchlight/menu_sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 import 'package:tradeiq_app/features/assistant/answer/composer.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../design/amber_golden.dart';
+// THE NON-LIST ROUTE'S OWN FAKES, reused rather than re-invented. Prefixed
+// because this harness exports a dozen record types and two of them share a
+// name with `worklist_harness.dart`'s.
+import '../../../features/dashboard/overview_harness.dart' as oh;
 import 'console_desk_harness.dart';
 
 /// THE DESK, PINNED — the measurements, as against the pictures.
@@ -420,15 +425,32 @@ void main() {
   });
 
   // ── A ROUTE THAT IS NOT A LIST ───────────────────────────────────────
+  //
+  // THE EXAMPLE USED TO BE WEBHOOKS, AND WEBHOOKS IS NOW A LIST.
+  //
+  // This test pumped `WebhooksScreen` and asserted `console-detail` was
+  // absent, on the argument written into its own `reason`: *"Webhooks has no
+  // record detail — its rows expand in place"*. The rows expanding in place is
+  // precisely what made it a list with a detail pane — the thing they expand
+  // to show is the delivery log, and on the desk that log is the third pane.
+  // So Webhooks passes a `ConsoleDeskRecords` now and the old assertion is
+  // false about this route rather than wrong about the layout. It is
+  // **re-aimed, not deleted**: the one-column shape still has to be pinned,
+  // and the route that has it is the Perfect Store scorecard — a figure block,
+  // a trend and two lists of cards, with no record to select. The Webhooks
+  // case is directly below, asserting the opposite.
   testWidgets('a non-list route gets the rail and ONE centred column', (
     tester,
   ) async {
     await pumpDesk(
       tester,
-      const WebhooksScreen(),
+      const DashboardShellScreen(),
       size: const Size(1440, 900),
-      path: '/webhooks',
-      overrides: deskWebhookOverrides(),
+      path: '/dashboard/overview',
+      overrides: oh.overviewOverrides(
+        current: oh.kpis(),
+        previous: oh.kpis(execution: 66),
+      ),
     );
     expect(find.byType(ConsoleRail), findsOneWidget);
     expect(
@@ -439,8 +461,8 @@ void main() {
       find.byKey(const ValueKey<String>('console-detail')),
       findsNothing,
       reason:
-          'Webhooks has no record detail — its rows expand in place. A third '
-          'pane here would be a pane whose content is an apology.',
+          'The scorecard has no records to select. A third pane here would be '
+          'a pane whose content is an apology.',
     );
     final column = tester.getRect(
       find.byKey(const ValueKey<String>('console-column')),
@@ -463,6 +485,53 @@ void main() {
     );
     expect(column.width, expected);
     expect(column.right, 1440 - night.space.gutterWide);
+  });
+
+  // ── AND THE ROUTE THAT USED TO BE THE EXAMPLE ────────────────────────
+  //
+  // Webhooks, whose rows expand in place on a phone. On the desk the fold is
+  // suppressed and `_DeliveriesList` is the detail pane, which is the whole
+  // reason a pane exists: on a phone, reading an endpoint's log costs the
+  // manager the list they were reading.
+  testWidgets('Webhooks gets three panes, and the deliveries are the third', (
+    tester,
+  ) async {
+    await pumpDesk(
+      tester,
+      const WebhooksScreen(),
+      size: const Size(1440, 900),
+      path: '/webhooks',
+      overrides: deskWebhookOverrides(),
+    );
+    expect(find.byKey(const ValueKey<String>('console-list')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('console-detail')),
+      findsOneWidget,
+      reason:
+          'Webhooks was the product\'s example of a route that is not a list, '
+          'and the example was wrong: the log its rows expand to show is '
+          'exactly what a detail pane is for.',
+    );
+    expect(find.byKey(const ValueKey<String>('console-column')), findsNothing);
+
+    // Nothing selected is the pane at rest, and the log arrives with the
+    // record rather than with a second request from the frame.
+    expect(
+      find.byKey(const ValueKey<String>('console-detail-at-rest')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('console-record-w1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('deliveries-w1')),
+      findsOneWidget,
+      reason: 'The chosen endpoint\'s delivery log is the pane.',
+    );
+    // And the row in the list pane no longer carries the fold it used to.
+    expect(
+      find.byKey(const ValueKey<String>('deliveries-toggle-w1')),
+      findsNothing,
+    );
   });
 
   // ── SMOOTH AND SEAMLESS, AS TWO MEASUREMENTS ─────────────────────────
@@ -613,7 +682,12 @@ void main() {
         });
       }
 
-      testWidgets('$skinName, a one-column route', (tester) async {
+      // WEBHOOKS, WHICH IS NO LONGER THE ONE-COLUMN CASE. It is censused with
+      // a record open, because that is the state its pane actually has
+      // something in it: a toggle, a destructive tertiary and a delivery log.
+      // The budget is unchanged, which is the claim worth pinning — lifting a
+      // row's verbs into a pane must not light anything.
+      testWidgets('$skinName, a lifted-verb pane adds none', (tester) async {
         await pumpDesk(
           tester,
           const WebhooksScreen(),
@@ -622,6 +696,10 @@ void main() {
           path: '/webhooks',
           overrides: deskWebhookOverrides(),
         );
+        await tester.tap(
+          find.byKey(const ValueKey<String>('console-record-w1')),
+        );
+        await tester.pumpAndSettle();
         final census = await amberCensus(tester);
         // ignore: avoid_print
         print('DESK 1440x900 $skinName / webhooks: ${census.describe()}');

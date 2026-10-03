@@ -7,7 +7,9 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/console_record.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
@@ -105,9 +107,15 @@ class CampaignsScreen extends ConsumerWidget {
     WidgetRef ref, {
     required String phase,
     required List<Widget> children,
+    ConsoleDeskRecords? desk,
   }) {
     return ConsoleFrame(
       phase: phase,
+      // Null on the skeleton, on the error and on an empty list: none of them
+      // is a list of records, and with no filter rail here the empty phase
+      // has no slice to widen — it keeps the one centred column its own empty
+      // state and its create control were written for.
+      desk: desk,
       header: TorchAppHeader(
         title: 'Activations',
         facts: const <String>['Tap a row for its compliance rollup.'],
@@ -143,6 +151,69 @@ class CampaignsScreen extends ConsumerWidget {
       context,
       ref,
       phase: list.isEmpty ? 'empty' : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ───────────────────────
+      //
+      // **The rollup sheet's body IS the detail pane**, and it is the same
+      // widget: `_RollupSheet` was a `TorchSheet` wrapped around two
+      // independently-loading sections, so the sections came out as
+      // [_RollupBody] and the sheet now wraps that. The phone opens the sheet
+      // exactly as it did; the desk draws the body in the pane, with no scrim
+      // over the list it was chosen from and no sheet to dismiss before
+      // reading the next activation.
+      //
+      // Around it the pane adds what the sheet got from its own chrome and
+      // the row from its own slots: the name, the status chip, the window and
+      // the id the sheet put in its title bar, and the row's `Edit`, lifted.
+      // Without those the pane would be a rollup belonging to nothing.
+      //
+      // It is the one pane in this group that **does** issue requests on
+      // selection, and that is a deliberate exception to
+      // `ConsoleDeskRecord.detail`'s rule: a campaign's compliance and its
+      // return are two endpoints of their own, so there is no version of this
+      // pane that reads only what the list already holds. The cost is the
+      // same one the sheet paid — two requests per campaign opened — and it is
+      // paid once per selection, because [_RollupBody] is keyed by campaign
+      // id and starts its futures in `initState`.
+      //
+      // The section rule stays in `lead` (no filter rail to name the slice),
+      // and the create control is the `footer`, under the records, where the
+      // phone puts it.
+      desk: list.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[
+                SectionRule('Activations', count: list.length),
+                const SizedBox(height: TiqSpace.s5),
+              ],
+              footer: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TorchSecondaryButton(
+                  key: const ValueKey<String>('campaign-create-desk'),
+                  label: 'New activation',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CampaignFormScreen(),
+                    ),
+                  ),
+                ),
+              ),
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < list.length; i++)
+                  ConsoleDeskRecord(
+                    id: list[i].id,
+                    row: (context, selected) => _CampaignRow(
+                      key: ValueKey<String>('campaign-row-${list[i].id}'),
+                      campaign: list[i],
+                      last: i == list.length - 1,
+                      onDesk: true,
+                    ),
+                    detail: (context) => _CampaignPane(
+                      key: ValueKey<String>('campaign-pane-${list[i].id}'),
+                      campaign: list[i],
+                    ),
+                  ),
+              ],
+            ),
       children: <Widget>[
         SectionRule('Activations', count: list.isEmpty ? null : list.length),
         const SizedBox(height: TiqSpace.s5),
@@ -196,21 +267,44 @@ String campaignStatusWord(String status) => switch (status) {
   _ => status,
 };
 
+/// How many stores this activation covers, in words and the right plural.
+/// Read by the row and by the detail pane's lede, so the two agree.
+String _outletsLine(TiqNumber numbers, Campaign campaign) =>
+    '${numbers.format(campaign.outletCount)} '
+    '${campaign.outletCount == 1 ? 'outlet' : 'outlets'}';
+
+/// The activation's window, as the row prints it.
+String _windowLine(Campaign campaign) =>
+    '${campaign.startDate} → ${campaign.endDate}';
+
 class _CampaignRow extends ConsumerWidget {
-  const _CampaignRow({super.key, required this.campaign, required this.last});
+  const _CampaignRow({
+    super.key,
+    required this.campaign,
+    required this.last,
+    this.onDesk = false,
+  });
 
   final Campaign campaign;
   final bool last;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**
+  /// and the rollup is already on screen in the detail pane.
+  ///
+  /// Opening `showCampaignRollupSheet` there would put a scrim over the list
+  /// the manager chose from and draw the same two sections twice, one of them
+  /// behind the other. So the tap goes to the frame — `_Record` in
+  /// `console_desk.dart` — and this row draws exactly what it draws on a
+  /// phone, minus a gesture it is no longer the owner of.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
     final numbers = TiqNumber.of(context);
     final word = campaignStatusWord(campaign.status);
-    final window = '${campaign.startDate} → ${campaign.endDate}';
-    final outlets =
-        '${numbers.format(campaign.outletCount)} '
-        '${campaign.outletCount == 1 ? 'outlet' : 'outlets'}';
+    final window = _windowLine(campaign);
+    final outlets = _outletsLine(numbers, campaign);
 
     return SoftRow(
       key: ValueKey<String>('campaign-${campaign.id}'),
@@ -239,7 +333,9 @@ class _CampaignRow extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () => showCampaignRollupSheet(context, campaign: campaign),
+      onTap: onDesk
+          ? null
+          : () => showCampaignRollupSheet(context, campaign: campaign),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         word,
@@ -262,19 +358,53 @@ Future<void> showCampaignRollupSheet(
   );
 }
 
-class _RollupSheet extends ConsumerStatefulWidget {
+class _RollupSheet extends StatelessWidget {
   const _RollupSheet({required this.campaign});
 
   final Campaign campaign;
 
   @override
-  ConsumerState<_RollupSheet> createState() => _RollupSheetState();
+  Widget build(BuildContext context) {
+    return TorchSheet(
+      title: campaign.name,
+      subtitle: 'Coverage, compliance and return.',
+      child: _RollupBody(
+        key: ValueKey<String>('rollup-${campaign.id}'),
+        campaign: campaign,
+      ),
+    );
+  }
 }
 
-class _RollupSheetState extends ConsumerState<_RollupSheet> {
+/// ── THE ROLLUP ITSELF, WITHOUT A CONTAINER ─────────────────────────────
+///
+/// The two sections and nothing else, so the **sheet** and the desk's
+/// **detail pane** can both hold them without either owning the other's
+/// chrome. It was the sheet's `child` before the desk existed; the only
+/// change is that the `TorchSheet` moved out of it and the phone's path to it
+/// is unaltered — `showCampaignRollupSheet` still opens the same sheet with
+/// the same title and the same subtitle.
+///
+/// The two requests still resolve **independently**, which is the property
+/// the dialog this replaced had and the one worth keeping: a slow or failed
+/// ROI query must not hide the compliance figures above it.
+class _RollupBody extends ConsumerStatefulWidget {
+  const _RollupBody({super.key, required this.campaign});
+
+  final Campaign campaign;
+
+  @override
+  ConsumerState<_RollupBody> createState() => _RollupBodyState();
+}
+
+class _RollupBodyState extends ConsumerState<_RollupBody> {
   /// Both requests start in [initState], in the same build pass as the
   /// builders that listen to them. Started any earlier, a request that fails
-  /// before the sheet's first frame is an unhandled error.
+  /// before the first frame is an unhandled error.
+  ///
+  /// This is also what makes the detail pane's cost bounded: the state is
+  /// keyed by campaign id, so one selection is one pair of requests, and
+  /// rebuilding the pane for the same record issues nothing.
   late final Future<CampaignCompliance> _compliance;
   late final Future<CampaignRoi> _roi;
 
@@ -288,31 +418,78 @@ class _RollupSheetState extends ConsumerState<_RollupSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return TorchSheet(
-      title: widget.campaign.name,
-      subtitle: 'Coverage, compliance and return.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _Section<CampaignCompliance>(
-            name: 'compliance',
-            future: _compliance,
-            builder: (value) => _Compliance(
-              key: ValueKey<String>('compliance-${widget.campaign.id}'),
-              compliance: value,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _Section<CampaignCompliance>(
+          name: 'compliance',
+          future: _compliance,
+          builder: (value) => _Compliance(
+            key: ValueKey<String>('compliance-${widget.campaign.id}'),
+            compliance: value,
+          ),
+        ),
+        SizedBox(height: context.skin.space.blockGap),
+        // The return loads on its own: a slow or failed ROI query must not
+        // hide the compliance rollup above it.
+        _Section<CampaignRoi>(
+          name: 'return',
+          future: _roi,
+          builder: (value) => CampaignReturnView(roi: value),
+        ),
+      ],
+    );
+  }
+}
+
+/// ── ONE ACTIVATION, IN THE DETAIL PANE ─────────────────────────────────
+///
+/// The record's own identity on top — the name, the status chip the row
+/// wears, the stores and the window the row prints as its subtitle, and the
+/// id the row prints in its `meta` line — and then **the rollup sheet's own
+/// body**, unchanged, as the block beneath. The row's `Edit` is lifted to the
+/// foot.
+class _CampaignPane extends StatelessWidget {
+  const _CampaignPane({super.key, required this.campaign});
+
+  final Campaign campaign;
+
+  @override
+  Widget build(BuildContext context) {
+    final numbers = TiqNumber.of(context);
+
+    return ConsoleRecordDetail(
+      title: campaign.name,
+      // The row's own trailing widget, lifted: a word and a silhouette.
+      kicker: StatusChip(
+        level: campaignLevel(campaign.status),
+        label: campaignStatusWord(campaign.status),
+      ),
+      lede: '${_outletsLine(numbers, campaign)} · ${_windowLine(campaign)}',
+      // The id is machine-facing — it is what the compliance endpoint and
+      // every export key on — so it keeps the identifier face it wears on the
+      // row.
+      facts: <RecordFact>[
+        RecordFact('Activation', campaign.id, mono: true),
+      ],
+      blocks: <Widget>[
+        _RollupBody(
+          key: ValueKey<String>('rollup-pane-${campaign.id}'),
+          campaign: campaign,
+        ),
+      ],
+      actions: <Widget>[
+        TorchTertiaryButton(
+          key: ValueKey<String>('campaign-edit-${campaign.id}-pane'),
+          label: 'Edit',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CampaignFormScreen(campaign: campaign),
             ),
           ),
-          SizedBox(height: context.skin.space.blockGap),
-          // The return loads on its own: a slow or failed ROI query must not
-          // hide the compliance rollup above it.
-          _Section<CampaignRoi>(
-            name: 'return',
-            future: _roi,
-            builder: (value) => CampaignReturnView(roi: value),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

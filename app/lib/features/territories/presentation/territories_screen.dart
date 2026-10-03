@@ -7,7 +7,9 @@ import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -70,9 +72,17 @@ class TerritoriesScreen extends ConsumerWidget {
     // Creating territories and assigning agents are manager/admin actions.
     final canManage = role == 'manager' || role == 'admin';
 
-    Widget frame({required String phase, required List<Widget> children}) {
+    Widget frame({
+      required String phase,
+      required List<Widget> children,
+      ConsoleDeskRecords? desk,
+    }) {
       return ConsoleFrame(
         phase: phase,
+        // Non-null on `loaded` and nowhere else: a skeleton, an error region
+        // and the first-run empty state are not records, so those phases keep
+        // the rail and one centred column.
+        desk: desk,
         // The same sentence `floorComposerHint` prints on an unfiltered
         // Floor, not a second invention of it.
         askHint: 'Ask about your territories…',
@@ -141,20 +151,73 @@ class TerritoriesScreen extends ConsumerWidget {
           );
         }
 
+        // The section marker, built once and handed to both arms. It carries
+        // `New territory`, which is the screen's only create control: on the
+        // desk the `children` below are not drawn at all, so a second
+        // composition here would be the one place that silently lost it.
+        final section = SectionRule(
+          l10n.territoriesSectionAll,
+          count: list.length,
+          action: canManage
+              ? SectionRuleAction(
+                  l10n.territoriesNew,
+                  key: const ValueKey<String>('territory-create'),
+                  onTap: () => context.push('/territories/new'),
+                )
+              : null,
+        );
+
         return frame(
           phase: 'loaded',
+          // ── WHAT THE DESK GETS ───────────────────────────────────────
+          //
+          // The records and the section marker, and the marker **is** in
+          // `lead` here: this screen has no filter rail, so nothing else above
+          // the list would name it or count it — and the count is the one
+          // figure the header does not already print.
+          //
+          // The pane is the sheet's own evidence pane, [TerritoryDetailBody],
+          // in a card: the coverage cluster, the outlet and agent counts, the
+          // unassigned flag, `Open the map` and `Assign an agent`. That is a
+          // read-only body that already existed, which the recipe prefers over
+          // a built-up record — and it reads the same `territoryCoverageProvider`
+          // the row's own figure reads, so choosing a territory on the desk
+          // fetches nothing the list has not already fetched.
+          desk: ConsoleDeskRecords(
+            lead: <Widget>[section, const SizedBox(height: TiqSpace.s5)],
+            records: <ConsoleDeskRecord>[
+              for (var i = 0; i < list.length; i++)
+                ConsoleDeskRecord(
+                  id: list[i].id,
+                  row: (context, selected) => _TerritoryRowView(
+                    key: ValueKey<String>('territory-${list[i].id}'),
+                    territory: list[i],
+                    canManage: canManage,
+                    last: i == list.length - 1,
+                    onDesk: true,
+                  ),
+                  detail: (context) => TorchCard(
+                    key: ValueKey<String>('territory-detail-${list[i].id}'),
+                    child: TerritoryDetailBody(
+                      territory: list[i],
+                      canManage: canManage,
+                      // The roster is a picker with a commit at the bottom —
+                      // a form, which the recipe keeps out of the pane. So the
+                      // verb opens the sheet on that roster rather than
+                      // drawing a second copy of it beside the list.
+                      onAssign: () => showTerritoryDetailSheet(
+                        context,
+                        territory: list[i],
+                        canManage: canManage,
+                        assigning: true,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           children: <Widget>[
-            SectionRule(
-              l10n.territoriesSectionAll,
-              count: list.length,
-              action: canManage
-                  ? SectionRuleAction(
-                      l10n.territoriesNew,
-                      key: const ValueKey<String>('territory-create'),
-                      onTap: () => context.push('/territories/new'),
-                    )
-                  : null,
-            ),
+            section,
             const SizedBox(height: TiqSpace.s5),
             TorchBleed(
               child: Column(
@@ -189,11 +252,20 @@ class _TerritoryRowView extends ConsumerWidget {
     required this.territory,
     required this.canManage,
     required this.last,
+    this.onDesk = false,
   });
 
   final Territory territory;
   final bool canManage;
   final bool last;
+
+  /// True in the desk's list pane, where the row's tap is the **selection**
+  /// and the sheet's evidence is already drawn in the detail pane.
+  ///
+  /// It nulls the tap and changes nothing else. Opening the sheet there would
+  /// scrim the list the manager chose from and draw the same
+  /// [TerritoryDetailBody] twice, one of them behind the other.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -240,11 +312,13 @@ class _TerritoryRowView extends ConsumerWidget {
         style: skin.text.monoIdent.style(color: skin.palette.ink3),
       ),
       trailing: _CoverageFigure(row: row),
-      onTap: () => showTerritoryDetailSheet(
-        context,
-        territory: territory,
-        canManage: canManage,
-      ),
+      onTap: onDesk
+          ? null
+          : () => showTerritoryDetailSheet(
+              context,
+              territory: territory,
+              canManage: canManage,
+            ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         territory.name,

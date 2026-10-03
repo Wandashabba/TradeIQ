@@ -12,6 +12,7 @@ import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/marks.dart';
@@ -131,21 +132,72 @@ class _BeatPlans extends ConsumerWidget {
     final role = ref.watch(sessionControllerProvider).value?.role;
     final canBuild = role == 'manager' || role == 'admin';
 
+    final sectionRule = SectionRule(
+      l10n.beatPlansSectionHeading,
+      count: plans.isEmpty ? null : plans.length,
+      action: canBuild
+          ? SectionRuleAction(
+              l10n.beatPlansNewPlan,
+              onTap: () => _openForm(context, ref),
+            )
+          : null,
+    );
+    final footer = !cut
+        ? null
+        : PaginationFooter(
+            key: const ValueKey<String>('beatplans-footer-desk'),
+            summary: page.total == null || page.total! <= plans.length
+                ? l10n.beatPlansFooterMore(shown)
+                : l10n.beatPlansFooterOf(shown, numbers.format(page.total!)),
+          );
+
     return _frame(
       context,
       ref,
       phase: plans.isEmpty ? 'empty' : 'loaded',
+      // ── WHAT THE DESK GETS, AND WHAT IT DOES NOT ─────────────────────────
+      //
+      // The one screen of this set whose rows already have somewhere to go, so
+      // the pane is the **existing read-only body** rather than a record card:
+      // `beatPlanDetailBlocks`, which is the adherence tile and the stops list
+      // that `BeatPlanDetailScreen` draws, now one list with two callers. What
+      // the pane does not take is that route's frame — its `_DetailFrame` is a
+      // `TorchScope` and a `TorchShell` with a back button, and a shell inside
+      // a pane is a second screen in a third of a window.
+      //
+      // **The phone's push is untouched.** `_BeatPlanRow.onDesk` nulls the
+      // row's `Navigator.push` and nothing else: below the threshold the row
+      // still opens the detail route, and above it the press is the frame's
+      // selection, which puts the same body beside the list instead of over
+      // it. The chevron stays, and it is still honest — pressing the row still
+      // opens the plan, in the pane rather than on a new page.
+      //
+      // The section marker stays in `lead`: this screen has no filter rail, so
+      // nothing else would name or count the column. "New plan" rides on it
+      // exactly as it does on the phone — it is the list's verb, not the
+      // selected plan's, so it is not lifted into the pane's `actions`.
+      desk: plans.isEmpty
+          ? null
+          : ConsoleDeskRecords(
+              lead: <Widget>[sectionRule, const SizedBox(height: TiqSpace.s5)],
+              footer: footer,
+              records: <ConsoleDeskRecord>[
+                for (var i = 0; i < plans.length; i++)
+                  ConsoleDeskRecord(
+                    id: plans[i].id,
+                    row: (context, selected) => _BeatPlanRow(
+                      plan: plans[i],
+                      last: i == plans.length - 1,
+                      onDesk: true,
+                    ),
+                    detail: (context) => _BeatPlanPane(planId: plans[i].id),
+                  ),
+              ],
+            ),
       children: <Widget>[
-        SectionRule(
-          l10n.beatPlansSectionHeading,
-          count: plans.isEmpty ? null : plans.length,
-          action: canBuild
-              ? SectionRuleAction(
-                  l10n.beatPlansNewPlan,
-                  onTap: () => _openForm(context, ref),
-                )
-              : null,
-        ),
+        // THE SAME MARKER THE LIST PANE'S `lead` HOLDS, and the same instance.
+        // Only one arm of `ConsoleFrame` is ever mounted.
+        sectionRule,
         const SizedBox(height: TiqSpace.s5),
         if (plans.isEmpty)
           EmptyState(
@@ -202,10 +254,15 @@ class _BeatPlans extends ConsumerWidget {
     WidgetRef ref, {
     required String phase,
     required List<Widget> children,
+    ConsoleDeskRecords? desk,
   }) {
     final l10n = context.l10n;
     return ConsoleFrame(
       phase: phase,
+      // Null on `loading`, `error` and `empty`: a skeleton, a failure and an
+      // invitation to build the first plan are not records, so those phases
+      // keep the rail and one centred column at desk width.
+      desk: desk,
       header: TorchAppHeader(
         title: l10n.beatPlansTitle,
         facts: <String>[l10n.beatPlansSubtitle],
@@ -222,10 +279,26 @@ class _BeatPlans extends ConsumerWidget {
 }
 
 class _BeatPlanRow extends StatelessWidget {
-  const _BeatPlanRow({required this.plan, required this.last});
+  const _BeatPlanRow({
+    required this.plan,
+    required this.last,
+    this.onDesk = false,
+  });
 
   final BeatPlan plan;
   final bool last;
+
+  /// True in the desk's list pane, where the row's press is the **selection**
+  /// and the plan's body is already beside it.
+  ///
+  /// Pushing `BeatPlanDetailScreen` there would put a whole second console
+  /// screen — header, back button and all — over the list the manager chose
+  /// from, and draw the same adherence tile and stops list twice, one of them
+  /// behind the other. So the press goes to the frame instead (`_Record` in
+  /// `console_desk.dart`) and this row draws exactly the same three lines and
+  /// the same chevron it draws on a phone, minus a navigation it is no longer
+  /// the owner of.
+  final bool onDesk;
 
   @override
   Widget build(BuildContext context) {
@@ -252,13 +325,16 @@ class _BeatPlanRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       trailing: const SoftRowChevron(),
-      onTap: () => Navigator.of(context).push(
-        PageRouteBuilder<void>(
-          pageBuilder: (context, _, _) => BeatPlanDetailScreen(planId: plan.id),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        ),
-      ),
+      onTap: onDesk
+          ? null
+          : () => Navigator.of(context).push(
+              PageRouteBuilder<void>(
+                pageBuilder: (context, _, _) =>
+                    BeatPlanDetailScreen(planId: plan.id),
+                transitionsBuilder: (context, animation, _, child) =>
+                    FadeTransition(opacity: animation, child: child),
+              ),
+            ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[plan.name, status, date].join('. '),
     );
@@ -367,11 +443,99 @@ class _BeatPlanDetail extends ConsumerWidget {
           '${beatPlanStatusWord(l10n, data.plan.status)} · '
               '${beatPlanDateLabel(context, data.plan.scheduledDate)}',
         ],
-        children: <Widget>[
-          _Adherence(detail: data),
-          SizedBox(height: context.skin.space.blockGap),
-          _Stops(planId: planId, detail: data),
-        ],
+        children: beatPlanDetailBlocks(context, planId: planId, detail: data),
+      ),
+    );
+  }
+}
+
+/// ONE PLAN'S BODY — how much of the day was worked, and the stops.
+///
+/// **One list, two frames.** It is the phone route's own body above, and the
+/// desk's detail pane below (`_BeatPlanPane`), so a plan reads the same on a
+/// phone and at 1440dp and there is no second composition to keep in step.
+/// What differs between the two callers is only what encloses it: the route
+/// wraps it in a `TorchShell` with a header and a back button, and the pane
+/// does not, because a pane already has a list beside it saying which plan
+/// this is.
+///
+/// **It is not wrapped in a `TorchCard`, and that is the bleed's doing.**
+/// `_Stops` opts out of its frame's gutter through `TorchBleed`, which lays
+/// its child out `2 × TorchGutter.extent` wider than the slot and centres it
+/// — so inside a card the stop rows would be laid out 20dp past the card's
+/// edge on each side, which is the overshoot `TorchGutter` exists to prevent.
+/// The adherence tile is therefore on the pane's ground, exactly as it is on
+/// the phone route's, and the rows carry their own `SoftRow` material.
+List<Widget> beatPlanDetailBlocks(
+  BuildContext context, {
+  required String planId,
+  required BeatPlanDetail detail,
+}) => <Widget>[
+  _Adherence(detail: detail),
+  SizedBox(height: context.skin.space.blockGap),
+  _Stops(planId: planId, detail: detail),
+];
+
+/// ONE PLAN, IN THE DETAIL PANE.
+///
+/// The three arms of `BeatPlanDetailScreen` without its frame: the same
+/// `Skeleton`, the same `ErrorState` and the same [beatPlanDetailBlocks].
+///
+/// ## IT FETCHES, AND IT ONLY FETCHES WHAT WAS CHOSEN
+///
+/// `beatPlanDetailProvider` is **not** a provider the list screen was already
+/// watching — `GET /beat-plans` answers names and dates, and the stops come
+/// from the plan's own endpoint. So selecting a plan on the desk issues the
+/// same request tapping the row issues on a phone, once per plan, and
+/// Riverpod caches it: going back to a plan already read costs nothing.
+///
+/// `ConsoleDeskRecord.detail` is a builder and the frame calls it only for the
+/// selected id, so **no** request is made for the rows nobody chose — a
+/// twenty-row list does not fetch twenty plans. The cost is one request on the
+/// first selection, which is the price of showing the body rather than a
+/// record card, and it is the same request the phone makes for the same body.
+///
+/// Amber: none. Nothing on this body is a commit — a stop's tick is the row's
+/// own control and takes effect on the tap — which is what
+/// `BeatPlanDetailScreen` already declares with its empty claim list.
+class _BeatPlanPane extends ConsumerWidget {
+  const _BeatPlanPane({required this.planId});
+
+  final String planId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final detail = ref.watch(beatPlanDetailProvider(planId));
+
+    return detail.when(
+      loading: () => Skeleton(
+        label: l10n.beatPlanDetailTitle,
+        child: const SkeletonRows(count: 4, rowHeight: 64),
+      ),
+      error: (error, stack) => TorchErrorRegion(
+        name: 'beat-plan-detail',
+        child: ErrorState(
+          // Inline: the pane is a region of a screen that loaded, and the
+          // list beside it is still good.
+          scope: ErrorScope.inline,
+          message: TorchErrorMessage(
+            kind: TorchErrorKind.unknown,
+            headline: l10n.beatPlanDetailLoadErrorHeadline,
+            body: humanErrorMessage(error, l10n),
+            offersRetry: true,
+          ),
+          action: TorchSecondaryButton(
+            key: ValueKey<String>('beatplan-detail-retry-pane-$planId'),
+            label: l10n.beatPlansRetry,
+            onPressed: () => ref.invalidate(beatPlanDetailProvider(planId)),
+          ),
+        ),
+      ),
+      data: (data) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: beatPlanDetailBlocks(context, planId: planId, detail: data),
       ),
     );
   }
