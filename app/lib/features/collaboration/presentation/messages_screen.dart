@@ -628,6 +628,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final next = _messagesCursorRead ? _messagesCursor : page?.nextCursor;
 
     return ConsoleDeskRecords(
+      // ── NO MARKER ON EITHER FEED, SO THE RAIL IS THE TOOLBAR ────────
+      //
+      // Both desks dropped their section marker on the Alerts argument — the
+      // selected feed chip names and counts the slice — which leaves the
+      // filter rail as the row this list's own controls already live on. The
+      // refresh goes on its trailing end instead of the pane's corner. See
+      // `ConsoleDeskToolbar.filters`.
+      toolbar: ConsoleDeskToolbar.filters,
       filters: filters,
       footer: _feedFooterBar(
         next: next,
@@ -686,6 +694,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         : page?.nextCursor;
 
     return ConsoleDeskRecords(
+      // Announcements, same argument. See `_messagesDesk`.
+      toolbar: ConsoleDeskToolbar.filters,
       lead: <Widget>[
         if (compose != null) ...<Widget>[
           compose,

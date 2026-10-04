@@ -111,12 +111,40 @@ import '../../../features/dashboard/presentation/floor_dawn.dart'
 ///
 /// The margin is real rather than nominal because of **where the wash
 /// actually is**. 0.10 is the peak, at the top-left corner behind the rail,
-/// and the rail paints no `edgeStructure` and no `edgeControl` at all — its
-/// rows are flat on the ground and its markers are kickers. The outlined
-/// controls on a console screen are the filter chips and the ask bar's two
-/// keys, which are in the list and detail panes where the cool falloff has
-/// already dropped. The test measures the real frame rather than this
-/// paragraph.
+/// and the rail paints no `edgeStructure` anywhere and no `edgeControl` at
+/// rest — its rows are flat on the ground and its markers are kickers. The
+/// outlined controls on a console screen are the filter chips and the ask
+/// bar's two keys, which are in the list and detail panes where the cool
+/// falloff has already dropped. The test measures the real frame rather than
+/// this paragraph.
+///
+/// ### THE RAIL GREW A FOOT, AND IT WAS MEASURED — 4 October 2026
+///
+/// `ConsoleRailFooter` put an account row at the bottom of the rail and,
+/// behind one press, the brightness, the password and **Sign out**. Two of
+/// those three are `MenuFlatRow`s — flat on the ground, like the 24
+/// destinations — so the sentence above survives at rest unchanged. Sign out
+/// is a `TorchSecondaryButton`, which is an `edgeControl` rim: **the first
+/// outline the rail has ever painted**, and it exists only while the foot is
+/// open.
+///
+/// It was measured rather than argued, on the real frame, at the foot's own
+/// pixels — `console_wash_test.dart`, the frame called *"exceptions, the
+/// rail's foot open"*:
+///
+/// | | token | worst backdrop under it | bare | washed | floor | margin |
+/// |---|---|---|---|---|---|---|
+/// | Night | `edgeControl` `#7C93AC` | `#191C24` at (266,777) | 5.73:1 | **5.37:1** | 3.0 | +2.37 |
+/// | Day | `edgeControl` `#6E6657` | `#E3DACD` at (266,806) | 4.32:1 | **4.10:1** | 3.0 | +1.10 |
+///
+/// The bottom-left corner is the one place on this screen where **neither**
+/// wash is doing much: the cool dome's third stop has run out by `y = 0.76`
+/// of its radius and Dawn is at the opposite corner. The same probe prints
+/// what a *hypothetical* `edgeStructure` would read down there — **3.60:1 on
+/// Night and 3.20:1 on Day** — so even the fragile token would have cleared
+/// 3.0 at the foot. That is worth recording precisely because it is the
+/// opposite of what the thin margin above would lead a reader to guess, and
+/// it is the reason this was measured instead of assumed.
 ///
 /// ## WHAT WOULD HAVE HAPPENED IF IT HAD FAILED
 ///

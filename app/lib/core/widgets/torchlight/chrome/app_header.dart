@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../theme/torchlight/tiq_skin.dart';
 import '../button/icon_button.dart';
 import '../button/tertiary_button.dart';
+import '../list_action.dart';
 import 'chip_wrap.dart';
 
 /// THE HEADER. No `AppBar`, no elevation, no fill that changes on scroll.
@@ -62,6 +63,19 @@ class TorchAppHeader extends StatefulWidget {
   final TorchIconButton? back;
 
   /// **Exactly one**, or none. On a tab root this is the skin cycle.
+  ///
+  /// ## IT IS NOT ALWAYS DRAWN HERE — 4 October 2026
+  ///
+  /// At desk width this header sits at the top of a 588dp **list pane**, and a
+  /// control 470dp from the title it is attached to reads as a floating
+  /// artefact rather than as the list's. So the desk lifts it onto the list's
+  /// own toolbar row, and this slot draws nothing when it has: see
+  /// [TorchListAction], which is the one thing in the tree that knows.
+  ///
+  /// The field is still the single source of the control — the desk does not
+  /// rebuild this header and so cannot drop a field it has never heard of —
+  /// and the phone, the agent surface and every one-column desk route draw it
+  /// here exactly as before.
   final TorchIconButton? trailing;
 
   /// The sync chip, **pinned right of the title row** at its intrinsic width
@@ -174,7 +188,13 @@ class _TorchAppHeaderState extends State<TorchAppHeader> {
                   ],
                 ),
               ),
-              if (widget.trailing != null) ...<Widget>[
+              // LIFTED OR DRAWN, NEVER BOTH. `liftedIn` is true only inside a
+              // desk list pane whose frame has somewhere better to put this,
+              // and the gap goes with the control: a header that kept its 12dp
+              // of air for an absent button would leave the title short of the
+              // pane's right edge for no reason a reader can see.
+              if (widget.trailing != null &&
+                  !TorchListAction.liftedIn(context)) ...<Widget>[
                 SizedBox(width: skin.space.intraBlock),
                 widget.trailing!,
               ],

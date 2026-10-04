@@ -181,8 +181,13 @@ class CampaignsScreen extends ConsumerWidget {
       desk: list.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
-                SectionRule('Activations', count: list.length),
+                SectionRule(
+                  'Activations',
+                  count: list.length,
+                  listAction: true,
+                ),
                 const SizedBox(height: TiqSpace.s5),
               ],
               footer: Align(

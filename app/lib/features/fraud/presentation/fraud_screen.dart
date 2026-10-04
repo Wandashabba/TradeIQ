@@ -230,6 +230,12 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
     ];
 
     return ConsoleDeskRecords(
+      // THE MARKER IS THE TOOLBAR EVEN THOUGH IT TRAVELS IN `filters`. What
+      // `ConsoleDeskToolbar.marker` names is the row, not the slot it was
+      // passed in: the frame installs the lifted control around the whole
+      // pane, so the marker below picks it up from inside the filter column
+      // exactly as it would from `lead`.
+      toolbar: ConsoleDeskToolbar.marker,
       // The rail the phone draws, un-bled — the pane supplies the gutter now
       // — and under it the marker the rail selects.
       filters: Column(
@@ -243,6 +249,7 @@ class _FraudScreenState extends ConsumerState<FraudScreen> {
           SizedBox(height: skin.space.blockGap),
           SectionRule(
             _sectionName(l10n),
+            listAction: true,
             count: view.rows.isEmpty ? null : view.rows.length,
             emptyLine: view.rows.isEmpty ? _emptyLine(l10n) : null,
           ),

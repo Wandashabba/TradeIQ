@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/beatplans_screen.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
+import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
 // THE NON-LIST ROUTE'S OWN FAKES, reused rather than re-invented. Prefixed
 // because that harness exports a dozen record types and two of them share a
@@ -30,8 +33,18 @@ import 'console_desk_harness.dart';
 /// | `1440x900-selected` | three panes, a record open, the bar in the detail pane |
 /// | `1440x900-at-rest` | the detail pane reading **at rest**, not empty |
 /// | `1280x900-selected` | the same at the narrower of the two approved widths |
+/// | `1920x1080-selected` | the same on a full-HD desktop |
 /// | `1440x900-column` | a NON-list route — the **Perfect Store scorecard**: rail + one column that fills, no third pane |
 /// | `390x844-phone` | the phone, **unchanged** — the before/after pair's "after" |
+///
+/// And since 4 October 2026, the two frames the owner's two defects are
+/// judged on:
+///
+/// | image | the question it answers |
+/// |---|---|
+/// | `foot-shut` | **can somebody find the theme control in under two seconds without being told where it is?** The rail's account row, at rest |
+/// | `foot-open` | the brightness, the password and Sign out, one press from any desk screen |
+/// | `webhooks-toolbar` | a list screen whose marker carries no verb, so the relocated refresh is alone on the toolbar row — the hardest case for defect 2 |
 ///
 /// Both skins, every row. The phone pair is in the set because "below the
 /// threshold nothing changes" is a claim about pixels and the only honest way
@@ -77,6 +90,7 @@ void main() {
     for (final (name, size) in <(String, Size)>[
       ('1440x900', Size(1440, 900)),
       ('1280x900', Size(1280, 900)),
+      ('1920x1080', Size(1920, 1080)),
     ]) {
       for (final selected in <bool>[true, false]) {
         testWidgets('Exceptions at $name $skinName, '
@@ -88,7 +102,11 @@ void main() {
             skin: skin,
             textScale: scale,
             path: '/alerts',
-            overrides: deskAlertOverrides(),
+            // THE FOOT HAS SOMEBODY IN IT. Without this the real
+            // `SessionController` runs, finds no keychain under
+            // `flutter_test`, and the account row photographs its signed-out
+            // form — which is a state the product does not reach.
+            overrides: <Override>[...deskAlertOverrides(), ...deskSession()],
             users: deskPeople(),
           );
           if (selected) {
@@ -107,6 +125,94 @@ void main() {
         }, skip: !looking);
       }
     }
+
+
+    // ── THE RAIL'S FOOT, WHICH IS DEFECT 1 ─────────────────────────────
+    //
+    // > *"I cant see theme change on desktop"* — the owner.
+    //
+    // The pair that has to be looked at rather than measured. `foot-shut` is
+    // the question: is there anything on this screen a manager would press to
+    // change the brightness, without being told? `foot-open` is the answer it
+    // gives when they press it.
+    for (final (name, size) in <(String, Size)>[
+      ('1440x900', Size(1440, 900)),
+      ('1920x1080', Size(1920, 1080)),
+    ]) {
+      for (final open in <bool>[false, true]) {
+        testWidgets('the rail\'s foot at $name $skinName, '
+            '${open ? "open" : "shut"}', (tester) async {
+          await pumpDesk(
+            tester,
+            const AlertsScreen(),
+            size: size,
+            skin: skin,
+            textScale: scale,
+            path: '/alerts',
+            overrides: <Override>[...deskAlertOverrides(), ...deskSession()],
+            users: deskPeople(),
+          );
+          if (open) {
+            await tester.tap(
+              find.byKey(const ValueKey<String>('rail-account')),
+            );
+            await tester.pumpAndSettle();
+          }
+          await expectLater(
+            find.byKey(const ValueKey<String>('amber-golden-boundary')),
+            matchesGoldenFile(
+              '${dir}desk_${name}_$skinName'
+              '-foot-${open ? "open" : "shut"}$sfx.png',
+            ),
+          );
+        }, skip: !looking);
+      }
+    }
+
+    // ── THE RELOCATED REFRESH, WHICH IS DEFECT 2 ───────────────────────
+    //
+    // Webhooks rather than Beat plans, deliberately: its marker carries **no
+    // verb**, so this is the frame where the lifted control has only the
+    // count and the row for company. If the fix reads as a floating artefact
+    // anywhere, it reads as one here.
+    testWidgets('Webhooks toolbar at 1440x900 $skinName', (tester) async {
+      await pumpDesk(
+        tester,
+        const WebhooksScreen(),
+        size: const Size(1440, 900),
+        skin: skin,
+        textScale: scale,
+        path: '/webhooks',
+        overrides: <Override>[...deskWebhookOverrides(), ...deskSession()],
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('console-record-w1')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(const ValueKey<String>('amber-golden-boundary')),
+        matchesGoldenFile('${dir}desk_1440x900_$skinName-toolbar$sfx.png'),
+      );
+    }, skip: !looking);
+
+    // ── BEAT PLANS, THE SCREEN THE OWNER WAS LOOKING AT ────────────────
+    //
+    // Its toolbar row is the one with both halves — `PLANS · 3` and the
+    // list's own verb — so this is the frame that shows the refresh where the
+    // brief asked for it: with the count and the verbs.
+    testWidgets('Beat plans toolbar at 1440x900 $skinName', (tester) async {
+      await pumpDesk(
+        tester,
+        const BeatPlansScreen(),
+        size: const Size(1440, 900),
+        skin: skin,
+        textScale: scale,
+        path: '/beatplans',
+        overrides: <Override>[...deskBeatPlanOverrides(), ...deskSession()],
+      );
+      await expectLater(
+        find.byKey(const ValueKey<String>('amber-golden-boundary')),
+        matchesGoldenFile('${dir}desk_1440x900_$skinName-beatplans$sfx.png'),
+      );
+    }, skip: !looking);
 
     // ── THE NON-LIST SET: rail + one column that fills ─────────────────
     //
@@ -155,6 +261,9 @@ void main() {
         skin: skin,
         textScale: scale,
         path: '/alerts',
+        // NOT `deskSession`, and that is the point of this frame: it is
+        // compared byte for byte against `main`, so it must pump exactly what
+        // `main` pumps. The phone has no rail and therefore no foot.
         overrides: deskAlertOverrides(),
         users: deskPeople(),
       );

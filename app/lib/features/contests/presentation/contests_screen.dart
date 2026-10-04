@@ -192,8 +192,9 @@ class ContestsScreen extends ConsumerWidget {
       desk: list.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
-                SectionRule('Contests', count: list.length),
+                SectionRule('Contests', count: list.length, listAction: true),
                 const SizedBox(height: TiqSpace.s5),
               ],
               footer: Column(

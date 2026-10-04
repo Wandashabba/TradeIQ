@@ -6,9 +6,20 @@ import '../storage/secure_storage.dart';
 /// A persisted authentication session: the bearer token plus the user's role,
 /// enough to restore a logged-in session on app restart without re-login.
 class StoredSession {
-  const StoredSession({required this.token, required this.role});
+  const StoredSession({required this.token, required this.role, this.email});
   final String token;
   final String role;
+
+  /// The address this session was signed in with, or null for a session
+  /// written before this key existed.
+  ///
+  /// **Optional, and deliberately not required.** A session persisted by an
+  /// earlier build has a token and a role in the keychain and no email, and
+  /// [SecureTokenStore.read] must restore it rather than refuse it — a manager
+  /// does not get signed out because a caption gained a field. See
+  /// [SessionState.email] for what reads it and why the client has nothing
+  /// better.
+  final String? email;
 }
 
 /// Persists the auth session across app restarts. Abstracted so the session
@@ -28,11 +39,16 @@ class SecureTokenStore implements TokenStore {
 
   static const _tokenKey = 'auth_token';
   static const _roleKey = 'auth_role';
+  static const _emailKey = 'auth_email';
 
   @override
   Future<void> save(StoredSession session) async {
     await _storage.write(key: _tokenKey, value: session.token);
     await _storage.write(key: _roleKey, value: session.role);
+    // `write(value: null)` DELETES the key in flutter_secure_storage, which is
+    // the behaviour wanted here: a session saved without an address must not
+    // leave the previous person's address behind it.
+    await _storage.write(key: _emailKey, value: session.email);
   }
 
   @override
@@ -42,13 +58,21 @@ class SecureTokenStore implements TokenStore {
     if (token == null || role == null) {
       return null;
     }
-    return StoredSession(token: token, role: role);
+    // The email is NOT part of the null test above. A session is a token and a
+    // role; the address is a caption on it, and a missing caption is a row
+    // with a different form rather than a reason to send somebody to /login.
+    return StoredSession(
+      token: token,
+      role: role,
+      email: await _storage.read(key: _emailKey),
+    );
   }
 
   @override
   Future<void> clear() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _roleKey);
+    await _storage.delete(key: _emailKey);
   }
 }
 

@@ -264,6 +264,14 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
       desk: list.isEmpty
           ? null
           : ConsoleDeskRecords(
+              // ── NOTHING TO LIFT, SAID OUT LOUD ────────────────────────
+              //
+              // This route's header carries a **back button** and no trailing
+              // control, so there is nothing for a toolbar row to take. It is
+              // also the one desk pane with no single marker to put one on:
+              // the paragraph above says why there are two sections and no
+              // `lead` marker, and that argument is untouched by this.
+              toolbar: ConsoleDeskToolbar.none,
               filters: _Filters(
                 list: list,
                 metric: _metric,

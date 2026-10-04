@@ -140,6 +140,15 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
       desk: chosen == null || ranked == null || ranked.candidates.isEmpty
           ? null
           : ConsoleDeskRecords(
+              // ── NOTHING TO LIFT, SAID OUT LOUD ────────────────────────
+              //
+              // This route's header is a title and a line of facts and no
+              // trailing control at all — there is no refresh here, because
+              // a ranking recomputes when the outlet changes and a manager
+              // has no second thing to ask it. So the candidates' marker is
+              // not flagged: a flag that can never fire is a flag somebody
+              // will later believe.
+              toolbar: ConsoleDeskToolbar.none,
               lead: <Widget>[
                 outletSection,
                 const SizedBox(height: TiqSpace.s3),

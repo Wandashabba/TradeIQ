@@ -171,6 +171,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       desk: reports.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -181,7 +182,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
                 const SizedBox(height: TiqSpace.s6),
-                SectionRule(l10n.reportsSection, count: reports.length),
+                SectionRule(
+                  l10n.reportsSection,
+                  count: reports.length,
+                  listAction: true,
+                ),
                 const SizedBox(height: TiqSpace.s5),
               ],
               footer: Column(

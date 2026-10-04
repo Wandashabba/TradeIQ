@@ -214,9 +214,11 @@ class LeaderboardScreen extends ConsumerWidget {
           // Every unranked row already prints the words "Not ranked yet"
           // where a rank would be.
           desk: ConsoleDeskRecords(
+            toolbar: ConsoleDeskToolbar.marker,
             lead: <Widget>[
               SectionRule(
                 l10n.leaderboardRanked,
+                listAction: true,
                 count: view.ranked.isEmpty ? null : view.ranked.length,
                 emptyLine: view.ranked.isEmpty
                     ? l10n.leaderboardRankedEmptyLine

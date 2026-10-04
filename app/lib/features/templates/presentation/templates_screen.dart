@@ -152,6 +152,8 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
         final section = SectionRule(
           l10n.templatesSection,
           count: list.isEmpty ? null : list.length,
+          // The records' own marker, not `_InAudits`' own.
+          listAction: true,
         );
 
         return _frame(
@@ -172,6 +174,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
           desk: list.isEmpty
               ? null
               : ConsoleDeskRecords(
+                  toolbar: ConsoleDeskToolbar.marker,
                   lead: <Widget>[
                     inAudits,
                     SizedBox(height: context.skin.space.blockGap),

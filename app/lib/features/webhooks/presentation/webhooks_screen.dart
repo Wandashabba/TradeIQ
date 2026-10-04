@@ -182,6 +182,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
     final section = SectionRule(
       l10n.webhooksSection,
       count: webhooks.isEmpty ? null : webhooks.length,
+      listAction: true,
     );
     final unhealthyNote = unhealthy == 0
         ? null
@@ -226,6 +227,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
       desk: webhooks.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 section,
                 const SizedBox(height: TiqSpace.s5),
