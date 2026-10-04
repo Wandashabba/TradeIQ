@@ -827,6 +827,11 @@ class _LedgerRow extends StatelessWidget {
 
     return SoftRow(
       key: ValueKey<String>('ledger-${entry.id}'),
+      // `compact` — the console's list height, 4 October 2026; see
+      // `today_screen.dart`'s `_StopRow` for the ruling. The ledger is the
+      // longest list on the agent side — it is every scored visit this agent
+      // has filed — so it is the list where the rung compounds.
+      density: SoftRowDensity.compact,
       title: entry.outletName?.trim().isNotEmpty == true
           ? entry.outletName!
           : reason,

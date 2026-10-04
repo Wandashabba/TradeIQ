@@ -408,9 +408,31 @@ class OutletRow extends StatelessWidget {
 
     return SoftRow(
       key: ValueKey<String>('map-store-${pin.outlet.id}'),
+      // `compact` — the console's list height, 4 October 2026; see
+      // `today_screen.dart`'s `_StopRow` for the ruling and what it cost.
+      density: SoftRowDensity.compact,
       title: pin.outlet.name,
       titleTruncation: SoftRowTruncation.middle,
-      subtitle: pin.outlet.code,
+      // THE CODE WEARS THE IDENTIFIER FACE, 4 October 2026 — and this is a
+      // type-law fix that happens to be a density fix.
+      //
+      // It was `subtitle: pin.outlet.code`, which renders in `body`: **Onest,
+      // 14/1.55, prose**. `tiq_type.dart` calls itself *"the enforcement point
+      // for the rule that Onest must never render a figure or a code"* and
+      // says why — no slashed zero, proportional digits, and a capital I and a
+      // lowercase l of the same shape, *"disqualifying for an outlet code"*.
+      // An agent reads this code aloud down a phone line to a manager.
+      //
+      // `meta` + `monoIdent` is the manager's own arrangement for the same
+      // fact, line for line: `outlets_list_screen.dart` prints the code with
+      // *"The code is what an agent quotes and what an import keys on, so it
+      // wears the identifier face."* So the row joins the manager's type as
+      // well as the manager's height, and it is 4.8dp shorter for it —
+      // `monoIdent` is 13/1.30 (16.9dp) against `body`'s 14/1.55 (21.7dp).
+      meta: Text(
+        pin.outlet.code,
+        style: skin.text.monoIdent.style(color: skin.palette.ink3),
+      ),
       leading: MapPinGlyph(pin: pin),
       trailing: Column(
         crossAxisAlignment: CrossAxisAlignment.end,

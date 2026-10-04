@@ -119,7 +119,26 @@ class OutboxRow extends StatelessWidget {
         : PayloadSize.of(payloadBytes!);
 
     return SoftRow(
-      density: SoftRowDensity.tall,
+      // `compact` — THE CONSOLE'S LIST HEIGHT, 4 October 2026. It was `tall`.
+      //
+      // This row is the **cleanest case in the product** for the owner's
+      // *"cards, text and gaps are larger than the manager side"*, because the
+      // manager renders this exact object: `HeldWorkRow` is *"the console's
+      // mirror of the outbox row"*, it carries the same three lines (a name, a
+      // state word, an age line), and it sets `compact` under the comment
+      // *"the console's list height"*. One object, two rungs, 80 against 56.
+      //
+      // `tall`'s own doc lists *"Next-up, outbox, person, decision rows"* as
+      // its callers and that list was already wrong when this was written:
+      // `decision_row.dart` has been `compact` for longer than this row has
+      // existed. The rung's doc is corrected in `soft_row_spec.dart` rather
+      // than left to say something the code does not.
+      //
+      // WHAT MOVES: 8dp of padding a row (s4 → s3). **The floor does not
+      // bind at either rung** — three lines of text plus padding is 86.4dp at
+      // `tall` and 78.4dp at `compact`, both over 56 — so this is 8dp of air,
+      // not 24dp of row, and the honest figure is the 8.
+      density: SoftRowDensity.compact,
       title: title,
       // The reason and the size/age are BOTH meta. The surface declares this
       // row as "label at title.m 16/600 ...; beneath, meta 12 ink-3" — one
