@@ -243,6 +243,75 @@ void main() {
     });
   });
 
+  /// ── THE OPAQUE MATERIALS A DESK SCREEN MAY PRINT ON ────────────────────
+  ///
+  /// A sampled backdrop that matches one EXACTLY has nothing composited over
+  /// it — the wash is under the fill and cannot have moved the reading.
+  ///
+  /// `lifted` is also `torchAbyssal`, the fill of a selected tab, so the four
+  /// surfaces cover every opaque *panel*. The three solid entries are the
+  /// opaque **blocks** a desk screen prints words on — the two status fills
+  /// and the amber commit — which the panels did not cover. They are listed so
+  /// that a probe landing on one is excluded *by name* rather than falling
+  /// through to the unclassified branch; none of them is the ground.
+  ///
+  /// Naming them is not a widened tolerance: the match is EXACT, and one
+  /// 8-bit level away a candidate is not this material.
+  Map<String, Color> materialsFor(TiqSkin skin) => <String, Color>{
+    'surface': skin.palette.surface,
+    'raised': skin.palette.raised,
+    // Also `torchAbyssal(skin)`: the selected tab's block.
+    'lifted': skin.palette.lifted,
+    'well': skin.palette.well,
+    'goodSolid': skin.palette.goodSolid,
+    'badSolid': skin.palette.badSolid,
+    'flame600': skin.palette.flame600,
+  };
+
+  /// The modal colour of the 3×3 box centred on a point.
+  ///
+  /// [ringAround]'s sibling, and the difference is the radius and why. A ring
+  /// at 2–3dp is right when the point itself is the thing being classified
+  /// (a pixel *of* a token, with the backdrop out at the ring). It is wrong
+  /// for a probe placed 2dp outside a text run's rect, because a 3dp ring
+  /// reaches back **into** the run and the mode picks up its ink.
+  ///
+  /// Nine samples at radius 1 keeps the box clear of the rect and is still
+  /// enough to outvote antialiasing, which is one or two pixels wide at a
+  /// glyph's edge. That is the whole reason this exists: the single pixel this
+  /// replaced is what let a neighbour's antialiasing be reported as a
+  /// backdrop.
+  Color modeAround(TorchPixels px, double cx, double cy) {
+    final counts = <int, int>{};
+    for (var dy = -1.0; dy <= 1.0; dy += 1.0) {
+      for (var dx = -1.0; dx <= 1.0; dx += 1.0) {
+        final x = cx + dx;
+        final y = cy + dy;
+        if (x < 0 || y < 0 || x >= px.width || y >= px.height) continue;
+        final c = px.at(x, y);
+        final key =
+            ((c.r * 255).round() << 16) |
+            ((c.g * 255).round() << 8) |
+            (c.b * 255).round();
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+    var best = 0;
+    var bestCount = -1;
+    for (final e in counts.entries) {
+      if (e.value > bestCount) {
+        bestCount = e.value;
+        best = e.key;
+      }
+    }
+    return Color.fromARGB(
+      255,
+      (best >> 16) & 0xFF,
+      (best >> 8) & 0xFF,
+      best & 0xFF,
+    );
+  }
+
   /// The modal colour of the 2dp ring around a point — `floor_dawn_test.dart`'s
   /// own classifier, and here for its reason: a ring crosses a sibling now and
   /// then, and one stray pixel of antialiasing would misclassify the probe.
@@ -286,7 +355,8 @@ void main() {
 
   // ── (1) AND (2): WHAT THE WASHES MOVED, ON THE REAL FRAME ────────────
   group('what the washes moved, measured', () {
-    /// The WORST point of the two gradients under [rect].
+    /// The WORST point of the two gradients under [rect] — **and it must be
+    /// the ground**.
     ///
     /// Unlike The Floor's single bottom-centred dome there are **two** centres
     /// here — cool at `(0.04w, -0.04h)` and Dawn at `(0.76w, 1.04h)` — so the
@@ -298,7 +368,66 @@ void main() {
     /// are covered by walking the four corners and the four edge midpoints,
     /// and taking whichever reading has the **lowest contrast** against the
     /// ink — which is the measurement the floor is about.
-    (Color, Offset) worstGroundUnder(TorchPixels pixels, Rect rect, Color ink) {
+    ///
+    /// ## IT CLASSIFIES ITS BACKDROP NOW, AND THAT IS THE WHOLE FIX
+    ///
+    /// The first version of this took the single pixel at each of the eight
+    /// points and returned whichever had the lowest contrast against the ink,
+    /// with **no test that the pixel was the ground at all**. Everything
+    /// downstream then treated that colour as a backdrop, and on merged `main`
+    /// that shipped two false failures. Both are the **same** artefact, and it
+    /// is worth naming precisely because the colours look like two different
+    /// problems:
+    ///
+    /// | | run's ink | "backdrop" | what that colour actually is |
+    /// |---|---|---|---|
+    /// | Day | `#4A4437` `ink2` | `#1B2632` | Day **`ink1`** |
+    /// | Night | `#C9C1B1` `ink2` | `#EEE9DF` | Night **`ink1`** |
+    ///
+    /// Neither is a material and neither is a backdrop: in both skins the
+    /// probe sampled **a neighbouring glyph's `ink1`** and reported ink-on-ink
+    /// as a wash finding — 1.59:1 on Day, 1.48:1 on Night. `#1B2632` reads as
+    /// "a dark block in a Day render" and `#EEE9DF` as "a near-white block in
+    /// a Night render", which is what made this look like two unnamed fills
+    /// rather than one geometry bug.
+    ///
+    /// It was not caused by the wash. #519 and #520 each passed alone; #520
+    /// widened every filter chip by about 22dp and #519 moved controls onto
+    /// those rows, so the sample point came to rest on a neighbour.
+    ///
+    /// So a candidate is now **positively classified before it is measured**,
+    /// in the order below, and the criterion is the one this file's own comment
+    /// on the outline probe already declared and never implemented — *"a pixel
+    /// only counts when its backdrop **is the ground**: within 1.6:1 of what
+    /// the bare falloff reads at that y"*. 1.6 is not a tolerance that was
+    /// widened until the test went quiet; it is wider than anything either
+    /// wash can do to the ground (the worst is Dawn's own peak at 1.52:1) and
+    /// far narrower than the step to any material or any ink.
+    ///
+    /// The ink test the outline probe uses — reject within 1.2:1 of the token —
+    /// is deliberately **not** carried over here. There it is sound, because
+    /// that probe is hunting for pixels *of* the token and a ring of the same
+    /// colour means it never left the glyph. Here the ink is known and the
+    /// candidate is outside the run's own rect, so the same test would throw
+    /// away a genuine low-contrast reading — which is the one thing this
+    /// instrument exists to catch.
+    ///
+    /// Returns the worst **ground** candidate. With no ground candidate it
+    /// returns what it did find, labelled, and the caller decides: a material
+    /// is an exclusion with a reason, and an unclassifiable backdrop is a
+    /// failure that names the colour rather than inventing a reading from it.
+    (Color, Offset, String) worstGroundUnder(
+      TorchPixels pixels,
+      Rect rect,
+      Color ink,
+      TiqSkin skin,
+      Map<String, Color> materials,
+    ) {
+      bool exact(Color a, Color b) =>
+          (a.r * 255).round() == (b.r * 255).round() &&
+          (a.g * 255).round() == (b.g * 255).round() &&
+          (a.b * 255).round() == (b.b * 255).round();
+
       final probes = <Offset>[
         Offset(rect.left - 2, rect.top - 2),
         Offset(rect.right + 2, rect.top - 2),
@@ -312,6 +441,9 @@ void main() {
       var worst = double.infinity;
       var at = Offset.zero;
       var colour = const Color(0xFF000000);
+      String? material;
+      Color? unknown;
+      var unknownAt = Offset.zero;
       for (final probe in probes) {
         if (probe.dx < 0 ||
             probe.dy < 0 ||
@@ -319,15 +451,41 @@ void main() {
             probe.dy >= pixels.height) {
           continue;
         }
-        final c = pixels.at(probe.dx, probe.dy);
-        final r = contrastRatio(ink, c);
-        if (r < worst) {
-          worst = r;
-          at = probe;
-          colour = c;
+        // THE MODE OF A 3x3 BOX, not the single pixel. A glyph's antialiasing
+        // is one or two pixels wide, so it cannot be the mode of nine; and a
+        // box of radius 1 around a point already 2dp clear of the run's rect
+        // never reaches back into the run itself, which a wider ring would.
+        final c = modeAround(pixels, probe.dx, probe.dy);
+        final bare = torchGroundAt(
+          skin,
+          falloff: true,
+          height: size.height,
+          y: probe.dy,
+        );
+        if (contrastRatio(c, bare) <= 1.6) {
+          final r = contrastRatio(ink, c);
+          if (r < worst) {
+            worst = r;
+            at = probe;
+            colour = c;
+          }
+          continue;
         }
+        final m = materials.entries
+            .where((e) => exact(c, e.value))
+            .map((e) => e.key)
+            .firstOrNull;
+        if (m != null) {
+          material ??= m;
+          continue;
+        }
+        unknown ??= c;
+        unknownAt = probe;
       }
-      return (colour, at);
+      if (worst.isFinite) return (colour, at, 'ground');
+      if (material != null) return (materials[material]!, Offset.zero, material);
+      if (unknown != null) return (unknown, unknownAt, 'unclassified');
+      return (const Color(0xFF000000), Offset.zero, 'off-frame');
     }
 
     for (final (skinName, skin) in <(String, TiqSkin)>[
@@ -401,11 +559,28 @@ void main() {
           var tightest = double.infinity;
           var tightestWhat = '';
 
+          final notOnGround = <String>[];
           for (final entry in controls.entries) {
             final (finder, ink, token) = entry.value;
             if (tester.widgetList(finder).isEmpty) continue;
             final rect = tester.getRect(finder);
-            final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
+            final (backdrop, at, kind) = worstGroundUnder(
+              pixels,
+              rect,
+              ink,
+              skin,
+              materialsFor(skin),
+            );
+            // A CONTROL WHOSE SURROUND IS NOT THE GROUND IS NOT A WASH
+            // FINDING. The same classification the text probe uses, and here
+            // for the same reason: measuring an edge token against a
+            // neighbouring glyph or an opaque block is a number about neither
+            // the edge nor the wash. It is recorded rather than dropped, so a
+            // control that stops being measurable says so.
+            if (kind != 'ground') {
+              notOnGround.add('${entry.key} ($kind ${hex(backdrop)})');
+              continue;
+            }
             final after = contrastRatio(ink, backdrop);
             // The "before" is the bare falloff at the same y, which is what the
             // ground would be with no wash on it. `torchGroundAt` is the shell's
@@ -590,6 +765,12 @@ void main() {
           );
 
           table.writeln(
+            '\n${notOnGround.isEmpty ? 'Every named control was measured '
+                      'against the ground' : 'Not measured, surround is not the '
+                      'ground: ${notOnGround.join('; ')}'}',
+          );
+
+          table.writeln(
             '\nTightest margin among PAINTED outlines: '
             '+${tightest.toStringAsFixed(2)} — $tightestWhat',
           );
@@ -625,19 +806,8 @@ void main() {
           await pump(tester, skin);
           final pixels = await torchPixels(tester);
 
-          // The opaque materials a desk screen may print on. A sampled backdrop
-          // that matches one EXACTLY has nothing composited over it — the wash
-          // is under the fill and cannot have moved the reading.
-          final materials = <String, Color>{
-            'surface': skin.palette.surface,
-            'raised': skin.palette.raised,
-            'lifted': skin.palette.lifted,
-            'well': skin.palette.well,
-          };
-          bool exactly(Color a, Color b) =>
-              (a.r * 255).round() == (b.r * 255).round() &&
-              (a.g * 255).round() == (b.g * 255).round() &&
-              (a.b * 255).round() == (b.b * 255).round();
+          // See [materialsFor]: the opaque fills the wash sits under.
+          final materials = materialsFor(skin);
 
           final table = StringBuffer(
             'EVERY TEXT RUN ON THE WASHED GROUND — 1440x900 $skinName, '
@@ -650,6 +820,11 @@ void main() {
           var onGround = 0;
           var onMaterial = 0;
           var offFrame = 0;
+          // A run whose backdrop the probe could not classify. Not a contrast
+          // finding and NOT a pass: the instrument saying it does not know
+          // what it is looking at, which is the one thing the version this
+          // replaced could not say.
+          final unclassified = <String>[];
 
           for (final element in find.byType(Text).evaluate()) {
             final widget = element.widget as Text;
@@ -698,19 +873,33 @@ void main() {
                       '${flat.runes.first.toRadixString(16).toUpperCase()}'
                 : (flat.length <= 30 ? flat : '${flat.substring(0, 28)}…');
 
-            final (backdrop, at) = worstGroundUnder(pixels, rect, ink);
-            final material = materials.entries
-                .where((e) => exactly(backdrop, e.value))
-                .map((e) => e.key)
-                .firstOrNull;
-            if (material != null) {
+            final (backdrop, at, kind) = worstGroundUnder(
+              pixels,
+              rect,
+              ink,
+              skin,
+              materials,
+            );
+            if (kind == 'off-frame') {
+              offFrame++;
+              continue;
+            }
+            if (kind == 'unclassified') {
+              unclassified.add(
+                '"$label" ${hex(ink)}: ${hex(backdrop)} at '
+                '(${at.dx.toInt()},${at.dy.toInt()}) is neither the ground at '
+                'that y nor any declared opaque material',
+              );
+              continue;
+            }
+            if (kind != 'ground') {
               onMaterial++;
               final ratio = contrastRatio(ink, backdrop);
               expect(
                 ratio,
                 greaterThanOrEqualTo(floor),
                 reason:
-                    '"$label" on $material is ${ratio.toStringAsFixed(2)}:1, '
+                    '"$label" on $kind is ${ratio.toStringAsFixed(2)}:1, '
                     'which is a pre-existing reading and not this change: the '
                     'wash is under an opaque fill.',
               );
@@ -743,9 +932,13 @@ void main() {
           table.writeln(
             '\n$offFrame run(s) off the rendered frame, '
             '$onGround run(s) on the bare washed ground, $onMaterial on an '
-            'opaque material. Tightest margin on the ground: '
+            'opaque material, ${unclassified.length} unclassified. '
+            'Tightest margin on the ground: '
             '${tightest.isFinite ? '+${tightest.toStringAsFixed(2)} — $tightestWhat' : 'none'}',
           );
+          for (final u in unclassified) {
+            table.writeln('UNCLASSIFIED | $u');
+          }
           // ignore: avoid_print
           print(table);
 
@@ -757,6 +950,30 @@ void main() {
                 'this test proved nothing. The rail\'s labels and the route\'s '
                 'header are on it; if the classifier stopped finding them, fix '
                 'the classifier.',
+          );
+          // ── THE INSTRUMENT MUST NOT GUESS ────────────────────────────────
+          //
+          // A backdrop that is neither the ground at that y nor one of the
+          // declared opaque materials means the probe landed on something
+          // nobody has named. The version this replaced measured such a pixel
+          // as if it were the ground and reported 1.59:1 and 1.48:1 — two
+          // false failures on merged `main`. Failing here instead is the
+          // point: the answer is to NAME the material (or fix the probe), not
+          // to widen a tolerance until it stops asking.
+          expect(
+            unclassified,
+            isEmpty,
+            reason:
+                'The probe could not classify the backdrop under '
+                '${unclassified.length} text run(s).\n'
+                '${unclassified.join('\n')}\n$table\n'
+                'Each line is a pixel the instrument refuses to measure '
+                'because it cannot say what it is. If the colour is a declared '
+                'opaque fill, add it to `materials` by name. If it is a '
+                'glyph\'s antialiasing, the probe geometry is wrong and '
+                '`modeAround` is where that lives. Do NOT relax the 1.6:1 '
+                'ground window to make this pass — that window is what makes '
+                'every other number in the table mean something.',
           );
           expect(
             tightest,
@@ -770,6 +987,145 @@ void main() {
           );
         });
       }
+    }
+
+    // ── AND IT STILL BITES ────────────────────────────────────────────────
+    //
+    // A probe that was taught to reject candidates is a probe that can be
+    // taught to reject everything, and the four false failures this commit
+    // fixes were fixed by *narrowing* what counts as a reading. So the
+    // instrument is pointed at a run that genuinely fails, on the real washed
+    // ground, and has to catch it.
+    //
+    // The fixture is a flat `vignette` panel with the real `consoleDeskWash`
+    // over it. That is not an approximation of the ground: the shell's falloff
+    // is `ground → vignette → vignette → ground`, so between the two 96dp
+    // ramps `torchGroundAt` returns `vignette` exactly, which is the colour
+    // the classifier compares a candidate against at those y values.
+    //
+    // Both directions are asserted, because "it fails" is only half the proof
+    // — an instrument that failed everything would also pass that half:
+    //
+    //  * a synthetic ink near the ground must classify as `ground` AND read
+    //    under 4.5:1;
+    //  * `ink1` must classify as `ground` and read well over 4.5:1.
+    //
+    // The faint inks are synthetic and that is deliberate: a real token here
+    // would read as a product defect, and the claim being made is about the
+    // probe, not the palette.
+    for (final (skinName, skin, faint) in <(String, TiqSkin, Color)>[
+      ('night', night, const Color(0xFF3A4450)),
+      ('day', day, const Color(0xFFC8C2B5)),
+    ]) {
+      testWidgets('$skinName: the probe still catches a real low-contrast run', (
+        tester,
+      ) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        Widget run(Color ink, String label) =>
+            Text(label, style: TextStyle(color: ink, fontSize: 16));
+
+        var ground = Container(
+          width: size.width,
+          height: size.height,
+          color: skin.palette.vignette,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              run(faint, 'a faint run on the washed ground'),
+              const SizedBox(height: 40),
+              run(skin.palette.ink1, 'a legible run beside it'),
+            ],
+          ),
+        );
+        // The real wash, in the real paint order the shell uses.
+        for (final d in consoleDeskWash(skin).reversed) {
+          ground = Container(decoration: d, child: ground);
+        }
+
+        await tester.pumpWidget(
+          MediaQuery(
+            data: MediaQueryData(size: size, devicePixelRatio: 1.0),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Theme(
+                data: ThemeData(extensions: <ThemeExtension<dynamic>>[skin]),
+                child: RepaintBoundary(
+                  key: const ValueKey<String>('amber-golden-boundary'),
+                  child: ground,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final pixels = await torchPixels(tester);
+        final materials = materialsFor(skin);
+
+        (String, double) read(String label, Color ink) {
+          final rect = tester.getRect(find.text(label));
+          final (backdrop, _, kind) = worstGroundUnder(
+            pixels,
+            rect,
+            ink,
+            skin,
+            materials,
+          );
+          return (kind, contrastRatio(ink, backdrop));
+        }
+
+        final (badKind, badRatio) = read(
+          'a faint run on the washed ground',
+          faint,
+        );
+        final (goodKind, goodRatio) = read(
+          'a legible run beside it',
+          skin.palette.ink1,
+        );
+
+        // ignore: avoid_print
+        print(
+          'STILL BITES — $skinName: faint ${hex(faint)} classified '
+          '"$badKind" at ${badRatio.toStringAsFixed(2)}:1 (floor 4.5); '
+          'ink1 ${hex(skin.palette.ink1)} classified "$goodKind" at '
+          '${goodRatio.toStringAsFixed(2)}:1',
+        );
+
+        expect(
+          badKind,
+          'ground',
+          reason:
+              'The classifier did not recognise the washed vignette as the '
+              'ground, so the probe would have skipped a real finding. That is '
+              'the failure mode the 1.6:1 window has to avoid.',
+        );
+        expect(
+          badRatio,
+          lessThan(4.5),
+          reason:
+              'A run at ${badRatio.toStringAsFixed(2)}:1 on the washed ground '
+              'is under 1.4.3\'s floor and the probe has to read it as such. '
+              'If this passes, the instrument has gone quiet.',
+        );
+        expect(
+          goodKind,
+          'ground',
+          reason: 'The legible run is on the same ground as the faint one.',
+        );
+        expect(
+          goodRatio,
+          greaterThan(4.5),
+          reason:
+              'ink1 on the washed ground must still read as legible — an '
+              'instrument that fails everything is no more use than one that '
+              'passes everything.',
+        );
+      });
     }
   });
 
