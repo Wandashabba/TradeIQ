@@ -46,9 +46,24 @@ void main() {
   final night = TiqSkin.night(density: TiqDensity.field);
 
   group('Nav pill — geometry', () {
-    testWidgets('Night and Day float: 64 tall, radius 999, opaque well', (
-      tester,
-    ) async {
+    // ── SHAPE A: 64 TALL, AND NO MATERIAL AT ALL — 4 October 2026 ───────
+    //
+    // This test used to be called "Night and Day float: 64 tall, radius 999,
+    // opaque well" and it asserted the `edgeStructure` outline on the bar's
+    // top pixel row and the ground showing through its rounded top-left
+    // corner. Both of those were statements about a pill, and shape A has no
+    // pill: the owner picked the mockup in which the bar has no fill and no
+    // outline and the slots sit on the shell's ground.
+    //
+    // THE HEIGHT AND THE INSETS ARE UNCHANGED AND ARE STILL ASSERTED. That is
+    // the part of the old test that was about the bar's place on the screen
+    // rather than about its material, and shape A did not move it — 64dp, 16
+    // from each gutter, 20 above the safe area. What replaces the two colour
+    // assertions is their inverse, which is the claim that now needs holding:
+    // every pixel along the bar's own top row is the ground, corner to
+    // corner, because there is nothing there to paint.
+    testWidgets('Night and Day sit on the ground: 64 tall, no fill, no '
+        'outline', (tester) async {
       for (final skin in <TiqSkin>[night, TiqSkin.day()]) {
         await pumpTorch(
           tester,
@@ -73,17 +88,31 @@ void main() {
         expect(rect.right, 344);
 
         final pixels = await torchPixels(tester);
+        // The top row, sampled across the whole bar rather than at one point:
+        // an outline is a line, and a line is caught by looking along it.
+        for (final x in <double>[
+          rect.left + 1,
+          rect.left + 40,
+          rect.center.dx,
+          rect.right - 40,
+          rect.right - 1,
+        ]) {
+          expect(
+            pixels.at(x, rect.top + 0.5),
+            skin.palette.ground,
+            reason:
+                '${skin.mode.name}: no outline and no fill — the bar paints '
+                'nothing of its own, so its own top pixel row is the ground '
+                'at x=$x',
+          );
+        }
+        // And the resting slots are quiet: the three inactive ones have no
+        // fill either, so a point beside the second slot's glyph is ground.
+        final second = tester.getRect(find.text('Work'));
         expect(
-          pixels.at(rect.center.dx, rect.top + 0.5),
-          skin.palette.edgeStructure,
-          reason: 'a 1px edge-structure outline, not a frosted edge',
-        );
-        expect(
-          pixels.at(rect.left + 1, rect.top + 1),
+          pixels.at(second.center.dx, rect.top + 2),
           skin.palette.ground,
-          reason:
-              'radius 999: the bar does not reach into its own top-left '
-              'corner, so that pixel is still the ground',
+          reason: 'an inactive slot is quiet: ink and glyph, no surface',
         );
       }
     });
@@ -108,9 +137,32 @@ void main() {
   });
 
   group('Nav pill — the active tab', () {
-    testWidgets('Night lights it amber, and takes the grant from TorchScope', (
-      tester,
-    ) async {
+    // ── THE THREE STATES OF THE FOURTH CHANNEL ───────────────────────────
+    //
+    // All three of these tests used to sample `slot.right + 10, slot.center.dy`
+    // — a point ten pixels right of the label, halfway up the slot — and read
+    // the **fill of the active block** there: `flame600` on Night, `lifted`
+    // (the Abyssal block) on Day and beneath a sheet. Shape A has no block, so
+    // that point is now the bar's quiet ground on Night and the `well` groove
+    // on the other two, and the thing worth measuring moved to the bottom of
+    // the slot.
+    //
+    // They are rewritten rather than deleted because the RULE they hold did
+    // not change: Night granted is amber, Day is never amber, and a sheet puts
+    // the grant out. Only the drawing did.
+    //
+    // The edge is sampled at the slot's own bottom row and at its horizontal
+    // centre, which is where `TorchNavPill.edgeExtent` puts it.
+    Offset edgeAt(WidgetTester tester) {
+      final bar = tester.getRect(find.byType(TorchNavPill));
+      final slot = tester.getRect(find.text('Work'));
+      // 8dp of vertical inset, so the slot box ends 8dp above the bar's own
+      // bottom edge and the 2dp edge is the last of it.
+      return Offset(slot.center.dx, bar.bottom - 8 - 1);
+    }
+
+    testWidgets('Night names it with a 2dp amber edge, and takes the grant '
+        'from TorchScope', (tester) async {
       await pumpTorch(
         tester,
         skin: night,
@@ -125,15 +177,34 @@ void main() {
           ),
         ),
       );
-      final slot = tester.getRect(find.text('Work'));
       final pixels = await torchPixels(tester);
       expect(
-        pixels.at(slot.right + 10, slot.center.dy),
+        pixels.at(edgeAt(tester).dx, edgeAt(tester).dy),
         night.palette.flame600,
+        reason: 'the edge under the active label, flat flame-600',
+      );
+      // AND THE SLOT IS NOT FILLED, which is the half that makes this shape A
+      // rather than a block with a line under it.
+      final slot = tester.getRect(find.text('Work'));
+      expect(
+        pixels.at(slot.right + 10, slot.center.dy),
+        night.palette.ground,
+        reason:
+            'no fill behind the active tab on Night: the edge is the whole of '
+            'the fourth channel there',
+      );
+      // And the three inactive slots have no edge.
+      final today = tester.getRect(find.text('Today'));
+      expect(
+        pixels.at(today.center.dx, edgeAt(tester).dy),
+        night.palette.ground,
+        reason: 'the lane is reserved in every slot and painted in one',
       );
     });
 
-    testWidgets('a sheet above the route puts the tab out', (tester) async {
+    testWidgets('a sheet above the route puts the edge out and the groove in', (
+      tester,
+    ) async {
       await pumpTorch(
         tester,
         skin: night,
@@ -149,18 +220,26 @@ void main() {
           ),
         ),
       );
-      final slot = tester.getRect(find.text('Work'));
       final pixels = await torchPixels(tester);
       expect(
-        pixels.at(slot.right + 10, slot.center.dy),
-        night.palette.lifted,
+        pixels.at(edgeAt(tester).dx, edgeAt(tester).dy),
+        night.palette.well,
         reason:
-            'the tab drops to its ink form — an Abyssal block — so the sheet '
-            'genuinely owns the screen at a 72% scrim',
+            'the grant is withdrawn, so the edge is transparent and what is '
+            'at that pixel is the groove showing through the lane',
+      );
+      final slot = tester.getRect(find.text('Work'));
+      expect(
+        pixels.at(slot.right + 10, slot.center.dy),
+        night.palette.well,
+        reason:
+            'the denied form is MenuFlatRow\'s own: a `well` groove, so the '
+            'sheet genuinely owns the screen and the tab still says which '
+            'one you are standing on',
       );
     });
 
-    testWidgets('Day uses an Abyssal block, never amber', (tester) async {
+    testWidgets('Day uses the well groove, never amber', (tester) async {
       final skin = TiqSkin.day();
       await pumpTorch(
         tester,
@@ -176,15 +255,28 @@ void main() {
           ),
         ),
       );
-      final slot = tester.getRect(find.text('Work'));
       final pixels = await torchPixels(tester);
+      final slot = tester.getRect(find.text('Work'));
       expect(
         pixels.at(slot.right + 10, slot.center.dy),
-        skin.palette.lifted,
+        skin.palette.well,
         reason:
             'on a light ground amber is a carrier of ink, and the one object '
-            'allowed to be that is the primary.',
+            'allowed to be that is the primary. `torch_scope.dart` denies the '
+            'nav tab by rule before any budget is consulted, so the groove is '
+            'not a fallback for a spent budget — it is the only Day form.',
       );
+      expect(
+        pixels.at(edgeAt(tester).dx, edgeAt(tester).dy),
+        skin.palette.well,
+        reason: 'and the edge lane is empty: no amber anywhere on Day',
+      );
+      // SELECTION WITHOUT COLOUR, measured in the other channel the Day form
+      // leans on: the active label is w700 and the inactive ones are w500.
+      final active = tester.widget<Text>(find.text('Work'));
+      final inactive = tester.widget<Text>(find.text('Today'));
+      expect(active.style?.fontWeight, FontWeight.w700);
+      expect(inactive.style?.fontWeight, FontWeight.w500);
     });
 
     testWidgets('each slot says which tab it is, and whether it is on', (

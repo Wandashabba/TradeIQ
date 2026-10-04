@@ -23,3 +23,4 @@ primary.blocked.named = yes
 primary.height = 152
 rows.onscreen = 9
 amber.objects = 0
+amber.bounds = none

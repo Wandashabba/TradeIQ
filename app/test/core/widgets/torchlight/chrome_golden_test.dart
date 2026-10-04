@@ -122,8 +122,8 @@ void main() {
   group('NIGHT — first', () {
     final skin = TiqSkin.night(density: TiqDensity.field);
 
-    testWidgets('a tab root: the bar floats, the tab is lit, the circle sits '
-        'outside it', (tester) async {
+    testWidgets('a tab root: the bar sits on the ground, the tab is named, '
+        'the circle sits outside it', (tester) async {
       await pumpTorch(
         tester,
         skin: skin,
@@ -144,20 +144,43 @@ void main() {
 
       final pixels = await torchPixels(tester);
       expect(pixels.at(180, 4), skin.palette.ground);
+      // ── SHAPE A, 4 October 2026 ────────────────────────────────────────
+      //
+      // Two assertions here changed and the reason is the same for both: the
+      // bar has no material. The first used to read `edgeStructure` off the
+      // bar's top pixel row — a 1px outline on an opaque well — and the
+      // second used to read the active tab's gradient fill ten pixels in from
+      // the bar's left edge, which was inside the filled block.
+      //
+      // Now the bar's top row is the ground along its whole width, and the
+      // active tab is a 24×2dp flat `flame600` edge at the bottom of the
+      // first slot. `isOnAmberRamp` is deliberately NOT used on it: the edge
+      // is flat by design, so the ramp matcher would be a looser statement
+      // about a stricter object.
       expect(
         pixels.at(bar.center.dx, bar.top + 0.5),
-        skin.palette.edgeStructure,
-        reason: 'a 1px outline on an opaque well — never a frosted edge',
+        skin.palette.ground,
+        reason: 'no outline and no fill — the bar sits on the ground',
       );
-      // BOTH OF THESE WERE `skin.palette.flame600` UNTIL 1 OCTOBER 2026, when
-      // a filled amber object became a gradient. The pixel is on the object's
-      // own ramp now, which is a stricter statement in one respect — it also
-      // fails if the gradient stops painting. See [isOnAmberRamp].
+      // THE SLOT IS COMPUTED FROM THE BAR, NOT FOUND BY ITS LABEL. `tabRoot`
+      // gives the header the title 'Today' as well, so `find.text('Today')`
+      // is ambiguous here — and at the test font's width this bar is
+      // icon-only anyway, so the nav label does not exist to be found. Four
+      // equal slots with no horizontal inset puts the first one's centre at
+      // an eighth of the bar's width.
+      final firstSlotCx = bar.left + bar.width / 8;
       expect(
-        pixels.at(bar.left + 10, bar.center.dy),
-        isOnAmberRamp(skin),
-        reason: "the active tab, holding the frame's first grant",
+        pixels.at(firstSlotCx, bar.bottom - 9.5),
+        skin.palette.flame600,
+        reason:
+            "the active tab's edge, holding the frame's first grant — flat, "
+            'because a 2dp rule has no room for a core. 8dp of vertical inset '
+            'puts the slot box\'s last 2dp at [bar.bottom - 10, '
+            'bar.bottom - 8).',
       );
+      // AND THE CIRCLE'S RAMP IS UNTOUCHED, which is the bullet shape A did
+      // not need: `nav_circle.dart`'s `_grantedRamp` has been a radial since
+      // 1 October 2026 and this change does not go near it.
       expect(
         pixels.at(circle.center.dx, circle.top + 8),
         isOnAmberRamp(skin),
@@ -215,7 +238,7 @@ void main() {
   group('DAY — second', () {
     final skin = TiqSkin.day();
 
-    testWidgets('the tab is an Abyssal block and the circle is amber', (
+    testWidgets('the tab is a well groove and nothing on the screen is amber', (
       tester,
     ) async {
       await pumpTorch(
@@ -230,10 +253,22 @@ void main() {
       final bar = tester.getRect(find.byType(TorchNavPill));
       final circle = tester.getRect(find.byType(TorchNavCircle));
       final pixels = await torchPixels(tester);
+      // Six pixels into the first slot and halfway up it: inside the groove,
+      // clear of the glyph, and clear of the radius-16 corner.
       expect(
-        pixels.at(bar.left + 10, bar.center.dy),
-        skin.palette.lifted,
-        reason: 'never amber on a light ground',
+        pixels.at(bar.left + 6, bar.center.dy),
+        skin.palette.well,
+        reason:
+            'never amber on a light ground. Shape A\'s Day form is '
+            'MenuFlatRow\'s groove, so the sample moved off the old block\'s '
+            'fill and onto the groove the active slot sits in.',
+      );
+      expect(
+        pixels.at(bar.left + bar.width / 8, bar.bottom - 9.5),
+        skin.palette.well,
+        reason:
+            'and the edge lane is empty: the pixel the Night edge occupies is '
+            'the groove showing through, so there is no amber anywhere on Day',
       );
       expect(
         pixels.at(circle.center.dx, circle.top + 8),

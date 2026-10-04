@@ -21,3 +21,4 @@ skin.cycle = thumb-zone
 primary = none
 rows.onscreen = 2
 amber.objects = 0
+amber.bounds = none

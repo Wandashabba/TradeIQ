@@ -32,11 +32,27 @@
 ///   The strip light needs a photograph to be a light *on* — with no plate
 ///   image it declines its own grant and the count is 1, not 2, which is why
 ///   this fixture supplies a real one.
-/// * **Ask** and **Tasks** light the nav pill's active tab, and Ask lights its
-///   Send disc beside it. Send is armed from the first frame, so "at rest" and
-///   "armed" are the same count; the row is kept because the *reason* they
-///   match is a decision (an empty trough redirects the press into the trough
-///   rather than disabling the key) and not an accident.
+/// * **Ask** and **Tasks** light the **ask bar's Send disc**, and nothing
+///   else. Send is armed from the first frame, so "at rest" and "armed" are
+///   the same count; the row is kept because the *reason* they match is a
+///   decision (an empty trough redirects the press into the trough rather
+///   than disabling the key) and not an accident.
+///
+///   **CORRECTED 4 October 2026.** This bullet read *"Ask and Tasks light the
+///   nav pill's active tab, and Ask lights its Send disc beside it"*, and it
+///   had been wrong since 2 October: `console_frame.dart` retired the pill in
+///   Model 1 — *"MODEL 1: ONE OBJECT AT THE BOTTOM, AND THE PILL IS GONE"* —
+///   and every console route has passed `navRenders: false` since, so the
+///   allocator does not add `TorchScope.navActiveTabId` at rung 0 on any of
+///   them. `TorchNavPill` is **agent-only**: `navPill:` is assigned in
+///   exactly four places and all four are agent screens (`today_screen.dart`,
+///   `my_work_screen.dart`, `my_record_screen.dart`, `agent_map_screen.dart`).
+///
+///   The counts in the table were right the whole time and that is exactly
+///   why this survived: Night went 1 (nav tab) -> 1 (Send) and the number
+///   never moved, so the only thing that was wrong was the sentence saying
+///   **which object** it was. A census that names the wrong object is worse
+///   than one that names none, because it is the line a reader trusts.
 /// * **Today** lights the filled `Check in here` commit and the nav tab.
 /// * **Sign-in** lights the commit and, on Night only, the amber underline
 ///   under "Forgot password?" — rung 5, granted because a formless route never
@@ -76,6 +92,28 @@
 /// **No count moved anywhere.** That is the assertion in this file and it is
 /// the one that had to hold: a bigger amber object is a bigger object, and a
 /// second amber object would have been a budget breach.
+///
+/// ## 4 October 2026 — THE COUNTS HELD AGAIN AND THE AGENT'S TAB SHRANK
+///
+/// `TorchNavPill`'s shape A replaced the active tab's filled block with a
+/// 24x2dp amber edge under its label. The agent row below is the one this
+/// touches, and it moves the same way the ask bar's Send did in the opposite
+/// direction — bounds and lit pixels, never the count:
+///
+/// | | was | is |
+/// |---|---|---|
+/// | Today (agent), night | 59x46 at 23,565 | **23x2 at 36,610** |
+/// | Today (agent), day | unchanged | unchanged |
+///
+/// Day does not move because the nav tab was never amber on a light ground
+/// ([TorchDenial.notAmberOnLightGround]) — Day's one object is the "Check in
+/// here" commit block, before and after. On Night the tab's **bounding box**
+/// goes from 59x46 to 23x2 — 2,714 square dp to 46, which is 98% of it — and
+/// that is the measured figure: the goldens record bounds rather than the
+/// connected-region area, so "98% of the box" is what is claimed and not "98%
+/// of the lit pixels". The same move on the other three agent tab roots is in
+/// `test/features/goldens/*.txt`, which record region bounds as of the same
+/// day.
 library;
 
 import 'package:flutter/widgets.dart';
