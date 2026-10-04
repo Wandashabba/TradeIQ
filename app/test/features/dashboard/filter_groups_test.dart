@@ -656,16 +656,46 @@ void main() {
             'every one of the thirteen is reachable without a scroll on a '
             '390dp phone, which is the width the owner reviews on',
       );
-      // AND THE SMALL PHONE IS NOT. 13 rows at the 44dp floor plus two lines
-      // of window chips is 632dp of content against a 563dp ceiling, so the
-      // last two of the eight collapsed rows fall past it — Mpumalanga by one
-      // logical pixel and North West by 45. Pinned rather than wished away:
-      // the only ways to buy those 45dp are to drop a window chip off the
+      // AND THE SMALL PHONE IS NOT. 13 rows at the 44dp floor plus the window
+      // chips' `Wrap` is more content than the 563dp ceiling, so the last of
+      // the eight collapsed rows fall past it. Pinned rather than wished away:
+      // the only ways to buy the difference are to drop a window chip off the
       // sheet or to put the rows under the 44dp target floor, and both are
-      // worse than a scroll. Ten of thirteen needed a scroll before.
+      // worse than a scroll. Ten of thirteen needed a scroll before any of
+      // this.
+      //
+      // REMEASURED 4 October 2026, and the number got worse — say so rather
+      // than quietly re-pin it. `TorchFilterChip` now reserves the tick disc's
+      // box and its 6dp gap in BOTH states, because building them only when
+      // selected made the chip 22–24dp wider selected than unselected and
+      // reflowed the rail under the owner's thumb every time they changed a
+      // filter. The rail absorbs that by scrolling. **This sheet cannot**: its
+      // windows are a `Wrap` of `IntrinsicWidth` chips, so 22dp on each of
+      // five chips buys a THIRD 44dp line (plus 8dp of `runSpacing`), every
+      // row below it moves down 52dp, and four of the thirteen now sit past
+      // the fold where two did:
+      //
+      // | | was | is |
+      // |---|---|---|
+      // | EC-NMB | on screen | 605..649 |
+      // | LP | on screen | 605..649 |
+      // | MP | 597..641 | 649..693 |
+      // | NW | 641..685 | 693..737 |
+      //
+      // The 390dp assertion above is unchanged and still `isEmpty` — the
+      // width the owner reviews on did not move. The 360dp cost is real, it
+      // is reported rather than bought back by special-casing the chip for
+      // this one caller, and it is a scroll on the phone size the owner does
+      // not review on, not a clip: the sheet scrolls and every row is
+      // reachable.
       expect(
         offScreen['${Size(360, 640)}'],
-        <String>['MP (597..641 of 640)', 'NW (641..685 of 640)'],
+        <String>[
+          'EC-NMB (605..649 of 640)',
+          'LP (605..649 of 640)',
+          'MP (649..693 of 640)',
+          'NW (693..737 of 640)',
+        ],
         reason: 'the small phone\'s overflow moved — remeasure and say so',
       );
     });

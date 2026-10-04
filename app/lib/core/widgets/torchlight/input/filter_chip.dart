@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../design/figure_slot.dart';
@@ -162,32 +165,120 @@ class TorchFilterChip extends StatelessWidget {
       ink = p.ink2;
     }
 
+    // ── SELECTION IS PAINT, NEVER LAYOUT — 4 October 2026 ───────────────
+    //
+    // > *"Theres also an issue of pressing moving from filters, 7days and all
+    // > the other filters"* — the owner, on the dashboard's rail, who then
+    // > characterised it as *"Jumpy or janky movement — the selection or the
+    // > chips visibly jump, flicker or slide badly when you move between
+    // > filters."*
+    //
+    // It read as a motion bug and it was arithmetic. The tick disc was built
+    // only when `selected`, with its 6dp gap, and the label stepped w500 →
+    // w700, which measures wider. Both of those are LAYOUT.
+    //
+    // Measured on Schibsted Grotesk, all four faces, the six rail labels:
+    // selecting a chip with no `glyph` grew it **21.92–24.41dp at 1.0× and
+    // 26.70–29.93dp at 1.3×**. Twenty of that is fixed — the 14dp mark, which
+    // scales with text, plus the 6dp gap, which does not — and the remaining
+    // 1.92–4.41dp is the weight step, which is why the figure depends on the
+    // word. So tapping a different range shrank one chip and grew another in
+    // the same frame and slid every chip after them sideways while the fill
+    // was still cross-fading.
+    //
+    // A chip with a `glyph` moved the other way and by almost nothing — the
+    // 16dp glyph was replaced by the 14dp tick, and the weight step very
+    // nearly paid the 2dp back, for **−0.23dp**. Nothing in `lib/` passes
+    // `glyph`, so that one is latent rather than fixed by luck.
+    //
+    // So both channels are reserved in both states, and the fix is NOT an
+    // animation: animating a whole row's reflow is a nicer-looking shuffle,
+    // not a still row. `filter_chip_layout_test.dart` holds the widths equal
+    // and holds the rail's rects identical across a selection move — and it
+    // loads the real fonts, because `flutter_test`'s own face has one advance
+    // width per glyph at every weight and cannot see the weight step at all.
+    //
+    // THE COST, written down: an unselected chip is now as wide as a selected
+    // one — 22–24dp wider at 1.0× than it used to be — so a rail is wider
+    // than it was and its horizontal scroller starts working sooner. That is
+    // the trade, and it is the right way round: the rail scrolls, so width it
+    // does not have costs a drag, while a row that moves under the thumb
+    // costs a mis-tap.
+    //
+    // IT IS NOT FREE FOR EVERY CALLER. A rail absorbs the width by scrolling
+    // and eleven of the fourteen call sites are rails. Two are not, and both
+    // are measured rather than assumed:
+    //
+    // 1. `FloorSuggestionChips` — `quiet` chips, hard-coded `selected: false`,
+    //    reserving a tick that can never appear. Its two chips measured
+    //    313.00dp against 320.00 available at 1.3× on a 360dp phone and now
+    //    measure 370.21, so `FloorSuggestionChips.maximum`'s claim that "two
+    //    fits one line on every supported phone" is false above roughly 1.1×
+    //    where it used to hold to roughly 1.33×. Nothing clips — that row is a
+    //    `SingleChildScrollView` and its own comment says an offer may sit
+    //    just off the edge.
+    // 2. The scope sheet's window chips, which are a `Wrap` of
+    //    `IntrinsicWidth` chips rather than a rail. The extra width buys a
+    //    third 44dp line there, every territory row below it moves down 52dp,
+    //    and on a 360dp phone four of thirteen territories now sit past the
+    //    fold where two did. Remeasured and re-pinned in
+    //    `filter_groups_test.dart`, which asks in its own words to be. The
+    //    390dp case — the width the owner reviews on — is unchanged.
+    //
+    // Both are reported rather than bought back with a flag here, because a
+    // chip that sometimes reserves the slot is a chip whose width depends on
+    // the caller instead of on the selection, which is the same bug wearing a
+    // different hat.
+
+    /// The mark's box, reserved whether or not a mark is drawn in it.
+    ///
+    /// `glyph`'s 16 and the tick's 14 are different numbers, so a chip that
+    /// carries both over its life reserves the larger and centres whichever
+    /// one it is drawing. Scales with text, because the marks do (unify §4).
+    final markBox = MarkScale.glyph(context, glyph != null ? 16 : 14);
+
     // Built per frame against the ink the fade is currently on, so the mark,
     // the label and the count arrive with the fill rather than a frame ahead
     // of it. The WEIGHT does not animate and must not: 500 → 700 is one of the
     // two non-motion channels that carry `selected` on their own.
     List<Widget> childrenWith(Color ink) => <Widget>[
-      if (selected)
-        TiqMark(
-          shape: MarkShape.sectionTickDisc,
-          color: ink,
-          ground: fill ?? p.ground,
-          size: MarkScale.glyph(context, 14),
-        )
-      else if (glyph != null)
-        TiqMark(shape: glyph!, color: ink, size: MarkScale.glyph(context, 16)),
-      if (selected || glyph != null) const SizedBox(width: 6),
+      SizedBox.square(
+        dimension: markBox,
+        // Nothing to draw on an unselected chip with no `glyph` — and an
+        // empty `SizedBox` paints nothing at all, so the reservation costs a
+        // layout and no raster work.
+        child: switch (selected) {
+          true => Center(
+            child: TiqMark(
+              shape: MarkShape.sectionTickDisc,
+              color: ink,
+              ground: fill ?? p.ground,
+              size: MarkScale.glyph(context, 14),
+            ),
+          ),
+          false when glyph != null => Center(
+            child: TiqMark(
+              shape: glyph!,
+              color: ink,
+              size: MarkScale.glyph(context, 16),
+            ),
+          ),
+          false => null,
+        },
+      ),
+      // 6, and STILL 6 — it is the gap the selected chip has always had, and
+      // `TiqSpace` carries no 6 (s1 is 4, s2 is 8). Reserving it is a layout
+      // change for the unselected chip and must not be a paint change for the
+      // selected one, so the number is held rather than rounded to a step.
+      const SizedBox(width: _markGap),
       Flexible(
-        child: Text(
-          label,
+        child: _ReservedWeightLabel(
+          label: label,
           // `meta` is 12 against `label`'s 13, which is the declared role
           // nearest the mockup's 11dp. See [quiet].
-          style: (quiet ? skin.text.meta : skin.text.label)
-              .copyWith(weight: selected ? FontWeight.w700 : FontWeight.w500)
-              .style(color: ink),
-          // Never ellipsised: a truncated filter name is a filter you cannot
-          // identify. At 2.0× the chip grows and wraps instead.
-          maxLines: 2,
+          role: quiet ? skin.text.meta : skin.text.label,
+          selected: selected,
+          ink: ink,
         ),
       ),
       if (countLoading) ...<Widget>[
@@ -277,6 +368,263 @@ class TorchFilterChip extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// The gap between the mark's reserved box and the label. See the comment at
+/// its only use for why this is 6 and not a [TiqSpace] step.
+const double _markGap = 6;
+
+/// The label, in a box the width of its **w700** measurement in both states.
+///
+/// The weight step is one of the two non-colour channels that carry `selected`
+/// (unify §4) and it deliberately does not animate — so it cannot be allowed
+/// to change the label's measured width either, or every chip after this one
+/// slides when the selection moves. The box is the heavy measurement always;
+/// the glyphs still render at w500 when unselected.
+///
+/// THE HEAVY COPY IS MEASURED, NOT BUILT — and that is not a micro-optimisation,
+/// it is the only version of this that does not break the suite. The obvious
+/// shape is a `Stack` with an invisible w700 `Text` sizing the box under the
+/// real one; it reserves the width correctly and it puts **a second `Text`
+/// carrying the same words** into the tree, so `find.text('Limpopo')` starts
+/// matching twice. That failed seven tests across four files — the disabled-chip
+/// case in `input_test.dart`, both follow-up cases in `rich_answer_test.dart`,
+/// the Afrikaans artifact case, a scope-sheet geometry case and two Trends
+/// cases — none of which was asserting an old width. They were right and the
+/// widget was wrong: a label that renders once must appear in the tree once.
+///
+/// So the reservation is a `TextPainter` laid out against the same constraints
+/// the child gets, and the box is the larger of the two on each axis. That is a
+/// max rather than "the sizer wins", which is what makes it hold without
+/// assuming bold is the wider face.
+///
+/// The cost is one extra text layout per chip per frame, no extra paint, and
+/// one duplicated detail: the painter has to be configured exactly as `Text`
+/// configures its own `RichText`, which is why [build] reads the merged
+/// `DefaultTextStyle`, the `MediaQuery` scaler and the width basis rather than
+/// assuming them.
+class _ReservedWeightLabel extends StatelessWidget {
+  const _ReservedWeightLabel({
+    required this.label,
+    required this.role,
+    required this.selected,
+    required this.ink,
+  });
+
+  final String label;
+  final TiqTypeToken role;
+  final bool selected;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final heavy = role.copyWith(weight: FontWeight.w700);
+    final shown = heavy.copyWith(
+      weight: selected ? FontWeight.w700 : FontWeight.w500,
+    );
+    final defaults = DefaultTextStyle.of(context);
+    return _ReserveTextWidth(
+      // `Text` merges its style onto the ambient one, so the measurement has
+      // to merge it the same way or the two can disagree about a fallback.
+      span: TextSpan(
+        text: label,
+        style: defaults.style.merge(heavy.style(color: ink)),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      textWidthBasis: defaults.textWidthBasis,
+      textHeightBehavior:
+          defaults.textHeightBehavior ??
+          DefaultTextHeightBehavior.maybeOf(context),
+      maxLines: _labelMaxLines,
+      child: Text(
+        label,
+        style: shown.style(color: ink),
+        // Never ellipsised: a truncated filter name is a filter you cannot
+        // identify. At 2.0× the chip grows and wraps instead — and it wraps
+        // against the HEAVY measurement in both states, so the height is
+        // selection-independent for the same reason the width is.
+        maxLines: _labelMaxLines,
+      ),
+    );
+  }
+}
+
+/// Two, and the measurement below has to be given the same number.
+const int _labelMaxLines = 2;
+
+/// Sizes to the larger of its child and [span], and draws only the child.
+class _ReserveTextWidth extends SingleChildRenderObjectWidget {
+  const _ReserveTextWidth({
+    required this.span,
+    required this.textDirection,
+    required this.textScaler,
+    required this.textWidthBasis,
+    required this.textHeightBehavior,
+    required this.maxLines,
+    required super.child,
+  });
+
+  final TextSpan span;
+  final TextDirection textDirection;
+  final TextScaler textScaler;
+  final TextWidthBasis textWidthBasis;
+  final TextHeightBehavior? textHeightBehavior;
+  final int maxLines;
+
+  @override
+  _RenderReserveTextWidth createRenderObject(BuildContext context) =>
+      _RenderReserveTextWidth(
+        span: span,
+        textDirection: textDirection,
+        textScaler: textScaler,
+        textWidthBasis: textWidthBasis,
+        textHeightBehavior: textHeightBehavior,
+        maxLines: maxLines,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderReserveTextWidth renderObject,
+  ) {
+    renderObject
+      ..span = span
+      ..textDirection = textDirection
+      ..textScaler = textScaler
+      ..textWidthBasis = textWidthBasis
+      ..textHeightBehavior = textHeightBehavior
+      ..maxLines = maxLines;
+  }
+}
+
+class _RenderReserveTextWidth extends RenderShiftedBox {
+  _RenderReserveTextWidth({
+    required TextSpan span,
+    required TextDirection textDirection,
+    required TextScaler textScaler,
+    required TextWidthBasis textWidthBasis,
+    required TextHeightBehavior? textHeightBehavior,
+    required int maxLines,
+  }) : _painter = TextPainter(
+         text: span,
+         textDirection: textDirection,
+         textScaler: textScaler,
+         textWidthBasis: textWidthBasis,
+         textHeightBehavior: textHeightBehavior,
+         maxLines: maxLines,
+       ),
+       super(null);
+
+  final TextPainter _painter;
+
+  set span(TextSpan value) {
+    if (_painter.text == value) return;
+    _painter.text = value;
+    markNeedsLayout();
+  }
+
+  set textDirection(TextDirection value) {
+    if (_painter.textDirection == value) return;
+    _painter.textDirection = value;
+    markNeedsLayout();
+  }
+
+  set textScaler(TextScaler value) {
+    if (_painter.textScaler == value) return;
+    _painter.textScaler = value;
+    markNeedsLayout();
+  }
+
+  set textWidthBasis(TextWidthBasis value) {
+    if (_painter.textWidthBasis == value) return;
+    _painter.textWidthBasis = value;
+    markNeedsLayout();
+  }
+
+  set textHeightBehavior(TextHeightBehavior? value) {
+    if (_painter.textHeightBehavior == value) return;
+    _painter.textHeightBehavior = value;
+    markNeedsLayout();
+  }
+
+  set maxLines(int value) {
+    if (_painter.maxLines == value) return;
+    _painter.maxLines = value;
+    markNeedsLayout();
+  }
+
+  Size _reserved(double maxWidth) {
+    _painter.layout(maxWidth: maxWidth);
+    return _painter.size;
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) {
+    _painter.layout();
+    return math.max(
+      super.computeMinIntrinsicWidth(height),
+      _painter.minIntrinsicWidth,
+    );
+  }
+
+  @override
+  double computeMaxIntrinsicWidth(double height) {
+    _painter.layout();
+    return math.max(
+      super.computeMaxIntrinsicWidth(height),
+      _painter.maxIntrinsicWidth,
+    );
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    final reserved = _reserved(constraints.maxWidth);
+    if (child == null) return constraints.constrain(reserved);
+    final childSize = child.getDryLayout(constraints);
+    return constraints.constrain(
+      Size(
+        math.max(childSize.width, reserved.width),
+        math.max(childSize.height, reserved.height),
+      ),
+    );
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    final reserved = _reserved(constraints.maxWidth);
+    if (child == null) {
+      size = constraints.constrain(reserved);
+      return;
+    }
+    child.layout(constraints, parentUsesSize: true);
+    size = constraints.constrain(
+      Size(
+        math.max(child.size.width, reserved.width),
+        math.max(child.size.height, reserved.height),
+      ),
+    );
+    // Start-aligned across, centred down — the position the `Stack` this
+    // replaces gave it, and the one that keeps the label's first glyph at the
+    // same x whether or not the slack is there.
+    final dx = textDirection == TextDirection.rtl
+        ? size.width - child.size.width
+        : 0.0;
+    (child.parentData! as BoxParentData).offset = Offset(
+      dx,
+      (size.height - child.size.height) / 2,
+    );
+  }
+
+  TextDirection get textDirection => _painter.textDirection!;
+
+  @override
+  void dispose() {
+    _painter.dispose();
+    super.dispose();
   }
 }
 
