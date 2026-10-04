@@ -15,7 +15,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/console_frame.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 
@@ -299,7 +298,6 @@ class _AgentFrame extends ConsumerWidget {
             onPressed: () => canPop ? context.pop() : context.go('/today'),
           ),
         ),
-        skinCycle: const AgentSkinCycle(),
         children: children,
       ),
     );

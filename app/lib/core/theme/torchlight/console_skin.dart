@@ -2,10 +2,6 @@ import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/torchlight/button/buttons.dart';
-import '../../widgets/torchlight/chrome/chrome.dart';
-import '../../widgets/torchlight/skin_controls.dart';
-import '../../../l10n/l10n.dart';
 import '../app_theme.dart';
 import 'tiq_skin.dart';
 
@@ -99,46 +95,24 @@ class ConsoleTorchlightRoute extends ConsumerWidget {
   }
 }
 
-/// The skin cycle at the leading end of a console thumb zone — every console
-/// screen that is not a tab root.
-///
-/// The header's single trailing slot is taken by a route's own action on a
-/// form (or is simply absent), and unify §1.2 puts the cycle in the thumb zone
-/// everywhere else. Never a screen without it: the one control that gets a
-/// person out of a skin they cannot read belongs on every screen they can
-/// reach.
-class ConsoleSkinCycle extends ConsumerWidget {
-  const ConsoleSkinCycle({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = consoleSkinModeOf(context, ref);
-    return TorchSkinCycle(
-      mode: mode,
-      semanticLabel: skinCycleLabel(context.l10n, mode),
-      onChanged: (next) => ref.read(consoleSkinProvider.notifier).set(next),
-    );
-  }
-}
-
-/// The skin cycle in a console header's single trailing slot.
-///
-/// A function rather than a widget because [TorchAppHeader.trailing] is typed
-/// as a `TorchIconButton`: the rule is *exactly one* trailing icon button, and
-/// the type is how the chrome enforces it.
-TorchIconButton consoleSkinCycleButton(BuildContext context, WidgetRef ref) {
-  final mode = consoleSkinModeOf(context, ref);
-  final next = TorchSkinCycle.next(mode);
-  return TorchIconButton(
-    icon: TorchSkinCycle.glyphFor(mode),
-    // Names the NEXT state, never this one: a toggle that announces where it
-    // is and not where it goes makes a blind manager press it to find out.
-    semanticLabel: skinCycleLabel(context.l10n, mode),
-    onPressed: () => ref.read(consoleSkinProvider.notifier).set(next),
-  );
-}
-
-/// The mode the cycle is currently sitting at, resolving "follow the app" to
-/// the mode the app actually resolved to.
-SkinMode consoleSkinModeOf(BuildContext context, WidgetRef ref) =>
-    ref.watch(consoleSkinProvider) ?? context.skin.mode;
+// THE CONSOLE'S SKIN CYCLES WERE HERE, AND ARE GONE — 4 October 2026.
+//
+// Three things stood here: `ConsoleSkinCycle` (the thumb-zone form),
+// `consoleSkinCycleButton` (the header-trailing form), and `consoleSkinModeOf`,
+// which existed only to tell those two which glyph to draw. They were carried
+// with the note *"never a screen without it: the one control that gets a person
+// out of a skin they cannot read belongs on every screen they can reach"*.
+//
+// `console_page.dart` took the cycle off the console's four routes on 3 October
+// and nothing has built any of them since — no call site in `lib`, and no test
+// naming them, which is why their absence needs this comment rather than a
+// `findsNothing`.
+//
+// The manager's theme control is the menu sheet's `THIS APP` section, which
+// drives `themeModeProvider`. The owner has asked three times for it to be in
+// exactly one place; zero-reference helpers for putting it back on a screen are
+// not things to leave here.
+//
+// `consoleSkinProvider` itself stays — `ConsoleTorchlightRoute` above reads it
+// to pick the console's skin, which is a different job from offering a control
+// that writes it.

@@ -514,6 +514,107 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     });
+
+    // ── A GHOST ON ITS OWN — 4 October 2026 ─────────────────────────────
+    //
+    // `TorchShell._bottomRegion` returned null when the primary and the skin
+    // cycle were both absent, which dropped a [secondary] on the floor.
+    // Nothing bit while it was written: every screen passing a secondary also
+    // passed a primary or the cycle. Taking the cycle off the six call sites
+    // is the condition that armed it, and two real screens were holding a
+    // lone ghost at the time —
+    //
+    //   * the store picker's **Add a store**, the only way to file a shop
+    //     that is not on the agent's list;
+    //   * the visit's `locating` phase, whose **Back to my route** is the only
+    //     control on the screen. `VisitFrame` passes no header back button, so
+    //     losing it leaves an agent on a radar waiting for a GPS fix with no
+    //     way off it at all.
+    //
+    // Both are asserted at the shell, not at the zone: the zone was never the
+    // thing that dropped them.
+    //
+    // Four per-screen tests already fail on the unfixed shell, so this is not
+    // the only net. It is the one that states the RULE — a bottom region is
+    // dropped only when every slot is empty — rather than restating two
+    // screens' current contents, which is what made the defect reachable in
+    // the first place.
+    testWidgets('a lone secondary still gets a bottom region', (tester) async {
+      await pumpTorch(
+        tester,
+        skin: night,
+        child: TorchShell(
+          profile: TorchShellProfile.agent,
+          header: const TorchAppHeader(title: 'Select an Outlet'),
+          secondary: TorchSecondaryButton(
+            label: 'Add a store',
+            onPressed: () {},
+          ),
+          children: const <Widget>[SizedBox(height: 400)],
+        ),
+      );
+
+      expect(
+        find.byType(TorchThumbZone),
+        findsOneWidget,
+        reason: 'a screen whose only action is a ghost still has a bottom '
+            'region — dropping it takes the action with it',
+      );
+      expect(find.text('Add a store'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(TorchSecondaryButton)).height,
+        greaterThanOrEqualTo(44),
+        reason: 'still a tap target',
+      );
+      // The ghost is the bottom-most thing in the zone, with no empty control
+      // row under it: the row is built only when something goes in it.
+      final zone = tester.getRect(find.byType(TorchThumbZone));
+      final ghost = tester.getRect(find.byType(TorchSecondaryButton));
+      expect(
+        zone.bottom - ghost.bottom,
+        lessThanOrEqualTo(night.space.intraBlock + 1),
+        reason: 'no dead gap where the skin cycle used to be',
+      );
+    });
+
+    testWidgets('an under-primary on its own still gets a bottom region', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: night,
+        child: TorchShell(
+          profile: TorchShellProfile.agent,
+          header: const TorchAppHeader(title: 'Sign in'),
+          underPrimary: TorchTertiaryButton(
+            label: 'Forgot password?',
+            onPressed: () {},
+          ),
+          children: const <Widget>[SizedBox(height: 400)],
+        ),
+      );
+      expect(find.byType(TorchThumbZone), findsOneWidget);
+      expect(find.text('Forgot password?'), findsOneWidget);
+    });
+
+    testWidgets('a bottom region with nothing in it does not render', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: night,
+        child: const TorchShell(
+          profile: TorchShellProfile.agent,
+          header: TorchAppHeader(title: 'Contests'),
+          children: <Widget>[SizedBox(height: 400)],
+        ),
+      );
+      expect(
+        find.byType(TorchThumbZone),
+        findsNothing,
+        reason: 'an empty strip above the safe area is not a bottom region',
+      );
+    });
   });
 
   group('App header', () {

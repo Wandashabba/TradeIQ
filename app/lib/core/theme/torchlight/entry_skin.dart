@@ -65,9 +65,18 @@ class EntryTorchlightRoute extends ConsumerWidget {
 
 /// The skin cycle at the leading end of an entry screen's thumb zone.
 ///
-/// Never a screen without it. Someone who cannot sign in is already stuck;
-/// being stuck on a screen they cannot read is the version of that with no way
-/// out at all.
+/// ## NOTHING BUILDS ONE
+///
+/// This read *"Never a screen without it. Someone who cannot sign in is
+/// already stuck; being stuck on a screen they cannot read is the version of
+/// that with no way out at all."* The owner overruled it on 1 October 2026 —
+/// *"That change of theme on the sign in we can remove it"* — and `EntryFrame`
+/// dropped the slot for all four auth routes. See `entry_frame.dart` for the
+/// full history and for what it costs `/update-required`.
+///
+/// The class is kept with no caller because `account_screens_test` asserts
+/// `find.byType(EntrySkinCycle)` finds **nothing**, and a `findsNothing` on a
+/// type that does not exist is a test that cannot fail.
 class EntrySkinCycle extends ConsumerWidget {
   const EntrySkinCycle({super.key});
 
