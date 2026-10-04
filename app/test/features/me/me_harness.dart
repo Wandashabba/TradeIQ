@@ -283,6 +283,13 @@ Future<void> pumpMe(
         path: '/leaderboard/contests',
         builder: (c, s) => const Text('Contests view'),
       ),
+      // Me's `THIS APP` block pushes here. Stubbed rather than reached for:
+      // `ChangePasswordScreen` wants a session and an API, and what this
+      // route has to prove is that the row goes somewhere.
+      GoRoute(
+        path: '/account/password',
+        builder: (c, s) => const Text('Password screen'),
+      ),
     ],
   );
 }

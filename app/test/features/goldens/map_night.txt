@@ -1,4 +1,4 @@
-# today_night
+# map_night
 # Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
 
 skin = night
@@ -24,9 +24,7 @@ nav.tab.cue = amber-edge
 skin.cycle = none
 body.fade = present
 wash = 2
-primary.armed = yes
-primary.blocked.named = no
-primary.height = 52
+primary = none
 rows.onscreen = 2
-amber.objects = 2
-amber.bounds = 23x2@36,610 288x52@36,221
+amber.objects = 1
+amber.bounds = 23x2@162,610

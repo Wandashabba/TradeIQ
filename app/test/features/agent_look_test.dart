@@ -15,6 +15,7 @@ import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/agent_wash.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet/torch_sheet.dart';
 import 'package:tradeiq_app/features/agent_map/data/agent_map.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
@@ -108,6 +109,16 @@ import 'me/me_harness.dart';
 /// manager's Floor at 360×640 for the same reason. Write the two runs to
 /// different folders — the file names do not carry the size.
 ///
+/// **`AGENT_LOOK_SCALE=1.3`** photographs them at a text scale — added 4
+/// October 2026, because shape A changed the nav bar's own measured content
+/// height and **1.3× is where the bar decides to go icon-only**. Every pump
+/// harness under this file has taken a `textScale` since it was written and
+/// nothing threaded it: the proof obligation "renders at 1.3×" was not
+/// satisfiable before this variable existed, and the honest way to say that is
+/// to add the variable rather than to describe the renders as if they had been
+/// taken. Like the size, the file names do not carry it — write the runs to
+/// different folders.
+///
 /// ## Why it does not run in CI
 ///
 /// The reason `floor_look_test.dart`, `tasks_look_test.dart` and
@@ -163,6 +174,14 @@ void main() {
   /// broken screen.
   final phone = _sizeFromEnv() ?? const Size(390, 844);
 
+  /// The ambient text scale every image in this file is taken at.
+  ///
+  /// 1.0 unless `AGENT_LOOK_SCALE` says otherwise. Silent on a malformed
+  /// value, for `_sizeFromEnv`'s reason: these are artefacts to look at, and a
+  /// throw here would read as the agent side being broken rather than as a
+  /// typo in a shell variable.
+  final scale = _scaleFromEnv() ?? 1.0;
+
   /// Night first, then Day — the order the design says to build them in.
   const skins = <(String, SkinMode)>[
     ('night', SkinMode.night),
@@ -180,6 +199,51 @@ void main() {
     matchesGoldenFile('$dir$name.png'),
   );
 
+  // ── THE COMPARISON THE OWNER WILL CHOOSE FROM — 4 October 2026 ────────
+  //
+  // > *"ALSO produce a comparison render of Today with a bottom-rising wash,
+  // > both skins — the owner will choose."*
+  //
+  // **These two images are a comparison and nothing else.** Nothing in the
+  // app paints a bottom-rising wash on an agent screen; the direction comes
+  // from `agentWashDirectionProvider`, which is a constant
+  // `AgentWashDirection.falling` everywhere but here. The file names say
+  // `comparison_` so no reader mistakes one for a render of what ships.
+  //
+  // **What to look at, because the pair differs in two things and only one of
+  // them is the wash.** The rising render has **no fade above the nav bar**,
+  // and that is not an oversight — it is the choice. A wash that is live
+  // across the body's last 24dp makes the colour the fade has to end in
+  // unknowable (`TorchShell.backdrop`'s own note), so `TorchShell` declines
+  // the scrim there by the same rule that declines it on The Floor. Measured:
+  // a bottom-rising Dawn spreads **33 / 22 / 16 levels** on Night and
+  // **7 / 14 / 15** on Day across that band (`agent_wash_test.dart` prints
+  // both), which is the seam class `fix/band-seam` removed after the owner
+  // named it. So the trade is: the glow at the bottom of the screen, or
+  // content that stops rather than being sliced at the bar.
+  group('comparison — a bottom-rising wash, NOT what ships', () {
+    for (final (name, mode) in skins) {
+      testWidgets('Today with the wash rising from the bottom, $name', (
+        tester,
+      ) async {
+        await pumpAgentScreen(
+          tester,
+          const TodayScreen(),
+          size: phone,
+          textScale: scale,
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: mode),
+            todayRouteProvider.overrideWith((ref) async => _todaysRoute),
+            agentWashDirectionProvider.overrideWithValue(
+              AgentWashDirection.rising,
+            ),
+          ],
+        );
+        await shot(tester, 'agent_00_comparison_rising_$name');
+      }, skip: !looking);
+    }
+  });
+
   // ───────────────────────────────────────────────────────────── the route ──
 
   group('route', () {
@@ -189,6 +253,7 @@ void main() {
           tester,
           const TodayScreen(),
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             todayRouteProvider.overrideWith((ref) async => _todaysRoute),
@@ -204,6 +269,7 @@ void main() {
           tester,
           const TodayScreen(),
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             todayRouteProvider.overrideWith((ref) async => null),
@@ -229,6 +295,7 @@ void main() {
           tester,
           const TodayScreen(),
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             todayRouteProvider.overrideWith((ref) async => _todaysRoute),
@@ -250,6 +317,7 @@ void main() {
           visits: ScriptedVisits.succeeds(),
           skin: mode,
           size: phone,
+          textScale: scale,
         );
         await shot(tester, 'agent_10_visit_hub_blocked_$name');
       }, skip: !looking);
@@ -261,6 +329,7 @@ void main() {
           progress: readyToSubmit,
           skin: mode,
           size: phone,
+          textScale: scale,
         );
         await shot(tester, 'agent_11_visit_hub_ready_$name');
       }, skip: !looking);
@@ -276,6 +345,7 @@ void main() {
           progress: cantConfirmStock,
           skin: mode,
           size: phone,
+          textScale: scale,
         );
         await shot(tester, 'agent_12_visit_hub_cant_confirm_$name');
       }, skip: !looking);
@@ -286,6 +356,7 @@ void main() {
           visits: ScriptedVisits.tooFar(184),
           skin: mode,
           size: phone,
+          textScale: scale,
         );
         await shot(tester, 'agent_13_check_in_too_far_$name');
       }, skip: !looking);
@@ -296,6 +367,7 @@ void main() {
           visits: ScriptedVisits.tooFar(184),
           skin: mode,
           size: phone,
+          textScale: scale,
           extraOverrides: <Override>[
             queuedPhotosRepositoryProvider.overrideWithValue(_NoPhotos()),
             storefrontPhotoPickerProvider.overrideWithValue(
@@ -328,6 +400,7 @@ void main() {
           overrides: overrides,
           skin: mode,
           size: phone,
+          textScale: scale,
         );
         await shot(tester, file);
       }
@@ -483,6 +556,7 @@ void main() {
       gate(),
       path: '/audit/o1/submit',
       size: phone,
+          textScale: scale,
       overrides: <Override>[
         ...agentBaseOverrides(db: agentTestDb(), skin: mode),
         visitReviewProvider.overrideWith(
@@ -518,6 +592,7 @@ void main() {
           ),
           path: '/audit/o1/done',
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             visitOutcomeProvider.overrideWith(
@@ -539,6 +614,7 @@ void main() {
           ),
           path: '/audit/o1/done',
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             visitOutcomeProvider.overrideWith(
@@ -561,6 +637,7 @@ void main() {
           const MyWorkScreen(),
           path: '/my-work',
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(
               db: agentTestDb(),
@@ -599,6 +676,7 @@ void main() {
           const VisitOutletPickerScreen(),
           path: '/audit',
           size: phone,
+          textScale: scale,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
             outletsRepositoryProvider.overrideWithValue(_Stores()),
@@ -622,6 +700,7 @@ void main() {
           const AgentMapScreen(),
           path: '/map',
           size: phone,
+          textScale: scale,
           settle: false,
           overrides: <Override>[
             ...agentBaseOverrides(db: agentTestDb(), skin: mode),
@@ -641,8 +720,30 @@ void main() {
       }, skip: !looking);
 
       testWidgets("the agent's own record, $name", (tester) async {
-        await pumpMe(tester, skin: mode, size: phone);
+        await pumpMe(tester, skin: mode, size: phone, textScale: scale);
         await shot(tester, 'agent_61_me_$name');
+      }, skip: !looking);
+
+      // ── WHERE THE THEME CONTROL WENT — 4 October 2026 ────────────────
+      //
+      // `THIS APP` is the last block on this route, so it is below the fold
+      // on every phone and no image in this file showed it. A control that
+      // moved out of four title rows into one block, with no photograph of
+      // the block, is the same hole this whole file was written to close.
+      //
+      // Scrolled to the end rather than pumped at a tall viewport, because
+      // the question it answers is what an agent actually reaches: the row,
+      // the chevron, the way out, and the bar still under them.
+      testWidgets("the agent's own record — THIS APP, $name", (tester) async {
+        await pumpMe(tester, skin: mode, size: phone, textScale: scale);
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey<String>('me-sign-out')),
+          240,
+          scrollable: find.byType(Scrollable).first,
+          maxScrolls: 40,
+        );
+        await tester.pumpAndSettle();
+        await shot(tester, 'agent_64_me_this_app_$name');
       }, skip: !looking);
 
       // THE TWO STATES THE STANDING CARD AND THE INCENTIVE CARD EXIST FOR,
@@ -658,6 +759,7 @@ void main() {
           tester,
           skin: mode,
           size: phone,
+          textScale: scale,
           repository: FakeMyRecordRepository(
             earnings: earningsFixture(rank: null),
           ),
@@ -675,6 +777,7 @@ void main() {
           tester,
           skin: mode,
           size: phone,
+          textScale: scale,
           repository: FakeMyRecordRepository(
             earnings: earningsFixture(schemes: const <IncentiveScheme>[]),
           ),
@@ -1091,6 +1194,20 @@ class _SharingOn extends LocationSharingController {
 class _NoFlush implements QueueFlusher {
   @override
   Future<void> flush(SyncQueueItem item) async {}
+}
+
+/// `AGENT_LOOK_SCALE=1.3` → `1.3`; anything else, or anything outside the
+/// range the product supports, → null.
+///
+/// The ceiling is 2.0 because that is the largest scale this design is held at
+/// (`torchlight_text_scale_test.dart`), and the floor is 1.0 because nothing
+/// in the system is specified below it.
+double? _scaleFromEnv() {
+  final raw = Platform.environment['AGENT_LOOK_SCALE'];
+  if (raw == null) return null;
+  final value = double.tryParse(raw);
+  if (value == null || value < 1.0 || value > 2.0) return null;
+  return value;
 }
 
 /// `AGENT_LOOK_SIZE=360x640` → `Size(360, 640)`; anything else → null.

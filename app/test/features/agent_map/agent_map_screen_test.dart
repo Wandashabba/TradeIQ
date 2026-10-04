@@ -24,6 +24,7 @@ import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
 import '../../core/design/amber_golden.dart';
+import '../agent_goldens.dart';
 import '../agent_harness.dart';
 
 const _kasi = Outlet(
@@ -662,6 +663,33 @@ void main() {
       await _scrollTo(tester, row, maxDrags: 20);
       expect(row, findsOneWidget);
     });
+  });
+
+  // ── THE MAP'S DECLARED SHAPE — 4 October 2026 ─────────────────────────
+  //
+  // The map is the one agent tab root with **no text golden**, and that was a
+  // gap rather than a decision: the other three are in
+  // `agent_screens_golden_test.dart` and this one is not, because the map's
+  // fixture needs the path_provider mock and the no-settle pump that only
+  // this file has. Shape A, the back shade and the fade all land on all four
+  // tab roots, so the fourth one gets the same measured record as the other
+  // three — counts, bounds, and which cue names the active tab.
+  //
+  // It lives here rather than in the shared golden file for exactly the
+  // reason the gap existed: the mock and the frame-pump are local, and
+  // copying them into the shared file is how a map test starts hanging on
+  // somebody else's run.
+  group('the declared shape', () {
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name} holds it', (tester) async {
+        await _pump(tester, skin: mode);
+        final lines = await measureAgentFrame(
+          tester,
+          skin: agentSkinFor(mode),
+        );
+        expectAgentGolden(lines, 'map_${mode.name}');
+      });
+    }
   });
 
   group('the amber census', () {

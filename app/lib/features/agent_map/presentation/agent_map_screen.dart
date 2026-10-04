@@ -8,6 +8,7 @@ import '../../../core/location/location_service.dart' show currentFixProvider;
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
@@ -15,7 +16,6 @@ import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
@@ -237,6 +237,7 @@ class AgentMapFrame extends ConsumerWidget {
     final l10n = context.l10n;
     final skin = context.skin;
     final door = atDoor;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
@@ -253,12 +254,18 @@ class AgentMapFrame extends ConsumerWidget {
         ],
         child: TorchShell(
           profile: TorchShellProfile.agent,
+          // THE BACK SHADE. Top-anchored — see `agent_wash.dart` for why the
+          // direction is what makes shape A's fade possible.
+          backdrop: agentWashFor(skin, wash),
+          backdropClearsScrim: agentWashClearsScrim(wash),
           header: TorchAppHeader(
             title: l10n.mapTitle,
             facts: <String>[
               if (storeCount != null) l10n.mapStoresFact(storeCount!),
             ],
-            trailing: skinCycleIconButton(context, ref),
+            // NO TRAILING ICON BUTTON — the skin cycle moved into Me's
+            // `THIS APP` block on 4 October 2026. See
+            // `my_record_screen.dart`.
             status: const TorchSyncChip(),
           ),
           navPill: TorchNavPill(

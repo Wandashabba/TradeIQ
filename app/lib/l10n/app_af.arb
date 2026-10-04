@@ -473,6 +473,7 @@
   "todayStopSemantics": "{name}, {code}, {state}. Dubbeltik om hier in te klok.",
   "todayDistanceMetresSemantics": "{meters} meter ver",
   "todayDistanceKmSemantics": "{km} kilometer ver",
+  "meThemeRow": "{skin}-skerm",
   "skinCycleLabel": "Skerm: {current}. Dubbeltik vir {next}.",
   "visitReadinessSemantics": "Vasgelê, {done} van {total}. {blocking} afdelings word nog benodig.",
   "visitScoreSemantics": "{name}, nog nie beskikbaar nie. Word uitgewerk wanneer die besoek stuur.",

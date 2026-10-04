@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
@@ -87,18 +88,107 @@ Future<List<GoldenLine>> measureAgentFrame(
     final r = tester.getRect(navs.first);
     add('nav.height', r.height.round());
     add('nav.docked', r.width.round() == 360 ? 'yes' : 'no');
+    // ── SHAPE A, PINNED — 4 October 2026 ────────────────────────────────
+    //
+    // Three lines, because three things about the bar changed and all three
+    // are the kind of thing that comes back by accident when somebody
+    // "restores" a style.
+    //
+    // 1. NO OUTLINE ANYWHERE UNDER THE BAR. The pill carried a 1px
+    //    `edgeStructure` border and the active tab's block carried the
+    //    radius; a `Border` under this subtree now means one of them is back.
+    final bordered = tester
+        .widgetList<Widget>(
+          find.descendant(of: navs.first, matching: find.byType(DecoratedBox)),
+        )
+        .whereType<DecoratedBox>()
+        .map((d) => d.decoration)
+        .whereType<BoxDecoration>()
+        .where((d) => d.border != null)
+        .length;
+    final animatedBordered = tester
+        .widgetList<AnimatedContainer>(
+          find.descendant(
+            of: navs.first,
+            matching: find.byType(AnimatedContainer),
+          ),
+        )
+        .map((c) => c.decoration)
+        .whereType<BoxDecoration>()
+        .where((d) => d.border != null)
+        .length;
+    add('nav.outlines', bordered + animatedBordered);
+    // 2. NO GRADIENT ANYWHERE UNDER THE BAR. The lit tab was a linear ramp
+    //    and the Abyssal form was a two-identical-stop companion; a 24x2dp
+    //    edge is flat.
+    final gradients = tester
+        .widgetList<AnimatedContainer>(
+          find.descendant(
+            of: navs.first,
+            matching: find.byType(AnimatedContainer),
+          ),
+        )
+        .map((c) => c.decoration)
+        .whereType<BoxDecoration>()
+        .where((d) => d.gradient != null)
+        .length;
+    add('nav.gradients', gradients);
+    // 3. WHICH CUE NAMES THE ACTIVE TAB, read off the allocator rather than
+    //    off a pixel, because the rule is the thing being pinned: Night
+    //    granted gets the amber edge, Day and anything beneath a sheet get
+    //    the `well` groove. `getInheritedWidgetOfExactType` does not
+    //    register a dependency, which is what makes it legal outside build.
+    final scope = tester
+        .element(navs.first)
+        .getInheritedWidgetOfExactType<TorchScope>();
+    final litTab =
+        scope?.allocation.isLit(TorchScope.navActiveTabId) ?? false;
+    add('nav.tab.cue', litTab ? 'amber-edge' : 'well-groove');
   }
   if (zones.evaluate().isNotEmpty) {
     final r = tester.getRect(zones.first);
     add('zone.height', r.height.round());
   }
 
-  // The skin cycle is on every screen — on a tab root as the header's one
-  // trailing icon button, elsewhere at the leading end of the thumb zone.
+  // WHERE THE SKIN CONTROL IS ON THIS SCREEN.
+  //
+  // It read `isEmpty ? 'header' : 'thumb-zone'` — a tab root's header carried
+  // a `TorchIconButton` rather than a `TorchSkinCycle`, so "not found" meant
+  // "in the header". That inference stopped being true on 4 October 2026,
+  // when the control left the four title rows for Me's `THIS APP` block, and
+  // a golden line that quietly keeps saying `header` is worse than no line.
+  //
+  // So it is measured in three states now, and `none` is a real answer: a tab
+  // root has no thumb zone and no trailing control, and the way to the
+  // preference is the Me tab.
   add(
     'skin.cycle',
-    find.byType(TorchSkinCycle).evaluate().isEmpty ? 'header' : 'thumb-zone',
+    find.byType(TorchSkinCycle).evaluate().isNotEmpty
+        ? 'thumb-zone'
+        : (header.evaluate().isNotEmpty &&
+                  tester.widget<TorchAppHeader>(header.first).trailing != null
+              ? 'header'
+              : 'none'),
   );
+
+  // ── THE FADE AND THE BACK SHADE — 4 October 2026 ──────────────────────
+  //
+  // `body.fade` is the 24dp scrim over the body's own last `TiqSpace.s6`,
+  // which shape A needs because the bar no longer has a material for the
+  // clip to stop against. `wash` counts the shell's backdrop decorations:
+  // two on Night (Dawn's hot breath and its clay) and one on Day, which has
+  // no hot breath. Zero on a screen with no wash, which is every agent
+  // screen that is not a tab root.
+  add(
+    'body.fade',
+    find.byKey(const ValueKey<String>('torch-band-scrim')).evaluate().isEmpty
+        ? 'absent'
+        : 'present',
+  );
+  final shells = find.byType(TorchShell);
+  if (shells.evaluate().isNotEmpty) {
+    add('wash', tester.widget<TorchShell>(shells.first).backdrop.length);
+  }
 
   // The primary: its height and whether it is armed. A disabled primary is
   // not a dimmed armed one — it declares nothing and it emits nothing.
@@ -118,8 +208,24 @@ Future<List<GoldenLine>> measureAgentFrame(
   add('rows.onscreen', find.byType(SoftRow).evaluate().length);
 
   // The census, on the real pixels of this exact frame.
+  //
+  // THE BOUNDS ARE RECORDED NOW, NOT ONLY THE COUNT — 4 October 2026. Shape A
+  // replaced a filled 48dp-tall active tab with a 24x2dp edge, which is a
+  // change no count can see: both are one connected region. The audit
+  // question "did the amber move" needs the geometry, so the geometry is in
+  // the golden. Sorted by position rather than by area, so a region that
+  // grows does not reorder the list and make a one-line change read as two.
   final census = await amberCensus(tester);
   add('amber.objects', census.objectCount);
+  final bounds = census.regions
+      .map(
+        (r) =>
+            '${r.bounds.width.toInt()}x${r.bounds.height.toInt()}'
+            '@${r.bounds.left.toInt()},${r.bounds.top.toInt()}',
+      )
+      .toList()
+    ..sort();
+  add('amber.bounds', bounds.isEmpty ? 'none' : bounds.join(' '));
 
   return lines;
 }

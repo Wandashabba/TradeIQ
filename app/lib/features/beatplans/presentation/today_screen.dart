@@ -7,6 +7,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -14,7 +15,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
 import '../../contests/data/contests_repository.dart';
@@ -258,6 +258,7 @@ class TodayFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchScope(
       skin: skin,
@@ -275,6 +276,13 @@ class TodayFrame extends ConsumerWidget {
       ],
       child: TorchShell(
         profile: TorchShellProfile.agent,
+        // THE BACK SHADE, and the flag that lets the fade coexist with it.
+        // See `agent_wash.dart`: top-anchored Dawn reaches zero alpha at
+        // t = 0.3248 of the screen, and the scrim band begins at t ≥ 0.831.
+        // The direction and the flag come from one place so they cannot
+        // disagree; the provider is constant in the app.
+        backdrop: agentWashFor(skin, wash),
+        backdropClearsScrim: agentWashClearsScrim(wash),
         header: TorchAppHeader(
           title: l10n.todayTitle,
           // ONE compact fact line: the date and the route's name, middot
@@ -285,15 +293,19 @@ class TodayFrame extends ConsumerWidget {
             formatDayHeading(context, DateTime.now()),
             if (routeName != null && routeName!.isNotEmpty) routeName!,
           ],
-          // Exactly one trailing icon button, and on a tab root that one is
-          // the skin cycle (unify §1.2). The sync chip is not an icon button
-          // and does not compete for the slot — it is pinned right of the
-          // title on the title row, which is the shell's own anatomy. It used
-          // to go in the flag-chip wrap, where it took a 48dp row plus a 16dp
-          // gap of its own under the date: 64dp of a 640dp fold, every
-          // session, to say "All sent".
+          // NO TRAILING ICON BUTTON — 4 October 2026. The skin cycle was the
+          // one object in this slot on all four tab roots, and it moved into
+          // Me's `THIS APP` block (`my_record_screen.dart`), which is where
+          // the manager's own theme control lives. An appearance preference is
+          // a setting, and a setting on four title rows is a setting nobody
+          // has a home for.
+          //
+          // The sync chip is not an icon button and never competed for the
+          // slot — it is pinned right of the title on the title row, which is
+          // the shell's own anatomy. It used to go in the flag-chip wrap,
+          // where it took a 48dp row plus a 16dp gap of its own under the
+          // date: 64dp of a 640dp fold, every session, to say "All sent".
           status: const TorchSyncChip(),
-          trailing: skinCycleIconButton(context, ref),
         ),
         navPill: TorchNavPill(
           slots: slotsIn(

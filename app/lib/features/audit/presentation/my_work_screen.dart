@@ -8,6 +8,7 @@ import '../../../core/format/relative_time.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -15,7 +16,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/agent_location_banners.dart';
 import '../../../l10n/l10n.dart';
@@ -150,6 +150,7 @@ class _MyWorkFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchScope(
       skin: skin,
@@ -159,13 +160,18 @@ class _MyWorkFrame extends ConsumerWidget {
       claims: <TorchClaim>[if (armed != null) TorchClaim.primaryCommit(armed!)],
       child: TorchShell(
         profile: TorchShellProfile.agent,
+        // THE BACK SHADE. Top-anchored, so the body's bottom edge is bare
+        // ground and shape A's fade can end in a known colour — see
+        // `agent_wash.dart`.
+        backdrop: agentWashFor(skin, wash),
+        backdropClearsScrim: agentWashClearsScrim(wash),
         header: TorchAppHeader(
           title: l10n.myWorkTitle,
           facts: <String>[l10n.myWorkSubtitle],
           // The sync chip is suppressed on the screen it opens — it would be a
-          // link to itself. The one trailing icon button on a tab root is the
-          // skin cycle (unify §1.2).
-          trailing: skinCycleIconButton(context, ref),
+          // link to itself. NO TRAILING ICON BUTTON either, as of 4 October
+          // 2026: the skin cycle that stood here on all four tab roots moved
+          // into Me's `THIS APP` block. See `my_record_screen.dart`.
         ),
         navPill: TorchNavPill(
           slots: TodayFrame.slotsIn(

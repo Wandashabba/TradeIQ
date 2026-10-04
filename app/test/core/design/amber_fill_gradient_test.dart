@@ -269,9 +269,28 @@ void main() {
       });
     }
 
-    // The nav pill's amber form is Night-only: on a light ground the active
-    // tab is an Abyssal ink block, which is why this is not in the loop above.
-    testWidgets('night — the nav pill\'s active tab', (tester) async {
+    // ── THE NAV TAB HAS NO RAMP ANY MORE — 4 October 2026, shape A ───────
+    //
+    // This test used to assert the opposite: that the lit active tab carried a
+    // `LinearGradient` whose last stop was `flame600`, washed from its top
+    // edge because it was "a wide short block". **The block is gone.**
+    // [TorchNavPill]'s shape A names the active tab with a 24×2dp amber edge
+    // under its label instead of filling the slot, and a 2dp rule has no room
+    // for a falloff — a three-stop ramp across two pixel rows is a dither, not
+    // a light with a core.
+    //
+    // It is INVERTED rather than deleted, because "no gradient" is the claim
+    // that now needs holding. The file's thesis is that every filled amber
+    // object in the product carries the 1 October ramp; the nav tab stopped
+    // being a filled amber object, and a reader coming here to ask why it is
+    // missing should find the answer rather than a gap.
+    //
+    // What the owner's *"it need to be lumunous and bright"* bought is still
+    // on screen beside this bar: the forward key's hot-core radial is
+    // untouched and is asserted in the loop above.
+    testWidgets('night — the nav tab is an edge, and edges have no ramp', (
+      tester,
+    ) async {
       final skin = TiqSkin.night();
       await pumpTorch(
         tester,
@@ -290,14 +309,33 @@ void main() {
           ),
         ),
       );
-      final ramp = rampOf(tester, find.byType(TorchNavPill));
-      expect(ramp, isNotNull, reason: 'the lit active tab paints flat');
       expect(
-        ramp,
-        isA<LinearGradient>(),
-        reason: 'a wide short block is washed from its top edge',
+        rampOf(tester, find.byType(TorchNavPill)),
+        isNull,
+        reason:
+            'shape A took the filled tab away, and the two-identical-stop '
+            'companion gradient went with it: that existed only so a '
+            'lit-to-unlit cross-fade never lerped a gradient against null. '
+            'With no gradient in either state there is no such transition.',
       );
-      expect(ramp!.colors.last, skin.palette.flame600);
+      // AND THE AMBER IS STILL THERE, flat, which is the half that stops this
+      // from passing on a bar that lost its light altogether.
+      final fills = tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(TorchNavPill),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => d.color)
+          .toList();
+      expect(
+        fills,
+        contains(skin.palette.flame600),
+        reason: 'the active tab edge, at full alpha, read off the skin',
+      );
     });
 
     // The send disc is resolved in `ask_light.dart` rather than by the widget,

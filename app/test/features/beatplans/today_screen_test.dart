@@ -612,9 +612,8 @@ void main() {
   });
 
   group('the chrome', () {
-    testWidgets('four nav slots, and the skin cycle is the one trailing icon', (
-      tester,
-    ) async {
+    testWidgets('four nav slots, and the title row carries no appearance '
+        'control', (tester) async {
       await _pump(tester, route: _route());
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
       // THE SET, asserted rather than commented, and now exactly what unify
@@ -628,11 +627,29 @@ void main() {
         'Map',
         'Me',
       ]);
+      // ── THE TRAILING SLOT IS EMPTY NOW — 4 October 2026 ───────────────
+      //
+      // This read `isNotNull` and the slot held the skin cycle. The control
+      // moved into Me's `THIS APP` block, where the manager's own theme row
+      // lives, so there is nothing left on this title row to be the one
+      // trailing icon button. `my_record_screen_test.dart` holds the other
+      // half: that it arrived.
       final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
-      expect(header.trailing, isNotNull);
+      expect(
+        header.trailing,
+        isNull,
+        reason:
+            'the skin cycle left this row for Me. A tab root may still have '
+            'ONE trailing icon button — the rule did not change, the occupant '
+            'did — and today there is nothing asking for it.',
+      );
       // A tab root has NO thumb zone: 64dp of nav plus 96dp of thumb zone is
       // a quarter of a 640dp screen given to chrome.
       expect(find.byType(TorchThumbZone), findsNothing);
+      // And therefore no skin cycle anywhere on this screen, in either of its
+      // two homes. The one that matters is the thumb zone: a tab root never
+      // had one, so this is not a capability lost here.
+      expect(find.byType(TorchSkinCycle), findsNothing);
     });
 
     testWidgets('every slot but the current one leaves this screen', (
@@ -683,15 +700,18 @@ void main() {
       );
     });
 
-    testWidgets('the skin cycle names the next state, not this one', (
+    // THE "NAMES THE NEXT STATE" RULE MOVED WITH THE CONTROL. It was asserted
+    // here against the header's trailing button, which no longer exists; the
+    // same sentence is now asserted on Me's theme row — see
+    // `my_record_screen_test.dart`, "the theme row names the next skin". The
+    // test is not deleted outright because the rule is the valuable part and a
+    // reader looking for it here should be sent to where it went.
+    testWidgets('and no appearance control is reachable from this row', (
       tester,
     ) async {
       await _pump(tester, route: _route(), skin: SkinMode.day);
-      final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
-      expect(
-        header.trailing!.semanticLabel,
-        'Screen: Day. Double-tap for Night.',
-      );
+      expect(find.bySemanticsLabel('Screen: Day. Double-tap for Night.'),
+          findsNothing);
     });
   });
 

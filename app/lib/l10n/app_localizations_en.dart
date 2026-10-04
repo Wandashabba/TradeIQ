@@ -1741,6 +1741,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String meThemeRow(String skin) {
+    return '$skin screen';
+  }
+
+  @override
   String skinCycleLabel(String current, String next) {
     return 'Screen: $current. Double-tap for $next.';
   }

@@ -81,6 +81,7 @@ class TorchShell extends StatelessWidget {
     this.pinned,
     this.bleedTop = false,
     this.backdrop = const <Decoration>[],
+    this.backdropClearsScrim = false,
     this.desk,
   }) : assert(
          desk == null || profile == TorchShellProfile.console,
@@ -276,6 +277,33 @@ class TorchShell extends StatelessWidget {
   /// into the call stream it is already in. No layer, no clip, no `saveLayer`.
   final List<Decoration> backdrop;
 
+  /// ── A BACKDROP THAT IS PROVABLY ABSENT WHERE THE SCRIM HAS TO MATCH ──
+  ///
+  /// [bandScrimExtent]'s own note declines the scrim on any route with a
+  /// [backdrop], because a wash makes the ground colour at the body's bottom
+  /// edge unknowable and a `Decoration`'s alpha is not inspectable. That is
+  /// still the default and The Floor still loses the scrim by it.
+  ///
+  /// The agent's tab roots are the case the blanket rule is wrong about. Their
+  /// wash is Dawn **top-anchored** — `agent_wash.dart` — and a top-anchored
+  /// Dawn is not a wash that happens to be weak down there, it is a wash whose
+  /// outermost stop is at **t = 0.3248** of the screen by construction:
+  /// the clay ellipse's height radius is 0.48 of the box, its last stop is at
+  /// 0.76 of that, and its centre is 0.04 above the top edge, so
+  /// `0.76 × 0.48 − 0.04 = 0.3248`. The scrim band is the body's last
+  /// [bandScrimExtent], which on a 360×640 phone with a 84dp nav row begins at
+  /// **t = 0.831**. Half a screen of clearance.
+  ///
+  /// So a route may say that its backdrop paints nothing across the scrim
+  /// band, and this flag is that sentence. It is a **claim, measured
+  /// elsewhere**: `agent_wash_test.dart` reads the rendered alpha across the
+  /// band at both approved sizes in both skins and fails if any pixel of it is
+  /// not the bare ground. The flag cannot prove itself and does not pretend
+  /// to — what it does is keep the wrong answer out of the default, so a route
+  /// that adds a bottom-rising wash and forgets this line gets no scrim rather
+  /// than a seam.
+  final bool backdropClearsScrim;
+
   /// ── A BODY THAT LAYS ITSELF OUT: the manager's desk ──────────────────
   ///
   /// The third body shape, beside the plain scroll view and the [pinned]
@@ -308,6 +336,30 @@ class TorchShell extends StatelessWidget {
   /// through the middle of a sentence and reads as a printing fault. A
   /// `ListView` cuts its last partially-visible row at a pixel row, and 24dp
   /// above the chrome is where every console list does it.
+  ///
+  /// ## IT IS OVER THE NAV ROW NOW TOO — 4 October 2026, shape A
+  ///
+  /// The agent's bar used to be an opaque `well` pill with a 1px outline, and
+  /// the clip at the body's bottom edge was 20dp above a hard-edged object: the
+  /// eye read the pill as where the page ended. [TorchNavPill]'s shape A takes
+  /// the fill and the outline away, so the body's last partially-drawn row now
+  /// stops in mid-air 20dp above a row of glyphs sitting on the bare ground.
+  /// That is the same printing fault one surface over, and it gets the same
+  /// 24dp fade — the owner's *"a fade above it so content stops rather than
+  /// being sliced"*.
+  ///
+  /// Nothing about the drawing changes: same extent, same three stops, same
+  /// one `drawRect`, same [torchGroundAt] for the colour — which on the agent
+  /// profile returns a flat `palette.ground`, so the match is exact rather
+  /// than computed from a falloff. What changes is the condition, and the
+  /// backdrop half of it is [backdropClearsScrim].
+  ///
+  /// **The thumb-zone screens still clip hard**, and that is named rather than
+  /// fixed: a section form's bottom region is a 96dp zone with a hairline
+  /// across its top, which is a hard-edged object of exactly the kind the pill
+  /// used to be, so the fault shape A created does not exist there. Whether
+  /// they would be better with a fade is a separate question and not this
+  /// change.
   ///
   /// So the fade goes **over the body**, in the body's own last
   /// [TiqSpace.s6] — which is exactly the bottom padding every console body
@@ -350,6 +402,17 @@ class TorchShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // IN `build`, NOT THE INITIALISER LIST. The constructor is `const`, and a
+    // const assert may only read potentially-constant expressions — a property
+    // access on a `List` parameter is not one. It still fires in debug on
+    // every frame of a route that got this wrong, which is what the assert is
+    // for.
+    assert(
+      !backdropClearsScrim || backdrop.isNotEmpty,
+      'backdropClearsScrim says something about a backdrop, and a route with '
+      'no backdrop has nothing to say it about. It is set together with the '
+      'wash it describes or not at all.',
+    );
     final skin = context.skin;
     final media = MediaQuery.of(context);
     final safeBottom = media.padding.bottom;
@@ -503,8 +566,22 @@ class TorchShell extends StatelessWidget {
     // word. A role style names its face, size and ink, never its decoration,
     // so replacing (not merging) the ambient style is what gives the tokens a
     // clean base.
-    // See [bandScrimExtent] for both halves of this condition.
-    final wantsScrim = band != null && backdrop.isEmpty;
+    // ── WHO GETS THE FADE ────────────────────────────────────────────────
+    //
+    // Two questions, and both of them are about the body's bottom edge.
+    //
+    // 1. IS THERE SOMETHING DIRECTLY UNDER THE CLIP that makes it read as a
+    //    cut rather than as the end of the page? A [band] (the composer) or —
+    //    since shape A — the agent's nav row, which no longer carries a
+    //    material of its own. A thumb zone does not qualify: it draws a
+    //    hairline across its own top edge, which is a declared boundary.
+    // 2. CAN THE SCRIM KNOW THE COLOUR IT HAS TO END IN? [torchGroundAt]
+    //    answers that for the ground; a [backdrop] makes it unknowable unless
+    //    the route says its wash is absent there. See [backdropClearsScrim].
+    //
+    // See [bandScrimExtent] for the measurements behind both.
+    final wantsScrim =
+        (band != null || showNav) && (backdrop.isEmpty || backdropClearsScrim);
 
     Widget column(double shellHeight) => Column(
       children: <Widget>[

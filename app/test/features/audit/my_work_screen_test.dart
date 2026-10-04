@@ -708,7 +708,15 @@ void main() {
       expect(header.title, 'My work');
       expect(header.back, isNull);
       expect(header.flagChips, isEmpty, reason: 'a chip linking to itself');
-      expect(header.trailing, isNotNull, reason: 'the skin cycle');
+      // THE TRAILING SLOT IS EMPTY — 4 October 2026. It read `isNotNull` with
+      // the reason "the skin cycle", and the skin cycle moved into Me's
+      // `THIS APP` block. The rule that a tab root may carry at most one
+      // trailing icon button is unchanged; nothing on this screen asks for it.
+      expect(
+        header.trailing,
+        isNull,
+        reason: 'the skin cycle left this row for Me',
+      );
       expect(find.byType(TorchThumbZone), findsNothing);
     });
 
