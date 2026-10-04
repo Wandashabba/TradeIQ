@@ -2834,6 +2834,12 @@ abstract class AppLocalizations {
   /// **'{km} kilometres away'**
   String todayDistanceKmSemantics(num km);
 
+  /// Me > THIS APP: the row that changes the agent's screen. It names the state it switches TO, never the one it is in — the skin cycle's own rule. The word is the skin's own name (Night / Day) and not the manager menu's 'Dark theme', because the two sides name this preference differently and it is deliberately not one preference: see _ThisApp in my_record_screen.dart.
+  ///
+  /// In en, this message translates to:
+  /// **'{skin} screen'**
+  String meThemeRow(String skin);
+
   /// Screen-reader label for the skin cycle. It names the NEXT state, not this one — a toggle that says only where it is makes a blind user press it to find out.
   ///
   /// In en, this message translates to:

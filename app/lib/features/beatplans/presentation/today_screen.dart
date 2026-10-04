@@ -14,7 +14,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
 import '../../contests/data/contests_repository.dart';
@@ -285,15 +284,19 @@ class TodayFrame extends ConsumerWidget {
             formatDayHeading(context, DateTime.now()),
             if (routeName != null && routeName!.isNotEmpty) routeName!,
           ],
-          // Exactly one trailing icon button, and on a tab root that one is
-          // the skin cycle (unify §1.2). The sync chip is not an icon button
-          // and does not compete for the slot — it is pinned right of the
-          // title on the title row, which is the shell's own anatomy. It used
-          // to go in the flag-chip wrap, where it took a 48dp row plus a 16dp
-          // gap of its own under the date: 64dp of a 640dp fold, every
-          // session, to say "All sent".
+          // NO TRAILING ICON BUTTON — 4 October 2026. The skin cycle was the
+          // one object in this slot on all four tab roots, and it moved into
+          // Me's `THIS APP` block (`my_record_screen.dart`), which is where
+          // the manager's own theme control lives. An appearance preference is
+          // a setting, and a setting on four title rows is a setting nobody
+          // has a home for.
+          //
+          // The sync chip is not an icon button and never competed for the
+          // slot — it is pinned right of the title on the title row, which is
+          // the shell's own anatomy. It used to go in the flag-chip wrap,
+          // where it took a 48dp row plus a 16dp gap of its own under the
+          // date: 64dp of a 640dp fold, every session, to say "All sent".
           status: const TorchSyncChip(),
-          trailing: skinCycleIconButton(context, ref),
         ),
         navPill: TorchNavPill(
           slots: slotsIn(

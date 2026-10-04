@@ -150,11 +150,25 @@ Future<List<GoldenLine>> measureAgentFrame(
     add('zone.height', r.height.round());
   }
 
-  // The skin cycle is on every screen — on a tab root as the header's one
-  // trailing icon button, elsewhere at the leading end of the thumb zone.
+  // WHERE THE SKIN CONTROL IS ON THIS SCREEN.
+  //
+  // It read `isEmpty ? 'header' : 'thumb-zone'` — a tab root's header carried
+  // a `TorchIconButton` rather than a `TorchSkinCycle`, so "not found" meant
+  // "in the header". That inference stopped being true on 4 October 2026,
+  // when the control left the four title rows for Me's `THIS APP` block, and
+  // a golden line that quietly keeps saying `header` is worse than no line.
+  //
+  // So it is measured in three states now, and `none` is a real answer: a tab
+  // root has no thumb zone and no trailing control, and the way to the
+  // preference is the Me tab.
   add(
     'skin.cycle',
-    find.byType(TorchSkinCycle).evaluate().isEmpty ? 'header' : 'thumb-zone',
+    find.byType(TorchSkinCycle).evaluate().isNotEmpty
+        ? 'thumb-zone'
+        : (header.evaluate().isNotEmpty &&
+                  tester.widget<TorchAppHeader>(header.first).trailing != null
+              ? 'header'
+              : 'none'),
   );
 
   // The primary: its height and whether it is armed. A disabled primary is

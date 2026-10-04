@@ -1764,6 +1764,11 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String meThemeRow(String skin) {
+    return '$skin-skerm';
+  }
+
+  @override
   String skinCycleLabel(String current, String next) {
     return 'Skerm: $current. Dubbeltik vir $next.';
   }

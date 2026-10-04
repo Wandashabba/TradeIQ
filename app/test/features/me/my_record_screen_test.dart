@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:tradeiq_app/core/location/location_sharing.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/core/theme/theme_mode_controller.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/me/data/my_record_repository.dart';
+import 'package:tradeiq_app/features/me/presentation/my_record_screen.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
@@ -754,12 +757,15 @@ void main() {
       expect(find.bySemanticsLabel(RegExp(r'^Me')), findsWidgets);
     });
 
-    testWidgets('the skin cycle is the header\'s one trailing button', (
+    testWidgets('the title row carries no appearance control any more', (
       tester,
     ) async {
       await pumpMe(tester);
       final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
-      expect(header.trailing, isNotNull);
+      // It was the skin cycle, and it is now a row in this screen's own
+      // `THIS APP` block — see the `THIS APP` group below for where it went
+      // and what it drives.
+      expect(header.trailing, isNull);
       expect(header.title, 'Me');
     });
 
@@ -780,6 +786,127 @@ void main() {
       await tester.tap(find.bySemanticsLabel(RegExp(r'^Today')).first);
       await tester.pumpAndSettle();
       expect(find.text('Today screen'), findsOneWidget);
+    });
+  });
+
+  // ── THIS APP — where the theme control went, 4 October 2026 ───────────
+  //
+  // > *"the theme control moves out of every agent title row, into Me, in a
+  // > `THIS APP` block carrying theme, change password, sign out — the same
+  // > three the manager's menu carries."*
+  //
+  // The three objects are asserted, and so is the thing that is easy to get
+  // wrong and invisible in a diff: **which provider the theme row drives.**
+  group('THIS APP', () {
+    testWidgets('it carries the same three objects the manager menu does', (
+      tester,
+    ) async {
+      await pumpMe(tester);
+      // `SectionRule` puts the shout in the paint and not in the string —
+      // the marker prints `THIS APP` from the sentence-case `menuThisApp`,
+      // which is the same string the manager's menu and the desk rail use.
+      expect(find.text('THIS APP'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('me-theme')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('me-password')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('me-sign-out')), findsOneWidget);
+      // A button, not a row — `menu_sheet.dart`'s own ruling about the one
+      // irreversible control in the product.
+      expect(
+        tester.widget<TorchSecondaryButton>(
+          find.byKey(const ValueKey<String>('me-sign-out')),
+        ).label,
+        'Sign out',
+      );
+    });
+
+    testWidgets('the theme row names the next skin, not this one', (
+      tester,
+    ) async {
+      // Day is the agent default, so the row offers Night.
+      await pumpMe(tester, skin: SkinMode.day);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('me-theme')),
+          matching: find.text('Night screen'),
+        ),
+        findsOneWidget,
+        reason:
+            'the skin\'s own name wrapped in a noun — a one-word row under a '
+            '`THIS APP` marker reads as a destination, not a setting',
+      );
+      // And the whole sentence to a screen reader — the rule that used to be
+      // asserted on the header's trailing button in
+      // `today_screen_test.dart`, which no longer has one.
+      expect(
+        find.bySemanticsLabel('Screen: Day. Double-tap for Night.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tapping it changes the agent skin and not the app theme', (
+      tester,
+    ) async {
+      // THE WHOLE POINT OF THIS TEST. `agentSkinProvider` defaults to Day
+      // deliberately — *"they start outdoors at 06:30"* — and
+      // `themeModeProvider` is the manager's persisted preference. Tying the
+      // row to the second one would delete the first ruling silently, and
+      // nothing in a widget tree would look wrong.
+      await pumpMe(tester, skin: SkinMode.day);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MyRecordScreen)),
+      );
+      final themeBefore = container.read(themeModeProvider);
+      expect(container.read(agentSkinProvider), SkinMode.day);
+
+      await tester.tap(find.byKey(const ValueKey<String>('me-theme')));
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(agentSkinProvider),
+        SkinMode.night,
+        reason: 'the row drives the agent skin',
+      );
+      expect(
+        container.read(themeModeProvider),
+        themeBefore,
+        reason:
+            'and NOT the app theme. The two preferences are independent by '
+            'decision: see `_ThisApp` for the 06:30 default this protects.',
+      );
+      // And the row now offers the way back, by name.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('me-theme')),
+          matching: find.text('Day screen'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the password row goes to the account screen', (tester) async {
+      await pumpMe(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('me-password')));
+      await tester.pumpAndSettle();
+      expect(find.text('Password screen'), findsOneWidget);
+    });
+
+    testWidgets('every row clears the 44dp floor, at 1.0x and 1.3x', (
+      tester,
+    ) async {
+      // Agents work one-handed outdoors. WCAG 2.5.5 is not a design axis, and
+      // a compact `SoftRow` is the smallest row in the system — which is
+      // exactly why it is measured here rather than assumed from the token.
+      for (final scale in <double>[1.0, 1.3]) {
+        await pumpMe(tester, textScale: scale);
+        for (final key in <String>['me-theme', 'me-password', 'me-sign-out']) {
+          final box = tester.getRect(find.byKey(ValueKey<String>(key)));
+          expect(
+            box.height,
+            greaterThanOrEqualTo(44),
+            reason: '$key at ${scale}x measured ${box.height}dp',
+          );
+        }
+      }
     });
   });
 

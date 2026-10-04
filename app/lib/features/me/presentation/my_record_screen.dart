@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/session_controller.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/sync/sync_status.dart';
@@ -157,6 +158,128 @@ class _MyRecord extends ConsumerWidget {
         ),
         SizedBox(height: context.skin.space.blockGap),
         _Visits(visits: visits, sync: sync),
+        SizedBox(height: context.skin.space.blockGap),
+        // THE SETTINGS, LAST. A record is read from the top and housekeeping
+        // is not part of it, so `THIS APP` sits under the visits rather than
+        // over the points — the same place the manager's rail keeps its own
+        // foot, and for the same reason.
+        const _ThisApp(),
+      ],
+    );
+  }
+}
+
+/// ── THIS APP — theme, password, the way out ────────────────────────────
+///
+/// ```text
+///   ── THIS APP ──────────────────────────────────
+///   Night screen
+///   Change password                            ›
+///   [ Sign out ]
+/// ```
+///
+/// **The same three objects the manager's menu carries**, in the same order,
+/// drawn with the agent side's own row widget. `menu_sheet.dart`'s `THIS APP`
+/// block is a `SectionRule`, two compact [SoftRow]s and a
+/// [TorchSecondaryButton]; so is this. The strings are the menu's own —
+/// `menuThisApp`, `menuChangePassword`, `menuSignOut` — so there is no fourth
+/// name to translate and nothing to drift.
+///
+/// No manager file is touched by it. The three objects are core widgets and
+/// the two shared strings are already in the bundle.
+///
+/// ## THE THEME ROW DRIVES `agentSkinProvider`, NOT `themeModeProvider`
+///
+/// This is the one place the two sides deliberately do **not** meet, and it is
+/// worth being exact about why rather than letting the next reader "fix" it.
+///
+/// `AgentSkinController.build()` returns **Day**, and its doc comment says
+/// what that is for: *"they start outdoors at 06:30 and the paper skin is the
+/// one that reads in a car park."* `ThemeModeController` is the manager's
+/// preference, persisted, and it defaults to the platform. Pointing this row
+/// at `themeModeProvider` would make an agent's first morning frame depend on
+/// a manager-shaped default and would silently delete the 06:30 ruling; making
+/// `agentSkinProvider` follow `themeModeProvider` would do the same thing one
+/// layer down. So the preferences stay independent and the row drives the
+/// agent's own.
+///
+/// ## WHAT THAT COSTS, AND IT IS A WART
+///
+/// Independent preferences mean **an agent ends up with two appearance
+/// controls**: this row, and the [AgentSkinCycle] that `TorchShell` puts at
+/// the leading end of every thumb zone on every agent screen that is not a tab
+/// root. Both drive `agentSkinProvider`, so they always agree and neither can
+/// show a stale state — but there are two of them, and one of them is three
+/// taps away inside a record while the other is on the screen you are standing
+/// on.
+///
+/// The cycle is not removed, and the reason is `TorchShell`'s own sentence:
+/// *"Never a screen without the skin cycle: the one control that gets a person
+/// out of a skin they cannot read belongs on every screen they can reach."* An
+/// agent who turns Night on in a dark aisle and then walks into the sun must be
+/// able to turn it off from wherever they are, not from Me. Taking the cycle
+/// away to make the count one would trade a wart for a trap.
+///
+/// **Amber: none.** Housekeeping commits nothing. A `SoftRow` declares no
+/// claim, and `TorchSecondaryButton` is an `edgeControl` rim in both skins.
+class _ThisApp extends ConsumerWidget {
+  const _ThisApp();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final mode = ref.watch(agentSkinProvider);
+    final next = TorchSkinCycle.next(mode);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SectionRule(l10n.menuThisApp),
+        const SizedBox(height: TiqSpace.s3),
+        SoftRow(
+          key: const ValueKey<String>('me-theme'),
+          density: SoftRowDensity.compact,
+          // NAMES THE STATE IT SWITCHES TO, never the one it is in — the skin
+          // cycle's rule and the manager menu's, and for the same reason: a
+          // control that announces where it is makes a blind agent press it to
+          // find out where it goes. `skinName` is the existing formatter, so
+          // the row and the cycle beside it say the skin's name the same way.
+          //
+          // `meThemeRow` wraps that name in a noun — "Night screen", not
+          // "Night" — because the first render of this block put a one-word
+          // row under a `THIS APP` marker and it read as a destination rather
+          // than as a setting. The manager's row has the same shape for the
+          // same reason ("Dark theme", not "Dark"); the words differ because
+          // the two sides name this preference differently and it is
+          // deliberately not one preference. See this class's note.
+          title: l10n.meThemeRow(skinName(l10n, next)),
+          // And the whole sentence to a screen reader, which is what the
+          // cycle's own 56dp control is given. A row titled "Night" with no
+          // verb in it is a noun a reader cannot act on.
+          semanticsLabel: skinCycleLabel(l10n, mode),
+          onTap: () => ref.read(agentSkinProvider.notifier).set(next),
+        ),
+        SoftRow(
+          key: const ValueKey<String>('me-password'),
+          density: SoftRowDensity.compact,
+          title: l10n.menuChangePassword,
+          trailing: const SoftRowChevron(),
+          // `push`, not `go`: back comes here. The menu sheet pops itself
+          // first because there is a modal over it; there is none over this.
+          onTap: () => context.push('/account/password'),
+        ),
+        SizedBox(height: context.skin.space.blockGap),
+        TorchSecondaryButton(
+          key: const ValueKey<String>('me-sign-out'),
+          label: l10n.menuSignOut,
+          // A BUTTON AND NOT A ROW, which is `menu_sheet.dart`'s own ruling
+          // and the rail footer's: the one irreversible control in the product
+          // is shaped like a commitment rather than hidden behind a row that
+          // does not say so. No `pop` first — the router redirect rebuilds
+          // this page and there is no sheet standing over it.
+          onPressed: () =>
+              ref.read(sessionControllerProvider.notifier).logout(),
+        ),
       ],
     );
   }
@@ -197,7 +320,11 @@ class MeFrame extends ConsumerWidget {
           // this screen exists to end. See `DioMyRecordRepository.myEarnings`
           // for why the window is absent rather than added.
           facts: <String>[l10n.meAllTime],
-          trailing: skinCycleIconButton(context, ref),
+          // NO TRAILING ICON BUTTON — 4 October 2026. The skin cycle stood
+          // here, and on the other three tab rows, and it is now a row in this
+          // screen's own `THIS APP` block ([_ThisApp]). A screen that is the
+          // agent's record is also the screen their settings belong on, which
+          // is the arrangement the manager's menu has had since it was written.
           status: const TorchSyncChip(),
         ),
         navPill: TorchNavPill(

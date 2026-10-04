@@ -15,7 +15,6 @@ import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
@@ -258,7 +257,9 @@ class AgentMapFrame extends ConsumerWidget {
             facts: <String>[
               if (storeCount != null) l10n.mapStoresFact(storeCount!),
             ],
-            trailing: skinCycleIconButton(context, ref),
+            // NO TRAILING ICON BUTTON — the skin cycle moved into Me's
+            // `THIS APP` block on 4 October 2026. See
+            // `my_record_screen.dart`.
             status: const TorchSyncChip(),
           ),
           navPill: TorchNavPill(

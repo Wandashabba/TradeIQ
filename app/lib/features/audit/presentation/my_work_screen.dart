@@ -15,7 +15,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/agent_location_banners.dart';
 import '../../../l10n/l10n.dart';
@@ -163,9 +162,9 @@ class _MyWorkFrame extends ConsumerWidget {
           title: l10n.myWorkTitle,
           facts: <String>[l10n.myWorkSubtitle],
           // The sync chip is suppressed on the screen it opens — it would be a
-          // link to itself. The one trailing icon button on a tab root is the
-          // skin cycle (unify §1.2).
-          trailing: skinCycleIconButton(context, ref),
+          // link to itself. NO TRAILING ICON BUTTON either, as of 4 October
+          // 2026: the skin cycle that stood here on all four tab roots moved
+          // into Me's `THIS APP` block. See `my_record_screen.dart`.
         ),
         navPill: TorchNavPill(
           slots: TodayFrame.slotsIn(
