@@ -8,6 +8,7 @@ import '../../../core/format/relative_time.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -149,6 +150,7 @@ class _MyWorkFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchScope(
       skin: skin,
@@ -158,6 +160,11 @@ class _MyWorkFrame extends ConsumerWidget {
       claims: <TorchClaim>[if (armed != null) TorchClaim.primaryCommit(armed!)],
       child: TorchShell(
         profile: TorchShellProfile.agent,
+        // THE BACK SHADE. Top-anchored, so the body's bottom edge is bare
+        // ground and shape A's fade can end in a known colour — see
+        // `agent_wash.dart`.
+        backdrop: agentWashFor(skin, wash),
+        backdropClearsScrim: agentWashClearsScrim(wash),
         header: TorchAppHeader(
           title: l10n.myWorkTitle,
           facts: <String>[l10n.myWorkSubtitle],

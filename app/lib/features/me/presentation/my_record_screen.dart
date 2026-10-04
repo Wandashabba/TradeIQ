@@ -9,6 +9,7 @@ import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/card.dart';
@@ -299,6 +300,7 @@ class MeFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchScope(
       skin: skin,
@@ -311,6 +313,9 @@ class MeFrame extends ConsumerWidget {
       claims: const <TorchClaim>[],
       child: TorchShell(
         profile: TorchShellProfile.agent,
+        // THE BACK SHADE. Top-anchored — see `agent_wash.dart`.
+        backdrop: agentWashFor(skin, wash),
+        backdropClearsScrim: agentWashClearsScrim(wash),
         header: TorchAppHeader(
           title: l10n.meTitle,
           // "All time", and not the month it used to print. `/gamification/me`

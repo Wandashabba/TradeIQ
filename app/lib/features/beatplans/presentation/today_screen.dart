@@ -7,6 +7,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_location_banners.dart';
+import '../../../core/widgets/torchlight/agent_wash.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -257,6 +258,7 @@ class TodayFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final skin = context.skin;
+    final wash = ref.watch(agentWashDirectionProvider);
 
     return TorchScope(
       skin: skin,
@@ -274,6 +276,13 @@ class TodayFrame extends ConsumerWidget {
       ],
       child: TorchShell(
         profile: TorchShellProfile.agent,
+        // THE BACK SHADE, and the flag that lets the fade coexist with it.
+        // See `agent_wash.dart`: top-anchored Dawn reaches zero alpha at
+        // t = 0.3248 of the screen, and the scrim band begins at t ≥ 0.831.
+        // The direction and the flag come from one place so they cannot
+        // disagree; the provider is constant in the app.
+        backdrop: agentWashFor(skin, wash),
+        backdropClearsScrim: agentWashClearsScrim(wash),
         header: TorchAppHeader(
           title: l10n.todayTitle,
           // ONE compact fact line: the date and the route's name, middot

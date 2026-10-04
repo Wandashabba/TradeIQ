@@ -171,6 +171,25 @@ Future<List<GoldenLine>> measureAgentFrame(
               : 'none'),
   );
 
+  // ── THE FADE AND THE BACK SHADE — 4 October 2026 ──────────────────────
+  //
+  // `body.fade` is the 24dp scrim over the body's own last `TiqSpace.s6`,
+  // which shape A needs because the bar no longer has a material for the
+  // clip to stop against. `wash` counts the shell's backdrop decorations:
+  // two on Night (Dawn's hot breath and its clay) and one on Day, which has
+  // no hot breath. Zero on a screen with no wash, which is every agent
+  // screen that is not a tab root.
+  add(
+    'body.fade',
+    find.byKey(const ValueKey<String>('torch-band-scrim')).evaluate().isEmpty
+        ? 'absent'
+        : 'present',
+  );
+  final shells = find.byType(TorchShell);
+  if (shells.evaluate().isNotEmpty) {
+    add('wash', tester.widget<TorchShell>(shells.first).backdrop.length);
+  }
+
   // The primary: its height and whether it is armed. A disabled primary is
   // not a dimmed armed one — it declares nothing and it emits nothing.
   final primaries = find.byType(TorchPrimaryButton);
