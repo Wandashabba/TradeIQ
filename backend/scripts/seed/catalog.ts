@@ -402,10 +402,17 @@ export function buildOutlets(home: CoordinateSource, options: BuildOutletsOption
   placed.push({ lat: home.lat, lng: home.lng });
   outlets.push({
     id: HOME_OUTLET_ID,
-    // Named for what it is rather than for the fiction: this is the store you
-    // seed at your own coordinates to demo a live geofenced check-in, and it
-    // needs to be findable at a glance in a long list.
-    name: 'Home',
+    // THE OWNER'S OWN BUILDING, BY NAME — 4 October 2026.
+    //
+    // This is the store seeded at your own coordinates to demo a live
+    // geofenced check-in, so it has to be findable at a glance in a list of
+    // four hundred. It was called 'Home' for that reason, and the owner asked
+    // for it to be WeWork, their building at 155 West Street, Sandton.
+    //
+    // That rename lived only in the database until now, which meant the next
+    // `npm run seed` silently took it back — exactly what happened on
+    // 4 October. The name belongs here, where a reseed carries it.
+    name: 'WeWork',
     code: 'GP-000',
     channelType: 'supermarket',
     lat: home.lat,
