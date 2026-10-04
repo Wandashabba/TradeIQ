@@ -417,6 +417,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       // for a filtered-to-nothing state to go in; the detail pane says
       // "Nothing to read yet." and that is the only words on the screen.
       desk: ConsoleDeskRecords(
+        // ── NO MARKER HERE, SO THE RAIL IS THE TOOLBAR ──────────
+        //
+        // This pane deliberately has no section marker: the reason is
+        // written above and it still holds — the selected chip names
+        // and counts the slice better than a marker would. That makes
+        // the rail the row where this list's own controls already are,
+        // so the refresh lands on its trailing end rather than in the
+        // pane's top-right corner. See `ConsoleDeskToolbar.filters`.
+        toolbar: ConsoleDeskToolbar.filters,
         lead: <Widget>[lead, const SizedBox(height: TiqSpace.s4)],
         filters: filters,
         footer: footer == null

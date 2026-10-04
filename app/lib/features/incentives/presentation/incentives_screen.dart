@@ -135,6 +135,7 @@ class IncentivesScreen extends ConsumerWidget {
         // desk does not draw `children` to find.
         final section = SectionRule(
           l10n.incentivesSchemes,
+          listAction: true,
           count: data.rows.isEmpty ? null : data.rows.length,
           emptyLine: data.rows.isEmpty ? l10n.incentivesNoneConfigured : null,
           action: SectionRuleAction(
@@ -175,6 +176,7 @@ class IncentivesScreen extends ConsumerWidget {
           desk: data.rows.isEmpty
               ? null
               : ConsoleDeskRecords(
+                  toolbar: ConsoleDeskToolbar.marker,
                   lead: <Widget>[section, const SizedBox(height: TiqSpace.s5)],
                   records: <ConsoleDeskRecord>[
                     for (var i = 0; i < data.rows.length; i++)

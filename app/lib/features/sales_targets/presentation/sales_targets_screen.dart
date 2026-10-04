@@ -191,6 +191,7 @@ class _SalesTargets extends ConsumerWidget {
       desk: report.skus.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 _MonthStepper(month: month),
                 if (report.timeZone.isNotEmpty) ...<Widget>[
@@ -217,6 +218,12 @@ class _SalesTargets extends ConsumerWidget {
                 const SizedBox(height: TiqSpace.s7),
                 SectionRule(
                   l10n.salesSkusHeading,
+                  // THE SKU LIST'S OWN MARKER, not the attainment levels'
+                  // above it. The control this takes is **not** a refresh on
+                  // this screen — it is `Import targets`, the only header
+                  // control this route has — and it belongs with `Set target`
+                  // for the same reason: it is a verb about this list.
+                  listAction: true,
                   count: report.skus.length,
                   action: SectionRuleAction(
                     l10n.salesSetTarget,

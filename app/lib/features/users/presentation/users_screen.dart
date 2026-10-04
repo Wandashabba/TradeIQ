@@ -197,6 +197,7 @@ class UsersScreen extends ConsumerWidget {
     final section = SectionRule(
       'Field force',
       count: list.isEmpty ? null : list.length,
+      listAction: true,
     );
 
     return _frame(
@@ -221,6 +222,7 @@ class UsersScreen extends ConsumerWidget {
       desk: list.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 counts,
                 SizedBox(height: context.skin.space.blockGap),

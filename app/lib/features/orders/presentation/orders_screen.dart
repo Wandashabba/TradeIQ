@@ -231,6 +231,7 @@ class _Orders extends ConsumerWidget {
     );
     final sectionRule = SectionRule(
       l10n.ordersSectionHeading,
+      listAction: true,
       count: orders.isEmpty ? null : orders.length,
       action: canCreate
           ? SectionRuleAction(
@@ -269,6 +270,7 @@ class _Orders extends ConsumerWidget {
       desk: orders.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 cluster,
                 const SizedBox(height: TiqSpace.s7),

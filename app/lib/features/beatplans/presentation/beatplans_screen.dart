@@ -134,6 +134,12 @@ class _BeatPlans extends ConsumerWidget {
 
     final sectionRule = SectionRule(
       l10n.beatPlansSectionHeading,
+      // THE LIST'S TOOLBAR ROW — `PLANS · 4   New plan   ⟳`. The refresh used
+      // to sit alone in the pane's top-right corner, 470dp from the title it
+      // belongs to; it arrives here at desk width and nowhere else. See
+      // `TorchListAction`. The phone's marker is this same instance and is
+      // unchanged, because there is no lifted control in a phone tree.
+      listAction: true,
       count: plans.isEmpty ? null : plans.length,
       action: canBuild
           ? SectionRuleAction(
@@ -179,6 +185,7 @@ class _BeatPlans extends ConsumerWidget {
       desk: plans.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[sectionRule, const SizedBox(height: TiqSpace.s5)],
               footer: footer,
               records: <ConsoleDeskRecord>[

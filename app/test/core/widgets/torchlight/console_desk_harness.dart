@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show ByteData, FontLoader;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
+import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
@@ -15,6 +17,7 @@ import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 
+import '../../../features/operations_harness.dart' show FakeBeatPlansRepository;
 import '../../../features/worklist_harness.dart';
 
 /// Everything the desk's tests need to stand a console screen up at desktop
@@ -74,11 +77,86 @@ List<Override> deskAlertOverrides({CountingAlerts? alerts}) => <Override>[
   visitDetailRepositoryProvider.overrideWithValue(_FakeVisits()),
 ];
 
+/// ── WHO IS SIGNED IN, FOR THE RAIL'S FOOT ──────────────────────────────
+///
+/// `pumpWorklist` overrides repositories and never the session, so the real
+/// [SessionController] runs: it reaches for the platform keychain, finds no
+/// binding under `flutter_test`, catches, and returns an empty session. That
+/// is the right default for every test that was written before the rail had a
+/// foot — and it is the wrong one for a render of the foot, which would
+/// photograph the signed-out form of a row that in the product always has
+/// somebody in it.
+///
+/// So this is the manager, as the sign-in form would have left them: a role
+/// and an address, and no display name, because the server does not return one
+/// (see [SessionState.email]).
+///
+/// It overrides `sessionControllerProvider` with a value rather than a fake
+/// notifier, which means **the foot's Sign out does nothing** under it. Tests
+/// that press Sign out install their own counting notifier instead — see
+/// `console_desk_test.dart`.
+List<Override> deskSession({
+  String? email = 'nhlanhla@acme.test',
+  String role = 'manager',
+}) => <Override>[
+  sessionControllerProvider.overrideWith(
+    () => _FixedSession(SessionState(role: role, token: 't', email: email)),
+  ),
+];
+
+class _FixedSession extends SessionController {
+  _FixedSession(this._state);
+
+  final SessionState _state;
+
+  @override
+  Future<SessionState> build() async => _state;
+}
+
 /// The roster. `pumpWorklist` installs `usersRepositoryProvider` itself —
 /// overriding a provider twice in one container is an assert, not a
 /// last-wins — so the names go in through its own `users:` parameter.
 List<AppUser> deskPeople() => <AppUser>[
   person('u1', 'thandi@acme.test', name: 'Thandi Mokoena'),
+];
+
+/// ── BEAT PLANS, WHICH IS THE SCREEN THE OWNER NAMED ────────────────────
+///
+/// Three plans, so the marker reads `PLANS · 3` and the toolbar row has both
+/// a count and a verb on it — the arrangement the refresh was moved onto.
+List<Override> deskBeatPlanOverrides() => <Override>[
+  beatPlansRepositoryProvider.overrideWithValue(
+    FakeBeatPlansRepository(plans: deskPlans()),
+  ),
+  outletsRepositoryProvider.overrideWithValue(
+    FakeOutletsRepository(<Outlet>[
+      outlet('o1', 'SaveMor Glenwood'),
+      outlet('o2', 'Shoprite Klipspruit Mall'),
+    ]),
+  ),
+];
+
+/// One of each status that matters: one running, one missed (the only
+/// severity on this list) and one done.
+List<BeatPlan> deskPlans() => const <BeatPlan>[
+  BeatPlan(
+    id: 'bp1',
+    name: 'North Route',
+    status: 'in_progress',
+    scheduledDate: '2026-07-10',
+  ),
+  BeatPlan(
+    id: 'bp2',
+    name: 'South Route',
+    status: 'missed',
+    scheduledDate: '2026-07-11',
+  ),
+  BeatPlan(
+    id: 'bp3',
+    name: 'West Route',
+    status: 'completed',
+    scheduledDate: '2026-07-12',
+  ),
 ];
 
 /// Three webhooks.

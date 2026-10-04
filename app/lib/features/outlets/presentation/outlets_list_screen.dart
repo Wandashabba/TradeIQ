@@ -166,6 +166,10 @@ class _Outlets extends ConsumerWidget {
     final lead = _UnplacedLead(count: unplaced);
     final sectionRule = SectionRule(
       l10n.outletsSectionHeading,
+      // THE RECORDS' OWN MARKER, and not the one `_OpenPinReports` nests above
+      // it — which is why this is a flag and not the frame taking the first
+      // marker it finds in the pane.
+      listAction: true,
       count: outlets.isEmpty ? null : outlets.length,
       action: SectionRuleAction(
         l10n.outletsCreateStore,
@@ -206,6 +210,7 @@ class _Outlets extends ConsumerWidget {
       desk: outlets.isEmpty
           ? null
           : ConsoleDeskRecords(
+              toolbar: ConsoleDeskToolbar.marker,
               lead: <Widget>[
                 const _TerritoryScope(),
                 const SizedBox(height: TiqSpace.s5),

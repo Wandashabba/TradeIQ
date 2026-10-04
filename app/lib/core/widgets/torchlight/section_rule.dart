@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../theme/torchlight/tiq_skin.dart';
+import 'list_action.dart';
 
 /// THE CONSOLE'S ONLY SECTION MARKER — words on the ground.
 ///
@@ -60,6 +61,7 @@ class SectionRule extends StatelessWidget {
     this.count,
     this.action,
     this.emptyLine,
+    this.listAction = false,
   });
 
   /// Sentence case. Asserted, because the **data** must stay sentence case —
@@ -82,6 +84,26 @@ class SectionRule extends StatelessWidget {
   /// the feature is gone.
   final String? emptyLine;
 
+  /// ── THIS MARKER IS THE LIST PANE'S TOOLBAR ROW — 4 October 2026 ───────
+  ///
+  /// Set on the one marker per desk screen that names and counts **the
+  /// records**, which is where the route's single header control belongs: with
+  /// the count and the list's own verbs, not pinned to the pane's corner 470dp
+  /// away. See [TorchListAction] for the owner's sentence and for why the
+  /// control arrives through the tree rather than as an argument.
+  ///
+  /// **It changes nothing below the desk threshold.** There is no
+  /// [TorchListAction] in a phone tree, so [TorchListAction.controlIn] is null
+  /// and this marker lays out exactly as it did before — which matters because
+  /// on every one of these screens the phone arm and the list pane are handed
+  /// the *same instance*.
+  ///
+  /// It is false on a marker that heads some other block in the same pane
+  /// (Dispatch's outlet picker, Sales targets' attainment levels, Outlets' pin
+  /// reports, Templates' in-audits), which is the ambiguity that made a flag
+  /// necessary instead of the frame simply taking the first marker it found.
+  final bool listAction;
+
   /// The gap between the marker and an action beside it.
   static const double actionGap = TiqSpace.s3;
 
@@ -95,6 +117,12 @@ class SectionRule extends StatelessWidget {
       'shout in the data reaches the screen reader, the search index and the '
       'PDF exporter.',
     );
+
+    // THE LIFTED CONTROL, OR NOTHING AT ALL. Non-null only at desk width, on
+    // the pane whose frame installed one, and on the marker that said it is
+    // the toolbar row. Every other case is null and the layout below is the
+    // one this component has always had.
+    final lifted = listAction ? TorchListAction.controlIn(context) : null;
 
     final printed = count == null ? name : '$name · $count';
     final label = Semantics(
@@ -112,38 +140,86 @@ class SectionRule extends StatelessWidget {
       ),
     );
 
+    // ── THE CONTROL GOES WITH THE WORDS, NOT AT THE PANE'S EDGE ─────────
+    //
+    // > *"The refresh belongs there, with the count and the list's own verbs,
+    // > not pinned to the pane's corner."*
+    //
+    // The first draft of this hung the control on the **right** of the row and
+    // the render disproved it: `SectionRuleAction` shrink-wraps, so a marker
+    // reads `PLANS · 3  New plan` at the pane's leading edge and a glyph at
+    // the far right was 400dp of nothing away from it — the owner's own
+    // complaint, moved down one row. So the control joins the group: the
+    // marker's words, the verb if there is one, then the control.
+    //
+    // **The verb's measurement does not have to learn about it.** `Flexible`
+    // lays its child out against `available − gap − control`, so the
+    // `LayoutBuilder` beneath still sees the width the verb actually has and
+    // `_actionStacks` keeps deciding correctly without a reserve anybody has
+    // to maintain.
+    Widget withLifted(Widget marker) => lifted == null
+        ? marker
+        : Row(
+            // Centred, which is right in the case that matters: a marker with
+            // a verb is already `tapTarget` tall from `SectionRuleAction`'s
+            // own floor, so the glyph and the words sit on one line. The
+            // marker that stacks — Afrikaans at 2.0× — puts the glyph between
+            // its two lines rather than beside the first, which is the honest
+            // cost of not giving a toolbar row a second layout nobody can see.
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Flexible(child: marker),
+              const SizedBox(width: actionGap),
+              lifted,
+            ],
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (action == null)
-          label
+          withLifted(label)
         else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // MEASURE THE ACTION, DO NOT RESERVE FOR IT. A constant cannot
-              // know how long a verb is in Afrikaans: "Add a scheme" at 2.0×
-              // is roughly three times TiqSpace.s11, and a fixed reservation
-              // is what once ran an action 168dp off the right of a 360dp
-              // phone. This is the same measurement the rule form made, with
-              // the rule's own minimum run taken out of it.
-              final stacked = _actionStacks(context, skin, constraints.maxWidth);
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[label, action!],
+          withLifted(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // MEASURE THE ACTION, DO NOT RESERVE FOR IT. A constant cannot
+                // know how long a verb is in Afrikaans: "Add a scheme" at 2.0×
+                // is roughly three times TiqSpace.s11, and a fixed reservation
+                // is what once ran an action 168dp off the right of a 360dp
+                // phone. This is the same measurement the rule form made, with
+                // the rule's own minimum run taken out of it.
+                final stacked = _actionStacks(
+                  context,
+                  skin,
+                  constraints.maxWidth,
                 );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Flexible(child: label),
-                  const SizedBox(width: actionGap),
-                  action!,
-                ],
-              );
-            },
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[label, action!],
+                  );
+                }
+                return Row(
+                  // SHRINK-WRAPPED, so the arrangement reports the width its
+                  // words actually take and a lifted control can sit beside
+                  // them rather than at the pane's edge. It changes no pixel
+                  // without one: the row was already start-aligned in a
+                  // full-width column with the verb immediately after the
+                  // marker, and `desk_phone_identity_test.dart` holds that as
+                  // a sha256.
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Flexible(child: label),
+                    const SizedBox(width: actionGap),
+                    action!,
+                  ],
+                );
+              },
+            ),
           ),
         if (emptyLine != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s3),

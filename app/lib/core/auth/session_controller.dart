@@ -10,9 +10,27 @@ import 'session_ended.dart';
 import 'token_store.dart';
 
 class SessionState {
-  const SessionState({this.role, this.token});
+  const SessionState({this.role, this.token, this.email});
   final String? role;
   final String? token;
+
+  /// WHO IS SIGNED IN, as far as this client can know — and that is the
+  /// address they typed, nothing more.
+  ///
+  /// Added 4 October 2026 for the desk's rail footer, which is an **account**
+  /// row and had nothing to name. The client genuinely holds no display name:
+  /// `AuthTokenPayload` is `{userId, role, clientId}` (see
+  /// `backend/src/modules/auth/auth.service.ts`), there is no `/users/me`, and
+  /// `GET /users` is the manager roster rather than a self lookup — reading it
+  /// would put a request behind the rail on all 24 destinations for a caption,
+  /// which is the cost `ConsoleAskBar` already refuses for the grid key's two
+  /// subtitles.
+  ///
+  /// So this is not new data, it is data the sign-in form already had and
+  /// threw away. Null on a session restored by a build that predates the
+  /// stored key, and null for a session that was never signed into here — both
+  /// of which the footer has a form for rather than a placeholder.
+  final String? email;
 }
 
 class SessionController extends AsyncNotifier<SessionState> {
@@ -53,7 +71,11 @@ class SessionController extends AsyncNotifier<SessionState> {
         }
         currentAuthToken = stored.token;
         currentLocalUserId = jwtUserId(stored.token);
-        return SessionState(role: stored.role, token: stored.token);
+        return SessionState(
+          role: stored.role,
+          token: stored.token,
+          email: stored.email,
+        );
       }
     } catch (_) {
       // fall through to the empty session below
@@ -82,7 +104,11 @@ class SessionController extends AsyncNotifier<SessionState> {
         // successful login.
         try {
           await ref.read(tokenStoreProvider).save(
-                StoredSession(token: result.token, role: result.role),
+                StoredSession(
+                  token: result.token,
+                  role: result.role,
+                  email: email,
+                ),
               );
         } catch (_) {
           // ignore — the in-memory session is still valid for this run
@@ -100,7 +126,7 @@ class SessionController extends AsyncNotifier<SessionState> {
       // Signed in again: whatever the last ending held is now the sync
       // service's problem, not a line under a form nobody is looking at.
       ref.read(sessionEndedProvider.notifier).clear();
-      return SessionState(role: result.role, token: result.token);
+      return SessionState(role: result.role, token: result.token, email: email);
     });
   }
 

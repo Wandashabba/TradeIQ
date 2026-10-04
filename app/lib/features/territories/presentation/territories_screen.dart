@@ -157,6 +157,7 @@ class TerritoriesScreen extends ConsumerWidget {
         // composition here would be the one place that silently lost it.
         final section = SectionRule(
           l10n.territoriesSectionAll,
+          listAction: true,
           count: list.length,
           action: canManage
               ? SectionRuleAction(
@@ -184,6 +185,7 @@ class TerritoriesScreen extends ConsumerWidget {
           // the row's own figure reads, so choosing a territory on the desk
           // fetches nothing the list has not already fetched.
           desk: ConsoleDeskRecords(
+            toolbar: ConsoleDeskToolbar.marker,
             lead: <Widget>[section, const SizedBox(height: TiqSpace.s5)],
             records: <ConsoleDeskRecord>[
               for (var i = 0; i < list.length; i++)

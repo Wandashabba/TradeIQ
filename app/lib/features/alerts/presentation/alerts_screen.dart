@@ -202,6 +202,15 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       // the slice — which is the argument `tasks_screen.dart` makes for having
       // dropped its own.
       desk: ConsoleDeskRecords(
+        // ── NO MARKER HERE, SO THE RAIL IS THE TOOLBAR ──────────
+        //
+        // This pane deliberately has no section marker: the reason is
+        // written above and it still holds — the selected chip names
+        // and counts the slice better than a marker would. That makes
+        // the rail the row where this list's own controls already are,
+        // so the refresh lands on its trailing end rather than in the
+        // pane's top-right corner. See `ConsoleDeskToolbar.filters`.
+        toolbar: ConsoleDeskToolbar.filters,
         lead: <Widget>[
           _LeadIndicator(view: view),
           SizedBox(height: context.skin.space.blockGap),

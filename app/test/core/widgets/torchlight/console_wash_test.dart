@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/ambient_wash.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_contrast.dart';
@@ -62,12 +63,31 @@ void main() {
   /// | frame | why it is in the set |
   /// |---|---|
   /// | exceptions, a record open | three panes, outlined controls in all three |
+  /// | exceptions, the rail's foot open | the ONE outline the rail has ever painted |
   /// | the floor | a photographic plate and a composer, on the washes |
   /// | ask | a transcript column, nothing but ink on the ground |
   /// | trends | one column that fills, charts rather than rows |
   ///
   /// Webhooks is no longer the one-column case — it got its third pane in this
   /// change — so Trends replaces it. See `console_desk_harness.dart`.
+  ///
+  /// ## THE FIFTH FRAME, AND WHY IT IS NOT A DUPLICATE — 4 October 2026
+  ///
+  /// `console_wash.dart` rests Night's thinnest margin partly on a claim about
+  /// the rail: *"the rail paints no `edgeStructure` and no `edgeControl` at
+  /// all — its rows are flat on the ground and its markers are kickers."* The
+  /// rail grew a **foot** on 4 October (`ConsoleRailFooter`), and at rest that
+  /// claim is still exactly true: the account row is a `MenuFlatRow`, flat on
+  /// the ground like the 24 above it, and the marker over it is a kicker.
+  ///
+  /// Open, it is not. Sign out is a `TorchSecondaryButton` and that is an
+  /// `edgeControl` rim — the first outline the rail has ever painted — at the
+  /// bottom-left corner, where the cool wash has fallen off and Dawn has not
+  /// arrived. The arithmetic says it is the safe token to spend there
+  /// (`edgeControl` crosses 3:1 at alpha 0.379 against a washed vignette and
+  /// the wash ships at 0.10), but the brief for that change said to measure it
+  /// rather than assume it, so this frame exists to put a number on the real
+  /// pixels.
   final frames = <(String, Future<void> Function(WidgetTester, TiqSkin))>[
     (
       'exceptions (three panes)',
@@ -84,6 +104,26 @@ void main() {
         await tester.tap(
           find.byKey(const ValueKey<String>('console-record-a2')),
         );
+        await tester.pumpAndSettle();
+      },
+    ),
+    (
+      // THE FOOT OPEN. `deskSession` is what puts somebody in the account row
+      // — without it the real `SessionController` finds no keychain under
+      // `flutter_test` and the row renders its signed-out form, which is a
+      // state the product does not reach and the wrong thing to measure.
+      "exceptions, the rail's foot open",
+      (tester, skin) async {
+        await pumpDesk(
+          tester,
+          const AlertsScreen(),
+          size: size,
+          skin: skin,
+          path: '/alerts',
+          overrides: <Override>[...deskAlertOverrides(), ...deskSession()],
+          users: deskPeople(),
+        );
+        await tester.tap(find.byKey(const ValueKey<String>('rail-account')));
         await tester.pumpAndSettle();
       },
     ),
@@ -335,6 +375,18 @@ void main() {
             ),
             'a filter chip': (
               find.byKey(const ValueKey<String>('tab-acknowledged')),
+              skin.palette.edgeControl,
+              'edgeControl',
+            ),
+            // ── THE RAIL'S ONE OUTLINE ───────────────────────────────────
+            //
+            // Present only in the fifth frame, which is why the loop above
+            // skips a finder it cannot find rather than failing on one. See
+            // the `frames` comment: the rail is otherwise flat all the way
+            // down, and `console_wash.dart`'s Night margin is argued partly
+            // from that.
+            'the rail\'s foot: Sign out': (
+              find.byKey(const ValueKey<String>('rail-sign-out')),
               skin.palette.edgeControl,
               'edgeControl',
             ),

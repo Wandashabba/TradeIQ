@@ -1,7 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/theme_mode_controller.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/nav_destinations.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/console_desk.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/menu_sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
@@ -642,6 +651,464 @@ void main() {
 
   // ── THE AMBER CENSUS ─────────────────────────────────────────────────
   //
+
+  // ── THE RAIL'S FOOT ──────────────────────────────────────────────────
+  //
+  // > *"I cant see theme change on desktop"* — the owner, 4 October 2026.
+  //
+  // The old design put the brightness, the password and Sign out in the menu
+  // sheet, one press of the ask bar's grid key away, and argued that the rail
+  // should carry destinations only. The reasoning was sound and the outcome
+  // was wrong: nobody presses a navigation-looking grid button to find
+  // brightness on a screen that already shows all 24 destinations. These are
+  // the pins on the replacement.
+  group("the rail's foot", () {
+    Finder footer() => find.byKey(const ValueKey<String>('console-rail-footer'));
+    Finder account() => find.byKey(const ValueKey<String>('rail-account'));
+
+    Future<void> pumpFoot(
+      WidgetTester tester, {
+      TiqSkin? skin,
+      Size size = const Size(1440, 900),
+      double textScale = 1.0,
+      List<Override> session = const <Override>[],
+    }) => pumpDesk(
+      tester,
+      const AlertsScreen(),
+      size: size,
+      skin: skin,
+      textScale: textScale,
+      path: '/alerts',
+      overrides: <Override>[
+        ...deskAlertOverrides(),
+        ...(session.isEmpty ? deskSession() : session),
+      ],
+      users: deskPeople(),
+    );
+
+    testWidgets('is on screen at rest, at the bottom of the rail', (
+      tester,
+    ) async {
+      await pumpFoot(tester);
+      expect(footer(), findsOneWidget);
+      expect(account(), findsOneWidget);
+
+      // PINNED, NOT SCROLLED TO. The whole defect was a control a manager had
+      // to know about to reach; a foot that lived at the end of a 1,188dp
+      // scroller would be the same defect with a nicer address.
+      final rail = tester.getRect(
+        find.byKey(const ValueKey<String>('console-rail')),
+      );
+      final row = tester.getRect(account());
+      expect(
+        row.bottom,
+        closeTo(rail.bottom, 0.5),
+        reason:
+            'The account row is the rail\'s last pixel. rail=$rail row=$row',
+      );
+      expect(row.height, greaterThanOrEqualTo(night.space.tapTarget));
+
+      // And it stays there when the destinations scroll.
+      await tester.drag(
+        find.byKey(const ValueKey<String>('console-rail')),
+        const Offset(0, -600),
+      );
+      await tester.pump();
+      expect(
+        tester.getRect(account()).bottom,
+        closeTo(rail.bottom, 0.5),
+        reason: 'A pinned foot does not move when the list behind it does.',
+      );
+      // ignore: avoid_print
+      print(
+        'THE FOOT AT 1440x900: account row ${row.width}×${row.height}dp, '
+        'bottom ${row.bottom} against a rail bottom of ${rail.bottom}',
+      );
+    });
+
+    testWidgets('names the signed-in address, and speaks the whole of it', (
+      tester,
+    ) async {
+      await pumpFoot(tester);
+      final row = tester.widget<MenuFlatRow>(account());
+      expect(row.label, 'nhlanhla');
+      expect(row.semanticLabel, 'nhlanhla@acme.test');
+      // ignore: avoid_print
+      print('THE FOOT PRINTS "${row.label}" and says "${row.semanticLabel}"');
+    });
+
+    testWidgets('names the app when there is no address to print', (
+      tester,
+    ) async {
+      // The one state the client can genuinely be in and has no name for: a
+      // session restored by a build older than the stored address key. It gets
+      // a different glyph and the sheet's own words, never a placeholder name.
+      await pumpFoot(tester, session: deskSession(email: null));
+      final row = tester.widget<MenuFlatRow>(account());
+      expect(row.label, englishLocalizations.menuThisApp);
+      expect(row.icon, Icons.settings_outlined);
+    });
+
+    testWidgets('one press puts the theme control, the password and the way '
+        'out on screen', (tester) async {
+      await pumpFoot(tester);
+      const theme = ValueKey<String>('rail-theme');
+      const password = ValueKey<String>('rail-password');
+      const signOut = ValueKey<String>('rail-sign-out');
+
+      // Shut: the fold is not in the tree at all, which is what makes "the
+      // foot is one row at rest" a fact rather than a claim about opacity.
+      expect(find.byKey(theme), findsNothing);
+      expect(find.byKey(password), findsNothing);
+      expect(find.byKey(signOut), findsNothing);
+
+      await tester.tap(account());
+      await tester.pumpAndSettle();
+
+      // ONE PRESS. Not two: `menu_sheet.dart` refused to fold its own "This
+      // app" section because that would bury the one irreversible control in
+      // the product, and the same rule holds here — the three items are flat
+      // under the marker and Sign out is a button among them.
+      expect(find.byKey(theme), findsOneWidget);
+      expect(find.byKey(password), findsOneWidget);
+      expect(find.byKey(signOut), findsOneWidget);
+      expect(
+        find.descendant(
+          of: footer(),
+          matching: find.byType(TorchSecondaryButton),
+        ),
+        findsOneWidget,
+        reason: 'Sign out is a button in the foot, not a row in a list.',
+      );
+
+      // It opens UPWARD: there is nothing below a foot to grow into, so what
+      // the reveal covers is the destinations, not the account row.
+      final rail = tester.getRect(
+        find.byKey(const ValueKey<String>('console-rail')),
+      );
+      expect(tester.getRect(account()).bottom, closeTo(rail.bottom, 0.5));
+      expect(
+        tester.getRect(find.byKey(theme)).top,
+        lessThan(tester.getRect(account()).top),
+      );
+
+      // Every item clears the target floor.
+      for (final key in <ValueKey<String>>[theme, password, signOut]) {
+        final rect = tester.getRect(find.byKey(key));
+        expect(
+          rect.height,
+          greaterThanOrEqualTo(night.space.tapTarget),
+          reason: '${key.value} is ${rect.height}dp against a '
+              '${night.space.tapTarget}dp floor.',
+        );
+      }
+
+      await tester.tap(account());
+      await tester.pumpAndSettle();
+      expect(find.byKey(theme), findsNothing);
+    });
+
+    testWidgets('the theme control switches the mode, and names the one it '
+        'switches TO', (tester) async {
+      await pumpFoot(tester);
+      await tester.tap(account());
+      await tester.pumpAndSettle();
+
+      const theme = ValueKey<String>('rail-theme');
+      final before = tester.widget<MenuFlatRow>(find.byKey(theme)).label;
+      final container = ProviderScope.containerOf(
+        tester.element(find.byKey(theme)),
+      );
+      final modeBefore = container.read(themeModeProvider);
+
+      await tester.tap(find.byKey(theme));
+      await tester.pumpAndSettle();
+
+      expect(container.read(themeModeProvider), isNot(modeBefore));
+      expect(
+        tester.widget<MenuFlatRow>(find.byKey(theme)).label,
+        isNot(before),
+        reason:
+            'The row names the state it switches TO, so pressing it has to '
+            'change the words as well as the mode — the sheet\'s own rule.',
+      );
+      // ignore: avoid_print
+      print(
+        'THE FOOT\'S BRIGHTNESS: "$before" ($modeBefore) → '
+        '"${tester.widget<MenuFlatRow>(find.byKey(theme)).label}" '
+        '(${container.read(themeModeProvider)})',
+      );
+    });
+
+    testWidgets('Sign out signs out', (tester) async {
+      final session = _CountingSession();
+      await pumpFoot(
+        tester,
+        session: <Override>[
+          sessionControllerProvider.overrideWith(() => session),
+        ],
+      );
+      await tester.tap(account());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('rail-sign-out')));
+      await tester.pumpAndSettle();
+      expect(
+        session.logouts,
+        1,
+        reason:
+            'The one irreversible control in the product, one press from any '
+            'desk screen. `menu_sheet.dart` records this capability being lost '
+            'to a migration once already.',
+      );
+    });
+
+    testWidgets('nothing overflows with the foot open at the height floor, '
+        'in either skin, at 1.3x', (tester) async {
+      // THE FLOOR IS 348dp AND IT IS NOT A DEVICE. `deskMinHeight` is the
+      // height below which the list pane stops being a list; at 1212dp of
+      // width no viewport produces it. It is pumped anyway, because an open
+      // foot is the tallest thing the rail ever holds and a Column that
+      // overflows prints a red band rather than failing a number.
+      for (final skin in <TiqSkin>[night, day]) {
+        for (final scale in <double>[1.0, 1.3]) {
+          await pumpFoot(
+            tester,
+            skin: skin,
+            size: Size(
+              ConsoleDesk.deskMinWidth(skin),
+              ConsoleDesk.deskMinHeight(skin),
+            ),
+            textScale: scale,
+          );
+          await tester.tap(account());
+          await tester.pumpAndSettle();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason:
+                'The foot open at ${ConsoleDesk.deskMinWidth(skin)}×'
+                '${ConsoleDesk.deskMinHeight(skin)} at ${scale}x overflows '
+                'the rail.',
+          );
+        }
+      }
+    });
+
+    testWidgets('the foot paints no outline while it is shut', (tester) async {
+      // `console_wash.dart` rests Night's thin `edgeStructure` margin partly
+      // on "the rail paints no `edgeStructure` and no `edgeControl` at all".
+      // The foot keeps that true at rest — its rows are flat, like the
+      // destinations — and breaks it only while it is open, where the one
+      // rimmed object is Sign out's `edgeControl`. That token has 0.379 of
+      // alpha before it crosses 3:1 and the wash ships at 0.10, so it is the
+      // safe one to spend; `console_wash_test.dart` measures it on the frame.
+      await pumpFoot(tester);
+      expect(
+        find.descendant(
+          of: footer(),
+          matching: find.byType(TorchSecondaryButton),
+        ),
+        findsNothing,
+      );
+    });
+  });
+
+  // ── THE ROUTE'S ONE HEADER CONTROL IS NOT IN THE CORNER ──────────────
+  //
+  // > *"the refresh button is in the wrong place … it reads as a floating
+  // > artefact."* — the owner, on Beat plans at 1440dp.
+  group('the list pane takes the header\'s one control', () {
+    testWidgets('Webhooks: it is on the marker row, not in the header', (
+      tester,
+    ) async {
+      await pumpDesk(
+        tester,
+        const WebhooksScreen(),
+        size: const Size(1440, 900),
+        path: '/webhooks',
+        overrides: <Override>[...deskWebhookOverrides(), ...deskSession()],
+      );
+
+      final refresh = find.byKey(const ValueKey<String>('webhooks-refresh'));
+      expect(
+        refresh,
+        findsOneWidget,
+        reason:
+            'Lifted or drawn, never both and never neither. Two copies is two '
+            'refresh buttons on one screen; none is a capability lost to a '
+            'layout.',
+      );
+      expect(
+        find.descendant(of: find.byType(SectionRule), matching: refresh),
+        findsOneWidget,
+        reason: 'It belongs with the count and the list\'s own verbs.',
+      );
+      expect(
+        find.descendant(of: find.byType(TorchAppHeader), matching: refresh),
+        findsNothing,
+      );
+
+      // AND IT IS NEAR THE WORDS NOW. That is the whole complaint, as a
+      // number: the header's own right edge is the pane's right edge, and the
+      // marker's words are at its left.
+      final marker = tester.getRect(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey<String>('console-list')),
+              matching: find.byType(SectionRule),
+            )
+            .first,
+      );
+      final glyph = tester.getRect(refresh);
+      // ignore: avoid_print
+      print(
+        'WEBHOOKS 1440x900: marker x=${marker.left}→${marker.right}, '
+        'refresh x=${glyph.left}→${glyph.right}, '
+        'same row (marker top ${marker.top}, refresh top ${glyph.top})',
+      );
+      expect(
+        glyph.center.dy,
+        closeTo(marker.center.dy, marker.height / 2 + 1),
+        reason: 'The control is ON the toolbar row, not above or below it.',
+      );
+    });
+
+    testWidgets('Exceptions: no marker, so it is on the filter rail', (
+      tester,
+    ) async {
+      await pumpDesk(
+        tester,
+        const AlertsScreen(),
+        size: const Size(1440, 900),
+        path: '/alerts',
+        overrides: <Override>[...deskAlertOverrides(), ...deskSession()],
+        users: deskPeople(),
+      );
+      final refresh = find.byKey(const ValueKey<String>('alerts-refresh'));
+      expect(refresh, findsOneWidget);
+      expect(
+        find.descendant(of: find.byType(TorchAppHeader), matching: refresh),
+        findsNothing,
+        reason:
+            'This screen deliberately has no section marker — the selected '
+            'chip names and counts the slice — so the rail is the row its own '
+            'controls live on.',
+      );
+      final rail = tester.getRect(find.byType(TorchFilterRail).first);
+      final glyph = tester.getRect(refresh);
+      expect(glyph.center.dy, closeTo(rail.center.dy, rail.height / 2 + 1));
+      // ignore: avoid_print
+      print(
+        'EXCEPTIONS 1440x900: filter rail x=${rail.left}→${rail.right}, '
+        'refresh x=${glyph.left}→${glyph.right}',
+      );
+    });
+
+    testWidgets('a one-column route keeps its control in the header', (
+      tester,
+    ) async {
+      // The Perfect Store scorecard passes no `ConsoleDeskRecords`, so there
+      // is no list pane and no toolbar row to lift anything onto. The header
+      // is at the top of a column that fills the window, which is where a
+      // header control belongs.
+      await pumpDesk(
+        tester,
+        const DashboardShellScreen(),
+        size: const Size(1440, 900),
+        path: '/dashboard/overview',
+        overrides: <Override>[
+          // NO `deskSession` HERE: `overviewOverrides` installs a session of
+          // its own, and overriding a provider twice in one container is an
+          // assert rather than a last-wins. The foot renders its signed-out
+          // form on this route, which is not what this test is about.
+          ...oh.overviewOverrides(
+            current: oh.kpis(),
+            previous: oh.kpis(execution: 66),
+          ),
+        ],
+      );
+      final header = find.byType(TorchAppHeader);
+      final trailing = tester
+          .widgetList<TorchAppHeader>(header)
+          .map((h) => h.trailing)
+          .whereType<Widget>()
+          .toList();
+      if (trailing.isEmpty) return; // this route carries none; nothing to pin
+      expect(
+        find.descendant(of: header, matching: find.byWidget(trailing.first)),
+        findsOneWidget,
+      );
+    });
+
+    // ── EVERY DESK SCREEN, READ OFF THE SOURCE ─────────────────────────
+    //
+    // Nineteen screens, each with its own repositories, its own fakes and its
+    // own phases. Pumping all nineteen here would be nineteen harnesses to
+    // keep in step for one structural question, so the question is asked of
+    // the source instead — the instrument `torchlight_lint_test.dart` already
+    // uses on this repository for exactly this shape of rule.
+    //
+    // The rule has two halves and they have to agree: a pane that says its
+    // controls are on the marker must contain exactly one marker that says it
+    // is the one, and a pane that says nothing must be a screen whose header
+    // has nothing to lift.
+    test('every ConsoleDeskRecords declares where its controls are', () {
+      final offenders = <String>[];
+      final table = <String>[];
+      for (final file in Directory('lib/features')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        final src = file.readAsStringSync();
+        final panes = 'ConsoleDeskRecords('.allMatches(src).length;
+        if (panes == 0) continue;
+        final declared = RegExp(
+          r'toolbar:\s*ConsoleDeskToolbar\.(\w+)',
+        ).allMatches(src).map((m) => m.group(1)!).toList();
+        final markers = 'listAction: true'.allMatches(src).length;
+        final name = file.path.split('/').skip(2).join('/');
+        table.add(
+          '$name: $panes pane(s), toolbar ${declared.isEmpty ? "—" : declared.join("+")}'
+          ', $markers flagged marker(s)',
+        );
+        if (declared.length != panes) {
+          offenders.add(
+            '$name declares ${declared.length} toolbar(s) for $panes '
+            'ConsoleDeskRecords. Every pane says where its own controls are '
+            '— including ConsoleDeskToolbar.none, which is what a route whose '
+            'header has nothing to lift says. Silence is how the owner\'s '
+            'complaint comes back on a screen nobody looked at.',
+          );
+          continue;
+        }
+        final wantsMarker = declared.where((d) => d == 'marker').length;
+        if (wantsMarker > 0 && markers != 1) {
+          offenders.add(
+            '$name asks for ConsoleDeskToolbar.marker and flags $markers '
+            'SectionRule(listAction: true). Exactly one: zero loses the '
+            'control, two draws it twice.',
+          );
+        }
+        if (wantsMarker == 0 && markers != 0) {
+          offenders.add(
+            '$name flags $markers marker(s) and asks for no marker toolbar. '
+            'The flag would never fire.',
+          );
+        }
+      }
+      // ignore: avoid_print
+      print('DESK TOOLBARS\n  ${table.join("\n  ")}');
+      expect(offenders, isEmpty, reason: offenders.join('\n'));
+      expect(
+        table,
+        hasLength(19),
+        reason:
+            'Nineteen screens pass a ConsoleDeskRecords. A twentieth arriving '
+            'without a toolbar is the defect this test exists for.',
+      );
+    });
+  });
+
   // Night budgets 2, Day 1. The desk adds a rail, a list pane and a detail
   // pane and should add no light: a rail is navigation, a selection is not a
   // commit, and the one lit object on a console screen is the ask bar's Send.
@@ -712,4 +1179,23 @@ void main() {
       });
     }
   });
+}
+
+/// A session that counts the way out, because the foot's Sign out is the one
+/// irreversible control in the product and "it is wired up" is a claim worth
+/// a number.
+class _CountingSession extends SessionController {
+  int logouts = 0;
+
+  @override
+  Future<SessionState> build() async => const SessionState(
+    role: 'manager',
+    token: 't',
+    email: 'nhlanhla@acme.test',
+  );
+
+  @override
+  Future<void> logout({bool expired = false}) async {
+    logouts++;
+  }
 }

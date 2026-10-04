@@ -1,15 +1,22 @@
+import 'package:flutter/material.dart' show Icons, ThemeMode;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../features/assistant/answer/composer.dart' show QuestionComposer;
 import '../../../l10n/l10n.dart';
+import '../../auth/session_controller.dart';
 import '../../design/motion_budget.dart';
+import '../../theme/theme_mode_controller.dart';
 import '../../theme/torchlight/tiq_skin.dart';
 import '../nav_destinations.dart';
 import 'bleed.dart';
+import 'button/buttons.dart';
 import 'chrome/chrome.dart';
 import 'console_wash.dart';
+import 'list_action.dart';
 import 'menu_sheet.dart';
+import 'row/row.dart';
 import 'section_rule.dart';
 import 'state.dart';
 
@@ -124,18 +131,60 @@ import 'state.dart';
 /// words — `EXECUTION · 9` — which is the grammar the sheet's own comment
 /// says that number has.
 ///
-/// **The housekeeping does not come to the rail**, and that is deliberate.
-/// The sheet's bottom section — the brightness, the password, the way out — is
-/// *not* a destination list, and Sign out is the one irreversible control in
-/// the product. It stays exactly where it is, one press of the ask bar's grid
-/// key away, which is the whole of why that key is still on the bar at desk
-/// width. See [ConsoleDesk] on the grid key.
+/// ## THE HOUSEKEEPING DOES COME TO THE RAIL — 4 October 2026
 ///
-/// **Amber: none.** A rail is navigation and navigation commits nothing. The
-/// destination you are standing on is drawn in weight, ink and fill — the
-/// sheet's own four channels, none of them a colour — and the census over
-/// every desk screen in both skins is unchanged by the rail's presence.
-/// `console_desk_amber_test.dart` prints the counts.
+/// > *"I cant see theme change on desktop"* — the owner, having looked.
+///
+/// This file used to argue the opposite, and the argument is kept here because
+/// it is worth knowing which half of it was wrong:
+///
+/// > *"The housekeeping does not come to the rail, and that is deliberate.
+/// > The sheet's bottom section — the brightness, the password, the way out —
+/// > is not a destination list, and Sign out is the one irreversible control
+/// > in the product. It stays exactly where it is, one press of the ask bar's
+/// > grid key away."*
+///
+/// **Every sentence of that is true and the conclusion still failed.** The
+/// housekeeping genuinely is not a destination list, so it genuinely does not
+/// belong among the 24 rows — and the mistake was to read "not a destination"
+/// as "not in the rail". A rail has two regions, not one: the list, and its
+/// **foot**. The reason the owner could not find the brightness is that
+/// nothing about a navigation-looking grid key in the ask bar says *settings*
+/// — and on a screen that already shows all 24 destinations in a rail, the one
+/// thing a manager has no reason to press is a navigation button.
+///
+/// So the rail grew a foot: [ConsoleRailFooter], an account row naming who is
+/// signed in, which opens the brightness, the password and the way out
+/// upward in place. It carries exactly what the sheet's "This app" section
+/// carries, in the rail's own flat-row grammar ([MenuFlatRow], now one widget
+/// used by the sheet's destinations and the rail's foot alike).
+///
+/// **Sign out is still not buried, and that part of the old argument was
+/// right.** `menu_sheet.dart` refused to fold "This app" because *"findability
+/// beats consistency for the control you reach for when something is wrong"*,
+/// and the footer keeps that: the three items are flat, Sign out is the
+/// [TorchSecondaryButton] the sheet draws rather than a row, and it is **one
+/// press from any desk screen** — the same depth the grid key gives it on a
+/// phone, not one deeper.
+///
+/// **The phone's menu sheet is untouched.** Not "equivalent": the same file,
+/// the same rows, the same pixels. `desk_phone_identity_test.dart` compares
+/// sha256 against `main`.
+///
+/// **Amber: none.** A rail is navigation and housekeeping, and neither commits
+/// anything. The destination you are standing on, and the footer's open state,
+/// are drawn in weight, ink and fill — the sheet's own four channels, none of
+/// them a colour — and the census over every desk screen in both skins is
+/// unchanged by the footer's presence, open or shut.
+/// `console_desk_test.dart` prints the counts.
+///
+/// **No new outline, which is why the wash is still safe.** `console_wash.dart`
+/// rests Night's thin `edgeStructure` margin partly on the claim that *"the
+/// rail paints no `edgeStructure` and no `edgeControl` at all"*. The footer
+/// keeps that true at rest: its rows are flat on the ground exactly as the
+/// destinations are, and the one rimmed object in it — Sign out's
+/// `edgeControl` — exists only while the foot is open. Measured there anyway,
+/// at the footer's own pixels in both skins, in `console_wash_test.dart`.
 class ConsoleDesk {
   const ConsoleDesk._();
 
@@ -286,6 +335,7 @@ class ConsoleDeskRecords {
     this.filters,
     this.lead = const <Widget>[],
     this.footer,
+    this.toolbar = ConsoleDeskToolbar.none,
   });
 
   /// The screen's records, in the order the list shows them.
@@ -312,7 +362,47 @@ class ConsoleDeskRecords {
   /// The pagination footer, under the records, where the phone puts it.
   final Widget? footer;
 
+  /// ── WHICH ROW IN THIS PANE CARRIES THE LIST'S OWN CONTROLS ───────────
+  ///
+  /// And therefore where the route's one header control goes, instead of the
+  /// pane's top-right corner. See [TorchListAction] for the owner's sentence
+  /// and [ConsoleDeskToolbar] for the three answers.
+  ///
+  /// [ConsoleDeskToolbar.none] is the default and it is the **safe** default:
+  /// a screen that says nothing keeps the control in its header, which is
+  /// where it was before this field existed. Two of the nineteen desk screens
+  /// pass nothing on purpose, because their headers carry no trailing control
+  /// to lift — Alert rules has a back button instead, and Dispatch has a title
+  /// and facts and nothing else.
+  final ConsoleDeskToolbar toolbar;
+
   bool get isEmpty => records.isEmpty;
+}
+
+/// WHERE A LIST PANE KEEPS ITS OWN CONTROLS. See [ConsoleDeskRecords.toolbar].
+enum ConsoleDeskToolbar {
+  /// The pane's section marker — `PLANS · 50   New plan`. Fifteen of the
+  /// nineteen desk screens, and the marker itself says which one it is with
+  /// `SectionRule(…, listAction: true)`, because four of those panes hold two
+  /// markers and the records' own is not always the first.
+  marker,
+
+  /// The filter rail, for the four screens that deliberately have **no**
+  /// marker in the pane.
+  ///
+  /// It is not an oversight on those screens and it is written down on each of
+  /// them: Alerts, Messages and Tasks dropped the marker because *the selected
+  /// chip already names and counts the slice*, which is a better marker than a
+  /// marker. The rail is therefore exactly what this field is looking for —
+  /// the row where the list's own controls already are — so the frame hangs
+  /// the control on its trailing end rather than inventing a marker to carry
+  /// it or leaving it in the corner.
+  filters,
+
+  /// Nothing to lift. The header keeps its own control, which on a one-column
+  /// desk route is also the right answer and is what [ConsoleDeskBody] does
+  /// when [ConsoleDeskRecords] is null altogether.
+  none,
 }
 
 /// One record in the list, and what the detail pane shows when it is chosen.
@@ -462,15 +552,30 @@ class _ConsoleDeskScopeState extends State<ConsoleDeskScope> {
 /// already is, which on a three-pane screen is the record they are reading and
 /// not the bottom edge of a 1440dp window.
 ///
-/// **The grid key stays on the bar.** The brief allowed that it might be
-/// unnecessary once a rail is visible, and for *navigation* it is: every one of
-/// the 24 destinations is one click away in the rail. It is kept because the
-/// sheet it opens is not only navigation — its bottom section is the
-/// brightness, the password and **Sign out**, and the rail deliberately does
-/// not carry those (see [ConsoleDesk]). Dropping the key would have left a
-/// manager on a desktop with no way to sign out of the app, which is the third
-/// capability `menu_sheet.dart` records this project losing to a migration and
-/// is not a fourth worth having.
+/// ## THE GRID KEY STAYS, AND IT IS NO LONGER LOAD-BEARING
+///
+/// It used to be kept for one stated reason: *"the sheet it opens is not only
+/// navigation — its bottom section is the brightness, the password and Sign
+/// out, and the rail deliberately does not carry those"*. [ConsoleRailFooter]
+/// carries all three now, so **that reason is void** and the honest position
+/// is that nothing the sheet does is unreachable from this screen: 24
+/// destinations in the rail, three housekeeping items at its foot.
+///
+/// It is kept anyway, on a different and weaker argument, and the cost is
+/// stated rather than hidden: **the bar is one object with identical geometry
+/// on all 29 console screens**, which is the whole of what
+/// [ConsoleFrame]'s "Model 1" bought — *"the bottom of the screen meant two
+/// different things"* was the defect, and a key that disappears when a window
+/// crosses 1212dp makes the console's chrome move under a resize. There is one
+/// thing the sheet still has that the rail does not: `showFloorDestinations`
+/// puts two lead rows at the top of it carrying **live coverage figures**, and
+/// a rail row is a name with no number on it.
+///
+/// So the cost is one control at desk width whose function is fully duplicated
+/// twice over on the same screen. That is a real redundancy and the
+/// alternative was chrome that moves; the trade was taken deliberately and can
+/// be taken the other way in one line — `ConsoleAskBar` builds its own
+/// `leading`.
 class ConsoleDeskBody extends StatelessWidget {
   const ConsoleDeskBody({
     super.key,
@@ -561,28 +666,45 @@ class ConsoleDeskBody extends StatelessWidget {
             )
           else ...<Widget>[
             Expanded(
-              child: _Pane(
-                key: const ValueKey<String>('console-list'),
-                scrollController: scrollController,
-                children: <Widget>[
-                  ...?_headerBlock(skin),
-                  ...list.lead,
-                  if (list.filters != null) ...<Widget>[
-                    list.filters!,
-                    SizedBox(height: skin.space.blockGap),
+              child: _ListAction(
+                // ── THE REFRESH IS NOT IN THE CORNER ANY MORE ────────────
+                //
+                // The route's one header control is lifted out of the header
+                // and handed to the row this screen says its controls live on.
+                // `TorchListAction` carries the whole argument; the two things
+                // worth reading here are that the pane is what installs it —
+                // so a one-column route and every phone tree are untouched by
+                // construction — and that the control itself is still the
+                // header's field, never a copy.
+                lift: list.toolbar,
+                header: header,
+                child: _Pane(
+                  key: const ValueKey<String>('console-list'),
+                  scrollController: scrollController,
+                  children: <Widget>[
+                    ...?_headerBlock(skin),
+                    ...list.lead,
+                    if (list.filters != null) ...<Widget>[
+                      _FilterRow(
+                        lift: list.toolbar,
+                        header: header,
+                        child: list.filters!,
+                      ),
+                      SizedBox(height: skin.space.blockGap),
+                    ],
+                    for (final record in list.records)
+                      _Record(
+                        key: ValueKey<String>('console-record-${record.id}'),
+                        record: record,
+                        selected: selection.id == record.id,
+                        onTap: () => selection.select(record.id),
+                      ),
+                    if (list.footer != null) ...<Widget>[
+                      SizedBox(height: skin.space.blockGap),
+                      list.footer!,
+                    ],
                   ],
-                  for (final record in list.records)
-                    _Record(
-                      key: ValueKey<String>('console-record-${record.id}'),
-                      record: record,
-                      selected: selection.id == record.id,
-                      onTap: () => selection.select(record.id),
-                    ),
-                  if (list.footer != null) ...<Widget>[
-                    SizedBox(height: skin.space.blockGap),
-                    list.footer!,
-                  ],
-                ],
+                ),
               ),
             ),
             SizedBox(width: skin.space.blockGap),
@@ -608,6 +730,98 @@ class ConsoleDeskBody extends StatelessWidget {
   List<Widget>? _headerBlock(TiqSkin skin) => header == null
       ? null
       : <Widget>[header!, SizedBox(height: skin.space.blockGap)];
+}
+
+/// ── THE LIFT: the header's one control, offered to the list's own row ──
+///
+/// Installed around the **list pane only**, and only when the screen said
+/// where the control should land. Three consequences fall out of that and they
+/// are the reason this is a widget rather than a branch:
+///
+/// * a **one-column** desk route never has one, so a scorecard's header keeps
+///   its control where it has always been;
+/// * the **detail pane** never has one, so a record's own blocks cannot
+///   accidentally claim it;
+/// * and no **phone** tree anywhere has one, which is what makes
+///   `SectionRule(listAction: true)` a no-op below 1212dp instead of a second
+///   layout to keep in step. The two arms share the marker *instance*; this is
+///   how the same instance draws different things.
+///
+/// [header] is read, never rebuilt. The control is still `TorchAppHeader`'s
+/// own field — a field added to that widget cannot be silently dropped here,
+/// because nothing here constructs one.
+class _ListAction extends StatelessWidget {
+  const _ListAction({
+    required this.lift,
+    required this.header,
+    required this.child,
+  });
+
+  final ConsoleDeskToolbar lift;
+  final Widget? header;
+  final Widget child;
+
+  /// The route's one trailing control, or null when the route has none or the
+  /// header is not a [TorchAppHeader] at all.
+  ///
+  /// A type test rather than a new argument on [ConsoleDeskBody]: every route
+  /// framed here passes a `TorchAppHeader` and the two that build their own
+  /// shell pass `null` (The Floor) — so a third shape would be a route that
+  /// does not exist, and inventing a parameter for it would mean nineteen
+  /// screens passing the same control twice.
+  Widget? get _control {
+    final h = header;
+    return h is TorchAppHeader ? h.trailing : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final control = _control;
+    if (lift == ConsoleDeskToolbar.none || control == null) return child;
+    return TorchListAction(
+      // THE FILTER ROW DRAWS IT ITSELF, so the slot is installed empty there:
+      // the header still has to know it has been relieved of the control, and
+      // no marker in the pane may draw a second copy of it. See
+      // [TorchListAction.control].
+      control: lift == ConsoleDeskToolbar.marker ? control : null,
+      child: child,
+    );
+  }
+}
+
+/// The filter rail, with the lifted control on its trailing end.
+///
+/// For the four screens whose list pane has no section marker because the
+/// selected chip is a better one — see [ConsoleDeskToolbar.filters]. The rail
+/// is a horizontal scroller with its own right-hand bleed, so it takes the
+/// [Expanded] and the control sits outside it: a control *inside* a scroller
+/// is a control that can be scrolled off the screen, which is the defect this
+/// whole change is about in a different costume.
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.lift,
+    required this.header,
+    required this.child,
+  });
+
+  final ConsoleDeskToolbar lift;
+  final Widget? header;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final h = header;
+    final control = h is TorchAppHeader ? h.trailing : null;
+    if (lift != ConsoleDeskToolbar.filters || control == null) return child;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(child: child),
+        const SizedBox(width: SectionRule.actionGap),
+        control,
+      ],
+    );
+  }
 }
 
 /// One scrolling pane, optionally with something pinned at its foot.
@@ -680,16 +894,26 @@ class _Pane extends StatelessWidget {
   }
 }
 
-/// ── THE RAIL: the menu sheet, un-collapsed ─────────────────────────────
+/// ── THE RAIL: the menu sheet, un-collapsed, with a foot ────────────────
 ///
 /// Three group markers and 24 destination rows, from
 /// [managerDestinations] — the same list, the same groups, the same names,
 /// the same counts and the same row widget the sheet uses. See [ConsoleDesk]
-/// for what it drops (the fold, and the housekeeping) and why.
+/// for what it drops (the fold) and what it gained on 4 October 2026 (the
+/// housekeeping, at the foot).
 ///
 /// It scrolls. 27 rows at the 44dp floor is 1,188dp before any gap, which is
 /// taller than a 900dp window — the fold existed because that list is long,
 /// and a rail does not make it short, it makes it visible.
+///
+/// ## THE FOOT IS A SIBLING OF THE SCROLL VIEW
+///
+/// [_Pane]'s own arrangement, for [_Pane]'s own reason: nothing is ever drawn
+/// underneath it, so its height is whatever its content measures at 2.0×
+/// rather than a token somebody has to keep in step with the type scale. The
+/// destinations scroll; the account row does not, which is the whole point of
+/// putting it there — *where* a control is has to be a fact about the screen
+/// rather than a fact about how far down the manager happens to have scrolled.
 class ConsoleRail extends StatelessWidget {
   const ConsoleRail({super.key});
 
@@ -704,30 +928,318 @@ class ConsoleRail extends StatelessWidget {
     // with nothing selected.
     final here = menuDestinationFor(currentMenuLocation(context));
 
-    return ListView(
-      // No gutter: the desk already spent one, and the rows carry their own
-      // indent. The bottom gap is the body's, like every other pane.
-      padding: EdgeInsets.only(bottom: skin.space.blockGap),
-      children: <Widget>[
-        for (final group in NavGroup.values) ...<Widget>[
-          // The group's own words and its own number, in the marker's grammar.
-          // `menu_sheet.dart` builds the same string for its fold header; both
-          // read [menuGroupLabel] so the two cannot drift.
-          SectionRule(menuGroupLabel(l10n, group)),
-          const SizedBox(height: TiqSpace.s3),
-          for (final destination in destinationsIn(group))
-            MenuDestinationRow(
-              key: ValueKey<String>('rail-${destination.route}'),
-              destination: destination,
-              here: destination.route == here?.route,
-              onTap: () => context.go(destination.route),
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            child: ListView(
+              // No gutter: the desk already spent one, and the rows carry
+              // their own indent. The bottom gap is the body's, like every
+              // other pane — and it is now also the air between the last
+              // destination and the foot.
+              padding: EdgeInsets.only(bottom: skin.space.blockGap),
+              children: <Widget>[
+                for (final group in NavGroup.values) ...<Widget>[
+                  // The group's own words and its own number, in the marker's
+                  // grammar. `menu_sheet.dart` builds the same string for its
+                  // fold header; both read [menuGroupLabel] so the two cannot
+                  // drift.
+                  SectionRule(menuGroupLabel(l10n, group)),
+                  const SizedBox(height: TiqSpace.s3),
+                  for (final destination in destinationsIn(group))
+                    MenuDestinationRow(
+                      key: ValueKey<String>('rail-${destination.route}'),
+                      destination: destination,
+                      here: destination.route == here?.route,
+                      onTap: () => context.go(destination.route),
+                    ),
+                  SizedBox(height: skin.space.blockGap),
+                ],
+              ],
             ),
-          SizedBox(height: skin.space.blockGap),
+          ),
+          ConsoleRailFooter(
+            key: const ValueKey<String>('console-rail-footer'),
+            // HOW MUCH RAIL THERE IS, which the foot needs because it is the
+            // tallest thing the rail ever holds. See [ConsoleRailFooter.room].
+            room: constraints.maxHeight,
+          ),
         ],
-      ],
+      ),
     );
   }
 }
+
+/// ── THE RAIL'S FOOT: who is signed in, and what this app can be told ───
+///
+/// > *"I cant see theme change on desktop"* — the owner, 4 October 2026.
+///
+/// ```text
+///   ┌──────────────────────────┐
+///   │  THIS APP                │   ← only while it is open
+///   │  ☾  Dark theme           │
+///   │  🔒 Change password    › │
+///   │  [ Sign out ]            │
+///   │  👤 nhlanhla          ⌄ │   ← always, pinned to the rail's foot
+///   └──────────────────────────┘
+/// ```
+///
+/// An account row at the bottom of a sidebar is where every desktop product
+/// built in the last decade keeps its settings, and that convention is doing
+/// the whole job here: the owner did not fail to find a *control*, they failed
+/// to guess that a grid key in the ask bar was one. See [ConsoleDesk] for the
+/// argument this replaces.
+///
+/// ## IT OPENS UPWARD, AND THAT IS NOT A FLOURISH
+///
+/// There is nothing below the foot — it is the bottom of the rail — so a fold
+/// that grew downward would have to push the account row off the screen or
+/// scroll. Growing upward pushes the *destinations* up instead, which is the
+/// one direction where what gets covered is a list the manager is not looking
+/// at while they reach for the brightness. [TorchFold] is
+/// `menu_sheet.dart`'s own reveal, which gained an [TorchFold.alignment] for
+/// exactly this and nothing else.
+///
+/// ## WHAT IT SAYS, AND WHAT IT CANNOT SAY
+///
+/// The approved mockup reads `NM · Nhlanhla` — a monogram, a middot and a
+/// first name. **This client holds neither of those.** `AuthTokenPayload` is
+/// `{userId, role, clientId}`, there is no `/users/me`, and `GET /users` is
+/// the manager roster rather than a self lookup — reading it would put a
+/// request behind the rail on all 24 destinations for a caption, which is the
+/// cost `ConsoleAskBar` already refuses for the grid key's two subtitles.
+///
+/// So the row prints the one identity the client genuinely has: **the address
+/// the person signed in with**, local part only, at the rail's width. It is
+/// not invented data — it is data the sign-in form had and
+/// `SessionController` used to throw away (see [SessionState.email]) — and the
+/// whole address goes to the screen reader rather than being truncated at it.
+///
+/// **There is no monogram and that is deliberate.** The mockup's `NM ·` earned
+/// its place because the row beside it printed a first name only; a monogram
+/// taken from the very string next to it would be the same letters twice. The
+/// glyph lane carries `person_outline` instead, which is what keeps this row's
+/// label on the same x as the 24 above it. A real monogram arrives the day the
+/// server returns a display name, and not before.
+///
+/// Where even an address is missing — a session restored by a build older than
+/// the stored key, or a signed-out console a widget test can pump and the
+/// router cannot — the row stops pretending to be a person: the glyph becomes
+/// `settings_outlined` and the label becomes the sheet's own "This app". It
+/// never prints a placeholder name, and it never goes away, because the three
+/// things under it are the reason it is there.
+///
+/// ## Amber: none, open or shut
+///
+/// Housekeeping commits nothing. The open state is `well` + `body.strong` +
+/// `ink1` — [MenuFlatRow]'s own three channels — and Sign out is a
+/// [TorchSecondaryButton], which declares no claim and names no flame token in
+/// any skin.
+///
+/// Measured, not asserted: `console_wash_test.dart` censuses a fifth frame,
+/// *"exceptions, the rail's foot open"*, and it reads **1 lit object / 1,648
+/// pixels on Night and 1 / 1,485 on Day** — the same frame the foot-shut
+/// census reads, to the pixel, and the same the three-pane census read on
+/// `main` before this file had a foot. The one lit object is the ask bar's
+/// Send, where it has always been.
+class ConsoleRailFooter extends ConsumerStatefulWidget {
+  const ConsoleRailFooter({super.key, required this.room});
+
+  /// ── THE RAIL'S WHOLE HEIGHT, AND WHY THE FOOT IS TOLD IT ─────────────
+  ///
+  /// An open foot is the tallest thing the rail ever holds — a marker, two
+  /// rows, a button and two `blockGap`s, which at 1.3× is about 316dp — and
+  /// `deskMinHeight` leaves the rail about **300**. That floor is not a
+  /// device: at 1212dp of width no viewport is 348dp tall, and the number
+  /// exists to say where a list pane stops being a list. But a `Column` that
+  /// runs out of room does not fail a measurement, it paints a red band, so
+  /// the case is handled rather than argued away.
+  ///
+  /// The foot shrink-wraps to its content **up to this**, and past it the
+  /// content scrolls, bottom-first — so what degrades at the floor is how
+  /// much of the housekeeping is on screen at once, and never whether the
+  /// account row and the way out are reachable. The destinations give up the
+  /// room, which is the right order: they are a list nobody is reading while
+  /// they reach for the brightness.
+  final double room;
+
+  @override
+  ConsumerState<ConsoleRailFooter> createState() => _ConsoleRailFooterState();
+}
+
+class _ConsoleRailFooterState extends ConsumerState<ConsoleRailFooter> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final dark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final session = ref.watch(sessionControllerProvider).value;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: widget.room.isFinite ? widget.room : double.infinity,
+      ),
+      // SHRINK-WRAPS TO THE CONTENT, UP TO THE ROOM.
+      // `RenderSingleChildViewport` lays its child out first and then takes
+      // `constraints.constrain(child.size)`, so this is the foot's own height
+      // at every real viewport and a scroller only where there is genuinely
+      // not enough rail. `reverse` puts the account row — the part that is
+      // always there — at the resting edge. See [ConsoleRailFooter.room].
+      child: SingleChildScrollView(
+        reverse: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // ── THE MARKER IS ALWAYS ON, AND THE RENDER IS WHY ───────────
+            //
+            // The first draft kept it inside the fold, and at 1920×1080 the
+            // foot came out indistinguishable from **destination 25**: the
+            // same row widget, the same indent, the same weight, sitting
+            // straight under `Exception rules` with no air between them. A
+            // manager scanning the rail for somewhere to change the
+            // brightness would have read past it, which is the defect this
+            // whole change exists to remove.
+            //
+            // So the foot announces itself in the rail's own grammar — a
+            // `SectionRule` over a `blockGap`, exactly as `EXECUTION · 9` and
+            // `SETUP · 7` do — and it costs no new paint, no new token and no
+            // outline. It is the sheet's own string, so there is no fourth
+            // group name to translate and nothing to drift.
+            SizedBox(height: skin.space.blockGap),
+            SectionRule(l10n.menuThisApp),
+            const SizedBox(height: TiqSpace.s3),
+            TorchFold(
+              open: _open,
+              // See the class comment: upward, because there is nothing below
+              // a foot to grow into. The marker above stays put and the block
+              // grows out of the row that was pressed.
+              alignment: Alignment.bottomCenter,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  MenuFlatRow(
+                    key: const ValueKey<String>('rail-theme'),
+                    // The glyph names the state it switches TO, like the
+                    // label — the sheet's own rule, and the skin cycle's: a
+                    // control that announces where it is makes a blind manager
+                    // press it to find out where it goes.
+                    icon: dark
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
+                    label: dark ? l10n.menuThemeLight : l10n.menuThemeDark,
+                    onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+                  ),
+                  MenuFlatRow(
+                    key: const ValueKey<String>('rail-password'),
+                    icon: Icons.lock_outline,
+                    label: l10n.menuChangePassword,
+                    trailing: const SoftRowChevron(),
+                    // NO `Navigator.pop` FIRST, unlike the sheet's row: there
+                    // is no modal over this one. The rail is the screen.
+                    onTap: () => context.go('/account/password'),
+                  ),
+                  const SizedBox(height: TiqSpace.s3),
+                  Padding(
+                    // The rows' own indent, so the way out lines up with the
+                    // two items above it rather than with the marker above
+                    // those.
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MenuDestinationRow.indent,
+                    ),
+                    child: TorchSecondaryButton(
+                      key: const ValueKey<String>('rail-sign-out'),
+                      label: l10n.menuSignOut,
+                      // A BUTTON AND NOT A ROW, which is the whole of
+                      // "explicit". `menu_sheet.dart` refused to fold its
+                      // "This app" section because that would bury the one
+                      // irreversible control in the product behind a row that
+                      // does not say so; the same reasoning puts it here as
+                      // the one object in the foot that is shaped like a
+                      // commitment.
+                      onPressed: () => ref
+                          .read(sessionControllerProvider.notifier)
+                          .logout(),
+                    ),
+                  ),
+                  SizedBox(height: skin.space.blockGap),
+                ],
+              ),
+            ),
+            MenuFlatRow(
+              key: const ValueKey<String>('rail-account'),
+              // A PERSON OR THE APP, AND NEVER A PERSON WE CANNOT NAME. See
+              // [consoleAccountLabel].
+              icon: consoleAccountHandle(session) == null
+                  ? Icons.settings_outlined
+                  : Icons.person_outline,
+              label: consoleAccountLabel(l10n, session),
+              semanticLabel: consoleAccountSpoken(l10n, session),
+              open: _open,
+              trailing: _FootCaret(open: _open),
+              onTap: () => setState(() => _open = !_open),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The foot's chevron: `⌃` shut, `⌄` open.
+///
+/// One glyph in two states rather than two glyphs, which is `_FoldCaret`'s
+/// argument — and it points the way the fold will **move** rather than the way
+/// it last moved: shut, the housekeeping is above and about to come down into
+/// view, so the glyph points up; open, pressing again puts it away downward.
+class _FootCaret extends StatelessWidget {
+  const _FootCaret({required this.open});
+
+  final bool open;
+
+  @override
+  Widget build(BuildContext context) => AnimatedRotation(
+    // `SoftRowChevron` draws `›`, so a quarter turn anticlockwise is `⌃`.
+    turns: open ? 0.25 : -0.25,
+    // The fold's own duration, so the glyph and the rows arrive together.
+    duration: TorchFold.durationIn(context),
+    curve: TiqMotion.stateCurve,
+    // `ink2`, a step up from the row chevron's `ink3`: this one is the control
+    // rather than a hint that the row leads somewhere. `_FoldCaret`'s choice.
+    child: SoftRowChevron(color: context.skin.palette.ink2),
+  );
+}
+
+/// WHO IS SIGNED IN, as far as the client can tell — the address's local part,
+/// or null when there is no address at all.
+///
+/// AT THE RAIL'S WIDTH THE DOMAIN IS NEVER THE ANSWER. 244dp holds
+/// `nobanda.nhlanhla` with room to spare; `nobanda.nhlanhla@gmail.com` does
+/// not, and a middle-truncated address is the half nobody needs. The whole
+/// thing still reaches the screen reader — see [consoleAccountSpoken].
+String? consoleAccountHandle(SessionState? session) {
+  final email = session?.email?.trim();
+  if (email == null || email.isEmpty) return null;
+  final at = email.indexOf('@');
+  return at > 0 ? email.substring(0, at) : email;
+}
+
+/// WHAT THE FOOT'S ACCOUNT ROW PRINTS. See [ConsoleRailFooter] for why it is
+/// this and not the mockup's `NM · Nhlanhla`.
+String consoleAccountLabel(AppLocalizations l10n, SessionState? session) =>
+    consoleAccountHandle(session) ?? l10n.menuThisApp;
+
+/// The same row, as a screen reader hears it: the **whole** address, because a
+/// domain is how a manager with two accounts tells them apart and a reader has
+/// no 244dp column to fit it in.
+String consoleAccountSpoken(AppLocalizations l10n, SessionState? session) =>
+    session?.email?.trim().isNotEmpty == true
+    ? session!.email!.trim()
+    : consoleAccountLabel(l10n, session);
 
 /// One record in the list pane, and the two channels that say it is the one
 /// the detail pane is showing.
@@ -798,7 +1310,7 @@ class _Record extends StatelessWidget {
     // and the pane it points at is simply correct on the next frame.
     // Both channels tween from the same `t`, so the ring and the bed arrive
     // together: an edge that settles before the fill it bounds reads as two
-    // objects rather than one row changing state — `_Fold`'s argument for
+    // objects rather than one row changing state — [TorchFold]'s argument for
     // driving its caret and its rows off one controller.
     return Semantics(
       container: true,

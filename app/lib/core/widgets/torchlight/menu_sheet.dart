@@ -404,7 +404,7 @@ class _GroupFold extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         header,
-        _Fold(
+        TorchFold(
           open: open,
           child: Padding(
             padding: const EdgeInsets.only(bottom: TiqSpace.s3),
@@ -436,18 +436,53 @@ class _GroupFold extends StatelessWidget {
 /// which is the one form of this that looks right in **both** directions: the
 /// rows stay mounted while the group shuts, so they slide up under the header
 /// instead of blinking out and leaving a gap to close.
-class _Fold extends StatefulWidget {
-  const _Fold({required this.open, required this.child});
+///
+/// ## IT IS PUBLIC NOW, AND IT GAINED ONE ARGUMENT — 4 October 2026
+///
+/// The desk's rail footer (`console_desk.dart`) reveals the housekeeping
+/// **upward**, from under an account row pinned to the bottom of the rail, and
+/// it needs exactly this animation with exactly these two guards: the eager
+/// controller in `initState`, and the reduce-motion path that is the rows
+/// being there or not rather than a zero-duration tween. A second copy of
+/// those two paragraphs is the drift this file has already been corrected for
+/// twice, so the widget travelled instead and [alignment] is the only thing
+/// that differs: [Alignment.topCenter] grows downward out of a header,
+/// [Alignment.bottomCenter] grows upward out of a footer.
+///
+/// The default is the sheet's own, so the sheet renders the pixels it rendered
+/// before this comment existed.
+class TorchFold extends StatefulWidget {
+  const TorchFold({
+    super.key,
+    required this.open,
+    required this.child,
+    this.alignment = Alignment.topCenter,
+  });
 
   final bool open;
   final Widget child;
 
+  /// Which edge the clip is pinned to, and therefore which way the reveal
+  /// grows. See the class comment.
+  final Alignment alignment;
+
+  /// Zero when this frame is not allowed to move — the skin's own switch, and
+  /// the reader's. The same call `TorchSheetSwap` makes.
+  ///
+  /// Public because the caret that rides on a fold has to turn in the fold's
+  /// own duration: a glyph that settles before the rows it describes reads as
+  /// two animations rather than one object.
+  static Duration durationIn(BuildContext context) =>
+      MotionBudget.of(context).still
+      ? Duration.zero
+      : context.skin.motion.resolve(TiqMotion.enter);
+
   @override
-  State<_Fold> createState() => _FoldState();
+  State<TorchFold> createState() => _TorchFoldState();
 }
 
-class _FoldState extends State<_Fold>
-    with SingleTickerProviderStateMixin<_Fold> {
+class _TorchFoldState extends State<TorchFold>
+    with SingleTickerProviderStateMixin<TorchFold> {
   // EAGER, IN `initState`, AND NOT A `late final` INITIALISER. Lazily, the
   // first thing to touch it under reduce-motion is `dispose()` — because the
   // still path never reads it — and `SingleTickerProviderStateMixin` looks up
@@ -468,10 +503,10 @@ class _FoldState extends State<_Fold>
   }
 
   @override
-  void didUpdateWidget(_Fold old) {
+  void didUpdateWidget(TorchFold old) {
     super.didUpdateWidget(old);
     if (old.open == widget.open) return;
-    final duration = _duration(context);
+    final duration = TorchFold.durationIn(context);
     if (duration == Duration.zero) {
       // Jump, and do not start a ticker that would run for 200ms painting a
       // frame nobody asked for. A reader who turned motion off is not owed a
@@ -487,13 +522,6 @@ class _FoldState extends State<_Fold>
       ..animateTo(widget.open ? 1 : 0, curve: TiqMotion.stateCurve);
   }
 
-  /// Zero when this frame is not allowed to move — the skin's own switch, and
-  /// the reader's. The same call `TorchSheetSwap` makes.
-  static Duration _duration(BuildContext context) =>
-      MotionBudget.of(context).still
-      ? Duration.zero
-      : context.skin.motion.resolve(TiqMotion.enter);
-
   @override
   void dispose() {
     _controller.dispose();
@@ -506,7 +534,7 @@ class _FoldState extends State<_Fold>
     // nothing else — not a zero-duration animation, which is a different
     // thing wearing the same clothes. The same call `TorchSheetSwap` makes,
     // for the reason written there.
-    if (_duration(context) == Duration.zero) {
+    if (TorchFold.durationIn(context) == Duration.zero) {
       return widget.open ? widget.child : const SizedBox.shrink();
     }
 
@@ -520,7 +548,7 @@ class _FoldState extends State<_Fold>
         if (t == 0) return const SizedBox.shrink();
         return ClipRect(
           child: Align(
-            alignment: Alignment.topCenter,
+            alignment: widget.alignment,
             heightFactor: t,
             child: widget.child,
           ),
@@ -547,7 +575,7 @@ class _FoldCaret extends StatelessWidget {
     return AnimatedRotation(
       turns: open ? 0.25 : 0,
       // The fold's own duration, so the glyph and the rows arrive together.
-      duration: _FoldState._duration(context),
+      duration: TorchFold.durationIn(context),
       curve: TiqMotion.stateCurve,
       // `ink2`, a step up from the row chevron's `ink3`: this one is the
       // control rather than a hint that the row leads somewhere.
@@ -556,7 +584,7 @@ class _FoldCaret extends StatelessWidget {
   }
 }
 
-/// ONE DESTINATION, inside an open group.
+/// ONE DESTINATION, inside an open group — or at the foot of the desk's rail.
 ///
 /// Not a [SoftRow], and that is the whole design of it. A SoftRow is a card,
 /// and a card under a card is a sibling; these are flat on the sheet's ground,
@@ -567,7 +595,7 @@ class _FoldCaret extends StatelessWidget {
 /// **The row you are on** is `body.strong` on `ink1` in a `surface` box — the
 /// same size, more weight, more light, and a silhouette. Weight and fill are
 /// free; the amber they stand in for is not, and this sheet's census is zero.
-class MenuDestinationRow extends StatefulWidget {
+class MenuDestinationRow extends StatelessWidget {
   const MenuDestinationRow({
     super.key,
     required this.destination,
@@ -590,11 +618,89 @@ class MenuDestinationRow extends StatefulWidget {
   /// follows the reader's text size like the words beside it.
   static const double glyph = 18;
 
+  /// ── IT IS A WRAPPER NOW, AND THE ROW IT WRAPS IS [MenuFlatRow] ────────
+  ///
+  /// Nothing about the drawing moved; what moved is **who can ask for one**.
+  /// A destination row answers "what does this [NavDestination] look like in
+  /// this product's flat-row grammar", and the desk's rail footer needs the
+  /// second half of that sentence for three rows that are not destinations at
+  /// all — an account row, the brightness and the password. So the geometry,
+  /// the press, the fill and the semantics live in [MenuFlatRow] and this
+  /// class is the one line that turns a destination into its arguments.
+  ///
+  /// It stops being a `StatefulWidget` as a consequence, which is why the
+  /// press state is [MenuFlatRow]'s now. `console_desk_test.dart` and the
+  /// fold tests find it `byType` and read [destination] and [here] off it, so
+  /// the type and both fields stay exactly where they were.
   @override
-  State<MenuDestinationRow> createState() => _MenuDestinationRowState();
+  Widget build(BuildContext context) => MenuFlatRow(
+    icon: destination.icon,
+    label: destination.labelIn(context.l10n),
+    here: here,
+    onTap: onTap,
+  );
 }
 
-class _MenuDestinationRowState extends State<MenuDestinationRow> {
+/// ── THE FLAT ROW: this product's non-card row, with a glyph and a word ──
+///
+/// Extracted from [MenuDestinationRow] on 4 October 2026 so the desk's rail
+/// footer could have the rail's own row rather than a second one that looks
+/// nearly like it. Every pixel here was that row's; the only thing added is
+/// [trailing], which is null for all 24 destinations and is a chevron or a
+/// caret on the three rows the footer draws.
+///
+/// **Amber: none.** A flat row is navigation or housekeeping, and the state it
+/// has — [here], and the press — is drawn in weight, ink and fill, which is
+/// the sheet's own four channels and not one of them a colour.
+class MenuFlatRow extends StatefulWidget {
+  const MenuFlatRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.here = false,
+    this.trailing,
+    this.semanticLabel,
+    this.open,
+  });
+
+  final IconData icon;
+
+  /// What the row says, and — unless [semanticLabel] overrides it — what a
+  /// screen reader is handed.
+  final String label;
+
+  final VoidCallback onTap;
+
+  /// The row you are standing on. Weight, ink and fill; never a colour.
+  final bool here;
+
+  /// A chevron, or a caret that turns. Null on a destination.
+  final Widget? trailing;
+
+  /// For a row whose printed label is shorter than the sentence a reader
+  /// needs — the footer's account row prints `NM · Nhlanhla` and says the
+  /// whole address.
+  final String? semanticLabel;
+
+  /// Set only on a row that opens something **in place**, and then it is the
+  /// row's state in both channels at once: the `well` fill that [here] gives a
+  /// destination, and `Semantics.expanded`.
+  ///
+  /// It is a second field rather than a reuse of [here] because the two mean
+  /// different things to a screen reader. `selected` belongs to a row in a set
+  /// where one is chosen — which is what a destination is — and announcing it
+  /// on a lone expander is a word with no set behind it. The flag, not a
+  /// sentence: a platform with a word for "collapsed" says it better in the
+  /// reader's own language than a string we would have to translate twice.
+  /// `_GroupFold`'s own argument.
+  final bool? open;
+
+  @override
+  State<MenuFlatRow> createState() => _MenuFlatRowState();
+}
+
+class _MenuFlatRowState extends State<MenuFlatRow> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
@@ -605,9 +711,8 @@ class _MenuDestinationRowState extends State<MenuDestinationRow> {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final l10n = context.l10n;
     final palette = skin.palette;
-    final label = widget.destination.labelIn(l10n);
+    final label = widget.label;
     final here = widget.here;
 
     // A WELL, NOT A CARD — and the render is why. `surface` is what a card is
@@ -618,17 +723,16 @@ class _MenuDestinationRowState extends State<MenuDestinationRow> {
     // shorter step than `surface` on Night), so it reads as a groove the row
     // is sitting IN rather than an object sitting on top. That is also what it
     // means.
-    final Color? fill = _pressed
-        ? palette.lifted
-        : (here ? palette.well : null);
+    final lit = here || widget.open == true;
+    final Color? fill = _pressed ? palette.lifted : (lit ? palette.well : null);
     final Color ink = _pressed
         ? (skin.brightness == Brightness.dark ? palette.ink1 : palette.ground)
-        : (here ? palette.ink1 : palette.ink2);
+        : (lit ? palette.ink1 : palette.ink2);
 
     final line = Row(
       children: <Widget>[
         Icon(
-          widget.destination.icon,
+          widget.icon,
           size: MarkScale.glyph(context, MenuDestinationRow.glyph),
           color: ink,
         ),
@@ -643,11 +747,19 @@ class _MenuDestinationRowState extends State<MenuDestinationRow> {
             // a clipped one.
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: (here ? skin.text.bodyStrong : skin.text.body).style(
+            style: (lit ? skin.text.bodyStrong : skin.text.body).style(
               color: ink,
             ),
           ),
         ),
+        // THE GAP IS THE TRAILING'S, NOT THE ROW'S. A destination has no
+        // trailing and must keep the label running to the row's own padding —
+        // which is what makes the 24 rows in the rail and the 24 in the sheet
+        // the same pixels.
+        if (widget.trailing != null) ...<Widget>[
+          const SizedBox(width: TiqSpace.s2),
+          widget.trailing!,
+        ],
       ],
     );
 
@@ -656,7 +768,8 @@ class _MenuDestinationRowState extends State<MenuDestinationRow> {
       button: true,
       // The platform's own word for it, in the reader's own language.
       selected: here,
-      label: label,
+      expanded: widget.open,
+      label: widget.semanticLabel ?? label,
       onTap: widget.onTap,
       excludeSemantics: true,
       child: GestureDetector(
