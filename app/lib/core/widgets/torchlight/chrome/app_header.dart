@@ -106,9 +106,44 @@ class TorchAppHeader extends StatefulWidget {
 
   static String _defaultMore(int hidden) => 'and $hidden more';
 
-  /// The header's minimum height: 96dp, 72 on the console.
-  static double minHeightFor(TiqSkin skin) =>
-      skin.density == TiqDensity.console ? 72 : 96;
+  /// The header's minimum height. **72 at both densities since 4 October
+  /// 2026**; it read `skin.density == TiqDensity.console ? 72 : 96` before.
+  ///
+  /// > *"Still looks a bit animated, let us make sure it has the qualities of
+  /// > the manager side."* — the owner, 4 October 2026, characterised as
+  /// > *"too big and spaced out — cards, text and gaps are larger than the
+  /// > manager side, so it feels less professional."*
+  ///
+  /// This is the **largest single difference** between the two surfaces and it
+  /// is the one a reader meets first, because it is 24dp at the top of the
+  /// screen before any content. Measured on a tab root, where the header is a
+  /// title and a facts line and nothing else: `titleL` lays out at 25dp, the
+  /// [TiqSpace.s2] gap is 8, a one-line facts row is 18 — 51dp of content
+  /// inside a 96dp floor, so **45dp of every agent tab root was declared empty
+  /// air**. At 72 it is 21dp, which is the same air the manager console has
+  /// run since the header was written.
+  ///
+  /// It is a **floor and not a height**, which is what makes this safe in the
+  /// direction that matters: a back button, a two-line Afrikaans title and two
+  /// rows of flag chips push past 72 exactly as they pushed past 96, and
+  /// `chrome_scale_test.dart`'s 40%-of-viewport ceiling is a cap on the other
+  /// end. Nothing inside the header shrinks — the back button keeps its own
+  /// 48dp target from [TorchIconButton], the title keeps `titleL`, and the
+  /// four caps in the class doc above are untouched.
+  ///
+  /// WHAT THE 96 WAS FOR. Nothing stated. Unlike the chip and the button role
+  /// beside it, this branch carried no ruling, no §-reference and no sentence
+  /// about sunlight or arm's length — it is the one density branch in the
+  /// component set that was only ever a larger number. The field arguments
+  /// that did exist (48dp targets, 64dp rows) were about the thumb and the row
+  /// and were themselves retired on 29 September 2026; a header floor is
+  /// neither.
+  ///
+  /// TO RESTORE: `skin.density == TiqDensity.console ? 72 : 96`. It would want
+  /// an argument this time.
+  static double minHeightFor(TiqSkin skin) => switch (skin.density) {
+    TiqDensity.console || TiqDensity.field => 72,
+  };
 
   @override
   State<TorchAppHeader> createState() => _TorchAppHeaderState();

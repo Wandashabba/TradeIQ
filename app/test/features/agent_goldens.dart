@@ -6,6 +6,9 @@ import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/stat_tile.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/mark/tiq_chip.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
 import '../core/design/amber_golden.dart';
@@ -206,6 +209,52 @@ Future<List<GoldenLine>> measureAgentFrame(
   // this is a fact about the composed frame at rest. The names and the order
   // of the whole ladder are `audit_shell_client_questions_test`'s job.
   add('rows.onscreen', find.byType(SoftRow).evaluate().length);
+
+  // THE DENSITY FACTS — 4 October 2026.
+  //
+  // > *"Still looks a bit animated, let us make sure it has the qualities of
+  // > the manager side."* — the owner, characterised as *"too big and spaced
+  // > out — cards, text and gaps are larger than the manager side, so it feels
+  // > less professional."*
+  //
+  // Answering that needed a measurement and there was none: `header.height`
+  // was the only size in this golden, `rows.onscreen` counted rows without
+  // measuring one, and the three readings offered in support of the complaint
+  // were a ruler held against a screenshot. These lines are the table. They
+  // are **per screen and measured off the composed frame**, which is the only
+  // place a row's real height exists — the rung a call site asks for is a
+  // floor, and a floor is not a height once a title wraps.
+  //
+  // The rungs are recorded beside the heights on purpose. A height that moved
+  // because the content changed and a height that moved because the call site
+  // changed rungs are different events, and a golden that showed only the
+  // number could not tell them apart.
+  final rows = find.byType(SoftRow);
+  if (rows.evaluate().isNotEmpty) {
+    final heights = <int>[];
+    final rungs = <String>[];
+    for (final e in rows.evaluate()) {
+      heights.add(tester.getRect(find.byWidget(e.widget)).height.round());
+      rungs.add((e.widget as SoftRow).density.name);
+    }
+    add('row.heights', heights.join(' '));
+    add('row.rungs', rungs.join(' '));
+    // The tallest row on the screen, which is the number the fold is spent on
+    // and the one the owner was pointing at.
+    add('row.tallest', heights.reduce((a, b) => a > b ? a : b));
+  } else {
+    add('row.heights', 'none');
+  }
+
+  // The figure block and the chip, from the component rather than the frame:
+  // both are pure functions of the skin, both branched on density until this
+  // change, and recording them here means a re-split shows up on every agent
+  // screen's golden at once instead of only where one happens to be mounted.
+  add('tile.inset', StatTile.insetFor(skin));
+  add('tile.min', StatTile.minHeightFor(skin));
+  add('chip.visual', TiqChip.visualHeight(skin));
+  add('meter.track', Meter.trackHeight(skin));
+  add('header.min', TorchAppHeader.minHeightFor(skin));
 
   // The census, on the real pixels of this exact frame.
   //

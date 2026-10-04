@@ -125,10 +125,41 @@ class TiqChip extends StatelessWidget {
   /// without a word.
   final String? semanticsLabel;
 
-  /// The chip's visual height for a density — not its hit box.
+  /// The chip's visual height — not its hit box. **28 at both densities since
+  /// 4 October 2026**; it was `TiqDensity.field => 32` before.
+  ///
+  /// > *"Too big and spaced out — cards, text and gaps are larger than the
+  /// > manager side, so it feels less professional."* — the owner, 4 October
+  /// > 2026.
+  ///
+  /// THE HIT BOX IS NOT IN THIS NUMBER AND DOES NOT MOVE WITH IT. A tappable
+  /// chip wraps itself in a `ConstrainedBox` at `skin.space.tapTarget` — 44 on
+  /// both surfaces — and centres the visual box inside it (unify §1.6, and the
+  /// comment at that `ConstrainedBox` says so). So a 28dp chip is still a 44dp
+  /// target, and this change moves **how big the pill looks**, never how big it
+  /// is to a thumb. That is the whole reason this one is safe to take: it is
+  /// the rare case where the professional-density argument and the car-park
+  /// argument are about two different boxes.
+  ///
+  /// WHAT THE 32 WAS FOR, AND WHY IT NO LONGER HOLDS. §1.6 set 28 inline / 32
+  /// Field as a pair with **13/600 Field** type inside it, so the taller pill
+  /// was carrying taller words. The type half of that pair went on 29
+  /// September 2026 — see [labelRole], which is 11/700 at both densities now —
+  /// and the note there says what was left behind: *"a 13pt word in a 32dp
+  /// pill becomes an 11pt word in a 32dp pill — more air around the label, not
+  /// a smaller chip."* That sentence was an accurate description of a loose
+  /// end, and this is the loose end. An 11pt word in a 28dp pill is the
+  /// proportion §1.6 actually specified; the agent chip had been 4dp of
+  /// padding around nothing for five days.
+  ///
+  /// Neither 28 nor 32 is on the [TiqSpace] scale, and that is reported rather
+  /// than fixed: 28 is the manager console's shipped height, the manager side
+  /// is the reference, and putting a chip on a scale step would move it.
+  ///
+  /// TO RESTORE: give [TiqDensity.field] back its own arm at 32 — and restore
+  /// [labelRole]'s field arm with it, because the two were one ruling.
   static double visualHeight(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => 28,
-    TiqDensity.field => 32,
+    TiqDensity.console || TiqDensity.field => 28,
   };
 
   /// The chip label role, derived from `label` so it is a token and not a
@@ -146,12 +177,26 @@ class TiqChip extends StatelessWidget {
   /// smallest labelled object in the product, so it is the last place that
   /// should be carrying a size nothing else does.
   ///
-  /// Note what does **not** move with it. The chip's **visual height stays
+  /// ~~Note what does **not** move with it. The chip's **visual height stays
   /// 28 inline / 32 Field** ([visualHeight], directly above) and its 48dp hit
   /// box is untouched: §1.6's geometry is a density ruling about the thumb,
   /// not a type ruling, and `TiqSpace.field` is deliberately not part of this
   /// change. A 13pt word in a 32dp pill becomes an 11pt word in a 32dp pill —
-  /// more air around the label, not a smaller chip.
+  /// more air around the label, not a smaller chip.~~
+  ///
+  /// **THE HEIGHT FOLLOWED, 4 October 2026 — and this paragraph is the reason
+  /// it did.** It was correct on the day it was written and it named its own
+  /// consequence exactly: *"more air around the label, not a smaller chip"*.
+  /// That air is what the owner was looking at five days later when they said
+  /// the agent side is *"too big and spaced out … it feels less professional"*.
+  /// [visualHeight] is 28 at both densities now, so an 11pt word sits in a 28dp
+  /// pill — §1.6's own proportion, restored at §1.6's own type size.
+  ///
+  /// **The hit box is still untouched, and that part of the paragraph stands.**
+  /// A tappable chip's `ConstrainedBox` reads `skin.space.tapTarget` — 44 on
+  /// both surfaces — and never [visualHeight], so no target moved with the
+  /// pill. What was wrong above was only the claim that the two halves of
+  /// §1.6's pair could be separated indefinitely.
   ///
   /// TO RESTORE: give [TiqDensity.field] back its own arm of the switch. It
   /// is independent of the button role next door, unlike that one.

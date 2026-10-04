@@ -278,17 +278,51 @@ class StatTile extends StatelessWidget {
     );
   }
 
-  static double _insetFor(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => 16.0,
-    TiqDensity.field => 20.0,
+  /// The tile's own inset. **[TiqSpace.s4] at both densities since 4 October
+  /// 2026**; it was `TiqDensity.field => 20.0` before.
+  ///
+  /// > *"Too big and spaced out — cards, text and gaps are larger than the
+  /// > manager side, so it feels less professional."* — the owner, 4 October
+  /// > 2026, choosing between four readings of *"still looks a bit animated"*.
+  ///
+  /// A stat tile is the clearest case the owner's sentence names. It is a
+  /// **card carrying a figure**, it appears four and six at a time, and 4dp of
+  /// extra inset on every side of every tile is 8dp of width and 8dp of height
+  /// per tile — on a 2×2 grid, 16dp of a 360dp screen spent on air inside
+  /// boxes that already have air around them.
+  ///
+  /// The field arm had no argument of its own in the source. It was not the
+  /// thumb (a tile is a figure, not a target — nothing in a tile is tappable)
+  /// and it was not the eye (the 20 predates the type unification of
+  /// 29 September 2026 and was never restated after it). It was the same +4
+  /// the chip and the meter carried, applied to a container.
+  ///
+  /// It is also now a **token**: 16 is [TiqSpace.s4] and the literal is gone.
+  /// 20 was [TiqSpace.s5], so the old value was on the scale too — what was
+  /// wrong with it was not the number, it was having two.
+  ///
+  /// TO RESTORE: give [TiqDensity.field] back its own arm at [TiqSpace.s5].
+  static double insetFor(TiqSkin skin) => switch (skin.density) {
+    TiqDensity.console || TiqDensity.field => TiqSpace.s4,
+  };
+
+  /// The tile's floor. **88 at both densities since 4 October 2026**; it was
+  /// `TiqDensity.field => 96.0` before. Same ruling as [insetFor], and the
+  /// 8dp it gives back is the taller half of the same +4-per-side.
+  ///
+  /// 88 is **not on the [TiqSpace] scale** — it is between [TiqSpace.s10] (72)
+  /// and [TiqSpace.s11] (96) and neither is close. It is reported rather than
+  /// corrected: it is the manager console's shipped floor, the manager side is
+  /// the reference and may not move, so the agent joins the number that is
+  /// already there. Putting both surfaces on a scale step is a separate change
+  /// that moves the console, and it needs the owner.
+  static double minHeightFor(TiqSkin skin) => switch (skin.density) {
+    TiqDensity.console || TiqDensity.field => 88.0,
   };
 
   Widget _build(BuildContext context, TiqSkin skin, StatTileLayout resolved) {
-    final resolvedPadding = padding ?? EdgeInsets.all(_insetFor(skin));
-    final minHeight = switch (skin.density) {
-      TiqDensity.console => 88.0,
-      TiqDensity.field => 96.0,
-    };
+    final resolvedPadding = padding ?? EdgeInsets.all(insetFor(skin));
+    final minHeight = minHeightFor(skin);
 
     final baselineDelta = deltaOnBaseline ? _baselineDelta(context, skin) : null;
     final figure = baselineDelta == null

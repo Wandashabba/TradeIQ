@@ -109,9 +109,32 @@ class ChartThreshold {
 /// second copy of these three numbers, with the density arms written the
 /// other way round, until 29 September 2026. Two copies of a number are two
 /// numbers; it delegates here now.
+/// **208 at both densities on a phone since 4 October 2026**; it read
+/// `skin.space.density == TiqDensity.console ? 208 : 232` before.
+///
+/// THIS ONE MOVED NO PIXELS, AND SAYING SO IS THE POINT. `TrendChart` has
+/// **no agent call site**: the four in the product are `trends_screen`,
+/// `dashboard_shell_screen`, the assistant's `expanded_views` and
+/// `trend_chart_card`, and all four are console. The 232 was a **dead arm** —
+/// declared, documented in unify §1.17, and unreachable — so this is the one
+/// row of the density table whose 24dp is arithmetic rather than a
+/// measurement, and the before/after renders are byte-identical because there
+/// was nothing to render.
+///
+/// It is changed anyway, prophylactically: a dead arm that says *an agent's
+/// chart is taller than a manager's* is what the next agent screen to grow a
+/// chart would silently inherit, and it would inherit it without the
+/// before/after this change had. §1.17 gave a reason only for why the
+/// assistant's 160 loses — *"with a 38dp gutter it leaves ~120dp of plot"* —
+/// and none for why the field arm was 232.
+///
+/// 260 at ≥600dp is untouched and is not a density branch: it is a **width**
+/// branch, it is the same on both surfaces, and it is the arm the desk reads.
 double trendChartHeightFor(TiqSkin skin, double width) {
   if (width >= 600) return 260;
-  return skin.space.density == TiqDensity.console ? 208 : 232;
+  return switch (skin.space.density) {
+    TiqDensity.console || TiqDensity.field => 208,
+  };
 }
 
 /// [trendChartHeightFor], reading the skin and width off a [BuildContext].
