@@ -21,7 +21,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
 import '../../beatplans/presentation/today_screen.dart' show displayFor;
@@ -752,10 +751,6 @@ class VisitFrame extends StatelessWidget {
           status: showSyncChip ? const TorchSyncChip() : null,
           flagChips: flags,
         ),
-        // Not a tab root, so the cycle sits at the leading end of the thumb
-        // zone — on every screen here including the ones with no primary.
-        // Never a screen without the skin cycle.
-        skinCycle: const AgentSkinCycle(),
         primary: submit,
         secondary: secondary,
         // Whether the agent is being located has an answer on every agent

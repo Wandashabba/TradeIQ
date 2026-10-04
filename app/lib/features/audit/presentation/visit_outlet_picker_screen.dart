@@ -13,7 +13,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../core/widgets/agent_location_banners.dart';
@@ -178,10 +177,6 @@ class _PickerFrame extends ConsumerWidget {
           ),
           status: const TorchSyncChip(),
         ),
-        // Not a tab root, so the skin cycle sits at the leading end of the
-        // thumb zone. Never a screen without it — the one control that gets a
-        // person out of a skin they cannot read belongs on every screen.
-        skinCycle: const AgentSkinCycle(),
         secondary: TorchSecondaryButton(
           key: const ValueKey<String>('add-store'),
           label: l10n.pickerAddStore,

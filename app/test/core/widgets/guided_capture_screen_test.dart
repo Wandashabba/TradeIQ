@@ -165,17 +165,30 @@ void main() {
       );
     });
 
-    testWidgets('it is a Torchlight route with a thumb zone and a skin cycle', (
+    testWidgets('it is a Torchlight route with a thumb zone and no cycle', (
       tester,
     ) async {
       await _pump(tester, gateway: _Gateway());
       await _open(tester);
       expect(find.byType(TorchShell), findsOneWidget);
       expect(find.byType(TorchThumbZone), findsOneWidget);
-      // Never a screen without the skin cycle: the one control that gets a
-      // person out of a skin they cannot read.
-      expect(find.byType(TorchSkinCycle), findsOneWidget);
+      // THE CYCLE IS GONE FROM HERE — 4 October 2026.
+      //
+      // This asserted `findsOneWidget` and carried the note *"never a screen
+      // without the skin cycle: the one control that gets a person out of a
+      // skin they cannot read"*. The owner has now asked three times for the
+      // theme control to live in settings and nowhere else, most recently with
+      // a screenshot: *"Please remove the theme button on this page and
+      // everywhere else please. everywhere on the app. I need it only on
+      // settings and no where else"*. The escape-hatch argument is overruled,
+      // not re-argued; the preference is the `THIS APP` row on Me.
+      //
+      // The assertion is inverted rather than deleted, because "no theme
+      // control here" is now the thing worth pinning.
+      expect(find.byType(TorchSkinCycle), findsNothing);
       expect(find.byType(TorchNavPill), findsNothing);
+      // The zone itself survives: the capture primary is what it is for.
+      expect(find.text('Open camera'), findsOneWidget);
     });
 
     testWidgets('the primary names what it does, for a reader', (

@@ -13,7 +13,6 @@ import '../../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../../core/widgets/torchlight/row/row.dart';
 import '../../../../core/widgets/torchlight/section_rule.dart';
 import '../../../../core/widgets/torchlight/sheet.dart';
-import '../../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/visit_progress.dart';
 
@@ -326,7 +325,6 @@ class SectionFormState extends ConsumerState<SectionForm> {
                   onPressed: _leave,
                 ),
               ),
-              skinCycle: const AgentSkinCycle(),
               primary: widget.onSave == null
                   ? null
                   : TorchSecondaryButton(

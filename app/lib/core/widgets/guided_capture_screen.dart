@@ -15,7 +15,6 @@ import 'torchlight/button/buttons.dart';
 import 'torchlight/chrome/chrome.dart';
 import 'torchlight/marks.dart';
 import 'torchlight/row/row.dart';
-import 'torchlight/skin_controls.dart';
 import 'torchlight/state.dart';
 
 /// PHOTO CAPTURE — PHASE 1.
@@ -364,7 +363,6 @@ class _CaptureFrame extends StatelessWidget {
             onPressed: onClose,
           ),
         ),
-        skinCycle: const AgentSkinCycle(),
         primary: primary,
         secondary: secondary,
         children: children,

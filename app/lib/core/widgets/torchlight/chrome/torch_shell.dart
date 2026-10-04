@@ -31,7 +31,7 @@ enum TorchShellProfile {
 ///   claims: <TorchClaim>[TorchPrimaryButton.claim('raise-task')],
 ///   child: TorchShell(
 ///     profile: TorchShellProfile.console,
-///     header: TorchAppHeader(title: 'The Floor', trailing: skinCycle),
+///     header: TorchAppHeader(title: 'The Floor'),
 ///     navPill: TorchNavPill(slots: managerSlots, activeIndex: 0, onSelect: go),
 ///     navCircle: TorchNavCircle(claimId: 'raise-task', …),
 ///     children: <Widget>[ … ],
@@ -43,11 +43,18 @@ enum TorchShellProfile {
 ///
 /// 1. **Tab root** — no thumb zone. A floating 64dp row, inset 16 from both
 ///    gutters, 20dp above the safe area: the nav pill, a 12dp gap, the 64dp
-/// 2. **A screen with a primary action** — a [TorchThumbZone] at 96dp with the
-///    skin cycle at the leading gutter.
-/// 3. **A screen with neither** — a 76dp zone holding the skin cycle alone.
-///    Never a screen without the skin cycle: the one control that gets a person
-///    out of a skin they cannot read belongs on every screen they can reach.
+/// 2. **A screen with a primary action** — a [TorchThumbZone] at 96dp, with a
+///    ghost [secondary] above it when there is one.
+/// 3. **A screen with a secondary and no primary** — the same zone holding the
+///    ghost alone. The store picker's *Add a store* is the one in the product.
+/// 4. **A screen with none of them** — no bottom region at all. The way back is
+///    the header's back button, or an action in the body that names where it
+///    goes; it is never a 76dp strip holding nothing.
+///
+/// Bullet 3 used to read *"a 76dp zone holding the skin cycle alone. Never a
+/// screen without the skin cycle"*, and bullet 4 did not exist. The theme
+/// control left every screen but Me on 4 October 2026 — see [skinCycle] — and
+/// taking it away is what first made a secondary-only bottom region reachable.
 ///
 /// The body's bottom padding reserves the region's height, the 20dp float, the
 /// safe area and a block gap, so nothing is ever underneath the chrome.
@@ -155,9 +162,21 @@ class TorchShell extends StatelessWidget {
   /// `/login`, so no existing bottom region moves. See [TorchThumbZone].
   final Widget? underPrimary;
 
-  /// The skin cycle. On a tab root it belongs in the header's single trailing
-  /// slot, not here; on every other screen it goes at the leading end of the
-  /// thumb zone.
+  /// The skin cycle, at the leading end of the thumb zone.
+  ///
+  /// **Null on every screen in the product.** The theme control lives in one
+  /// place: the `THIS APP` row on Me, and the manager's `THIS APP` section in
+  /// the menu sheet. The owner asked three times — 1 October (*"That change of
+  /// theme on the sign in we can remove it. Let's only make the change of
+  /// theme only on settings"*), 3 October, and on 4 October with a screenshot
+  /// of `/audit`: *"Please remove the theme button on this page and everywhere
+  /// else please. everywhere on the app. I need it only on settings and no
+  /// where else"*.
+  ///
+  /// The slot is kept rather than deleted because the shell is a frame and the
+  /// settings row is not the only shape a cycle could take; a reader looking
+  /// for where it went needs this paragraph more than they need one fewer
+  /// field. A new caller has to answer the owner's sentence first.
   final Widget? skinCycle;
 
   /// A pinned region between the scroll view and the bottom region: the Ask
@@ -727,7 +746,38 @@ class TorchShell extends StatelessWidget {
       );
     }
 
-    if (primary == null && skinCycle == null) return null;
+    // EVERY SLOT THE ZONE CAN HOLD IS TESTED HERE, NOT TWO OF THE FOUR.
+    //
+    // This read `primary == null && skinCycle == null`, and a zone holding
+    // only a [secondary] — or only an [underPrimary] — was dropped on the
+    // floor: no error, no assert, the whole bottom region simply absent. It
+    // could not fire while it was written, because every screen that passed a
+    // secondary also passed a primary or the skin cycle, so nothing bit.
+    //
+    // Taking the skin cycle off the six call sites (4 October 2026) is exactly
+    // the condition that arms it. Two screens were holding a lone ghost: the
+    // store picker's *Add a store*, and the visit's `locating` phase, whose
+    // *Back to my route* is the only control on a screen `VisitFrame` gives no
+    // header back button — an agent on a radar waiting for a GPS fix, with no
+    // way off it.
+    //
+    // **It would not have shipped silently, and that is worth recording
+    // rather than overstating.** Measured on the six deletions without this
+    // fix: four existing tests fail —
+    // `visit_outlet_picker_screen_test`'s *"Add a store" is a secondary and
+    // still opens the form* and *not a tab root: a thumb zone, no nav, and a
+    // back to Today*, and `audit_shell_screen_test`'s *check-in — locating a
+    // radar and a real escape* and *no tabs — one primary in the thumb zone*.
+    // The agent goldens fail too, on `thumb.zone = present -> absent`. The
+    // defect was real and loud; it was the screens that happened to have
+    // tests that made it loud, which is why the rule is pinned at the shell
+    // in `chrome_test` now rather than at two screens.
+    if (primary == null &&
+        secondary == null &&
+        underPrimary == null &&
+        skinCycle == null) {
+      return null;
+    }
     return TorchThumbZone(
       skinCycle: skinCycle,
       primary: primary,

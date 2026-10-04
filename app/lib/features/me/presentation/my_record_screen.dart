@@ -204,22 +204,31 @@ class _MyRecord extends ConsumerWidget {
 /// layer down. So the preferences stay independent and the row drives the
 /// agent's own.
 ///
-/// ## WHAT THAT COSTS, AND IT IS A WART
+/// ## THIS ROW IS THE ONLY APPEARANCE CONTROL THE AGENT HAS — 4 October 2026
 ///
-/// Independent preferences mean **an agent ends up with two appearance
-/// controls**: this row, and the [AgentSkinCycle] that `TorchShell` puts at
-/// the leading end of every thumb zone on every agent screen that is not a tab
-/// root. Both drive `agentSkinProvider`, so they always agree and neither can
-/// show a stale state — but there are two of them, and one of them is three
-/// taps away inside a record while the other is on the screen you are standing
-/// on.
+/// This section read *"WHAT THAT COSTS, AND IT IS A WART"*, and argued that an
+/// agent ends up with two appearance controls — this row and the
+/// `AgentSkinCycle` at the leading end of every non-tab-root thumb zone — and
+/// that the cycle had to stay, because *"an agent who turns Night on in a dark
+/// aisle and then walks into the sun must be able to turn it off from wherever
+/// they are"*.
 ///
-/// The cycle is not removed, and the reason is `TorchShell`'s own sentence:
-/// *"Never a screen without the skin cycle: the one control that gets a person
-/// out of a skin they cannot read belongs on every screen they can reach."* An
-/// agent who turns Night on in a dark aisle and then walks into the sun must be
-/// able to turn it off from wherever they are, not from Me. Taking the cycle
-/// away to make the count one would trade a wart for a trap.
+/// **The owner overruled it.** Three times: 1 October (*"That change of theme
+/// on the sign in we can remove it. Let's only make the change of theme only
+/// on settings"*), 3 October (*"remember I also said the theme button must not
+/// be there, only on settings"*), and 4 October with a screenshot of `/audit`
+/// showing the moon at the bottom left — *"Please remove the theme button on
+/// this page and everywhere else please. everywhere on the app. I need it only
+/// on settings and no where else"*.
+///
+/// So the wart is gone and so is the escape hatch: this row is it. The count
+/// is one, which is what was asked for, and the cost is the one the previous
+/// note named — the preference is three taps away inside a record rather than
+/// on the screen the agent is standing on. That is the trade the owner chose
+/// and it is not re-litigated here.
+///
+/// The manager's equivalent is the menu sheet's own `THIS APP` section, which
+/// drives `themeModeProvider`. Two preferences, two places, one each.
 ///
 /// **Amber: none.** Housekeeping commits nothing. A `SoftRow` declares no
 /// claim, and `TorchSecondaryButton` is an `edgeControl` rim in both skins.

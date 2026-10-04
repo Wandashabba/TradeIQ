@@ -16,7 +16,6 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
-import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import '../data/contests_repository.dart';
@@ -187,9 +186,6 @@ class _MyContestsFrame extends ConsumerWidget {
             onPressed: () => canPop ? context.pop() : context.go('/today'),
           ),
         ),
-        // Not a tab root, so the cycle sits at the leading end of the bottom
-        // zone. Never a screen without it.
-        skinCycle: const AgentSkinCycle(),
         children: children,
       ),
     );

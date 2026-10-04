@@ -57,9 +57,14 @@ void main() {
       expect(find.byType(TorchNavPill), findsNothing);
       expect(find.byType(TorchNavCircle), findsNothing);
       expect(find.byType(TorchThumbZone), findsOneWidget);
-      // And the skin cycle is at the leading end of it — never a screen
-      // without the skin cycle.
-      expect(find.byType(TorchSkinCycle), findsOneWidget);
+      // AND NOTHING SHARES THE PRIMARY'S ROW — 4 October 2026.
+      //
+      // This asserted `findsOneWidget` with the note *"the skin cycle is at
+      // the leading end of it — never a screen without the skin cycle"*. The
+      // owner's third ask settles it the other way: the theme control is the
+      // `THIS APP` row on Me and nothing else, *"everywhere on the app"*. The
+      // assertion is kept and inverted, so a cycle coming back here fails.
+      expect(find.byType(TorchSkinCycle), findsNothing);
     });
 
     testWidgets('the readiness block says the fraction and the words', (

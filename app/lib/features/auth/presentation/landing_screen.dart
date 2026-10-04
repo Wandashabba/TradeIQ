@@ -27,15 +27,19 @@ import 'entry_brand.dart';
 /// no claims at all and the census counts zero objects in Night and Day.
 /// A splash is the one screen in the product with nothing to commit.
 ///
-/// ## The one screen with no skin cycle, and why that is not an exception
+/// ## No skin cycle, which is no longer an exception
 ///
-/// [TorchShell] puts the cycle on every screen because the control that gets
-/// somebody out of a skin they cannot read belongs everywhere they can reach.
-/// This screen has no chrome at all: no header, no bottom region, no scroll,
-/// and **no words to read** beyond a wordmark. It holds for five seconds, the
-/// whole surface is the skip, and the screen it hands to carries the cycle. A
-/// 56dp control on a five-second brand moment would be a control nobody has
-/// time to find and a tap target competing with the skip.
+/// This section was *"The one screen with no skin cycle, and why that is not
+/// an exception"*, and argued from a rule that no longer exists: *"[TorchShell]
+/// puts the cycle on every screen ... the screen it hands to carries the
+/// cycle."* As of 4 October 2026 no screen carries it. The theme control is
+/// the `THIS APP` row on Me and the menu sheet's `THIS APP` section, by the
+/// owner's third ask — see [TorchShell.skinCycle].
+///
+/// What was always true here stays true and is the whole reason now: this
+/// screen has no chrome at all — no header, no bottom region, no scroll, and
+/// **no words to read** beyond a wordmark. It holds for five seconds and the
+/// whole surface is the skip.
 ///
 /// ## The footage is Night's ground, and Night's only
 ///

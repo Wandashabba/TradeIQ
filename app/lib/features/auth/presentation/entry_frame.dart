@@ -74,15 +74,23 @@ import '../../../core/widgets/torchlight/chrome/chrome.dart';
 /// get one back.
 ///
 /// The standing rule it supersedes — never a screen without the cycle — was
-/// written so the control could not become unreachable, and it stays true
-/// where it was aimed: behind the door the cycle is on nineteen screens, and
-/// `/account/password` is one tap from the menu sheet's "This app" section.
-/// **`/update-required` is the one route this leaves without a way to the
-/// control**, because it is a gate: the button clears the flag and goes home,
-/// and if the build is still too old the next request brings the screen
-/// straight back. Nothing on it is unreadable — it is prose and one commit on
-/// the skin the phone was already in — but it is the honest cost of taking
-/// the slot off the frame rather than off three call sites.
+/// written so the control could not become unreachable.
+///
+/// **That rule is now dead everywhere, not only here.** This paragraph read
+/// *"it stays true where it was aimed: behind the door the cycle is on
+/// nineteen screens"*, and on 4 October 2026 the owner asked a third time,
+/// with a screenshot: *"Please remove the theme button on this page and
+/// everywhere else please. everywhere on the app. I need it only on settings
+/// and no where else"*. Behind the door the cycle is now on **no** screens.
+/// The agent's control is the `THIS APP` row on Me; the manager's is the menu
+/// sheet's `THIS APP` section.
+///
+/// So the cost this note recorded for `/update-required` — a gate with no way
+/// to the control, because the button clears the flag and goes home — is now
+/// the cost on every route that is not Me or the menu sheet. Nothing on those
+/// screens is unreadable: each renders in the skin the phone was already in,
+/// and the skin is only ever changed deliberately, from the one place that
+/// changes it.
 ///
 /// ### Why vertical centring, and why only here
 ///
