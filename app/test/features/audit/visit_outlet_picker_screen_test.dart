@@ -209,7 +209,39 @@ void main() {
         find.byKey(const ValueKey<String>('outlet-o1')),
       );
       expect(row.title, 'Kasi Corner Spaza');
-      expect(row.subtitle, 'KC-0412');
+
+      // THE NAME OF THIS TEST WAS TRUE AND ITS ASSERTION WAS NOT — corrected
+      // 4 October 2026.
+      //
+      // It read `expect(row.subtitle, 'KC-0412')`. `SoftRow.subtitle` renders
+      // in `body` — **Onest, prose** — and `tiq_type.dart` is explicit that
+      // prose may never render a code: no slashed zero, proportional digits,
+      // and a capital I and a lowercase l of the same shape, *"disqualifying
+      // for an outlet code"*. So this test has been named *"the store code is
+      // the identifier"* while pinning the code into the one face that is not
+      // the identifier, since the day it was written.
+      //
+      // The row passes the code as `meta` now, in `mono.ident`, which is what
+      // `outlets_list_screen.dart` has always done on the manager side. The
+      // assertion is **stronger than the old one**: it checks the slot *and*
+      // the resolved type role, so moving the code back into prose fails here
+      // rather than passing on the string alone.
+      expect(row.subtitle, isNull);
+      final code = tester.widget<Text>(find.text('KC-0412'));
+      expect(
+        code.style?.fontFamily,
+        TiqFonts.mono,
+        reason:
+            'The outlet code is an identifier and must wear JetBrains Mono. '
+            'An agent reads this code down a phone line to a manager; Onest '
+            'has no slashed zero and renders I and l identically.',
+      );
+      expect(
+        code.style?.fontFeatures,
+        contains(const FontFeature.tabularFigures()),
+        reason: 'An identifier carries tnum, like every figure role.',
+      );
+
       expect(find.textContaining('-26.20413'), findsNothing);
       expect(find.textContaining('28.04732'), findsNothing);
       expect(

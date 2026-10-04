@@ -265,6 +265,7 @@ class _OutletList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final skin = context.skin;
     return TorchBleed(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -272,11 +273,23 @@ class _OutletList extends StatelessWidget {
           for (final (i, outlet) in outlets.indexed)
             SoftRow(
               key: ValueKey<String>('outlet-${outlet.id}'),
+              // `compact` — the console's list height, 4 October 2026; see
+              // `today_screen.dart`'s `_StopRow` for the ruling.
+              density: SoftRowDensity.compact,
               title: outlet.name,
               // An outlet name middle-truncates so the branch survives when
               // the chain does not: "Pick n Pay …Vosloorus".
               titleTruncation: SoftRowTruncation.middle,
-              subtitle: outlet.code,
+              // THE CODE WEARS THE IDENTIFIER FACE, 4 October 2026. It was
+              // `subtitle: outlet.code` — an outlet code in Onest, which
+              // `tiq_type.dart` names as the one thing prose may never render.
+              // `outlets_list_screen.dart` has always printed it this way on
+              // the manager side; see `agent_map_screen.dart` for the full
+              // note. This is the row the complaint was filed against.
+              meta: Text(
+                outlet.code,
+                style: skin.text.monoIdent.style(color: skin.palette.ink3),
+              ),
               trailing: const SoftRowChevron(),
               separator: i == outlets.length - 1
                   ? SoftRowSeparator.none

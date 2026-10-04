@@ -43,7 +43,7 @@ import 'entry_plate.dart';
 ///
 /// | was | is |
 /// |---|---|
-/// | `TorchAppHeader(title:)`, `titleM`, 96dp before a word | the plate's `TorchDisplayHeadline`, on the picture |
+/// | `TorchAppHeader(title:)`, `titleM`, 96dp before a word (72 since 4 October 2026) | the plate's `TorchDisplayHeadline`, on the picture |
 /// | a bare back arrow on its own row | the arrow in the plate's top slot, beside the mark |
 /// | a dead commit under "Enter your email first" | a live commit that validates on press |
 ///

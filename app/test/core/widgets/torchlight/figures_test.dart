@@ -24,13 +24,25 @@ void main() {
       }
     });
 
-    test('track heights are 4 / 6 by density', () {
-      // BOTH DENSITIES ARE NAMED. `TiqSkin.day()` meant field until
-      // 29 September 2026 and means console now, so a test about density that
-      // leans on a factory default is a test that reads its own answer off a
-      // default. This one wanted field and now says so.
+    test('the track is 4 at both densities', () {
+      // WAS `track heights are 4 / 6 by density`, asserting unify §1.19's
+      // **4dp Console / 6dp Field**. The field arm went to 4 on 4 October 2026
+      // — see `Meter.trackHeight`, which keeps §1.19's wording and says why
+      // the Field arm had no argument behind it.
+      //
+      // BOTH DENSITIES ARE STILL NAMED, and that is the half of this test
+      // worth keeping. `TiqSkin.day()` meant field until 29 September 2026 and
+      // means console now, so a test about density that leans on a factory
+      // default reads its own answer off a default. The assertion changed; the
+      // discipline did not.
+      //
+      // It is now an **equality** test rather than a difference test, which is
+      // the stronger shape: it fails if either arm moves, where the old one
+      // passed as long as the two differed by the right amount.
       expect(Meter.trackHeight(TiqSkin.night(density: TiqDensity.console)), 4);
-      expect(Meter.trackHeight(TiqSkin.day(density: TiqDensity.field)), 6);
+      expect(Meter.trackHeight(TiqSkin.day(density: TiqDensity.field)), 4);
+      expect(Meter.trackHeight(TiqSkin.night(density: TiqDensity.field)), 4);
+      expect(Meter.trackHeight(TiqSkin.day(density: TiqDensity.console)), 4);
     });
 
     testWidgets('a null value forces the empty state whatever was declared',

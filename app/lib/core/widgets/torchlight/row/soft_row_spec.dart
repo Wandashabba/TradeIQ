@@ -35,14 +35,48 @@ enum SoftRowForm {
 }
 
 /// The three densities. Kit's three won; manager's 76 rounds up to 80.
+///
+/// **THE RUNGS ARE LITERALS AND THEY DO NOT READ THE SCALE** — 4 October 2026,
+/// stated here because it is the defect that outlived a fix. `TiqSpace.field`
+/// brought `rowMinHeight` from **64 to 44** on 29 September 2026 (*"Fix the
+/// spacing also please check if everything matches with the manager side"*),
+/// and nothing below changed, because [SoftRowSpec.resolve] switches on this
+/// enum and returns `56.0 / 64.0 / 80.0` as constants. `space.rowMinHeight` is
+/// read in exactly one place in this file — [SoftRowSpec.meetsTargetFloor],
+/// an assertion — so the token is a floor the rungs are checked against and
+/// never a value they derive from.
+///
+/// That is defensible (a rung is a designed height, not a minimum) and it is
+/// why the 29 September change could not reach the call sites: [standard] went
+/// on meaning 64 to every agent list in the product. The 4 October density
+/// pass moved the **call sites** instead; the rungs are untouched, because
+/// moving one would move the manager side.
 enum SoftRowDensity {
-  /// 56 — console lists.
+  /// 56 — console lists, and **the manager's list height**. `held_work_row`
+  /// names it that in so many words, and since 4 October 2026 it is what the
+  /// agent's lists ask for too: Today's route, the visit hub's ladder, the
+  /// store picker, the map list, the points ledger and the outbox.
   compact,
 
-  /// 64 — field lists.
+  /// 64 — ~~field lists~~ **and nothing on the agent side asks for it any
+  /// more, 4 October 2026.**
+  ///
+  /// This rung is the 64dp agent row, which `TiqSpace.field` gave up on
+  /// 29 September 2026 and which survived here as a literal. Its remaining
+  /// callers are all **console**: the outlets list, visit detail, beat plans,
+  /// messages, the report-schedule form and Ask's history sheet. It is left
+  /// in place and left at 64 because those are the manager's screens and the
+  /// manager's screens do not move.
   standard,
 
-  /// 80 — two meta lines: Next-up, outbox, person, decision rows.
+  /// 80 — three lines: a title and two secondary ones.
+  ///
+  /// ~~Next-up, outbox, person, decision rows.~~ **The caller list was wrong
+  /// and is corrected, 4 October 2026.** `decision_row.dart` has been
+  /// [compact] since it was written, and `outbox_row.dart` joined it on
+  /// 4 October to match the console mirror that renders the same object. What
+  /// actually asks for this rung is `PersonRow` (its default) and twenty-odd
+  /// console call sites. **No agent screen uses it.**
   tall,
 }
 

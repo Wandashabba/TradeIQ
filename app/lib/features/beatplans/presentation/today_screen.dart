@@ -426,6 +426,11 @@ class _Route extends ConsumerWidget {
         TorchBleed(
           child: SoftRow(
             key: const ValueKey<String>('visit-another'),
+            // `compact` — the console's list height, 4 October 2026. One line
+            // of text, a glyph and a chevron: the 64dp `standard` floor was
+            // binding on a row whose content is 52.8dp, so 11dp of it was a
+            // floor and nothing else. See `_StopRow` for the ruling.
+            density: SoftRowDensity.compact,
             title: l10n.todayVisitAnotherStore,
             leading: const Icon(Icons.add, size: 20),
             trailing: const SoftRowChevron(),
@@ -702,6 +707,34 @@ class _StopRow extends StatelessWidget {
 
     return SoftRow(
       key: ValueKey<String>('stop-${stop.outlet.id}'),
+      // `compact` — THE CONSOLE'S LIST HEIGHT, 4 October 2026.
+      //
+      // > *"Too big and spaced out — cards, text and gaps are larger than the
+      // > manager side, so it feels less professional."* — the owner.
+      //
+      // This row asked for `SoftRowDensity.standard`, which is 64 and which
+      // `soft_row_spec.dart` names **"field lists"**. That rung is the last
+      // live piece of the 64dp agent row, and the 64dp agent row was
+      // **already retired**: `TiqSpace.field.rowMinHeight` went 64 → 44 on
+      // 29 September 2026 ("Fix the spacing also please check if everything
+      // matches with the manager side"). The token moved and the call sites
+      // did not, because `SoftRowSpec` restates 56/64/80 as literals and
+      // never reads `space.rowMinHeight` — so every agent list went on asking
+      // for a number the scale had given up. That is the gap this closes.
+      //
+      // `compact` is the manager's own word for its list height, not a guess:
+      // `held_work_row.dart` is *"the console's mirror"* of the agent's
+      // outbox row and sets `density: SoftRowDensity.compact` under the
+      // comment *"the console's list height"*. Same object, two rungs — which
+      // is the owner's sentence, in the source.
+      //
+      // WHAT IT COSTS AND WHAT IT DOES NOT. 8dp of vertical padding a row
+      // (s4 → s3) and 8dp off the floor. **Nothing shrinks**: the leading
+      // lane goes 40 → 28 and `_SequenceTile` is `MarkScale.tile`, which is
+      // **28 at 1.0×** — so the lane stops reserving 12dp it never used, and
+      // the tile is untouched. The row stays the whole tap target and 56 is
+      // 12dp clear of the 44dp floor.
+      density: SoftRowDensity.compact,
       title: stop.outlet.name,
       // An outlet name middle-truncates, so the branch survives when the
       // chain does not: "Pick n Pay …Vosloorus" beats "Pick n Pay Liber…".

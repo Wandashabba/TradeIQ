@@ -201,7 +201,9 @@ class EntryPlate extends StatelessWidget {
   ///
   /// The account screens' back arrow, and nothing else today. It is here
   /// rather than in a `TorchAppHeader` above the plate because that header is
-  /// 96dp before it prints a word ([TorchAppHeader.minHeightFor]) and it
+  /// **72dp** before it prints a word ([TorchAppHeader.minHeightFor] — it was
+  /// 96 until 4 October 2026, when the agent arm joined the console's; the
+  /// argument here is unaffected, only the number) and it
   /// printed the same sentence the plate's headline now prints — the
   /// duplication `login_screen.dart` deleted on the door, one component up.
   /// The plate already reserves a band for a small control and already

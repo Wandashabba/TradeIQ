@@ -28,9 +28,22 @@ import 'me/me_harness.dart';
 /// The migrated agent routes, Night → Day, as declared values.
 ///
 /// The order is the design's own: Night first, then Day —
-/// after Night has stopped moving. The declared values matter here, because
-/// this is the outdoor screen: targets 56, rows 64, 2px borders, no
-/// gradients, no shadows, and the nav docked.
+/// after Night has stopped moving.
+///
+/// ~~The declared values matter here, because this is the outdoor screen:
+/// targets 56, rows 64, 2px borders, no gradients, no shadows, and the nav
+/// docked.~~
+///
+/// **Every number in that sentence was stale, and it is corrected rather than
+/// deleted because what it was *for* is still right.** The declared values do
+/// matter here; they are just no longer the outdoor set. Targets are **44**
+/// and rows **44** (`TiqSpace.field`, 29 September 2026), borders are **1px**,
+/// Day casts **three** shadows, the nav **floats** in both skins (28 September
+/// 2026) — and since 4 October 2026 the agent's **list rows are `compact`,
+/// the console's list height**, its header floor is **72** like the console's,
+/// and its chip, meter and stat tile carry the console's geometry too. The
+/// goldens below record all of it, which is the point: this comment drifted
+/// for a week precisely because nothing measured was reading it.
 
 const _khumalo = Outlet(
   id: 'o1',

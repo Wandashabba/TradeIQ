@@ -992,6 +992,12 @@ class _SectionRow extends StatelessWidget {
     if (entry.isScore) {
       return SoftRow(
         key: ValueKey<String>(entry.tileKey),
+        // `compact` — the console's list height, 4 October 2026; see
+        // `today_screen.dart`'s `_StopRow` for the ruling. It matters most
+        // here: this ladder is eight to eleven rungs, so 8dp a rung is a
+        // whole row of fold back on the screen an agent scrolls nine times a
+        // store.
+        density: SoftRowDensity.compact,
         title: entry.label,
         subtitle: l10n.visitScoreCalculatedOnSubmit,
         leading: const RowMarkTile(mark: RowMark.barredRing),
@@ -1021,6 +1027,12 @@ class _SectionRow extends StatelessWidget {
 
     return SoftRow(
       key: ValueKey<String>(entry.tileKey),
+      // `compact` — the console's list height, 4 October 2026. Same ruling as
+      // the score row above. The detail line was already moved from `body` to
+      // `meta` on 29 September *"matching the manager's rows"* (see the note
+      // on `meta:` below); this is the half of that sentence the row's height
+      // had not caught up with.
+      density: SoftRowDensity.compact,
       title: entry.label,
       leading: SectionStateGlyph(state: state),
       // THE SEVERITY IS A SMALL DOT PLUS A WORD — 29 September 2026, matching

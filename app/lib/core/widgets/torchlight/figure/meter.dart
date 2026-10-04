@@ -91,10 +91,34 @@ class Meter extends StatelessWidget {
   /// tick's silhouette is reinforced rather than relied on.
   final String? semanticsValue;
 
-  /// Track height by density (unify §1.19). 4dp Console, 6dp Field.
+  /// Track height. **4dp at both densities since 4 October 2026**; unify §1.19
+  /// ruled 4dp Console / 6dp Field and this was the Field arm.
+  ///
+  /// > *"Too big and spaced out — cards, text and gaps are larger than the
+  /// > manager side, so it feels less professional."* — the owner, 4 October
+  /// > 2026.
+  ///
+  /// **THE WEAKEST OF THE SIX, AND IT IS SAID HERE RATHER THAN IN THE PR.** A
+  /// meter track is not a card, not text and not a gap, so it is not what the
+  /// owner's sentence names; 2dp is also the smallest of the six moves. It is
+  /// taken for one reason and the reason is thin: §1.19 reads *"Figures wins:
+  /// 4dp Console / 6dp Field … Kit's always-outlined 6dp loses"* — a record of
+  /// **which proposal won**, with no argument anywhere for why the field arm
+  /// is 6. Every other density branch in the component set turned out the same
+  /// way when it was read, and this is the one where that finding is the whole
+  /// of the case.
+  ///
+  /// What it is **not** is a thumb question: a meter is a drawn figure and
+  /// nothing in it is tappable, so no target moves. A 6dp track beside an
+  /// `axis.label` at 12 was also drawing heavier than the type it annotates,
+  /// which is the proportion a 4dp track restores.
+  ///
+  /// If a reader decides outdoor legibility wants the thicker track back, this
+  /// is the cheapest of the six to revert and it takes nothing with it: give
+  /// [TiqDensity.field] its own arm at 6. The other five are load-bearing on
+  /// the owner's sentence; this one is load-bearing on consistency alone.
   static double trackHeight(TiqSkin skin) => switch (skin.density) {
-    TiqDensity.console => 4,
-    TiqDensity.field => 6,
+    TiqDensity.console || TiqDensity.field => 4,
   };
 
   @override
