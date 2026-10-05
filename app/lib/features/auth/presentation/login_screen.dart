@@ -11,10 +11,14 @@ import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/entry_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/console_desk.dart';
+import '../../../core/widgets/torchlight/display_headline.dart';
 import '../../../core/widgets/torchlight/input.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
+import 'entry_aside.dart';
+import 'entry_brand.dart';
 import 'entry_frame.dart';
 import 'entry_plate.dart';
 
@@ -258,6 +262,20 @@ class _SignInState extends ConsumerState<_SignIn> {
     final armed = !_sending;
     final failure = session.hasError ? session.error! : null;
 
+    // THE DOOR ON A DESK — owner's choice of 5 October 2026, "D — the form
+    // first", against a desktop that was showing the phone's door stretched
+    // across the window: a letterbox plate over a 480dp column of fields
+    // marooned in the middle of 1400dp.
+    //
+    // `ConsoleDesk.isDesk`, not `EntryFrame.isPage`. The page rule is about a
+    // reading column and says yes on a tablet; a side pane is the console's
+    // question and takes the console's threshold, so the two stay the same
+    // width apart everywhere in the product.
+    //
+    // At anything narrower this is false and every line below is the screen
+    // that shipped: the plate across the top, the form under it, untouched.
+    final desk = ConsoleDesk.isDesk(skin, MediaQuery.sizeOf(context));
+
     return TorchSheetAware(
       builder: (context, beneathSheet) => TorchScope(
         skin: skin,
@@ -285,6 +303,9 @@ class _SignInState extends ConsumerState<_SignIn> {
             ),
         ],
         child: EntryFrame(
+          // The picture, full height, to the right of the form. Null on a
+          // phone, which is what keeps every narrow layout exactly as it was.
+          aside: desk ? const EntryAside() : null,
           // NO APP HEADER, AND THE TWO REASONS ARE SEPARATE.
           //
           // **The title said what the headline now says.** A `TorchAppHeader`
@@ -357,10 +378,35 @@ class _SignInState extends ConsumerState<_SignIn> {
             // At 360×640 it collapses to the 96dp band by its own budget and
             // the picture is dropped, which is very nearly the masthead this
             // screen already had.
-            EntryPlate(
-              headline: l10n.loginHeadline,
-              supporting: l10n.loginSubtitle,
-            ),
+            // ON A DESK THE THREE PIECES OF TYPE COME OFF THE PICTURE.
+            //
+            // The picture is beside the form now, not above it, so a wordmark
+            // and a headline printed on it would be type on one side of the
+            // screen about a form on the other. They move to the ground at the
+            // head of the column instead, in the order the plate had them:
+            // mark, headline, sentence.
+            //
+            // **The strings are still the same three.** `loginHeadline` and
+            // `loginSubtitle` are untouched, and the mark is the same compact
+            // wordmark the plate carries. Nothing new is said on a wider
+            // screen, because there is nothing new to say: before sign-in
+            // there is still no tenant, no territory, no route and no count.
+            // That rule is the one `entry_plate.dart` argues at length and it
+            // does not relax with the viewport.
+            if (desk) ...<Widget>[
+              const EntryBrand(compact: true),
+              SizedBox(height: skin.space.blockGap),
+              TorchDisplayHeadline(l10n.loginHeadline),
+              SizedBox(height: skin.space.intraBlock),
+              Text(
+                l10n.loginSubtitle,
+                style: skin.text.body.style(color: skin.palette.ink2),
+              ),
+            ] else
+              EntryPlate(
+                headline: l10n.loginHeadline,
+                supporting: l10n.loginSubtitle,
+              ),
             SizedBox(height: skin.space.blockGap),
             if (held != null && !held.isEmpty) ...<Widget>[
               SessionHeldLine(

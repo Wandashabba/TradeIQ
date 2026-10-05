@@ -139,6 +139,7 @@ class EntryFrame extends StatelessWidget {
     required this.primary,
     this.underPrimary,
     this.header,
+    this.aside,
   });
 
   /// The body. Block gaps are the caller's, as they are for [TorchShell].
@@ -164,6 +165,19 @@ class EntryFrame extends StatelessWidget {
   /// has none by §1.27's ruling; the three account screens have one.
   final Widget? header;
 
+  /// A full-height pane to the right of the frame, on a desk only.
+  ///
+  /// Null everywhere but `/login`, where it is the picture. **The caller
+  /// decides when**, not this frame: `isPage` above is a reading-column rule
+  /// and answers true on a tablet, while a side pane wants the desk rule
+  /// (`ConsoleDesk.isDesk`) — the same threshold the console splits at. Two
+  /// different questions, so the one that is not this widget's stays outside
+  /// it, and the caller passes null until its own answer is yes.
+  ///
+  /// Everything below is untouched when it is null, which is every phone, and
+  /// every other entry route at every size.
+  final Widget? aside;
+
   /// The viewport height at or above which the way in becomes a page. See
   /// the note on landscape phones above.
   static const double pageMinHeight = 900;
@@ -181,6 +195,26 @@ class EntryFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final aside = this.aside;
+    if (aside == null) return _frame(context);
+
+    // 3 : 2. The form keeps the larger share because it is the work and it has
+    // a reading column to hold; the picture takes the rest rather than a fixed
+    // width, so it grows with the window instead of stranding the form in the
+    // middle of it — which is the whole complaint this replaces.
+    //
+    // `stretch` so the picture is full-bleed top to bottom. It is the one
+    // object on this screen that should touch three edges.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(flex: 3, child: _frame(context)),
+        Expanded(flex: 2, child: aside),
+      ],
+    );
+  }
+
+  Widget _frame(BuildContext context) {
     final skin = context.skin;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
 
