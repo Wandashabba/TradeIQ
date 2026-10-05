@@ -13,30 +13,20 @@
 # Postgres would mean a dump/restore and a one-way door.
 #
 # ---------------------------------------------------------------------------
-# DO NOT MOVE AGENT TRAFFIC HERE UNTIL THE CLIENT IP IS FIXED. This is a
-# lockout, not a rough edge.
+# CLIENT IP: fixed, and worth not un-fixing. `clientIp()` keys the rate
+# limiters on `CF-Connecting-IP` (then `True-Client-IP`) when `RENDER` is set,
+# because `req.ip` here is a PRIVATE 10.x address that changes between requests
+# — whichever internal Render proxy took it — so the limiters were keyed on an
+# unpredictable handful of buckets shared by every caller. `POST /auth/login`
+# at 10 per 15 minutes was effectively a cap on the whole fleet, which is the
+# outage #160 was opened to fix.
 #
-# `backend/src/lib/clientIp.ts` reads the caller's address from Fly's
-# `Fly-Client-IP`, and only when `FLY_APP_NAME` is set — a variable Fly injects
-# and no request can mint. On Render that variable does not exist, so
-# `clientIp()` falls back to `req.ip`; `app.ts:74` pins
-# `app.set('trust proxy', false)`, so `req.ip` is the socket peer, which behind
-# Render's proxy is the proxy itself — one address for every request in the
-# fleet. `rateLimit.ts:27-31` then keys on it.
-#
-# The consequence is the outage #160 was opened to fix, reintroduced:
-# `POST /auth/login` is 10 per 15 minutes, so about eleven honest sign-ins
-# across every tenant per quarter hour and the next agent to pick up a shared
-# handset is refused. The per-IP half of `POST /auth/reset-password` collapses
-# the same way.
-#
-# Fixing it needs a `runningOnRender()` guard (Render injects `RENDER` and
-# `RENDER_SERVICE_ID`, neither of which a request can set) plus whichever
-# header Render's proxy is proven to overwrite. Which header that is must be
-# MEASURED against a live Render service, not assumed: the same reasoning in
-# clientIp.ts that rules out trusting one hop on Fly — the rightmost
-# `X-Forwarded-For` entry being the app's own address — rules out guessing here.
-# deploy-hardening.md §5 has the shape of that check.
+# Those headers work because Render fronts *.onrender.com with Cloudflare,
+# which overwrites them. A CUSTOM DOMAIN may change that chain. The code fails
+# closed if it does (isIP rejects, and it falls back to the shared bucket
+# rather than to a forgeable header), but the limiters quietly stop being
+# per-caller. Re-take the measurement in docs/operations/deploy-hardening.md §5
+# after any change to how traffic reaches the app.
 # ---------------------------------------------------------------------------
 
 services:
@@ -188,9 +178,10 @@ services:
     # API_BASE_URL is baked in AT BUILD TIME, not read at runtime — it is a
     # String.fromEnvironment in app/lib/core/network/api_client.dart:12 with a
     # default of http://localhost:4000. Change the API's address and the site
-    # must be rebuilt, not restarted. API_HOST below comes from the service
-    # reference, so Render supplies the real hostname on the first build and
-    # there is no chicken-and-egg with the API's URL.
+    # must be REBUILT, not restarted: editing the variable alone leaves the old
+    # value compiled into main.dart.js. Verify a build with
+    #   curl -s https://<site>/main.dart.js | grep -o 'https://[a-z0-9.-]*onrender[a-z.]*'
+    # which prints the address the console will actually call.
     buildCommand: |
       set -euo pipefail
       # Render restores the build directory from cache between builds, so
@@ -212,16 +203,30 @@ services:
       flutter --version
       flutter pub get
       dart run build_runner build --delete-conflicting-outputs
-      flutter build web --release --dart-define=API_BASE_URL="https://$API_HOST"
+      flutter build web --release --dart-define=API_BASE_URL="$API_BASE_URL"
 
     staticPublishPath: build/web
 
     envVars:
-      - key: API_HOST
-        fromService:
-          name: tradeiq-api
-          type: web
-          property: host
+      # The API's FULL public origin, scheme included and no trailing slash:
+      #   https://tradeiq-api-jrsq.onrender.com
+      #
+      # Set by hand, and NOT wired with `fromService ... property: host`, which
+      # is what the first version of this file did. That property returns
+      # Render's INTERNAL hostname — the bare service name, for private
+      # service-to-service networking — so the build baked in
+      # "https://tradeiq-api-jrsq" with no domain at all. Every API call from
+      # the console then went to a hostname that does not resolve, which the
+      # login screen reports as "we could not sign you in": the one failure that
+      # looks like a credentials problem and is not.
+      #
+      # Explicit also survives the thing that caused it. `onrender.com`
+      # subdomains are globally unique, so this service's real hostname carries
+      # a suffix Render assigned because `tradeiq-api` was already taken, and
+      # nothing in this file can derive that. A custom domain later changes it
+      # again — change it here, and REBUILD, because of the next paragraph.
+      - key: API_BASE_URL
+        sync: false
 
     # The console is a single-page application: without this every deep link
     # 404s on refresh, because no file exists at that path.
