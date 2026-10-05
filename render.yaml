@@ -11,6 +11,33 @@
 # cutover reversible — Fly and Render can point at the same database, so if
 # Render misbehaves the old app is still serving the same rows. A Render
 # Postgres would mean a dump/restore and a one-way door.
+#
+# ---------------------------------------------------------------------------
+# DO NOT MOVE AGENT TRAFFIC HERE UNTIL THE CLIENT IP IS FIXED. This is a
+# lockout, not a rough edge.
+#
+# `backend/src/lib/clientIp.ts` reads the caller's address from Fly's
+# `Fly-Client-IP`, and only when `FLY_APP_NAME` is set — a variable Fly injects
+# and no request can mint. On Render that variable does not exist, so
+# `clientIp()` falls back to `req.ip`; `app.ts:74` pins
+# `app.set('trust proxy', false)`, so `req.ip` is the socket peer, which behind
+# Render's proxy is the proxy itself — one address for every request in the
+# fleet. `rateLimit.ts:27-31` then keys on it.
+#
+# The consequence is the outage #160 was opened to fix, reintroduced:
+# `POST /auth/login` is 10 per 15 minutes, so about eleven honest sign-ins
+# across every tenant per quarter hour and the next agent to pick up a shared
+# handset is refused. The per-IP half of `POST /auth/reset-password` collapses
+# the same way.
+#
+# Fixing it needs a `runningOnRender()` guard (Render injects `RENDER` and
+# `RENDER_SERVICE_ID`, neither of which a request can set) plus whichever
+# header Render's proxy is proven to overwrite. Which header that is must be
+# MEASURED against a live Render service, not assumed: the same reasoning in
+# clientIp.ts that rules out trusting one hop on Fly — the rightmost
+# `X-Forwarded-For` entry being the app's own address — rules out guessing here.
+# deploy-hardening.md §5 has the shape of that check.
+# ---------------------------------------------------------------------------
 
 services:
   # ---- the API -------------------------------------------------------------
@@ -57,9 +84,13 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Pasted by hand from Supabase. Use the POOLED connection string: Render
-      # restarts containers freely and a direct connection per instance will
-      # exhaust Postgres' connection limit faster than the pooler would.
+      # Pasted by hand from Supabase → Connect → **Session pooler URI (port
+      # 5432)**, which is the form docs/operations/deploy-hardening.md already
+      # uses against this database. Session mode, not the transaction pooler on
+      # 6543: Prisma uses prepared statements, which transaction pooling breaks
+      # unless the URL also carries `?pgbouncer=true`. Not the direct connection
+      # either — Render restarts containers freely and a direct connection per
+      # instance exhausts Postgres' connection limit faster than the pooler.
       - key: DATABASE_URL
         sync: false
 
@@ -69,6 +100,19 @@ services:
       # secret is missing, too short, or is the known default published in this
       # repository. Letting Render generate it means the production secret has
       # never existed in a terminal, a chat log, or git history.
+      #
+      # BUT a new secret invalidates every existing token. Login issues a
+      # stateless 12-hour JWT and there is no session store to migrate (#142),
+      # so every signed-in user — the mobile app included — is signed out at
+      # cutover and must log in again. Read that together with the client-IP
+      # block at the top of this file: a fleet-wide forced re-login arriving at
+      # a login limiter that has collapsed to one global bucket of 10 per 15
+      # minutes is a queue nobody gets through. Fix the client IP first.
+      #
+      # To preserve sessions instead, set this to `sync: false` and paste the
+      # value Fly is already using, if it is in your password manager.
+      # `fly secrets list` shows digests, not values, so it cannot be recovered
+      # from Fly.
       - key: JWT_SECRET
         generateValue: true
 
