@@ -168,7 +168,12 @@ export async function listActions(
       ...(filter.toolName ? { toolName: filter.toolName } : {}),
       ...(filter.tier ? { tier: filter.tier } : {}),
     },
-    orderBy: { createdAt: 'desc' },
+    // `created_at` is timestamp(3), and two actions opened in the same
+    // millisecond tie on it exactly — close enough together is common, because
+    // a single assistant turn can open several. `id` breaks the tie so the same
+    // query always returns the same order; it is a random uuid, so it carries
+    // no recency of its own and is a tie-break only, never the sort.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     // Bounded by default. An audit table grows without limit by design, so the
     // one query guaranteed to be run against the biggest version of it should
     // not be the unbounded one.

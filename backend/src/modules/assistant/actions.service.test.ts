@@ -187,21 +187,55 @@ describe('the write ledger', () => {
   });
 
   describe('reading the ledger', () => {
+    // Written oldest first, so the expected read order is the reverse.
+    const written = ['getStockLevels', 'getFraudFlags', 'someWriteTool'];
+
     beforeEach(async () => {
       await openAction({ actor, toolName: 'getStockLevels', args: { n: 1 } });
       await openAction({ actor, toolName: 'getFraudFlags', args: { n: 2 } });
       const quiet = jest.spyOn(console, 'error').mockImplementation(() => {});
       await openAction({ actor, toolName: 'someWriteTool', args: { n: 3 } });
       quiet.mockRestore();
+
+      // Three writes this fast land in the same millisecond, and `created_at`
+      // is timestamp(3), so they tie — which made "newest first" below an
+      // assertion about which insert the planner returned first rather than
+      // about time. Spread them a second apart so the claim is the one the
+      // test's name makes. Each `toolName` here is written exactly once.
+      const base = new Date('2026-01-01T00:00:00.000Z');
+      await Promise.all(
+        written.map((toolName, i) =>
+          prisma.assistantAction.updateMany({
+            where: { clientId, toolName },
+            data: { createdAt: new Date(base.getTime() + i * 1_000) },
+          }),
+        ),
+      );
     });
 
     it('is newest first', async () => {
       const rows = await listActions(clientId);
-      expect(rows.map((r) => r.toolName)).toEqual([
-        'someWriteTool',
-        'getFraudFlags',
-        'getStockLevels',
-      ]);
+      expect(rows.map((r) => r.toolName)).toEqual([...written].reverse());
+    });
+
+    it('breaks a same-millisecond tie the same way every time', async () => {
+      // Several actions inside one assistant turn is the normal case, and when
+      // they share a millisecond `created_at` cannot separate them. Without a
+      // tie-break the audit view reshuffles between two reads of identical
+      // data. Compared against raw SQL rather than a sort in JS, so the
+      // database's own collation decides what `id` descending means.
+      await prisma.assistantAction.updateMany({
+        where: { clientId },
+        data: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+      });
+
+      const expected = await prisma.$queryRaw<{ id: string }[]>`
+        select id from assistant_actions where client_id = ${clientId} order by id desc
+      `;
+      expect(expected).toHaveLength(written.length);
+      expect((await listActions(clientId)).map((r) => r.id)).toEqual(
+        expected.map((r) => r.id),
+      );
     });
 
     it('filters by tool and by tier', async () => {
