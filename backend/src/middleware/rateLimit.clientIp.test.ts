@@ -3,6 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import { app as realApp } from '../app';
 import { createLoginRateLimiter, createResetRedeemIpRateLimiter } from './rateLimit';
+import { runningOnFly, runningOnRender } from '../lib/clientIp';
 
 /**
  * The IP-keyed limiters, and the bucket they key into.
@@ -252,6 +253,80 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
         // A genuinely different allocation is a genuinely different bucket.
         expect((await from('2001:db8:aaaa:cc00::1')).status).toBe(200);
       });
+    });
+  });
+});
+
+/**
+ * The Render half of the same question.
+ *
+ * Moving off Fly silently removed the protection this file exists for:
+ * `FLY_APP_NAME` is unset on Render, so `clientIp()` falls through to `req.ip`,
+ * and with `trust proxy` pinned false that is the socket peer — Render's proxy,
+ * one address for the whole fleet. `POST /auth/login` at 10 per 15 minutes
+ * becomes a global cap again, which is the outage at the top of this file.
+ *
+ * What is deliberately NOT asserted is which header replaces it on Render.
+ * That is a fact about Render's proxy, not about this repository, and guessing
+ * is exactly what the two traps above are about. The probe in `app.ts` takes
+ * that measurement against a live service once; these tests pin the guard and
+ * the probe's access rules, which are ours to decide.
+ */
+describe('running on Render', () => {
+  const saved = { render: process.env.RENDER, fly: process.env.FLY_APP_NAME };
+
+  afterEach(() => {
+    if (saved.render === undefined) delete process.env.RENDER;
+    else process.env.RENDER = saved.render;
+    if (saved.fly === undefined) delete process.env.FLY_APP_NAME;
+    else process.env.FLY_APP_NAME = saved.fly;
+    delete process.env.CLIENT_IP_PROBE;
+  });
+
+  it('is detected from RENDER, which no request can set', () => {
+    process.env.RENDER = 'true';
+    expect(runningOnRender()).toBe(true);
+  });
+
+  it('is false off-platform, so a forged header buys nothing there', () => {
+    delete process.env.RENDER;
+    expect(runningOnRender()).toBe(false);
+    process.env.RENDER = '   ';
+    expect(runningOnRender()).toBe(false);
+  });
+
+  it('does not make the process look like Fly', () => {
+    process.env.RENDER = 'true';
+    delete process.env.FLY_APP_NAME;
+    // Independent guards. A Render box must never satisfy the Fly branch, or it
+    // would start trusting a `Fly-Client-IP` that nothing is setting.
+    expect(runningOnFly()).toBe(false);
+  });
+
+  describe('the probe', () => {
+    it('does not exist when CLIENT_IP_PROBE is unset', async () => {
+      delete process.env.CLIENT_IP_PROBE;
+      await request(realApp).get('/internal/client-ip-probe').expect(404);
+    });
+
+    it('stays 404 for a wrong or missing token, so scanning cannot find it', async () => {
+      process.env.CLIENT_IP_PROBE = 'the-right-token';
+      await request(realApp).get('/internal/client-ip-probe').expect(404);
+      await request(realApp).get('/internal/client-ip-probe?token=guess').expect(404);
+    });
+
+    it('reports the forwarding headers verbatim when the token matches', async () => {
+      process.env.CLIENT_IP_PROBE = 'the-right-token';
+      const res = await request(realApp)
+        .get('/internal/client-ip-probe?token=the-right-token')
+        .set('X-Forwarded-For', '203.0.113.7, 9.9.9.9')
+        .expect(200);
+
+      // Verbatim and unparsed: what Render delivers is the thing being
+      // measured, so this must not quietly normalise it.
+      expect(res.body.xForwardedFor).toBe('203.0.113.7, 9.9.9.9');
+      expect(res.body).toHaveProperty('reqIp');
+      expect(res.body).toHaveProperty('trueClientIp', null);
     });
   });
 });
