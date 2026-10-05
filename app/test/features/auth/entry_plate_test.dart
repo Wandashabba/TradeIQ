@@ -15,6 +15,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/display_headline.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/plate/plate.dart';
 import 'package:tradeiq_app/features/auth/presentation/entry_brand.dart';
+import 'package:tradeiq_app/features/auth/presentation/entry_aside.dart';
 import 'package:tradeiq_app/features/auth/presentation/entry_plate.dart';
 import 'package:tradeiq_app/features/auth/presentation/login_screen.dart';
 
@@ -554,26 +555,66 @@ void main() {
       });
     }
 
-    testWidgets('1280x1800: the same 250dp plate, at the reading width', (
+    // 834x1112, NOT 1280x1800, AND THE DIFFERENCE IS THE WHOLE POINT.
+    //
+    // This measured 1280x1800 until 5 October 2026, when the owner chose
+    // "D — the form first" for the desk: past `ConsoleDesk.isDesk` the login
+    // has no plate at all, because the picture moved to its own full-height
+    // pane beside the form (`EntryAside`) and the type came off it.
+    //
+    // The claim here survives that and is still worth pinning, so it moves to
+    // the widest viewport that still has a plate: a tablet is a page by
+    // `EntryFrame.isPage` and is not a desk, and the three account routes keep
+    // the plate at EVERY width because none of them passes an aside.
+    testWidgets('834x1112: the same 250dp plate, at the reading width', (
       tester,
     ) async {
-      await _pumpLogin(tester, const Size(1280, 1800));
+      await _pumpLogin(tester, const Size(834, 1112));
 
       final plate = tester.getRect(find.byType(TiqPlate));
       expect(_drawsPicture(tester), isTrue);
       // THE HEIGHT IS THE SAME AND THE WIDTH IS NOT. The plate heads a
       // column, the column is the same form at both addresses, and a plate
       // that grew with the window would be the complaint #495 exists to have
-      // fixed. What changes is the crop: 480x250 instead of 358x250.
+      // fixed. What changes is the crop: 440x250 instead of 358x250.
       expect(plate.height, 250);
       expect(plate.width, TiqSpace.readingWidth);
-      expect(plate.center.dx, 640);
+      expect(plate.center.dx, 417);
       // ignore: avoid_print
       print(
         'page shape: plate ${plate.width}x${plate.height} at the reading '
         'width, against ${390 - 2 * entrySkinFor(SkinMode.night).space.gutter}'
         'x250 on the phone.',
       );
+    });
+
+    // AND PAST THE DESK THRESHOLD THERE IS NO PLATE ON THIS ROUTE.
+    //
+    // The counterpart to the test above, and the reason it had to move. The
+    // picture is still on the screen — it is the pane on the right — so this
+    // is a change of place, not a deletion, and both halves are asserted so a
+    // future change cannot quietly drop the picture altogether.
+    testWidgets('1280x1800: the plate gives way to the pane beside the form', (
+      tester,
+    ) async {
+      await _pumpLogin(tester, const Size(1280, 1800));
+
+      expect(
+        find.byType(TiqPlate),
+        findsNothing,
+        reason:
+            'on a desk the picture is EntryAside, full height beside the '
+            'form, and the wordmark, headline and sentence are on the ground',
+      );
+      expect(find.byType(EntryAside), findsOneWidget);
+
+      final aside = tester.getRect(find.byType(EntryAside));
+      expect(
+        aside.height,
+        moreOrLessEquals(1800, epsilon: 1),
+        reason: 'the picture touches the top and bottom edges',
+      );
+      expect(aside.right, moreOrLessEquals(1280, epsilon: 1));
     });
   });
 

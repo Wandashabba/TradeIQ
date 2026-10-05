@@ -5,8 +5,9 @@ import 'package:tradeiq_app/core/theme/torchlight/entry_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/display_headline.dart';
+import 'package:tradeiq_app/features/auth/presentation/entry_aside.dart';
+import 'package:tradeiq_app/features/auth/presentation/entry_brand.dart';
 import 'package:tradeiq_app/features/auth/presentation/entry_frame.dart';
-import 'package:tradeiq_app/features/auth/presentation/entry_plate.dart';
 import 'package:tradeiq_app/features/auth/presentation/login_screen.dart';
 
 import '../agent_harness.dart' show loadAgentFonts;
@@ -33,9 +34,12 @@ import 'entry_harness.dart';
 ///    still run gutter to gutter and the commit bar is still a pinned
 ///    [TorchThumbZone]. #494's layout is good and nobody complained about it.
 /// 3. **Is the browser actually fixed?** At 1280×1800 the field is exactly
-///    the reading width, the column is centred in the viewport, there is no
-///    thumb zone, and the commit action is inside the column rather than
-///    1200dp below it.
+///    the reading width, there is no thumb zone, and the commit action is
+///    inside the column rather than 1200dp below it. The column is centred in
+///    its own PANE rather than in the window since 5 October 2026, when the
+///    owner chose "D — the form first" and the picture took the right 2/5 —
+///    the second complaint about this screen in a browser, and the one the
+///    first fix's centred column turned out to invite.
 ///
 /// It loads the real fonts, because every number in it is a fact about the
 /// typeface the app ships and `flutter_test`'s own font is nothing like it.
@@ -141,13 +145,44 @@ void main() {
   group('the browser shape', () {
     const size = Size(1280, 1800);
 
-    testWidgets('the field is exactly the reading width, and centred', (
-      tester,
-    ) async {
+    // CENTRED IN THE FORM PANE, NOT IN THE WINDOW — and that is the whole of
+    // what "D — the form first" changed here (owner, 5 October 2026).
+    //
+    // Until then this screen put the plate across the top and centred one
+    // column under it, so the field's centre was the window's centre. The
+    // owner's objection was that it read as "mobile login on desktop": a
+    // letterbox over a 440dp column marooned in 1400dp of ground.
+    //
+    // The field is still EXACTLY the reading width — that number is a measure
+    // and is argued above, and nothing about a wider window changes how many
+    // characters a line should hold. What moved is where the column sits: the
+    // picture takes the right 2/5 and the form keeps the left 3/5, centred in
+    // its own pane.
+    testWidgets('the field is exactly the reading width, centred in the form '
+        'pane rather than the window', (tester) async {
       await _pumpLogin(tester, size);
       final field = tester.getRect(key('login-email'));
       expect(field.width, TiqSpace.readingWidth);
-      expect(field.center.dx, size.width / 2);
+
+      final pane = size.width * 3 / 5;
+      expect(
+        field.center.dx,
+        moreOrLessEquals(pane / 2, epsilon: 1),
+        reason:
+            'the form is centred in its own pane. Centred in the WINDOW it '
+            'would sit at ${size.width / 2}, which is under the picture.',
+      );
+
+      // And the picture has the rest, full bleed to three edges.
+      final aside = tester.getRect(find.byType(EntryAside));
+      expect(aside.left, moreOrLessEquals(pane, epsilon: 1));
+      expect(aside.right, moreOrLessEquals(size.width, epsilon: 1));
+      expect(aside.height, moreOrLessEquals(size.height, epsilon: 1));
+      expect(
+        field.right,
+        lessThan(aside.left),
+        reason: 'no field may run under the picture',
+      );
     });
 
     testWidgets('there is no thumb zone, and the action joins the form', (
@@ -206,7 +241,10 @@ void main() {
       );
 
       final submit = tester.getRect(key('login-submit'));
-      final column = tester.getRect(find.byType(EntryPlate));
+      // Measured against the FIELD rather than the plate. On a desk the plate
+      // is not in this column at all — the picture is the pane beside it — so
+      // the column's width is the width of the things in it.
+      final column = tester.getRect(key('login-email'));
       expect(
         (submit.width - column.width).abs(),
         lessThan(2),
@@ -247,7 +285,12 @@ void main() {
       // The claim being made is about the COLUMN, so the column's own top edge
       // is what it has to be made against. The headline's own place is pinned
       // by `entry_plate_test.dart`, which is where it belongs.
-      final top = tester.getRect(find.byType(EntryPlate)).top;
+      // On a desk the first object in the column is the wordmark, not the
+      // plate: the picture moved to its own pane and the three pieces of type
+      // came off it onto the ground. The claim is unchanged — it is about the
+      // COLUMN's own top edge — so it is made against whatever is genuinely
+      // first in the column.
+      final top = tester.getRect(find.byType(EntryBrand)).top;
       final headline = tester.getRect(find.byType(TorchDisplayHeadline)).top;
       final bottom = tester.getRect(key('login-submit')).bottom;
 
@@ -263,7 +306,7 @@ void main() {
 
       // ignore: avoid_print
       print(
-        'sign-in column at 1280x1800: plate top $top, headline top $headline, '
+        'sign-in column at 1280x1800: brand top $top, headline top $headline, '
         'action bottom $bottom, height ${bottom - top}.',
       );
       expect(

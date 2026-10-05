@@ -123,6 +123,21 @@ flutter:
     # forbids readable text, signage, brand marks and recognisable faces.
     # 56 kB. Keep this list short.
     - assets/images/entry-plate.jpg
+    # THE PICTURE BESIDE THE FORM, ON A DESK (owner's choice, 5 October 2026 —
+    # "D — the form first"). The same scene as entry-plate.jpg shot 9:16 for a
+    # full-height pane: a cover-fit of the 16:9 plate into a pane that shape
+    # keeps about a quarter of it, and the quarter it keeps is the road without
+    # the sky above it or the town at the end — the two things that make the
+    # frame read as a route rather than as tarmac.
+    #
+    # Made the same way and under the same constraints as every other picture
+    # here: gemini-3.1-flash-image, the model scripts/generate-place-images.ts
+    # uses, carrying PLACE_STYLE from backend/scripts/places/prompts.ts
+    # verbatim — documentary, 35mm, available light, and no readable text, no
+    # signage, no lettering, no numbers, no brand marks, no recognisable faces.
+    # Generated rather than supplied, which is what licensing turns on:
+    # SUPPLIED_RIGHTS does not reach it. 92 kB.
+    - assets/images/entry-plate-tall.jpg
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
     # Schibsted Grotesk for the PDF exporter, and ONLY for it — declared as
     # assets rather than under `fonts:` so the engine never resolves a screen to
