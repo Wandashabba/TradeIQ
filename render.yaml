@@ -193,7 +193,21 @@ services:
     # there is no chicken-and-egg with the API's URL.
     buildCommand: |
       set -euo pipefail
-      git clone https://github.com/flutter/flutter.git -b 3.44.0 --depth 1 "$HOME/flutter"
+      # Render restores the build directory from cache between builds, so
+      # $HOME/flutter usually already exists and a plain `git clone` aborts with
+      # "destination path already exists and is not an empty directory". Reuse
+      # the cached SDK when it is the pinned version and re-clone when it is
+      # not, which both fixes that and makes every later build minutes faster.
+      FLUTTER_VERSION=3.44.0
+      if [ ! -x "$HOME/flutter/bin/flutter" ] || \
+         ! "$HOME/flutter/bin/flutter" --version 2>/dev/null | grep -q "Flutter $FLUTTER_VERSION"; then
+        rm -rf "$HOME/flutter"
+        git clone https://github.com/flutter/flutter.git -b "$FLUTTER_VERSION" --depth 1 "$HOME/flutter"
+      fi
+      # A cached SDK is checked out by a different build's user, and git refuses
+      # to run in a repository it considers owned by someone else. Flutter shells
+      # out to git on startup, so without this it fails on the cache hit path.
+      git config --global --add safe.directory "$HOME/flutter" || true
       export PATH="$HOME/flutter/bin:$PATH"
       flutter --version
       flutter pub get
