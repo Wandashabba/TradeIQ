@@ -84,6 +84,34 @@ export function runningOnFly(): boolean {
 }
 
 /**
+ * True when this process is running on Render.
+ *
+ * Same contract as `runningOnFly`, and for the same reason: `RENDER` is part of
+ * the service runtime environment and no HTTP request can set it, so a forged
+ * forwarding header is ignored everywhere except where Render itself is the one
+ * writing it.
+ *
+ * This exists because the move off Fly silently removed the whole protection
+ * above. `FLY_APP_NAME` is unset on Render, so `clientIp()` fell through to
+ * `req.ip`; `app.ts` pins `trust proxy` to false, so that is the socket peer,
+ * which behind Render's proxy is the proxy itself. Every caller in the fleet
+ * collapsed onto one bucket again — `POST /auth/login` at 10 per 15 minutes
+ * becoming a global cap is the outage #160 was opened to fix.
+ *
+ * NOTE: the header to read on Render is NOT yet decided here, deliberately.
+ * Fly documents `Fly-Client-IP` and documents that the rightmost
+ * `X-Forwarded-For` entry is the app's own address — which is exactly why
+ * trusting one hop is wrong there. Render's equivalent must be MEASURED
+ * against a live service before anything keys a limiter on it, because the
+ * failure mode of guessing wrong is either a fleet-wide bucket again (no
+ * better than today) or a header an attacker can mint (strictly worse). See
+ * the probe in `app.ts`, which exists to take that measurement once.
+ */
+export function runningOnRender(): boolean {
+  return (process.env.RENDER ?? '').trim().length > 0;
+}
+
+/**
  * The client IP to key a rate limiter on, or `undefined` if none can be
  * determined.
  *
