@@ -6,6 +6,7 @@ import { backfillPointsLedger } from '../../src/modules/gamification/pointsLedge
 import { computePhotoHashes } from '../../src/modules/photos/photoHash';
 import { addCalendarDays } from '../../src/lib/clientTime';
 import { HISTORY_MONTHS, SEED_TIME_ZONE, localInstant, resolveAnchorDate } from './calendar';
+import { resolveHistoryMonths } from './historyMonths';
 import {
   DEMO_CLIENT_ID,
   DEMO_PASSWORD,
@@ -68,7 +69,13 @@ export async function seedDemoData(prisma: PrismaClient, options: SeedOptions = 
 
   const profileName: SeedProfile =
     options.profile ?? (process.env.SEED_PROFILE === 'test' ? 'test' : 'full');
-  const profile = PROFILES[profileName];
+  // History is tunable on top of the profile: the hosted demo runs on a 500 MB
+  // Supabase Free project and the full 24 months measures 1013 MB. Throws on a
+  // bad value before anything is deleted, like resolveSeedPassword above.
+  const profile = {
+    ...PROFILES[profileName],
+    historyMonths: resolveHistoryMonths(PROFILES[profileName].historyMonths),
+  };
   const log = options.log ?? (profileName === 'full' ? (line: string) => console.log(line) : () => undefined);
   const timer = new PhaseTimer();
 
