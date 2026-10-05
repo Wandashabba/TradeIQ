@@ -1,0 +1,217 @@
+# Render blueprint for TradeIQ. Replaces the Fly.io deployment in
+# backend/fly.toml; see docs/deploy/render.md for the variable-by-variable
+# reference this file automates.
+#
+# Create it with Render → New → Blueprint, pointed at this repository. Render
+# reads this file, creates both services, and wires the cross-references below.
+#
+# WHAT IS NOT IN HERE: the database. The live data stays in the existing
+# Supabase instance (eu-west-1), so `DATABASE_URL` is `sync: false` and is
+# pasted in by hand. Replacing the compute without touching the data keeps the
+# cutover reversible — Fly and Render can point at the same database, so if
+# Render misbehaves the old app is still serving the same rows. A Render
+# Postgres would mean a dump/restore and a one-way door.
+#
+# ---------------------------------------------------------------------------
+# DO NOT MOVE AGENT TRAFFIC HERE UNTIL THE CLIENT IP IS FIXED. This is a
+# lockout, not a rough edge.
+#
+# `backend/src/lib/clientIp.ts` reads the caller's address from Fly's
+# `Fly-Client-IP`, and only when `FLY_APP_NAME` is set — a variable Fly injects
+# and no request can mint. On Render that variable does not exist, so
+# `clientIp()` falls back to `req.ip`; `app.ts:74` pins
+# `app.set('trust proxy', false)`, so `req.ip` is the socket peer, which behind
+# Render's proxy is the proxy itself — one address for every request in the
+# fleet. `rateLimit.ts:27-31` then keys on it.
+#
+# The consequence is the outage #160 was opened to fix, reintroduced:
+# `POST /auth/login` is 10 per 15 minutes, so about eleven honest sign-ins
+# across every tenant per quarter hour and the next agent to pick up a shared
+# handset is refused. The per-IP half of `POST /auth/reset-password` collapses
+# the same way.
+#
+# Fixing it needs a `runningOnRender()` guard (Render injects `RENDER` and
+# `RENDER_SERVICE_ID`, neither of which a request can set) plus whichever
+# header Render's proxy is proven to overwrite. Which header that is must be
+# MEASURED against a live Render service, not assumed: the same reasoning in
+# clientIp.ts that rules out trusting one hop on Fly — the rightmost
+# `X-Forwarded-For` entry being the app's own address — rules out guessing here.
+# deploy-hardening.md §5 has the shape of that check.
+# ---------------------------------------------------------------------------
+
+services:
+  # ---- the API -------------------------------------------------------------
+  - type: web
+    name: tradeiq-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    # The same Dockerfile Fly builds today: Node 24 to match CI, OpenSSL for
+    # Prisma's query engine, non-root, devDependencies dropped from the runtime
+    # stage. Using it rather than Render's Node buildpack means the runtime is
+    # the one already proven in production, not a second one to debug.
+
+    # Frankfurt, because the database is in Supabase eu-west-1 (Ireland) —
+    # roughly 20ms away. This is the single most consequential line in the file:
+    # Render defaults to Oregon, which is ~140ms from Ireland, and one HTTP
+    # request here makes several queries, so a split pays that hop repeatedly.
+    # The same reasoning is written out in backend/fly.toml.
+    region: frankfurt
+
+    # NOT `free`. Render's free tier sleeps, and a sleeping instance answers the
+    # first request after a quiet spell in tens of seconds. backend/fly.toml
+    # sets `min_machines_running = 1` for exactly this reason (#160): "An agent
+    # standing in a store should not wait on a cold start." Starting on `free`
+    # would reintroduce the problem that configuration exists to solve.
+    # `preDeployCommand` below also requires a paid instance type.
+    plan: starter
+
+    healthCheckPath: /health
+
+    # Applies migrations before the new version takes traffic. If it fails the
+    # deploy aborts and the previous version keeps serving, which is what we
+    # want: a broken migration should never become a broken site. This is the
+    # equivalent of fly.toml's `[deploy] release_command`.
+    #
+    # `migrate deploy`, never `migrate dev` — the latter is interactive and can
+    # author new migrations. It only applies what is committed under
+    # prisma/migrations/. The `prisma` CLI is in `dependencies` (not
+    # devDependencies) precisely so it survives `npm ci --omit=dev` and is
+    # present in the runtime image this command runs in.
+    preDeployCommand: npx prisma migrate deploy
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Pasted by hand from Supabase → Connect → **Session pooler URI (port
+      # 5432)**, which is the form docs/operations/deploy-hardening.md already
+      # uses against this database. Session mode, not the transaction pooler on
+      # 6543: Prisma uses prepared statements, which transaction pooling breaks
+      # unless the URL also carries `?pgbouncer=true`. Not the direct connection
+      # either — Render restarts containers freely and a direct connection per
+      # instance exhausts Postgres' connection limit faster than the pooler.
+      - key: DATABASE_URL
+        sync: false
+
+      # Generated by Render, once, at creation. Deliberately not a value typed
+      # into this file or pasted from anywhere else: `assertJwtSecretUsable()`
+      # runs at boot (backend/src/server.ts:19) and kills the process if the
+      # secret is missing, too short, or is the known default published in this
+      # repository. Letting Render generate it means the production secret has
+      # never existed in a terminal, a chat log, or git history.
+      #
+      # BUT a new secret invalidates every existing token. Login issues a
+      # stateless 12-hour JWT and there is no session store to migrate (#142),
+      # so every signed-in user — the mobile app included — is signed out at
+      # cutover and must log in again. Read that together with the client-IP
+      # block at the top of this file: a fleet-wide forced re-login arriving at
+      # a login limiter that has collapsed to one global bucket of 10 per 15
+      # minutes is a queue nobody gets through. Fix the client IP first.
+      #
+      # To preserve sessions instead, set this to `sync: false` and paste the
+      # value Fly is already using, if it is in your password manager.
+      # `fly secrets list` shows digests, not values, so it cannot be recovered
+      # from Fly.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Both of the next two MUST carry the scheme, which is why neither is
+      # wired with `fromService`: Render's service reference yields a bare
+      # hostname (`tradeiq-web.onrender.com`), and a bare hostname is wrong for
+      # both of these in a way that fails quietly rather than loudly. Paste them
+      # by hand after the first deploy, when Render has assigned the real
+      # hostnames, then redeploy the API — both are read at boot.
+
+      # The web console's origin, WITH scheme:
+      #   https://tradeiq-web.onrender.com
+      #
+      # `cors({ origin: corsOrigins })` (backend/src/app.ts:102-103) compares
+      # these strings against the browser's Origin header, which always includes
+      # the scheme — so a schemeless value matches nothing and every browser
+      # request is refused.
+      #
+      # In production an unset value fails CLOSED (app.ts:104-112): no
+      # Access-Control-Allow-Origin header at all. It does not refuse to boot,
+      # because native clients send no Origin and are unaffected — so a missing
+      # or schemeless value looks like a working API and a broken website. It
+      # logs a loud warning; read the first deploy's logs. This is the step
+      # docs/deploy/render.md calls "the one people forget", and the symptom is
+      # a site that loads and then cannot log in.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # The API's own public origin, WITH scheme and no trailing slash:
+      #   https://tradeiq-api.onrender.com
+      #
+      # Used as a URL base for links the API hands out — a report run's csvUrl
+      # and signed csvDownloadUrl, and the link in scheduled report emails (#66)
+      # — so a schemeless value produces relative, broken links rather than an
+      # error (backend/src/modules/reportschedules/reportschedules.links.ts:150).
+      # Signed download links are off entirely while it is unset, which is a
+      # safe state; a wrong value is not.
+      - key: PUBLIC_API_URL
+        sync: false
+
+      # Everything else is optional and reports itself as not configured rather
+      # than failing — SMTP_*, REPORT_LINK_SECRET, LLM_PROVIDER and its API
+      # keys, VISION_ENABLED, LANGFUSE_*, MIN_APP_VERSION, and the rate limits
+      # (all of which have safe defaults). docs/deploy/render.md lists them.
+      #
+      # COMPETITOR_PRICE_COLLECTION is deliberately absent. It ships off, and
+      # turning it on also requires a named legal sign-off written to an audit
+      # row. Leave it unset.
+
+  # ---- the Flutter web console ---------------------------------------------
+  # This is the piece that was never deployed on Fly: managers reach the console
+  # in a browser, while agents use the Android build. The Android app talks to
+  # the same API and is not a Render concern.
+  - type: web
+    name: tradeiq-web
+    runtime: static
+    rootDir: app
+
+    # Render has no Flutter runtime, so the build installs one. The clone is
+    # shallow and adds a couple of minutes to each build.
+    #
+    # Pinned to the exact version .github/workflows/app-ci.yml pins, for the
+    # reason backend/Dockerfile gives about Node: "a runtime that differs from
+    # the one CI proves green is a bug waiting to surface in production only."
+    # Cloning `-b stable` instead would float, so a Flutter release could break
+    # the site weeks after the last commit, with nothing in this repository
+    # having changed. Bump this and the two CI pins together.
+    #
+    # `dart run build_runner build` is NOT optional: a clean checkout has no
+    # generated code and `flutter build web` fails with hundreds of "Type not
+    # found" errors.
+    #
+    # API_BASE_URL is baked in AT BUILD TIME, not read at runtime — it is a
+    # String.fromEnvironment in app/lib/core/network/api_client.dart:12 with a
+    # default of http://localhost:4000. Change the API's address and the site
+    # must be rebuilt, not restarted. API_HOST below comes from the service
+    # reference, so Render supplies the real hostname on the first build and
+    # there is no chicken-and-egg with the API's URL.
+    buildCommand: |
+      set -euo pipefail
+      git clone https://github.com/flutter/flutter.git -b 3.44.0 --depth 1 "$HOME/flutter"
+      export PATH="$HOME/flutter/bin:$PATH"
+      flutter --version
+      flutter pub get
+      dart run build_runner build --delete-conflicting-outputs
+      flutter build web --release --dart-define=API_BASE_URL="https://$API_HOST"
+
+    staticPublishPath: build/web
+
+    envVars:
+      - key: API_HOST
+        fromService:
+          name: tradeiq-api
+          type: web
+          property: host
+
+    # The console is a single-page application: without this every deep link
+    # 404s on refresh, because no file exists at that path.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
