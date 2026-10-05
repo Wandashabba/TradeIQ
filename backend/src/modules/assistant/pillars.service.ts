@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { pct, round2 } from '../../lib/kpiMath';
+import { OWN_FACINGS_SQL } from '../../lib/kpiSql';
 import { personLabel } from '../../lib/personName';
 import {
   getSellInPerformance,
@@ -447,16 +448,6 @@ export async function getStockLevels(input: PillarWindow): Promise<StockLevels> 
     truncated: outletsWithStockout > worst.length,
   };
 }
-
-/**
- * A facings JSON column's `.total`, in SQL. Mirrors `kpiMath.facingsTotal`: a
- * non-object column or a non-numeric total counts as 0 rather than failing.
- */
-const OWN_FACINGS_SQL = Prisma.sql`CASE
-  WHEN jsonb_typeof(vv."facings_count") = 'object'
-    AND jsonb_typeof(vv."facings_count"->'total') = 'number'
-  THEN (vv."facings_count"->>'total')::float8
-  ELSE 0 END`;
 
 export interface ShareOfShelf {
   shareOfShelfPct: number;

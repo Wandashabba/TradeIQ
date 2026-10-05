@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { facingsTotal, mean, onShelfAvailabilityPct, pct, round2 } from '../../lib/kpiMath';
+import { OWN_FACINGS_SQL } from '../../lib/kpiSql';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { DEFAULT_GREEN_THRESHOLD } from '../scorecards/scorecards.service';
 import {
@@ -482,11 +483,7 @@ export async function getShareOfShelfTrend(filters: TrendFilters): Promise<Trend
       SELECT s.bucket, COUNT(*)::int AS n FROM scoped s GROUP BY s.bucket
     ),
     own AS (
-      SELECT s.bucket, SUM(CASE
-          WHEN jsonb_typeof(vv."facings_count") = 'object'
-            AND jsonb_typeof(vv."facings_count"->'total') = 'number'
-          THEN (vv."facings_count"->>'total')::float8
-          ELSE 0 END)::float8 AS facings
+      SELECT s.bucket, SUM(${OWN_FACINGS_SQL})::float8 AS facings
       FROM scoped s
       JOIN "visit_visibility" vv ON vv."visit_id" = s."id"
       GROUP BY s.bucket
