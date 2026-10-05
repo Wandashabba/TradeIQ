@@ -245,6 +245,41 @@ limiters would be bypassable by anyone who sent the header. The fix in that case
 is not `trust proxy` — it is to drop the header preference and put a limiter in
 front of Fly (a Fly-level rule, or a proxy that sets the header itself).
 
+### On Render, measured 5 October 2026
+
+The move to Render removed all of the above without changing a line of it:
+`FLY_APP_NAME` is unset there, so `clientIp()` fell through to `req.ip`. Taken
+with a temporary probe against the live service, from a client whose real
+address was `196.50.223.130`:
+
+| | value | forgeable by the caller? |
+|---|---|---|
+| `req.ip` | `::ffff:10.194.163.130` | — |
+| `X-Forwarded-For` | `196.50.223.130, 162.158.110.13` | **yes** |
+| `True-Client-IP` | `196.50.223.130` | no |
+| `CF-Connecting-IP` | `196.50.223.130` | no |
+
+- `req.ip` is a private 10.x address that **changes between requests**
+  (three calls gave 10.194.163.130, 10.192.245.168, 10.194.73.133). It is
+  whichever internal Render proxy took the request, so the limiters were keyed
+  on an unpredictable handful of buckets shared by everyone — not even the one
+  stable bucket Fly gave.
+- The **leftmost** `X-Forwarded-For` entry is caller-controlled: sending
+  `X-Forwarded-For: 203.0.113.99` produced
+  `203.0.113.99,196.50.223.130, 162.158.110.13`. Prepended, not replaced. The
+  Fly trap exists here too, at the other end of the list.
+- `True-Client-IP` survives nothing: `True-Client-IP: 198.51.100.5` still came
+  back as `196.50.223.130`, repeatedly. `CF-Connecting-IP` cannot even be
+  attempted — Cloudflare answers `403 error code 1000` before the request
+  reaches the app.
+
+So `clientIp()` reads `CF-Connecting-IP`, then `True-Client-IP`, guarded by
+`RENDER` and validated with `isIP`. Render fronts `*.onrender.com` with
+Cloudflare; **if that ever changes — a custom domain is the likely way — the
+headers vanish, validation fails, and this degrades to the shared `req.ip`
+bucket rather than to a forgeable one.** Re-take the measurement after any
+change to how traffic reaches the app.
+
 Note that the per-account bounds are independent of all of this and do not rely
 on the client IP at all: `POST /auth/reset-password` is also limited per email
 address (8 per 15 minutes), each reset code carries its own `attempts` counter,
