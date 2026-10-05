@@ -1100,6 +1100,14 @@ model Order {
   lines      OrderLine[]
 
   @@index([clientId])
+  // The list query's exact shape: equality on client_id, then the keyset sort
+  // (created_at DESC, id DESC), so a page is an in-order index read instead of
+  // a sort of every order the client has. `@@index([clientId])` alone left
+  // `GET /orders` doing a parallel sequential scan and a full sort —
+  // 38ms at the database over 45,734 rows on the demo tenant, and growing with
+  // the table rather than with the page. Same shape, for the same reason, as
+  // the fraud-flagged and pin-dispute indexes.
+  @@index([clientId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("orders")
 }
 
@@ -1112,6 +1120,12 @@ model OrderLine {
   quantity  Int
   unitPrice Float  @map("unit_price")
 
+  // `GET /orders` returns each order's line count (`_count.lines`, which the
+  // app shows as "N lines"), and without this the count was a sequential scan
+  // of every order line in the database: 20ms for a 51-row page without the
+  // count, 243ms with it. Every other child-of-a-parent table here carries the
+  // same index on its parent id.
+  @@index([orderId])
   @@map("order_lines")
 }
 
