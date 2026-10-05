@@ -3,7 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import { app as realApp } from '../app';
 import { createLoginRateLimiter, createResetRedeemIpRateLimiter } from './rateLimit';
-import { runningOnFly, runningOnRender } from '../lib/clientIp';
+import { clientIp, runningOnFly, runningOnRender } from '../lib/clientIp';
 
 /**
  * The IP-keyed limiters, and the bucket they key into.
@@ -303,30 +303,47 @@ describe('running on Render', () => {
     expect(runningOnFly()).toBe(false);
   });
 
-  describe('the probe', () => {
-    it('does not exist when CLIENT_IP_PROBE is unset', async () => {
-      delete process.env.CLIENT_IP_PROBE;
-      await request(realApp).get('/internal/client-ip-probe').expect(404);
+
+  describe('the client IP on Render', () => {
+    beforeEach(() => {
+      process.env.RENDER = 'true';
+      delete process.env.FLY_APP_NAME;
     });
 
-    it('stays 404 for a wrong or missing token, so scanning cannot find it', async () => {
-      process.env.CLIENT_IP_PROBE = 'the-right-token';
-      await request(realApp).get('/internal/client-ip-probe').expect(404);
-      await request(realApp).get('/internal/client-ip-probe?token=guess').expect(404);
+    function ipFor(headers: Record<string, string>): string | undefined {
+      return clientIp({ headers, ip: '::ffff:10.192.245.168' } as never);
+    }
+
+    it('reads CF-Connecting-IP, which Cloudflare refuses to let a caller send', () => {
+      expect(ipFor({ 'cf-connecting-ip': '196.50.223.130' })).toBe('196.50.223.130');
     });
 
-    it('reports the forwarding headers verbatim when the token matches', async () => {
-      process.env.CLIENT_IP_PROBE = 'the-right-token';
-      const res = await request(realApp)
-        .get('/internal/client-ip-probe?token=the-right-token')
-        .set('X-Forwarded-For', '203.0.113.7, 9.9.9.9')
-        .expect(200);
+    it('falls back to True-Client-IP, which the edge overwrites', () => {
+      expect(ipFor({ 'true-client-ip': '196.50.223.130' })).toBe('196.50.223.130');
+    });
 
-      // Verbatim and unparsed: what Render delivers is the thing being
-      // measured, so this must not quietly normalise it.
-      expect(res.body.xForwardedFor).toBe('203.0.113.7, 9.9.9.9');
-      expect(res.body).toHaveProperty('reqIp');
-      expect(res.body).toHaveProperty('trueClientIp', null);
+    it('never reads X-Forwarded-For, whose leftmost entry the caller controls', () => {
+      // Measured: sending `X-Forwarded-For: 203.0.113.99` produced
+      // "203.0.113.99,196.50.223.130, 162.158.110.13" — prepended, not
+      // replaced. Keying on it would hand out a fresh bucket per request.
+      expect(ipFor({ 'x-forwarded-for': '203.0.113.99,196.50.223.130, 162.158.110.13' }))
+        .toBe('::ffff:10.192.245.168');
+    });
+
+    it('rejects a duplicated header rather than keying on the joined value', () => {
+      expect(ipFor({ 'cf-connecting-ip': '196.50.223.130, 203.0.113.9' }))
+        .toBe('::ffff:10.192.245.168');
+    });
+
+    it('falls back to req.ip when the edge sets nothing, failing closed', () => {
+      // One shared bucket is the safe direction. The unsafe one is trusting a
+      // header that is suddenly absent because the edge changed.
+      expect(ipFor({})).toBe('::ffff:10.192.245.168');
+    });
+
+    it('ignores those headers entirely when not on Render', () => {
+      delete process.env.RENDER;
+      expect(ipFor({ 'cf-connecting-ip': '203.0.113.5' })).toBe('::ffff:10.192.245.168');
     });
   });
 });

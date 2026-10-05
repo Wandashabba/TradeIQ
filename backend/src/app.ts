@@ -50,7 +50,6 @@ import { assistantRouter } from './modules/assistant/assistant.routes';
 import { pushRouter } from './modules/push/push.routes';
 import { appVersionGate } from './middleware/appVersion';
 import { errorHandler } from './middleware/errorHandler';
-import { runningOnFly, runningOnRender } from './lib/clientIp';
 
 export const app = express();
 
@@ -121,43 +120,6 @@ app.use(express.json({ limit: '12mb' }));
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
-});
-
-// A one-off measurement, not a feature. TEMPORARY: delete this route and
-// CLIENT_IP_PROBE once the Render client-IP question below is answered.
-//
-// `lib/clientIp.ts` can read the caller on Fly because Fly DOCUMENTS which
-// header its proxy sets and that a client-supplied value does not survive. The
-// same claim about Render cannot be made from this repository, and guessing is
-// how the Fly bug was nearly "fixed" twice over: trusting one hop reaches the
-// app's own anycast address (a fleet-wide bucket again, while looking fixed),
-// and trusting two reaches whatever the client sent (an attacker mints a fresh
-// address per request and walks past every per-IP limiter here). So this route
-// reports what Render actually delivers, once, and then goes away.
-//
-// Closed by default: with CLIENT_IP_PROBE unset the route does not exist at
-// all, and it answers only when the caller echoes the exact token, so it cannot
-// be found by scanning. It discloses nothing a caller does not already control
-// except `req.ip`, which is Render's own proxy address.
-app.get('/internal/client-ip-probe', (req, res) => {
-  const token = (process.env.CLIENT_IP_PROBE ?? '').trim();
-  if (token.length === 0 || req.query.token !== token) {
-    res.status(404).json({ error: 'Not found' });
-    return;
-  }
-  res.status(200).json({
-    reqIp: req.ip,
-    // Raw, unparsed, and in Node's own shape — a header arriving more than once
-    // becomes a comma-joined string, and whether that happens is part of what
-    // is being measured.
-    xForwardedFor: req.headers['x-forwarded-for'] ?? null,
-    trueClientIp: req.headers['true-client-ip'] ?? null,
-    cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
-    xRealIp: req.headers['x-real-ip'] ?? null,
-    renderProxyTtl: req.headers['render-proxy-ttl'] ?? null,
-    onRender: runningOnRender(),
-    onFly: runningOnFly(),
-  });
 });
 
 // Records `X-App-Version` on every request, and — only when an operator sets

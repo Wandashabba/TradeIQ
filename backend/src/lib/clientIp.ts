@@ -98,14 +98,44 @@ export function runningOnFly(): boolean {
  * collapsed onto one bucket again — `POST /auth/login` at 10 per 15 minutes
  * becoming a global cap is the outage #160 was opened to fix.
  *
- * NOTE: the header to read on Render is NOT yet decided here, deliberately.
- * Fly documents `Fly-Client-IP` and documents that the rightmost
- * `X-Forwarded-For` entry is the app's own address — which is exactly why
- * trusting one hop is wrong there. Render's equivalent must be MEASURED
- * against a live service before anything keys a limiter on it, because the
- * failure mode of guessing wrong is either a fleet-wide bucket again (no
- * better than today) or a header an attacker can mint (strictly worse). See
- * the probe in `app.ts`, which exists to take that measurement once.
+ * ## What Render actually sends, measured
+ *
+ * Taken against the live service on 5 October 2026 with a temporary probe,
+ * since none of this can be proven from the repository. Render fronts
+ * `*.onrender.com` with Cloudflare, and the measurement from a client whose
+ * real address was `196.50.223.130` was:
+ *
+ * | | value | forgeable? |
+ * |---|---|---|
+ * | `req.ip` | `::ffff:10.194.163.130` | — |
+ * | `X-Forwarded-For` | `196.50.223.130, 162.158.110.13` | **yes** |
+ * | `True-Client-IP` | `196.50.223.130` | no |
+ * | `CF-Connecting-IP` | `196.50.223.130` | no |
+ *
+ * Three things follow, and each one rules out an otherwise reasonable choice:
+ *
+ * 1. `req.ip` is a PRIVATE 10.x address that CHANGES between requests
+ *    (10.194.163.130, 10.192.245.168, 10.194.73.133 across three calls). It is
+ *    the internal Render proxy that happened to handle the request, so the
+ *    limiters were not even keyed on one stable bucket — they were keyed on an
+ *    unpredictable handful of them, shared by every caller alive.
+ *
+ * 2. The LEFTMOST `X-Forwarded-For` entry is attacker-controlled. Sending
+ *    `X-Forwarded-For: 203.0.113.99` produced
+ *    `203.0.113.99,196.50.223.130, 162.158.110.13` — prepended, not replaced.
+ *    So the Fly trap exists here too, simply at the other end of the list.
+ *
+ * 3. `True-Client-IP` and `CF-Connecting-IP` are written by the edge and a
+ *    client-supplied value does not survive. Sending `True-Client-IP:
+ *    198.51.100.5` still yielded `196.50.223.130`, repeatedly. Sending
+ *    `CF-Connecting-IP` at all is refused by Cloudflare outright with
+ *    `403 error code 1000`, before the request reaches this app.
+ *
+ * Hence `CF-Connecting-IP`, then `True-Client-IP`. Both are validated with
+ * `isIP` exactly as the Fly branch is, so if Render ever stops fronting with
+ * Cloudflare — a custom domain is the likely way — the value fails validation
+ * and this degrades to the shared `req.ip` bucket. That is the safe direction:
+ * too strict, never forgeable.
  */
 export function runningOnRender(): boolean {
   return (process.env.RENDER ?? '').trim().length > 0;
@@ -120,9 +150,33 @@ export function runningOnRender(): boolean {
  */
 export function clientIp(req: Request): string | undefined {
   if (runningOnFly()) {
-    const header = req.headers['fly-client-ip'];
-    const value = typeof header === 'string' ? header.trim() : undefined;
-    if (value && isIP(value) !== 0) return value;
+    const value = singleAddress(req, 'fly-client-ip');
+    if (value) return value;
   }
+
+  if (runningOnRender()) {
+    // In this order because Cloudflare refuses a request that carries
+    // `CF-Connecting-IP` at all, so it is the one a caller cannot even attempt.
+    // `True-Client-IP` is accepted and then overwritten, which is equally safe
+    // but one step further from the edge.
+    const value = singleAddress(req, 'cf-connecting-ip') ?? singleAddress(req, 'true-client-ip');
+    if (value) return value;
+  }
+
   return req.ip;
+}
+
+/**
+ * One header, read as a single IP address, or `undefined`.
+ *
+ * `isIP` is the whole guard. It rejects the comma-joined form Node produces
+ * when a header arrives more than once, so a duplicated header falls back
+ * rather than becoming a limiter key in its own right — and it rejects the
+ * empty or malformed value left behind if a platform ever stops setting the
+ * header, which is what makes the fallback to `req.ip` safe rather than silent.
+ */
+function singleAddress(req: Request, header: string): string | undefined {
+  const raw = req.headers[header];
+  const value = typeof raw === 'string' ? raw.trim() : undefined;
+  return value && isIP(value) !== 0 ? value : undefined;
 }
