@@ -227,7 +227,25 @@ class EntryFrame extends StatelessWidget {
         // measure. Nothing in the app puts this frame in an unbounded box
         // today; the guard is here so that if something ever does, the way in
         // degrades to the phone shape rather than to an infinite constraint.
-        if (!constraints.hasBoundedHeight || !isPage(skin, size)) {
+        // AN ASIDE MEANS A DESK, AND A DESK IS NEVER THE PHONE SHAPE.
+        //
+        // `isPage` wants 900dp of height and a browser window is routinely
+        // shorter: a 1440x1200 Chrome window is about 1191x660 of viewport
+        // after its chrome. That made a desk by one rule and a phone by the
+        // other, and the result was the screen the owner saw on 5 October
+        // 2026 — *"Not looking so nice"*: the fields in a 440dp column, the
+        // commit pinned to the bottom edge at the full width of the pane, and
+        // a hand's depth of dead ground between them.
+        //
+        // The two rules answer different questions and both are right. `isPage`
+        // asks whether there is room to centre a column against free height;
+        // the caller's `ConsoleDesk.isDesk` asks whether this is a desk. A
+        // pinned thumb zone is an answer to "where is the thumb", and on a desk
+        // there is no thumb — so when an aside is present the page shape is
+        // taken whatever the height, and a column too tall for the window
+        // simply scrolls, which is what the page shape already does at 2.0x.
+        final phoneShape = aside == null && !isPage(skin, size);
+        if (!constraints.hasBoundedHeight || phoneShape) {
           // The phone shape, unchanged. The column is only wrapped when the
           // cap would actually bite, so at 390 and 360 the tree beneath the
           // shell is the one #494 shipped — a lazy `ListView` of the screen's
