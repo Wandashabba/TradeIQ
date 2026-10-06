@@ -7,7 +7,8 @@ import type { LlmProvider, Message, ProviderName, TurnEvent, TurnInput } from '.
  * The rules are narrow on purpose, because each relaxation is a way to be wrong
  * more expensively:
  *
- * 1. **Only an outage.** The primary must have reported `provider_error`, which
+ * 1. **Only an outage.** The primary must have reported `provider_error` or
+ *    `overloaded` (a 503 — the model has no capacity, see gemini.ts), which
  *    the Anthropic adapter reserves for a 5xx, an overloaded/api error in the
  *    stream, a timeout, or a dropped connection. A 4xx, a bad key, a rate limit,
  *    a refusal or a bug of ours fails the same way anywhere, so retrying it just
@@ -25,7 +26,7 @@ import type { LlmProvider, Message, ProviderName, TurnEvent, TurnInput } from '.
  */
 
 /** The error codes that mean "the vendor is down", as adapters classify them. */
-export const OUTAGE_CODES: ReadonlySet<string> = new Set(['provider_error']);
+export const OUTAGE_CODES: ReadonlySet<string> = new Set(['provider_error', 'overloaded']);
 
 /**
  * Gemini 3's documented placeholder for a function call it did not sign.

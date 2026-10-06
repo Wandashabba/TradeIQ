@@ -2,6 +2,7 @@ import { FunctionCallingConfigMode, type GenerateContentParameters } from '@goog
 import { z } from 'zod';
 import type { AnyAssistantTool } from '../types';
 import {
+  GEMINI_RETRY,
   GROUNDED_TOOL_CONFIG,
   classifyGeminiError,
   createGeminiProvider,
@@ -418,6 +419,16 @@ describe('classifyGeminiError', () => {
     ['bad request', Object.assign(new Error('INVALID_ARGUMENT'), { status: 400 }), 'bad_request'],
     ['abort', Object.assign(new Error('aborted'), { name: 'AbortError' }), 'aborted'],
     ['unknown', new Error('who knows'), 'provider_error'],
+    [
+      'overloaded, by status',
+      Object.assign(new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'), { status: 503 }),
+      'overloaded',
+    ],
+    [
+      'overloaded, by message alone',
+      new Error('This model is currently experiencing high demand. Please try again later.'),
+      'overloaded',
+    ],
   ])('classifies %s', (_label, err, code) => {
     expect(classifyGeminiError(err).code).toBe(code);
   });
@@ -613,5 +624,156 @@ describe('gemini adapter — Google Search grounding', () => {
   it('extracts no sources from metadata without web chunks', () => {
     expect(sourcesFromGrounding(undefined)).toEqual([]);
     expect(sourcesFromGrounding({ groundingChunks: [{}] })).toEqual([]);
+  });
+});
+
+describe('gemini adapter — a busy model falls over to the standby model', () => {
+  /** A client whose answer depends on which model was asked. */
+  function clientByModel(scripts: Record<string, ScriptedTurn>, models: string[]): GeminiClient {
+    return {
+      models: {
+        async generateContentStream(params) {
+          models.push(String(params.model));
+          const script = scripts[String(params.model)];
+          if (!script) throw new Error(`unscripted model ${String(params.model)}`);
+          return geminiClientFor(script).models.generateContentStream(params);
+        },
+      },
+    };
+  }
+
+  const busy = Object.assign(
+    new Error('{"error":{"code":503,"status":"UNAVAILABLE","message":"high demand"}}'),
+    { status: 503 },
+  );
+  const usage = { promptTokens: 10, outputTokens: 2, cachedTokens: 0 };
+
+  let warn: jest.SpyInstance;
+  let error: jest.SpyInstance;
+  beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    error = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    warn.mockRestore();
+    error.mockRestore();
+  });
+
+  it('answers on the standby when the tier model is overloaded before any output', async () => {
+    const models: string[] = [];
+    const provider = createGeminiProvider({
+      client: clientByModel(
+        { 'gemini-busy': { failWith: busy }, 'gemini-standby': { textChunks: ['OK.'], usage } },
+        models,
+      ),
+      models: { orchestrator: 'gemini-busy', quarantine: 'gemini-busy', fallback: 'gemini-standby' },
+    });
+
+    const events = await collect(provider.runTurn(contractInput(), new AbortController().signal));
+
+    // No error reached the stream: the manager sees an answer, not a failure.
+    expect(events.map((e) => e.type)).toEqual(['token', 'usage', 'done']);
+    expect(models).toEqual(['gemini-busy', 'gemini-standby']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('answering this turn on gemini-standby'));
+  });
+
+  it('covers the quarantine tier too — it is the same model on the live console', async () => {
+    const models: string[] = [];
+    const provider = createGeminiProvider({
+      client: clientByModel(
+        { 'gemini-busy': { failWith: busy }, 'gemini-standby': { textChunks: ['summary'], usage } },
+        models,
+      ),
+      models: { orchestrator: 'gemini-other', quarantine: 'gemini-busy', fallback: 'gemini-standby' },
+    });
+
+    const events = await collect(
+      provider.runTurn(
+        contractInput({ model: 'quarantine', toolChoice: 'none' }),
+        new AbortController().signal,
+      ),
+    );
+
+    expect(events[0]).toEqual({ type: 'token', text: 'summary' });
+    expect(models).toEqual(['gemini-busy', 'gemini-standby']);
+  });
+
+  it('does not fall back once output has reached the user', async () => {
+    const models: string[] = [];
+    const client: GeminiClient = {
+      models: {
+        async generateContentStream(params) {
+          models.push(String(params.model));
+          async function* stream() {
+            yield { candidates: [{ content: { parts: [{ text: 'Half an ' }] } }] } as never;
+            throw busy;
+          }
+          return stream();
+        },
+      },
+    };
+    const provider = createGeminiProvider({
+      client,
+      models: { orchestrator: 'gemini-busy', fallback: 'gemini-standby' },
+    });
+
+    const events = await collect(provider.runTurn(contractInput(), new AbortController().signal));
+
+    // The half answer stays, the failure is named honestly, and nothing is
+    // asked of the standby — a second answer would contradict the first.
+    expect(events).toEqual([
+      { type: 'token', text: 'Half an ' },
+      {
+        type: 'error',
+        code: 'overloaded',
+        message: "The assistant's model is overloaded right now. Try again in a minute.",
+      },
+    ]);
+    expect(models).toEqual(['gemini-busy']);
+  });
+
+  it.each([
+    ['a bad request', Object.assign(new Error('INVALID_ARGUMENT'), { status: 400 }), 'bad_request'],
+    ['a quota', Object.assign(new Error('RESOURCE_EXHAUSTED'), { status: 429 }), 'rate_limited'],
+    ['a bad key', Object.assign(new Error('API key not valid'), { status: 401 }), 'provider_unavailable'],
+  ])('does not fall back on %s — the standby would fail the same way', async (_label, err, code) => {
+    const models: string[] = [];
+    const provider = createGeminiProvider({
+      client: clientByModel(
+        { 'gemini-busy': { failWith: err }, 'gemini-standby': { textChunks: ['OK.'] } },
+        models,
+      ),
+      models: { orchestrator: 'gemini-busy', fallback: 'gemini-standby' },
+    });
+
+    const events = await collect(provider.runTurn(contractInput(), new AbortController().signal));
+
+    expect(events.map((e) => e.type)).toEqual(['error']);
+    expect((events[0] as { code: string }).code).toBe(code);
+    expect(models).toEqual(['gemini-busy']);
+  });
+
+  it.each([
+    ['off', 'off'],
+    ['the same model as the tier', 'gemini-busy'],
+  ])('has no standby when the fallback is %s', async (_label, fallback) => {
+    const models: string[] = [];
+    const provider = createGeminiProvider({
+      client: clientByModel({ 'gemini-busy': { failWith: busy } }, models),
+      models: { orchestrator: 'gemini-busy', fallback },
+    });
+
+    const events = await collect(provider.runTurn(contractInput(), new AbortController().signal));
+
+    expect(events.map((e) => e.type)).toEqual(['error']);
+    expect((events[0] as { code: string }).code).toBe('overloaded');
+    expect(models).toEqual(['gemini-busy']);
+  });
+
+  it('retries the statuses that mean "again", and never a quota or our own 4xx', () => {
+    expect(GEMINI_RETRY.attempts).toBeGreaterThan(1);
+    expect(GEMINI_RETRY.httpStatusCodes).toEqual(expect.arrayContaining([503, 500, 502, 504]));
+    expect(GEMINI_RETRY.httpStatusCodes).not.toContain(429);
+    expect(GEMINI_RETRY.httpStatusCodes?.some((s) => s >= 400 && s < 500 && s !== 408)).toBe(false);
   });
 });

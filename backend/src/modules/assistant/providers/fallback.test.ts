@@ -64,6 +64,18 @@ describe('withFallback', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('answering this turn on gemini'));
   });
 
+  it('treats a 503 — the model overloaded — as the outage it is', async () => {
+    // 6 October 2026: gemini-3.6-flash returned "high demand" on most requests
+    // for an afternoon. Before `overloaded` existed that was `provider_error`
+    // and did fall back; naming it must not have taken the fallback away.
+    const primary = scripted('anthropic', [fail('overloaded')]);
+    const secondary = scripted('gemini', [answer('Gemini here.')]);
+
+    const events = await collect(withFallback(primary, secondary).runTurn(contractInput(), signal()));
+
+    expect(events).toEqual(answer('Gemini here.'));
+  });
+
   it.each([
     'rate_limited',
     'provider_unavailable',
