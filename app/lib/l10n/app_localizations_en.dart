@@ -8703,4 +8703,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String plateImageUnattributed(String place) {
     return '$place. A picture of the area. Its origin was not stated, and it is not from a visit.';
   }
+
+  @override
+  String get paletteHint => 'Go to, or scope to…';
+
+  @override
+  String get paletteSectionDestinations => 'Destinations';
+
+  @override
+  String get paletteSectionScope => 'Scope to';
+
+  @override
+  String get paletteSectionAsk => 'Ask';
+
+  @override
+  String paletteAskFor(String query) {
+    return 'Ask TradeIQ: “$query”';
+  }
+
+  @override
+  String get paletteNoMatch => 'Nothing matches that.';
+
+  @override
+  String get paletteKeysMove => 'move';
+
+  @override
+  String get paletteKeysOpen => 'open';
+
+  @override
+  String get paletteKeysClose => 'close';
 }

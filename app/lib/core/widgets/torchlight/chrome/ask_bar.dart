@@ -256,6 +256,7 @@ class _ConsoleAskBarState extends ConsumerState<ConsoleAskBar> {
         // coverage request failed.
         onTap: () => showFloorDestinations(
           context,
+          ref,
           ref
               .read(floorViewProvider)
               .maybeWhen(data: (v) => v, orElse: () => null),

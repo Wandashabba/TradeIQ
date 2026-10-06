@@ -689,7 +689,7 @@ class _FloorState extends ConsumerState<_Floor> {
               // other console screen has. `floor_taps_test.dart` proves it
               // still opens the sheet without knowing it moved.
               key: const ValueKey<String>('floor-destinations'),
-              onTap: () => showFloorDestinations(context, view),
+              onTap: () => showFloorDestinations(context, ref, view),
             ),
             band: _heldBand(context, phase),
           ),
