@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/console_palette.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input/filter_chip.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 
@@ -62,7 +63,7 @@ void main() {
       final box = tester.getRect(find.byKey(const ValueKey<String>('palette-card')));
       expect(
         box.width,
-        lessThanOrEqualTo(700),
+        lessThanOrEqualTo(920),
         reason: 'a palette row must not run the width of a 1440dp window',
       );
     });
@@ -200,6 +201,67 @@ void main() {
         lessThan(dest.top),
         reason: 'the territories lead; the rail already has the destinations',
       );
+    });
+  });
+
+  group('Short C — one card, territories as chips, no legend', () {
+    const desk = Size(1440, 900);
+
+    testWidgets('the keyboard legend is gone', (tester) async {
+      // "This is a professional app, we don't need these." The shortcuts still
+      // work — arrows, Enter, Escape — they are simply not captioned.
+      await openMenu(tester, desk);
+      for (final text in tester.widgetList<Text>(find.byType(Text))) {
+        final data = text.data ?? '';
+        expect(data.startsWith('↑↓'), isFalse, reason: 'legend row "$data" survived');
+        expect(data.startsWith('↵'), isFalse, reason: 'legend row "$data" survived');
+        expect(data.startsWith('esc'), isFalse, reason: 'legend row "$data" survived');
+      }
+    });
+
+    testWidgets('territories are chips, and the one in scope is selected', (
+      tester,
+    ) async {
+      await openMenu(tester, desk);
+      // Thirteen seeded territories plus "All territories".
+      expect(find.byType(TorchFilterChip).evaluate().length, greaterThanOrEqualTo(14));
+
+      TorchFilterChip chipIn(String key) => tester.widget<TorchFilterChip>(
+        find.descendant(
+          of: find.byKey(ValueKey<String>(key)),
+          matching: find.byType(TorchFilterChip),
+        ),
+      );
+      // No territory filter is set, so "All territories" is in force — and it
+      // is the chip's own selected state, in ink, not an amber fill: the
+      // product's filter chip is never amber, by rule.
+      expect(chipIn('palette-row-scope-all').selected, isTrue);
+      expect(chipIn('palette-row-scope-t-gp-tsh').selected, isFalse);
+    });
+
+    testWidgets('everything fits one card and nothing scrolls', (tester) async {
+      // The complaint: "the scrolling on the menu is too long". Thirteen chips
+      // wrap to a few lines and fourteen destinations sit in a three-column
+      // grid, so a destination is on screen WITHOUT typing — the earlier test
+      // had to type to reach one, because the list scrolled.
+      // Measured at the owner's REAL viewport — a maximised laptop Chrome is
+      // about 660dp tall once its chrome is off — not at a convenient 900.
+      await openMenu(tester, const Size(1440, 660));
+      final card = tester.getRect(find.byKey(const ValueKey<String>('palette-card')));
+      expect(card.bottom, lessThanOrEqualTo(660), reason: 'the card runs off a laptop window');
+      expect(tester.takeException(), isNull, reason: 'no overflow at 660');
+      // Operate and insight are on screen without typing; configure is not,
+      // because it is set up once and would cost three rows every open.
+      expect(find.byKey(const ValueKey<String>('palette-row-dest-/tasks')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('palette-row-dest-/leaderboard')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('palette-row-dest-/webhooks')), findsNothing);
+    });
+
+    testWidgets('a configure page is still reached by typing its name', (tester) async {
+      await openMenu(tester, desk);
+      await tester.enterText(find.byKey(const ValueKey<String>('palette-query')), 'Webhooks');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey<String>('palette-row-dest-/webhooks')), findsOneWidget);
     });
   });
 }

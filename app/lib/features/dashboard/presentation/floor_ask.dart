@@ -532,6 +532,8 @@ Future<void> showFloorDestinations(
     PaletteScope(
       id: 'all',
       label: context.l10n.dashAllTerritories,
+      // In force when no territory is: the chip the palette draws selected.
+      selected: filter.territoryId == null,
       onSelect: () {
         Navigator.of(context).pop();
         applyTerritory(ref, filter, allTerritoriesToken);
@@ -541,6 +543,7 @@ Future<void> showFloorDestinations(
       PaletteScope(
         id: t.id,
         label: t.name,
+        selected: filter.territoryId == t.id,
         onSelect: () {
           Navigator.of(context).pop();
           applyTerritory(ref, filter, t.id);

@@ -4,51 +4,49 @@ import 'package:flutter/widgets.dart';
 import '../../../l10n/l10n.dart';
 import '../../theme/torchlight/tiq_skin.dart';
 import '../nav_destinations.dart';
+import 'input/filter_chip.dart';
 
-/// THE CONSOLE'S MENU, ON A DESK — a command palette.
+/// THE CONSOLE'S MENU, ON A DESK — one screenful, nothing scrolls.
 ///
-/// > *"I don't like this menu on desktop… make it dynamic and very creative"*
-/// > — the owner, 6 October 2026, choosing **B, the command palette** out of
-/// > three directions.
+/// > *"Now the scrolling on the menu is too long, I need it to be shorter and
+/// > nicer… this is a professional app, we don't need these."* — the owner,
+/// > 6 October 2026, choosing **Short C, territories as chips**, and striking
+/// > the keyboard legend.
 ///
-/// On a phone the menu is [showTorchMenuSheet]: groups that fold, one open at
-/// a time, because a thumb reaching twenty-four destinations needs them
-/// collapsed. A desk inherited that sheet stretched across the window — rows a
-/// metre wide with one word on each, starting halfway down a 900dp screen.
+/// The first palette was a single vertical list: thirteen territories, then
+/// fourteen destinations, then a row of key hints. It scrolled, and the owner
+/// said so. This is the same two lists laid out so that neither needs to:
 ///
-/// A palette is the shape the same list wants when there is a keyboard in
-/// front of it. Two letters beat any amount of folding: at fourteen
-/// destinations and thirteen territories, typing is faster than aiming, and it
-/// is the only form that can hold BOTH in one list.
+/// * **Territories as chips**, wrapping. Thirteen names take five lines
+///   instead of thirteen rows, and the one in scope is drawn selected.
+/// * **Destinations as a four-column grid.** The seventeen a manager uses in a
+///   day take five lines; the seven `configure` pages are reached by typing.
 ///
-/// ## Scope comes FIRST, and a render is why
+/// With the search line that is one card of roughly 650dp, which fits the
+/// 660dp a maximised laptop browser actually has. The drawing said four lines
+/// of chips and three columns in a 640 card; the notes on the width and the
+/// grid say, with numbers, why it is 900 and four here.
 ///
-/// The first build listed destinations first, which is what a menu does. A
-/// golden of it showed the thing no amount of reading the code would have:
-/// **the desk already carries a permanent left rail with every destination on
-/// it** — `EXECUTION · 9`, The Floor, Perfect Store, Tasks, all of them, always
-/// visible. A palette whose first and longest section repeats that rail is
-/// duplicating what is already on screen while pushing the territories, the
-/// one thing a manager genuinely cannot reach on a desk, below the fold.
+/// ## The legend is gone, the shortcuts are not
 ///
-/// So the scope leads and the destinations follow. Typing still reaches either.
+/// `↑↓ move · ↵ open · esc close` is deleted. Arrow keys still walk the chips
+/// and then the cells, Enter still activates, Escape still closes — they are
+/// simply not announced. A professional tool does not caption its own
+/// keyboard, and the owner's words are the whole argument.
 ///
-/// ## It carries the scope, and that is half the point
+/// ## The one place this departs from the drawing
 ///
-/// Changing territory meant opening a second stretched sheet, and the owner
-/// reported on the same day that they could not do it on a desk at all. The
-/// palette takes [scopes] so the two questions a manager actually has —
-/// *where do I go* and *what am I looking at* — are answered by the same
-/// keystroke. Nothing in here reaches for territory data itself: this is a
-/// core widget and territories are a feature, so the caller that has them
-/// passes them in, the same way [showTorchMenuSheet] already takes `lead`.
+/// The artwork filled the in-scope chip amber. The product's own chip,
+/// [TorchFilterChip], is **never amber** by rule (unify §1.6, in its doc): a
+/// flame edge on a row of chips is the repeated-fill violation the amber law
+/// exists to prevent. The in-scope chip is therefore the chip's own selected
+/// state — bold, in ink — and this note is here so the difference reads as a
+/// decision, not a slip.
 ///
-/// ## No amber
-///
-/// The selected row is drawn in ink — `edgeControl` for its edge, `raised` for
-/// its ground. A palette is a list of places, not a commit, and the console's
-/// budget of two lit objects is spent on the screen underneath it. The same
-/// reasoning as the trough's focus rule in §15.5: focus is ink.
+/// Scope data still travels as [scopes] from the caller: this is a core widget
+/// and territories are a feature. The desk's rail already carries sign-out,
+/// the password and brightness at its foot ([ConsoleRailFooter]), so unlike the
+/// phone's sheet this card does not repeat them.
 class ConsolePalette extends StatefulWidget {
   const ConsolePalette({
     super.key,
@@ -61,31 +59,36 @@ class ConsolePalette extends StatefulWidget {
   /// Take me to this route. The caller closes the palette.
   final void Function(String route) onGo;
 
-  /// The territories, or whatever else this screen can scope to. Empty on a
-  /// screen that has no scope, which is most of them.
+  /// What this screen can scope to — the territories, today. Empty on a
+  /// screen with no scope, and the section is then simply absent.
   final List<PaletteScope> scopes;
 
-  /// Hand the typed text to Ask TradeIQ. Null hides the row rather than
-  /// offering something that will not happen.
+  /// Hand the typed text to Ask TradeIQ. Offered only when a query matches
+  /// nothing else, so it never competes with a destination or a territory.
   final void Function(String query)? onAsk;
 
-  /// Where we are, so the current destination can be marked. Null marks none.
+  /// Where we are, so the current destination is emphasised. Null marks none.
   final String? currentRoute;
 
   @override
   State<ConsolePalette> createState() => _ConsolePaletteState();
 }
 
-/// One thing the palette can scope the screen to — a territory, today.
+/// One thing the palette can scope the screen to.
 class PaletteScope {
-  const PaletteScope({required this.id, required this.label, required this.onSelect, this.meta});
+  const PaletteScope({
+    required this.id,
+    required this.label,
+    required this.onSelect,
+    this.selected = false,
+  });
 
   final String id;
   final String label;
 
-  /// A figure that earns its place: "31 outlets". Null prints nothing rather
-  /// than a dash, because a scope with no count is not a scope with zero.
-  final String? meta;
+  /// Whether this is the scope in force. Exactly one of the caller's scopes
+  /// should be, and it is drawn as the chip's selected state.
+  final bool selected;
 
   final VoidCallback onSelect;
 }
@@ -93,7 +96,10 @@ class PaletteScope {
 class _ConsolePaletteState extends State<ConsolePalette> {
   final TextEditingController _query = TextEditingController();
   final FocusNode _keys = FocusNode(debugLabel: 'console-palette-keys');
-  int _cursor = 0;
+
+  /// The keyboard cursor, as an index into [_targets]. -1 is nowhere, which is
+  /// how the card opens: nothing is pre-chosen until a key says so.
+  int _cursor = -1;
 
   @override
   void dispose() {
@@ -102,87 +108,47 @@ class _ConsolePaletteState extends State<ConsolePalette> {
     super.dispose();
   }
 
-  /// Everything the current query matches, flattened in the order it is drawn
-  /// — which is also the order the arrow keys walk, so the cursor and the eye
-  /// never disagree.
-  List<_Row> get _rows {
-    final q = _query.text.trim().toLowerCase();
-    final l10n = context.l10n;
-    final rows = <_Row>[];
+  String get _q => _query.text.trim().toLowerCase();
 
-    bool hit(String s) => q.isEmpty || s.toLowerCase().contains(q);
+  bool _hit(String s) => _q.isEmpty || s.toLowerCase().contains(_q);
 
-    final scopes = widget.scopes.where((s) => hit(s.label)).toList();
-    if (scopes.isNotEmpty) {
-      rows.add(_Row.header(l10n.paletteSectionScope));
-      for (final s in scopes) {
-        rows.add(
-          _Row.item(
-            id: 'scope-${s.id}',
-            label: s.label,
-            meta: s.meta,
-            here: false,
-            onSelect: s.onSelect,
-          ),
-        );
-      }
-    }
+  List<PaletteScope> get _scopes =>
+      widget.scopes.where((s) => _hit(s.label)).toList();
 
-    final destinations = managerDestinations.where((d) => hit(d.label)).toList();
-    if (destinations.isNotEmpty) {
-      rows.add(_Row.header(l10n.paletteSectionDestinations));
-      for (final d in destinations) {
-        rows.add(
-          _Row.item(
-            id: 'dest-${d.route}',
-            label: d.label,
-            meta: null,
-            here: d.route == widget.currentRoute,
-            onSelect: () => widget.onGo(d.route),
-          ),
-        );
-      }
-    }
+  /// At rest, the places a manager goes during a day: `operate` and
+  /// `insight`, seventeen of them. `configure` — exception rules, webhooks,
+  /// survey templates, the scorecard — is set up once and then left alone, so
+  /// its seven are folded until a query names one. Typing searches all 24.
+  ///
+  /// This is what keeps the grid to five rows. All 24 at three columns is
+  /// eight rows and 344dp, and the card was 837dp against a 660dp laptop
+  /// viewport — the drawing showed fourteen because it was drawn before the
+  /// count was checked.
+  List<NavDestination> get _destinations => _q.isEmpty
+      ? managerDestinations.where((d) => d.group != NavGroup.configure).toList()
+      : managerDestinations.where((d) => _hit(d.label)).toList();
 
-    final onAsk = widget.onAsk;
-    if (onAsk != null && q.isNotEmpty) {
-      rows.add(_Row.header(l10n.paletteSectionAsk));
-      rows.add(
-        _Row.item(
-          id: 'ask',
-          label: l10n.paletteAskFor(_query.text.trim()),
-          meta: null,
-          here: false,
-          onSelect: () => onAsk(_query.text.trim()),
-        ),
-      );
-    }
+  bool get _showAsk =>
+      widget.onAsk != null && _q.isNotEmpty && _scopes.isEmpty && _destinations.isEmpty;
 
-    return rows;
-  }
-
-  List<int> _selectable(List<_Row> rows) => <int>[
-    for (var i = 0; i < rows.length; i += 1)
-      if (!rows[i].isHeader) i,
+  /// Everything the arrow keys can land on, in drawing order: chips first,
+  /// then the grid, then the Ask fallback if it is showing.
+  List<_Target> get _targets => <_Target>[
+    for (final s in _scopes) _Target('scope-${s.id}', s.onSelect),
+    for (final d in _destinations) _Target('dest-${d.route}', () => widget.onGo(d.route)),
+    if (_showAsk) _Target('ask', () => widget.onAsk!(_query.text.trim())),
   ];
 
   void _move(int by) {
-    final rows = _rows;
-    final pick = _selectable(rows);
-    if (pick.isEmpty) return;
-    final at = pick.indexOf(_cursor);
-    // From nowhere, an arrow lands on the first row rather than doing nothing:
-    // the keyboard should never need a mouse click to get started.
-    final next = at < 0 ? 0 : (at + by).clamp(0, pick.length - 1);
-    setState(() => _cursor = pick[next]);
+    final n = _targets.length;
+    if (n == 0) return;
+    setState(() => _cursor = _cursor < 0 ? 0 : (_cursor + by).clamp(0, n - 1));
   }
 
   void _activate() {
-    final rows = _rows;
-    if (_cursor < 0 || _cursor >= rows.length) return;
-    final row = rows[_cursor];
-    if (row.isHeader) return;
-    row.onSelect!();
+    final targets = _targets;
+    if (_cursor < 0 || _cursor >= targets.length) return;
+    targets[_cursor].onSelect();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -191,9 +157,11 @@ class _ConsolePaletteState extends State<ConsolePalette> {
     }
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
+      case LogicalKeyboardKey.arrowRight:
         _move(1);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowUp:
+      case LogicalKeyboardKey.arrowLeft:
         _move(-1);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.enter:
@@ -213,116 +181,268 @@ class _ConsolePaletteState extends State<ConsolePalette> {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
-    final rows = _rows;
 
-    // The cursor is kept on a row that still exists: typing narrows the list
-    // under it, and a stale index would activate whatever slid into the slot.
-    final pick = _selectable(rows);
-    if (pick.isNotEmpty && !pick.contains(_cursor)) {
-      _cursor = pick.first;
+    final scopes = _scopes;
+    final destinations = _destinations;
+    final targets = _targets;
+    // A query that narrows the list under the cursor must not leave it on a
+    // thing that is no longer there.
+    if (_cursor >= targets.length) {
+      _cursor = targets.isEmpty ? -1 : targets.length - 1;
     }
+    final focusedId = _cursor >= 0 && _cursor < targets.length ? targets[_cursor].id : null;
+    final showAsk = _showAsk;
+    final nothing = scopes.isEmpty && destinations.isEmpty && !showAsk;
 
-    // THE DEFAULT TEXT STYLE, WITHOUT WHICH EVERY ROW IS YELLOW.
-    //
-    // `TorchShell` wraps its body in one (`torch_shell.dart`), and every
-    // screen in this product is inside a shell — so no other widget here has
-    // ever had to think about it. A palette is pushed with `showGeneralDialog`
-    // and lands OUTSIDE the shell, where `Text` merges onto
-    // `DefaultTextStyle.fallback()`: yellow, double-underlined, the debug
-    // style Flutter uses to say "nobody told me how to draw this". A style
-    // passed to `Text` overrides the colour and not the decoration, which is
-    // why the first build looked painted rather than broken.
+    // `TorchShell` provides the DefaultTextStyle every screen relies on; a
+    // dialog route lands outside it, so this card provides its own. Without it
+    // every row drew in Flutter's yellow, double-underlined debug fallback.
     return DefaultTextStyle(
       style: skin.text.body.style(color: p.ink1),
       child: Focus(
-      focusNode: _keys,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      child: Align(
-        alignment: const Alignment(0, -0.62),
-        child: ConstrainedBox(
-          key: const ValueKey<String>('palette-card'),
-          constraints: const BoxConstraints(maxWidth: 680, maxHeight: 560),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: p.surface,
-              borderRadius: BorderRadius.circular(skin.radii.card),
-              border: Border.all(color: p.edgeStructure, width: skin.depth.borderWidth),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _Field(controller: _query, hint: l10n.paletteHint, onChanged: (_) => setState(() {})),
-                Container(height: skin.depth.borderWidth, color: p.hairline),
-                Flexible(
-                  child: rows.isEmpty
-                      ? Padding(
-                          padding: EdgeInsets.all(skin.space.blockGap),
-                          child: Text(
-                            l10n.paletteNoMatch,
-                            style: skin.text.body.style(color: p.ink3),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.symmetric(vertical: skin.space.intraBlock),
-                          itemCount: rows.length,
-                          itemBuilder: (context, i) => rows[i].isHeader
-                              ? Padding(
-                                  padding: EdgeInsets.fromLTRB(
-                                    skin.space.blockGap,
-                                    skin.space.intraBlock,
-                                    skin.space.blockGap,
-                                    TiqSpace.s2,
-                                  ),
-                                  child: Text(
-                                    rows[i].label,
-                                    style: skin.text.eyebrow.style(color: p.ink3),
-                                  ),
-                                )
-                              : _ItemRow(
-                                  row: rows[i],
-                                  selected: i == _cursor,
-                                  onHover: () => setState(() => _cursor = i),
+        focusNode: _keys,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Align(
+          alignment: const Alignment(0, -0.62),
+          child: ConstrainedBox(
+            key: const ValueKey<String>('palette-card'),
+            // 900, NOT THE 640 THAT WAS DRAWN, and every step is measured.
+            //
+            // The drawing's chips were 13px type in a 7px pill; the product's
+            // chip, [TorchFilterChip], is a 44dp box a finger lands in, with a
+            // mark slot reserved whether or not a mark is drawn (its own doc
+            // explains both). Rendered at 640 the thirteen territories
+            // averaged 247dp each and wrapped to EIGHT rows, not four, and
+            // the card overflowed the window by 41dp. The outer box is 44dp
+            // whether the chip is quiet or not, so no variant of the chip
+            // recovers the height — only width does. At 820 they made six
+            // rows; at 900 they make five. With the grid at four columns the
+            // whole card is about 650dp, which fits the 660dp a maximised
+            // laptop browser actually has.
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: p.surface,
+                borderRadius: BorderRadius.circular(skin.radii.card),
+                border: Border.all(color: p.edgeStructure, width: skin.depth.borderWidth),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _Field(
+                    controller: _query,
+                    hint: l10n.paletteHint,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  Container(height: skin.depth.borderWidth, color: p.hairline),
+                  // A guard, not a feature: on any window the card fits, this
+                  // never scrolls. On one it does not — a 500dp laptop with the
+                  // dock up — it scrolls rather than painting overflow stripes.
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                    padding: EdgeInsets.all(skin.space.blockGap),
+                    child: nothing
+                        ? Text(l10n.paletteNoMatch, style: skin.text.body.style(color: p.ink3))
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              if (scopes.isNotEmpty) ...<Widget>[
+                                _Eyebrow(l10n.paletteSectionScope),
+                                SizedBox(height: skin.space.intraBlock),
+                                Wrap(
+                                  spacing: TiqSpace.s2,
+                                  runSpacing: TiqSpace.s2,
+                                  children: <Widget>[
+                                    for (final s in scopes)
+                                      _Focusable(
+                                        focused: focusedId == 'scope-${s.id}',
+                                        // INTRINSIC WIDTH, OR ONE CHIP PER ROW. The
+                                        // chip is built for `TorchFilterRail`, a
+                                        // horizontal scroller that hands it a tight
+                                        // cross-axis; given a loose 592dp it stretched
+                                        // to all of it, and thirteen chips became
+                                        // thirteen rows — 616dp of chips and a card
+                                        // 353dp taller than the window. Its own doc
+                                        // names `IntrinsicWidth` chips as the shape
+                                        // outside a rail, so that is what these are.
+                                        child: KeyedSubtree(
+                                          key: ValueKey<String>('palette-row-scope-${s.id}'),
+                                          child: IntrinsicWidth(
+                                            child: TorchFilterChip(
+                                              label: s.label,
+                                              selected: s.selected,
+                                              onSelected: s.onSelect,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                        ),
-                ),
-                Container(height: skin.depth.borderWidth, color: p.hairline),
-                _Legend(
-                  move: l10n.paletteKeysMove,
-                  open: l10n.paletteKeysOpen,
-                  close: l10n.paletteKeysClose,
-                ),
-              ],
+                              ],
+                              if (scopes.isNotEmpty && destinations.isNotEmpty)
+                                SizedBox(height: skin.space.blockGap),
+                              if (destinations.isNotEmpty) ...<Widget>[
+                                _Eyebrow(l10n.paletteSectionGoTo),
+                                SizedBox(height: skin.space.intraBlock),
+                                // Four columns, not the drawing's three: with
+                                // seventeen destinations that is five rows
+                                // instead of six, and the longest label shown
+                                // at rest ("Visit verification") still fits a
+                                // cell with room.
+                                _Grid(
+                                  columns: 4,
+                                  gap: TiqSpace.s2,
+                                  children: <Widget>[
+                                    for (final d in destinations)
+                                      _Cell(
+                                        key: ValueKey<String>('palette-row-dest-${d.route}'),
+                                        label: d.label,
+                                        here: d.route == widget.currentRoute,
+                                        focused: focusedId == 'dest-${d.route}',
+                                        onTap: () => widget.onGo(d.route),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                              if (showAsk)
+                                _Cell(
+                                  key: const ValueKey<String>('palette-row-ask'),
+                                  label: l10n.paletteAskFor(_query.text.trim()),
+                                  here: false,
+                                  focused: focusedId == 'ask',
+                                  onTap: () => widget.onAsk!(_query.text.trim()),
+                                ),
+                            ],
+                          ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
 }
 
-class _Row {
-  const _Row._({required this.label, required this.isHeader, this.meta, this.here = false, this.onSelect, this.id});
+class _Target {
+  const _Target(this.id, this.onSelect);
+  final String id;
+  final VoidCallback onSelect;
+}
 
-  factory _Row.header(String label) => _Row._(label: label, isHeader: true);
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow(this.text);
+  final String text;
 
-  factory _Row.item({
-    required String id,
-    required String label,
-    required String? meta,
-    required bool here,
-    required VoidCallback onSelect,
-  }) => _Row._(id: id, label: label, meta: meta, here: here, isHeader: false, onSelect: onSelect);
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Text(text, style: skin.text.eyebrow.style(color: skin.palette.ink3));
+  }
+}
 
-  final String? id;
+/// Three equal columns, filled in document order, sized from the width the
+/// card actually has rather than a fixed cell — so the names never clip.
+class _Grid extends StatelessWidget {
+  const _Grid({required this.columns, required this.gap, required this.children});
+
+  final int columns;
+  final double gap;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, c) {
+      final cell = (c.maxWidth - gap * (columns - 1)) / columns;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: <Widget>[
+          for (final child in children) SizedBox(width: cell, child: child),
+        ],
+      );
+    },
+  );
+}
+
+/// One destination in the grid. The current one is emphasised; the keyboard's
+/// one carries an ink edge. Both are ink — see the class note on amber.
+class _Cell extends StatelessWidget {
+  const _Cell({
+    super.key,
+    required this.label,
+    required this.here,
+    required this.focused,
+    required this.onTap,
+  });
+
   final String label;
-  final String? meta;
   final bool here;
-  final bool isHeader;
-  final VoidCallback? onSelect;
+  final bool focused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final p = skin.palette;
+    return Semantics(
+      button: true,
+      selected: here,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: _Focusable(
+            focused: focused,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: TiqSpace.s2),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: here
+                    ? skin.text.bodyStrong.style(color: p.ink1)
+                    : skin.text.body.style(color: p.ink2),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The keyboard cursor, drawn as a hairline edge in ink. A palette is a list
+/// of places, not a commit, so it never spends amber. The unfocused edge is
+/// fully transparent rather than absent, so focusing never shifts layout.
+class _Focusable extends StatelessWidget {
+  const _Focusable({required this.focused, required this.child});
+
+  final bool focused;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(skin.radii.control),
+        border: Border.all(
+          color: focused ? skin.palette.edgeControl : skin.palette.edgeControl.withValues(alpha: 0),
+          width: skin.depth.borderWidth,
+        ),
+      ),
+      child: child,
+    );
+  }
 }
 
 class _Field extends StatelessWidget {
@@ -341,22 +461,14 @@ class _Field extends StatelessWidget {
       padding: EdgeInsets.all(skin.space.blockGap),
       child: Row(
         children: <Widget>[
-          // The search mark, drawn rather than imported: an icon font would be
-          // one more thing to load for one glyph.
           _Glass(color: p.navInkInactive),
           SizedBox(width: skin.space.intraBlock),
           Expanded(
             child: Stack(
               alignment: AlignmentDirectional.centerStart,
               children: <Widget>[
-                // THE HINT, WHICH THE FIRST BUILD DID NOT HAVE.
-                //
-                // `EditableText` is the raw control and draws nothing at all
-                // when it is empty — no placeholder, no frame. The palette
-                // opens empty by definition, so the first thing the owner saw
-                // was a blank strip where the search is. It is painted under
-                // the field rather than inside it because the raw control has
-                // no slot for one.
+                // `EditableText` draws nothing when empty, and a palette opens
+                // empty — so the hint is painted beneath it.
                 if (controller.text.isEmpty)
                   Text(hint, style: skin.text.body.style(color: p.inkMute)),
                 EditableText(
@@ -378,11 +490,9 @@ class _Field extends StatelessWidget {
   }
 }
 
-/// The magnifier, as two strokes. Inline because it is the only icon here and
-/// the paint budget forbids the layers a font would cost.
+/// The magnifier, as two strokes. One glyph does not justify an icon font.
 class _Glass extends StatelessWidget {
   const _Glass({required this.color});
-
   final Color color;
 
   @override
@@ -392,7 +502,6 @@ class _Glass extends StatelessWidget {
 
 class _GlassPainter extends CustomPainter {
   const _GlassPainter(this.color);
-
   final Color color;
 
   @override
@@ -412,83 +521,4 @@ class _GlassPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GlassPainter old) => old.color != color;
-}
-
-class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.row, required this.selected, required this.onHover});
-
-  final _Row row;
-  final bool selected;
-  final VoidCallback onHover;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final p = skin.palette;
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        onTap: row.onSelect,
-        child: MouseRegion(
-          onEnter: (_) => onHover(),
-          cursor: SystemMouseCursors.click,
-          child: Container(
-            key: ValueKey<String>('palette-row-${row.id}'),
-            constraints: BoxConstraints(minHeight: skin.space.tapTarget),
-            padding: EdgeInsets.symmetric(
-              horizontal: skin.space.blockGap,
-              vertical: TiqSpace.s2,
-            ),
-            // Ink, never amber: see the class note.
-            color: selected ? p.raised : null,
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    row.label,
-                    style: selected || row.here
-                        ? skin.text.bodyStrong.style(color: p.ink1)
-                        : skin.text.body.style(color: p.ink2),
-                  ),
-                ),
-                if (row.meta != null)
-                  Text(row.meta!, style: skin.text.monoIdent.style(color: p.ink3)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  const _Legend({required this.move, required this.open, required this.close});
-
-  final String move;
-  final String open;
-  final String close;
-
-  @override
-  Widget build(BuildContext context) {
-    final skin = context.skin;
-    final style = skin.text.monoIdent.style(color: skin.palette.ink3);
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: skin.space.blockGap,
-        vertical: TiqSpace.s2,
-      ),
-      child: Row(
-        children: <Widget>[
-          Text('↑↓ $move', style: style),
-          SizedBox(width: skin.space.blockGap),
-          Text('↵ $open', style: style),
-          SizedBox(width: skin.space.blockGap),
-          Text('esc $close', style: style),
-        ],
-      ),
-    );
-  }
 }
