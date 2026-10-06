@@ -1,5 +1,6 @@
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
 import { parseNumbered, quarantineFreeText, setAtPath } from './quarantine';
+import { ownText } from './sanitize';
 
 /** A provider that replays scripted events and records what it was asked. */
 function stubProvider(
@@ -83,6 +84,23 @@ describe('quarantineFreeText', () => {
     );
 
     expect(value).toEqual({ score: 82, agentId: 'agent-1' });
+    expect(outcomes).toEqual([]);
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it("makes no model call when the only prose is the tool's own registered sentence", async () => {
+    // The territory lookup's note is written in operations.service.ts, not
+    // read from a record. Quarantining it cost every territory question a
+    // model round — 7.7 seconds on the model then live — for nothing.
+    const provider = stubProvider(tokens('unused'));
+    const note = ownText('Pass territoryId to the tool that answers the question.');
+
+    const { value, outcomes } = await quarantineFreeText(
+      { matches: [{ territoryId: 't1', name: 'Gauteng', outlets: 48 }], note },
+      { provider, signal: signal() },
+    );
+
+    expect(value).toEqual({ matches: [{ territoryId: 't1', name: 'Gauteng', outlets: 48 }], note });
     expect(outcomes).toEqual([]);
     expect(provider.calls).toHaveLength(0);
   });

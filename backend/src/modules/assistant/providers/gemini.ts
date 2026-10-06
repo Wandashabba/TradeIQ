@@ -66,7 +66,15 @@ import {
  */
 export const GEMINI_ORCHESTRATOR_MODEL =
   process.env.GEMINI_ORCHESTRATOR_MODEL ?? 'gemini-3.1-pro-preview';
-export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'gemini-3.6-flash';
+/**
+ * The quarantine pass summarises free text with no tools; it has nothing to
+ * reason about, and it sits on the critical path of every tool result that
+ * carries a note. Measured 6 October 2026 over a 13-field batch:
+ * `gemini-3.6-flash` 7.7s, `gemini-3.5-flash` 5.4s, `gemini-3.5-flash-lite`
+ * 1.5s. The lite tier is the right one.
+ */
+export const GEMINI_QUARANTINE_MODEL =
+  process.env.GEMINI_QUARANTINE_MODEL ?? 'gemini-3.5-flash-lite';
 
 /**
  * Where a turn goes when the model it asked for is not answering.
@@ -80,8 +88,12 @@ export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'g
  * of that model, not of the vendor, so the answer is another model — tried once,
  * with the prefix inline, and only when nothing has reached the user yet. `off`
  * disables it; naming the same model as the tier does too.
+ *
+ * `gemini-3.7-flash` because `gemini-3.5-flash` is the orchestrator a quick
+ * console should run (see .env.example), and a standby that is the tier's own
+ * model is no standby.
  */
-export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.5-flash';
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.7-flash';
 
 /**
  * The SDK's own retry, switched on. It is OFF by default — `apiCall` returns
@@ -440,26 +452,40 @@ export function geminiSupportsSearchWithTools(model: string): boolean {
  * that does not understand it is a 400, and a 400 on every turn is a worse
  * outcome than a turn that thinks too hard.
  */
+/**
+ * The models that answer `thinkingLevel: minimal` with a 400 — measured 6
+ * October 2026 (`gemini-3.7-flash`, `gemini-3.8-flash`; the Pro preview is
+ * documented in .env.example). Everything else that was tried took it:
+ * `gemini-3.5-flash`, `gemini-3-flash-preview`, both lite tiers.
+ */
+const REJECTS_MINIMAL = /gemini-3\.(7|8)-flash|pro/i;
+
 export function thinkingConfigFor(
   model: string,
   kind: 'first' | 'tool' | 'answer' | 'quarantine',
+  levels: { first?: string; tool?: string; answer?: string } = {
+    first: FIRST_THINKING_LEVEL,
+    tool: THINKING_LEVEL,
+    answer: ANSWER_THINKING_LEVEL,
+  },
 ): ThinkingConfig | undefined {
   // The quarantine tier summarises one string with no tools. It has nothing to
   // reason about, and it is a different model whose levels we have not measured.
   if (kind === 'quarantine') return undefined;
   if (!/^(models\/)?gemini-3/i.test(model)) return undefined;
   const level = (
-    kind === 'answer'
-      ? ANSWER_THINKING_LEVEL
-      : kind === 'first'
-        ? FIRST_THINKING_LEVEL
-        : THINKING_LEVEL
+    (kind === 'answer' ? levels.answer : kind === 'first' ? levels.first : levels.tool) ?? ''
   ).toLowerCase();
   // An unrecognised value is treated as "unset" rather than forwarded. A typo in
   // an env var should cost the discount, not every turn — and the vendor's
   // answer to an unknown level is a 400 on every request.
   if (!THINKING_LEVELS.includes(level as (typeof THINKING_LEVELS)[number])) return undefined;
-  return { thinkingLevel: level as ThinkingConfig['thinkingLevel'] };
+  // `minimal` is the fastest answer round there is on the models that take it
+  // and a 400 on every turn on the ones that do not. The standby model is
+  // chosen for being up, not for its thinking menu, so the floor is applied
+  // here per model rather than trusted to the env.
+  const effective = level === 'minimal' && REJECTS_MINIMAL.test(model) ? 'low' : level;
+  return { thinkingLevel: effective as ThinkingConfig['thinkingLevel'] };
 }
 
 /** The tool config a grounded, function-calling request needs. */

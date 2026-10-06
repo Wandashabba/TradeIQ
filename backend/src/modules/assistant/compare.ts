@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ownText } from './sanitize';
 import { describePeriod, resolvePeriod, type DateRange, type Period } from './period';
 import {
   addCalendarDays,
@@ -193,9 +194,10 @@ export function comparisonRanges(
           current,
           comparison,
           label: lastYear ? 'the same month last year' : 'the month before',
-          note:
+          note: ownText(
             `Today is the 1st, so this month has no complete days yet. These figures are ` +
-            `for all of ${shown}, compared with all of ${against}.`,
+              `for all of ${shown}, compared with all of ${against}.`,
+          ),
         };
       }
       const current = range(monthStart(year, month), today);
@@ -219,9 +221,10 @@ export function comparisonRanges(
           current: range(monthStart(year - 1, 0), monthStart(year, 0)),
           comparison: range(monthStart(year - 2, 0), monthStart(year - 1, 0)),
           label: 'the year before',
-          note:
+          note: ownText(
             `Today is 1 January, so this year has no complete days yet. These figures are ` +
-            `for all of ${year - 1}, compared with all of ${year - 2}.`,
+              `for all of ${year - 1}, compared with all of ${year - 2}.`,
+          ),
         };
       }
       // "Month to date" logic does not fit a year: the previous period of a

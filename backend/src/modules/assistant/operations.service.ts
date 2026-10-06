@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { ownText } from './sanitize';
 import { prisma } from '../../lib/prisma';
 import { round2 } from '../../lib/kpiMath';
 import { kpiThreshold } from '../../lib/kpiThresholds';
@@ -174,11 +175,12 @@ export async function findTerritories(input: {
       outlets: outletsByCode.get(t.code) ?? 0,
     })),
     truncated: rows.length > MAX_TERRITORY_MATCHES,
-    note:
+    note: ownText(
       matchedBy === 'none'
         ? 'No territory matches. Do not guess an id; tell the user and offer the territories that exist.'
         : 'Pass territoryId to the tool that answers the question. If several match and the user ' +
-          'meant one place, ask which; if they meant a whole region, say which territories it covers.',
+            'meant one place, ask which; if they meant a whole region, say which territories it covers.',
+    ),
   };
 }
 
@@ -484,12 +486,13 @@ export async function getCampaignPerformance(input: {
   return {
     campaigns,
     omitted: matched.length - measured.length + (page.nextCursor ? 1 : 0),
-    note:
+    note: ownText(
       'Revenue figures are SELL-IN value (orders through TradeIQ), not consumer sales. ' +
-      'Lift and ROI compare attributed orders with the same outlets over an equal-length ' +
-      'window just before the campaign. For a running campaign (liftComparable false) the ' +
-      'days so far are compared with a full baseline, so its lift and ROI are not yet ' +
-      'meaningful. roiPct is null when no budget is recorded.',
+        'Lift and ROI compare attributed orders with the same outlets over an equal-length ' +
+        'window just before the campaign. For a running campaign (liftComparable false) the ' +
+        'days so far are compared with a full baseline, so its lift and ROI are not yet ' +
+        'meaningful. roiPct is null when no budget is recorded.',
+    ),
   };
 }
 
@@ -739,9 +742,10 @@ export async function getTaskSummary(input: {
       outletName: t.outlet.name,
       ownerName: personLabel(t.owner.displayName, t.owner.email),
     })),
-    note:
+    note: ownText(
       'Overdue means not closed and past its SLA due time now. The backlog and overdue ' +
-      'breakdowns are as of now whatever the period; raisedInPeriod covers tasks created in the period.',
+        'breakdowns are as of now whatever the period; raisedInPeriod covers tasks created in the period.',
+    ),
   };
 }
 

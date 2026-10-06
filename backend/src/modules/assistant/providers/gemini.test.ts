@@ -352,6 +352,27 @@ describe('gemini adapter — vendor specifics', () => {
 });
 
 describe('thinkingConfigFor', () => {
+  it('clamps minimal to low on the models that reject it, and only there', () => {
+    // Measured 6 October 2026: gemini-3.7-flash and gemini-3.8-flash answer
+    // `minimal` with a 400; gemini-3.5-flash and the lite tiers take it. The
+    // standby model is picked for being up, so the floor lives here.
+    expect(thinkingConfigFor('gemini-3.7-flash', 'answer', { answer: 'minimal' })).toEqual({
+      thinkingLevel: 'low',
+    });
+    expect(thinkingConfigFor('gemini-3.8-flash', 'answer', { answer: 'minimal' })).toEqual({
+      thinkingLevel: 'low',
+    });
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'first', { first: 'minimal' })).toEqual({
+      thinkingLevel: 'low',
+    });
+    expect(thinkingConfigFor('gemini-3.5-flash', 'answer', { answer: 'minimal' })).toEqual({
+      thinkingLevel: 'minimal',
+    });
+    expect(thinkingConfigFor('gemini-3.5-flash-lite', 'answer', { answer: 'minimal' })).toEqual({
+      thinkingLevel: 'minimal',
+    });
+  });
+
   it('turns down only the round that has nothing left to decide', () => {
     // Measured on twenty golden questions: first-tool choice was 20/20 at the
     // vendor default and 19/20 at `low`. The gate needs 90%, so 95% would pass

@@ -1,11 +1,12 @@
 import {
+  SPOTLIGHT_FENCE,
   collectProse,
   looksLikeProse,
   neutraliseAnswerMarkup,
+  ownText,
   sanitizeToolResult,
   scanForInstructions,
   spotlight,
-  SPOTLIGHT_FENCE,
 } from './sanitize';
 
 describe('scanForInstructions', () => {
@@ -163,6 +164,23 @@ describe('sanitizeToolResult', () => {
 });
 
 describe('collectProse', () => {
+  it("skips a sentence our own code registered as its own — verbatim, and only that", () => {
+    const guidance = ownText('Pass territoryId to the tool that answers the question. Never guess one.');
+    const result = {
+      note: guidance,
+      matches: [{ comment: 'Shelf was completely empty when we arrived this morning' }],
+      lookalike: 'Pass territoryId to the tool that answers the question. Never guess one!',
+    };
+
+    const paths = collectProse(result).map((p) => p.path.join('.'));
+
+    expect(paths).not.toContain('note');
+    // A record's text under any key is still prose; so is anything that is
+    // merely close to our sentence.
+    expect(paths).toContain('matches.0.comment');
+    expect(paths).toContain('lookalike');
+  });
+
   it('returns paths so summaries can be substituted back', () => {
     const found = collectProse({ rows: [{ note: 'Shelf was empty when we arrived today' }] });
     expect(found).toHaveLength(1);
