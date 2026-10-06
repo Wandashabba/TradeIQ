@@ -117,11 +117,88 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('destinations are there too', (tester) async {
+    testWidgets('destinations are reachable by typing too', (tester) async {
       await openMenu(tester, desk);
+      // Below the fold at rest, because the thirteen territories lead — so
+      // reached the same way a territory is, by name.
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('palette-query')),
+        'Tasks',
+      );
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey<String>('palette-row-dest-/tasks')),
         findsOneWidget,
+      );
+    });
+  });
+
+  group('it is drawn, not merely present', () {
+    const desk = Size(1440, 900);
+
+    testWidgets('no row inherits the debug fallback style', (tester) async {
+      // THE BUG THIS SHIPPED WITH, pinned so it cannot come back.
+      //
+      // `TorchShell` wraps every screen in a `DefaultTextStyle`; a palette is
+      // pushed with `showGeneralDialog` and lands outside it, where `Text`
+      // merges onto `DefaultTextStyle.fallback()` — yellow, double-underlined,
+      // Flutter's way of saying nobody told it how to draw this. A style passed
+      // to `Text` overrides the colour and NOT the decoration, so the first
+      // build looked deliberately painted rather than broken, and the owner saw
+      // it before I did.
+      //
+      // The decoration is the tell, so the decoration is what is asserted.
+      await openMenu(tester, desk);
+
+      final texts = tester.widgetList<Text>(find.byType(Text));
+      expect(texts, isNotEmpty);
+      for (final text in texts) {
+        final resolved = text.style;
+        expect(
+          resolved?.decoration,
+          anyOf(isNull, TextDecoration.none),
+          reason: 'row "${text.data}" is drawing with an underline, which '
+              'means it is inheriting the debug fallback style',
+        );
+      }
+    });
+
+    testWidgets('the search line says what it is for when empty', (
+      tester,
+    ) async {
+      // `EditableText` is the raw control and draws nothing at all when empty.
+      // The palette opens empty by definition, so without a hint the first
+      // thing anyone sees is a blank strip where the search should be — which
+      // is exactly what shipped.
+      await openMenu(tester, desk);
+      expect(find.text('Go to, or scope to…'), findsOneWidget);
+    });
+
+    testWidgets('scope comes before destinations', (tester) async {
+      // The desk already carries a permanent left rail with every destination
+      // on it. A palette that repeats that rail first, and pushes the
+      // territories below the fold, is duplicating what is on screen while
+      // burying the one thing a manager cannot otherwise reach.
+      await openMenu(tester, desk);
+      // Narrowed so both sections fit the viewport at once: "Free State" is
+      // the only territory that matches and "Perfect Store" the only
+      // destination, so their order on screen IS the order of the sections.
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('palette-query')),
+        'st',
+      );
+      await tester.pumpAndSettle();
+
+      final scope = tester.getRect(
+        find.byKey(const ValueKey<String>('palette-row-scope-t-fs')),
+      );
+      final dest = tester.getRect(
+        find.byKey(const ValueKey<String>('palette-row-dest-/dashboard/overview')),
+      );
+      expect(
+        scope.top,
+        lessThan(dest.top),
+        reason: 'the territories lead; the rail already has the destinations',
       );
     });
   });
