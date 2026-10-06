@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show ByteData, FontLoader;
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
@@ -54,7 +53,7 @@ void main() {
     ('tiles-1440', const Size(1440, 900), tilesTurn),
     ('brief-phone', const Size(390, 844), briefTurn),
   ]) {
-    testWidgets('$tag', (tester) async {
+    testWidgets(tag, (tester) async {
       await pumpAsk(
         tester,
         repository: ScriptedRepository(turn().cast()),
