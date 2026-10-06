@@ -21,6 +21,18 @@ import '../nav_destinations.dart';
 /// destinations and thirteen territories, typing is faster than aiming, and it
 /// is the only form that can hold BOTH in one list.
 ///
+/// ## Scope comes FIRST, and a render is why
+///
+/// The first build listed destinations first, which is what a menu does. A
+/// golden of it showed the thing no amount of reading the code would have:
+/// **the desk already carries a permanent left rail with every destination on
+/// it** — `EXECUTION · 9`, The Floor, Perfect Store, Tasks, all of them, always
+/// visible. A palette whose first and longest section repeats that rail is
+/// duplicating what is already on screen while pushing the territories, the
+/// one thing a manager genuinely cannot reach on a desk, below the fold.
+///
+/// So the scope leads and the destinations follow. Typing still reaches either.
+///
 /// ## It carries the scope, and that is half the point
 ///
 /// Changing territory meant opening a second stretched sheet, and the owner
@@ -100,22 +112,6 @@ class _ConsolePaletteState extends State<ConsolePalette> {
 
     bool hit(String s) => q.isEmpty || s.toLowerCase().contains(q);
 
-    final destinations = managerDestinations.where((d) => hit(d.label)).toList();
-    if (destinations.isNotEmpty) {
-      rows.add(_Row.header(l10n.paletteSectionDestinations));
-      for (final d in destinations) {
-        rows.add(
-          _Row.item(
-            id: 'dest-${d.route}',
-            label: d.label,
-            meta: null,
-            here: d.route == widget.currentRoute,
-            onSelect: () => widget.onGo(d.route),
-          ),
-        );
-      }
-    }
-
     final scopes = widget.scopes.where((s) => hit(s.label)).toList();
     if (scopes.isNotEmpty) {
       rows.add(_Row.header(l10n.paletteSectionScope));
@@ -127,6 +123,22 @@ class _ConsolePaletteState extends State<ConsolePalette> {
             meta: s.meta,
             here: false,
             onSelect: s.onSelect,
+          ),
+        );
+      }
+    }
+
+    final destinations = managerDestinations.where((d) => hit(d.label)).toList();
+    if (destinations.isNotEmpty) {
+      rows.add(_Row.header(l10n.paletteSectionDestinations));
+      for (final d in destinations) {
+        rows.add(
+          _Row.item(
+            id: 'dest-${d.route}',
+            label: d.label,
+            meta: null,
+            here: d.route == widget.currentRoute,
+            onSelect: () => widget.onGo(d.route),
           ),
         );
       }
@@ -210,7 +222,19 @@ class _ConsolePaletteState extends State<ConsolePalette> {
       _cursor = pick.first;
     }
 
-    return Focus(
+    // THE DEFAULT TEXT STYLE, WITHOUT WHICH EVERY ROW IS YELLOW.
+    //
+    // `TorchShell` wraps its body in one (`torch_shell.dart`), and every
+    // screen in this product is inside a shell — so no other widget here has
+    // ever had to think about it. A palette is pushed with `showGeneralDialog`
+    // and lands OUTSIDE the shell, where `Text` merges onto
+    // `DefaultTextStyle.fallback()`: yellow, double-underlined, the debug
+    // style Flutter uses to say "nobody told me how to draw this". A style
+    // passed to `Text` overrides the colour and not the decoration, which is
+    // why the first build looked painted rather than broken.
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: p.ink1),
+      child: Focus(
       focusNode: _keys,
       autofocus: true,
       onKeyEvent: _onKey,
@@ -275,6 +299,7 @@ class _ConsolePaletteState extends State<ConsolePalette> {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -310,20 +335,83 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
+    final p = skin.palette;
+
     return Padding(
       padding: EdgeInsets.all(skin.space.blockGap),
-      child: EditableText(
-        key: const ValueKey<String>('palette-query'),
-        controller: controller,
-        focusNode: FocusNode()..requestFocus(),
-        style: skin.text.body.style(color: skin.palette.ink1),
-        cursorColor: skin.palette.edgeControl,
-        backgroundCursorColor: skin.palette.hairline,
-        onChanged: onChanged,
-        autofocus: true,
+      child: Row(
+        children: <Widget>[
+          // The search mark, drawn rather than imported: an icon font would be
+          // one more thing to load for one glyph.
+          _Glass(color: p.navInkInactive),
+          SizedBox(width: skin.space.intraBlock),
+          Expanded(
+            child: Stack(
+              alignment: AlignmentDirectional.centerStart,
+              children: <Widget>[
+                // THE HINT, WHICH THE FIRST BUILD DID NOT HAVE.
+                //
+                // `EditableText` is the raw control and draws nothing at all
+                // when it is empty — no placeholder, no frame. The palette
+                // opens empty by definition, so the first thing the owner saw
+                // was a blank strip where the search is. It is painted under
+                // the field rather than inside it because the raw control has
+                // no slot for one.
+                if (controller.text.isEmpty)
+                  Text(hint, style: skin.text.body.style(color: p.inkMute)),
+                EditableText(
+                  key: const ValueKey<String>('palette-query'),
+                  controller: controller,
+                  focusNode: FocusNode()..requestFocus(),
+                  style: skin.text.body.style(color: p.ink1),
+                  cursorColor: p.edgeControl,
+                  backgroundCursorColor: p.hairline,
+                  onChanged: onChanged,
+                  autofocus: true,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// The magnifier, as two strokes. Inline because it is the only icon here and
+/// the paint budget forbids the layers a font would cost.
+class _Glass extends StatelessWidget {
+  const _Glass({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: const Size(16, 16), painter: _GlassPainter(color));
+}
+
+class _GlassPainter extends CustomPainter {
+  const _GlassPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(Offset(size.width * 0.42, size.height * 0.42), size.width * 0.3, stroke);
+    canvas.drawLine(
+      Offset(size.width * 0.66, size.height * 0.66),
+      Offset(size.width * 0.94, size.height * 0.94),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassPainter old) => old.color != color;
 }
 
 class _ItemRow extends StatelessWidget {
