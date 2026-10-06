@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { ownText } from './sanitize';
 import { prisma } from '../../lib/prisma';
 import { pct, round2 } from '../../lib/kpiMath';
 import { OWN_FACINGS_SQL } from '../../lib/kpiSql';
@@ -280,10 +281,11 @@ export async function getTerritorySellInChange(input: {
     comparisonTotalSellInUnits: comparisonTotal,
     territories: ranked,
     excludedNoComparison: excluded,
-    note:
+    note: ownText(
       'changePct is the change in sell-in units against the comparison window. Territories ' +
-      'with no sell-in in the comparison window have no percentage change and are listed in ' +
-      'excludedNoComparison instead of being ranked. No targets are involved.',
+        'with no sell-in in the comparison window have no percentage change and are listed in ' +
+        'excludedNoComparison instead of being ranked. No targets are involved.',
+    ),
   };
 }
 

@@ -233,6 +233,33 @@ export function sanitizeToolResult(
  * instruction, and a tool-less model call per id would make every turn cost
  * several times what it should.
  */
+/**
+ * Sentences OUR OWN CODE writes into a tool result for the model — guidance
+ * such as *"Pass territoryId to the tool that answers the question."* —
+ * registered verbatim as the tool builds its result.
+ *
+ * Why a registry and not a key name: the quarantine's own tests use a top-level
+ * `note` holding a visit note as the thing that MUST be quarantined, and they
+ * are right — a record can land under any key. What a record cannot do is be
+ * byte-identical to a sentence in this codebase. So [collectProse] skips a
+ * string only when it is exactly one of these; the worst a record can achieve
+ * by reproducing one is to say what the tool was going to say anyway.
+ *
+ * What it buys: on 6 October 2026 every territory lookup on the console went
+ * through the quarantine model for the sake of its own two-sentence note —
+ * 7.7 seconds on the model then in use — with no record text in the result.
+ */
+const ownSentences = new Set<string>();
+
+export function ownText<T extends string>(text: T): T {
+  ownSentences.add(text);
+  return text;
+}
+
+export function isOwnText(value: string): boolean {
+  return ownSentences.has(value);
+}
+
 export function collectProse(result: unknown, maxDepth = 12): { path: string[]; value: string }[] {
   const found: { path: string[]; value: string }[] = [];
   const seen = new WeakSet<object>();
@@ -240,6 +267,7 @@ export function collectProse(result: unknown, maxDepth = 12): { path: string[]; 
   function walk(value: unknown, depth: number, path: string[]): void {
     if (depth > maxDepth) return;
     if (typeof value === 'string') {
+      if (isOwnText(value)) return;
       if (looksLikeProse(value) || scanForInstructions(value).length > 0) {
         found.push({ path, value });
       }
