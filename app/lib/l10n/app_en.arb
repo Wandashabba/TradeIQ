@@ -11882,5 +11882,9 @@
   "paletteKeysClose": "close",
   "@paletteKeysClose": {
     "description": "The console's command palette, on a desk."
+  },
+  "askAnswerEvidence": "What this answer is counted from",
+  "@askAnswerEvidence": {
+    "description": "Spoken label for the evidence column beside an Ask answer on a desk."
   }
 }

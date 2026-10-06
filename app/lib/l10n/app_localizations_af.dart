@@ -8806,4 +8806,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get paletteKeysClose => 'sluit';
+
+  @override
+  String get askAnswerEvidence => 'Waarvan hierdie antwoord getel is';
 }

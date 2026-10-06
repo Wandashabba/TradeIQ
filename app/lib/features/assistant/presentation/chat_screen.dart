@@ -471,6 +471,39 @@ class AskTurnView extends ConsumerWidget {
         OutsideDataBand(artifacts: figures.outside, now: DateTime.now()),
     ];
 
+    // ANSWER LEFT, EVIDENCE RIGHT — owner's choice of 6 October 2026, "F",
+    // against an answer they called "very not nice": markdown blocks in one
+    // column capped at `answerProseWidth`, which for a question whose answer
+    // is four numbers and a split is the weakest shape available. The figures
+    // were buried in sentences the eye had to parse.
+    //
+    // Nothing new is RENDERED here. The three things a manager checks an
+    // answer against already exist and were simply stacked under it:
+    // `StepsSummaryRow` (which tool ran), `AnswerPanel` (the figures it
+    // returned) and `WebSources` (what it cited). On a desk they move into a
+    // column beside the prose, where they can be read WITH the answer rather
+    // than after scrolling past it.
+    //
+    // Only on a settled turn. While it streams, `WorkingSteps` is the whole
+    // point of the screen — it explains the pause before there is any text —
+    // so it keeps the full width and the split waits.
+    final desk =
+        ConsoleDesk.isDesk(skin, MediaQuery.sizeOf(context)) &&
+        !message.streaming &&
+        message.error == null;
+
+    final evidence = <Widget>[
+      if (desk && message.tools.isNotEmpty) StepsSummaryRow(tools: message.tools),
+      if (desk) AnswerPanel(figures: figures),
+      if (desk)
+        WebSources(
+          sources: message.sources,
+          searched: message.tools.any(
+            (t) => AnswerFigures.webTools.contains(t.name),
+          ),
+        ),
+    ];
+
     final body = <Widget>[
       // The rail sits above the answer: its whole job is to explain a pause
       // before there is any text to show, and afterwards to say what the
@@ -489,7 +522,7 @@ class AskTurnView extends ConsumerWidget {
           now: ref.read(assistantClockProvider),
           onStop: () => ref.read(chatControllerProvider.notifier).stop(),
         )
-      else if (message.tools.isNotEmpty)
+      else if (message.tools.isNotEmpty && !desk)
         StepsSummaryRow(tools: message.tools),
       if (message.error != null)
         AnswerErrorBlock(
@@ -505,11 +538,11 @@ class AskTurnView extends ConsumerWidget {
           animate: animate,
           followUpsEnabled: phase.canSend,
           trailing: trailing,
-          artifacts: <Widget>[AnswerPanel(figures: figures)],
+          artifacts: desk ? const <Widget>[] : <Widget>[AnswerPanel(figures: figures)],
         )
       else ...<Widget>[
         if (message.text.isNotEmpty) PlainAnswer(message: message),
-        AnswerPanel(figures: figures),
+        if (!desk) AnswerPanel(figures: figures),
         ...trailing,
       ],
       if (message.stopped)
@@ -517,7 +550,7 @@ class AskTurnView extends ConsumerWidget {
       // A turn that errored has no answer to cite, and a turn still being
       // written has not cited yet: sources arrive after the tokens, and a
       // searched turn saying "nothing usable" before they land is false.
-      if (message.error == null && !message.streaming)
+      if (message.error == null && !message.streaming && !desk)
         WebSources(
           sources: message.sources,
           searched: message.tools.any(
@@ -540,19 +573,42 @@ class AskTurnView extends ConsumerWidget {
         ),
     ];
 
+    Widget stack(List<Widget> parts, String tag) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (var i = 0; i < parts.length; i++) ...<Widget>[
+          if (i > 0) SizedBox(height: skin.space.blockGap),
+          Arrive(key: ValueKey<String>('$tag-$i'), enabled: false, child: parts[i]),
+        ],
+      ],
+    );
+
+    final answer = stack(body, 'answer');
+
     return Semantics(
       container: true,
       label: context.l10n.askAnswer,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (var i = 0; i < body.length; i++) ...<Widget>[
-            if (i > 0) SizedBox(height: skin.space.blockGap),
-            Arrive(key: ValueKey<int>(i), enabled: false, child: body[i]),
-          ],
-        ],
-      ),
+      child: evidence.isEmpty
+          ? answer
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // 3 : 2 — the same split the door takes. The prose keeps the
+                // larger share because it is the answer and has a measure to
+                // hold; the evidence is read beside it, not instead of it.
+                Expanded(flex: 3, child: answer),
+                SizedBox(width: skin.space.blockGap),
+                Expanded(
+                  flex: 2,
+                  child: Semantics(
+                    container: true,
+                    label: context.l10n.askAnswerEvidence,
+                    child: stack(evidence, 'evidence'),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
