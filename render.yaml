@@ -234,3 +234,40 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+    # CACHING, BECAUSE NOTHING ELSE IS DOING IT.
+    #
+    # Render serves everything `public, max-age=0, s-maxage=300`: its CDN keeps
+    # a copy for five minutes, the browser keeps nothing. That is normally fine
+    # because a Flutter web app caches itself in a service worker — but Flutter
+    # 3.44 ships a 784-byte worker whose entire body is `skipWaiting()` and
+    # `self.registration.unregister()`. Nothing is cached anywhere near the
+    # user, so every single load fetches the whole engine again.
+    #
+    # Measured from Johannesburg against Frankfurt, and these are mostly SERIAL
+    # — the HTML must arrive before the bootstrap, which must arrive before the
+    # engine: index.html 0.48s, flutter_bootstrap.js 0.47s, main.dart.js 0.69s,
+    # canvaskit.js 0.56s, canvaskit.wasm 0.77s, skwasm.wasm 1.74s. That is the
+    # three-to-four seconds the owner met on 6 October 2026 as "very slow to
+    # log in", and it was paid on every visit.
+    #
+    # The engine is the part worth caching and the safe part to cache. Files
+    # under /canvaskit/ change only when the Flutter SDK does, and the SDK is
+    # pinned by FLUTTER_VERSION in the build command above — so WHEN THAT PIN
+    # MOVES, these are stale for up to thirty days unless the cache is purged.
+    # That is the one cost of this block; it is written here so the next person
+    # to bump Flutter reads it.
+    #
+    # index.html, flutter_bootstrap.js and main.dart.js are deliberately NOT
+    # cached. `main.dart.js` carries no hash and no version query — the
+    # bootstrap asks for that exact name — so a cached copy would pin the app
+    # at the build that was current when it was fetched, and a deploy would
+    # reach nobody. They revalidate instead, which the ETags above already make
+    # cheap: a 304 is zero bytes.
+    headers:
+      - path: /canvaskit/*
+        name: Cache-Control
+        value: public, max-age=2592000, immutable
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=86400
