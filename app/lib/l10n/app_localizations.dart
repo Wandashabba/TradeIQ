@@ -13929,6 +13929,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What this answer is counted from'**
   String get askAnswerEvidence;
+
+  /// Eyebrow over the destinations grid in the console's command palette.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to'**
+  String get paletteSectionGoTo;
 }
 
 class _AppLocalizationsDelegate

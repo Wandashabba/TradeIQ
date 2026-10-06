@@ -2434,5 +2434,9 @@
   "askAnswerEvidence": "Waarvan hierdie antwoord getel is",
   "@askAnswerEvidence": {
     "description": "Spoken label for the evidence column beside an Ask answer on a desk."
+  },
+  "paletteSectionGoTo": "Gaan na",
+  "@paletteSectionGoTo": {
+    "description": "Eyebrow over the destinations grid in the console's command palette."
   }
 }

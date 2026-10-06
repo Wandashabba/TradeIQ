@@ -8809,4 +8809,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askAnswerEvidence => 'Waarvan hierdie antwoord getel is';
+
+  @override
+  String get paletteSectionGoTo => 'Gaan na';
 }
