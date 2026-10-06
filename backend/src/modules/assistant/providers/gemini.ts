@@ -10,6 +10,7 @@ import {
   type ThinkingConfig,
   type Tool,
   type ToolConfig,
+  type HttpRetryOptions,
 } from '@google/genai';
 import {
   forgetCachedPrefix,
@@ -18,6 +19,7 @@ import {
 } from './promptCache';
 import { z } from 'zod';
 import type { AnyAssistantTool } from '../types';
+import { OUTAGE_CODES } from './fallback';
 import { toGeminiSchema } from './geminiSchema';
 import {
   isToolResult,
@@ -65,6 +67,40 @@ import {
 export const GEMINI_ORCHESTRATOR_MODEL =
   process.env.GEMINI_ORCHESTRATOR_MODEL ?? 'gemini-3.1-pro-preview';
 export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'gemini-3.6-flash';
+
+/**
+ * Where a turn goes when the model it asked for is not answering.
+ *
+ * On 6 October 2026 `gemini-3.6-flash` — the orchestrator on the live console
+ * — began returning **503 UNAVAILABLE, "This model is currently experiencing
+ * high demand"** on most requests. Nothing here knew what a 503 was: it fell
+ * through `classifyGeminiError` to `provider_error`, the client printed
+ * "Something went wrong", and every question failed in 1.4 seconds while the
+ * key, the prompt and the tools were all fine. A model being busy is a property
+ * of that model, not of the vendor, so the answer is another model — tried once,
+ * with the prefix inline, and only when nothing has reached the user yet. `off`
+ * disables it; naming the same model as the tier does too.
+ */
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.5-flash';
+
+/**
+ * The SDK's own retry, switched on. It is OFF by default — `apiCall` returns
+ * the first response unless `retryOptions` is set — and a transient 503 was
+ * therefore a failed turn on the first try.
+ *
+ * Three attempts, 0.4s then ~0.8s apart: inside what a person waiting on a
+ * reply reads as "thinking". Only the statuses that mean *try the same request
+ * again*: a 429 is a quota and comes back the same a second later, and every
+ * 4xx is ours to fix, not to repeat.
+ */
+export const GEMINI_RETRY: HttpRetryOptions = {
+  attempts: 3,
+  initialDelay: 0.4,
+  maxDelay: 1.6,
+  expBase: 2,
+  jitter: 0.5,
+  httpStatusCodes: [408, 500, 502, 503, 504],
+};
 
 /**
  * How hard the model thinks, per kind of round.
@@ -173,7 +209,7 @@ export interface GeminiProviderOptions {
   /** Injected by tests. Omitted in production, where the real SDK is built from the key. */
   client?: GeminiClient;
   apiKey?: string;
-  models?: { orchestrator?: string; quarantine?: string };
+  models?: { orchestrator?: string; quarantine?: string; fallback?: string };
 }
 
 /** Gemini names the assistant role `model`; ours is `assistant`. */
@@ -358,6 +394,17 @@ export function classifyGeminiError(err: unknown): { code: string; message: stri
   if (status === 429 || /quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(raw)) {
     return { code: 'rate_limited', message: 'The assistant is busy right now. Try again shortly.' };
   }
+  if (status === 503 || /UNAVAILABLE|high demand|overloaded/i.test(raw)) {
+    // The model, not the vendor: the key is good and the request is well
+    // formed, Google simply has no capacity on this tier right now. Named so
+    // the fallback below — and the provider-level one in fallback.ts — can
+    // treat it as the outage it is, and so the message stops being "something
+    // went wrong" for the one failure that has a timing in it.
+    return {
+      code: 'overloaded',
+      message: "The assistant's model is overloaded right now. Try again in a minute.",
+    };
+  }
   if (status === 401 || status === 403 || /API key|PERMISSION_DENIED|UNAUTHENTICATED/i.test(raw)) {
     // Deliberately vague to the user; a misconfigured key is an operator
     // problem and naming it invites probing.
@@ -452,6 +499,7 @@ export function sourcesFromGrounding(meta: GroundingMetadata | undefined): RawWe
 export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmProvider {
   const orchestratorModel = options.models?.orchestrator ?? GEMINI_ORCHESTRATOR_MODEL;
   const quarantineModel = options.models?.quarantine ?? GEMINI_QUARANTINE_MODEL;
+  const fallbackModel = options.models?.fallback ?? GEMINI_FALLBACK_MODEL;
 
   // Built lazily. Constructing `GoogleGenAI` eagerly would make importing this
   // module throw in any environment without a key — including every test run
@@ -466,7 +514,10 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
           'copy it into backend/.env before running an assistant turn.',
       );
     }
-    client = new GoogleGenAI({ apiKey }) as unknown as GeminiClient;
+    client = new GoogleGenAI({
+      apiKey,
+      httpOptions: { retryOptions: GEMINI_RETRY },
+    }) as unknown as GeminiClient;
     return client;
   }
 
@@ -477,6 +528,223 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
    */
   function getCaches(): CachesClient | undefined {
     return getClient().caches;
+  }
+
+  /**
+   * One request to one model, streamed. Everything that depends on WHICH model
+   * — the thinking level, whether search may ride beside the tools, the cache
+   * entry — is resolved in here from the argument, so the fallback below is a
+   * second call to this and not a second copy of it.
+   */
+  async function* attempt(
+    model: string,
+    input: TurnInput,
+    signal: AbortSignal,
+  ): AsyncGenerator<TurnEvent> {
+    // A quarantine turn must reach the model with no tool declarations at
+    // all. `toolChoice: 'none'` alone is a policy the request carries; an
+    // empty declaration list is the absence of anything to call. The dual-LLM
+    // defence rests on the second, so the two are enforced together here
+    // rather than trusted to every caller.
+    const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
+    const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
+    // Tools withdrawn is precisely what "this is the answer round" means: the
+    // orchestrator sets `toolChoice: 'none'` on the last round and on no
+    // other. Reading it here rather than adding a flag to `TurnInput` keeps
+    // the contract the same for both adapters.
+    const thinking = thinkingConfigFor(
+      model,
+      input.model === 'quarantine'
+        ? 'quarantine'
+        : input.toolChoice === 'none'
+          ? 'answer'
+          : // No `round` at all means a caller that predates it, and the
+            // safe reading of "unknown round" is the one that changes
+            // nothing about tool selection.
+            (input.round ?? 0) === 0
+            ? 'first'
+            : 'tool',
+    );
+    // Grounding rides beside the function declarations, never alone: a
+    // search-only request would change what a tool-less round means.
+    const grounded =
+      Boolean(input.webSearch) && declarations.length > 0 && geminiSupportsSearchWithTools(model);
+    const toolsForRequest: Tool[] =
+      declarations.length > 0
+        ? [{ functionDeclarations: declarations }, ...(grounded ? [{ googleSearch: {} }] : [])]
+        : [];
+
+    // Resolving the cache reaches for the client, and a missing key throws
+    // from there — so this cannot sit above the try below. `runTurn` must end
+    // the stream with a `not_configured` **event**; a throw kills the SSE
+    // connection with no reason on it, which is the one thing the missing-key
+    // test exists to prevent.
+    let cachedPrefix: string | null = null;
+
+    try {
+      // The frozen prefix goes server-side when it can. Gemini's *implicit*
+      // caching never engages (measured — see promptCache.ts), so the
+      // discount the cost model assumes has to be requested explicitly. A
+      // null handle is the ordinary case for small prefixes, and means
+      // "send it inline".
+      cachedPrefix = await getCachedPrefix(
+        getCaches(),
+        model,
+        input.system,
+        toolsForRequest,
+        // A grounded request's tool config cannot be sent beside a cache, so
+        // it lives in the cache entry — and is part of its key.
+        grounded ? GROUNDED_TOOL_CONFIG : undefined,
+      );
+    } catch (err) {
+      const { code, message } = classifyGeminiError(err);
+      console.error('[assistant] gemini turn failed', err);
+      yield { type: 'error', code, message };
+      return;
+    }
+
+    const params: GenerateContentParameters = {
+      model,
+      contents: toGeminiContents(input.messages),
+      config: {
+        // Sent inline only when there is no cache holding them. Passing both
+        // is a 400: the cached entry already carries this prefix, and the API
+        // refuses to be told it twice.
+        ...(cachedPrefix
+          ? {
+              cachedContent: cachedPrefix,
+              // `toolConfig` is omitted deliberately, not forgotten. The API
+              // refuses `system_instruction`, `tools` **and `tool_config`**
+              // alongside a cache — "move those values to CachedContent" —
+              // and a cache only exists when tools are present, which is
+              // exactly when the mode would have been AUTO, the vendor
+              // default. The suppressed case cannot reach here: no tools
+              // means no cache, so a NONE turn always takes the inline path
+              // below and keeps its explicit mode. The dual-LLM defence is
+              // therefore untouched by caching.
+            }
+          : {
+              // NOT a prepended user turn. See the file header.
+              systemInstruction: input.system,
+              ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
+              toolConfig: grounded
+                ? GROUNDED_TOOL_CONFIG
+                : {
+                    functionCallingConfig: {
+                      mode: suppressTools
+                        ? FunctionCallingConfigMode.NONE
+                        : FunctionCallingConfigMode.AUTO,
+                    },
+                  },
+            }),
+        // Neither of these is part of the cached prefix — they are generation
+        // settings, not content — so they ride alongside `cachedContent`
+        // without the 400 that `tools` or `systemInstruction` would draw.
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        ...(thinking ? { thinkingConfig: thinking } : {}),
+        // ⚠️ Client-side only, per the SDK's own note: aborting stops us
+        // reading the stream, it does not stop Google generating or billing
+        // it. The plan's "client disconnect must not orphan a paid request"
+        // is therefore only *partly* satisfiable from here — the rest is the
+        // console spend cap, which is tracked as its own task.
+        abortSignal: signal,
+      },
+    };
+
+    let usage: Usage | undefined;
+    // Deterministic, not random: the contract test compares event streams,
+    // and a uuid would make every run differ. Correlation only has to hold
+    // within one turn, which an index does.
+    let callIndex = 0;
+    // Only kept when the turn used a server-side tool; see toGeminiContents.
+    const replayParts: Part[] = [];
+    let usedServerTool = false;
+    let grounding: GroundingMetadata | undefined;
+
+    try {
+      let stream: AsyncGenerator<GenerateContentResponse>;
+      try {
+        stream = await getClient().models.generateContentStream(params);
+      } catch (err) {
+        // A cache can vanish between our refresh check and Google's read —
+        // lapsed early, or deleted from the console. That must cost one
+        // retry, not the turn: forget the dead name and send the prefix
+        // inline. Only the opening request is retried, so nothing already
+        // streamed to the user can be duplicated.
+        if (!cachedPrefix || !isMissingCacheError(err)) throw err;
+        forgetCachedPrefix(cachedPrefix);
+        params.config = {
+          ...params.config,
+          cachedContent: undefined,
+          systemInstruction: input.system,
+          ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
+          ...(grounded ? { toolConfig: GROUNDED_TOOL_CONFIG } : {}),
+        };
+        stream = await getClient().models.generateContentStream(params);
+      }
+
+      for await (const chunk of stream) {
+        if (signal.aborted) {
+          yield { type: 'error', code: 'aborted', message: 'Request cancelled.' };
+          return;
+        }
+
+        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+          if (grounded) replayParts.push(part);
+          if (part.toolCall) {
+            // Google ran a search. Nothing to execute; announce it once.
+            if (!usedServerTool) yield { type: 'web_search' };
+            usedServerTool = true;
+          }
+          // Thinking text is not narrative and must not be streamed to the
+          // user as though it were the answer.
+          if (part.thought) continue;
+          if (typeof part.text === 'string' && part.text.length > 0) {
+            yield { type: 'token', text: part.text };
+          }
+          if (part.functionCall) {
+            yield {
+              type: 'tool_call',
+              id: part.functionCall.id ?? `call_${callIndex}`,
+              name: part.functionCall.name ?? '',
+              args: part.functionCall.args ?? {},
+              // Carried, not read. Gemini 3.x refuses the next request if this
+              // call returns without the signature it was issued with, and the
+              // signature rides on the Part rather than inside functionCall.
+              ...(part.thoughtSignature ? { signature: part.thoughtSignature } : {}),
+            };
+            callIndex += 1;
+          }
+        }
+
+        // Usage arrives cumulatively across chunks; the last one wins rather
+        // than being summed, or a long stream reports several times its cost.
+        if (chunk.usageMetadata) usage = normaliseGeminiUsage(chunk.usageMetadata);
+        const meta = chunk.candidates?.[0]?.groundingMetadata;
+        if (meta?.groundingChunks?.length) grounding = meta;
+      }
+    } catch (err) {
+      const { code, message } = classifyGeminiError(err);
+      // The vendor error is logged, never streamed. See classifyGeminiError.
+      console.error('[assistant] gemini turn failed', err);
+      yield { type: 'error', code, message };
+      return;
+    }
+
+    if (usedServerTool && callIndex > 0) {
+      yield { type: 'replay', content: replayParts };
+    }
+    const sources = sourcesFromGrounding(grounding);
+    if (sources.length > 0) yield { type: 'sources', sources };
+
+    // Always emitted, even when the vendor sent no usage block, so the cost
+    // path has no silent hole — a missing `usage` event would read downstream
+    // as a free turn.
+    yield {
+      type: 'usage',
+      usage: usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, costCents: 0 },
+    };
+    yield { type: 'done' };
   }
 
   return {
@@ -492,211 +760,37 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
         return;
       }
 
-      // A quarantine turn must reach the model with no tool declarations at
-      // all. `toolChoice: 'none'` alone is a policy the request carries; an
-      // empty declaration list is the absence of anything to call. The dual-LLM
-      // defence rests on the second, so the two are enforced together here
-      // rather than trusted to every caller.
-      const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
-      const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
       const model = input.model === 'quarantine' ? quarantineModel : orchestratorModel;
-      // Tools withdrawn is precisely what "this is the answer round" means: the
-      // orchestrator sets `toolChoice: 'none'` on the last round and on no
-      // other. Reading it here rather than adding a flag to `TurnInput` keeps
-      // the contract the same for both adapters.
-      const thinking = thinkingConfigFor(
-        model,
-        input.model === 'quarantine'
-          ? 'quarantine'
-          : input.toolChoice === 'none'
-            ? 'answer'
-            : // No `round` at all means a caller that predates it, and the
-              // safe reading of "unknown round" is the one that changes
-              // nothing about tool selection.
-              (input.round ?? 0) === 0
-              ? 'first'
-              : 'tool',
-      );
-      // Grounding rides beside the function declarations, never alone: a
-      // search-only request would change what a tool-less round means.
-      const grounded =
-        Boolean(input.webSearch) && declarations.length > 0 && geminiSupportsSearchWithTools(model);
-      const toolsForRequest: Tool[] =
-        declarations.length > 0
-          ? [{ functionDeclarations: declarations }, ...(grounded ? [{ googleSearch: {} }] : [])]
-          : [];
+      const standby =
+        fallbackModel && fallbackModel !== 'off' && fallbackModel !== model ? fallbackModel : null;
 
-      // Resolving the cache reaches for the client, and a missing key throws
-      // from there — so this cannot sit above the try below. `runTurn` must end
-      // the stream with a `not_configured` **event**; a throw kills the SSE
-      // connection with no reason on it, which is the one thing the missing-key
-      // test exists to prevent.
-      let cachedPrefix: string | null = null;
-
-      try {
-        // The frozen prefix goes server-side when it can. Gemini's *implicit*
-        // caching never engages (measured — see promptCache.ts), so the
-        // discount the cost model assumes has to be requested explicitly. A
-        // null handle is the ordinary case for small prefixes, and means
-        // "send it inline".
-        cachedPrefix = await getCachedPrefix(
-          getCaches(),
-          model,
-          input.system,
-          toolsForRequest,
-          // A grounded request's tool config cannot be sent beside a cache, so
-          // it lives in the cache entry — and is part of its key.
-          grounded ? GROUNDED_TOOL_CONFIG : undefined,
-        );
-      } catch (err) {
-        const { code, message } = classifyGeminiError(err);
-        console.error('[assistant] gemini turn failed', err);
-        yield { type: 'error', code, message };
-        return;
-      }
-
-      const params: GenerateContentParameters = {
-        model,
-        contents: toGeminiContents(input.messages),
-        config: {
-          // Sent inline only when there is no cache holding them. Passing both
-          // is a 400: the cached entry already carries this prefix, and the API
-          // refuses to be told it twice.
-          ...(cachedPrefix
-            ? {
-                cachedContent: cachedPrefix,
-                // `toolConfig` is omitted deliberately, not forgotten. The API
-                // refuses `system_instruction`, `tools` **and `tool_config`**
-                // alongside a cache — "move those values to CachedContent" —
-                // and a cache only exists when tools are present, which is
-                // exactly when the mode would have been AUTO, the vendor
-                // default. The suppressed case cannot reach here: no tools
-                // means no cache, so a NONE turn always takes the inline path
-                // below and keeps its explicit mode. The dual-LLM defence is
-                // therefore untouched by caching.
-              }
-            : {
-                // NOT a prepended user turn. See the file header.
-                systemInstruction: input.system,
-                ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
-                toolConfig: grounded
-                  ? GROUNDED_TOOL_CONFIG
-                  : {
-                      functionCallingConfig: {
-                        mode: suppressTools
-                          ? FunctionCallingConfigMode.NONE
-                          : FunctionCallingConfigMode.AUTO,
-                      },
-                    },
-              }),
-          // Neither of these is part of the cached prefix — they are generation
-          // settings, not content — so they ride alongside `cachedContent`
-          // without the 400 that `tools` or `systemInstruction` would draw.
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-          ...(thinking ? { thinkingConfig: thinking } : {}),
-          // ⚠️ Client-side only, per the SDK's own note: aborting stops us
-          // reading the stream, it does not stop Google generating or billing
-          // it. The plan's "client disconnect must not orphan a paid request"
-          // is therefore only *partly* satisfiable from here — the rest is the
-          // console spend cap, which is tracked as its own task.
-          abortSignal: signal,
-        },
-      };
-
-      let usage: Usage | undefined;
-      // Deterministic, not random: the contract test compares event streams,
-      // and a uuid would make every run differ. Correlation only has to hold
-      // within one turn, which an index does.
-      let callIndex = 0;
-      // Only kept when the turn used a server-side tool; see toGeminiContents.
-      const replayParts: Part[] = [];
-      let usedServerTool = false;
-      let grounding: GroundingMetadata | undefined;
-
-      try {
-        let stream: AsyncGenerator<GenerateContentResponse>;
-        try {
-          stream = await getClient().models.generateContentStream(params);
-        } catch (err) {
-          // A cache can vanish between our refresh check and Google's read —
-          // lapsed early, or deleted from the console. That must cost one
-          // retry, not the turn: forget the dead name and send the prefix
-          // inline. Only the opening request is retried, so nothing already
-          // streamed to the user can be duplicated.
-          if (!cachedPrefix || !isMissingCacheError(err)) throw err;
-          forgetCachedPrefix(cachedPrefix);
-          params.config = {
-            ...params.config,
-            cachedContent: undefined,
-            systemInstruction: input.system,
-            ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
-            ...(grounded ? { toolConfig: GROUNDED_TOOL_CONFIG } : {}),
-          };
-          stream = await getClient().models.generateContentStream(params);
+      // The same rule as `withFallback` one layer up, applied between two
+      // models of one vendor: an outage BEFORE any output reached the user is
+      // answered on the standby model; anything after the first token is not,
+      // because the user has already read half an answer and a second one
+      // would contradict it. A 4xx is not an outage — it would fail the same
+      // way on the standby — and neither is a quota.
+      let reachedUser = false;
+      for await (const event of attempt(model, input, signal)) {
+        if (
+          event.type === 'error' &&
+          standby !== null &&
+          !reachedUser &&
+          !signal.aborted &&
+          OUTAGE_CODES.has(event.code)
+        ) {
+          console.warn(
+            `[assistant] gemini ${model} outage (${event.code}) before any output — ` +
+              `answering this turn on ${standby}`,
+          );
+          yield* attempt(standby, input, signal);
+          return;
         }
-
-        for await (const chunk of stream) {
-          if (signal.aborted) {
-            yield { type: 'error', code: 'aborted', message: 'Request cancelled.' };
-            return;
-          }
-
-          for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-            if (grounded) replayParts.push(part);
-            if (part.toolCall) {
-              // Google ran a search. Nothing to execute; announce it once.
-              if (!usedServerTool) yield { type: 'web_search' };
-              usedServerTool = true;
-            }
-            // Thinking text is not narrative and must not be streamed to the
-            // user as though it were the answer.
-            if (part.thought) continue;
-            if (typeof part.text === 'string' && part.text.length > 0) {
-              yield { type: 'token', text: part.text };
-            }
-            if (part.functionCall) {
-              yield {
-                type: 'tool_call',
-                id: part.functionCall.id ?? `call_${callIndex}`,
-                name: part.functionCall.name ?? '',
-                args: part.functionCall.args ?? {},
-                // Carried, not read. Gemini 3.x refuses the next request if this
-                // call returns without the signature it was issued with, and the
-                // signature rides on the Part rather than inside functionCall.
-                ...(part.thoughtSignature ? { signature: part.thoughtSignature } : {}),
-              };
-              callIndex += 1;
-            }
-          }
-
-          // Usage arrives cumulatively across chunks; the last one wins rather
-          // than being summed, or a long stream reports several times its cost.
-          if (chunk.usageMetadata) usage = normaliseGeminiUsage(chunk.usageMetadata);
-          const meta = chunk.candidates?.[0]?.groundingMetadata;
-          if (meta?.groundingChunks?.length) grounding = meta;
+        if (event.type !== 'usage' && event.type !== 'done' && event.type !== 'error') {
+          reachedUser = true;
         }
-      } catch (err) {
-        const { code, message } = classifyGeminiError(err);
-        // The vendor error is logged, never streamed. See classifyGeminiError.
-        console.error('[assistant] gemini turn failed', err);
-        yield { type: 'error', code, message };
-        return;
+        yield event;
       }
-
-      if (usedServerTool && callIndex > 0) {
-        yield { type: 'replay', content: replayParts };
-      }
-      const sources = sourcesFromGrounding(grounding);
-      if (sources.length > 0) yield { type: 'sources', sources };
-
-      // Always emitted, even when the vendor sent no usage block, so the cost
-      // path has no silent hole — a missing `usage` event would read downstream
-      // as a free turn.
-      yield {
-        type: 'usage',
-        usage: usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, costCents: 0 },
-      };
-      yield { type: 'done' };
     },
   };
 }
