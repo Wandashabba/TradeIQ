@@ -99,4 +99,49 @@ void main() {
       await disposeAsk(tester);
     });
   });
+
+  group('the threshold is the answer\'s own measure, not the console\'s', () {
+    // THE BUG THE OWNER SAW. The first version gated on `ConsoleDesk.isDesk`,
+    // which wants 1212dp because it sizes a rail plus two panes. On an
+    // ordinary maximised browser window — about 1190dp of viewport once
+    // Chrome's chrome is off — the split silently did not happen, and the
+    // screen was reported as "not changed at all". It was not changed: the
+    // condition was false and nothing said so.
+    testWidgets('it splits on a 1190dp window, where the console would not', (
+      tester,
+    ) async {
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(rankedTurn()),
+        size: const Size(1190, 660),
+      );
+      await ask(tester, 'Which outlets ran out?');
+      expect(
+        tester.getRect(find.byType(AnswerPanel).first).left,
+        greaterThan(1190 / 2),
+        reason: 'an answer and its evidence need 837dp, not the console\'s 1212',
+      );
+      await disposeAsk(tester);
+    });
+
+    testWidgets('and stacks below its own floor, where the measure would break', (
+      tester,
+    ) async {
+      // Under the floor the prose can no longer hold a reading measure in
+      // three-fifths, so one column is the right answer and the evidence goes
+      // back underneath.
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(rankedTurn()),
+        size: const Size(800, 660),
+      );
+      await ask(tester, 'Which outlets ran out?');
+      expect(
+        tester.getRect(find.byType(AnswerPanel).first).left,
+        lessThan(800 / 2),
+        reason: 'below the floor it stacks rather than squeezing the prose',
+      );
+      await disposeAsk(tester);
+    });
+  });
 }
