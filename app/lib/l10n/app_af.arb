@@ -38,7 +38,7 @@
   "loginSubtitle": "Gebruik jou werk-e-pos en wagwoord.",
   "loginHeadline": "Meld aan om te begin werk.",
   "loginTooManyTitle": "Te veel aanmeldpogings",
-  "loginTooManyBody": "Aanmelding wag \u2019n paar minute n\u00e1 verskeie mislukte pogings vanaf dieselfde verbinding. Daar is niks fout met jou rekening nie \u2014 wag, en probeer dan weer.",
+  "loginTooManyBody": "Aanmelding wag ’n paar minute ná verskeie mislukte pogings vanaf dieselfde verbinding. Daar is niks fout met jou rekening nie — wag, en probeer dan weer.",
   "loginEmailLabel": "E-pos",
   "loginEmailHint": "jy@maatskappy.com",
   "loginEmailRequired": "E-pos is verpligtend",
@@ -543,7 +543,7 @@
   "askHistoryActionCount": "Geskiedenis · {count}",
   "askComposerLabel": "Vra ’n vraag",
   "askComposerHint": "Span, voorraad, rak, mededingers",
-  "askComposerConsoleHint": "Vra TradeIQ\u2026",
+  "askComposerConsoleHint": "Vra TradeIQ…",
   "askComposerRephrase": "Vra weer, of stel dit anders",
   "askSend": "Stuur hierdie vraag",
   "askSendUnavailable": "Stuur, nie beskikbaar nie, het ’n verbinding nodig",
@@ -2389,5 +2389,46 @@
         "type": "int"
       }
     }
+  },
+  "paletteHint": "Gaan na, of stel omvang…",
+  "@paletteHint": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionDestinations": "Bestemmings",
+  "@paletteSectionDestinations": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionScope": "Stel omvang na",
+  "@paletteSectionScope": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionAsk": "Vra",
+  "@paletteSectionAsk": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteAskFor": "Vra TradeIQ: “{query}”",
+  "@paletteAskFor": {
+    "description": "The console's command palette, on a desk.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "paletteNoMatch": "Niks pas daarby nie.",
+  "@paletteNoMatch": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysMove": "beweeg",
+  "@paletteKeysMove": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysOpen": "open",
+  "@paletteKeysOpen": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysClose": "sluit",
+  "@paletteKeysClose": {
+    "description": "The console's command palette, on a desk."
   }
 }

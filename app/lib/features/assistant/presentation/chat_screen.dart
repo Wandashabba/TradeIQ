@@ -324,6 +324,7 @@ class _AskState extends ConsumerState<_Ask> {
         key: const ValueKey<String>('ask-destinations'),
         onTap: () => showFloorDestinations(
           context,
+          ref,
           ref
               .read(floorViewProvider)
               .maybeWhen(data: (v) => v, orElse: () => null),

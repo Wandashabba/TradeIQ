@@ -183,13 +183,13 @@
   },
   "loginHeadline": "Sign in to get to work.",
   "@loginHeadline": {
-    "description": "The sign-in screen's display headline \u2014 the invitation the screen opens with, the way Ask TradeIQ opens with one."
+    "description": "The sign-in screen's display headline — the invitation the screen opens with, the way Ask TradeIQ opens with one."
   },
   "loginTooManyTitle": "Too many sign-in attempts",
   "@loginTooManyTitle": {
     "description": "Headline for a 429 on sign-in. Deliberately not the 401's headline: a rate limit is a rule the person tripped, not a refusal of who they are."
   },
-  "loginTooManyBody": "Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account \u2014 wait, then try again.",
+  "loginTooManyBody": "Sign-in pauses for a few minutes after several failed tries from the same connection. Nothing is wrong with your account — wait, then try again.",
   "@loginTooManyBody": {
     "description": "Body for a 429 on sign-in. It explains the rule and says the account is fine, because the fear a lockout creates is that the account is gone. It never names the exact threshold, which would only help somebody pace their attempts."
   },
@@ -2653,7 +2653,7 @@
   "@askComposerHint": {
     "description": "Placeholder inside the empty composer."
   },
-  "askComposerConsoleHint": "Ask TradeIQ\u2026",
+  "askComposerConsoleHint": "Ask TradeIQ…",
   "@askComposerConsoleHint": {
     "description": "Placeholder in the ask bar on a console screen that names no subject of its own. 25 of the 27 framed routes use it."
   },
@@ -10792,8 +10792,12 @@
   "@dashTerritoryGroup": {
     "description": "What a screen reader hears on a territory group's expander. The expanded/collapsed state travels as the Semantics flag, not as a word.",
     "placeholders": {
-      "name": { "type": "String" },
-      "count": { "type": "int" }
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "dashSelected": "Selected",
@@ -11837,5 +11841,46 @@
         "type": "String"
       }
     }
+  },
+  "paletteHint": "Go to, or scope to…",
+  "@paletteHint": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionDestinations": "Destinations",
+  "@paletteSectionDestinations": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionScope": "Scope to",
+  "@paletteSectionScope": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteSectionAsk": "Ask",
+  "@paletteSectionAsk": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteAskFor": "Ask TradeIQ: “{query}”",
+  "@paletteAskFor": {
+    "description": "The console's command palette, on a desk.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "paletteNoMatch": "Nothing matches that.",
+  "@paletteNoMatch": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysMove": "move",
+  "@paletteKeysMove": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysOpen": "open",
+  "@paletteKeysOpen": {
+    "description": "The console's command palette, on a desk."
+  },
+  "paletteKeysClose": "close",
+  "@paletteKeysClose": {
+    "description": "The console's command palette, on a desk."
   }
 }

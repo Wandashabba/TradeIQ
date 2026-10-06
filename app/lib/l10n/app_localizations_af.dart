@@ -8777,4 +8777,33 @@ class AppLocalizationsAf extends AppLocalizations {
   String plateImageUnattributed(String place) {
     return '$place. ’n Prent van die omgewing. Die herkoms is nie gemeld nie, en dit kom nie van ’n besoek nie.';
   }
+
+  @override
+  String get paletteHint => 'Gaan na, of stel omvang…';
+
+  @override
+  String get paletteSectionDestinations => 'Bestemmings';
+
+  @override
+  String get paletteSectionScope => 'Stel omvang na';
+
+  @override
+  String get paletteSectionAsk => 'Vra';
+
+  @override
+  String paletteAskFor(String query) {
+    return 'Vra TradeIQ: “$query”';
+  }
+
+  @override
+  String get paletteNoMatch => 'Niks pas daarby nie.';
+
+  @override
+  String get paletteKeysMove => 'beweeg';
+
+  @override
+  String get paletteKeysOpen => 'open';
+
+  @override
+  String get paletteKeysClose => 'sluit';
 }

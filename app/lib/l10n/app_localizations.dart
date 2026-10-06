@@ -13869,6 +13869,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{place}. A picture of the area. Its origin was not stated, and it is not from a visit.'**
   String plateImageUnattributed(String place);
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to, or scope to…'**
+  String get paletteHint;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Destinations'**
+  String get paletteSectionDestinations;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope to'**
+  String get paletteSectionScope;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get paletteSectionAsk;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ: “{query}”'**
+  String paletteAskFor(String query);
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches that.'**
+  String get paletteNoMatch;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'move'**
+  String get paletteKeysMove;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'open'**
+  String get paletteKeysOpen;
+
+  /// The console's command palette, on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'close'**
+  String get paletteKeysClose;
 }
 
 class _AppLocalizationsDelegate

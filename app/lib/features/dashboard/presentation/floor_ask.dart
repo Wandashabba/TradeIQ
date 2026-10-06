@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/torchlight/tiq_skin.dart';
@@ -7,13 +8,18 @@ import '../../../core/widgets/torchlight/button/torch_press.dart';
 import '../../../core/widgets/torchlight/card.dart';
 import '../../../core/widgets/torchlight/input/filter_chip.dart';
 import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/console_palette.dart';
 import '../../../core/widgets/torchlight/menu_sheet.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart'
     show plateQuietButtonAlpha, plateQuietExtent, plateQuietRadius;
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../l10n/l10n.dart';
+import '../../territories/data/territories_repository.dart';
 import '../data/floor_ask_view.dart';
+import '../data/dashboard_repository.dart';
 import '../data/floor_repository.dart';
+import 'dashboard_filters.dart';
 
 /// THE BRIEFING — one soft card per line, and **no heading over them**.
 ///
@@ -476,12 +482,75 @@ class FloorDestinationsButton extends StatelessWidget {
 /// What does **not** change is the rows, their order, their keys or where they
 /// go. One sheet, one destination list, one gesture; the live numbers are an
 /// upgrade the screen that has them gets, never a different menu.
-Future<void> showFloorDestinations(BuildContext context, FloorView? view) {
+Future<void> showFloorDestinations(
+  BuildContext context,
+  WidgetRef ref,
+  FloorView? view,
+) async {
   final overdue = view?.decisions.length;
   final measured = view != null && view.phase == FloorPhase.measured;
 
+  // THE TERRITORIES TRAVEL WITH THE MENU ON A DESK.
+  //
+  // > *"Also on the desktop we can't change territories"* — the owner,
+  // > 6 October 2026.
+  //
+  // On a phone the scope is its own sheet, reached from the chip on the plate,
+  // and that is unchanged. On a desk the menu is a command palette (owner's
+  // choice, same day) and a palette can hold both lists at once — so the two
+  // questions a manager has, *where do I go* and *what am I looking at*, are
+  // answered by the same keystroke instead of two stretched sheets.
+  //
+  // `ref.read`, not `watch`: this runs once, when the menu is asked for. A
+  // watch here would rebuild the screen underneath while the palette is up.
+  // An unresolved or failed list yields no scope rows rather than a row that
+  // cannot be chosen — the palette simply shows destinations, which is what it
+  // does on every screen that has no scope at all.
+  final filter = ref.read(dashboardFilterProvider);
+
+  // Cached when warm, awaited when cold, and EMPTY when it fails.
+  //
+  // Nothing on The Floor watches this provider — the scope sheet starts it
+  // when a phone opens it — so on a desk the palette would otherwise show no
+  // territories at all on the first press, which is the very complaint it is
+  // here to answer. A `.value` read alone is null until something has asked.
+  //
+  // The await costs one round trip the first time and nothing after. A failure
+  // yields no scope rows rather than a row that cannot be chosen: the palette
+  // then shows destinations, exactly as it does on the screens that have no
+  // scope to offer.
+  List<Territory> scoped = ref.read(territoriesListProvider).value ?? const <Territory>[];
+  if (scoped.isEmpty) {
+    try {
+      scoped = await ref.read(territoriesListProvider.future);
+    } on Object {
+      scoped = const <Territory>[];
+    }
+  }
+  if (!context.mounted) return;
+  final scopes = <PaletteScope>[
+    PaletteScope(
+      id: 'all',
+      label: context.l10n.dashAllTerritories,
+      onSelect: () {
+        Navigator.of(context).pop();
+        applyTerritory(ref, filter, allTerritoriesToken);
+      },
+    ),
+    for (final t in scoped)
+      PaletteScope(
+        id: t.id,
+        label: t.name,
+        onSelect: () {
+          Navigator.of(context).pop();
+          applyTerritory(ref, filter, t.id);
+        },
+      ),
+  ];
+
   return showTorchMenuSheet(
     context,
+    scopes: scopes,
     lead: <Widget>[
       const SectionRule('Where you were'),
       const SizedBox(height: TiqSpace.s3),

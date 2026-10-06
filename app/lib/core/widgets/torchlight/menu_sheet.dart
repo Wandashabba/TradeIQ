@@ -10,6 +10,8 @@ import '../../theme/theme_mode_controller.dart';
 import '../../theme/torchlight/tiq_skin.dart';
 import '../nav_destinations.dart';
 import 'button/buttons.dart';
+import 'console_desk.dart';
+import 'console_palette.dart';
 import 'marks.dart';
 import 'row/row.dart';
 import 'section_rule.dart';
@@ -138,7 +140,40 @@ import 'sheet.dart';
 Future<void> showTorchMenuSheet(
   BuildContext context, {
   List<Widget> lead = const <Widget>[],
+  List<PaletteScope> scopes = const <PaletteScope>[],
+  void Function(String query)? onAsk,
 }) {
+  // ON A DESK THIS IS NOT A SHEET — owner's choice of 6 October 2026, "B, the
+  // command palette", against a menu they described as one they did not like
+  // on desktop.
+  //
+  // The branch is here rather than at each call site so every entry point gets
+  // it at once and no screen can be left behind — the mistake the first desk
+  // made, which shipped to 23 destinations and not to The Floor.
+  //
+  // `lead` is deliberately dropped on this arm. It is the caller's extra rows
+  // — The Floor passes a "Where you were" block with live counts — and a
+  // palette has no place to put a block: it is one flat, filterable list, and
+  // a card wedged above the search field would be the first thing the eye
+  // lands on and the one thing typing cannot reach.
+  if (ConsoleDesk.isDesk(context.skin, MediaQuery.sizeOf(context))) {
+    final here = currentMenuLocation(context);
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: context.l10n.menuTitle,
+      barrierColor: context.skin.palette.ground.withValues(alpha: 0.72),
+      pageBuilder: (dialogContext, _, _) => ConsolePalette(
+        currentRoute: here,
+        scopes: scopes,
+        onAsk: onAsk,
+        onGo: (route) {
+          Navigator.of(dialogContext).pop();
+          dialogContext.go(route);
+        },
+      ),
+    );
+  }
   // WHERE WE ARE IS READ HERE, AT THE CALL SITE, and handed to the sheet.
   //
   // `showTorchSheet` pushes on the **root** navigator, so the sheet's own
