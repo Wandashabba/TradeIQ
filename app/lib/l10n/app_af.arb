@@ -2430,5 +2430,9 @@
   "paletteKeysClose": "sluit",
   "@paletteKeysClose": {
     "description": "The console's command palette, on a desk."
+  },
+  "askAnswerEvidence": "Waarvan hierdie antwoord getel is",
+  "@askAnswerEvidence": {
+    "description": "Spoken label for the evidence column beside an Ask answer on a desk."
   }
 }

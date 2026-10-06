@@ -13923,6 +13923,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'close'**
   String get paletteKeysClose;
+
+  /// Spoken label for the evidence column beside an Ask answer on a desk.
+  ///
+  /// In en, this message translates to:
+  /// **'What this answer is counted from'**
+  String get askAnswerEvidence;
 }
 
 class _AppLocalizationsDelegate

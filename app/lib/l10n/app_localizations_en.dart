@@ -8732,4 +8732,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paletteKeysClose => 'close';
+
+  @override
+  String get askAnswerEvidence => 'What this answer is counted from';
 }
