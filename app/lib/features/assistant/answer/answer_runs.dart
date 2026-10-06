@@ -63,7 +63,8 @@ class AnswerRun {
   int get hashCode => Object.hash(text, bold, italic, code, figure);
 
   @override
-  String toString() => 'AnswerRun("$text"'
+  String toString() =>
+      'AnswerRun("$text"'
       '${bold ? ', bold' : ''}${italic ? ', italic' : ''}'
       '${code ? ', code' : ''}${figure ? ', figure' : ''})';
 }
@@ -75,12 +76,15 @@ class AnswerRun {
 /// no-break and narrow no-break spaces `TiqNumber` groups Afrikaans with — and
 /// each of them must be followed by another digit, so "3 of 11" is two runs
 /// and not one.
-final RegExp _figureToken = RegExp(
-  r'(?:R[  ]?)?'
-  r'[−+-]?'
-  r'\d+(?:[.,   ]\d+)*'
-  r'(?:[  ]?(?:%|pts|pt))?',
-);
+final RegExp _figureToken = RegExp(figureTokenSource);
+
+/// The figure token's pattern, for a caller that embeds it in a larger
+/// expression — the brief's bold-figure lead reads a headline with it.
+const String figureTokenSource =
+    r'(?:R[  ]?)?'
+    r'[−+-]?'
+    r'\d+(?:[.,   ]\d+)*'
+    r'(?:[  ]?(?:%|pts|pt))?';
 
 /// Settled blocks, by their exact text. A settled block never changes, so its
 /// runs never do either.
@@ -107,8 +111,9 @@ List<AnswerRun> answerRuns(String text, {required bool streaming}) {
   final out = <AnswerRun>[];
   for (final run in parseInline(text, streaming: streaming)) {
     if (run.code) {
-      out.add(AnswerRun(run.text, bold: run.bold, italic: run.italic,
-          code: true));
+      out.add(
+        AnswerRun(run.text, bold: run.bold, italic: run.italic, code: true),
+      );
       continue;
     }
     var at = 0;
@@ -117,16 +122,28 @@ List<AnswerRun> answerRuns(String text, {required bool streaming}) {
       // on the digit run, which is what the rule asks for: the letters stay
       // in Schibsted Grotesk and the digits go mono.
       if (match.start > at) {
-        out.add(AnswerRun(run.text.substring(at, match.start),
-            bold: run.bold, italic: run.italic));
+        out.add(
+          AnswerRun(
+            run.text.substring(at, match.start),
+            bold: run.bold,
+            italic: run.italic,
+          ),
+        );
       }
-      out.add(AnswerRun(match.group(0)!,
-          bold: run.bold, italic: run.italic, figure: true));
+      out.add(
+        AnswerRun(
+          match.group(0)!,
+          bold: run.bold,
+          italic: run.italic,
+          figure: true,
+        ),
+      );
       at = match.end;
     }
     if (at < run.text.length) {
-      out.add(AnswerRun(run.text.substring(at),
-          bold: run.bold, italic: run.italic));
+      out.add(
+        AnswerRun(run.text.substring(at), bold: run.bold, italic: run.italic),
+      );
     }
   }
   if (!streaming) {

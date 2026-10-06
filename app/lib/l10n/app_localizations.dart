@@ -3620,6 +3620,18 @@ abstract class AppLocalizations {
   /// **'Over time'**
   String get askOverTime;
 
+  /// The brief's eyebrow on a desk, set uppercase: ANSWER · ALL TERRITORIES. {scope} is the territory the question was asked in, or "All territories".
+  ///
+  /// In en, this message translates to:
+  /// **'Answer · {scope}'**
+  String askBriefEyebrow(String scope);
+
+  /// The brief's eyebrow over the prose that follows the headline figure or sentence, set uppercase.
+  ///
+  /// In en, this message translates to:
+  /// **'What this means'**
+  String get askWhatThisMeans;
+
   /// Shown in place of a view spec this build cannot render.
   ///
   /// In en, this message translates to:

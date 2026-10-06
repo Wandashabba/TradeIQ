@@ -84,11 +84,7 @@ class AnswerBlockView extends StatelessWidget {
         return Semantics(header: true, child: rich(style, block.text));
       case AnswerBlockKind.bullets:
       case AnswerBlockKind.numbered:
-        return _ListBlock(
-          block: block,
-          streaming: streaming,
-          caret: caret,
-        );
+        return _ListBlock(block: block, streaming: streaming, caret: caret);
       case AnswerBlockKind.quote:
         return AskCallout(
           kicker: block.kicker,
@@ -257,13 +253,22 @@ class AskCallout extends StatelessWidget {
 /// vocabulary across chips and choices, and a chip that is never selected
 /// here. Three amber chips would be the repeated fill the law bans outright.
 class FollowUpChips extends ConsumerWidget {
-  const FollowUpChips({super.key, required this.questions, this.enabled = true});
+  const FollowUpChips({
+    super.key,
+    required this.questions,
+    this.enabled = true,
+    this.alignment = WrapAlignment.start,
+  });
 
   final List<String> questions;
 
   /// False while a turn streams or while offline. A disabled chip stays
   /// visible: hiding it would hide the fact that there is something to ask.
   final bool enabled;
+
+  /// Where the chips gather in their runs. Start under prose; end in the
+  /// brief's footer, where they sit opposite the steps row.
+  final WrapAlignment alignment;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -273,21 +278,31 @@ class FollowUpChips extends ConsumerWidget {
     return Wrap(
       spacing: TiqSpace.s2,
       runSpacing: TiqSpace.s2,
+      alignment: alignment,
       children: <Widget>[
         for (final question in questions.take(maxFollowUps))
-          TorchFilterChip(
-            key: ValueKey<String>('follow-up-$question'),
-            label: question,
-            selected: false,
-            // The corner arrow says "this asks something", and it is the
-            // mark's own silhouette rather than a tinted glyph.
-            semanticsLabel: live
-                ? l10n.askFollowUpSemantic(question)
-                : '${l10n.askFollowUpSemantic(question)}, '
-                      '${l10n.askFollowUpDisabled}',
-            onSelected: live
-                ? () => ref.read(chatControllerProvider.notifier).send(question)
-                : null,
+          // INTRINSIC WIDTH, because these chips stand outside a rail. The
+          // chip component fills whatever width it is handed and centres its
+          // label in it, which is right in a rail and wrong in a `Wrap`: each
+          // chip took the whole run, and three follow-ups were three centred
+          // rows. The component's own doc names `IntrinsicWidth` as the shape
+          // for this case; the palette's territory chips learnt it first.
+          IntrinsicWidth(
+            child: TorchFilterChip(
+              key: ValueKey<String>('follow-up-$question'),
+              label: question,
+              selected: false,
+              // The corner arrow says "this asks something", and it is the
+              // mark's own silhouette rather than a tinted glyph.
+              semanticsLabel: live
+                  ? l10n.askFollowUpSemantic(question)
+                  : '${l10n.askFollowUpSemantic(question)}, '
+                        '${l10n.askFollowUpDisabled}',
+              onSelected: live
+                  ? () =>
+                        ref.read(chatControllerProvider.notifier).send(question)
+                  : null,
+            ),
           ),
       ],
     );

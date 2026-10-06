@@ -65,6 +65,22 @@ String formatClock(BuildContext context, DateTime when) {
   }
 }
 
+/// "6 Oct 2026 · 10:47" in the active locale — the brief's masthead stamp.
+///
+/// Date and clock, one line, a middle dot between: a brief is dated the way a
+/// memo is, and the clock matters because the same question gets asked twice
+/// in a morning and the two answers can differ.
+String formatBriefStamp(BuildContext context, DateTime when) {
+  String date;
+  try {
+    date = DateFormat('d MMM yyyy', context.l10n.localeName).format(when);
+  } on Exception {
+    // See [formatClock]: no date symbols loaded for the locale.
+    date = DateFormat('d MMM yyyy', 'en_US').format(when);
+  }
+  return '$date · ${formatClock(context, when)}';
+}
+
 /// "Monday, 14 September" in the active locale ("Maandag, 14 September" in
 /// Afrikaans).
 String formatDayHeading(BuildContext context, DateTime date) {
@@ -90,4 +106,3 @@ String formatDayShort(BuildContext context, DateTime date) {
     return DateFormat('EEE d MMM', 'en_US').format(date);
   }
 }
-

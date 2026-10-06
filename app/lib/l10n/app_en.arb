@@ -2993,6 +2993,17 @@
   "@askOverTime": {
     "description": "Block label above the trend chart."
   },
+  "askBriefEyebrow": "Answer · {scope}",
+  "@askBriefEyebrow": {
+    "description": "The brief's eyebrow on a desk, set uppercase: ANSWER · ALL TERRITORIES. {scope} is the territory the question was asked in, or \"All territories\".",
+    "placeholders": {
+      "scope": {"type": "String", "example": "All territories"}
+    }
+  },
+  "askWhatThisMeans": "What this means",
+  "@askWhatThisMeans": {
+    "description": "The brief's eyebrow over the prose that follows the headline figure or sentence, set uppercase."
+  },
   "askUnsupportedView": "This answer includes a view your app version cannot draw yet. The summary above still applies.",
   "@askUnsupportedView": {
     "description": "Shown in place of a view spec this build cannot render."

@@ -12,6 +12,7 @@ import '../../../core/widgets/torchlight/console_desk.dart';
 import '../../../core/widgets/torchlight/input/filter_chip.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../l10n/l10n.dart';
+import '../answer/answer_brief.dart';
 import '../answer/answer_markdown.dart';
 import '../answer/answer_motion.dart';
 import '../answer/answer_notes.dart';
@@ -23,8 +24,12 @@ import '../answer/ask_turn.dart';
 import '../answer/composer.dart';
 import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
+import '../../dashboard/data/dashboard_repository.dart'
+    show dashboardFilterProvider;
 import '../../dashboard/data/floor_repository.dart' show floorViewProvider;
 import '../../dashboard/presentation/floor_ask.dart' show showFloorDestinations;
+import '../../territories/data/territories_repository.dart'
+    show territoriesListProvider;
 import '../data/chat_controller.dart';
 import '../view_specs/answer_focus.dart';
 import '../view_specs/instrument_panel.dart';
@@ -452,7 +457,27 @@ class _AskState extends ConsumerState<_Ask> {
 /// Rounded up to give the wider of the two a little air rather than landing
 /// exactly on its own minimum.
 double askSplitMinWidth(TiqSkin skin) =>
-    (TiqSpace.readingWidth / 3 * 5) + 2 * skin.space.gutterWide + skin.space.blockGap;
+    (TiqSpace.readingWidth / 3 * 5) +
+    2 * skin.space.gutterWide +
+    skin.space.blockGap;
+
+/// The scope a question was asked in, for the brief's eyebrow.
+///
+/// Read from the dashboard filter — the territory the palette's chips set —
+/// and from the territory list only when a territory is actually selected, so
+/// a transcript under "All territories" never starts a fetch to say so. Null
+/// while the list is still loading: the eyebrow then says only ANSWER rather
+/// than guessing.
+String? askScopeLabel(BuildContext context, WidgetRef ref) {
+  final id = ref.watch(dashboardFilterProvider.select((f) => f.territoryId));
+  if (id == null) return context.l10n.dashAllTerritories;
+  final territories = ref.watch(territoriesListProvider).asData?.value;
+  if (territories == null) return null;
+  for (final territory in territories) {
+    if (territory.id == id) return territory.name;
+  }
+  return null;
+}
 
 class AskTurnView extends ConsumerWidget {
   const AskTurnView({
@@ -474,8 +499,23 @@ class AskTurnView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = context.skin;
+    // THE BRIEF — owner's choice of 6 October 2026, "H", made after F's split
+    // had landed and the answer inside it was still, in their words, "very
+    // basic". Above `askSplitMinWidth` a settled turn is set as a dated
+    // one-page document (`AnswerBrief`) and the question above it as that
+    // document's masthead (`BriefHeader`). Below the threshold, while a turn
+    // streams, and on an errored turn, the transcript is exactly what it was:
+    // the bubble, the rail, the prose, the panel, the steps — the phone tests
+    // pin that render.
+    final wide = MediaQuery.sizeOf(context).width >= askSplitMinWidth(skin);
     if (message.role == ChatRole.user) {
-      return QuestionBubble(text: message.text);
+      return wide
+          ? BriefHeader(
+              question: message.text,
+              scope: askScopeLabel(context, ref),
+              askedAt: message.askedAt,
+            )
+          : QuestionBubble(text: message.text);
     }
 
     final animate = message.streaming && !MotionBudget.of(context).still;
@@ -494,38 +534,38 @@ class AskTurnView extends ConsumerWidget {
         OutsideDataBand(artifacts: figures.outside, now: DateTime.now()),
     ];
 
-    // ANSWER LEFT, EVIDENCE RIGHT — owner's choice of 6 October 2026, "F",
-    // against an answer they called "very not nice": markdown blocks in one
-    // column capped at `answerProseWidth`, which for a question whose answer
-    // is four numbers and a split is the weakest shape available. The figures
-    // were buried in sentences the eye had to parse.
-    //
-    // Nothing new is RENDERED here. The three things a manager checks an
-    // answer against already exist and were simply stacked under it:
-    // `StepsSummaryRow` (which tool ran), `AnswerPanel` (the figures it
-    // returned) and `WebSources` (what it cited). On a desk they move into a
-    // column beside the prose, where they can be read WITH the answer rather
-    // than after scrolling past it.
-    //
-    // Only on a settled turn. While it streams, `WorkingSteps` is the whole
-    // point of the screen — it explains the pause before there is any text —
-    // so it keeps the full width and the split waits.
-    final desk =
-        MediaQuery.sizeOf(context).width >= askSplitMinWidth(skin) &&
-        !message.streaming &&
-        message.error == null;
+    // What closes a turn, in either shape. The stopped line offers its own
+    // way to ask again, so the actions row stands down when it is present.
+    final stopped = message.stopped
+        ? StoppedLine(onAskAgain: () => onAsk(_question(context, ref)))
+        : null;
+    final actions =
+        message.error == null && !message.streaming && !message.stopped
+        ? Builder(
+            builder: (context) => AnswerActionsRow(
+              text: answerPlainText(
+                context,
+                message: message,
+                question: _question(context, ref),
+              ),
+              onAskAgain: () => onAsk(_question(context, ref)),
+            ),
+          )
+        : null;
 
-    final evidence = <Widget>[
-      if (desk && message.tools.isNotEmpty) StepsSummaryRow(tools: message.tools),
-      if (desk) AnswerPanel(figures: figures),
-      if (desk)
-        WebSources(
-          sources: message.sources,
-          searched: message.tools.any(
-            (t) => AnswerFigures.webTools.contains(t.name),
-          ),
-        ),
-    ];
+    // Only a settled turn is a brief. While it streams, `WorkingSteps` is the
+    // whole point of the screen — it explains the pause before there is any
+    // text — and an error is a block, not a document.
+    if (wide && !message.streaming && message.error == null) {
+      return AnswerBrief(
+        message: message,
+        parsed: parsed,
+        figures: figures,
+        trailing: trailing,
+        followUpsEnabled: phase.canSend,
+        foot: <Widget>[?stopped, ?actions],
+      );
+    }
 
     final body = <Widget>[
       // The rail sits above the answer: its whole job is to explain a pause
@@ -545,7 +585,7 @@ class AskTurnView extends ConsumerWidget {
           now: ref.read(assistantClockProvider),
           onStop: () => ref.read(chatControllerProvider.notifier).stop(),
         )
-      else if (message.tools.isNotEmpty && !desk)
+      else if (message.tools.isNotEmpty)
         StepsSummaryRow(tools: message.tools),
       if (message.error != null)
         AnswerErrorBlock(
@@ -561,19 +601,18 @@ class AskTurnView extends ConsumerWidget {
           animate: animate,
           followUpsEnabled: phase.canSend,
           trailing: trailing,
-          artifacts: desk ? const <Widget>[] : <Widget>[AnswerPanel(figures: figures)],
+          artifacts: <Widget>[AnswerPanel(figures: figures)],
         )
       else ...<Widget>[
         if (message.text.isNotEmpty) PlainAnswer(message: message),
-        if (!desk) AnswerPanel(figures: figures),
+        AnswerPanel(figures: figures),
         ...trailing,
       ],
-      if (message.stopped)
-        StoppedLine(onAskAgain: () => onAsk(_question(context, ref))),
+      ?stopped,
       // A turn that errored has no answer to cite, and a turn still being
       // written has not cited yet: sources arrive after the tokens, and a
       // searched turn saying "nothing usable" before they land is false.
-      if (message.error == null && !message.streaming && !desk)
+      if (message.error == null && !message.streaming)
         WebSources(
           sources: message.sources,
           searched: message.tools.any(
@@ -583,55 +622,26 @@ class AskTurnView extends ConsumerWidget {
       // What a manager does with the answer once it has landed. Absent while
       // it streams, on an errored turn, and on a stopped one — which offers
       // its own way to ask again rather than two.
-      if (message.error == null && !message.streaming && !message.stopped)
-        Builder(
-          builder: (context) => AnswerActionsRow(
-            text: answerPlainText(
-              context,
-              message: message,
-              question: _question(context, ref),
-            ),
-            onAskAgain: () => onAsk(_question(context, ref)),
-          ),
-        ),
+      ?actions,
     ];
-
-    Widget stack(List<Widget> parts, String tag) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        for (var i = 0; i < parts.length; i++) ...<Widget>[
-          if (i > 0) SizedBox(height: skin.space.blockGap),
-          Arrive(key: ValueKey<String>('$tag-$i'), enabled: false, child: parts[i]),
-        ],
-      ],
-    );
-
-    final answer = stack(body, 'answer');
 
     return Semantics(
       container: true,
       label: context.l10n.askAnswer,
-      child: evidence.isEmpty
-          ? answer
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // 3 : 2 — the same split the door takes. The prose keeps the
-                // larger share because it is the answer and has a measure to
-                // hold; the evidence is read beside it, not instead of it.
-                Expanded(flex: 3, child: answer),
-                SizedBox(width: skin.space.blockGap),
-                Expanded(
-                  flex: 2,
-                  child: Semantics(
-                    container: true,
-                    label: context.l10n.askAnswerEvidence,
-                    child: stack(evidence, 'evidence'),
-                  ),
-                ),
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (var i = 0; i < body.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(height: skin.space.blockGap),
+            Arrive(
+              key: ValueKey<String>('answer-$i'),
+              enabled: false,
+              child: body[i],
             ),
+          ],
+        ],
+      ),
     );
   }
 
