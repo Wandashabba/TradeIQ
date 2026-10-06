@@ -17,13 +17,19 @@ import type { AuthedRequest } from './auth';
  * gets a fresh bucket per address and can simply walk out of its own subnet's
  * limit; the library validates for this and would refuse the config.
  */
-function ipLimiter(opts: { windowMs: number; limit: number; message: string }) {
+function ipLimiter(opts: {
+  windowMs: number;
+  limit: number;
+  message: string;
+  skipSuccessfulRequests?: boolean;
+}) {
   return rateLimit({
     windowMs: opts.windowMs,
     limit: opts.limit,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: opts.message },
+    skipSuccessfulRequests: opts.skipSuccessfulRequests ?? false,
     keyGenerator: (req) => {
       const ip = clientIp(req);
       // Fail closed onto one shared bucket. A caller we cannot place is given
@@ -44,6 +50,30 @@ export function createLoginRateLimiter(options?: { windowMs?: number; limit?: nu
     windowMs: options?.windowMs ?? Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000),
     limit: options?.limit ?? Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10),
     message: 'Too many login attempts, please try again later',
+    // ONLY FAILURES COUNT, AND THAT IS THE POINT OF THE LIMITER.
+    //
+    // Every attempt used to count, success included, so ten ordinary sign-ins
+    // in a quarter of an hour locked a person out of their own account. A depot
+    // handset that four agents sign in and out of through a shift hits it
+    // without a single wrong password being typed, which is the shape this
+    // product is built for; so does one person testing a deployment. The owner
+    // met it on 6 October 2026 and asked how to remove the error outright.
+    //
+    // Removing it is the wrong answer: the console is on the public internet
+    // and the seed's accounts are named in a public repository, so this is what
+    // stands between `admin@demo-fmcg.tradeiq.com` and an afternoon of guessing.
+    //
+    // Counting only failures keeps every bit of that. A brute-force attempt is
+    // made of wrong passwords by definition — each one answers 401, each one
+    // counts, and the tenth stops it exactly as before. What stops accumulating
+    // is the honest traffic the limiter was never aimed at. `express-rate-limit`
+    // decides on the response status, so a 200 is free and a 401 is charged.
+    //
+    // The cap itself stays env-tunable (`LOGIN_RATE_LIMIT_MAX`) for a demo that
+    // wants more headroom, and the per-account bounds on reset-password are
+    // untouched: guessing at a NAMED account stays bounded by its own counters
+    // whatever happens here.
+    skipSuccessfulRequests: true,
   });
 }
 

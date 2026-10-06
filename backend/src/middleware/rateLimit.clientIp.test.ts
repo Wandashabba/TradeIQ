@@ -68,6 +68,12 @@ expressApp.use(express.json());
 expressApp.post('/try', runChain, (_req, res) => {
   res.status(200).json({ ok: true });
 });
+// A REFUSED sign-in. The login limiter counts only failures, so a test about
+// the counter filling has to produce the status a wrong password produces —
+// a stub that always answered 200 would prove nothing about the limit.
+expressApp.post('/refused', runChain, (_req, res) => {
+  res.status(401).json({ error: 'Invalid credentials' });
+});
 const app = createServer(expressApp).listen(0);
 app.unref();
 
@@ -90,6 +96,11 @@ async function onFly<T>(run: () => Promise<T>): Promise<T> {
 /** One request, claiming to come from `ip` by every header a caller can set. */
 function from(ip: string) {
   return request(app).post('/try').set('Fly-Client-IP', ip).send({});
+}
+
+/** One request that the route REFUSES — a wrong password, in effect. */
+function refusedFrom(ip: string) {
+  return request(app).post('/refused').set('Fly-Client-IP', ip).send({});
 }
 
 describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
@@ -139,10 +150,12 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
       await onFly(async () => {
         using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
 
-        expect((await from('198.51.100.7')).status).toBe(200);
-        expect((await from('198.51.100.7')).status).toBe(200);
+        // Refused attempts, because those are what a brute-force run is made
+        // of and what the limiter now counts.
+        expect((await refusedFrom('198.51.100.7')).status).toBe(401);
+        expect((await refusedFrom('198.51.100.7')).status).toBe(401);
 
-        const blocked = await from('198.51.100.7');
+        const blocked = await refusedFrom('198.51.100.7');
         expect(blocked.status).toBe(429);
         expect(blocked.body).toEqual({
           error: 'Too many login attempts, please try again later',
@@ -185,9 +198,11 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
       // bucket and the third is refused.
       using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
 
-      expect((await from('1.1.1.1')).status).toBe(200);
-      expect((await from('2.2.2.2')).status).toBe(200);
-      expect((await from('3.3.3.3')).status).toBe(429);
+      // Refused attempts: the login limiter counts failures, so filling a
+      // bucket means failing into it.
+      expect((await refusedFrom('1.1.1.1')).status).toBe(401);
+      expect((await refusedFrom('2.2.2.2')).status).toBe(401);
+      expect((await refusedFrom('3.3.3.3')).status).toBe(429);
     });
 
     it('ignores a Fly-Client-IP that is not an address, even on Fly', async () => {
@@ -195,9 +210,9 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
       await onFly(async () => {
         using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
 
-        expect((await from('not-an-ip')).status).toBe(200);
-        expect((await from('also-not-an-ip')).status).toBe(200);
-        expect((await from('still-not-an-ip')).status).toBe(429);
+        expect((await refusedFrom('not-an-ip')).status).toBe(401);
+        expect((await refusedFrom('also-not-an-ip')).status).toBe(401);
+        expect((await refusedFrom('still-not-an-ip')).status).toBe(429);
       });
     });
   });
@@ -218,10 +233,10 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
         using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
 
         const forge = (xff: string) =>
-          request(app).post('/try').set('X-Forwarded-For', xff).send({});
+          request(app).post('/refused').set('X-Forwarded-For', xff).send({});
 
-        expect((await forge('9.9.9.1, 203.0.113.50')).status).toBe(200);
-        expect((await forge('9.9.9.2, 203.0.113.51')).status).toBe(200);
+        expect((await forge('9.9.9.1, 203.0.113.50')).status).toBe(401);
+        expect((await forge('9.9.9.2, 203.0.113.51')).status).toBe(401);
         expect((await forge('9.9.9.3, 203.0.113.52')).status).toBe(429);
       };
 
@@ -246,12 +261,12 @@ describe('IP-keyed limiters key on the caller, not on Fly’s proxy', () => {
       await onFly(async () => {
         using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
 
-        expect((await from('2001:db8:aaaa:bb00::1')).status).toBe(200);
-        expect((await from('2001:db8:aaaa:bbff::9')).status).toBe(200);
-        expect((await from('2001:db8:aaaa:bb12::7')).status).toBe(429);
+        expect((await refusedFrom('2001:db8:aaaa:bb00::1')).status).toBe(401);
+        expect((await refusedFrom('2001:db8:aaaa:bbff::9')).status).toBe(401);
+        expect((await refusedFrom('2001:db8:aaaa:bb12::7')).status).toBe(429);
 
         // A genuinely different allocation is a genuinely different bucket.
-        expect((await from('2001:db8:aaaa:cc00::1')).status).toBe(200);
+        expect((await refusedFrom('2001:db8:aaaa:cc00::1')).status).toBe(401);
       });
     });
   });
@@ -344,6 +359,81 @@ describe('running on Render', () => {
     it('ignores those headers entirely when not on Render', () => {
       delete process.env.RENDER;
       expect(ipFor({ 'cf-connecting-ip': '203.0.113.5' })).toBe('::ffff:10.192.245.168');
+    });
+  });
+});
+
+/**
+ * WHAT THE LOGIN LIMITER COUNTS.
+ *
+ * > *"How do we permanently remove the too many sign ins error"* — the owner,
+ * > 6 October 2026, locked out of a demo by ordinary use.
+ *
+ * Every attempt used to count, success included. Ten honest sign-ins in a
+ * quarter of an hour therefore locked a person out of their own account, which
+ * is not a brute-force defence — it is the defence firing at the people it was
+ * built to protect. A depot handset four agents share through a shift reaches
+ * ten without one wrong password; so does an afternoon of deploying.
+ *
+ * Removing the limiter was the other option and it is the wrong one: the
+ * console is on the public internet and the seed's accounts are named in a
+ * public repository. These two tests are the argument that the fix gave up
+ * nothing — the wrong passwords still count, and the right ones no longer do.
+ */
+describe('the login limiter counts failures, not sign-ins', () => {
+  beforeEach(() => {
+    chain = [];
+    delete process.env.FLY_APP_NAME;
+  });
+
+  it('lets an honest caller sign in far past the limit', async () => {
+    await onFly(async () => {
+      using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
+
+      // Six successful sign-ins against a limit of two. Before this they were
+      // 200, 200, then four 429s.
+      const statuses: number[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        statuses.push((await from('41.13.0.1')).status);
+      }
+      expect(statuses).toEqual([200, 200, 200, 200, 200, 200]);
+    });
+  });
+
+  it('still stops a run of wrong passwords at the limit', async () => {
+    await onFly(async () => {
+      using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
+
+      expect((await refusedFrom('203.0.113.9')).status).toBe(401);
+      expect((await refusedFrom('203.0.113.9')).status).toBe(401);
+      expect((await refusedFrom('203.0.113.9')).status).toBe(429);
+    });
+  });
+
+  it('counts a failure even when successes came first', async () => {
+    await onFly(async () => {
+      using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
+
+      expect((await from('198.51.100.22')).status).toBe(200);
+      expect((await refusedFrom('198.51.100.22')).status).toBe(401);
+      expect((await from('198.51.100.22')).status).toBe(200);
+      expect((await refusedFrom('198.51.100.22')).status).toBe(401);
+      // Two failures spent, whatever the successes between them.
+      expect((await refusedFrom('198.51.100.22')).status).toBe(429);
+    });
+  });
+
+  it('keeps the buckets per caller', async () => {
+    await onFly(async () => {
+      using(createLoginRateLimiter({ windowMs: 60_000, limit: 2 }));
+
+      expect((await refusedFrom('105.4.8.9')).status).toBe(401);
+      expect((await refusedFrom('105.4.8.9')).status).toBe(401);
+      expect((await refusedFrom('105.4.8.9')).status).toBe(429);
+
+      // The agent at the next desk is untouched by the guesser's bucket.
+      expect((await refusedFrom('197.214.1.1')).status).toBe(401);
+      expect((await from('197.214.1.1')).status).toBe(200);
     });
   });
 });
