@@ -431,6 +431,29 @@ class _AskState extends ConsumerState<_Ask> {
 /// would have been a second answer renderer, drifting from this one on the
 /// first bug fix. Nothing inside it moved, which is why Ask's renders are
 /// byte-identical across this change.
+/// The narrowest viewport that can hold an answer beside its evidence.
+///
+/// DERIVED, NOT CHOSEN, and the first version of this split did neither: it
+/// borrowed `ConsoleDesk.isDesk`, which wants **1212dp** because it is sizing a
+/// rail plus two panes plus their gutters. An answer and a column of figures
+/// need nothing like that, so on a browser window of about 1190dp — an ordinary
+/// maximised Chrome on a laptop — the split silently did not happen and the
+/// owner reported the screen as *"not changed at all"*. It was not changed:
+/// the condition was false.
+///
+/// The real floor is the answer's own measure. At 3 : 2 the prose takes
+/// three-fifths, and three-fifths must still be at least [TiqSpace.readingWidth]
+/// — the 45-to-75 character band that `entry_width_test.dart` measures — so the
+/// window needs `readingWidth / 3 × 5` plus the two outer gutters and the one
+/// between the columns. That is 837dp. The evidence column wants 280dp to hold
+/// a figure and its label without wrapping every line, which asks for 804 and
+/// is therefore not the binding constraint.
+///
+/// Rounded up to give the wider of the two a little air rather than landing
+/// exactly on its own minimum.
+double askSplitMinWidth(TiqSkin skin) =>
+    (TiqSpace.readingWidth / 3 * 5) + 2 * skin.space.gutterWide + skin.space.blockGap;
+
 class AskTurnView extends ConsumerWidget {
   const AskTurnView({
     super.key,
@@ -488,7 +511,7 @@ class AskTurnView extends ConsumerWidget {
     // point of the screen — it explains the pause before there is any text —
     // so it keeps the full width and the split waits.
     final desk =
-        ConsoleDesk.isDesk(skin, MediaQuery.sizeOf(context)) &&
+        MediaQuery.sizeOf(context).width >= askSplitMinWidth(skin) &&
         !message.streaming &&
         message.error == null;
 
