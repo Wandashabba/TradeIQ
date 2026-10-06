@@ -2296,6 +2296,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askOverTime => 'Over time';
 
   @override
+  String askBriefEyebrow(String scope) {
+    return 'Answer · $scope';
+  }
+
+  @override
+  String get askWhatThisMeans => 'What this means';
+
+  @override
   String get askUnsupportedView =>
       'This answer includes a view your app version cannot draw yet. The summary above still applies.';
 

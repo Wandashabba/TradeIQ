@@ -2324,6 +2324,14 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askOverTime => 'Oor tyd';
 
   @override
+  String askBriefEyebrow(String scope) {
+    return 'Antwoord · $scope';
+  }
+
+  @override
+  String get askWhatThisMeans => 'Wat dit beteken';
+
+  @override
   String get askUnsupportedView =>
       'Hierdie antwoord bevat ’n aansig wat jou weergawe van die program nog nie kan teken nie. Die opsomming hierbo geld steeds.';
 

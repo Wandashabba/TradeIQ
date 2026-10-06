@@ -604,6 +604,8 @@
   "askFigures": "Syfers vir hierdie antwoord",
   "askWorstFirst": "Swakste eerste",
   "askOverTime": "Oor tyd",
+  "askBriefEyebrow": "Antwoord · {scope}",
+  "askWhatThisMeans": "Wat dit beteken",
   "askUnsupportedView": "Hierdie antwoord bevat ’n aansig wat jou weergawe van die program nog nie kan teken nie. Die opsomming hierbo geld steeds.",
   "askUnprovenancedFigures": "Syfers word nie gewys vir antwoorde wat die web gebruik het nie, want hierdie weergawe van die program kan nie sê watter van buite af kom nie.",
   "askLoadingFigures": "Laai syfers",
