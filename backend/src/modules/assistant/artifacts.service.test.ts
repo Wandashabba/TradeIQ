@@ -230,6 +230,29 @@ describe('assistant artifacts', () => {
     expect(await takeParamsChanges(conversationId, owner)).toEqual([]);
   });
 
+  it('never marks a change delivered that it did not return, even on a timestamp tie', async () => {
+    // The clear used to be "everything up to the last returned row's
+    // timestamp", so a change past `limit` sharing that millisecond was
+    // cleared and never delivered. One refinement can move several artifacts
+    // in one transaction; ties are not exotic.
+    const conversationId = `conv-tie-${Date.now()}`;
+    const owner = { userId: manager.userId, clientId: manager.clientId };
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) ids.push((await seedArtifact(manager, conversationId)).id);
+    const tie = new Date();
+    await prisma.$executeRaw`
+      UPDATE assistant_artifacts SET params_changed_at = ${tie}
+       WHERE conversation_id = ${conversationId}`;
+
+    const first = await takeParamsChanges(conversationId, owner, 2);
+    const second = await takeParamsChanges(conversationId, owner, 2);
+
+    expect(first).toHaveLength(2);
+    expect(second).toHaveLength(1);
+    expect([...first, ...second].map((c) => c.id).sort()).toEqual([...ids].sort());
+    expect(await takeParamsChanges(conversationId, owner, 2)).toEqual([]);
+  });
+
   it('collapses repeated changes into where the user actually landed', async () => {
     // Three drags of one slider are one fact — the params it ended on. Three
     // notes would be two stale ones and a true one.

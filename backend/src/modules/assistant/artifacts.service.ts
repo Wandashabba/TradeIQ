@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import type { ArtifactParamsChange } from './paramsNote';
 import { resolveToolGates } from './toolGates';
@@ -307,7 +308,12 @@ export async function takeParamsChanges(
   });
   if (rows.length === 0) return [];
 
-  const cutoff = rows[rows.length - 1].paramsChangedAt!;
+  // Cleared BY ID — exactly the rows returned, never "everything up to the
+  // last one's timestamp". A timestamp cutoff also cleared any change past
+  // `limit` that shared the cutoff's millisecond: marked delivered, never
+  // returned, and lost. Ties are ordinary here — one refinement can move
+  // several artifacts in the same transaction.
+  const ids = rows.map((row) => row.id);
   // Raw, deliberately: `update` would touch `updatedAt`, and marking a note
   // delivered is bookkeeping, not a change to the view. A bumped `updatedAt`
   // would reorder the manifest and tell the client the artifact moved when
@@ -318,7 +324,7 @@ export async function takeParamsChanges(
      WHERE conversation_id = ${conversationId}
        AND client_id = ${owner.clientId}
        AND user_id = ${owner.userId}
-       AND params_changed_at <= ${cutoff}`;
+       AND id IN (${Prisma.join(ids)})`;
 
   return rows.map((row) => ({
     id: row.id,
